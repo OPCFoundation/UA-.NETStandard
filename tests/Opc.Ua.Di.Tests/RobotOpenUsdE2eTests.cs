@@ -44,6 +44,7 @@ using Opc.Ua.Positioning;
 using Opc.Ua.Positioning.Client;
 using Opc.Ua.Positioning.Server.Hosting;
 using Opc.Ua.Robotics.Server;
+using Robotics;
 using StreamingMonitoredItemOptions =
     Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -769,6 +770,195 @@ namespace Opc.Ua.Di.Tests
             }
         }
 
+        /// <summary>
+        /// A carried workpiece has to be authored where the gripper holding it is, not
+        /// where the simulation has since moved it to.
+        /// </summary>
+        /// <remarks>
+        /// The platform pose and the workpiece pose reach a connector as separate bindings.
+        /// Publishing them from different loops let the part run ahead of the jaws by a
+        /// quarter of a metre while the robot drove - three part widths, and plainly wrong
+        /// in a viewport. The tolerance here is deliberately far looser than the defect it
+        /// guards, because the two values land in the sink on separate notifications.
+        /// </remarks>
+        [Test]
+        public async Task ACarriedPartIsAuthoredAtTheGripperItRidesInAsync()
+        {
+            var sink = new MockUsdSink();
+            var connector = new OpenUsdConnector(m_session!, sink);
+            await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                bool authored = await PollAsync(
+                    () => sink.WasWritten(R1Prim, "xformOp:translate") &&
+                        sink.WasWritten("/Cell/Parts/Part01", "xformOp:translate"),
+                    TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+                Assert.That(authored, Is.True, "The cell never authored a workpiece pose.");
+
+                double worst = 0.0;
+                var deviations = new List<double>();
+                for (int attempt = 0; attempt < 240; attempt++)
+                {
+                    await Task.Delay(100).ConfigureAwait(false);
+                    foreach (string robotPrim in new[] { R1Prim, R2Prim })
+                    {
+                        // Only judge a stowed arm. The joint angles and the workpiece pose
+                        // land in the sink on separate notifications, and during a fast arm
+                        // sweep a few milliseconds of straddle between them is metres of
+                        // tool travel - an artefact of sampling, not of the server. Stowed
+                        // is also exactly when the platform is driving, which is when the
+                        // defect this guards showed.
+                        if (!TryReadPose(sink, robotPrim, out RigidTransform tcp, out bool stowed) ||
+                            !stowed)
+                        {
+                            continue;
+                        }
+                        (double tx, double ty, double tz) = tcp.Origin;
+                        foreach (string partPrim in s_partPrims)
+                        {
+                            if (!TryReadVector(sink, partPrim, "xformOp:translate",
+                                out double px, out double py, out double pz))
+                            {
+                                continue;
+                            }
+                            // A resting part sits on a table at 0.7875 m, or on the floor
+                            // after a dropped grip. Only a carried one rides up at the tool
+                            // centre point, so the height is what says it is being held -
+                            // proximity alone would match a block on a table the robot
+                            // happens to be parked beside.
+                            if (pz < 0.95)
+                            {
+                                continue;
+                            }
+                            double distance = Math.Sqrt(
+                                ((px - tx) * (px - tx)) +
+                                ((py - ty) * (py - ty)) +
+                                ((pz - tz) * (pz - tz)));
+                            // Attribute the part to the robot holding it; the other robot
+                            // may be carrying one of its own on the far side of the cell.
+                            if (distance > 0.5)
+                            {
+                                continue;
+                            }
+                            deviations.Add(distance);
+                            worst = Math.Max(worst, distance);
+                        }
+                    }
+                }
+
+                Assert.That(deviations, Is.Not.Empty,
+                    "No workpiece was ever authored near a tool centre point.");
+
+                // The median, not the worst case. The platform pose and the workpiece pose
+                // are separate bindings arriving on separate notifications, so a sample read
+                // between the two lands up to one publish period apart - 50 ms at 0.85 m/s
+                // is 43 mm - however coherent the server was. That straddle is occasional
+                // and symmetric, so the median stays well inside it. A server publishing the
+                // two from loops at different rates is wrong in *every* sample while the
+                // robot drives, and was wrong by 0.25 m to 0.49 m, which is what this
+                // catches with an order of magnitude to spare.
+                deviations.Sort();
+                double median = deviations[deviations.Count / 2];
+                Assert.That(median, Is.LessThan(0.05),
+                    $"A carried workpiece sat {median:F3} m from its gripper (worst {worst:F3} m).");
+                Assert.That(worst, Is.LessThan(0.20),
+                    $"A carried workpiece sat {worst:F3} m from its gripper.");
+            }
+            finally
+            {
+                await connector.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        private static readonly string[] s_partPrims =
+        [
+            "/Cell/Parts/Part01",
+            "/Cell/Parts/Part02",
+            "/Cell/Parts/Part03"
+        ];
+
+        /// <summary>
+        /// Rebuilds a robot's tool centre point from the values authored into the scene.
+        /// </summary>
+        private static bool TryReadPose(
+            MockUsdSink sink,
+            string robotPrim,
+            out RigidTransform tcp,
+            out bool stowed)
+        {
+            tcp = RigidTransform.Identity;
+            stowed = false;
+            if (!TryReadVector(sink, robotPrim, "xformOp:translate",
+                    out double x, out double y, out double _) ||
+                !TryReadVector(sink, robotPrim, "xformOp:rotateXYZ",
+                    out double _, out double _, out double heading))
+            {
+                return false;
+            }
+
+            var axes = new double[RobotKinematics.AxisCount];
+            for (int i = 0; i < s_axisPrims.Length; i++)
+            {
+                if (!sink.TryGetWritten(
+                        robotPrim + "/" + s_axisPrims[i].Path,
+                        s_axisPrims[i].Op,
+                        out Variant value) ||
+                    !value.TryGetValue(out double angle))
+                {
+                    return false;
+                }
+                axes[i] = angle;
+            }
+
+            stowed = true;
+            double[] transport = RobotAgent.TransportPose;
+            for (int i = 0; i < axes.Length; i++)
+            {
+                if (Math.Abs(axes[i] - transport[i]) > 1e-6)
+                {
+                    stowed = false;
+                    break;
+                }
+            }
+
+            tcp = RobotKinematics.ComputeToolCentrePoint(
+                RobotKinematics.CreateMountPose(x, y, 0.0, heading), axes);
+            return true;
+        }
+
+        private static readonly (string Path, string Op)[] s_axisPrims =
+        [
+            ("Base/J1", "xformOp:rotateZ"),
+            ("Base/J1/J2", "xformOp:rotateY"),
+            ("Base/J1/J2/J3", "xformOp:rotateY"),
+            ("Base/J1/J2/J3/J4", "xformOp:rotateX"),
+            ("Base/J1/J2/J3/J4/J5", "xformOp:rotateY"),
+            ("Base/J1/J2/J3/J4/J5/J6", "xformOp:rotateX")
+        ];
+
+        private static bool TryReadVector(
+            MockUsdSink sink,
+            string primPath,
+            string propertyName,
+            out double x,
+            out double y,
+            out double z)
+        {
+            x = 0.0;
+            y = 0.0;
+            z = 0.0;
+            if (!sink.TryGetWritten(primPath, propertyName, out Variant value) ||
+                !value.TryGetValue(out ArrayOf<double> vector) ||
+                vector.Count != 3)
+            {
+                return false;
+            }
+            x = vector[0];
+            y = vector[1];
+            z = vector[2];
+            return true;
+        }
+
         [Test]
         public async Task RobotPositionsDriveLiveOpenUsdSceneAsync()
         {
@@ -842,9 +1032,6 @@ namespace Opc.Ua.Di.Tests
                     Is.True);
                 Assert.That(firstR1.TryGetValue(out ArrayOf<double> firstR1Vector), Is.True);
                 Assert.That(firstR2.TryGetValue(out ArrayOf<double> firstR2Vector), Is.True);
-                Assert.That(
-                    Math.Abs(firstR1Vector[0] - firstR2Vector[0]),
-                    Is.GreaterThan(1.0));
 
                 // The robots now follow a coordinated duty cycle rather than a continuous
                 // sine path, so either of them can legitimately be standing still at any
@@ -882,9 +1069,17 @@ namespace Opc.Ua.Di.Tests
                 {
                     Assert.That(r1Moved, Is.GreaterThan(0.001));
                     Assert.That(r2Moved, Is.GreaterThan(0.001));
+
+                    // Separation in the plane, not along X. The robots pass each other in
+                    // opposite corridor lanes, so there are instants where their X is all
+                    // but identical and the 1.5 m between them is entirely in Y. Asserted
+                    // once both have been seen to move, because until the first sample
+                    // arrives each platform sits on the zero frame and the pair coincides.
+                    double dx = secondR1Vector[0] - secondR2Vector[0];
+                    double dy = secondR1Vector[1] - secondR2Vector[1];
                     Assert.That(
-                        Math.Abs(secondR1Vector[0] - secondR2Vector[0]),
-                        Is.GreaterThan(1.0));
+                        Math.Sqrt((dx * dx) + (dy * dy)),
+                        Is.GreaterThan(0.5));
                 });
             }
             finally

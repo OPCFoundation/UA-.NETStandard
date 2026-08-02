@@ -111,7 +111,6 @@ namespace Robotics
         /// </remarks>
         internal long RestingSequence { get; set; }
     }
-
     /// <summary>
     /// Counters describing how the cell is performing.
     /// </summary>
@@ -270,6 +269,18 @@ namespace Robotics
         /// Whether the arm is folded within the transport envelope.
         /// </summary>
         public bool ArmStowed { get; internal set; } = true;
+
+        /// <summary>
+        /// The platform pose most recently handed to the twin, if any.
+        /// </summary>
+        /// <remarks>
+        /// A carried part has to be drawn relative to the platform the *viewer* has, not
+        /// the one the simulation has. The platform pose and the part pose leave the server
+        /// on different loops, so a part drawn from the newer of the pair visibly runs
+        /// ahead of the gripper holding it - a quarter of a metre of it while driving,
+        /// which is three part widths.
+        /// </remarks>
+        internal (double X, double Y, double HeadingDegrees)? PublishedPose { get; set; }
 
         internal double DockX { get; }
 

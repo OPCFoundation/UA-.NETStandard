@@ -180,8 +180,9 @@ namespace Robotics
                 {
                     continue;
                 }
-                UpdateCoordinates(twin.Position, part.X, part.Y, part.Z);
-                UpdateOrientation(twin.Heading, part.HeadingDegrees);
+                (double x, double y, double z, double heading) = ResolvePartPose(cell, part);
+                UpdateCoordinates(twin.Position, x, y, z);
+                UpdateOrientation(twin.Heading, heading);
             }
 
             foreach (JawTwin twin in m_jawTwins)
@@ -195,6 +196,35 @@ namespace Robotics
                 UpdateCoordinates(twin.Upper, 0.0, offset, 0.0);
                 UpdateCoordinates(twin.Lower, 0.0, -offset, 0.0);
             }
+        }
+
+        /// <summary>
+        /// The pose to draw a workpiece at.
+        /// </summary>
+        /// <remarks>
+        /// A resting part is simply where it rests. A carried one is recomputed from the
+        /// platform pose that was last published rather than taken from the simulation,
+        /// because the platform and the part reach the twin on different loops: drawing the
+        /// part from the newer of the pair floats it out in front of the jaws by however far
+        /// the robot has driven since the platform was last sent.
+        /// </remarks>
+        private static (double X, double Y, double Z, double Heading) ResolvePartPose(
+            CellChoreographer cell,
+            CellPart part)
+        {
+            if (part.CarriedBy == null)
+            {
+                return (part.X, part.Y, part.Z, part.HeadingDegrees);
+            }
+            RobotAgent? carrier = FindAgent(cell, part.CarriedBy);
+            if (carrier?.PublishedPose is not (double px, double py, double heading))
+            {
+                return (part.X, part.Y, part.Z, part.HeadingDegrees);
+            }
+            RigidTransform mount = RobotKinematics.CreateMountPose(px, py, 0.0, heading);
+            (double x, double y, double z) = RobotKinematics
+                .ComputeToolCentrePoint(mount, carrier.Axes).Origin;
+            return (x, y, z, heading);
         }
 
         /// <summary>

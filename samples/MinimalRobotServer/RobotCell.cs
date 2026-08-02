@@ -714,6 +714,8 @@ namespace Robotics
                             },
                             sample.StatusCode,
                             sample.GetEffectiveSourceTimestamp());
+                        RecordPublishedPose(
+                            runtime.SourceId, local.X, local.Y, sampleOrientation.C);
                         return default;
                     },
                     context.CancellationToken).ConfigureAwait(false);
@@ -747,6 +749,38 @@ namespace Robotics
                     runtime.Representation.NodeId,
                     binding,
                     context.CancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Records the platform pose that was just written to the twin.
+        /// </summary>
+        /// <remarks>
+        /// Taken here rather than where the sample is produced, so it is the pose that
+        /// actually reached the address space: a carried part is drawn against it, and a
+        /// part drawn against anything newer floats out in front of the jaws holding it.
+        /// </remarks>
+        /// <param name="robotId">The robot the pose belongs to.</param>
+        /// <param name="x">The X position written, in metres.</param>
+        /// <param name="y">The Y position written, in metres.</param>
+        /// <param name="headingDegrees">The heading written, in degrees.</param>
+        private void RecordPublishedPose(
+            string robotId,
+            double x,
+            double y,
+            double headingDegrees)
+        {
+            if (m_choreographer == null)
+            {
+                return;
+            }
+            foreach (RobotAgent agent in m_choreographer.Robots)
+            {
+                if (string.Equals(agent.Id, robotId, StringComparison.Ordinal))
+                {
+                    agent.PublishedPose = (x, y, headingDegrees);
+                    return;
+                }
             }
         }
 
