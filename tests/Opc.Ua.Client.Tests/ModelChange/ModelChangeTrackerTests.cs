@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -40,6 +38,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.ModelChange;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -90,6 +89,32 @@ namespace Opc.Ua.Client.Tests.ModelChange
             await tracker.StartTrackingAsync().ConfigureAwait(false);
 
             Assert.That(tracker.IsTracking, Is.True);
+        }
+
+        [Test]
+        public async Task StartTrackingAsyncWaitsUntilEventMonitoredItemIsCreated()
+        {
+            var fake = new FakeStreamingSubscription(eventMonitoredItemCreated: false);
+            await using var tracker = new ModelChangeTracker(fake);
+
+            int raised = 0;
+            tracker.ModelChanged += (_, _) => Interlocked.Increment(ref raised);
+
+            Task startTask = tracker.StartTrackingAsync().AsTask();
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+            await Task.Delay(50).ConfigureAwait(false);
+
+            Assert.That(startTask.IsCompleted, Is.False);
+
+            fake.CreateEventMonitoredItem();
+            await startTask.ConfigureAwait(false);
+
+            fake.Push(new EventNotification(
+                null,
+                ArrayOf.Wrapped(default, default, Variant.From("ready"))));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            Assert.That(raised, Is.EqualTo(1));
         }
 
         [Test]
@@ -579,7 +604,9 @@ namespace Opc.Ua.Client.Tests.ModelChange
         /// completes when <see cref="Complete"/> is called or the
         /// supplied cancellation token fires.
         /// </summary>
-        private sealed class FakeStreamingSubscription : IStreamingSubscription
+        private sealed class FakeStreamingSubscription :
+            IStreamingSubscription,
+            IStreamingSubscriptionReadiness
         {
             private readonly Channel<EventNotification> m_channel =
                 Channel.CreateUnbounded<EventNotification>(
@@ -592,15 +619,26 @@ namespace Opc.Ua.Client.Tests.ModelChange
             private readonly TaskCompletionSource<bool> m_subscribed =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            private readonly FakeMonitoredItem m_eventMonitoredItem;
             private int m_subscribeCallCount;
             private int m_pumpCancellationObserved;
             private int m_pushed;
             private int m_handled;
 
+            public FakeStreamingSubscription(bool eventMonitoredItemCreated = true)
+            {
+                m_eventMonitoredItem = new FakeMonitoredItem(eventMonitoredItemCreated);
+            }
+
             public int SubscribeCallCount => m_subscribeCallCount;
 
             public bool PumpCancellationObserved =>
                 Volatile.Read(ref m_pumpCancellationObserved) != 0;
+
+            public void CreateEventMonitoredItem()
+            {
+                m_eventMonitoredItem.Create();
+            }
 
             public void Push(EventNotification notification)
             {
@@ -638,14 +676,39 @@ namespace Opc.Ua.Client.Tests.ModelChange
                 }
             }
 
+            public IAsyncEnumerable<EventNotification> SubscribeEventsAsync(
+                NodeId notifierId,
+                EventFilter filter,
+                MonitoringOptions? options,
+                Func<IMonitoredItem, CancellationToken, ValueTask> onMonitoredItemReady,
+                CancellationToken ct = default)
+            {
+                return SubscribeEventsCoreAsync(onMonitoredItemReady, ct);
+            }
+
             public async IAsyncEnumerable<EventNotification> SubscribeEventsAsync(
                 NodeId notifierId,
                 EventFilter filter,
                 MonitoringOptions? options = null,
                 [EnumeratorCancellation] CancellationToken ct = default)
             {
+                await foreach (EventNotification notification in SubscribeEventsCoreAsync(null, ct)
+                    .ConfigureAwait(false))
+                {
+                    yield return notification;
+                }
+            }
+
+            private async IAsyncEnumerable<EventNotification> SubscribeEventsCoreAsync(
+                Func<IMonitoredItem, CancellationToken, ValueTask>? onMonitoredItemReady,
+                [EnumeratorCancellation] CancellationToken ct = default)
+            {
                 Interlocked.Increment(ref m_subscribeCallCount);
                 m_subscribed.TrySetResult(true);
+                if (onMonitoredItemReady != null)
+                {
+                    await onMonitoredItemReady(m_eventMonitoredItem, ct).ConfigureAwait(false);
+                }
 
                 try
                 {
@@ -689,6 +752,53 @@ namespace Opc.Ua.Client.Tests.ModelChange
             public ValueTask DisposeAsync()
             {
                 Complete();
+                return default;
+            }
+        }
+
+        private sealed class FakeMonitoredItem : IMonitoredItem, IMonitoredItemApplyState
+        {
+            private int m_created;
+
+            public FakeMonitoredItem(bool created)
+            {
+                m_created = created ? 1 : 0;
+                Error = ServiceResult.Good;
+            }
+
+            public string Name => "fake_event";
+
+            public uint Order => 0;
+
+            public uint ServerId => Created ? 1u : 0u;
+
+            public bool Created => Volatile.Read(ref m_created) != 0;
+
+            public ServiceResult Error { get; }
+
+            public bool HasPendingChanges => !Created && ServiceResult.IsGood(Error);
+
+            public MonitoringFilterResult? FilterResult => null;
+
+            public MonitoringMode CurrentMonitoringMode => MonitoringMode.Reporting;
+
+            public TimeSpan CurrentSamplingInterval => TimeSpan.Zero;
+
+            public uint CurrentQueueSize => 0;
+
+            public uint ClientHandle => 1;
+
+            public IEnumerable<IMonitoredItem> TriggeringItems => Array.Empty<IMonitoredItem>();
+
+            public IEnumerable<IMonitoredItem> TriggeredItems => Array.Empty<IMonitoredItem>();
+
+            public void Create()
+            {
+                Interlocked.Exchange(ref m_created, 1);
+            }
+
+            public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
+            {
                 return default;
             }
         }
