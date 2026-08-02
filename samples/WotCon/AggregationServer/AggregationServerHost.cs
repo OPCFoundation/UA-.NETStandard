@@ -157,6 +157,13 @@ namespace AggregationServer
 
             opcUa.AddHttpWotBinding();
             opcUa.AddModbusWotBinding();
+
+            // The aggregation topology deliberately federates source servers that run on the
+            // same host as this server, so the loopback gate the default policy applies must be
+            // opened explicitly. Keep every other check (scheme, blocked hosts, private ranges)
+            // at its secure default.
+            opcUa.AddWotEndpointPolicy(new WotEndpointPolicy { AllowLoopback = true });
+
             builder.Services.AddSingleton<IWotBindingExecutor>(serviceProvider =>
             {
                 IManagedSessionPool pool =

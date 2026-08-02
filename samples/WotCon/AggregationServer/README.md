@@ -17,4 +17,20 @@ opcUa.AddWotProtocolBinders()
 
 The executable server targets `net8.0`, `net9.0`, and `net10.0`, where its OPC UA binding executor is available. Legacy `CustomTestTarget` solution builds use a no-op shell and are not runnable sample configurations.
 
+## Endpoint policy
+
+WoT binding executors validate every outbound endpoint against a `WotEndpointPolicy` before opening a channel. The
+default policy blocks loopback and private address ranges, so a server cannot be talked into reaching its own
+listeners or a cloud metadata service on behalf of a remote caller.
+
+This sample federates `SourceA` and `SourceB`, which run on the same host, so it opts in to loopback explicitly:
+
+```csharp
+opcUa.AddWotEndpointPolicy(new WotEndpointPolicy { AllowLoopback = true });
+```
+
+Only the loopback gate is opened; the scheme allow-list, blocked-host list, and private-range checks stay at their
+secure defaults. A deployment that reaches real assets over the network should leave `AllowLoopback` off and instead
+pin the reachable devices with `AllowedHosts`.
+
 See the [WoT aggregation sample guide](../README.md) for topology, commands, monitoring, shadow replacement, troubleshooting, and NativeAOT publishing.
