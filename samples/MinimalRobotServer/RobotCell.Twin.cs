@@ -85,11 +85,6 @@ namespace Robotics
             ushort ns,
             CancellationToken cancellationToken)
         {
-            if (m_choreographer == null)
-            {
-                return;
-            }
-
             var folder = new FolderState(null)
             {
                 SymbolicName = "CellTwin",

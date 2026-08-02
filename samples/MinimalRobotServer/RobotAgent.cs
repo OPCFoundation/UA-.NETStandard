@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua;
 
 namespace Robotics
 {
@@ -176,14 +177,21 @@ namespace Robotics
             HeadingDegrees = 90.0;
             BatteryLevel = 100.0;
             Axes = new double[RobotKinematics.AxisCount];
-            TransportPose.CopyTo(Axes, 0);
+            TransportPose.Span.CopyTo(Axes);
         }
 
         /// <summary>
         /// The arm pose held while travelling, folded back over the platform so the robot
         /// stays inside <see cref="CellLayout.TransportRadius"/>.
         /// </summary>
-        public static double[] TransportPose => [0.0, -100.0, 125.0, 0.0, 65.0, 0.0];
+        /// <remarks>
+        /// Held as a single immutable value rather than rebuilt per access: the
+        /// choreography reads it on every tick of every robot, and an <c>ArrayOf</c> can be
+        /// shared safely where a cached <c>double[]</c> would hand every caller a writable
+        /// reference to the one copy.
+        /// </remarks>
+        public static ArrayOf<double> TransportPose { get; }
+            = new double[] { 0.0, -100.0, 125.0, 0.0, 65.0, 0.0 };
 
         /// <summary>
         /// The robot identifier, matching its mount prim name.

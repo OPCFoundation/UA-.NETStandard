@@ -100,7 +100,7 @@ namespace Robotics
         private DiNodeManager? m_manager;
         private NodeId m_r1NodeId;
         private MotionDeviceSystemState? m_robotCell;
-        private readonly CellChoreographer? m_choreographer;
+        private readonly CellChoreographer m_choreographer;
 
         /// <summary>
         /// Creates the sample Robotics configurator.
@@ -108,10 +108,20 @@ namespace Robotics
         /// <param name="logger">
         /// The configurator logger.
         /// </param>
-        public RobotCell(ILogger<RobotCell> logger, CellChoreographer? choreographer = null)
+        /// <param name="choreographer">
+        /// The cell choreography every robot, workpiece and twin binding is driven from.
+        /// </param>
+        /// <remarks>
+        /// Required rather than optional: without it the simulation tick has nothing to
+        /// advance and the whole cell silently freezes with its axes at the home pose. A
+        /// missing registration should fail where it is made, not look like a stopped
+        /// robot.
+        /// </remarks>
+        public RobotCell(ILogger<RobotCell> logger, CellChoreographer choreographer)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            m_choreographer = choreographer;
+            m_choreographer = choreographer ??
+                throw new ArgumentNullException(nameof(choreographer));
         }
 
         private DiNodeManager Manager => m_manager ?? throw new InvalidOperationException(
@@ -781,10 +791,6 @@ namespace Robotics
             double y,
             double headingDegrees)
         {
-            if (m_choreographer == null)
-            {
-                return;
-            }
             foreach (RobotAgent agent in m_choreographer.Robots)
             {
                 if (string.Equals(agent.Id, robotId, StringComparison.Ordinal))

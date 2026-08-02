@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua;
+
 namespace Robotics
 {
     /// <summary>
@@ -62,7 +64,13 @@ namespace Robotics
         /// <summary>
         /// The X offsets of the three part slots on a table, in metres.
         /// </summary>
-        public static double[] SlotOffsetsX => [-0.22, 0.0, 0.22];
+        /// <remarks>
+        /// Held as a single immutable value rather than rebuilt per access: slot positions
+        /// are resolved throughout the simulation, and an <c>ArrayOf</c> can be shared
+        /// safely where a cached <c>double[]</c> would hand every caller a writable
+        /// reference to the one copy.
+        /// </remarks>
+        public static ArrayOf<double> SlotOffsetsX { get; } = new double[] { -0.22, 0.0, 0.22 };
 
         /// <summary>
         /// The Y position a robot parks at to work a table, in metres.
@@ -123,8 +131,8 @@ namespace Robotics
         /// <returns>The slot centre, in metres.</returns>
         public static (double X, double Y, double Z) SlotPosition(CellStation table, int slot)
         {
-            double[] offsets = SlotOffsetsX;
-            int index = slot < 0 ? 0 : slot % offsets.Length;
+            ArrayOf<double> offsets = SlotOffsetsX;
+            int index = slot < 0 ? 0 : slot % offsets.Count;
             double tableX = table == CellStation.TableA ? TableAX : TableBX;
             return (tableX + offsets[index], TableY, TableSurfaceZ + 0.0175);
         }

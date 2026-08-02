@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua;
 
 namespace Robotics
 {
@@ -653,7 +654,7 @@ namespace Robotics
             return CruiseSpeed;
         }
 
-        private static bool StepAxesTowards(RobotAgent robot, double[] goal, double dt)
+        private static bool StepAxesTowards(RobotAgent robot, ArrayOf<double> goal, double dt)
         {
             const double axisSpeed = 90.0;
             bool settled = true;
@@ -751,7 +752,7 @@ namespace Robotics
 
         private int FirstFreeSlot(CellStation station)
         {
-            int count = CellLayout.SlotOffsetsX.Length;
+            int count = CellLayout.SlotOffsetsX.Count;
             var taken = new bool[count];
             foreach (CellPart part in m_parts)
             {

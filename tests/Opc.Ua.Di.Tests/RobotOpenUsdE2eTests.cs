@@ -911,7 +911,7 @@ namespace Opc.Ua.Di.Tests
             }
 
             stowed = true;
-            double[] transport = RobotAgent.TransportPose;
+            ArrayOf<double> transport = RobotAgent.TransportPose;
             for (int i = 0; i < axes.Length; i++)
             {
                 if (Math.Abs(axes[i] - transport[i]) > 1e-6)

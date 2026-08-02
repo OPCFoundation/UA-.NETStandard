@@ -69,11 +69,7 @@ namespace Robotics
             bool estop = (t % EstopPeriodTicks) >= EstopActiveFromTick;
             UpdateBool(m_estopVar, estop);
 
-            CellChoreographer? cell = m_choreographer;
-            if (cell == null)
-            {
-                return;
-            }
+            CellChoreographer cell = m_choreographer;
             cell.EmergencyStop = estop;
             cell.Advance(TickSeconds);
             PublishTwinState(cell);
