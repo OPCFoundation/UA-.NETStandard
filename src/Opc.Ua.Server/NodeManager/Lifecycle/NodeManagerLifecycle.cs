@@ -137,16 +137,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> AddAsync(
             IAsyncNodeManagerFactory factory,
-            CancellationToken ct = default)
-        {
-            return AddAsync(factory, callerContext: null, ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> AddAsync(
-            IAsyncNodeManagerFactory factory,
             IOperationContext? callerContext,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             if (factory is null)
             {
@@ -162,16 +154,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> AddAsync(
             INodeManagerFactory factory,
-            CancellationToken ct = default)
-        {
-            return AddAsync(factory, callerContext: null, ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> AddAsync(
-            INodeManagerFactory factory,
             IOperationContext? callerContext,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             if (factory is null)
             {
@@ -189,17 +173,8 @@ namespace Opc.Ua.Server
         public ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
-            CancellationToken ct = default)
-        {
-            return ReloadAsync(registration, replacement, callerContext: null, ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> ReloadAsync(
-            NodeManagerRegistration registration,
-            IAsyncNodeManagerFactory replacement,
             IOperationContext? callerContext,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             if (replacement is null)
             {
@@ -217,17 +192,8 @@ namespace Opc.Ua.Server
         public ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
-            CancellationToken ct = default)
-        {
-            return ReloadAsync(registration, replacement, callerContext: null, ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> ReloadAsync(
-            NodeManagerRegistration registration,
-            INodeManagerFactory replacement,
             IOperationContext? callerContext,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             if (replacement is null)
             {
@@ -243,18 +209,10 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask RemoveAsync(
-            NodeManagerRegistration registration,
-            CancellationToken ct = default)
-        {
-            return RemoveAsync(registration, callerContext: null, ct);
-        }
-
-        /// <inheritdoc/>
         public async ValueTask RemoveAsync(
             NodeManagerRegistration registration,
             IOperationContext? callerContext,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             if (registration is null)
             {
@@ -418,7 +376,7 @@ namespace Opc.Ua.Server
         private async ValueTask<NodeManagerRegistration> AddCoreAsync(
             CreateNodeManagerAsync createNodeManager,
             IOperationContext? callerContext,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             EnsureNotRequestCallback(callerContext);
             await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
@@ -621,7 +579,7 @@ namespace Opc.Ua.Server
             NodeManagerRegistration registration,
             CreateNodeManagerAsync createNodeManager,
             IOperationContext? callerContext,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             if (registration is null)
             {

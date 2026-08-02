@@ -41,21 +41,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// <summary>
         /// Loads and publishes a runtime NodeSet on a running server.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when <paramref name="lifecycle"/> or <paramref name="options"/> is <c>null</c>.
-        /// </exception>
-        public static ValueTask<NodeManagerRegistration> AddRuntimeNodeSetAsync(
-            this INodeManagerLifecycle lifecycle,
-            RuntimeNodeSetOptions options,
-            CancellationToken ct = default)
-        {
-            return lifecycle.AddRuntimeNodeSetAsync(options, callerContext: null, ct);
-        }
-
-        /// <summary>
-        /// Loads and publishes a runtime NodeSet on a running server on behalf of the supplied
-        /// operation.
-        /// </summary>
         /// <param name="lifecycle">The lifecycle provider of the running server.</param>
         /// <param name="options">The options describing the NodeSet to load.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
@@ -71,7 +56,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             this INodeManagerLifecycle lifecycle,
             RuntimeNodeSetOptions options,
             IOperationContext? callerContext,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             if (lifecycle is null)
             {
@@ -91,27 +76,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// <summary>
         /// Reloads a live runtime NodeSet registration from replacement options.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when <paramref name="lifecycle"/>, <paramref name="registration"/>, or
-        /// <paramref name="replacement"/> is <c>null</c>.
-        /// </exception>
-        public static ValueTask<NodeManagerRegistration> ReloadRuntimeNodeSetAsync(
-            this INodeManagerLifecycle lifecycle,
-            NodeManagerRegistration registration,
-            RuntimeNodeSetOptions replacement,
-            CancellationToken ct = default)
-        {
-            return lifecycle.ReloadRuntimeNodeSetAsync(
-                registration,
-                replacement,
-                callerContext: null,
-                ct);
-        }
-
-        /// <summary>
-        /// Reloads a live runtime NodeSet registration from replacement options on behalf of the
-        /// supplied operation.
-        /// </summary>
         /// <param name="lifecycle">The lifecycle provider of the running server.</param>
         /// <param name="registration">The registration to replace.</param>
         /// <param name="replacement">The options describing the replacement NodeSet.</param>
@@ -130,7 +94,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             NodeManagerRegistration registration,
             RuntimeNodeSetOptions replacement,
             IOperationContext? callerContext,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             if (lifecycle is null)
             {

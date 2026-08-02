@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             IAsyncNodeManagerFactory factory = Mock.Of<IAsyncNodeManagerFactory>();
 
             Assert.That(
-                async () => await hosted.AddAsync(factory).ConfigureAwait(false),
+                async () => await hosted.AddAsync(factory, null).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             INodeManagerFactory factory = Mock.Of<INodeManagerFactory>();
 
             Assert.That(
-                async () => await hosted.AddAsync(factory).ConfigureAwait(false),
+                async () => await hosted.AddAsync(factory, null).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             IAsyncNodeManagerFactory replacement = Mock.Of<IAsyncNodeManagerFactory>();
 
             Assert.That(
-                async () => await hosted.ReloadAsync(registration, replacement).ConfigureAwait(false),
+                async () => await hosted.ReloadAsync(registration, replacement, null).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             INodeManagerFactory replacement = Mock.Of<INodeManagerFactory>();
 
             Assert.That(
-                async () => await hosted.ReloadAsync(registration, replacement).ConfigureAwait(false),
+                async () => await hosted.ReloadAsync(registration, replacement, null).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             NodeManagerRegistration registration = NewRegistration();
 
             Assert.That(
-                async () => await hosted.RemoveAsync(registration).ConfigureAwait(false),
+                async () => await hosted.RemoveAsync(registration, null).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 
@@ -185,16 +185,16 @@ namespace Opc.Ua.Server.Tests.Hosting
             NodeManagerRegistration expected = NewRegistration();
             using var cts = new CancellationTokenSource();
             inner
-                .Setup(l => l.AddAsync(factory, cts.Token))
+                .Setup(l => l.AddAsync(factory, null, cts.Token))
                 .Returns(new ValueTask<NodeManagerRegistration>(expected));
             hosted.Attach(inner.Object);
 
             NodeManagerRegistration actual = await hosted
-                .AddAsync(factory, cts.Token)
+                .AddAsync(factory, null, cts.Token)
                 .ConfigureAwait(false);
 
             Assert.That(actual, Is.SameAs(expected));
-            inner.Verify(l => l.AddAsync(factory, cts.Token), Times.Once);
+            inner.Verify(l => l.AddAsync(factory, null, cts.Token), Times.Once);
         }
 
         [Test]
@@ -205,11 +205,11 @@ namespace Opc.Ua.Server.Tests.Hosting
             INodeManagerFactory factory = Mock.Of<INodeManagerFactory>();
             NodeManagerRegistration expected = NewRegistration();
             inner
-                .Setup(l => l.AddAsync(factory, CancellationToken.None))
+                .Setup(l => l.AddAsync(factory, null, CancellationToken.None))
                 .Returns(new ValueTask<NodeManagerRegistration>(expected));
             hosted.Attach(inner.Object);
 
-            NodeManagerRegistration actual = await hosted.AddAsync(factory).ConfigureAwait(false);
+            NodeManagerRegistration actual = await hosted.AddAsync(factory, null).ConfigureAwait(false);
 
             Assert.That(actual, Is.SameAs(expected));
         }
@@ -223,12 +223,12 @@ namespace Opc.Ua.Server.Tests.Hosting
             NodeManagerRegistration expected = NewRegistration();
             IAsyncNodeManagerFactory replacement = Mock.Of<IAsyncNodeManagerFactory>();
             inner
-                .Setup(l => l.ReloadAsync(current, replacement, CancellationToken.None))
+                .Setup(l => l.ReloadAsync(current, replacement, null, CancellationToken.None))
                 .Returns(new ValueTask<NodeManagerRegistration>(expected));
             hosted.Attach(inner.Object);
 
             NodeManagerRegistration actual = await hosted
-                .ReloadAsync(current, replacement)
+                .ReloadAsync(current, replacement, null)
                 .ConfigureAwait(false);
 
             Assert.That(actual, Is.SameAs(expected));
@@ -243,12 +243,12 @@ namespace Opc.Ua.Server.Tests.Hosting
             NodeManagerRegistration expected = NewRegistration();
             INodeManagerFactory replacement = Mock.Of<INodeManagerFactory>();
             inner
-                .Setup(l => l.ReloadAsync(current, replacement, CancellationToken.None))
+                .Setup(l => l.ReloadAsync(current, replacement, null, CancellationToken.None))
                 .Returns(new ValueTask<NodeManagerRegistration>(expected));
             hosted.Attach(inner.Object);
 
             NodeManagerRegistration actual = await hosted
-                .ReloadAsync(current, replacement)
+                .ReloadAsync(current, replacement, null)
                 .ConfigureAwait(false);
 
             Assert.That(actual, Is.SameAs(expected));
@@ -261,13 +261,13 @@ namespace Opc.Ua.Server.Tests.Hosting
             var inner = new Mock<INodeManagerLifecycle>();
             NodeManagerRegistration registration = NewRegistration();
             inner
-                .Setup(l => l.RemoveAsync(registration, CancellationToken.None))
+                .Setup(l => l.RemoveAsync(registration, null, CancellationToken.None))
                 .Returns(default(ValueTask));
             hosted.Attach(inner.Object);
 
-            await hosted.RemoveAsync(registration).ConfigureAwait(false);
+            await hosted.RemoveAsync(registration, null).ConfigureAwait(false);
 
-            inner.Verify(l => l.RemoveAsync(registration, CancellationToken.None), Times.Once);
+            inner.Verify(l => l.RemoveAsync(registration, null, CancellationToken.None), Times.Once);
         }
 
         [Test]

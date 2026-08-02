@@ -281,17 +281,17 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 
     public async ValueTask LoadAsync(IAsyncNodeManagerFactory factory, CancellationToken ct)
     {
-        m_registration = await lifecycle.AddAsync(factory, ct);
+        m_registration = await lifecycle.AddAsync(factory, callerContext: null, ct);
     }
 
     public async ValueTask ReloadAsync(IAsyncNodeManagerFactory replacement, CancellationToken ct)
     {
-        m_registration = await lifecycle.ReloadAsync(m_registration!, replacement, ct);
+        m_registration = await lifecycle.ReloadAsync(m_registration!, replacement, callerContext: null, ct);
     }
 
     public ValueTask RemoveAsync(CancellationToken ct)
     {
-        return lifecycle.RemoveAsync(m_registration!, ct);
+        return lifecycle.RemoveAsync(m_registration!, callerContext: null, ct);
     }
 }
 ```
@@ -305,9 +305,9 @@ OPC UA service or Method callback: teardown waits for the requests that already 
 routing generation to complete before disposing it, so a lifecycle call made from within such a
 request would wait for itself.
 
-Every lifecycle method has an overload that takes the operation the caller is running under, ahead
-of a required `CancellationToken`. Pass it from a NodeManager or Method callback and the server
-rejects the call with an `InvalidOperationException` instead of deadlocking:
+Every lifecycle method takes the operation the caller is running under. Pass it from a NodeManager
+or Method callback and the server rejects the call with an `InvalidOperationException` instead of
+deadlocking:
 
 ```csharp
 private async ValueTask<ServiceResult> OnReloadModelAsync(
@@ -328,7 +328,7 @@ private async ValueTask<ServiceResult> OnReloadModelAsync(
 ```
 
 A control-plane caller — a hosted service, or anything resolved from dependency injection — is not
-serving a request and uses the overloads without an operation.
+serving a request and passes `null`.
 
 The guard is an identity check against the requests the server is currently executing, not ambient
 state, so an internal operation that was never enrolled as a Client request is allowed through, and

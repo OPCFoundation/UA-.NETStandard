@@ -45,14 +45,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates and publishes a NodeManager from an asynchronous factory.
         /// </summary>
-        ValueTask<NodeManagerRegistration> AddAsync(
-            IAsyncNodeManagerFactory factory,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Creates and publishes a NodeManager from an asynchronous factory on behalf of the
-        /// supplied operation.
-        /// </summary>
         /// <param name="factory">The factory that creates the NodeManager.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
         /// when the caller is not serving an operation. A callback passes the context it was
@@ -65,19 +57,11 @@ namespace Opc.Ua.Server
         ValueTask<NodeManagerRegistration> AddAsync(
             IAsyncNodeManagerFactory factory,
             IOperationContext? callerContext,
-            CancellationToken ct);
+            CancellationToken ct = default);
 
         /// <summary>
         /// Creates and publishes a NodeManager from a synchronous factory.
         /// </summary>
-        ValueTask<NodeManagerRegistration> AddAsync(
-            INodeManagerFactory factory,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Creates and publishes a NodeManager from a synchronous factory on behalf of the
-        /// supplied operation.
-        /// </summary>
         /// <param name="factory">The factory that creates the NodeManager.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
         /// when the caller is not serving an operation. A callback passes the context it was
@@ -90,20 +74,11 @@ namespace Opc.Ua.Server
         ValueTask<NodeManagerRegistration> AddAsync(
             INodeManagerFactory factory,
             IOperationContext? callerContext,
-            CancellationToken ct);
+            CancellationToken ct = default);
 
         /// <summary>
         /// Replaces a live registration with a new asynchronous factory generation.
         /// </summary>
-        ValueTask<NodeManagerRegistration> ReloadAsync(
-            NodeManagerRegistration registration,
-            IAsyncNodeManagerFactory replacement,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Replaces a live registration with a new asynchronous factory generation on behalf of
-        /// the supplied operation.
-        /// </summary>
         /// <param name="registration">The registration to replace.</param>
         /// <param name="replacement">The factory that creates the next generation.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
@@ -118,20 +93,11 @@ namespace Opc.Ua.Server
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
             IOperationContext? callerContext,
-            CancellationToken ct);
+            CancellationToken ct = default);
 
         /// <summary>
         /// Replaces a live registration with a new synchronous factory generation.
         /// </summary>
-        ValueTask<NodeManagerRegistration> ReloadAsync(
-            NodeManagerRegistration registration,
-            INodeManagerFactory replacement,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Replaces a live registration with a new synchronous factory generation on behalf of
-        /// the supplied operation.
-        /// </summary>
         /// <param name="registration">The registration to replace.</param>
         /// <param name="replacement">The factory that creates the next generation.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
@@ -146,17 +112,10 @@ namespace Opc.Ua.Server
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
             IOperationContext? callerContext,
-            CancellationToken ct);
-
-        /// <summary>
-        /// Removes a live registration from the server.
-        /// </summary>
-        ValueTask RemoveAsync(
-            NodeManagerRegistration registration,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Removes a live registration from the server on behalf of the supplied operation.
+        /// Removes a live registration from the server.
         /// </summary>
         /// <param name="registration">The registration to remove.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
@@ -170,6 +129,6 @@ namespace Opc.Ua.Server
         ValueTask RemoveAsync(
             NodeManagerRegistration registration,
             IOperationContext? callerContext,
-            CancellationToken ct);
+            CancellationToken ct = default);
     }
 }
