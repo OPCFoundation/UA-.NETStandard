@@ -402,17 +402,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void AddAsyncFromServiceDispatchScopeRejectsWithoutInvokingFactory()
+        public void AddAsyncFromAnExecutingRequestRejectsWithoutInvokingFactory()
         {
             IServerInternal server = m_server.CurrentInstance;
             var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
 
-            using IDisposable dispatchScope =
-                server.RequestManager.EnterServiceDispatchScope();
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
 
             Assert.That(
                 async () => await m_server.NodeManagerLifecycle
-                    .AddAsync(factory.Object)
+                    .AddAsync(factory.Object, callerContext, CancellationToken.None)
                     .ConfigureAwait(false),
                 Throws.InvalidOperationException.With.Message.Contains(
                     "cannot run from an OPC UA request callback"));
@@ -422,6 +422,134 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<ApplicationConfiguration>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        [Test]
+        public void ReloadAndRemoveFromAnExecutingRequestAreRejected()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            var replacement = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+            var registration = new NodeManagerRegistration(
+                Guid.NewGuid(),
+                1,
+                new Mock<IAsyncNodeManager>().Object);
+
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    async () => await m_server.NodeManagerLifecycle
+                        .ReloadAsync(registration, replacement.Object, callerContext, CancellationToken.None)
+                        .ConfigureAwait(false),
+                    Throws.InvalidOperationException.With.Message.Contains(
+                        "cannot run from an OPC UA request callback"));
+                Assert.That(
+                    async () => await m_server.NodeManagerLifecycle
+                        .RemoveAsync(registration, callerContext, CancellationToken.None)
+                        .ConfigureAwait(false),
+                    Throws.InvalidOperationException.With.Message.Contains(
+                        "cannot run from an OPC UA request callback"));
+            });
+            replacement.Verify(
+                candidate => candidate.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task AddAsyncFromAContextThatIsNotAnExecutingRequestIsAllowedAsync()
+        {
+            // An internal operation carries a context of its own that was never enrolled as a
+            // request. It cannot wait for itself, so the lifecycle operation must proceed. The
+            // ambient marker this guard replaced could not tell the two apart.
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext callerContext = CreateRequestContext(requestLifetime);
+
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(
+                    CreateGenerationOptions(generation: 1),
+                    callerContext,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(registration, Is.Not.Null);
+
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(registration, callerContext, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task AddAsyncAfterTheRequestCompletedIsAllowedAsync()
+        {
+            // The guard is bound to the request that is executing, not to the flow that served
+            // it, so a context whose scope has been disposed no longer blocks the lifecycle.
+            IServerInternal server = m_server.CurrentInstance;
+            using var requestLifetime = new RequestLifetime();
+            OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
+            callerContext.Dispose();
+
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(
+                    CreateGenerationOptions(generation: 1),
+                    callerContext,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(registration, Is.Not.Null);
+
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(registration, callerContext, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public void LifecycleCallFromANodeManagerCallbackContextIsRejected()
+        {
+            // A NodeManager or Method callback receives an ISystemContext that was copied for
+            // the request. Handing that operation to the lifecycle is the explicit replacement
+            // for the ambient marker, so it must be both reachable and rejected.
+            IServerInternal server = m_server.CurrentInstance;
+            var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
+            ISystemContext callbackContext = server.DefaultSystemContext.Copy(callerContext);
+
+            Assert.That(callbackContext.GetOperationContext(), Is.SameAs(callerContext));
+            Assert.That(
+                async () => await m_server.NodeManagerLifecycle
+                    .AddAsync(factory.Object, callbackContext.GetOperationContext(), CancellationToken.None)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "cannot run from an OPC UA request callback"));
+        }
+
+        /// <summary>
+        /// Creates a context that is enrolled as an executing request, the way
+        /// <see cref="StandardServer"/> enrols a validated request. Disposing the context
+        /// completes the request.
+        /// </summary>
+        private static OperationContext CreateExecutingRequest(
+            IServerInternal server,
+            RequestLifetime requestLifetime)
+        {
+            OperationContext context = CreateRequestContext(requestLifetime);
+            context.AttachRequestScope(server.RequestManager.EnterRequestScope(context));
+            return context;
+        }
+
+        private static OperationContext CreateRequestContext(RequestLifetime requestLifetime)
+        {
+            return new OperationContext(
+                new RequestHeader { RequestHandle = 1, TimeoutHint = 0 },
+                null,
+                RequestType.Read,
+                requestLifetime);
         }
 
         /// <summary>

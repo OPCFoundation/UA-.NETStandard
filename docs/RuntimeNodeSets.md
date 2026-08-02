@@ -53,6 +53,8 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 
 Each add returns an immutable `NodeManagerRegistration`, and reload returns the next generation while invalidating the previous handle.
 
+`AddRuntimeNodeSetAsync`, `ReloadRuntimeNodeSetAsync`, and `RemoveAsync` also have overloads that take the operation the caller is running under, ahead of a required `CancellationToken`. Pass `context.GetOperationContext()` when calling from a NodeManager or Method callback: a lifecycle operation drains the requests that are in flight, so one started from inside a request would wait for itself and is rejected with an `InvalidOperationException`. A control-plane caller such as the `ModelLoader` above is not serving a request and uses the overloads without an operation. See [Registering NodeManagers](NodeManagers.md#runtime-registration).
+
 The rules that apply to every NodeManager registered at runtime -- what happens to MonitoredItems, Browse continuation points, namespace indexes, DataTypes, and change notifications, and which NodeManagers may be reloaded at all -- are described once in [Registering NodeManagers](NodeManagers.md#registering-node-managers). Runtime NodeSets follow those rules, and the built-in runtime NodeSet manager already implements the `INodeManagerReloadParticipant` contract that reload requires.
 
 ## Quick-start examples

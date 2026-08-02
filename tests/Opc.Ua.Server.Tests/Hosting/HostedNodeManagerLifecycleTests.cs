@@ -271,6 +271,90 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public async Task AddAsyncWithCallerContextDelegatesToAttachedLifecycleAsync()
+        {
+            var hosted = new HostedNodeManagerLifecycle();
+            var inner = new Mock<INodeManagerLifecycle>();
+            IAsyncNodeManagerFactory asyncFactory = Mock.Of<IAsyncNodeManagerFactory>();
+            INodeManagerFactory syncFactory = Mock.Of<INodeManagerFactory>();
+            IOperationContext callerContext = Mock.Of<IOperationContext>();
+            NodeManagerRegistration expected = NewRegistration();
+            inner
+                .Setup(l => l.AddAsync(asyncFactory, callerContext, CancellationToken.None))
+                .Returns(new ValueTask<NodeManagerRegistration>(expected));
+            inner
+                .Setup(l => l.AddAsync(syncFactory, callerContext, CancellationToken.None))
+                .Returns(new ValueTask<NodeManagerRegistration>(expected));
+            hosted.Attach(inner.Object);
+
+            NodeManagerRegistration fromAsync = await hosted
+                .AddAsync(asyncFactory, callerContext, CancellationToken.None)
+                .ConfigureAwait(false);
+            NodeManagerRegistration fromSync = await hosted
+                .AddAsync(syncFactory, callerContext, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(fromAsync, Is.SameAs(expected));
+                Assert.That(fromSync, Is.SameAs(expected));
+            });
+        }
+
+        [Test]
+        public async Task ReloadAsyncWithCallerContextDelegatesToAttachedLifecycleAsync()
+        {
+            var hosted = new HostedNodeManagerLifecycle();
+            var inner = new Mock<INodeManagerLifecycle>();
+            NodeManagerRegistration current = NewRegistration();
+            NodeManagerRegistration expected = NewRegistration();
+            IAsyncNodeManagerFactory asyncReplacement = Mock.Of<IAsyncNodeManagerFactory>();
+            INodeManagerFactory syncReplacement = Mock.Of<INodeManagerFactory>();
+            IOperationContext callerContext = Mock.Of<IOperationContext>();
+            inner
+                .Setup(l => l.ReloadAsync(
+                    current, asyncReplacement, callerContext, CancellationToken.None))
+                .Returns(new ValueTask<NodeManagerRegistration>(expected));
+            inner
+                .Setup(l => l.ReloadAsync(
+                    current, syncReplacement, callerContext, CancellationToken.None))
+                .Returns(new ValueTask<NodeManagerRegistration>(expected));
+            hosted.Attach(inner.Object);
+
+            NodeManagerRegistration fromAsync = await hosted
+                .ReloadAsync(current, asyncReplacement, callerContext, CancellationToken.None)
+                .ConfigureAwait(false);
+            NodeManagerRegistration fromSync = await hosted
+                .ReloadAsync(current, syncReplacement, callerContext, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(fromAsync, Is.SameAs(expected));
+                Assert.That(fromSync, Is.SameAs(expected));
+            });
+        }
+
+        [Test]
+        public async Task RemoveAsyncWithCallerContextDelegatesToAttachedLifecycleAsync()
+        {
+            var hosted = new HostedNodeManagerLifecycle();
+            var inner = new Mock<INodeManagerLifecycle>();
+            NodeManagerRegistration registration = NewRegistration();
+            IOperationContext callerContext = Mock.Of<IOperationContext>();
+            inner
+                .Setup(l => l.RemoveAsync(registration, callerContext, CancellationToken.None))
+                .Returns(default(ValueTask));
+            hosted.Attach(inner.Object);
+
+            await hosted.RemoveAsync(registration, callerContext, CancellationToken.None).ConfigureAwait(false);
+
+            inner.Verify(
+                l => l.RemoveAsync(registration, callerContext, CancellationToken.None),
+                Times.Once);
+        }
+
+        [Test]
         public void DetachWithMismatchedLifecycleDoesNotClearCurrent()
         {
             var hosted = new HostedNodeManagerLifecycle();

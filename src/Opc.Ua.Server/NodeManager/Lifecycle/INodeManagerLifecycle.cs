@@ -50,11 +50,47 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
+        /// Creates and publishes a NodeManager from an asynchronous factory on behalf of the
+        /// supplied operation.
+        /// </summary>
+        /// <param name="factory">The factory that creates the NodeManager.</param>
+        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
+        /// when the caller is not serving an operation. A callback passes the context it was
+        /// invoked with; see <see cref="SystemContextExtensions.GetOperationContext"/>.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        /// <exception cref="System.InvalidOperationException">
+        /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
+        /// call would wait for its own request to complete, so it is rejected instead.
+        /// </exception>
+        ValueTask<NodeManagerRegistration> AddAsync(
+            IAsyncNodeManagerFactory factory,
+            IOperationContext? callerContext,
+            CancellationToken ct);
+
+        /// <summary>
         /// Creates and publishes a NodeManager from a synchronous factory.
         /// </summary>
         ValueTask<NodeManagerRegistration> AddAsync(
             INodeManagerFactory factory,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Creates and publishes a NodeManager from a synchronous factory on behalf of the
+        /// supplied operation.
+        /// </summary>
+        /// <param name="factory">The factory that creates the NodeManager.</param>
+        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
+        /// when the caller is not serving an operation. A callback passes the context it was
+        /// invoked with; see <see cref="SystemContextExtensions.GetOperationContext"/>.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        /// <exception cref="System.InvalidOperationException">
+        /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
+        /// call would wait for its own request to complete, so it is rejected instead.
+        /// </exception>
+        ValueTask<NodeManagerRegistration> AddAsync(
+            INodeManagerFactory factory,
+            IOperationContext? callerContext,
+            CancellationToken ct);
 
         /// <summary>
         /// Replaces a live registration with a new asynchronous factory generation.
@@ -65,6 +101,26 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
+        /// Replaces a live registration with a new asynchronous factory generation on behalf of
+        /// the supplied operation.
+        /// </summary>
+        /// <param name="registration">The registration to replace.</param>
+        /// <param name="replacement">The factory that creates the next generation.</param>
+        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
+        /// when the caller is not serving an operation. A callback passes the context it was
+        /// invoked with; see <see cref="SystemContextExtensions.GetOperationContext"/>.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        /// <exception cref="System.InvalidOperationException">
+        /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
+        /// call would wait for its own request to complete, so it is rejected instead.
+        /// </exception>
+        ValueTask<NodeManagerRegistration> ReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            IOperationContext? callerContext,
+            CancellationToken ct);
+
+        /// <summary>
         /// Replaces a live registration with a new synchronous factory generation.
         /// </summary>
         ValueTask<NodeManagerRegistration> ReloadAsync(
@@ -73,10 +129,47 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
+        /// Replaces a live registration with a new synchronous factory generation on behalf of
+        /// the supplied operation.
+        /// </summary>
+        /// <param name="registration">The registration to replace.</param>
+        /// <param name="replacement">The factory that creates the next generation.</param>
+        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
+        /// when the caller is not serving an operation. A callback passes the context it was
+        /// invoked with; see <see cref="SystemContextExtensions.GetOperationContext"/>.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        /// <exception cref="System.InvalidOperationException">
+        /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
+        /// call would wait for its own request to complete, so it is rejected instead.
+        /// </exception>
+        ValueTask<NodeManagerRegistration> ReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            IOperationContext? callerContext,
+            CancellationToken ct);
+
+        /// <summary>
         /// Removes a live registration from the server.
         /// </summary>
         ValueTask RemoveAsync(
             NodeManagerRegistration registration,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Removes a live registration from the server on behalf of the supplied operation.
+        /// </summary>
+        /// <param name="registration">The registration to remove.</param>
+        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
+        /// when the caller is not serving an operation. A callback passes the context it was
+        /// invoked with; see <see cref="SystemContextExtensions.GetOperationContext"/>.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        /// <exception cref="System.InvalidOperationException">
+        /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
+        /// call would wait for its own request to complete, so it is rejected instead.
+        /// </exception>
+        ValueTask RemoveAsync(
+            NodeManagerRegistration registration,
+            IOperationContext? callerContext,
+            CancellationToken ct);
     }
 }

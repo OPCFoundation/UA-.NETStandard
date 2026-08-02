@@ -219,13 +219,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets whether the calling flow is serving a Client request. A NodeManager lifecycle
-        /// operation started from inside a request would wait for its own request to drain, so
-        /// the lifecycle API uses this to reject such calls instead of deadlocking.
-        /// </summary>
-        internal bool IsExecutingRequest => m_inServiceDispatch.Value;
-
-        /// <summary>
         /// Gets or sets how long a drain keeps waiting once every request it is waiting for has
         /// passed its deadline. Requests that carry no deadline never expire on their own, so this
         /// is the only bound that applies to them.
@@ -238,26 +231,38 @@ namespace Opc.Ua.Server
         internal TimeSpan RequestDrainTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
         /// <summary>
-        /// Marks the calling flow, and everything it invokes, as serving a Client request.
+        /// Reports whether the supplied context belongs to a request that is executing right now.
+        /// A NodeManager lifecycle operation started from inside such a request would wait for its
+        /// own request to drain, so the lifecycle API uses this to reject the call instead of
+        /// deadlocking.
         /// <para>
-        /// This is entered by the service dispatcher rather than by request validation, because an
-        /// <see cref="AsyncLocal{T}"/> written inside an <c>async</c> method is visible only to
-        /// that method and its callees. Setting it while validating a request would therefore
-        /// never reach the service handler that awaited the validation, which is exactly the code
-        /// that must be prevented from re-entering the lifecycle API.
+        /// The context is supplied by the caller rather than discovered from ambient state, so the
+        /// dependency is visible at the call site. A context that was never registered as a
+        /// request - an internal operation, or a request that has already completed - is not
+        /// executing and is therefore allowed through.
         /// </para>
         /// <para>
-        /// A caller that invokes a service method directly, without passing through the service
-        /// dispatcher, is not covered. <see cref="RequestDrainTimeout"/> bounds that case instead
-        /// of relying on the guard.
+        /// A caller inside a request that supplies no context is not covered.
+        /// <see cref="RequestDrainTimeout"/> bounds that case instead of relying on the guard.
         /// </para>
         /// </summary>
-        /// <returns>The scope to dispose once the request has been dispatched.</returns>
-        internal IDisposable EnterServiceDispatchScope()
+        /// <param name="context">The context the caller is operating under, or <c>null</c> when
+        /// the caller is not operating on behalf of a request.</param>
+        /// <returns><c>true</c> when the context is a request that is currently executing.</returns>
+        internal bool IsExecutingRequest(IOperationContext? context)
         {
-            bool previous = m_inServiceDispatch.Value;
-            m_inServiceDispatch.Value = true;
-            return new ServiceDispatchScope(this, previous);
+            if (context is not OperationContext operation)
+            {
+                return false;
+            }
+
+            lock (m_requestsLock)
+            {
+                return m_requests.TryGetValue(
+                    operation.RequestId,
+                    out OperationContext? existingContext) &&
+                    ReferenceEquals(existingContext, operation);
+            }
         }
 
         /// <summary>
@@ -534,7 +539,6 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
-        private readonly AsyncLocal<bool> m_inServiceDispatch = new();
 
 
         private readonly Dictionary<uint, OperationContext> m_requests;
@@ -652,39 +656,6 @@ namespace Opc.Ua.Server
 
             private readonly RequestManager m_requestManager;
             private readonly OperationContext m_context;
-            private bool m_disposed;
-        }
-
-        /// <summary>
-        /// Marks the calling flow as serving a Client request for as long as it is dispatched.
-        /// </summary>
-        private sealed class ServiceDispatchScope : IDisposable
-        {
-            /// <summary>
-            /// Initializes a new instance of the <see cref="ServiceDispatchScope"/> class.
-            /// </summary>
-            /// <param name="requestManager">The owning request manager.</param>
-            /// <param name="previous">The value to restore on dispose.</param>
-            public ServiceDispatchScope(RequestManager requestManager, bool previous)
-            {
-                m_requestManager = requestManager;
-                m_previous = previous;
-            }
-
-            /// <summary>
-            /// Restores the value the calling flow had before the request was dispatched.
-            /// </summary>
-            public void Dispose()
-            {
-                if (!m_disposed)
-                {
-                    m_disposed = true;
-                    m_requestManager.m_inServiceDispatch.Value = m_previous;
-                }
-            }
-
-            private readonly RequestManager m_requestManager;
-            private readonly bool m_previous;
             private bool m_disposed;
         }
 

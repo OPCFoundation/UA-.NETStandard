@@ -303,11 +303,40 @@ reloaded or removed; startup, diagnostics, and core NodeManagers are protected.
 `INodeManagerLifecycle` is a host control-plane API. Do not invoke reload or removal from inside an
 OPC UA service or Method callback: teardown waits for the requests that already captured the retired
 routing generation to complete before disposing it, so a lifecycle call made from within such a
-request would wait for itself. The server detects this and throws `InvalidOperationException` rather
-than deadlocking. Detection relies on the request being dispatched through the server's service
-pipeline, so as a second line of defence the wait is bounded: it lasts at most as long as the
-longest deadline still outstanding plus `RequestManager.RequestDrainTimeout`, after which the
-lifecycle operation fails with a `TimeoutException` instead of blocking indefinitely.
+request would wait for itself.
+
+Every lifecycle method has an overload that takes the operation the caller is running under, ahead
+of a required `CancellationToken`. Pass it from a NodeManager or Method callback and the server
+rejects the call with an `InvalidOperationException` instead of deadlocking:
+
+```csharp
+private async ValueTask<ServiceResult> OnReloadModelAsync(
+    ISystemContext context,
+    MethodState method,
+    IList<Variant> inputArguments,
+    IList<Variant> outputArguments,
+    CancellationToken ct)
+{
+    // Throws InvalidOperationException: the call is serving a Client request.
+    await m_lifecycle.ReloadAsync(
+        m_registration,
+        replacement,
+        context.GetOperationContext(),
+        ct);
+    return ServiceResult.Good;
+}
+```
+
+A control-plane caller — a hosted service, or anything resolved from dependency injection — is not
+serving a request and uses the overloads without an operation.
+
+The guard is an identity check against the requests the server is currently executing, not ambient
+state, so an internal operation that was never enrolled as a Client request is allowed through, and
+a context whose request has already completed no longer blocks anything. A caller that is inside a
+request but passes no operation is not detected; for that case the wait is bounded instead: it lasts
+at most as long as the longest deadline still outstanding plus `RequestManager.RequestDrainTimeout`,
+after which the lifecycle operation fails with a `TimeoutException` instead of blocking
+indefinitely.
 
 A server that rejects requests of its own by overriding `StandardServer.OnRequestValidatedAsync`
 does not interfere with this: a rejected request is completed before the exception leaves the

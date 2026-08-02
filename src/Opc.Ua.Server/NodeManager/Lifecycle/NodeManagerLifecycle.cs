@@ -139,6 +139,15 @@ namespace Opc.Ua.Server
             IAsyncNodeManagerFactory factory,
             CancellationToken ct = default)
         {
+            return AddAsync(factory, callerContext: null, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> AddAsync(
+            IAsyncNodeManagerFactory factory,
+            IOperationContext? callerContext,
+            CancellationToken ct)
+        {
             if (factory is null)
             {
                 throw new ArgumentNullException(nameof(factory));
@@ -146,6 +155,7 @@ namespace Opc.Ua.Server
 
             return AddCoreAsync(
                 factory.CreateAsync,
+                callerContext,
                 ct);
         }
 
@@ -153,6 +163,15 @@ namespace Opc.Ua.Server
         public ValueTask<NodeManagerRegistration> AddAsync(
             INodeManagerFactory factory,
             CancellationToken ct = default)
+        {
+            return AddAsync(factory, callerContext: null, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> AddAsync(
+            INodeManagerFactory factory,
+            IOperationContext? callerContext,
+            CancellationToken ct)
         {
             if (factory is null)
             {
@@ -162,6 +181,7 @@ namespace Opc.Ua.Server
             return AddCoreAsync(
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
                     factory.Create(server, configuration).ToAsyncNodeManager()),
+                callerContext,
                 ct);
         }
 
@@ -171,6 +191,16 @@ namespace Opc.Ua.Server
             IAsyncNodeManagerFactory replacement,
             CancellationToken ct = default)
         {
+            return ReloadAsync(registration, replacement, callerContext: null, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            IOperationContext? callerContext,
+            CancellationToken ct)
+        {
             if (replacement is null)
             {
                 throw new ArgumentNullException(nameof(replacement));
@@ -179,6 +209,7 @@ namespace Opc.Ua.Server
             return ReloadCoreAsync(
                 registration,
                 replacement.CreateAsync,
+                callerContext,
                 ct);
         }
 
@@ -187,6 +218,16 @@ namespace Opc.Ua.Server
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
             CancellationToken ct = default)
+        {
+            return ReloadAsync(registration, replacement, callerContext: null, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            IOperationContext? callerContext,
+            CancellationToken ct)
         {
             if (replacement is null)
             {
@@ -197,20 +238,30 @@ namespace Opc.Ua.Server
                 registration,
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
                     replacement.Create(server, configuration).ToAsyncNodeManager()),
+                callerContext,
                 ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask RemoveAsync(
+            NodeManagerRegistration registration,
+            CancellationToken ct = default)
+        {
+            return RemoveAsync(registration, callerContext: null, ct);
         }
 
         /// <inheritdoc/>
         public async ValueTask RemoveAsync(
             NodeManagerRegistration registration,
-            CancellationToken ct = default)
+            IOperationContext? callerContext,
+            CancellationToken ct)
         {
             if (registration is null)
             {
                 throw new ArgumentNullException(nameof(registration));
             }
 
-            EnsureNotRequestCallback();
+            EnsureNotRequestCallback(callerContext);
             await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -366,9 +417,10 @@ namespace Opc.Ua.Server
 
         private async ValueTask<NodeManagerRegistration> AddCoreAsync(
             CreateNodeManagerAsync createNodeManager,
+            IOperationContext? callerContext,
             CancellationToken ct)
         {
-            EnsureNotRequestCallback();
+            EnsureNotRequestCallback(callerContext);
             await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
             IAsyncNodeManager? nodeManager = null;
             PreparedNodeManager? prepared = null;
@@ -568,6 +620,7 @@ namespace Opc.Ua.Server
         private async ValueTask<NodeManagerRegistration> ReloadCoreAsync(
             NodeManagerRegistration registration,
             CreateNodeManagerAsync createNodeManager,
+            IOperationContext? callerContext,
             CancellationToken ct)
         {
             if (registration is null)
@@ -575,7 +628,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(registration));
             }
 
-            EnsureNotRequestCallback();
+            EnsureNotRequestCallback(callerContext);
             await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
             IAsyncNodeManager? replacementManager = null;
             PreparedNodeManager? replacement = null;
@@ -884,11 +937,6 @@ namespace Opc.Ua.Server
             }
 
             IServerInternal server = m_server.CurrentInstance;
-            if (server.RequestManager.IsExecutingRequest)
-            {
-                throw new InvalidOperationException(
-                    "NodeManager lifecycle operations cannot run from an OPC UA request callback.");
-            }
             if (server.NodeManager is not IDynamicNodeManagerHost host)
             {
                 throw new NotSupportedException(
@@ -897,10 +945,29 @@ namespace Opc.Ua.Server
             return (server, host);
         }
 
-        private void EnsureNotRequestCallback()
+        /// <summary>
+        /// Rejects a lifecycle operation that is being started on behalf of a Client request that
+        /// is still executing. Such an operation drains the requests that are in flight, so it
+        /// would wait for the very request that started it.
+        /// <para>
+        /// The operation is supplied by the caller, so the dependency is visible at the call site.
+        /// A caller inside a request that supplies no context is not detected here; the bounded
+        /// <see cref="RequestManager.RequestDrainTimeout"/> covers that case instead.
+        /// </para>
+        /// </summary>
+        /// <param name="callerContext">The operation the caller is running under.</param>
+        /// <exception cref="InvalidOperationException">
+        /// The operation is a Client request that is still executing.
+        /// </exception>
+        /// <exception cref="ServiceResultException">The server is halted.</exception>
+        private void EnsureNotRequestCallback(IOperationContext? callerContext)
         {
-            if (m_server.CurrentState == ServerState.Running &&
-                m_server.CurrentInstance.RequestManager.IsExecutingRequest)
+            // The server state is deliberately not consulted. A request that is still executing
+            // while the server shuts down would otherwise slip past the guard and wait for its
+            // own request, and the request registry already reports an exact answer in every
+            // state the server can be in.
+            if (callerContext is not null &&
+                m_server.CurrentInstance.RequestManager.IsExecutingRequest(callerContext))
             {
                 throw new InvalidOperationException(
                     "NodeManager lifecycle operations cannot run from an OPC UA request callback.");
