@@ -85,6 +85,83 @@ namespace Opc.Ua.RobotIntent.Server
         public uint AxisCount { get; set; } = 6;
 
         /// <summary>
+        /// Whether trajectory and Cartesian path intents are accepted.
+        /// </summary>
+        public bool TrajectorySupported { get; set; } = true;
+
+        /// <summary>
+        /// Whether force intents are accepted AND the robot genuinely regulates force.
+        /// A host that would ignore the force reports false rather than accepting an
+        /// intent it cannot honour.
+        /// </summary>
+        public bool ForceControlSupported { get; set; }
+
+        /// <summary>
+        /// Whether the host brokers real-time channels.
+        /// </summary>
+        public bool RealTimeChannelsSupported { get; set; }
+
+        /// <summary>
+        /// Whether mission transitions are evaluated. A host that reports false runs
+        /// the steps in order and ignores any transitions supplied.
+        /// </summary>
+        public bool MissionBranchingSupported { get; set; } = true;
+
+        /// <summary>
+        /// Largest trajectory accepted, in points. Zero states no limit.
+        /// </summary>
+        public uint MaxTrajectoryPoints { get; set; }
+
+        /// <summary>
+        /// How many times a step whose ErrorPolicy is Retry may be re-attempted.
+        /// </summary>
+        public uint MaxStepRetries { get; set; } = 2;
+
+        /// <summary>
+        /// Longest lease a real-time channel is granted, in milliseconds.
+        /// </summary>
+        public double MaxChannelLeaseMs { get; set; } = 30000;
+
+        /// <summary>
+        /// Whether this host can arbitrate between an intent and a held real-time
+        /// channel. Defaults to false, which is the safe answer: clause 6.9 then
+        /// requires motion intents to be refused while a lease is held.
+        /// </summary>
+        public bool ArbitratesWithRealTimeChannel { get; set; }
+
+        /// <summary>
+        /// The real-time channels this host offers.
+        /// </summary>
+        public IList<DeclaredChannel> Channels { get; } = [];
+
+        /// <summary>
+        /// Evaluates a transition condition.
+        /// </summary>
+        /// <remarks>
+        /// When none is supplied, an EMPTY ContentFilter is true and a non-empty one is
+        /// false. That is deterministic and states its own limitation: an
+        /// unconditional edge works, and an edge nobody can evaluate is simply not
+        /// taken rather than being taken by accident.
+        /// </remarks>
+        public Func<ContentFilter, bool>? ConditionEvaluator { get; set; }
+
+        /// <summary>
+        /// The evaluator actually used, defaulted as described above.
+        /// </summary>
+        public bool EvaluateCondition(ContentFilter? condition)
+        {
+            // A filter with no elements is unconditional. Testing only for a NULL
+            // filter is not enough: an encoded ContentFilter arrives with an empty
+            // element array, and treating that as unevaluatable makes every
+            // unconditional transition silently untaken.
+            if (condition == null || condition.Elements.IsNull || condition.Elements.IsEmpty)
+            {
+                return true;
+            }
+            return ConditionEvaluator?.Invoke(condition) ?? false;
+        }
+
+        /// <summary>
         /// One entry per intent type this host accepts.
         /// </summary>
         /// <remarks>
@@ -169,6 +246,107 @@ namespace Opc.Ua.RobotIntent.Server
                 SupportedBlockingModes = SupportedBlockingModes
             };
         }
+    }
+
+    /// <summary>
+    /// One real-time channel this host can broker.
+    /// </summary>
+    /// <remarks>
+    /// The host describes and leases it. It defines no transport, opens no socket and
+    /// inspects no payload: the descriptor is passed through to the client in whatever
+    /// form the transport itself uses.
+    /// </remarks>
+    public sealed record DeclaredChannel
+    {
+        /// <summary>Identifier unique within the controller.</summary>
+        public string ChannelId { get; init; } = string.Empty;
+
+        /// <summary>The transport this channel speaks.</summary>
+        public RealTimeTransportEnum Transport { get; init; }
+
+        /// <summary>Where the channel is reached.</summary>
+        public string EndpointUrl { get; init; } = string.Empty;
+
+        /// <summary>Which end opens the connection.</summary>
+        public ChannelInitiatorEnum Initiator { get; init; }
+
+        /// <summary>The rate the channel runs at, in hertz.</summary>
+        public double NominalRate { get; init; }
+
+        /// <summary>The transport's own recipe or signal list.</summary>
+        public string PayloadDescriptor { get; init; } = string.Empty;
+
+        /// <summary>The operational mode required before it will carry motion.</summary>
+        public OperationalModeEnum RequiredMode { get; init; } = OperationalModeEnum.AutomaticExternal;
+    }
+
+    /// <summary>
+    /// The outcome of asking for a channel lease.
+    /// </summary>
+    public sealed record RealTimeLease
+    {
+        /// <summary>Whether the lease was taken.</summary>
+        public bool Granted { get; init; }
+
+        /// <summary>Where to connect.</summary>
+        public string EndpointUrl { get; init; } = string.Empty;
+
+        /// <summary>The transport's own configuration.</summary>
+        public string PayloadDescriptor { get; init; } = string.Empty;
+
+        /// <summary>When the lease lapses.</summary>
+        public DateTime Expiry { get; init; }
+
+        /// <summary>Why it was refused.</summary>
+        public string? Message { get; init; }
+
+        /// <summary>Creates a refusal.</summary>
+        public static RealTimeLease Refused(string message)
+        {
+            return new RealTimeLease { Message = message };
+        }
+    }
+
+    /// <summary>
+    /// What the safety system is enforcing, as the application reports it.
+    /// </summary>
+    /// <remarks>
+    /// Every field is a REPORT. The safety system enforces these independently and
+    /// remains effective when this Server is unreachable; the host reads them only so
+    /// that it can refuse work the safety system would then have to reject, which is a
+    /// courtesy and not a protective measure. See OPC UA - Robot Intent clause 10.4.
+    /// </remarks>
+    public sealed record SafetyStatus
+    {
+        /// <summary>The safe motion function currently enforced.</summary>
+        public SafeMotionFunctionEnum ActiveFunction { get; init; } = SafeMotionFunctionEnum.None;
+
+        /// <summary>True while an emergency stop is asserted.</summary>
+        public bool EmergencyStopActive { get; init; }
+
+        /// <summary>True while a protective stop is asserted.</summary>
+        public bool ProtectiveStopActive { get; init; }
+
+        /// <summary>True while a safely limited speed is being enforced.</summary>
+        public bool SafeSpeedLimitActive { get; init; }
+
+        /// <summary>The enforced tool centre point speed limit, in metres per second.</summary>
+        public double SafeSpeedLimit { get; init; }
+
+        /// <summary>False when the safety system reports its own fault.</summary>
+        public bool SafetyControllerOk { get; init; } = true;
+
+        /// <summary>Why the last stop occurred, for a human.</summary>
+        public string? LastStopReason { get; init; }
+
+        /// <summary>Nothing asserted and the safety controller healthy.</summary>
+        public static SafetyStatus Nominal { get; } = new();
+
+        /// <summary>
+        /// Whether this state permits an intent to be admitted at all.
+        /// </summary>
+        public bool PermitsSubmission =>
+            SafetyControllerOk && !EmergencyStopActive && !ProtectiveStopActive;
     }
 
     /// <summary>
@@ -327,8 +505,84 @@ namespace Opc.Ua.RobotIntent.Server
                     return program.Program.IsNull
                         ? Bad("CallProgram requires a Program.")
                         : Check.Pass;
+                case TrajectoryIntentDataType trajectory:
+                    return ValidateTrajectory(trajectory, options);
+                case CartesianPathIntentDataType path:
+                    if (path.Waypoints.IsNull || path.Waypoints.IsEmpty)
+                    {
+                        return Bad("A Cartesian path requires at least one waypoint.");
+                    }
+                    for (int ii = 0; ii < path.Waypoints.Count; ii++)
+                    {
+                        Check wp = ValidatePose(path.Waypoints[ii]?.Pose, $"Waypoints[{ii}].Pose");
+                        if (!wp.Ok)
+                        {
+                            return wp;
+                        }
+                    }
+                    return Check.Pass;
+                case ForceIntentDataType force:
+                    if (force.Direction.IsNull || force.Direction.Count != 3)
+                    {
+                        return Bad("ForceIntent.Direction must carry three values.");
+                    }
+                    double magnitude = 0;
+                    for (int ii = 0; ii < 3; ii++)
+                    {
+                        magnitude += force.Direction[ii] * force.Direction[ii];
+                    }
+                    if (magnitude <= 0)
+                    {
+                        return Bad("ForceIntent.Direction must not be the zero vector.");
+                    }
+                    if (force.ContactForce <= 0)
+                    {
+                        return Bad("ForceIntent.ContactForce must be greater than zero.");
+                    }
+                    return force.MaxDistance <= 0
+                        ? Bad("ForceIntent.MaxDistance must be greater than zero.")
+                        : Check.Pass;
                 default:
                     break;
+            }
+            return Check.Pass;
+        }
+
+        /// <summary>
+        /// A trajectory is handed over whole, so everything about it has to be right
+        /// at admission: there is no later exchange in which to complain.
+        /// </summary>
+        private static Check ValidateTrajectory(
+            TrajectoryIntentDataType trajectory, IntentControllerHostOptions options)
+        {
+            if (trajectory.Points.IsNull || trajectory.Points.IsEmpty)
+            {
+                return Bad("A trajectory requires at least one point.");
+            }
+            if (options.MaxTrajectoryPoints > 0 &&
+                trajectory.Points.Count > (int)options.MaxTrajectoryPoints)
+            {
+                return Bad(string.Create(CultureInfo.InvariantCulture,
+                    $"A trajectory may carry at most {options.MaxTrajectoryPoints} points."));
+            }
+            double previous = double.NegativeInfinity;
+            for (int ii = 0; ii < trajectory.Points.Count; ii++)
+            {
+                TrajectoryPointDataType point = trajectory.Points[ii];
+                if (point == null)
+                {
+                    return Bad($"Points[{ii}] is null.");
+                }
+                if (point.TimeFromStart <= previous)
+                {
+                    return Bad($"Points[{ii}].TimeFromStart must exceed its predecessor's.");
+                }
+                previous = point.TimeFromStart;
+                if (point.Positions.IsNull || point.Positions.Count != (int)options.AxisCount)
+                {
+                    return Bad(string.Create(CultureInfo.InvariantCulture,
+                        $"Points[{ii}].Positions must carry {options.AxisCount} values."));
+                }
             }
             return Check.Pass;
         }
@@ -467,6 +721,133 @@ namespace Opc.Ua.RobotIntent.Server
                 }
             }
             return count;
+        }
+
+        /// <summary>
+        /// Checks the step graph against clause 7.4.
+        /// </summary>
+        /// <remarks>
+        /// A transition naming a step that does not exist, or a step whose outgoing
+        /// transitions mix Alternative with Parallel, is refused rather than resolved
+        /// by guessing: a mission that branches somewhere the author did not intend is
+        /// worse than one that will not start.
+        /// </remarks>
+        public static Check ValidateTransitions(
+            ArrayOf<MissionStepDataType> steps, ArrayOf<MissionTransitionDataType> transitions)
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            for (int ii = 0; ii < steps.Count; ii++)
+            {
+                ids.Add(steps[ii]?.StepId ?? string.Empty);
+            }
+
+            for (int ii = 0; ii < steps.Count; ii++)
+            {
+                MissionStepDataType step = steps[ii];
+                if (step == null)
+                {
+                    continue;
+                }
+                bool needsFallback = step.ErrorPolicy is ErrorPolicyEnum.Fallback
+                    or ErrorPolicyEnum.Compensate;
+                if (needsFallback && !ids.Contains(step.FallbackStepId ?? string.Empty))
+                {
+                    return Check.Fail(
+                        $"Step '{step.StepId}' declares {step.ErrorPolicy} but its "
+                        + "FallbackStepId names no step of this mission.");
+                }
+            }
+
+            if (transitions.IsNull || transitions.IsEmpty)
+            {
+                return Check.Pass;
+            }
+
+            var divergence = new Dictionary<string, DivergenceKindEnum>(StringComparer.Ordinal);
+            for (int ii = 0; ii < transitions.Count; ii++)
+            {
+                MissionTransitionDataType edge = transitions[ii];
+                if (edge == null)
+                {
+                    return Check.Fail($"Transitions[{ii}] is null.");
+                }
+                if (!ids.Contains(edge.FromStepId ?? string.Empty))
+                {
+                    return Check.Fail(
+                        $"Transitions[{ii}].FromStepId '{edge.FromStepId}' names no step "
+                        + "of this mission.");
+                }
+                if (!ids.Contains(edge.ToStepId ?? string.Empty))
+                {
+                    return Check.Fail(
+                        $"Transitions[{ii}].ToStepId '{edge.ToStepId}' names no step "
+                        + "of this mission.");
+                }
+                string from = edge.FromStepId ?? string.Empty;
+                if (divergence.TryGetValue(from, out DivergenceKindEnum seen))
+                {
+                    if (seen != edge.DivergenceKind)
+                    {
+                        return Check.Fail(
+                            $"Step '{from}' mixes {seen} and {edge.DivergenceKind} "
+                            + "divergence on its outgoing transitions.");
+                    }
+                }
+                else
+                {
+                    divergence[from] = edge.DivergenceKind;
+                }
+            }
+            return Check.Pass;
+        }
+
+        /// <summary>
+        /// The first transition out of a step whose condition holds.
+        /// </summary>
+        /// <remarks>
+        /// Evaluated in array order so that two clients reading one mission predict the
+        /// same branch. An empty ContentFilter is always true, which is what makes a
+        /// default branch expressible without a special case.
+        /// </remarks>
+        public static MissionTransitionDataType? SelectTransition(
+            ArrayOf<MissionTransitionDataType> transitions,
+            string fromStepId,
+            Func<ContentFilter, bool> evaluate)
+        {
+            if (transitions.IsNull)
+            {
+                return null;
+            }
+            for (int ii = 0; ii < transitions.Count; ii++)
+            {
+                MissionTransitionDataType edge = transitions[ii];
+                if (edge != null &&
+                    string.Equals(edge.FromStepId, fromStepId, StringComparison.Ordinal) &&
+                    evaluate(edge.Condition))
+                {
+                    return edge;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The index of the step with the given identifier, or -1.
+        /// </summary>
+        public static int IndexOfStep(ArrayOf<MissionStepDataType> steps, string stepId)
+        {
+            if (steps.IsNull)
+            {
+                return -1;
+            }
+            for (int ii = 0; ii < steps.Count; ii++)
+            {
+                if (string.Equals(steps[ii]?.StepId, stepId, StringComparison.Ordinal))
+                {
+                    return ii;
+                }
+            }
+            return -1;
         }
 
         /// <summary>

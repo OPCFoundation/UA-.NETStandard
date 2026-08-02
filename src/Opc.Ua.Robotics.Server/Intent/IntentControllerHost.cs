@@ -72,6 +72,8 @@ namespace Opc.Ua.RobotIntent.Server
         private readonly LinkedList<IntentEntry> m_queue = new();
         private readonly Dictionary<NodeId, IntentCapabilityDataType> m_capabilities = [];
         private NamespaceTable m_namespaceUris = new();
+        private readonly Dictionary<string, ChannelEntry> m_channels = [];
+        private SafetyStatus m_safety = SafetyStatus.Nominal;
         private FolderState? m_intentsFolder;
         private FolderState? m_missionsFolder;
         private readonly SemaphoreSlim m_pump = new(0);
@@ -128,6 +130,11 @@ namespace Opc.Ua.RobotIntent.Server
                 m_missionsFolder = EnsureFolder(context, m_controller.Missions, BrowseNames.Missions);
             }
             ResolveCapabilities(context);
+            if (m_options.RealTimeChannelsSupported)
+            {
+                CreateChannels(context);
+            }
+            PublishSafetyLocked(context);
             WireMethods(context);
             PublishControllerState(context);
             m_pumpTask = Task.Run(() => PumpAsync(context, m_shutdown.Token));
@@ -172,10 +179,31 @@ namespace Opc.Ua.RobotIntent.Server
                 return IntentAdmission.Refused(IntentFailureEnum.NotPermittedInMode,
                     "Intents are accepted only in Automatic or AutomaticExternal mode.");
             }
+            if (!m_safety.PermitsSubmission)
+            {
+                return IntentAdmission.Refused(IntentFailureEnum.NotPermittedInMode,
+                    m_safety.SafetyControllerOk
+                        ? "A stop is asserted."
+                        : "The safety controller reports a fault.");
+            }
             if (intent == null)
             {
                 return IntentAdmission.Refused(IntentFailureEnum.ParameterInvalid,
                     "No intent was supplied.");
+            }
+            if (intent is MotionIntentDataType && AnyChannelHeldLocked() &&
+                !m_options.ArbitratesWithRealTimeChannel)
+            {
+                return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
+                    "A real-time channel lease is held and this Server does not "
+                    + "arbitrate between the two command sources.");
+            }
+            if (ExceedsSafeSpeed(intent))
+            {
+                return IntentAdmission.Refused(IntentFailureEnum.SafetyLimitExceeded,
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"The requested speed exceeds the enforced safe limit of "
+                        + $"{m_safety.SafeSpeedLimit} m/s."));
             }
 
             IntentCapabilityDataType? capability = FindCapability(intent);
@@ -489,6 +517,75 @@ namespace Opc.Ua.RobotIntent.Server
             }
         }
 
+        /// <summary>
+        /// Reports what the safety system is enforcing, and publishes it.
+        /// </summary>
+        /// <remarks>
+        /// The application calls this; the host does not infer safety state. Admission
+        /// then refuses on the same values a client can read, so the refusal is
+        /// explainable from the address space rather than from Server-internal state.
+        /// </remarks>
+        public void UpdateSafetyState(ISystemContext context, SafetyStatus status)
+        {
+            ArgumentNullException.ThrowIfNull(context);
+            ArgumentNullException.ThrowIfNull(status);
+            lock (m_lock)
+            {
+                m_safety = status;
+                PublishSafetyLocked(context);
+                PublishControllerState(context);
+            }
+        }
+
+        /// <summary>
+        /// The safety state the host is refusing against.
+        /// </summary>
+        public SafetyStatus SafetyState
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_safety;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether the intent asks to move faster than the safety system permits.
+        /// </summary>
+        /// <remarks>
+        /// Only an explicit Cartesian speed can be compared: a speed FRACTION is of a
+        /// configured maximum the host does not know, so it is left to the robot, which
+        /// does. Refusing what cannot be judged would reject legitimate work.
+        /// </remarks>
+        private bool ExceedsSafeSpeed(IntentDataType intent)
+        {
+            if (!m_safety.SafeSpeedLimitActive || m_safety.SafeSpeedLimit <= 0)
+            {
+                return false;
+            }
+            return intent is MotionIntentDataType motion &&
+                motion.Constraints is { } constraints &&
+                constraints.CartesianSpeed > m_safety.SafeSpeedLimit;
+        }
+
+        private void PublishSafetyLocked(ISystemContext context)
+        {
+            if (m_controller.SafetyState is not { } node)
+            {
+                return;
+            }
+            SetValue(node.ActiveFunction, m_safety.ActiveFunction);
+            SetValue(node.EmergencyStopActive, m_safety.EmergencyStopActive);
+            SetValue(node.ProtectiveStopActive, m_safety.ProtectiveStopActive);
+            SetValue(node.SafeSpeedLimitActive, m_safety.SafeSpeedLimitActive);
+            SetValue(node.SafeSpeedLimit, m_safety.SafeSpeedLimit);
+            SetValue(node.SafetyControllerOk, m_safety.SafetyControllerOk);
+            SetValue(node.LastStopReason, new LocalizedText(m_safety.LastStopReason ?? string.Empty));
+            node.ClearChangeMasks(context, true);
+        }
+
         private bool IsSubmissionPermittedInMode()
         {
             OperationalModeEnum mode = m_options.OperationalMode;
@@ -522,6 +619,13 @@ namespace Opc.Ua.RobotIntent.Server
                 SetValue(capabilities.MissionHorizonSupported, m_options.MissionHorizonSupported);
                 SetValue(capabilities.BlendingSupported, m_options.BlendingSupported);
                 SetValue(capabilities.AxisCount, m_options.AxisCount);
+                SetValue(capabilities.TrajectorySupported, m_options.TrajectorySupported);
+                SetValue(capabilities.ForceControlSupported, m_options.ForceControlSupported);
+                SetValue(capabilities.RealTimeChannelsSupported,
+                    m_options.RealTimeChannelsSupported);
+                SetValue(capabilities.MissionBranchingSupported,
+                    m_options.MissionBranchingSupported);
+                SetValue(capabilities.MaxTrajectoryPoints, m_options.MaxTrajectoryPoints);
                 capabilities.ClearChangeMasks(context, true);
             }
         }
@@ -645,6 +749,168 @@ namespace Opc.Ua.RobotIntent.Server
             }
         }
 
+        // ------------------------------------------------------- real-time channels
+
+        /// <summary>
+        /// Takes a lease on a brokered real-time channel.
+        /// </summary>
+        /// <remarks>
+        /// This hands over what a client needs in order to connect and nothing else.
+        /// The samples travel on that channel; clause 4.3 explains why they cannot
+        /// travel here. A lease that is not renewed lapses, so a client that dies does
+        /// not hold the channel for good - the same reasoning as command authority.
+        /// </remarks>
+        public RealTimeLease OpenRealTimeChannel(
+            ISystemContext context, NodeId? sessionId, string channelId, double requestedLeaseMs)
+        {
+            ArgumentNullException.ThrowIfNull(context);
+            if (!m_options.RealTimeChannelsSupported)
+            {
+                return RealTimeLease.Refused("This Server brokers no real-time channels.");
+            }
+            if (!HoldsAuthority(sessionId))
+            {
+                return RealTimeLease.Refused(
+                    "The calling Session does not hold command authority.");
+            }
+            lock (m_lock)
+            {
+                if (!m_channels.TryGetValue(channelId ?? string.Empty, out ChannelEntry? channel))
+                {
+                    return RealTimeLease.Refused("No channel with that identifier is offered.");
+                }
+                if (!channel.Available)
+                {
+                    return RealTimeLease.Refused("The channel is not available.");
+                }
+                if (channel.RequiredMode != m_options.OperationalMode)
+                {
+                    return RealTimeLease.Refused(
+                        $"The channel requires {channel.RequiredMode} mode.");
+                }
+                bool held = channel.Leased && channel.Expiry > DateTime.UtcNow;
+                if (held && channel.Holder != sessionId)
+                {
+                    return RealTimeLease.Refused("Another Session holds the lease.");
+                }
+
+                double lease = requestedLeaseMs > 0
+                    ? Math.Min(requestedLeaseMs, m_options.MaxChannelLeaseMs)
+                    : m_options.MaxChannelLeaseMs;
+                channel.Holder = sessionId;
+                channel.Leased = true;
+                channel.Expiry = DateTime.UtcNow.AddMilliseconds(lease);
+                PublishChannelLocked(context, channel);
+                return new RealTimeLease
+                {
+                    Granted = true,
+                    EndpointUrl = channel.EndpointUrl,
+                    PayloadDescriptor = channel.PayloadDescriptor,
+                    Expiry = channel.Expiry
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gives up a lease on a brokered channel.
+        /// </summary>
+        public bool CloseRealTimeChannel(ISystemContext context, NodeId? sessionId, string channelId)
+        {
+            ArgumentNullException.ThrowIfNull(context);
+            lock (m_lock)
+            {
+                if (!m_channels.TryGetValue(channelId ?? string.Empty, out ChannelEntry? channel) ||
+                    !channel.Leased || channel.Holder != sessionId)
+                {
+                    return false;
+                }
+                channel.Holder = null;
+                channel.Leased = false;
+                channel.Expiry = DateTime.MinValue;
+                PublishChannelLocked(context, channel);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Whether any channel lease is currently held.
+        /// </summary>
+        /// <remarks>
+        /// Clause 6.9 forbids accepting motion intents alongside a held channel unless
+        /// the host can genuinely arbitrate: two things commanding one robot with no
+        /// arbitration is the failure that rule exists to prevent.
+        /// </remarks>
+        private bool AnyChannelHeldLocked()
+        {
+            foreach (ChannelEntry channel in m_channels.Values)
+            {
+                if (channel.Leased && channel.Expiry > DateTime.UtcNow)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Materialises the declared channels so a client can browse and read them
+        /// before it asks for a lease.
+        /// </summary>
+        private void CreateChannels(ISystemContext context)
+        {
+            FolderState folder = EnsureFolder(
+                context, m_controller.RealTimeChannels, BrowseNames.RealTimeChannels);
+            foreach (DeclaredChannel declared in m_options.Channels)
+            {
+                var node = new RealTimeChannelState(folder)
+                {
+                    NodeId = ChildNodeId(folder.NodeId, declared.ChannelId),
+                    BrowseName = new QualifiedName(
+                        declared.ChannelId, folder.BrowseName.NamespaceIndex),
+                    DisplayName = new LocalizedText(declared.ChannelId),
+                    SymbolicName = declared.ChannelId,
+                    ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,
+                    TypeDefinitionId = ExpandedNodeId.ToNodeId(
+                        ObjectTypeIds.RealTimeChannelType, context.NamespaceUris)
+                };
+                node.Create(context, node.NodeId, node.BrowseName, node.DisplayName, false);
+                node.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, true, folder.NodeId);
+                folder.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, false, node.NodeId);
+
+                SetValue(node.ChannelId, declared.ChannelId);
+                SetValue(node.Transport, declared.Transport);
+                SetValue(node.EndpointUrl, declared.EndpointUrl);
+                SetValue(node.Initiator, declared.Initiator);
+                SetValue(node.NominalRate, declared.NominalRate);
+                SetValue(node.PayloadDescriptor, declared.PayloadDescriptor);
+                SetValue(node.RequiredMode, declared.RequiredMode);
+
+                var entry = new ChannelEntry
+                {
+                    ChannelId = declared.ChannelId,
+                    EndpointUrl = declared.EndpointUrl,
+                    PayloadDescriptor = declared.PayloadDescriptor,
+                    RequiredMode = declared.RequiredMode,
+                    Node = node
+                };
+                m_channels[declared.ChannelId] = entry;
+                PublishChannelLocked(context, entry);
+                AddNode(node);
+            }
+        }
+
+        private void PublishChannelLocked(ISystemContext context, ChannelEntry channel)
+        {
+            if (channel.Node is not { } node)
+            {
+                return;
+            }
+            SetValue(node.LeaseHolder, channel.Holder ?? global::Opc.Ua.NodeId.Null);
+            SetValue(node.LeaseExpiry, channel.Expiry);
+            SetValue(node.Available, channel.Available);
+            node.ClearChangeMasks(context, true);
+        }
+
         // ------------------------------------------------------------------ missions
 
         /// <summary>
@@ -682,6 +948,12 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
                     ordering.Message ?? "The mission steps are not valid.");
+            }
+            Check graph = MissionRules.ValidateTransitions(mission.Steps, mission.Transitions);
+            if (!graph.Ok)
+            {
+                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                    graph.Message ?? "The mission graph is not valid.");
             }
 
             lock (m_lock)
@@ -762,6 +1034,12 @@ namespace Opc.Ua.RobotIntent.Server
                     return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
                         ordering.Message ?? "The replacement steps are not valid.");
                 }
+                Check graph = MissionRules.ValidateTransitions(steps, entry.Mission.Transitions);
+                if (!graph.Ok)
+                {
+                    return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
+                        graph.Message ?? "The mission graph is not valid.");
+                }
 
                 entry.Mission.Steps = steps;
                 entry.Mission.MissionUpdateId = missionUpdateId;
@@ -837,19 +1115,114 @@ namespace Opc.Ua.RobotIntent.Server
             MissionRules.SetStatus(mission.Mission.Steps, mission.NextIndex, outcome.State,
                 entry.Node?.NodeId);
 
-            if (outcome.State != ExecutionStateEnum.Succeeded)
+            if (outcome.State == ExecutionStateEnum.Succeeded)
             {
-                // A failed step stops the mission without beginning any later one.
-                // Release 0.1.0 defines no error-handling policy beyond this.
-                FinishMissionLocked(context, mission,
-                    outcome.State == ExecutionStateEnum.Cancelled
-                        ? ExecutionStateEnum.Cancelled
-                        : ExecutionStateEnum.Failed);
+                if (mission.Compensating)
+                {
+                    // The compensation ran; the mission still ends, because that is
+                    // what distinguishes Compensate from Fallback.
+                    FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                    return;
+                }
+                mission.RetriesUsed = 0;
+                if (!AdvanceToNextStepLocked(context, mission))
+                {
+                    FinishMissionLocked(context, mission, ExecutionStateEnum.Succeeded);
+                }
                 return;
             }
 
-            mission.NextIndex++;
+            if (outcome.State == ExecutionStateEnum.Cancelled)
+            {
+                FinishMissionLocked(context, mission, ExecutionStateEnum.Cancelled);
+                return;
+            }
+
+            ApplyErrorPolicyLocked(context, mission);
+        }
+
+        /// <summary>
+        /// Chooses the step that follows one that succeeded.
+        /// </summary>
+        /// <remarks>
+        /// Where the mission carries a step graph and this host evaluates it, the graph
+        /// decides; otherwise the steps run in order, which is what a mission without
+        /// transitions has always done.
+        /// </remarks>
+        private bool AdvanceToNextStepLocked(ISystemContext context, MissionEntry mission)
+        {
+            ArrayOf<MissionTransitionDataType> transitions = mission.Mission.Transitions;
+            bool graphed = m_options.MissionBranchingSupported &&
+                !transitions.IsNull && !transitions.IsEmpty;
+
+            if (graphed)
+            {
+                MissionTransitionDataType? edge = MissionRules.SelectTransition(
+                    transitions, mission.CurrentStepId, m_options.EvaluateCondition);
+                if (edge == null)
+                {
+                    return false;
+                }
+                int next = MissionRules.IndexOfStep(mission.Mission.Steps, edge.ToStepId ?? string.Empty);
+                if (next < 0)
+                {
+                    return false;
+                }
+                mission.NextIndex = next;
+            }
+            else
+            {
+                mission.NextIndex++;
+            }
             StartNextStepLocked(context, mission, ControlOwner);
+            return !IntentOutcome.IsTerminal(mission.State);
+        }
+
+        /// <summary>
+        /// Applies a failed step's error policy, per clause 7.4.
+        /// </summary>
+        private void ApplyErrorPolicyLocked(ISystemContext context, MissionEntry mission)
+        {
+            MissionStepDataType? step =
+                MissionRules.NextPending(mission.Mission.Steps, mission.NextIndex);
+            ErrorPolicyEnum policy = step?.ErrorPolicy ?? ErrorPolicyEnum.Abort;
+
+            switch (policy)
+            {
+                case ErrorPolicyEnum.Retry:
+                    if (mission.RetriesUsed < m_options.MaxStepRetries)
+                    {
+                        mission.RetriesUsed++;
+                        StartNextStepLocked(context, mission, ControlOwner);
+                        return;
+                    }
+                    FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                    return;
+                case ErrorPolicyEnum.Skip:
+                    mission.RetriesUsed = 0;
+                    if (!AdvanceToNextStepLocked(context, mission))
+                    {
+                        FinishMissionLocked(context, mission, ExecutionStateEnum.Succeeded);
+                    }
+                    return;
+                case ErrorPolicyEnum.Fallback:
+                case ErrorPolicyEnum.Compensate:
+                    int target = MissionRules.IndexOfStep(
+                        mission.Mission.Steps, step?.FallbackStepId ?? string.Empty);
+                    if (target < 0)
+                    {
+                        FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                        return;
+                    }
+                    mission.RetriesUsed = 0;
+                    mission.Compensating = policy == ErrorPolicyEnum.Compensate;
+                    mission.NextIndex = target;
+                    StartNextStepLocked(context, mission, ControlOwner);
+                    return;
+                default:
+                    FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                    return;
+            }
         }
 
         private void FinishMissionLocked(
@@ -1101,7 +1474,8 @@ namespace Opc.Ua.RobotIntent.Server
         private void PublishControllerState(ISystemContext context)
         {
             SetValue(m_controller.OperationalMode, m_options.OperationalMode);
-            SetValue(m_controller.Ready, IsSubmissionPermittedInMode() && !m_paused);
+            SetValue(m_controller.Ready,
+                IsSubmissionPermittedInMode() && !m_paused && m_safety.PermitsSubmission);
             SetValue(m_controller.ControlOwner, ControlOwner ?? global::Opc.Ua.NodeId.Null);
             SetValue(m_controller.MaxQueueDepth, m_options.MaxQueueDepth);
             SetValue(m_controller.ActiveIntent, m_current?.Node?.NodeId ?? NodeId.Null);
@@ -1314,6 +1688,19 @@ namespace Opc.Ua.RobotIntent.Server
             }
         }
 
+        private sealed class ChannelEntry
+        {
+            public string ChannelId { get; init; } = string.Empty;
+            public string EndpointUrl { get; init; } = string.Empty;
+            public string PayloadDescriptor { get; init; } = string.Empty;
+            public OperationalModeEnum RequiredMode { get; init; }
+            public bool Available { get; set; } = true;
+            public RealTimeChannelState? Node { get; set; }
+            public NodeId? Holder { get; set; }
+            public bool Leased { get; set; }
+            public DateTime Expiry { get; set; } = DateTime.MinValue;
+        }
+
         private sealed class MissionEntry(string missionId, MissionDataType mission)
         {
             public string MissionId { get; } = missionId;
@@ -1321,6 +1708,8 @@ namespace Opc.Ua.RobotIntent.Server
             public MissionObjectState? Node { get; set; }
             public ExecutionStateEnum State { get; set; } = ExecutionStateEnum.Accepted;
             public int NextIndex { get; set; }
+            public uint RetriesUsed { get; set; }
+            public bool Compensating { get; set; }
             public string CurrentStepId { get; set; } = string.Empty;
             public string CurrentIntentId { get; set; } = string.Empty;
         }

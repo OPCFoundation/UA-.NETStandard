@@ -200,16 +200,16 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=3909</Reference>
     </References>
-    <Definition Name="IntentFailureEnum"><Field Name="None" Value="0"><Description>No failure. Reported on a successful outcome.</Description></Field><Field Name="Unreachable" Value="1"><Description>The target lies outside the reachable workspace.</Description></Field><Field Name="Kinematics" Value="2"><Description>No kinematic solution, or a singularity on the path.</Description></Field><Field Name="Collision" Value="3"><Description>A collision was predicted or detected.</Description></Field><Field Name="JointLimit" Value="4"><Description>A joint limit would be or was exceeded.</Description></Field><Field Name="SpeedLimit" Value="5"><Description>The requested speed or acceleration is not permitted in the active mode.</Description></Field><Field Name="ToolMissing" Value="6"><Description>The required tool is not fitted or not identified.</Description></Field><Field Name="ObjectNotFound" Value="7"><Description>The object to act on was not present.</Description></Field><Field Name="GraspFailed" Value="8"><Description>The object was not acquired, or was lost in transit.</Description></Field><Field Name="Timeout" Value="9"><Description>The intent did not complete within its permitted time.</Description></Field><Field Name="NotPermittedInMode" Value="10"><Description>Refused because the operational mode does not permit it. See clause 10.</Description></Field><Field Name="ControlNotOwned" Value="11"><Description>Refused because the caller does not hold command authority. See clause 8.</Description></Field><Field Name="CapabilityNotSupported" Value="12"><Description>The Server does not implement this intent type, or this combination of options.</Description></Field><Field Name="ParameterInvalid" Value="13"><Description>A parameter was missing, malformed or out of range.</Description></Field><Field Name="QueueFull" Value="14"><Description>The queue is at MaxQueueDepth.</Description></Field><Field Name="Superseded" Value="15"><Description>An Aborting submission or a mission update replaced it before it could run.</Description></Field><Field Name="HardwareFault" Value="16"><Description>A fault in the robot, the end effector or the controller.</Description></Field><Field Name="SafetyStop" Value="17"><Description>A safety function acted. The safety system, not this interface, decided this.</Description></Field><Field Name="Other" Value="18"><Description>A reason none of the above describes; see Message.</Description></Field></Definition>
+    <Definition Name="IntentFailureEnum"><Field Name="None" Value="0"><Description>No failure. Reported on a successful outcome.</Description></Field><Field Name="Unreachable" Value="1"><Description>The target lies outside the reachable workspace.</Description></Field><Field Name="Kinematics" Value="2"><Description>No kinematic solution, or a singularity on the path.</Description></Field><Field Name="Collision" Value="3"><Description>A collision was predicted or detected.</Description></Field><Field Name="JointLimit" Value="4"><Description>A joint limit would be or was exceeded.</Description></Field><Field Name="SpeedLimit" Value="5"><Description>The requested speed or acceleration is not permitted in the active mode.</Description></Field><Field Name="ToolMissing" Value="6"><Description>The required tool is not fitted or not identified.</Description></Field><Field Name="ObjectNotFound" Value="7"><Description>The object to act on was not present.</Description></Field><Field Name="GraspFailed" Value="8"><Description>The object was not acquired, or was lost in transit.</Description></Field><Field Name="Timeout" Value="9"><Description>The intent did not complete within its permitted time.</Description></Field><Field Name="NotPermittedInMode" Value="10"><Description>Refused because the operational mode does not permit it. See clause 10.</Description></Field><Field Name="ControlNotOwned" Value="11"><Description>Refused because the caller does not hold command authority. See clause 8.</Description></Field><Field Name="CapabilityNotSupported" Value="12"><Description>The Server does not implement this intent type, or this combination of options.</Description></Field><Field Name="ParameterInvalid" Value="13"><Description>A parameter was missing, malformed or out of range.</Description></Field><Field Name="QueueFull" Value="14"><Description>The queue is at MaxQueueDepth.</Description></Field><Field Name="Superseded" Value="15"><Description>An Aborting submission or a mission update replaced it before it could run.</Description></Field><Field Name="HardwareFault" Value="16"><Description>A fault in the robot, the end effector or the controller.</Description></Field><Field Name="SafetyStop" Value="17"><Description>A safety function acted. The safety system, not this interface, decided this.</Description></Field><Field Name="Other" Value="18"><Description>A reason none of the above describes; see Message.</Description></Field><Field Name="SafetyLimitExceeded" Value="19"><Description>Refused because the request would exceed a limit the safety system is enforcing. See clause 10.3.</Description></Field></Definition>
   </UADataType>
-  <UAVariable NodeId="ns=1;i=3909" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3009" DataType="LocalizedText" ValueRank="1" ArrayDimensions="19">
+  <UAVariable NodeId="ns=1;i=3909" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3009" DataType="LocalizedText" ValueRank="1" ArrayDimensions="20">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3009</Reference>
     </References>
-    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>None</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Unreachable</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Kinematics</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Collision</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>JointLimit</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>SpeedLimit</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>ToolMissing</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>ObjectNotFound</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>GraspFailed</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Timeout</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>NotPermittedInMode</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>ControlNotOwned</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>CapabilityNotSupported</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>ParameterInvalid</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>QueueFull</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Superseded</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>HardwareFault</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>SafetyStop</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>None</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Unreachable</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Kinematics</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Collision</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>JointLimit</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>SpeedLimit</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>ToolMissing</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>ObjectNotFound</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>GraspFailed</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Timeout</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>NotPermittedInMode</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>ControlNotOwned</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>CapabilityNotSupported</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>ParameterInvalid</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>QueueFull</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Superseded</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>HardwareFault</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>SafetyStop</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>SafetyLimitExceeded</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
   </UAVariable>
   <UADataType NodeId="ns=1;i=3010" BrowseName="1:StopModeEnum">
     <DisplayName>StopModeEnum</DisplayName>
@@ -564,7 +564,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
       <Reference ReferenceType="HasEncoding">ns=1;i=5016</Reference>
     </References>
-    <Definition Name="MissionStepDataType"><Field Name="StepId" DataType="i=12"><Description>Identifier unique within the mission.</Description></Field><Field Name="SequenceId" DataType="i=7"><Description>Execution order within the mission, ascending.</Description></Field><Field Name="Released" DataType="i=1"><Description>True for a base step, which is committed and immutable. False for a horizon step, which an update may replace or remove.</Description></Field><Field Name="Intent" DataType="ns=1;i=3053" AllowSubTypes="true"><Description>The intent this step executes.</Description></Field><Field Name="Status" DataType="ns=1;i=3001"><Description>Reported status. Where Operation is not null its state machine is authoritative and this reflects it.</Description></Field><Field Name="Operation" DataType="i=17"><Description>The IntentOperation executing this step, or null while the step has not begun.</Description></Field></Definition>
+    <Definition Name="MissionStepDataType"><Field Name="StepId" DataType="i=12"><Description>Identifier unique within the mission.</Description></Field><Field Name="SequenceId" DataType="i=7"><Description>Execution order within the mission, ascending.</Description></Field><Field Name="Released" DataType="i=1"><Description>True for a base step, which is committed and immutable. False for a horizon step, which an update may replace or remove.</Description></Field><Field Name="Intent" DataType="ns=1;i=3053" AllowSubTypes="true"><Description>The intent this step executes.</Description></Field><Field Name="Status" DataType="ns=1;i=3001"><Description>Reported status. Where Operation is not null its state machine is authoritative and this reflects it.</Description></Field><Field Name="Operation" DataType="i=17"><Description>The IntentOperation executing this step, or null while the step has not begun.</Description></Field><Field Name="ErrorPolicy" DataType="ns=1;i=3016"><Description>What the mission does when this step does not succeed.</Description></Field><Field Name="FallbackStepId" DataType="i=12"><Description>The step to continue at, when ErrorPolicy is Fallback or Compensate.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=1;i=5016" BrowseName="Default Binary" SymbolicName="DefaultBinary">
     <DisplayName>Default Binary</DisplayName>
@@ -582,7 +582,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
       <Reference ReferenceType="HasEncoding">ns=1;i=5017</Reference>
     </References>
-    <Definition Name="MissionDataType"><Field Name="MissionId" DataType="i=12"><Description>Client-assigned identifier. Empty asks the Server to assign one, which it returns.</Description></Field><Field Name="MissionUpdateId" DataType="i=7"><Description>Revision of this mission, increasing. The first submission is 0.</Description></Field><Field Name="Label" DataType="i=21"><Description>Human-readable description. Never interpreted.</Description></Field><Field Name="Steps" DataType="ns=1;i=3067" ValueRank="1"><Description>The steps, in ascending SequenceId order.</Description></Field></Definition>
+    <Definition Name="MissionDataType"><Field Name="MissionId" DataType="i=12"><Description>Client-assigned identifier. Empty asks the Server to assign one, which it returns.</Description></Field><Field Name="MissionUpdateId" DataType="i=7"><Description>Revision of this mission, increasing. The first submission is 0.</Description></Field><Field Name="Label" DataType="i=21"><Description>Human-readable description. Never interpreted.</Description></Field><Field Name="Steps" DataType="ns=1;i=3067" ValueRank="1"><Description>The steps, in ascending SequenceId order.</Description></Field><Field Name="Transitions" DataType="ns=1;i=3083" ValueRank="1"><Description>The step graph. An empty array means the steps run in order, which is the flat sequence a mission without branching has always been.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=1;i=5017" BrowseName="Default Binary" SymbolicName="DefaultBinary">
     <DisplayName>Default Binary</DisplayName>
@@ -688,6 +688,11 @@
       <Reference ReferenceType="HasComponent">ns=1;i=6037</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=6040</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=6043</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6123</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6124</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6125</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6126</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6129</Reference>
     </References>
   </UAObjectType>
   <UAVariable NodeId="ns=1;i=6003" BrowseName="1:OperationalMode" ParentNodeId="ns=1;i=1002" DataType="ns=1;i=3008" ValueRank="-1">
@@ -1251,6 +1256,11 @@
       <Reference ReferenceType="HasProperty">ns=1;i=6063</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6064</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6065</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6132</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6133</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6134</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6135</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6136</Reference>
     </References>
   </UAObjectType>
   <UAVariable NodeId="ns=1;i=6060" BrowseName="1:SupportedIntents" ParentNodeId="ns=1;i=1005" DataType="ns=1;i=3069" ValueRank="1">
@@ -1683,4 +1693,781 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=2253</Reference>
     </References>
   </UAObject>
+  <UADataType NodeId="ns=1;i=3013" BrowseName="1:SafeMotionFunctionEnum">
+    <DisplayName>SafeMotionFunctionEnum</DisplayName>
+    <Description>The safe motion function a safety system is enforcing, as defined by IEC 61800-5-2. This is a REPORT. The safety system enforces these independently of this interface, and a client reading them has not thereby obtained any safety function - see clause 10.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3913</Reference>
+    </References>
+    <Definition Name="SafeMotionFunctionEnum"><Field Name="None" Value="0"><Description>No safe motion function is active.</Description></Field><Field Name="Sto" Value="1"><Description>Safe Torque Off: torque is removed.</Description></Field><Field Name="Ss1" Value="2"><Description>Safe Stop 1: a controlled ramp to standstill, then Safe Torque Off.</Description></Field><Field Name="Ss2" Value="3"><Description>Safe Stop 2: a controlled ramp to standstill, which is then held under power.</Description></Field><Field Name="Sos" Value="4"><Description>Safe Operating Stop: standstill is monitored while the drive remains energised.</Description></Field><Field Name="Sls" Value="5"><Description>Safely Limited Speed: speed is monitored against a limit.</Description></Field><Field Name="Slp" Value="6"><Description>Safely Limited Position: position is monitored against a limit.</Description></Field><Field Name="Sdi" Value="7"><Description>Safe Direction: motion is permitted in one direction only.</Description></Field><Field Name="Sbc" Value="8"><Description>Safe Brake Control: a brake is commanded safely.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3913" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3013" DataType="LocalizedText" ValueRank="1" ArrayDimensions="9">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3013</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>None</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Sto</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Ss1</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Ss2</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Sos</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Sls</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Slp</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Sdi</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Sbc</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3014" BrowseName="1:RealTimeTransportEnum">
+    <DisplayName>RealTimeTransportEnum</DisplayName>
+    <Description>The transport of a brokered real-time channel. This specification defines none of these: it describes them so a client can find and open one, and the samples never traverse this interface.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3914</Reference>
+    </References>
+    <Definition Name="RealTimeTransportEnum"><Field Name="Rtde" Value="0"><Description>Universal Robots Real-Time Data Exchange.</Description></Field><Field Name="Egm" Value="1"><Description>ABB Externally Guided Motion.</Description></Field><Field Name="Fri" Value="2"><Description>KUKA Fast Research Interface.</Description></Field><Field Name="Rsi" Value="3"><Description>KUKA Robot Sensor Interface.</Description></Field><Field Name="MotoRos2" Value="4"><Description>Yaskawa MotoROS2.</Description></Field><Field Name="OpcUaFx" Value="5"><Description>OPC UA FX (OPC 10000-80 to -84). The open path, and the only one in this list that is an OPC Foundation specification.</Description></Field><Field Name="Other" Value="6"><Description>A transport identified by the channel's own descriptor.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3914" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3014" DataType="LocalizedText" ValueRank="1" ArrayDimensions="7">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3014</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Rtde</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Egm</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Fri</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Rsi</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>MotoRos2</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>OpcUaFx</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Other</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3015" BrowseName="1:ChannelInitiatorEnum">
+    <DisplayName>ChannelInitiatorEnum</DisplayName>
+    <Description>Which end opens the transport connection of a brokered channel. Getting this wrong is the usual reason a first connection attempt fails, so it is stated rather than left to the reader.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3915</Reference>
+    </References>
+    <Definition Name="ChannelInitiatorEnum"><Field Name="Server" Value="0"><Description>The Server connects to an endpoint the client is listening on.</Description></Field><Field Name="Client" Value="1"><Description>The client connects to the endpoint the Server publishes.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3915" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3015" DataType="LocalizedText" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3015</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Server</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Client</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3016" BrowseName="1:ErrorPolicyEnum">
+    <DisplayName>ErrorPolicyEnum</DisplayName>
+    <Description>What a mission does when one of its steps does not succeed. Without this a mission can only abort, which forces every recovery out into the client.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3916</Reference>
+    </References>
+    <Definition Name="ErrorPolicyEnum"><Field Name="Abort" Value="0"><Description>End the mission. This is the default and the behaviour of a mission that declares no policy.</Description></Field><Field Name="Retry" Value="1"><Description>Re-attempt the step. A Server bounds the attempts and reports Failed when they are exhausted.</Description></Field><Field Name="Skip" Value="2"><Description>Record the failure and continue with the next step.</Description></Field><Field Name="Fallback" Value="3"><Description>Continue at FallbackStepId instead.</Description></Field><Field Name="Compensate" Value="4"><Description>Run the fallback step to undo the work already done, then end the mission.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3916" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3016" DataType="LocalizedText" ValueRank="1" ArrayDimensions="5">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3016</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Abort</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Retry</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Skip</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Fallback</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Compensate</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3017" BrowseName="1:DivergenceKindEnum">
+    <DisplayName>DivergenceKindEnum</DisplayName>
+    <Description>How the transitions leaving one step relate to each other, following the divergence of an IEC 61131-3 sequential function chart.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3917</Reference>
+    </References>
+    <Definition Name="DivergenceKindEnum"><Field Name="Alternative" Value="0"><Description>Exactly one transition is taken - the first whose condition holds. An OR divergence.</Description></Field><Field Name="Parallel" Value="1"><Description>Every transition is taken and the branches run concurrently. An AND divergence.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3917" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3017" DataType="LocalizedText" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3017</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Alternative</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Parallel</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3018" BrowseName="1:WeaveShapeEnum">
+    <DisplayName>WeaveShapeEnum</DisplayName>
+    <Description>The oscillation applied across an arc weld seam.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3918</Reference>
+    </References>
+    <Definition Name="WeaveShapeEnum"><Field Name="None" Value="0"><Description>No weave.</Description></Field><Field Name="Sine" Value="1"><Description>Sinusoidal oscillation.</Description></Field><Field Name="Zigzag" Value="2"><Description>Triangular oscillation.</Description></Field><Field Name="Trapezoid" Value="3"><Description>Trapezoidal oscillation, with a dwell at each edge.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3918" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3018" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3018</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>None</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Sine</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Zigzag</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Trapezoid</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3070" BrowseName="1:TrajectoryPointDataType">
+    <DisplayName>TrajectoryPointDataType</DisplayName>
+    <Description>One point of a time-parameterised path. Positions are per axis in the order the axes are declared, in radians or metres by AxisKind. TimeFromStart is measured from the start of the trajectory, which is what makes the path a trajectory rather than a list of waypoints. Velocities and Accelerations are optional and may be empty.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5019</Reference>
+    </References>
+    <Definition Name="TrajectoryPointDataType"><Field Name="TimeFromStart" DataType="i=290"><Description>Milliseconds from the start of the trajectory.</Description></Field><Field Name="Positions" DataType="i=11" ValueRank="1"><Description>One value per axis.</Description></Field><Field Name="Velocities" DataType="i=11" ValueRank="1"><Description>One value per axis, or empty.</Description></Field><Field Name="Accelerations" DataType="i=11" ValueRank="1"><Description>One value per axis, or empty.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5019" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3070</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3071" BrowseName="1:MotionToleranceDataType">
+    <DisplayName>MotionToleranceDataType</DisplayName>
+    <Description>How far execution may deviate before it is a failure. A tolerance of zero or less means the Server applies its own.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5020</Reference>
+    </References>
+    <Definition Name="MotionToleranceDataType"><Field Name="Position" DataType="i=11"><Description>Positional tolerance in metres.</Description></Field><Field Name="Orientation" DataType="i=11"><Description>Orientation tolerance in radians.</Description></Field><Field Name="Time" DataType="i=290"><Description>Timing tolerance in milliseconds.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5020" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3071</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3072" BrowseName="1:TrajectoryIntentDataType">
+    <DisplayName>TrajectoryIntentDataType</DisplayName>
+    <Description>Execute a time-parameterised path. The Server's own motion kernel runs it; this interface hands the whole trajectory over in one submission and does not stream it. That is what makes trajectory execution expressible here when real-time control is not - see clause 4.3.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3054</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5021</Reference>
+    </References>
+    <Definition Name="TrajectoryIntentDataType"><Field Name="Points" DataType="ns=1;i=3070" ValueRank="1"><Description>The trajectory, in ascending TimeFromStart order.</Description></Field><Field Name="PathTolerance" DataType="ns=1;i=3071"><Description>Permitted deviation while following the path.</Description></Field><Field Name="GoalTolerance" DataType="ns=1;i=3071"><Description>Permitted deviation at the final point.</Description></Field><Field Name="GoalTimeTolerance" DataType="i=290"><Description>How much later than the final point's TimeFromStart completion may be, in milliseconds.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5021" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3072</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3073" BrowseName="1:PathWaypointDataType">
+    <DisplayName>PathWaypointDataType</DisplayName>
+    <Description>One waypoint of a Cartesian path, with the blend that applies at it. Per-waypoint blending is what distinguishes a path from a sequence of separate linear moves: the robot need not stop between them.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5022</Reference>
+    </References>
+    <Definition Name="PathWaypointDataType"><Field Name="Pose" DataType="ns=1;i=3050"><Description>Where the tool centre point passes.</Description></Field><Field Name="Blend" DataType="ns=1;i=3052"><Description>How this waypoint is left.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5022" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3073</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3074" BrowseName="1:CartesianPathIntentDataType">
+    <DisplayName>CartesianPathIntentDataType</DisplayName>
+    <Description>Follow a list of Cartesian waypoints. This is the portable form of a taught path, and unlike a trajectory it carries no timing: the Server paces it from the motion constraints.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3054</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5023</Reference>
+    </References>
+    <Definition Name="CartesianPathIntentDataType"><Field Name="Waypoints" DataType="ns=1;i=3073" ValueRank="1"><Description>The path, in order.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5023" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3074</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3075" BrowseName="1:ForceIntentDataType">
+    <DisplayName>ForceIntentDataType</DisplayName>
+    <Description>Move until contact. The portable subset of the force-controlled moves every vendor offers: travel along a direction until a contact force is reached or a distance is exhausted, whichever comes first. Reaching the distance without contact is a failure, because the intent was to touch something.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3054</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5024</Reference>
+    </References>
+    <Definition Name="ForceIntentDataType"><Field Name="Direction" DataType="i=11" ValueRank="1" ArrayDimensions="3"><Description>Unit direction of travel (x, y, z) in the frame of the target.</Description></Field><Field Name="FrameId" DataType="i=12"><Description>The CoordinateFrame Direction is expressed in; empty for the default work frame.</Description></Field><Field Name="ContactForce" DataType="i=11"><Description>The force in newtons at which contact is declared.</Description></Field><Field Name="MaxDistance" DataType="i=11"><Description>How far to travel before giving up, in metres.</Description></Field><Field Name="HoldForce" DataType="i=1"><Description>True to keep pressing at ContactForce after contact rather than stopping.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5024" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3075</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3076" BrowseName="1:ProcessIntentDataType" IsAbstract="true">
+    <DisplayName>ProcessIntentDataType</DisplayName>
+    <Description>Abstract base of the intents that run an application process along a path. Every process needs the same two things beyond its own parameters: a reference to the process program or procedure the equipment holds, and room for the parameters this specification has not standardised.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3054</Reference>
+    </References>
+    <Definition Name="ProcessIntentDataType"><Field Name="ProcessProgram" DataType="i=17"><Description>The Program or equipment-side procedure to run, or null when the parameters here are sufficient.</Description></Field><Field Name="Attributes" DataType="i=14533" ValueRank="1"><Description>Further named parameters the Server declares in its capabilities.</Description></Field></Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3077" BrowseName="1:ArcWeldIntentDataType">
+    <DisplayName>ArcWeldIntentDataType</DisplayName>
+    <Description>Lay an arc weld along the path. The parameters are the subset ABB seamdata/welddata/weavedata, FANUC weld schedules and KUKA ArcTech all carry. WeldProcedureRef points at a welding procedure specification (ISO 15609) where the installation works to one; this specification does not restate its content.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3076</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5025</Reference>
+    </References>
+    <Definition Name="ArcWeldIntentDataType"><Field Name="Voltage" DataType="i=11"><Description>Arc voltage in volts.</Description></Field><Field Name="WireFeedSpeed" DataType="i=11"><Description>Wire feed speed in metres per minute.</Description></Field><Field Name="TravelSpeed" DataType="i=11"><Description>Tool centre point speed in metres per second.</Description></Field><Field Name="GasPreflowTime" DataType="i=290"><Description>Shielding gas pre-flow, in milliseconds.</Description></Field><Field Name="GasPostflowTime" DataType="i=290"><Description>Shielding gas post-flow, in milliseconds.</Description></Field><Field Name="ArcStartDelay" DataType="i=290"><Description>Delay before travel begins, in milliseconds.</Description></Field><Field Name="CraterFillTime" DataType="i=290"><Description>Crater fill at the end of the seam, in milliseconds.</Description></Field><Field Name="WeaveShape" DataType="ns=1;i=3018"><Description>Oscillation across the seam.</Description></Field><Field Name="WeaveAmplitude" DataType="i=11"><Description>Peak-to-peak weave width in metres.</Description></Field><Field Name="WeaveFrequency" DataType="i=11"><Description>Weave frequency in hertz.</Description></Field><Field Name="SeamTrackingEnabled" DataType="i=1"><Description>True to enable seam tracking where the equipment provides it.</Description></Field><Field Name="WeldProcedureRef" DataType="i=12"><Description>Identifier of the welding procedure specification this weld works to.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5025" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3077</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3078" BrowseName="1:SpotWeldIntentDataType">
+    <DisplayName>SpotWeldIntentDataType</DisplayName>
+    <Description>Make a resistance spot weld at the target. WeldSchedule selects the weld controller's own program: current and time are the weld controller's business, and are carried here only where the installation drives them from the robot.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3076</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5026</Reference>
+    </References>
+    <Definition Name="SpotWeldIntentDataType"><Field Name="WeldSchedule" DataType="i=7"><Description>The weld controller program to run.</Description></Field><Field Name="GunForce" DataType="i=11"><Description>Electrode force in newtons.</Description></Field><Field Name="ApproachDistance" DataType="i=11"><Description>Gun open distance before the weld, in metres.</Description></Field><Field Name="RetractDistance" DataType="i=11"><Description>Gun open distance after the weld, in metres.</Description></Field><Field Name="MaterialThickness" DataType="i=11"><Description>Total stack thickness in metres, where the schedule is chosen adaptively.</Description></Field><Field Name="TipDressRequested" DataType="i=1"><Description>True to dress the tips after this weld.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5026" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3078</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3079" BrowseName="1:DispenseIntentDataType">
+    <DisplayName>DispenseIntentDataType</DisplayName>
+    <Description>Lay a bead of adhesive, sealant or paint along the path. The trigger distances exist because material does not start and stop instantly: a Server begins dispensing before the path and stops before its end.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3076</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5027</Reference>
+    </References>
+    <Definition Name="DispenseIntentDataType"><Field Name="FlowRate" DataType="i=11"><Description>Nominal flow in millilitres per minute.</Description></Field><Field Name="TriggerOnDistance" DataType="i=11"><Description>Distance before the path start at which dispensing begins, in metres.</Description></Field><Field Name="TriggerOffDistance" DataType="i=11"><Description>Distance before the path end at which dispensing stops, in metres.</Description></Field><Field Name="BeadWidth" DataType="i=11"><Description>Target bead width in metres.</Description></Field><Field Name="MaterialTemperature" DataType="i=11"><Description>Material temperature in degrees Celsius, for hot-melt work.</Description></Field><Field Name="PurgeCycles" DataType="i=7"><Description>Nozzle purge cycles before starting.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5027" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3079</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3080" BrowseName="1:FastenIntentDataType">
+    <DisplayName>FastenIntentDataType</DisplayName>
+    <Description>Drive a fastener at the target. This intent is deliberately THIN: OPC 40450 and OPC 40451 already define joining and tightening in full, so Joint references the joint in that model and the result belongs there. Restating those parameters here would create a second definition of the same fact.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3076</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5028</Reference>
+    </References>
+    <Definition Name="FastenIntentDataType"><Field Name="Joint" DataType="i=17"><Description>The joint being fastened, in an OPC UA joining or tightening model where one is implemented.</Description></Field><Field Name="ProgramNumber" DataType="i=7"><Description>The tightening program the tool is to run.</Description></Field><Field Name="TargetTorque" DataType="i=11"><Description>Target torque in newton metres, where the robot supplies it rather than the tool.</Description></Field><Field Name="TargetAngle" DataType="i=11"><Description>Target angle in radians, for angle-controlled strategies.</Description></Field><Field Name="SnugTorque" DataType="i=11"><Description>Torque at which angle counting begins, in newton metres.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5028" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3080</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3081" BrowseName="1:PalletiseIntentDataType">
+    <DisplayName>PalletiseIntentDataType</DisplayName>
+    <Description>Place an item into a pattern. The pattern itself is a Location, so its geometry has one definition that a client can read rather than being recomputed from indices on both sides.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3076</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5029</Reference>
+    </References>
+    <Definition Name="PalletiseIntentDataType"><Field Name="Pattern" DataType="i=17"><Description>The Location describing the pallet or pattern.</Description></Field><Field Name="Layer" DataType="i=7"><Description>Layer index, counting from zero.</Description></Field><Field Name="Row" DataType="i=7"><Description>Row index within the layer, counting from zero.</Description></Field><Field Name="Column" DataType="i=7"><Description>Column index within the row, counting from zero.</Description></Field><Field Name="ItemOrientation" DataType="i=11"><Description>Rotation of the item about the pattern normal, in radians.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5029" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3081</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3082" BrowseName="1:SurfaceFinishIntentDataType">
+    <DisplayName>SurfaceFinishIntentDataType</DisplayName>
+    <Description>Follow the path pressing into the surface - grinding, polishing, deburring or sanding. ContactForce is what distinguishes it from a plain path: the robot yields normal to the surface to hold that force.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3076</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5030</Reference>
+    </References>
+    <Definition Name="SurfaceFinishIntentDataType"><Field Name="ContactForce" DataType="i=11"><Description>Force normal to the surface, in newtons.</Description></Field><Field Name="FeedRate" DataType="i=11"><Description>Travel speed along the surface, in metres per second.</Description></Field><Field Name="ToolSpeed" DataType="i=11"><Description>Rotational speed of the tool, in revolutions per minute.</Description></Field><Field Name="StepOver" DataType="i=11"><Description>Lateral offset between adjacent passes, in metres.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5030" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3082</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3083" BrowseName="1:MissionTransitionDataType">
+    <DisplayName>MissionTransitionDataType</DisplayName>
+    <Description>One edge of a mission's step graph, following the step-and-transition form of an IEC 61131-3 sequential function chart. Condition is an OPC UA ContentFilter - the base specification's own filter grammar, reused so that this specification does not invent an expression language for implementers to write a parser for.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5031</Reference>
+    </References>
+    <Definition Name="MissionTransitionDataType"><Field Name="FromStepId" DataType="i=12"><Description>The step this transition leaves.</Description></Field><Field Name="ToStepId" DataType="i=12"><Description>The step this transition enters.</Description></Field><Field Name="Condition" DataType="i=586"><Description>The condition under which it is taken. An empty filter is always true.</Description></Field><Field Name="DivergenceKind" DataType="ns=1;i=3017"><Description>How this transition relates to the others leaving the same step.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5031" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3083</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=3084" BrowseName="1:KinematicJointDataType">
+    <DisplayName>KinematicJointDataType</DisplayName>
+    <Description>One joint of the kinematic chain: where it sits relative to its predecessor and which way it acts. OPC 40010-1 describes a robot's topology and its axes but defines no kinematic chain, so this is additive rather than a second account of the same thing.</Description>
+    <Category>RobotIntent DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5032</Reference>
+    </References>
+    <Definition Name="KinematicJointDataType"><Field Name="AxisId" DataType="i=12"><Description>The AxisType this joint corresponds to.</Description></Field><Field Name="Kind" DataType="ns=1;i=3011"><Description>Whether it rotates or translates.</Description></Field><Field Name="OriginTransform" DataType="ns=1;i=3050"><Description>Pose of this joint's frame within its predecessor's, at zero position.</Description></Field><Field Name="AxisVector" DataType="i=11" ValueRank="1" ArrayDimensions="3"><Description>Unit vector (x, y, z) the joint rotates about or translates along, in its own frame.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5032" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <Description>Default Binary encoding of the structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3084</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=1;i=1012" BrowseName="1:SafetyStateType">
+    <DisplayName>SafetyStateType</DisplayName>
+    <Description>What the robot's safety system is doing, reported so a client can act sensibly around it. Every member is READ-ONLY and every one is a report: the safety system enforces these independently, remains effective when this interface is unreachable, and is not commanded from here. Clause 10 states the boundary and this type does not cross it.</Description>
+    <Category>RobotIntent</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6098</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6099</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6100</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6101</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6102</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6103</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6104</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6098" BrowseName="1:ActiveFunction" ParentNodeId="ns=1;i=1012" DataType="ns=1;i=3013" ValueRank="-1">
+    <DisplayName>ActiveFunction</DisplayName>
+    <Description>The safe motion function currently enforced, per IEC 61800-5-2.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6099" BrowseName="1:EmergencyStopActive" ParentNodeId="ns=1;i=1012" DataType="Boolean" ValueRank="-1">
+    <DisplayName>EmergencyStopActive</DisplayName>
+    <Description>True while an emergency stop is asserted.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6100" BrowseName="1:ProtectiveStopActive" ParentNodeId="ns=1;i=1012" DataType="Boolean" ValueRank="-1">
+    <DisplayName>ProtectiveStopActive</DisplayName>
+    <Description>True while a protective stop is asserted.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6101" BrowseName="1:SafeSpeedLimitActive" ParentNodeId="ns=1;i=1012" DataType="Boolean" ValueRank="-1">
+    <DisplayName>SafeSpeedLimitActive</DisplayName>
+    <Description>True while a safely limited speed is being enforced.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6102" BrowseName="1:SafeSpeedLimit" ParentNodeId="ns=1;i=1012" DataType="Double" ValueRank="-1">
+    <DisplayName>SafeSpeedLimit</DisplayName>
+    <Description>The tool centre point speed limit being enforced, in metres per second. Meaningful only while SafeSpeedLimitActive. Clause 10.3 requires a Server to refuse an intent that asks to exceed it.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6103" BrowseName="1:SafetyControllerOk" ParentNodeId="ns=1;i=1012" DataType="Boolean" ValueRank="-1">
+    <DisplayName>SafetyControllerOk</DisplayName>
+    <Description>False when the safety system reports its own fault. A Server accepts no intent while it is false.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6104" BrowseName="1:LastStopReason" ParentNodeId="ns=1;i=1012" DataType="LocalizedText" ValueRank="-1">
+    <DisplayName>LastStopReason</DisplayName>
+    <Description>Why the last stop occurred, for a human. Never parsed.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1013" BrowseName="1:RealTimeChannelType">
+    <DisplayName>RealTimeChannelType</DisplayName>
+    <Description>A high-rate channel this Server can offer, described so a client can open it. The samples never traverse OPC UA: this brokers the endpoint and nothing more, in the same way the Vision model brokers a media endpoint rather than carrying pixels. Clause 4.3 explains why the alternative is not available.</Description>
+    <Category>RobotIntent</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6105</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6106</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6107</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6108</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6109</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6110</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6111</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6112</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6113</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6114</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6105" BrowseName="1:ChannelId" ParentNodeId="ns=1;i=1013" DataType="String" ValueRank="-1">
+    <DisplayName>ChannelId</DisplayName>
+    <Description>Identifier unique within the controller.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6106" BrowseName="1:Transport" ParentNodeId="ns=1;i=1013" DataType="ns=1;i=3014" ValueRank="-1">
+    <DisplayName>Transport</DisplayName>
+    <Description>The transport this channel speaks.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6107" BrowseName="1:EndpointUrl" ParentNodeId="ns=1;i=1013" DataType="String" ValueRank="-1">
+    <DisplayName>EndpointUrl</DisplayName>
+    <Description>Where the channel is reached. Its scheme and form are the transport's, not this specification's.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6108" BrowseName="1:Initiator" ParentNodeId="ns=1;i=1013" DataType="ns=1;i=3015" ValueRank="-1">
+    <DisplayName>Initiator</DisplayName>
+    <Description>Which end opens the connection.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6109" BrowseName="1:NominalRate" ParentNodeId="ns=1;i=1013" DataType="Double" ValueRank="-1">
+    <DisplayName>NominalRate</DisplayName>
+    <Description>The rate the channel runs at, in hertz.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6110" BrowseName="1:PayloadDescriptor" ParentNodeId="ns=1;i=1013" DataType="String" ValueRank="-1">
+    <DisplayName>PayloadDescriptor</DisplayName>
+    <Description>The recipe, signal list or configuration the transport requires, in the transport's own form.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6111" BrowseName="1:RequiredMode" ParentNodeId="ns=1;i=1013" DataType="ns=1;i=3008" ValueRank="-1">
+    <DisplayName>RequiredMode</DisplayName>
+    <Description>The operational mode the robot must be in before the channel will carry motion.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6112" BrowseName="1:Available" ParentNodeId="ns=1;i=1013" DataType="Boolean" ValueRank="-1">
+    <DisplayName>Available</DisplayName>
+    <Description>True when the channel can be opened now.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6113" BrowseName="1:LeaseHolder" ParentNodeId="ns=1;i=1013" DataType="NodeId" ValueRank="-1">
+    <DisplayName>LeaseHolder</DisplayName>
+    <Description>SessionId of the client currently holding the channel, or null.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6114" BrowseName="1:LeaseExpiry" ParentNodeId="ns=1;i=1013" DataType="UtcTime" ValueRank="-1">
+    <DisplayName>LeaseExpiry</DisplayName>
+    <Description>When the current lease lapses. A lease that is not renewed frees the channel, so a client that dies does not hold it for good.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1014" BrowseName="1:RobotDescriptionType">
+    <DisplayName>RobotDescriptionType</DisplayName>
+    <Description>Enough of the robot's construction for a client to plan against it without a second specification: the kinematic chain, the space it can reach, and what it can carry. OPC 40010-1 describes topology and axes and defines no kinematic chain and no tool centre point, so this adds rather than restates - Annex B says which side decides where both are present.</Description>
+    <Category>RobotIntent</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6115</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6116</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6117</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6118</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6119</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6120</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6121</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6122</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6115" BrowseName="1:Manufacturer" ParentNodeId="ns=1;i=1014" DataType="LocalizedText" ValueRank="-1">
+    <DisplayName>Manufacturer</DisplayName>
+    <Description>Who made the robot.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6116" BrowseName="1:Model" ParentNodeId="ns=1;i=1014" DataType="String" ValueRank="-1">
+    <DisplayName>Model</DisplayName>
+    <Description>The robot's model designation.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6117" BrowseName="1:KinematicChain" ParentNodeId="ns=1;i=1014" DataType="ns=1;i=3084" ValueRank="1">
+    <DisplayName>KinematicChain</DisplayName>
+    <Description>The joints from the base outwards, in order.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6118" BrowseName="1:MountingPose" ParentNodeId="ns=1;i=1014" DataType="ns=1;i=3050" ValueRank="-1">
+    <DisplayName>MountingPose</DisplayName>
+    <Description>Pose of the robot base within the world frame.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6119" BrowseName="1:ReachRadius" ParentNodeId="ns=1;i=1014" DataType="Double" ValueRank="-1">
+    <DisplayName>ReachRadius</DisplayName>
+    <Description>Radius of the reachable workspace from the base, in metres.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6120" BrowseName="1:PayloadLimit" ParentNodeId="ns=1;i=1014" DataType="Double" ValueRank="-1">
+    <DisplayName>PayloadLimit</DisplayName>
+    <Description>Largest payload at the mechanical interface, in kilograms.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6121" BrowseName="1:MaxCartesianSpeed" ParentNodeId="ns=1;i=1014" DataType="Double" ValueRank="-1">
+    <DisplayName>MaxCartesianSpeed</DisplayName>
+    <Description>Largest tool centre point speed the robot will produce, in metres per second.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6122" BrowseName="1:MaxCartesianAcceleration" ParentNodeId="ns=1;i=1014" DataType="Double" ValueRank="-1">
+    <DisplayName>MaxCartesianAcceleration</DisplayName>
+    <Description>Largest tool centre point acceleration, in metres per second squared.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=6123" BrowseName="1:SafetyState" ParentNodeId="ns=1;i=1002">
+    <DisplayName>SafetyState</DisplayName>
+    <Description>What the safety system is doing. A client reads this before it plans, and subscribes to it so that it learns of a stop rather than inferring one from a refusal.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1012</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6124" BrowseName="1:Description" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Description</DisplayName>
+    <Description>The robot's kinematics and limits.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1014</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6125" BrowseName="1:RealTimeChannels" ParentNodeId="ns=1;i=1002">
+    <DisplayName>RealTimeChannels</DisplayName>
+    <Description>The high-rate channels this Server can broker.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="ns=1;i=6126" BrowseName="1:OpenRealTimeChannel" ParentNodeId="ns=1;i=1002">
+    <DisplayName>OpenRealTimeChannel</DisplayName>
+    <Description>Take a lease on a brokered real-time channel. The Server prepares the transport and returns what the client needs in order to connect; it does not carry the samples. A lease that is not renewed lapses, which is what stops a dead client from holding the channel.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6127</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6128</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6127" BrowseName="1:InputArguments" ParentNodeId="ns=1;i=6126" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6126</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>ChannelId</uax:Name><uax:DataType><uax:Identifier>i=12</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>The channel to open.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>RequestedLease</uax:Name><uax:DataType><uax:Identifier>i=290</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>How long the lease is wanted for, in milliseconds.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6128" BrowseName="1:OutputArguments" ParentNodeId="ns=1;i=6126" DataType="Argument" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6126</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Granted</uax:Name><uax:DataType><uax:Identifier>i=1</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>True when the lease was taken.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>EndpointUrl</uax:Name><uax:DataType><uax:Identifier>i=12</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>Where to connect.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>PayloadDescriptor</uax:Name><uax:DataType><uax:Identifier>i=12</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>The transport's own configuration.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>LeaseExpiry</uax:Name><uax:DataType><uax:Identifier>i=294</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>When the lease lapses.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6129" BrowseName="1:CloseRealTimeChannel" ParentNodeId="ns=1;i=1002">
+    <DisplayName>CloseRealTimeChannel</DisplayName>
+    <Description>Give up a lease on a brokered channel.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6130</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6131</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6130" BrowseName="1:InputArguments" ParentNodeId="ns=1;i=6129" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6129</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>ChannelId</uax:Name><uax:DataType><uax:Identifier>i=12</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>The channel to release.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6131" BrowseName="1:OutputArguments" ParentNodeId="ns=1;i=6129" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6129</Reference>
+    </References>
+    <Value><uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ExtensionObject><uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId><uax:Body><uax:Argument><uax:Name>Released</uax:Name><uax:DataType><uax:Identifier>i=1</uax:Identifier></uax:DataType><uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions/><uax:Description><uax:Text>True when the lease was held and is now released.</uax:Text></uax:Description></uax:Argument></uax:Body></uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6132" BrowseName="1:TrajectorySupported" ParentNodeId="ns=1;i=1005" DataType="Boolean" ValueRank="-1">
+    <DisplayName>TrajectorySupported</DisplayName>
+    <Description>True when trajectory and Cartesian path intents are accepted.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6133" BrowseName="1:ForceControlSupported" ParentNodeId="ns=1;i=1005" DataType="Boolean" ValueRank="-1">
+    <DisplayName>ForceControlSupported</DisplayName>
+    <Description>True when force intents are accepted and the robot can actually regulate force. A Server that would ignore the force reports false rather than accepting an intent it cannot honour.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6134" BrowseName="1:RealTimeChannelsSupported" ParentNodeId="ns=1;i=1005" DataType="Boolean" ValueRank="-1">
+    <DisplayName>RealTimeChannelsSupported</DisplayName>
+    <Description>True when the Server brokers real-time channels.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6135" BrowseName="1:MissionBranchingSupported" ParentNodeId="ns=1;i=1005" DataType="Boolean" ValueRank="-1">
+    <DisplayName>MissionBranchingSupported</DisplayName>
+    <Description>True when mission transitions are evaluated. A Server that reports false executes the steps in order and ignores any transitions supplied.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6136" BrowseName="1:MaxTrajectoryPoints" ParentNodeId="ns=1;i=1005" DataType="UInt32" ValueRank="-1">
+    <DisplayName>MaxTrajectoryPoints</DisplayName>
+    <Description>Largest number of points accepted in one trajectory. Zero means the Server states no limit.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
 </UANodeSet>
