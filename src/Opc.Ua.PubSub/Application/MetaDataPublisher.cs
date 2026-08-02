@@ -220,12 +220,8 @@ namespace Opc.Ua.PubSub.Application
                     m_application.ConfigurationChanged -= OnConfigurationChanged;
                     m_subscribed = false;
                 }
-                foreach (DataSetSubscription subscription in m_dataSetSubscriptions)
-                {
-                    subscription.DataSet.MetaDataChanged -= subscription.Handler;
-                }
-                m_dataSetSubscriptions.Clear();
             }
+            UnsubscribeFromDataSets();
             return default;
         }
 
@@ -241,12 +237,17 @@ namespace Opc.Ua.PubSub.Application
         /// but nothing carried that into the registry this publisher watches,
         /// so the empty announcement was the only one a consumer ever saw.
         ///
-        /// This runs again whenever the configuration changes, so it must be
-        /// idempotent: a dataset already being watched is skipped, compared by
-        /// reference because that is the identity the handler is bound to.
+        /// This runs again whenever the configuration changes. Rather than
+        /// reconcile, it drops every existing subscription and takes them
+        /// afresh: a subscription belongs to a
+        /// (connection, writer group, writer) triple, because that is what the
+        /// handler announces for, and a configuration change can add, remove
+        /// or move writers between groups. Reattaching is cheap and a dropped
+        /// subscription cannot outlive the writer it was taken for.
         /// </remarks>
         private void SubscribeToDataSets()
         {
+            UnsubscribeFromDataSets();
             for (int connectionIndex = 0;
                 connectionIndex < m_application.Connections.Count;
                 connectionIndex++)
@@ -269,6 +270,13 @@ namespace Opc.Ua.PubSub.Application
                         PubSubConnection connection = runtime;
                         IWriterGroup group = writerGroup;
                         IDataSetWriter target = writer;
+                        //
+                        // One handler per writer, not per dataset. Several
+                        // writers may share a PublishedDataSet - the same
+                        // DataSetName used from different groups or
+                        // connections - and each announces to its own
+                        // destination, so each needs its own subscription.
+                        //
                         void Handler(object? sender, DataSetMetaDataChangedEventArgs e)
                         {
                             OnDataSetMetaDataChanged(connection, group, target, e);
@@ -279,17 +287,12 @@ namespace Opc.Ua.PubSub.Application
                             {
                                 return;
                             }
-                            if (IsSubscribedLocked(dataSet))
-                            {
-                                continue;
-                            }
                         }
                         dataSet.MetaDataChanged += Handler;
                         bool keepSubscription;
                         lock (m_gate)
                         {
-                            keepSubscription = Volatile.Read(ref m_disposed) == 0
-                                && !IsSubscribedLocked(dataSet);
+                            keepSubscription = Volatile.Read(ref m_disposed) == 0;
                             if (keepSubscription)
                             {
                                 m_dataSetSubscriptions.Add(
@@ -299,10 +302,7 @@ namespace Opc.Ua.PubSub.Application
                         if (!keepSubscription)
                         {
                             dataSet.MetaDataChanged -= Handler;
-                            if (Volatile.Read(ref m_disposed) != 0)
-                            {
-                                return;
-                            }
+                            return;
                         }
                     }
                 }
@@ -310,22 +310,24 @@ namespace Opc.Ua.PubSub.Application
         }
 
         /// <summary>
-        /// True when this dataset is already being watched. Compared by
-        /// reference, because that is the identity the handler is bound to -
-        /// two datasets can carry equal metadata and still be different
-        /// sources.
+        /// Drops every per-dataset subscription currently held.
         /// </summary>
-        /// <param name="dataSet"></param>
-        private bool IsSubscribedLocked(IPublishedDataSet dataSet)
+        private void UnsubscribeFromDataSets()
         {
-            for (int index = 0; index < m_dataSetSubscriptions.Count; index++)
+            DataSetSubscription[] taken;
+            lock (m_gate)
             {
-                if (ReferenceEquals(m_dataSetSubscriptions[index].DataSet, dataSet))
+                if (m_dataSetSubscriptions.Count == 0)
                 {
-                    return true;
+                    return;
                 }
+                taken = m_dataSetSubscriptions.ToArray();
+                m_dataSetSubscriptions.Clear();
             }
-            return false;
+            for (int index = 0; index < taken.Length; index++)
+            {
+                taken[index].DataSet.MetaDataChanged -= taken[index].Handler;
+            }
         }
 
         private void OnDataSetMetaDataChanged(
