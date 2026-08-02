@@ -903,6 +903,31 @@ def Xform "Cell"
         }
     }
 
+    # The view a host opens on. A cell is a wide, shallow scene sitting inside a fence, so
+    # framing its bounds automatically puts the eye close enough to be inside the cage,
+    # looking at whichever robot happens to be nearest. This is the establishing shot: the
+    # whole floor, both work tables, the docks and the controller cabinet, from the front and
+    # far enough back to keep the fence in frame.
+    #
+    # A UsdGeomCamera looks down its own -Z with +Y up, so the matrix rows are the camera
+    # basis in world: +X right, +Y up-and-tilted-forward, +Z back along the view. The eye
+    # sits 12 m out from the cell centre at 28 degrees of elevation.
+    def Camera "OverviewCamera"
+    {
+        token projection = "perspective"
+        float focalLength = 24
+        float horizontalAperture = 20.955
+        float verticalAperture = 13.97
+        float2 clippingRange = (0.1, 200)
+        matrix4d xformOp:transform = (
+            (1, 0, 0, 0),
+            (0, 0.469472, 0.882948, 0),
+            (0, -0.882948, 0.469472, 0),
+            (0, -10.7954, 6.3837, 1)
+        )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+    }
+
     # Overhead camera framing the whole cell. Hosts can start on it by prim path.
     def Camera "TopDownCamera"
     {

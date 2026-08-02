@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -207,6 +208,22 @@ namespace Opc.Ua.OpenUsdScene.Tests
                     mount!.Attributes.Any(a => a.Name == expected), Is.True,
                     $"{primPath} does not carry {expected}.");
             }
+        }
+
+        [Test]
+        public void TheStageOffersItsEstablishingShotFirst()
+        {
+            UsdStage stage = LoadSample("Cell.usda");
+
+            // A connector opens on the first camera the served root layer authors, because
+            // framing the bounds of an enclosed scene automatically puts the eye inside the
+            // fence. The overview therefore has to come before the overhead camera.
+            List<UsdPrim> cameras = stage.AllPrims()
+                .Where(p => string.Equals(p.TypeName, "Camera", StringComparison.Ordinal))
+                .ToList();
+
+            Assert.That(cameras, Is.Not.Empty, "The cell authors no camera to open on.");
+            Assert.That(cameras[0].Path, Is.EqualTo("/Cell/OverviewCamera"));
         }
 
         [Test]
