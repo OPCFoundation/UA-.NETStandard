@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
     /// SubscribeXxxAsync call adds a monitored item to the shared
     /// subscription and pipes notifications into a per-call channel.
     /// </summary>
-    public sealed class StreamingSubscription : IStreamingSubscription
+    public sealed class StreamingSubscription : IStreamingSubscription, IStreamingSubscriptionReadiness
     {
         private readonly ISubscriptionManager m_subscriptionManager;
         private readonly SubscriptionOptions m_subscriptionOptions;
@@ -193,11 +193,35 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             return SubscribeEventsImpl(notifierId, filter, options, ct);
         }
 
+        /// <inheritdoc/>
+        IAsyncEnumerable<EventNotification> IStreamingSubscriptionReadiness.SubscribeEventsAsync(
+            NodeId notifierId,
+            EventFilter filter,
+            MonitoredItems.MonitoredItemOptions? options,
+            Func<IMonitoredItem, CancellationToken, ValueTask> onMonitoredItemReady,
+            CancellationToken ct)
+        {
+            if (notifierId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(notifierId));
+            }
+            if (filter == null)
+            {
+                throw new ArgumentNullException(nameof(filter));
+            }
+            if (onMonitoredItemReady == null)
+            {
+                throw new ArgumentNullException(nameof(onMonitoredItemReady));
+            }
+            return SubscribeEventsImpl(notifierId, filter, options, ct, onMonitoredItemReady);
+        }
+
         private async IAsyncEnumerable<EventNotification> SubscribeEventsImpl(
             NodeId notifierId,
             EventFilter filter,
             MonitoredItems.MonitoredItemOptions? options,
-            [EnumeratorCancellation] CancellationToken ct)
+            [EnumeratorCancellation] CancellationToken ct,
+            Func<IMonitoredItem, CancellationToken, ValueTask>? onMonitoredItemReady = null)
         {
             await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
 
@@ -234,6 +258,10 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 {
                     clientHandle = item.ClientHandle;
                     subscriber.AddClientHandle(clientHandle.Value);
+                    if (onMonitoredItemReady != null)
+                    {
+                        await onMonitoredItemReady(item, ct).ConfigureAwait(false);
+                    }
                 }
                 else
                 {
