@@ -132,14 +132,6 @@ namespace Opc.Ua.Robotics.Server.Builders
             DateTimeUtc timestamp = default);
 
         /// <summary>
-        /// Adds an application-owned, explicitly non-normative operations convention object.
-        /// </summary>
-        IRoboticsOperationsBuilder AddOperations(
-            string browseName,
-            ushort applicationNamespaceIndex,
-            Action<IRoboticsOperationsBuilder> configure);
-
-        /// <summary>
         /// Binds asynchronous reads for SpeedOverride.
         /// </summary>
         IMotionDeviceBuilder BindSpeedOverrideRead(
