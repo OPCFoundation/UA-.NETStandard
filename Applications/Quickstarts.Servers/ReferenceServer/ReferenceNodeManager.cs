@@ -243,14 +243,15 @@ namespace Quickstarts.ReferenceServer
                             "Duration",
                             DataTypeIds.Duration,
                             ValueRanks.Scalar));
-                    variables.Add(
-                        CreateVariable(
+                    var floatVal = CreateVariable(
                                 staticFolder,
                                 scalarStatic + "Float",
                                 "Float",
                                 DataTypeIds.Float,
                                 ValueRanks.Scalar)
-                            .MinimumSamplingInterval(100));
+                            .MinimumSamplingInterval(100);
+                    floatVal.Value = (float)5;
+                    variables.Add(floatVal);
                     variables.Add(
                         CreateVariable(
                             staticFolder,

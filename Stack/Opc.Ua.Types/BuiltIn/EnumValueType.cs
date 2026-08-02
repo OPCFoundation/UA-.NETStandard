@@ -89,7 +89,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EnumValueType_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EnumValueType_Encoding_DefaultJson;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.EnumValueType;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)

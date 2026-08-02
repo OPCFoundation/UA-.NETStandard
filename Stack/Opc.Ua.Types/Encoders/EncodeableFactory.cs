@@ -204,7 +204,7 @@ namespace Opc.Ua
                 Type[] systemTypes = assembly.GetExportedTypes();
                 var unboundTypeIds = new Dictionary<string, ExpandedNodeId?>();
 
-                const string jsonEncodingSuffix = "_Encoding_DefaultJson";
+                const string encodingSuffix = "_Encoding_DefaultBinary";
 
                 for (int ii = 0; ii < systemTypes.Length; ii++)
                 {
@@ -218,11 +218,11 @@ namespace Opc.Ua
                             BindingFlags.Static | BindingFlags.Public))
                     {
                         if (field.Name.EndsWith(
-                            jsonEncodingSuffix, StringComparison.Ordinal))
+                            encodingSuffix, StringComparison.Ordinal))
                         {
                             try
                             {
-                                string name = field.Name[..^jsonEncodingSuffix.Length];
+                                string name = field.Name[..^encodingSuffix.Length];
                                 object? value = field.GetValue(null);
 
                                 if (value is NodeId nodeId)

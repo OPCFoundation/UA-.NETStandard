@@ -73,7 +73,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumField_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.EnumField_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.EnumField;
 
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)

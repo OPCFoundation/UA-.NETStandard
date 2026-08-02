@@ -538,8 +538,19 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        // verify cert with issuer chain
+                        // Verify the integrity of the new certificate and the supplied issuer
+                        // chain. Seed the validator from the server's SecurityConfiguration so
+                        // operator-configured policy (minimum key size, SHA-1, revocation) is
+                        // honored, then trust the caller-supplied issuer chain as the trust
+                        // anchor for the new certificate. The application trust list is not
+                        // consulted here since the caller supplies the issuer chain as part of
+                        // the UpdateCertificate input.
                         var certValidator = new CertificateValidator(Server.Telemetry);
+                        await certValidator.UpdateAsync(
+                            m_configuration.SecurityConfiguration,
+                            m_configuration.ApplicationUri,
+                            ct).ConfigureAwait(false);
+
                         var issuerStore = new CertificateTrustList();
                         var issuerCollection = new CertificateIdentifierCollection();
                         foreach (X509Certificate2 issuerCert in newIssuerCollection)
@@ -548,7 +559,12 @@ namespace Opc.Ua.Server
                         }
                         issuerStore.TrustedCertificates = issuerCollection;
                         certValidator.Update(issuerStore, issuerStore, null);
+
                         await certValidator.ValidateAsync(newCert, ct).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {

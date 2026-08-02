@@ -3370,6 +3370,12 @@ namespace Opc.Ua.Client
                 return false;
             }
 
+            if (KeepAliveStopped)
+            {
+                m_logger.LogWarning("Publish skipped due to session lost connection. Last successfull keepalive: {LastKeepAlive}", LastKeepAliveTime);
+                return false;
+            }
+
             // get event handler to modify ack list
             PublishSequenceNumbersToAcknowledgeEventHandler? callback
                 = m_PublishSequenceNumbersToAcknowledge;
@@ -3564,7 +3570,16 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                if (m_subscriptions.Count == 0)
+                int subscriptionCount;
+                bool hasCreatedSubscriptions;
+
+                lock (m_lock)
+                {
+                    subscriptionCount = m_subscriptions.Count;
+                    hasCreatedSubscriptions = m_subscriptions.Any(s => s.Created);
+                }
+
+                if (subscriptionCount == 0)
                 {
                     // Publish responses with error should occur after deleting the last subscription.
                     m_logger.LogWarning(
@@ -3585,7 +3600,7 @@ namespace Opc.Ua.Client
                 var error = new ServiceResult(e);
 
                 // raise publish error even for BadNoSubscription if there are active subscriptions.
-                if (error.Code != StatusCodes.BadNoSubscription || m_subscriptions.Any(s => s.Created))
+                if (error.Code != StatusCodes.BadNoSubscription || hasCreatedSubscriptions)
                 {
                     PublishErrorEventHandler? callback = m_PublishError;
 

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -34,7 +34,9 @@ using System.Reflection;
 using System.Xml;
 using System.Runtime.Serialization;
 
-#pragma warning disable 1591
+
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning disable CA1707 // Identifiers should not contain underscores
 
 namespace Opc.Ua
 {
@@ -167,6 +169,8 @@ namespace Opc.Ua
         public const uint IdentityMappingRuleType = 15634;
 
         public const uint CurrencyUnitType = 23498;
+
+        public const uint NumberRange = 23903;
 
         public const uint AnnotationDataType = 32434;
 
@@ -411,6 +415,12 @@ namespace Opc.Ua
         public const uint JsonActionResponseMessage = 19322;
 
         public const uint AliasNameDataType = 23468;
+
+        public const uint AliasNameVerboseDataType = 24051;
+
+        public const uint AliasCategoryUpdateDataType = 24052;
+
+        public const uint AliasUpdateDataType = 24053;
 
         public const uint PasswordOptionsMask = 24277;
 
@@ -2408,7 +2418,19 @@ namespace Opc.Ua
 
         public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias = 23459;
 
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose = 23930;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory = 23936;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory = 23960;
+
         public const uint AliasNameCategoryType_FindAlias = 23462;
+
+        public const uint AliasNameCategoryType_FindAliasVerbose = 23963;
+
+        public const uint AliasNameCategoryType_AddAliasesToCategory = 23972;
+
+        public const uint AliasNameCategoryType_DeleteAliasesFromCategory = 23975;
 
         public const uint Aliases_FindAlias = 23476;
 
@@ -2614,6 +2636,8 @@ namespace Opc.Ua
 
         public const uint LogObjectType_GetRecords = 19353;
 
+        public const uint LogObjectType_ReleaseContinuationPoint = 24372;
+
         public const uint ServerLog_GetRecords = 19373;
     }
     #endregion
@@ -2627,6 +2651,8 @@ namespace Opc.Ua
         public const uint DefaultBinary = 3062;
 
         public const uint DefaultXml = 3063;
+
+        public const uint DefaultJson = 24502;
 
         public const uint ModellingRule_Mandatory = 78;
 
@@ -3370,6 +3396,8 @@ namespace Opc.Ua
 
         public const uint CurrencyUnitType_Encoding_DefaultBinary = 23507;
 
+        public const uint NumberRange_Encoding_DefaultBinary = 24250;
+
         public const uint AnnotationDataType_Encoding_DefaultBinary = 32560;
 
         public const uint LinearConversionDataType_Encoding_DefaultBinary = 32561;
@@ -3551,6 +3579,12 @@ namespace Opc.Ua
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultBinary = 25532;
 
         public const uint AliasNameDataType_Encoding_DefaultBinary = 23499;
+
+        public const uint AliasNameVerboseDataType_Encoding_DefaultBinary = 24262;
+
+        public const uint AliasCategoryUpdateDataType_Encoding_DefaultBinary = 24338;
+
+        public const uint AliasUpdateDataType_Encoding_DefaultBinary = 24339;
 
         public const uint UserManagementDataType_Encoding_DefaultBinary = 24292;
 
@@ -4078,6 +4112,8 @@ namespace Opc.Ua
 
         public const uint CurrencyUnitType_Encoding_DefaultXml = 23520;
 
+        public const uint NumberRange_Encoding_DefaultXml = 24352;
+
         public const uint AnnotationDataType_Encoding_DefaultXml = 32572;
 
         public const uint LinearConversionDataType_Encoding_DefaultXml = 32573;
@@ -4259,6 +4295,12 @@ namespace Opc.Ua
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultXml = 25548;
 
         public const uint AliasNameDataType_Encoding_DefaultXml = 23505;
+
+        public const uint AliasNameVerboseDataType_Encoding_DefaultXml = 24353;
+
+        public const uint AliasCategoryUpdateDataType_Encoding_DefaultXml = 24354;
+
+        public const uint AliasUpdateDataType_Encoding_DefaultXml = 24355;
 
         public const uint UserManagementDataType_Encoding_DefaultXml = 24296;
 
@@ -4786,6 +4828,8 @@ namespace Opc.Ua
 
         public const uint CurrencyUnitType_Encoding_DefaultJson = 23528;
 
+        public const uint NumberRange_Encoding_DefaultJson = 24368;
+
         public const uint AnnotationDataType_Encoding_DefaultJson = 32584;
 
         public const uint LinearConversionDataType_Encoding_DefaultJson = 32585;
@@ -4967,6 +5011,12 @@ namespace Opc.Ua
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultJson = 25564;
 
         public const uint AliasNameDataType_Encoding_DefaultJson = 23511;
+
+        public const uint AliasNameVerboseDataType_Encoding_DefaultJson = 24369;
+
+        public const uint AliasCategoryUpdateDataType_Encoding_DefaultJson = 24370;
+
+        public const uint AliasUpdateDataType_Encoding_DefaultJson = 24371;
 
         public const uint UserManagementDataType_Encoding_DefaultJson = 24300;
 
@@ -6285,6 +6335,8 @@ namespace Opc.Ua
         public const uint MaxArrayLength = 11512;
 
         public const uint EngineeringUnits = 11513;
+
+        public const uint FixedSizeArray = 24501;
 
         public const uint EnumStrings = 11432;
 
@@ -8206,15 +8258,23 @@ namespace Opc.Ua
 
         public const uint BaseAnalogType_InstrumentRange = 17567;
 
+        public const uint BaseAnalogType_InstrumentNumberRange = 23904;
+
         public const uint BaseAnalogType_EURange = 17568;
+
+        public const uint BaseAnalogType_EUNumberRange = 23905;
 
         public const uint BaseAnalogType_EngineeringUnits = 17569;
 
         public const uint AnalogItemType_EURange = 2369;
 
+        public const uint AnalogNumberItemType_EUNumberRange = 23907;
+
         public const uint AnalogUnitType_EngineeringUnits = 17502;
 
         public const uint AnalogUnitRangeType_EngineeringUnits = 17575;
+
+        public const uint AnalogNumberUnitRangeType_EUNumberRange = 23927;
 
         public const uint TwoStateDiscreteType_FalseState = 2374;
 
@@ -15930,27 +15990,91 @@ namespace Opc.Ua
 
         public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias_OutputArguments = 23461;
 
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_InputArguments = 23931;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_OutputArguments = 23935;
+
         public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_LastChange = 32849;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_InputArguments = 23937;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_OutputArguments = 23959;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_InputArguments = 23961;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_OutputArguments = 23962;
 
         public const uint AliasNameCategoryType_FindAlias_InputArguments = 23463;
 
         public const uint AliasNameCategoryType_FindAlias_OutputArguments = 23464;
 
+        public const uint AliasNameCategoryType_FindAliasVerbose_InputArguments = 23964;
+
+        public const uint AliasNameCategoryType_FindAliasVerbose_OutputArguments = 23971;
+
         public const uint AliasNameCategoryType_LastChange = 32850;
+
+        public const uint AliasNameCategoryType_AddAliasesToCategory_InputArguments = 23973;
+
+        public const uint AliasNameCategoryType_AddAliasesToCategory_OutputArguments = 23974;
+
+        public const uint AliasNameCategoryType_DeleteAliasesFromCategory_InputArguments = 23976;
+
+        public const uint AliasNameCategoryType_DeleteAliasesFromCategory_OutputArguments = 23986;
+
+        public const uint AliasUpdateDataType_DataSetClassId = 24499;
+
+        public const uint AliasUpdateDataType_DataSetMetaData = 24500;
 
         public const uint Aliases_FindAlias_InputArguments = 23477;
 
         public const uint Aliases_FindAlias_OutputArguments = 23478;
 
+        public const uint Aliases_FindAliasVerbose_InputArguments = 24055;
+
+        public const uint Aliases_FindAliasVerbose_OutputArguments = 24056;
+
         public const uint Aliases_LastChange = 32852;
+
+        public const uint Aliases_AddAliasesToCategory_InputArguments = 24058;
+
+        public const uint Aliases_AddAliasesToCategory_OutputArguments = 24059;
+
+        public const uint Aliases_DeleteAliasesFromCategory_InputArguments = 24061;
+
+        public const uint Aliases_DeleteAliasesFromCategory_OutputArguments = 24062;
 
         public const uint TagVariables_FindAlias_InputArguments = 23486;
 
         public const uint TagVariables_FindAlias_OutputArguments = 23487;
 
+        public const uint TagVariables_FindAliasVerbose_InputArguments = 24064;
+
+        public const uint TagVariables_FindAliasVerbose_OutputArguments = 24065;
+
+        public const uint TagVariables_AddAliasesToCategory_InputArguments = 24067;
+
+        public const uint TagVariables_AddAliasesToCategory_OutputArguments = 24068;
+
+        public const uint TagVariables_DeleteAliasesFromCategory_InputArguments = 24070;
+
+        public const uint TagVariables_DeleteAliasesFromCategory_OutputArguments = 24071;
+
         public const uint Topics_FindAlias_InputArguments = 23495;
 
         public const uint Topics_FindAlias_OutputArguments = 23496;
+
+        public const uint Topics_FindAliasVerbose_InputArguments = 24073;
+
+        public const uint Topics_FindAliasVerbose_OutputArguments = 24074;
+
+        public const uint Topics_AddAliasesToCategory_InputArguments = 24076;
+
+        public const uint Topics_AddAliasesToCategory_OutputArguments = 24077;
+
+        public const uint Topics_DeleteAliasesFromCategory_InputArguments = 24079;
+
+        public const uint Topics_DeleteAliasesFromCategory_OutputArguments = 24080;
 
         public const uint UserManagementType_Users = 24265;
 
@@ -17168,6 +17292,8 @@ namespace Opc.Ua
 
         public const uint LogObjectType_MinimumSeverity = 19744;
 
+        public const uint LogObjectType_ReleaseContinuationPoint_InputArguments = 24373;
+
         public const uint LogRecordMask_OptionSetValues = 19750;
 
         public const uint BaseLogEventType_ConditionClassId = 19363;
@@ -17178,6 +17304,8 @@ namespace Opc.Ua
 
         public const uint BaseLogEventType_ErrorCodeNode = 19366;
 
+        public const uint BaseLogEventType_TraceContext = 24376;
+
         public const uint ServerLog_GetRecords_InputArguments = 19374;
 
         public const uint ServerLog_GetRecords_OutputArguments = 19375;
@@ -17187,6 +17315,8 @@ namespace Opc.Ua
         public const uint ServerLog_MaxStorageDuration = 19377;
 
         public const uint ServerLog_MinimumSeverity = 19751;
+
+        public const uint ServerLog_ReleaseContinuationPoint_InputArguments = 24378;
 
         public const uint IdType_EnumStrings = 7591;
 
@@ -17285,6 +17415,8 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_IdentityMappingRuleType = 15738;
 
         public const uint OpcUa_BinarySchema_CurrencyUnitType = 23514;
+
+        public const uint OpcUa_BinarySchema_NumberRange = 24340;
 
         public const uint OpcUa_BinarySchema_AnnotationDataType = 32563;
 
@@ -17466,6 +17598,12 @@ namespace Opc.Ua
 
         public const uint OpcUa_BinarySchema_AliasNameDataType = 23502;
 
+        public const uint OpcUa_BinarySchema_AliasNameVerboseDataType = 24343;
+
+        public const uint OpcUa_BinarySchema_AliasCategoryUpdateDataType = 24346;
+
+        public const uint OpcUa_BinarySchema_AliasUpdateDataType = 24349;
+
         public const uint OpcUa_BinarySchema_UserManagementDataType = 24293;
 
         public const uint OpcUa_BinarySchema_PriorityMappingEntryType = 25240;
@@ -17525,6 +17663,8 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_MdnsDiscoveryConfiguration = 12905;
 
         public const uint OpcUa_BinarySchema_SignedSoftwareCertificate = 7698;
+
+        public const uint OpcUa_BinarySchema_SignatureData = 24481;
 
         public const uint OpcUa_BinarySchema_UserIdentityToken = 7671;
 
@@ -17663,6 +17803,8 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_IdentityMappingRuleType = 15730;
 
         public const uint OpcUa_XmlSchema_CurrencyUnitType = 23522;
+
+        public const uint OpcUa_XmlSchema_NumberRange = 24356;
 
         public const uint OpcUa_XmlSchema_AnnotationDataType = 32575;
 
@@ -17844,6 +17986,12 @@ namespace Opc.Ua
 
         public const uint OpcUa_XmlSchema_AliasNameDataType = 23508;
 
+        public const uint OpcUa_XmlSchema_AliasNameVerboseDataType = 24359;
+
+        public const uint OpcUa_XmlSchema_AliasCategoryUpdateDataType = 24362;
+
+        public const uint OpcUa_XmlSchema_AliasUpdateDataType = 24365;
+
         public const uint OpcUa_XmlSchema_UserManagementDataType = 24297;
 
         public const uint OpcUa_XmlSchema_PriorityMappingEntryType = 25244;
@@ -17903,6 +18051,8 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_MdnsDiscoveryConfiguration = 12897;
 
         public const uint OpcUa_XmlSchema_SignedSoftwareCertificate = 8333;
+
+        public const uint OpcUa_XmlSchema_SignatureData = 24496;
 
         public const uint OpcUa_XmlSchema_UserIdentityToken = 8306;
 
@@ -18090,9 +18240,13 @@ namespace Opc.Ua
 
         public const uint AnalogItemType = 2368;
 
+        public const uint AnalogNumberItemType = 23906;
+
         public const uint AnalogUnitType = 17497;
 
         public const uint AnalogUnitRangeType = 17570;
+
+        public const uint AnalogNumberUnitRangeType = 23918;
 
         public const uint DiscreteItemType = 2372;
 
@@ -18265,6 +18419,8 @@ namespace Opc.Ua
         public static readonly NodeId IdentityMappingRuleType = new NodeId(Opc.Ua.DataTypes.IdentityMappingRuleType);
 
         public static readonly NodeId CurrencyUnitType = new NodeId(Opc.Ua.DataTypes.CurrencyUnitType);
+
+        public static readonly NodeId NumberRange = new NodeId(Opc.Ua.DataTypes.NumberRange);
 
         public static readonly NodeId AnnotationDataType = new NodeId(Opc.Ua.DataTypes.AnnotationDataType);
 
@@ -18509,6 +18665,12 @@ namespace Opc.Ua
         public static readonly NodeId JsonActionResponseMessage = new NodeId(Opc.Ua.DataTypes.JsonActionResponseMessage);
 
         public static readonly NodeId AliasNameDataType = new NodeId(Opc.Ua.DataTypes.AliasNameDataType);
+
+        public static readonly NodeId AliasNameVerboseDataType = new NodeId(Opc.Ua.DataTypes.AliasNameVerboseDataType);
+
+        public static readonly NodeId AliasCategoryUpdateDataType = new NodeId(Opc.Ua.DataTypes.AliasCategoryUpdateDataType);
+
+        public static readonly NodeId AliasUpdateDataType = new NodeId(Opc.Ua.DataTypes.AliasUpdateDataType);
 
         public static readonly NodeId PasswordOptionsMask = new NodeId(Opc.Ua.DataTypes.PasswordOptionsMask);
 
@@ -20506,7 +20668,19 @@ namespace Opc.Ua
 
         public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias);
 
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory);
+
         public static readonly NodeId AliasNameCategoryType_FindAlias = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_FindAlias);
+
+        public static readonly NodeId AliasNameCategoryType_FindAliasVerbose = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_FindAliasVerbose);
+
+        public static readonly NodeId AliasNameCategoryType_AddAliasesToCategory = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_AddAliasesToCategory);
+
+        public static readonly NodeId AliasNameCategoryType_DeleteAliasesFromCategory = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_DeleteAliasesFromCategory);
 
         public static readonly NodeId Aliases_FindAlias = new NodeId(Opc.Ua.Methods.Aliases_FindAlias);
 
@@ -20712,6 +20886,8 @@ namespace Opc.Ua
 
         public static readonly NodeId LogObjectType_GetRecords = new NodeId(Opc.Ua.Methods.LogObjectType_GetRecords);
 
+        public static readonly NodeId LogObjectType_ReleaseContinuationPoint = new NodeId(Opc.Ua.Methods.LogObjectType_ReleaseContinuationPoint);
+
         public static readonly NodeId ServerLog_GetRecords = new NodeId(Opc.Ua.Methods.ServerLog_GetRecords);
     }
     #endregion
@@ -20725,6 +20901,8 @@ namespace Opc.Ua
         public static readonly NodeId DefaultBinary = new NodeId(Opc.Ua.Objects.DefaultBinary);
 
         public static readonly NodeId DefaultXml = new NodeId(Opc.Ua.Objects.DefaultXml);
+
+        public static readonly NodeId DefaultJson = new NodeId(Opc.Ua.Objects.DefaultJson);
 
         public static readonly NodeId ModellingRule_Mandatory = new NodeId(Opc.Ua.Objects.ModellingRule_Mandatory);
 
@@ -21468,6 +21646,8 @@ namespace Opc.Ua
 
         public static readonly NodeId CurrencyUnitType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.CurrencyUnitType_Encoding_DefaultBinary);
 
+        public static readonly NodeId NumberRange_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.NumberRange_Encoding_DefaultBinary);
+
         public static readonly NodeId AnnotationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AnnotationDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId LinearConversionDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LinearConversionDataType_Encoding_DefaultBinary);
@@ -21649,6 +21829,12 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId AliasNameDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId AliasNameVerboseDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasNameVerboseDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId AliasCategoryUpdateDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasCategoryUpdateDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId AliasUpdateDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasUpdateDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId UserManagementDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.UserManagementDataType_Encoding_DefaultBinary);
 
@@ -22176,6 +22362,8 @@ namespace Opc.Ua
 
         public static readonly NodeId CurrencyUnitType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.CurrencyUnitType_Encoding_DefaultXml);
 
+        public static readonly NodeId NumberRange_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.NumberRange_Encoding_DefaultXml);
+
         public static readonly NodeId AnnotationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AnnotationDataType_Encoding_DefaultXml);
 
         public static readonly NodeId LinearConversionDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LinearConversionDataType_Encoding_DefaultXml);
@@ -22357,6 +22545,12 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultXml);
 
         public static readonly NodeId AliasNameDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId AliasNameVerboseDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasNameVerboseDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId AliasCategoryUpdateDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasCategoryUpdateDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId AliasUpdateDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasUpdateDataType_Encoding_DefaultXml);
 
         public static readonly NodeId UserManagementDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.UserManagementDataType_Encoding_DefaultXml);
 
@@ -22884,6 +23078,8 @@ namespace Opc.Ua
 
         public static readonly NodeId CurrencyUnitType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CurrencyUnitType_Encoding_DefaultJson);
 
+        public static readonly NodeId NumberRange_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NumberRange_Encoding_DefaultJson);
+
         public static readonly NodeId AnnotationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AnnotationDataType_Encoding_DefaultJson);
 
         public static readonly NodeId LinearConversionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LinearConversionDataType_Encoding_DefaultJson);
@@ -23065,6 +23261,12 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultJson);
 
         public static readonly NodeId AliasNameDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId AliasNameVerboseDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AliasNameVerboseDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId AliasCategoryUpdateDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AliasCategoryUpdateDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId AliasUpdateDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AliasUpdateDataType_Encoding_DefaultJson);
 
         public static readonly NodeId UserManagementDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UserManagementDataType_Encoding_DefaultJson);
 
@@ -24383,6 +24585,8 @@ namespace Opc.Ua
         public static readonly NodeId MaxArrayLength = new NodeId(Opc.Ua.Variables.MaxArrayLength);
 
         public static readonly NodeId EngineeringUnits = new NodeId(Opc.Ua.Variables.EngineeringUnits);
+
+        public static readonly NodeId FixedSizeArray = new NodeId(Opc.Ua.Variables.FixedSizeArray);
 
         public static readonly NodeId EnumStrings = new NodeId(Opc.Ua.Variables.EnumStrings);
 
@@ -26304,15 +26508,23 @@ namespace Opc.Ua
 
         public static readonly NodeId BaseAnalogType_InstrumentRange = new NodeId(Opc.Ua.Variables.BaseAnalogType_InstrumentRange);
 
+        public static readonly NodeId BaseAnalogType_InstrumentNumberRange = new NodeId(Opc.Ua.Variables.BaseAnalogType_InstrumentNumberRange);
+
         public static readonly NodeId BaseAnalogType_EURange = new NodeId(Opc.Ua.Variables.BaseAnalogType_EURange);
+
+        public static readonly NodeId BaseAnalogType_EUNumberRange = new NodeId(Opc.Ua.Variables.BaseAnalogType_EUNumberRange);
 
         public static readonly NodeId BaseAnalogType_EngineeringUnits = new NodeId(Opc.Ua.Variables.BaseAnalogType_EngineeringUnits);
 
         public static readonly NodeId AnalogItemType_EURange = new NodeId(Opc.Ua.Variables.AnalogItemType_EURange);
 
+        public static readonly NodeId AnalogNumberItemType_EUNumberRange = new NodeId(Opc.Ua.Variables.AnalogNumberItemType_EUNumberRange);
+
         public static readonly NodeId AnalogUnitType_EngineeringUnits = new NodeId(Opc.Ua.Variables.AnalogUnitType_EngineeringUnits);
 
         public static readonly NodeId AnalogUnitRangeType_EngineeringUnits = new NodeId(Opc.Ua.Variables.AnalogUnitRangeType_EngineeringUnits);
+
+        public static readonly NodeId AnalogNumberUnitRangeType_EUNumberRange = new NodeId(Opc.Ua.Variables.AnalogNumberUnitRangeType_EUNumberRange);
 
         public static readonly NodeId TwoStateDiscreteType_FalseState = new NodeId(Opc.Ua.Variables.TwoStateDiscreteType_FalseState);
 
@@ -34028,27 +34240,91 @@ namespace Opc.Ua
 
         public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias_OutputArguments);
 
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_OutputArguments);
+
         public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_LastChange = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_LastChange);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_OutputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_OutputArguments);
 
         public static readonly NodeId AliasNameCategoryType_FindAlias_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_FindAlias_InputArguments);
 
         public static readonly NodeId AliasNameCategoryType_FindAlias_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_FindAlias_OutputArguments);
 
+        public static readonly NodeId AliasNameCategoryType_FindAliasVerbose_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_FindAliasVerbose_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_FindAliasVerbose_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_FindAliasVerbose_OutputArguments);
+
         public static readonly NodeId AliasNameCategoryType_LastChange = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_LastChange);
+
+        public static readonly NodeId AliasNameCategoryType_AddAliasesToCategory_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_AddAliasesToCategory_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_AddAliasesToCategory_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_AddAliasesToCategory_OutputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_DeleteAliasesFromCategory_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_DeleteAliasesFromCategory_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_DeleteAliasesFromCategory_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_DeleteAliasesFromCategory_OutputArguments);
+
+        public static readonly NodeId AliasUpdateDataType_DataSetClassId = new NodeId(Opc.Ua.Variables.AliasUpdateDataType_DataSetClassId);
+
+        public static readonly NodeId AliasUpdateDataType_DataSetMetaData = new NodeId(Opc.Ua.Variables.AliasUpdateDataType_DataSetMetaData);
 
         public static readonly NodeId Aliases_FindAlias_InputArguments = new NodeId(Opc.Ua.Variables.Aliases_FindAlias_InputArguments);
 
         public static readonly NodeId Aliases_FindAlias_OutputArguments = new NodeId(Opc.Ua.Variables.Aliases_FindAlias_OutputArguments);
 
+        public static readonly NodeId Aliases_FindAliasVerbose_InputArguments = new NodeId(Opc.Ua.Variables.Aliases_FindAliasVerbose_InputArguments);
+
+        public static readonly NodeId Aliases_FindAliasVerbose_OutputArguments = new NodeId(Opc.Ua.Variables.Aliases_FindAliasVerbose_OutputArguments);
+
         public static readonly NodeId Aliases_LastChange = new NodeId(Opc.Ua.Variables.Aliases_LastChange);
+
+        public static readonly NodeId Aliases_AddAliasesToCategory_InputArguments = new NodeId(Opc.Ua.Variables.Aliases_AddAliasesToCategory_InputArguments);
+
+        public static readonly NodeId Aliases_AddAliasesToCategory_OutputArguments = new NodeId(Opc.Ua.Variables.Aliases_AddAliasesToCategory_OutputArguments);
+
+        public static readonly NodeId Aliases_DeleteAliasesFromCategory_InputArguments = new NodeId(Opc.Ua.Variables.Aliases_DeleteAliasesFromCategory_InputArguments);
+
+        public static readonly NodeId Aliases_DeleteAliasesFromCategory_OutputArguments = new NodeId(Opc.Ua.Variables.Aliases_DeleteAliasesFromCategory_OutputArguments);
 
         public static readonly NodeId TagVariables_FindAlias_InputArguments = new NodeId(Opc.Ua.Variables.TagVariables_FindAlias_InputArguments);
 
         public static readonly NodeId TagVariables_FindAlias_OutputArguments = new NodeId(Opc.Ua.Variables.TagVariables_FindAlias_OutputArguments);
 
+        public static readonly NodeId TagVariables_FindAliasVerbose_InputArguments = new NodeId(Opc.Ua.Variables.TagVariables_FindAliasVerbose_InputArguments);
+
+        public static readonly NodeId TagVariables_FindAliasVerbose_OutputArguments = new NodeId(Opc.Ua.Variables.TagVariables_FindAliasVerbose_OutputArguments);
+
+        public static readonly NodeId TagVariables_AddAliasesToCategory_InputArguments = new NodeId(Opc.Ua.Variables.TagVariables_AddAliasesToCategory_InputArguments);
+
+        public static readonly NodeId TagVariables_AddAliasesToCategory_OutputArguments = new NodeId(Opc.Ua.Variables.TagVariables_AddAliasesToCategory_OutputArguments);
+
+        public static readonly NodeId TagVariables_DeleteAliasesFromCategory_InputArguments = new NodeId(Opc.Ua.Variables.TagVariables_DeleteAliasesFromCategory_InputArguments);
+
+        public static readonly NodeId TagVariables_DeleteAliasesFromCategory_OutputArguments = new NodeId(Opc.Ua.Variables.TagVariables_DeleteAliasesFromCategory_OutputArguments);
+
         public static readonly NodeId Topics_FindAlias_InputArguments = new NodeId(Opc.Ua.Variables.Topics_FindAlias_InputArguments);
 
         public static readonly NodeId Topics_FindAlias_OutputArguments = new NodeId(Opc.Ua.Variables.Topics_FindAlias_OutputArguments);
+
+        public static readonly NodeId Topics_FindAliasVerbose_InputArguments = new NodeId(Opc.Ua.Variables.Topics_FindAliasVerbose_InputArguments);
+
+        public static readonly NodeId Topics_FindAliasVerbose_OutputArguments = new NodeId(Opc.Ua.Variables.Topics_FindAliasVerbose_OutputArguments);
+
+        public static readonly NodeId Topics_AddAliasesToCategory_InputArguments = new NodeId(Opc.Ua.Variables.Topics_AddAliasesToCategory_InputArguments);
+
+        public static readonly NodeId Topics_AddAliasesToCategory_OutputArguments = new NodeId(Opc.Ua.Variables.Topics_AddAliasesToCategory_OutputArguments);
+
+        public static readonly NodeId Topics_DeleteAliasesFromCategory_InputArguments = new NodeId(Opc.Ua.Variables.Topics_DeleteAliasesFromCategory_InputArguments);
+
+        public static readonly NodeId Topics_DeleteAliasesFromCategory_OutputArguments = new NodeId(Opc.Ua.Variables.Topics_DeleteAliasesFromCategory_OutputArguments);
 
         public static readonly NodeId UserManagementType_Users = new NodeId(Opc.Ua.Variables.UserManagementType_Users);
 
@@ -35266,6 +35542,8 @@ namespace Opc.Ua
 
         public static readonly NodeId LogObjectType_MinimumSeverity = new NodeId(Opc.Ua.Variables.LogObjectType_MinimumSeverity);
 
+        public static readonly NodeId LogObjectType_ReleaseContinuationPoint_InputArguments = new NodeId(Opc.Ua.Variables.LogObjectType_ReleaseContinuationPoint_InputArguments);
+
         public static readonly NodeId LogRecordMask_OptionSetValues = new NodeId(Opc.Ua.Variables.LogRecordMask_OptionSetValues);
 
         public static readonly NodeId BaseLogEventType_ConditionClassId = new NodeId(Opc.Ua.Variables.BaseLogEventType_ConditionClassId);
@@ -35276,6 +35554,8 @@ namespace Opc.Ua
 
         public static readonly NodeId BaseLogEventType_ErrorCodeNode = new NodeId(Opc.Ua.Variables.BaseLogEventType_ErrorCodeNode);
 
+        public static readonly NodeId BaseLogEventType_TraceContext = new NodeId(Opc.Ua.Variables.BaseLogEventType_TraceContext);
+
         public static readonly NodeId ServerLog_GetRecords_InputArguments = new NodeId(Opc.Ua.Variables.ServerLog_GetRecords_InputArguments);
 
         public static readonly NodeId ServerLog_GetRecords_OutputArguments = new NodeId(Opc.Ua.Variables.ServerLog_GetRecords_OutputArguments);
@@ -35285,6 +35565,8 @@ namespace Opc.Ua
         public static readonly NodeId ServerLog_MaxStorageDuration = new NodeId(Opc.Ua.Variables.ServerLog_MaxStorageDuration);
 
         public static readonly NodeId ServerLog_MinimumSeverity = new NodeId(Opc.Ua.Variables.ServerLog_MinimumSeverity);
+
+        public static readonly NodeId ServerLog_ReleaseContinuationPoint_InputArguments = new NodeId(Opc.Ua.Variables.ServerLog_ReleaseContinuationPoint_InputArguments);
 
         public static readonly NodeId IdType_EnumStrings = new NodeId(Opc.Ua.Variables.IdType_EnumStrings);
 
@@ -35383,6 +35665,8 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_IdentityMappingRuleType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_IdentityMappingRuleType);
 
         public static readonly NodeId OpcUa_BinarySchema_CurrencyUnitType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_CurrencyUnitType);
+
+        public static readonly NodeId OpcUa_BinarySchema_NumberRange = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_NumberRange);
 
         public static readonly NodeId OpcUa_BinarySchema_AnnotationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AnnotationDataType);
 
@@ -35564,6 +35848,12 @@ namespace Opc.Ua
 
         public static readonly NodeId OpcUa_BinarySchema_AliasNameDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasNameDataType);
 
+        public static readonly NodeId OpcUa_BinarySchema_AliasNameVerboseDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasNameVerboseDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_AliasCategoryUpdateDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasCategoryUpdateDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_AliasUpdateDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasUpdateDataType);
+
         public static readonly NodeId OpcUa_BinarySchema_UserManagementDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_UserManagementDataType);
 
         public static readonly NodeId OpcUa_BinarySchema_PriorityMappingEntryType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PriorityMappingEntryType);
@@ -35623,6 +35913,8 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_MdnsDiscoveryConfiguration = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_MdnsDiscoveryConfiguration);
 
         public static readonly NodeId OpcUa_BinarySchema_SignedSoftwareCertificate = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_SignedSoftwareCertificate);
+
+        public static readonly NodeId OpcUa_BinarySchema_SignatureData = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_SignatureData);
 
         public static readonly NodeId OpcUa_BinarySchema_UserIdentityToken = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_UserIdentityToken);
 
@@ -35761,6 +36053,8 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_IdentityMappingRuleType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_IdentityMappingRuleType);
 
         public static readonly NodeId OpcUa_XmlSchema_CurrencyUnitType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_CurrencyUnitType);
+
+        public static readonly NodeId OpcUa_XmlSchema_NumberRange = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_NumberRange);
 
         public static readonly NodeId OpcUa_XmlSchema_AnnotationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AnnotationDataType);
 
@@ -35942,6 +36236,12 @@ namespace Opc.Ua
 
         public static readonly NodeId OpcUa_XmlSchema_AliasNameDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasNameDataType);
 
+        public static readonly NodeId OpcUa_XmlSchema_AliasNameVerboseDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasNameVerboseDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_AliasCategoryUpdateDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasCategoryUpdateDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_AliasUpdateDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasUpdateDataType);
+
         public static readonly NodeId OpcUa_XmlSchema_UserManagementDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_UserManagementDataType);
 
         public static readonly NodeId OpcUa_XmlSchema_PriorityMappingEntryType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PriorityMappingEntryType);
@@ -36001,6 +36301,8 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_MdnsDiscoveryConfiguration = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_MdnsDiscoveryConfiguration);
 
         public static readonly NodeId OpcUa_XmlSchema_SignedSoftwareCertificate = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_SignedSoftwareCertificate);
+
+        public static readonly NodeId OpcUa_XmlSchema_SignatureData = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_SignatureData);
 
         public static readonly NodeId OpcUa_XmlSchema_UserIdentityToken = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_UserIdentityToken);
 
@@ -36188,9 +36490,13 @@ namespace Opc.Ua
 
         public static readonly NodeId AnalogItemType = new NodeId(Opc.Ua.VariableTypes.AnalogItemType);
 
+        public static readonly NodeId AnalogNumberItemType = new NodeId(Opc.Ua.VariableTypes.AnalogNumberItemType);
+
         public static readonly NodeId AnalogUnitType = new NodeId(Opc.Ua.VariableTypes.AnalogUnitType);
 
         public static readonly NodeId AnalogUnitRangeType = new NodeId(Opc.Ua.VariableTypes.AnalogUnitRangeType);
+
+        public static readonly NodeId AnalogNumberUnitRangeType = new NodeId(Opc.Ua.VariableTypes.AnalogNumberUnitRangeType);
 
         public static readonly NodeId DiscreteItemType = new NodeId(Opc.Ua.VariableTypes.DiscreteItemType);
 
@@ -36282,6 +36588,8 @@ namespace Opc.Ua
         public const string Actual = "Actual";
 
         public const string ActualSessionTimeout = "ActualSessionTimeout";
+
+        public const string AddAliasesToCategory = "AddAliasesToCategory";
 
         public const string AddApplication = "AddApplication";
 
@@ -36485,6 +36793,8 @@ namespace Opc.Ua
 
         public const string Alias_Placeholder = "<Alias>";
 
+        public const string AliasCategoryUpdateDataType = "AliasCategoryUpdateDataType";
+
         public const string Aliases = "Aliases";
 
         public const string AliasFor = "AliasFor";
@@ -36494,6 +36804,10 @@ namespace Opc.Ua
         public const string AliasNameDataType = "AliasNameDataType";
 
         public const string AliasNameType = "AliasNameType";
+
+        public const string AliasNameVerboseDataType = "AliasNameVerboseDataType";
+
+        public const string AliasUpdateDataType = "AliasUpdateDataType";
 
         public const string AllowedSubtype = "AllowedSubtype";
 
@@ -36508,6 +36822,10 @@ namespace Opc.Ua
         public const string AlwaysGeneratesEvent = "AlwaysGeneratesEvent";
 
         public const string AnalogItemType = "AnalogItemType";
+
+        public const string AnalogNumberItemType = "AnalogNumberItemType";
+
+        public const string AnalogNumberUnitRangeType = "AnalogNumberUnitRangeType";
 
         public const string AnalogUnitRangeType = "AnalogUnitRangeType";
 
@@ -37267,6 +37585,8 @@ namespace Opc.Ua
 
         public const string Deletable = "Deletable";
 
+        public const string DeleteAliasesFromCategory = "DeleteAliasesFromCategory";
+
         public const string DeleteAtTimeCapability = "DeleteAtTimeCapability";
 
         public const string DeleteAtTimeDetails = "DeleteAtTimeDetails";
@@ -37483,6 +37803,8 @@ namespace Opc.Ua
 
         public const string EUInformation = "EUInformation";
 
+        public const string EUNumberRange = "EUNumberRange";
+
         public const string EURange = "EURange";
 
         public const string EventFieldList = "EventFieldList";
@@ -37585,6 +37907,8 @@ namespace Opc.Ua
 
         public const string FindAlias = "FindAlias";
 
+        public const string FindAliasVerbose = "FindAliasVerbose";
+
         public const string FindServersOnNetworkRequest = "FindServersOnNetworkRequest";
 
         public const string FindServersOnNetworkResponse = "FindServersOnNetworkResponse";
@@ -37604,6 +37928,8 @@ namespace Opc.Ua
         public const string FirstInGroupFlag = "FirstInGroupFlag";
 
         public const string FixedBase = "FixedBase";
+
+        public const string FixedSizeArray = "FixedSizeArray";
 
         public const string Float = "Float";
 
@@ -37942,6 +38268,8 @@ namespace Opc.Ua
         public const string InstanceNode = "InstanceNode";
 
         public const string InstrumentDiagnosticAlarmType = "InstrumentDiagnosticAlarmType";
+
+        public const string InstrumentNumberRange = "InstrumentNumberRange";
 
         public const string InstrumentRange = "InstrumentRange";
 
@@ -38585,6 +38913,8 @@ namespace Opc.Ua
 
         public const string NumberInList = "NumberInList";
 
+        public const string NumberRange = "NumberRange";
+
         public const string Numerator = "Numerator";
 
         public const string NumericRange = "NumericRange";
@@ -39066,6 +39396,8 @@ namespace Opc.Ua
         public const string RelativePath = "RelativePath";
 
         public const string RelativePathElement = "RelativePathElement";
+
+        public const string ReleaseContinuationPoint = "ReleaseContinuationPoint";
 
         public const string RemoteAgeouts = "RemoteAgeouts";
 
@@ -39772,6 +40104,8 @@ namespace Opc.Ua
         public const string TotalInformation = "TotalInformation";
 
         public const string TotalRequestCount = "TotalRequestCount";
+
+        public const string TraceContext = "TraceContext";
 
         public const string TraceContextDataType = "TraceContextDataType";
 

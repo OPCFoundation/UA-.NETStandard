@@ -1615,6 +1615,31 @@ namespace Opc.Ua
                     sresult);
             }
 
+            // check that each Issuer/CA certificate in the chain asserts the
+            // KeyUsage required for a CA (keyCertSign and cRLSign).
+            // OPC 10000-6 (Mappings) §6.2.4 Table 52 (Issuer Certificate)
+            // requires these bits; OPC 10000-4 (Services) §6.1.3 Table 100
+            // ("Certificate Usage") maps a mismatch to the suppressible
+            // Bad_CertificateIssuerUseNotAllowed. The platform X509Chain does
+            // not reject a CA whose KeyUsage extension is absent (RFC 5280
+            // §4.2.1.3), so this is verified explicitly here.
+            foreach (CertificateIdentifier issuer in issuers)
+            {
+                if (issuer.Certificate != null &&
+                    !X509Utils.HasRequiredIssuerKeyUsage(issuer.Certificate))
+                {
+                    sresult = new ServiceResult(
+                        null,
+                        StatusCodes.BadCertificateIssuerUseNotAllowed,
+                        Utils.Format(
+                            "Issuer certificate '{0}' does not assert the KeyUsage " +
+                            "(keyCertSign, cRLSign) required for a CA.",
+                            issuer.Certificate.Subject),
+                        null,
+                        sresult);
+                }
+            }
+
             // check if minimum requirements are met
             if (m_rejectSHA1SignedCertificates &&
                 IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
@@ -1949,9 +1974,9 @@ namespace Opc.Ua
                 case X509ChainStatusFlags.NotValidForUsage:
                     return ServiceResult.Create(
                         isIssuer
-                            ? StatusCodes.BadCertificateUseNotAllowed
-                            : StatusCodes.BadCertificateIssuerUseNotAllowed,
-                        "Certificate may not be used as an application instance certificate. {Status}: {Information}",
+                            ? StatusCodes.BadCertificateIssuerUseNotAllowed
+                            : StatusCodes.BadCertificateUseNotAllowed,
+                        "Certificate is not valid for the requested usage. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
                 case X509ChainStatusFlags.NoError:

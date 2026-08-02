@@ -2710,6 +2710,11 @@ namespace Opc.Ua
         {
             Initialize(context);
 
+            if (RemovePlaceholderChildrenOnCreate)
+            {
+                RemovePlaceholderChildren(context);
+            }
+
             // Call OnBeforeCreate on all children.
             CallOnBeforeCreate(context);
 
@@ -2819,11 +2824,86 @@ namespace Opc.Ua
         {
             Initialize(context, source);
 
+            if (RemovePlaceholderChildrenOnCreate)
+            {
+                RemovePlaceholderChildren(context);
+            }
+
             CallOnBeforeCreate(context);
 
             CallOnAfterCreate(context, null);
 
             ClearChangeMasks(context, true);
+        }
+
+        /// <summary>
+        /// Whether placeholder declarations should be removed during runtime creation.
+        /// </summary>
+        protected virtual bool RemovePlaceholderChildrenOnCreate => false;
+
+        /// <summary>
+        /// Removes instantiated placeholder declarations from runtime instances.
+        /// </summary>
+        private void RemovePlaceholderChildren(ISystemContext context)
+        {
+            var children = new List<BaseInstanceState>();
+            GetChildren(context, children);
+
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                BaseInstanceState child = children[ii];
+
+                if (IsPlaceholderChild(child))
+                {
+                    RemoveChild(child);
+
+                    if (ReferenceEquals(child.Parent, this))
+                    {
+                        child.Parent = null;
+                    }
+
+                    continue;
+                }
+
+                child.RemovePlaceholderChildren(context);
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the child represents a placeholder declaration.
+        /// </summary>
+        private static bool IsPlaceholderChild(BaseInstanceState child)
+        {
+            if (child.ModellingRuleId == ObjectIds.ModellingRule_OptionalPlaceholder ||
+                child.ModellingRuleId == ObjectIds.ModellingRule_MandatoryPlaceholder)
+            {
+                return true;
+            }
+
+            string browseName = child.BrowseName?.Name;
+
+            // Some generated placeholder declarations reach runtime without their
+            // placeholder modelling rule; the fallback is limited to model-defined
+            // standard nodes that still carry the generated <PlaceholderName>
+            // browse-name form.
+            return IsGeneratedStandardNumericNode(child) &&
+                browseName != null &&
+                browseName.Length > 1 &&
+                browseName[0] == '<' &&
+                browseName[browseName.Length - 1] == '>';
+        }
+
+        /// <summary>
+        /// Returns true if the child still has its generated standard numeric node identity.
+        /// </summary>
+        private static bool IsGeneratedStandardNumericNode(BaseInstanceState child)
+        {
+            return child.NumericId != 0 &&
+                child.NodeId != null &&
+                child.NodeId.NamespaceIndex == 0 &&
+                child.NodeId.IdType == IdType.Numeric &&
+                child.NodeId.Identifier is uint identifier &&
+                identifier == child.NumericId;
         }
 
         /// <summary>

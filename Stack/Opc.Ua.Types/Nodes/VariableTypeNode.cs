@@ -136,7 +136,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableTypeNode_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.VariableTypeNode_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.VariableTypeNode;
 
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)

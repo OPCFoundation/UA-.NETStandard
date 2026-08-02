@@ -318,7 +318,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultXml;
                     
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ScalarStructureDataType; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1185,7 +1185,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ArrayValueDataType_Encoding_DefaultXml;
                     
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ArrayValueDataType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ArrayValueDataType; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1683,7 +1683,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserScalarValueDataType_Encoding_DefaultXml;
                     
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserScalarValueDataType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.UserScalarValueDataType; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2420,7 +2420,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserArrayValueDataType_Encoding_DefaultXml;
                     
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserArrayValueDataType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.UserArrayValueDataType; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2722,7 +2722,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Vector_Encoding_DefaultXml;
                     
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Vector_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Vector; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2948,7 +2948,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.VectorUnion_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.VectorUnion_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.VectorUnion; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3197,7 +3197,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultXml;
             
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.VectorWithOptionalFields; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3510,7 +3510,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultXml;
                     
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.MultipleVectors; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3732,7 +3732,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WorkOrderStatusType_Encoding_DefaultXml;
                     
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WorkOrderStatusType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.WorkOrderStatusType; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3960,7 +3960,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WorkOrderType_Encoding_DefaultXml;
                     
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WorkOrderType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.WorkOrderType; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -335,6 +336,10 @@ namespace Opc.Ua.Client.Tests
 
             Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
 
+            // Use a fixed timestamp so both exports have identical LastModified fields,
+            // preventing flakiness from sub-second precision differences.
+            var lastModified = DateTime.UtcNow;
+
             // Export with default options
             string tempFile = Path.GetTempFileName();
             try
@@ -347,7 +352,7 @@ namespace Opc.Ua.Client.Tests
                         ServerUris = Session.ServerUris
                     };
 
-                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Default);
+                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Default, lastModified);
                 }
 
                 // Read it back and verify values are not exported
@@ -380,7 +385,7 @@ namespace Opc.Ua.Client.Tests
                             ServerUris = Session.ServerUris
                         };
 
-                        CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Complete);
+                        CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Complete, lastModified);
                     }
 
                     var completeFile = new FileInfo(tempFileComplete);
@@ -388,12 +393,8 @@ namespace Opc.Ua.Client.Tests
 
                     // Default should be smaller or equal to complete
                     // (Equal if nodes don't have values to export)
-                    if (completeSize < defaultSize)
-                    {
-                        TestContext.AddTestAttachment(tempFileComplete, "Complete export file");
-                        TestContext.AddTestAttachment(tempFile, "Default export file");
-                        Assert.LessOrEqual(defaultSize, completeSize, "Default export should not be larger than Complete");
-                    }
+                    Assert.That(defaultSize, Is.LessThanOrEqualTo(completeSize),
+                        "Default export should not be larger than Complete");
                 }
                 finally
                 {

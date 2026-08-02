@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -394,6 +394,16 @@ namespace Opc.Ua
         /// The value was out of range.
         /// </summary>
         public const uint BadOutOfRange = 0x803C0000;
+
+        /// <summary>
+        /// The value is over the allowed range.
+        /// </summary>
+        public const uint UncertainOverRange = 0x40F20000;
+
+        /// <summary>
+        /// The value is under the allowed range.
+        /// </summary>
+        public const uint UncertainUnderRange = 0x40F30000;
 
         /// <summary>
         /// The requested operation is not supported.
@@ -1356,7 +1366,7 @@ namespace Opc.Ua
         public const uint GoodCascadeInitializationRequest = 0x04020000;
 
         /// <summary>
-        /// The value source supports cascade handshaking, however, the source’s current state does not allow for cascade.
+        /// The value source supports cascade handshaking, however, the source's current state does not allow for cascade.
         /// </summary>
         public const uint GoodCascadeNotInvited = 0x04030000;
 
