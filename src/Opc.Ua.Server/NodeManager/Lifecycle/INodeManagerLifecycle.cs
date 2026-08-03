@@ -59,6 +59,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces a live registration with a new asynchronous factory generation.
         /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
         ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
@@ -67,6 +71,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces a live registration with a new synchronous factory generation.
         /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
         ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
@@ -80,6 +88,10 @@ namespace Opc.Ua.Server
         /// retained only for its existing monitored items and any request or continuation
         /// point that already captured it, and is disposed automatically once they drain.
         /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
         ValueTask<NodeManagerRegistration> ShadowReloadAsync(
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
@@ -93,6 +105,10 @@ namespace Opc.Ua.Server
         /// retained only for its existing monitored items and any request or continuation
         /// point that already captured it, and is disposed automatically once they drain.
         /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
         ValueTask<NodeManagerRegistration> ShadowReloadAsync(
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
@@ -102,6 +118,10 @@ namespace Opc.Ua.Server
         /// Replaces a live registration and immediately invalidates monitored items
         /// owned by the previous generation with <see cref="StatusCodes.BadNodeIdUnknown"/>.
         /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
         ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
@@ -111,6 +131,10 @@ namespace Opc.Ua.Server
         /// Replaces a live registration and immediately invalidates monitored items
         /// owned by the previous generation with <see cref="StatusCodes.BadNodeIdUnknown"/>.
         /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
         ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
