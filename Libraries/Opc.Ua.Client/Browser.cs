@@ -303,7 +303,7 @@ namespace Opc.Ua.Client
             try
             {
                 // process any continuation point.
-                while (continuationPoint?.Length > 0)
+                while (continuationPoint != null)
                 {
                     ReferenceDescriptionCollection additionalReferences;
 
