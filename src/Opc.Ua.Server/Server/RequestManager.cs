@@ -405,7 +405,7 @@ namespace Opc.Ua.Server
             TimeSpan budget;
             lock (m_requestsLock)
             {
-                repeatUntilIdle = m_lifecycleExtension?.RepeatDrainUntilIdleLocked == true;
+                repeatUntilIdle = m_lifecycleExtension?.MustRepeatDrainUntilIdleLocked == true;
                 requestDrain = CreateRequestDrainLocked(out budget);
             }
 
