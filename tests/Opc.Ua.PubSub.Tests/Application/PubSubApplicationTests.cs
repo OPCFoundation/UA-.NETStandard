@@ -187,6 +187,50 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(runtimeDataSet, Is.TypeOf<EventPublishedDataSet>());
         }
 
+        [Test]
+        public async Task StartAsyncWhenConnectionEnableFailsPropagatesTransportFailureAsync()
+        {
+            var expected = new NotSupportedException("transport unavailable");
+            var transportFactory = new Mock<IPubSubTransportFactory>();
+            transportFactory
+                .SetupGet(f => f.TransportProfileUri)
+                .Returns(Profiles.PubSubUdpUadpTransport);
+            transportFactory
+                .Setup(f => f.Create(
+                    It.IsAny<PubSubConnectionDataType>(),
+                    It.IsAny<ITelemetryContext>(),
+                    It.IsAny<TimeProvider>()))
+                .Throws(expected);
+
+            await using IPubSubApplication app =
+                new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                    .WithApplicationId("transport-failure-test")
+                    .UseConfiguration(new PubSubConfigurationDataType
+                    {
+                        Connections =
+                        [
+                            new PubSubConnectionDataType
+                            {
+                                Name = "failing",
+                                TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                                Address = new ExtensionObject(new NetworkAddressUrlDataType
+                                {
+                                    Url = "opc.udp://239.0.0.1:49322"
+                                })
+                            }
+                        ],
+                        PublishedDataSets = []
+                    })
+                    .UseAllStandardEncoders()
+                    .AddTransportFactory(transportFactory.Object)
+                    .Build();
+
+            Assert.That(
+                async () => await app.StartAsync(CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<NotSupportedException>().With.Message.EqualTo(expected.Message));
+            Assert.That(app.State.State, Is.EqualTo(PubSubState.Disabled));
+        }
+
         private static IPubSubApplication NewEmptyApplication()
         {
             var config = new PubSubConfigurationDataType
