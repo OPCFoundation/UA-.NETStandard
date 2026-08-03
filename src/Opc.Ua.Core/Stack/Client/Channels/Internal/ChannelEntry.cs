@@ -233,6 +233,9 @@ namespace Opc.Ua
                 ?? throw new InvalidOperationException("Participant factory returned null.");
             int refCount = 0;
             int participantCount = 0;
+            ChannelState currentState;
+            ServiceResult? currentError;
+            int currentAttempt;
             bool attached = false;
             lock (m_lock)
             {
@@ -260,11 +263,22 @@ namespace Opc.Ua
                 lease.SwapEntry(this);
                 refCount = m_refcount;
                 participantCount = m_leases.Count(l => l.IsActive);
+                currentState = m_state;
+                currentError = m_lastError;
+                currentAttempt = m_lastReconnectAttempt;
             }
 
             if (attached)
             {
                 OwnerManager.OnEntryParticipantAttached(this, participant.Id, refCount, participantCount);
+                if (currentState != ChannelState.Disconnected)
+                {
+                    lease.RaiseStateChanged(new ChannelStateChange(
+                        ChannelState.Disconnected,
+                        currentState,
+                        currentError,
+                        currentAttempt));
+                }
             }
         }
 
