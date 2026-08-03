@@ -37,6 +37,21 @@ namespace Opc.Ua.Server
     /// Optional request lifecycle coordination used by server shutdown and NodeManager lifecycle
     /// operations.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="RequestManager"/> owns ordinary request tracking. This extension adds the
+    /// lifecycle state that only shutdown and NodeManager replacement need:
+    /// request-admission closure and the set of executing requests that have stopped dispatching
+    /// because they are waiting for the lifecycle semaphore.
+    /// </para>
+    /// <para>
+    /// The transitions are:
+    /// open admission -> closed admission, registered lifecycle waiter -> semaphore waiter, and
+    /// semaphore waiter -> unregistered. Shutdown depends on those transitions so it can first
+    /// reject new requests, then drain every request admitted before closure without waiting on a
+    /// request that is itself queued behind the lifecycle semaphore.
+    /// </para>
+    /// </remarks>
     internal sealed class RequestManagerLifecycleExtension
     {
         /// <summary>
@@ -51,15 +66,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets whether a drain that just reached an idle snapshot must repeat because admission
-        /// is closed and another waiter may have stopped dispatching.
+        /// Gets whether a request drain must keep resampling until no pre-closure validation or
+        /// request scope remains.
         /// </summary>
-        internal bool RepeatDrainUntilIdleLocked => m_admissionClosed;
+        internal bool MustRepeatDrainUntilIdleLocked => m_requestAdmissionClosed;
 
         /// <summary>
         /// Atomically prevents admission of new Client requests. Validation scopes admitted
         /// before this call remain tracked and may still register and execute their request.
         /// </summary>
+        /// <remarks>
+        /// <see cref="StandardServer"/> calls this as the first shutdown step. A validation
+        /// scope that was already admitted is allowed to promote its request, and the shutdown
+        /// drain repeats snapshots until those pre-admitted requests finish.
+        /// </remarks>
         internal void CloseAdmission()
         {
             m_requestManager.CloseAdmission(this);
@@ -70,6 +90,11 @@ namespace Opc.Ua.Server
         /// The returned scope marks the request as non-dispatching only after its lifecycle
         /// semaphore wait has been queued.
         /// </summary>
+        /// <remarks>
+        /// This prevents a self-wait during shutdown: a service request that initiates or joins
+        /// shutdown stops dispatching to NodeManagers before it waits for the shared lifecycle
+        /// semaphore, so the request drain can exclude it safely.
+        /// </remarks>
         /// <returns>A scope that unregisters the request when the lifecycle operation exits.</returns>
         internal RequestLifecycleWaiterScope EnterLifecycleWaiter()
         {
@@ -87,11 +112,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Closes admission while the request manager lock is held.
+        /// Moves the lifecycle state from open admission to closed admission while the request
+        /// manager lock is held.
         /// </summary>
         internal void CloseAdmissionLocked()
         {
-            m_admissionClosed = true;
+            m_requestAdmissionClosed = true;
         }
 
         /// <summary>
@@ -100,26 +126,30 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void DisposeLocked()
         {
-            m_admissionClosed = true;
-            m_lifecycleWaiters.Clear();
+            m_requestAdmissionClosed = true;
+            m_requestsWaitingForLifecycle.Clear();
         }
 
         /// <summary>
-        /// Rejects a new validation scope after admission has closed.
+        /// Enforces the open-admission state before a new validation scope is created.
         /// </summary>
         /// <exception cref="ServiceResultException">Request admission has already closed.</exception>
         internal void ValidateValidationAdmissionLocked()
         {
-            if (m_admissionClosed)
+            if (m_requestAdmissionClosed)
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
         }
 
         /// <summary>
-        /// Rejects a request unless it belongs to a validation scope admitted before admission
-        /// closed.
+        /// Enforces request admission for a validated request.
         /// </summary>
+        /// <remarks>
+        /// Direct requests are rejected after admission closes. Requests promoted from a
+        /// validation scope that was admitted before closure remain valid because the shutdown
+        /// drain is still tracking that validation scope.
+        /// </remarks>
         /// <param name="validationId">The validation scope that admitted the request.</param>
         /// <param name="activeValidationScopes">The validation scopes still allowed to register requests.</param>
         /// <exception cref="ServiceResultException">The request was not admitted before lifecycle shutdown.</exception>
@@ -127,7 +157,7 @@ namespace Opc.Ua.Server
             long? validationId,
             HashSet<long> activeValidationScopes)
         {
-            if (m_admissionClosed &&
+            if (m_requestAdmissionClosed &&
                 (!validationId.HasValue ||
                     !activeValidationScopes.Contains(validationId.Value)))
             {
@@ -136,8 +166,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Registers an executing request as a lifecycle waiter while the request manager lock is
-        /// held.
+        /// Records that an executing request entered lifecycle coordination while the request
+        /// manager lock is held.
         /// </summary>
         /// <param name="requestId">The request that will wait for lifecycle serialization.</param>
         /// <param name="requests">The active request table used to prove the request is still executing.</param>
@@ -152,35 +182,40 @@ namespace Opc.Ua.Server
                     "The lifecycle waiter request is no longer active.");
             }
 
-            if (m_lifecycleWaiters.TryGetValue(
+            if (m_requestsWaitingForLifecycle.TryGetValue(
                 requestId,
                 out LifecycleWaiterState? state))
             {
-                state.RegisteredCount++;
+                state.ScopeCount++;
             }
             else
             {
-                m_lifecycleWaiters.Add(requestId, new LifecycleWaiterState());
+                m_requestsWaitingForLifecycle.Add(requestId, new LifecycleWaiterState());
             }
         }
 
         /// <summary>
-        /// Determines whether a request should be excluded from an in-progress drain because it
-        /// has already started waiting on the lifecycle semaphore.
+        /// Determines whether a request should be excluded from an in-progress drain.
         /// </summary>
+        /// <remarks>
+        /// Only a registered request that has also called
+        /// <see cref="RequestLifecycleWaiterScope.MarkSemaphoreWaitStarted"/> is excluded.
+        /// Registration alone is not enough because the request may still be dispatching to a
+        /// NodeManager until its semaphore wait is actually queued.
+        /// </remarks>
         /// <param name="requestId">The request to test against the waiter table.</param>
         /// <returns><c>true</c> when the request is a lifecycle waiter that no longer dispatches.</returns>
         internal bool ShouldExcludeRequestLocked(uint requestId)
         {
-            return m_lifecycleWaiters.TryGetValue(
+            return m_requestsWaitingForLifecycle.TryGetValue(
                     requestId,
                     out LifecycleWaiterState? waiterState) &&
-                waiterState.WaitingCount > 0;
+                waiterState.SemaphoreWaitCount > 0;
         }
 
         /// <summary>
-        /// Marks a registered waiter as blocked on the lifecycle semaphore and removes it from
-        /// pending drains.
+        /// Moves a registered lifecycle waiter into the semaphore-waiting state and removes it
+        /// from pending drain snapshots.
         /// </summary>
         /// <param name="requestId">The request whose lifecycle wait has started.</param>
         /// <param name="requestDrains">The active drain snapshots to update.</param>
@@ -189,7 +224,7 @@ namespace Opc.Ua.Server
             uint requestId,
             List<RequestManager.RequestDrain> requestDrains)
         {
-            if (!m_lifecycleWaiters.TryGetValue(
+            if (!m_requestsWaitingForLifecycle.TryGetValue(
                 requestId,
                 out LifecycleWaiterState? state))
             {
@@ -197,8 +232,8 @@ namespace Opc.Ua.Server
                     "The lifecycle waiter is no longer registered.");
             }
 
-            state.WaitingCount++;
-            if (state.WaitingCount == 1)
+            state.SemaphoreWaitCount++;
+            if (state.SemaphoreWaitCount == 1)
             {
                 for (int ii = requestDrains.Count - 1; ii >= 0; ii--)
                 {
@@ -217,7 +252,7 @@ namespace Opc.Ua.Server
         /// <param name="waiting">Whether the scope had started waiting on the lifecycle semaphore.</param>
         internal void ExitWaiterLocked(uint requestId, bool waiting)
         {
-            if (!m_lifecycleWaiters.TryGetValue(
+            if (!m_requestsWaitingForLifecycle.TryGetValue(
                 requestId,
                 out LifecycleWaiterState? state))
             {
@@ -226,18 +261,18 @@ namespace Opc.Ua.Server
 
             if (waiting)
             {
-                state.WaitingCount--;
+                state.SemaphoreWaitCount--;
             }
-            state.RegisteredCount--;
-            if (state.RegisteredCount == 0)
+            state.ScopeCount--;
+            if (state.ScopeCount == 0)
             {
-                m_lifecycleWaiters.Remove(requestId);
+                m_requestsWaitingForLifecycle.Remove(requestId);
             }
         }
 
         private readonly RequestManager m_requestManager;
-        private readonly Dictionary<uint, LifecycleWaiterState> m_lifecycleWaiters = [];
-        private bool m_admissionClosed;
+        private readonly Dictionary<uint, LifecycleWaiterState> m_requestsWaitingForLifecycle = [];
+        private bool m_requestAdmissionClosed;
 
         /// <summary>
         /// Unregisters one lifecycle-waiting request.
@@ -321,12 +356,12 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets or sets the number of active scopes registered for the request.
             /// </summary>
-            public int RegisteredCount { get; set; } = 1;
+            public int ScopeCount { get; set; } = 1;
 
             /// <summary>
             /// Gets or sets the number of registered scopes that have started waiting.
             /// </summary>
-            public int WaitingCount { get; set; }
+            public int SemaphoreWaitCount { get; set; }
         }
     }
 }

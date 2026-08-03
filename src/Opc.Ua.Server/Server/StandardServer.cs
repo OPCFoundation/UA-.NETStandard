@@ -46,10 +46,10 @@ namespace Opc.Ua.Server
     /// The standard implementation of a UA server.
     /// </summary>
     /// <remarks>
-    /// <see cref="Dispose()"/> initiates an orderly asynchronous shutdown and returns
-    /// after the shutdown has been scheduled. Use <see cref="DisposeAsync"/> when the
-    /// caller must wait until server internals, node-manager lifecycle state, base
-    /// resources, and synchronization resources have been released.
+    /// <see cref="Dispose()"/> performs the same orderly shutdown as
+    /// <see cref="DisposeAsync"/> and blocks until all owned resources have been
+    /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
+    /// so the shutdown does not block their thread.
     /// </remarks>
     public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable
     {
@@ -192,10 +192,10 @@ namespace Opc.Ua.Server
         /// Initiates disposal of this server.
         /// </summary>
         /// <remarks>
-        /// This synchronous <see cref="IDisposable.Dispose"/> entry point initiates the
-        /// same orderly shutdown path as <c>StopAsync</c>, but it does not block the
-        /// caller until asynchronous shutdown has completed. Use <see cref="DisposeAsync"/>
-        /// when the caller must wait until all server resources have been released.
+        /// This synchronous <see cref="IDisposable.Dispose"/> entry point intentionally
+        /// blocks on the asynchronous disposal core so deterministic resource release is
+        /// preserved for synchronous callers. Prefer <see cref="DisposeAsync"/> whenever
+        /// the caller can await the shutdown.
         /// </remarks>
         public new void Dispose()
         {
@@ -224,14 +224,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Initiates synchronous disposal of this server.
+        /// Synchronously disposes this server.
         /// </summary>
         /// <remarks>
-        /// When <paramref name="disposing"/> is <c>true</c>, this method initiates the
-        /// asynchronous server-internal shutdown path and returns before that shutdown
-        /// necessarily completes. The retained deferred observer completes base-resource
-        /// disposal after the shutdown task finishes. Use <see cref="DisposeAsync"/> to
-        /// await deterministic resource release.
+        /// When <paramref name="disposing"/> is <c>true</c>, this method deliberately
+        /// blocks on <see cref="DisposeAsyncCore"/>. That is the owner-approved exception
+        /// to the repository's sync-over-async rule for classes that implement both
+        /// synchronous and asynchronous disposal.
         /// </remarks>
         /// <param name="disposing">
         /// <c>true</c> when called from <see cref="Dispose()"/>; <c>false</c> when called
@@ -245,8 +244,20 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            ServerDisposeRequest disposeRequest = BeginServerDispose();
-            CompleteServerDispose(disposeRequest);
+            if (IsServerDisposeAlreadyRequested())
+            {
+                return;
+            }
+
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult();
+        }
+
+        private bool IsServerDisposeAlreadyRequested()
+        {
+            lock (m_shutdownStateLock)
+            {
+                return m_disposalRequested;
+            }
         }
 
         private ServerDisposeRequest BeginServerDispose()
@@ -255,20 +266,20 @@ namespace Opc.Ua.Server
             ServerShutdownState? activeShutdownState = null;
             bool disposeWithoutShutdown = false;
             bool firstDisposeRequest;
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 // Dispose must initiate the same orderly shutdown path as StopAsync when the
                 // server is still running, because server resources are released only after
                 // request admission closes and admitted requests drain. Repeat Dispose calls are
-                // safe: m_disposeRequested lets them observe the already-published shutdown task
+                // safe: m_disposalRequested lets them observe the already-published shutdown task
                 // or repeat only null-safe cleanup after disposal has completed.
-                firstDisposeRequest = !m_disposeRequested;
-                m_disposeRequested = true;
+                firstDisposeRequest = !m_disposalRequested;
+                m_disposalRequested = true;
                 serverInternal = m_serverInternal;
                 if (serverInternal is null)
                 {
                     if (m_serverShutdownState is
-                        { ActiveTask.IsCompleted: false } shutdownState)
+                        { ActiveShutdownTask.IsCompleted: false } shutdownState)
                     {
                         activeShutdownState = shutdownState;
                     }
@@ -296,30 +307,6 @@ namespace Opc.Ua.Server
                 disposeWithoutShutdown);
         }
 
-        private void CompleteServerDispose(ServerDisposeRequest disposeRequest)
-        {
-            ServerInternalData? serverInternal = disposeRequest.ServerInternal;
-            if (serverInternal is not null)
-            {
-                // The retained shutdown observer owns provider, subscription, base-class,
-                // and semaphore disposal after every admitted request has drained.
-                _ = GetOrStartServerInternalShutdown(
-                    serverInternal,
-                    CancellationToken.None);
-            }
-            else if (disposeRequest.DisposeWithoutShutdown)
-            {
-                CompleteBaseResourceDisposal(disposeLifecycle: true);
-            }
-            else
-            {
-                ServerShutdownState activeShutdownState = disposeRequest.ActiveShutdownState!;
-                EnsureDeferredServerInternalShutdownObserved(
-                    activeShutdownState,
-                    activeShutdownState.ActiveTask!);
-            }
-        }
-
         private async ValueTask CompleteServerDisposeAsync(ServerDisposeRequest disposeRequest)
         {
             ServerInternalData? serverInternal = disposeRequest.ServerInternal;
@@ -340,7 +327,7 @@ namespace Opc.Ua.Server
             else
             {
                 ServerShutdownState activeShutdownState = disposeRequest.ActiveShutdownState!;
-                Task activeShutdown = activeShutdownState.ActiveTask!;
+                Task activeShutdown = activeShutdownState.ActiveShutdownTask!;
                 EnsureDeferredServerInternalShutdownObserved(
                     activeShutdownState,
                     activeShutdown);
@@ -4027,7 +4014,7 @@ namespace Opc.Ua.Server
             Task shutdown;
             TaskCompletionSource<object?>? reservedShutdown = null;
             bool joiningActiveShutdown = false;
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 if (m_serverShutdownState is null ||
                     !ReferenceEquals(m_serverShutdownState.Server, serverInternal))
@@ -4038,11 +4025,11 @@ namespace Opc.Ua.Server
                 }
                 shutdownState = m_serverShutdownState;
 
-                if (shutdownState.Completed)
+                if (shutdownState.ShutdownCompleted)
                 {
                     shutdown = Task.CompletedTask;
                 }
-                else if (shutdownState.ActiveTask is { IsCompleted: false } activeTask)
+                else if (shutdownState.ActiveShutdownTask is { IsCompleted: false } activeTask)
                 {
                     shutdown = activeTask;
                     joiningActiveShutdown = true;
@@ -4054,7 +4041,7 @@ namespace Opc.Ua.Server
                     reservedShutdown = new TaskCompletionSource<object?>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
                     shutdown = reservedShutdown.Task;
-                    shutdownState.ActiveTask = shutdown;
+                    shutdownState.ActiveShutdownTask = shutdown;
                 }
             }
 
@@ -4127,7 +4114,7 @@ namespace Opc.Ua.Server
             }
             try
             {
-                await ShutdownServerInternalCoreAsync(shutdown, cancellationToken)
+                await CloseAdmissionDrainRequestsAndTearDownServerAsync(shutdown, cancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -4136,7 +4123,19 @@ namespace Opc.Ua.Server
             }
         }
 
-        private async Task ShutdownServerInternalCoreAsync(
+        /// <summary>
+        /// Runs the ordered server-internal shutdown sequence.
+        /// </summary>
+        /// <remarks>
+        /// The shutdown order is intentional and must preserve three guarantees:
+        /// 1. Request admission closes before teardown starts, so no new service call can enter
+        ///    the retiring server internals.
+        /// 2. Requests admitted before admission closed are drained before sessions and
+        ///    NodeManagers are stopped.
+        /// 3. Server internals, lifecycle state, base resources, and synchronization resources
+        ///    are disposed exactly once, even when Dispose, DisposeAsync, and StopAsync race.
+        /// </remarks>
+        private async Task CloseAdmissionDrainRequestsAndTearDownServerAsync(
             ServerShutdownState shutdown,
             CancellationToken cancellationToken)
         {
@@ -4155,7 +4154,7 @@ namespace Opc.Ua.Server
             var lifecycle = NodeManagerLifecycle as NodeManagerLifecycle;
             ValueTask lifecyclePreparation = default;
             bool prepareLifecycle = lifecycle is not null &&
-                !shutdown.LifecyclePrepared;
+                !shutdown.NodeManagerLifecyclePrepared;
             if (prepareLifecycle)
             {
                 // BeginShutdownAsync records shutdown intent synchronously before its first
@@ -4173,11 +4172,11 @@ namespace Opc.Ua.Server
             if (prepareLifecycle)
             {
                 await lifecyclePreparation.ConfigureAwait(false);
-                shutdown.LifecyclePrepared = true;
+                shutdown.NodeManagerLifecyclePrepared = true;
             }
             else if (lifecycle is null)
             {
-                shutdown.LifecyclePrepared = true;
+                shutdown.NodeManagerLifecyclePrepared = true;
             }
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -4185,9 +4184,9 @@ namespace Opc.Ua.Server
             {
                 if (!ReferenceEquals(m_serverInternal, shutdown.Server))
                 {
-                    lock (m_shutdownCoordinationLock)
+                    lock (m_shutdownStateLock)
                     {
-                        shutdown.Completed = true;
+                        shutdown.ShutdownCompleted = true;
                     }
                     return;
                 }
@@ -4205,7 +4204,7 @@ namespace Opc.Ua.Server
                 shutdown.SubscriptionsStopped = true;
             }
 
-            if (!shutdown.RequestsDrained)
+            if (!shutdown.AdmittedRequestsDrained)
             {
                 Func<Task>? beforeRequestDrain = BeforeServerRequestDrainForTest;
                 if (beforeRequestDrain is not null)
@@ -4216,7 +4215,7 @@ namespace Opc.Ua.Server
                     .WaitForCurrentRequestsAsync(cancellationToken);
                 AfterServerRequestDrainStartedForTest?.Invoke();
                 await requestDrain.ConfigureAwait(false);
-                shutdown.RequestsDrained = true;
+                shutdown.AdmittedRequestsDrained = true;
             }
 
             if (!shutdown.SessionsStopped)
@@ -4263,12 +4262,12 @@ namespace Opc.Ua.Server
                         (NodeManagerLifecycle as IDisposable)?.Dispose();
                         shutdown.LifecycleDisposed = true;
                     }
-                    if (!shutdown.InternalsDisposed)
+                    if (!shutdown.ServerInternalsDisposed)
                     {
                         shutdown.Server.Dispose();
-                        shutdown.InternalsDisposed = true;
+                        shutdown.ServerInternalsDisposed = true;
                     }
-                    lock (m_shutdownCoordinationLock)
+                    lock (m_shutdownStateLock)
                     {
                         if (ReferenceEquals(m_serverInternal, shutdown.Server))
                         {
@@ -4288,9 +4287,9 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Release();
             }
 
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
-                shutdown.Completed = true;
+                shutdown.ShutdownCompleted = true;
             }
         }
 
@@ -4300,12 +4299,12 @@ namespace Opc.Ua.Server
         {
             bool observe = false;
             bool completeDisposal = false;
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
-                if (m_disposeRequested &&
+                if (m_disposalRequested &&
                     ReferenceEquals(m_serverShutdownState, shutdownState))
                 {
-                    if (shutdownState.Completed &&
+                    if (shutdownState.ShutdownCompleted &&
                         shutdown.IsCompleted &&
                         m_serverInternal is null)
                     {
@@ -4354,7 +4353,7 @@ namespace Opc.Ua.Server
         [SuppressMessage(
             "Maintainability",
             "CA1508:Avoid dead conditional code",
-            Justification = "ActiveTask can be replaced concurrently by an explicit shutdown retry.")]
+            Justification = "ActiveShutdownTask can be replaced concurrently by an explicit shutdown retry.")]
         private async Task ObserveDeferredServerInternalShutdownAsync(
             ServerShutdownState shutdownState,
             Task shutdown)
@@ -4378,13 +4377,13 @@ namespace Opc.Ua.Server
                 Task? concurrentShutdown = null;
                 int retryCount = 0;
                 Exception? terminalError = null;
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
-                    if (m_disposeRequested &&
+                    if (m_disposalRequested &&
                         ReferenceEquals(m_serverShutdownState, shutdownState) &&
                         ReferenceEquals(m_serverInternal, shutdownState.Server))
                     {
-                        if (shutdownState.ActiveTask is { } latestShutdown &&
+                        if (shutdownState.ActiveShutdownTask is { } latestShutdown &&
                             !ReferenceEquals(latestShutdown, activeShutdown))
                         {
                             concurrentShutdown = latestShutdown;
@@ -4441,13 +4440,13 @@ namespace Opc.Ua.Server
                 await Task.Delay(GetDeferredShutdownRetryDelay(retryCount))
                     .ConfigureAwait(false);
 
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
-                    if (shutdownState.Completed)
+                    if (shutdownState.ShutdownCompleted)
                     {
                         break;
                     }
-                    if (!m_disposeRequested ||
+                    if (!m_disposalRequested ||
                         !ReferenceEquals(m_serverShutdownState, shutdownState) ||
                         !ReferenceEquals(m_serverInternal, shutdownState.Server))
                     {
@@ -4462,16 +4461,16 @@ namespace Opc.Ua.Server
             }
 
             bool completeDisposal;
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 if (ReferenceEquals(m_serverShutdownState, shutdownState))
                 {
                     shutdownState.TerminalError = null;
                     shutdownState.DeferredObserverActive = false;
                 }
-                completeDisposal = m_disposeRequested &&
+                completeDisposal = m_disposalRequested &&
                     m_serverInternal is null &&
-                    shutdownState.Completed;
+                    shutdownState.ShutdownCompleted;
             }
             if (completeDisposal)
             {
@@ -4513,7 +4512,7 @@ namespace Opc.Ua.Server
             ServerShutdownState shutdownState,
             Exception terminalError)
         {
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 if (ReferenceEquals(m_serverShutdownState, shutdownState))
                 {
@@ -4530,15 +4529,15 @@ namespace Opc.Ua.Server
         private long GetServerShutdownProgress(ServerShutdownState shutdown)
         {
             long progress = 0;
-            progress += shutdown.LifecyclePrepared ? 1 : 0;
+            progress += shutdown.NodeManagerLifecyclePrepared ? 1 : 0;
             progress += shutdown.SubscriptionsStopped ? 1 : 0;
             progress += shutdown.RequestAdmissionClosed ? 1 : 0;
-            progress += shutdown.RequestsDrained ? 1 : 0;
+            progress += shutdown.AdmittedRequestsDrained ? 1 : 0;
             progress += shutdown.SessionsStopped ? 1 : 0;
             progress += shutdown.NodeManagersStopped ? 1 : 0;
             progress += shutdown.LifecycleCompleted ? 1 : 0;
             progress += shutdown.LifecycleDisposed ? 1 : 0;
-            progress += shutdown.InternalsDisposed ? 1 : 0;
+            progress += shutdown.ServerInternalsDisposed ? 1 : 0;
             if (shutdown.Server.NodeManager is MasterNodeManager masterNodeManager)
             {
                 progress += masterNodeManager.ShutdownCompletedNodeManagerCount;
@@ -4568,7 +4567,7 @@ namespace Opc.Ua.Server
         private void CompleteBaseResourceDisposal(bool disposeLifecycle)
         {
             TaskCompletionSource<object?> disposalCompletion;
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 if (m_baseResourceDisposalStarted)
                 {
@@ -4646,7 +4645,7 @@ namespace Opc.Ua.Server
                     "One or more base server resources could not be disposed.",
                     failures)
                 : null;
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 m_baseResourceDisposalCompleted = true;
                 m_baseResourceDisposalError = terminalError;
@@ -4678,7 +4677,7 @@ namespace Opc.Ua.Server
 
         private Task GetBaseResourceDisposalCompletionTask()
         {
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 if (m_baseResourceDisposalCompleted)
                 {
@@ -4696,7 +4695,7 @@ namespace Opc.Ua.Server
 
         private void DisposeServerSemaphore()
         {
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 if (m_serverSemaphoreDisposed)
                 {
@@ -5427,7 +5426,12 @@ namespace Opc.Ua.Server
             => ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!;
 
         private readonly Lock m_registrationLock = new();
-        private readonly Lock m_shutdownCoordinationLock = new();
+        private readonly Lock m_shutdownStateLock = new();
+        [SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "Disposed exactly once by CompleteBaseResourceDisposal. " +
+                "TODO: remove when analyzer follows disposal helpers.")]
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         [SuppressMessage(
             "Usage",
@@ -5435,7 +5439,7 @@ namespace Opc.Ua.Server
             Justification = "Disposed by the coordinated asynchronous server shutdown task.")]
         private ServerInternalData? m_serverInternal;
         private ServerShutdownState? m_serverShutdownState;
-        private bool m_disposeRequested;
+        private bool m_disposalRequested;
         private bool m_baseResourceDisposalStarted;
         private bool m_baseResourceDisposalCompleted;
         private int m_baseResourceDisposalCount;
@@ -5460,7 +5464,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
                     return m_serverSemaphoreDisposed;
                 }
@@ -5471,7 +5475,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
                     return m_serverShutdownState?.AttemptCount ?? 0;
                 }
@@ -5482,7 +5486,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
                     return m_baseResourceDisposalCompleted;
                 }
@@ -5493,7 +5497,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
                     return m_baseResourceDisposalCount;
                 }
@@ -5504,7 +5508,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
                     return m_serverShutdownState?.TerminalError ??
                         m_baseResourceDisposalError;
@@ -5558,7 +5562,7 @@ namespace Opc.Ua.Server
 
             public ServerInternalData Server { get; }
 
-            public Task? ActiveTask { get; set; }
+            public Task? ActiveShutdownTask { get; set; }
 
             public int AttemptCount { get; set; }
 
@@ -5572,13 +5576,13 @@ namespace Opc.Ua.Server
 
             public Exception? TerminalError { get; set; }
 
-            public bool LifecyclePrepared { get; set; }
+            public bool NodeManagerLifecyclePrepared { get; set; }
 
             public bool SubscriptionsStopped { get; set; }
 
             public bool RequestAdmissionClosed { get; set; }
 
-            public bool RequestsDrained { get; set; }
+            public bool AdmittedRequestsDrained { get; set; }
 
             public bool SessionsStopped { get; set; }
 
@@ -5588,9 +5592,9 @@ namespace Opc.Ua.Server
 
             public bool LifecycleDisposed { get; set; }
 
-            public bool InternalsDisposed { get; set; }
+            public bool ServerInternalsDisposed { get; set; }
 
-            public bool Completed { get; set; }
+            public bool ShutdownCompleted { get; set; }
         }
 
         /// <summary>

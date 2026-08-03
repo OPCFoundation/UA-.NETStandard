@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
@@ -37,7 +36,7 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Tests the deterministic and deferred disposal contracts of
+    /// Tests the deterministic synchronous and asynchronous disposal contracts of
     /// <see cref="StandardServer"/>.
     /// </summary>
     [TestFixture]
@@ -122,13 +121,15 @@ namespace Opc.Ua.Server.Tests
                     await allowFinalRelease.Task.ConfigureAwait(false);
                 };
 
-                server.Dispose();
+                Task disposeTask = Task.Run(server.Dispose);
                 await shutdownReachedFinalRelease.Task.ConfigureAwait(false);
 
+                Assert.That(disposeTask.IsCompleted, Is.False);
                 Task disposeAsyncTask = server.DisposeAsync().AsTask();
                 Assert.That(disposeAsyncTask.IsCompleted, Is.False);
 
                 allowFinalRelease.SetResult(null);
+                await disposeTask.ConfigureAwait(false);
                 await disposeAsyncTask.ConfigureAwait(false);
 
                 AssertReleased(server);
@@ -190,7 +191,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task DisposeRetainsDeferredShutdownCompletion()
+        public async Task DisposeBlocksUntilShutdownCompletionAndReleasesOnce()
         {
             ServerFixture<TestableStandardServer> fixture = CreateFixture();
             TestableStandardServer server = null;
@@ -208,13 +209,14 @@ namespace Opc.Ua.Server.Tests
                     await allowFinalRelease.Task.ConfigureAwait(false);
                 };
 
-                server.Dispose();
+                Task disposeTask = Task.Run(server.Dispose);
                 await shutdownReachedFinalRelease.Task.ConfigureAwait(false);
 
                 Assert.That(server.BaseResourcesDisposedForTest, Is.False);
+                Assert.That(disposeTask.IsCompleted, Is.False);
 
                 allowFinalRelease.SetResult(null);
-                await WaitUntilAsync(() => server.BaseResourcesDisposedForTest).ConfigureAwait(false);
+                await disposeTask.ConfigureAwait(false);
 
                 AssertReleased(server);
                 Assert.That(server.BaseResourceDisposalCountForTest, Is.EqualTo(1));
@@ -263,17 +265,5 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        private static async Task WaitUntilAsync(Func<bool> predicate)
-        {
-            DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(10);
-            while (!predicate())
-            {
-                if (DateTimeOffset.UtcNow >= deadline)
-                {
-                    Assert.Fail("The deferred server shutdown did not complete.");
-                }
-                await Task.Delay(10).ConfigureAwait(false);
-            }
-        }
     }
 }
