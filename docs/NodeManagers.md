@@ -1601,36 +1601,42 @@ Notes:
 
 #### Custom node types and assignment control
 
-`NodeState` carries a second `FindChild` overload that takes
-`assignInstanceNodeIds`, plus a `SupportsInstanceNodeIdAssignmentControl`
-property that states whether a type honours it. Source generated types
-override both, so a copy of a generated node consumes nothing.
-
-Hand-written types that override only the four argument `FindChild` keep
-working: for them the copy hides the `NodeIdFactory` for its duration, which
-is the only channel that reaches an override with no such parameter. To take
-the direct path instead, override both members:
+`NodeState.FindChild` and `NodeState.CreateChild` carry
+`assignInstanceNodeIds` as their last parameter. It defaults to `true`, so
+callers that state no intent keep materialising children with per-instance
+NodeIds. A type that declares children overrides `FindChild`, resolves the
+ones it declares, and passes the request on — both to its
+`CreateOrReplace<Child>` helpers and to the base:
 
 ```csharp
-protected override bool SupportsInstanceNodeIdAssignmentControl => true;
-
 protected override BaseInstanceState? FindChild(
     ISystemContext context,
     QualifiedName browseName,
     bool createOrReplace,
     BaseInstanceState? replacement,
-    bool assignInstanceNodeIds)
+    bool assignInstanceNodeIds = true)
 {
-    // ... thread assignInstanceNodeIds into your CreateOrReplace<Child> calls
+    if (browseName.Name == BrowseNames.EnumStrings)
+    {
+        return !createOrReplace
+            ? EnumStrings
+            : CreateOrReplaceEnumStrings(context, replacement, assignInstanceNodeIds);
+    }
+
     return base.FindChild(
         context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
 }
 ```
 
-Override the property only together with the five argument `FindChild`. A
-hand-written type deriving from a generated one inherits `true`; if it
-overrides only the four argument `FindChild` and needs that override to run
-during a copy, it must override the property back to `false`.
+Source generated types emit exactly this shape. Because the request is an
+argument, every type — generated or hand-written — sees the real
+`ISystemContext` during a copy; nothing wraps the context to hide the
+`NodeIdFactory`.
+
+> **Breaking change in 2.0.** The four argument `FindChild` and the two
+> argument `CreateChild` are gone. An override written against 1.5.378 fails
+> to compile until the parameter is added; see the
+> [migration guide](migrate/2.0.x/node-states.md#nodestate-findchild-and-createchild-state-nodeid-assignment).
 
 ### Current limitations
 
