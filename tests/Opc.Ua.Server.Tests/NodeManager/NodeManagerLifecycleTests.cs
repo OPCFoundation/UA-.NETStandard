@@ -3920,25 +3920,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             m_requestHeader = null;
             Task shutdown = m_server.ShutdownInternalsAsync().AsTask();
+            Task firstDispose = null;
+            Task secondDispose = null;
             try
             {
                 await requestDrainStarted.Task
                     .WaitAsync(TimeSpan.FromSeconds(10))
                     .ConfigureAwait(false);
 
-                Task firstDispose = RunWithoutExecutionContext(() =>
+                firstDispose = RunWithoutExecutionContext(() =>
                 {
                     m_server.Dispose();
                     return Task.CompletedTask;
                 });
-                Task secondDispose = RunWithoutExecutionContext(() =>
+                secondDispose = RunWithoutExecutionContext(() =>
                 {
                     m_server.Dispose();
                     return Task.CompletedTask;
                 });
-                await Task.WhenAll(firstDispose, secondDispose)
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
 
                 Assert.Multiple(() =>
                 {
@@ -3957,7 +3957,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(certificateEntry, Is.Not.Null);
 
                 releaseRequest.TrySetResult(true);
-                await Task.WhenAll(createSession, shutdown)
+                await Task.WhenAll(createSession, shutdown, firstDispose, secondDispose)
                     .WaitAsync(TimeSpan.FromSeconds(10))
                     .ConfigureAwait(false);
                 await WaitForConditionAsync(
@@ -4024,9 +4024,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager.Object).ConfigureAwait(false);
 
             m_requestHeader = null;
-            m_server.Dispose();
+            Task disposeTask = RunWithoutExecutionContext(() =>
+            {
+                m_server.Dispose();
+                return Task.CompletedTask;
+            });
             await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
             Assert.That(addTask.IsCompleted, Is.False);
+            Assert.That(disposeTask.IsCompleted, Is.False);
             Assert.That(
                 Volatile.Read(ref disposeCount),
                 Is.Zero,
@@ -4037,6 +4042,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await AssertLifecycleOperationDidNotUseDisposedServicesAsync(addTask)
                 .ConfigureAwait(false);
             await WaitForConditionAsync(() => Volatile.Read(ref disposeCount) == 1)
+                .ConfigureAwait(false);
+            await disposeTask
+                .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
 
             await FinishShutdownTestAsync().ConfigureAwait(false);
@@ -4103,9 +4111,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 replacementManager.Object).ConfigureAwait(false);
 
             m_requestHeader = null;
-            m_server.Dispose();
+            Task disposeTask = RunWithoutExecutionContext(() =>
+            {
+                m_server.Dispose();
+                return Task.CompletedTask;
+            });
             await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
             Assert.That(reloadTask.IsCompleted, Is.False);
+            Assert.That(disposeTask.IsCompleted, Is.False);
             Assert.That(Volatile.Read(ref originalDisposeCount), Is.Zero);
             Assert.That(
                 Volatile.Read(ref replacementDisposeCount),
@@ -4119,6 +4132,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await WaitForConditionAsync(
                     () => Volatile.Read(ref originalDisposeCount) == 1 &&
                         Volatile.Read(ref replacementDisposeCount) == 1)
+                .ConfigureAwait(false);
+            await disposeTask
+                .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
 
             await FinishShutdownTestAsync().ConfigureAwait(false);
@@ -4164,9 +4180,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 visible: false).ConfigureAwait(false);
 
             m_requestHeader = null;
-            m_server.Dispose();
+            Task disposeTask = RunWithoutExecutionContext(() =>
+            {
+                m_server.Dispose();
+                return Task.CompletedTask;
+            });
             await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
             Assert.That(removeTask.IsCompleted, Is.False);
+            Assert.That(disposeTask.IsCompleted, Is.False);
             Assert.That(
                 Volatile.Read(ref disposeCount),
                 Is.Zero,
@@ -4177,6 +4198,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await AssertLifecycleOperationDidNotUseDisposedServicesAsync(removeTask)
                 .ConfigureAwait(false);
             await WaitForConditionAsync(() => Volatile.Read(ref disposeCount) == 1)
+                .ConfigureAwait(false);
+            await disposeTask
+                .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
 
             await FinishShutdownTestAsync().ConfigureAwait(false);
@@ -4533,7 +4557,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             replacementManager.DeleteAddressSpaceFailuresRemaining = 1;
             retiredManager.DeleteAddressSpaceFailuresRemaining = 1;
             m_requestHeader = null;
-            m_server.Dispose();
+            AggregateException disposeFailure =
+                Assert.Throws<AggregateException>(() => m_server.Dispose());
+            Assert.That(disposeFailure, Is.Not.Null);
 
             await WaitForConditionAsync(
                     () => m_server.ServerSemaphoreDisposedForTest)
@@ -4565,7 +4591,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             int transportCountBeforeDispose = m_server.TransportListenerCountForTest;
 
             m_requestHeader = null;
-            m_server.Dispose();
+            AggregateException disposeFailure =
+                Assert.Throws<AggregateException>(() => m_server.Dispose());
+            Assert.That(disposeFailure, Is.Not.Null);
             await WaitForConditionAsync(
                     () => m_server.DeferredServerShutdownTerminalErrorForTest is not null)
                 .ConfigureAwait(false);
@@ -4640,7 +4668,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 m_requestHeader = null;
-                m_server.Dispose();
+                AggregateException disposeFailure =
+                    Assert.Throws<AggregateException>(() => m_server.Dispose());
+                Assert.That(disposeFailure, Is.Not.Null);
                 await WaitForConditionAsync(
                         () => m_server.DeferredServerShutdownTerminalErrorForTest is not null)
                     .ConfigureAwait(false);
@@ -4711,24 +4741,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await shutdownHoldingSemaphore.Task
                     .WaitAsync(TimeSpan.FromSeconds(10))
                     .ConfigureAwait(false);
-
                 Task disposeTask = RunWithoutExecutionContext(() =>
                 {
                     m_server.Dispose();
                     return Task.CompletedTask;
                 });
-                await disposeTask
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
 
                 Assert.That(shutdownTask.IsCompleted, Is.False);
+                Assert.That(disposeTask.IsCompleted, Is.False);
                 Assert.That(
                     m_server.ServerSemaphoreDisposedForTest,
                     Is.False,
                     "Dispose must join the active shutdown instead of disposing its held semaphore.");
 
                 releaseShutdown.TrySetResult(true);
-                await shutdownTask
+                await Task.WhenAll(shutdownTask, disposeTask)
                     .WaitAsync(TimeSpan.FromSeconds(10))
                     .ConfigureAwait(false);
                 await WaitForConditionAsync(
