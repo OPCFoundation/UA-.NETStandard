@@ -42,8 +42,16 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
-    /// <inheritdoc/>
-    public class StandardServer : SessionServerBase, IStandardServer
+    /// <summary>
+    /// The standard implementation of a UA server.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Dispose()"/> initiates an orderly asynchronous shutdown and returns
+    /// after the shutdown has been scheduled. Use <see cref="DisposeAsync"/> when the
+    /// caller must wait until server internals, node-manager lifecycle state, base
+    /// resources, and synchronization resources have been released.
+    /// </remarks>
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -180,7 +188,55 @@ namespace Opc.Ua.Server
         /// </summary>
         internal ServerDataTypeDefinitionResolver? ComplexTypeResolverHolder { get; set; }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Initiates disposal of this server.
+        /// </summary>
+        /// <remarks>
+        /// This synchronous <see cref="IDisposable.Dispose"/> entry point initiates the
+        /// same orderly shutdown path as <c>StopAsync</c>, but it does not block the
+        /// caller until asynchronous shutdown has completed. Use <see cref="DisposeAsync"/>
+        /// when the caller must wait until all server resources have been released.
+        /// </remarks>
+        public new void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Asynchronously shuts down and disposes this server.
+        /// </summary>
+        /// <returns>A task that completes after all owned server resources have been released.</returns>
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Asynchronously shuts down and disposes this server.
+        /// </summary>
+        /// <returns>A task that completes after all owned server resources have been released.</returns>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            ServerDisposeRequest disposeRequest = BeginServerDispose();
+            await CompleteServerDisposeAsync(disposeRequest).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Initiates synchronous disposal of this server.
+        /// </summary>
+        /// <remarks>
+        /// When <paramref name="disposing"/> is <c>true</c>, this method initiates the
+        /// asynchronous server-internal shutdown path and returns before that shutdown
+        /// necessarily completes. The retained deferred observer completes base-resource
+        /// disposal after the shutdown task finishes. Use <see cref="DisposeAsync"/> to
+        /// await deterministic resource release.
+        /// </remarks>
+        /// <param name="disposing">
+        /// <c>true</c> when called from <see cref="Dispose()"/>; <c>false</c> when called
+        /// by a finalizer.
+        /// </param>
         protected override void Dispose(bool disposing)
         {
             if (!disposing)
@@ -189,6 +245,12 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            ServerDisposeRequest disposeRequest = BeginServerDispose();
+            CompleteServerDispose(disposeRequest);
+        }
+
+        private ServerDisposeRequest BeginServerDispose()
+        {
             ServerInternalData? serverInternal;
             ServerShutdownState? activeShutdownState = null;
             bool disposeWithoutShutdown = false;
@@ -228,6 +290,15 @@ namespace Opc.Ua.Server
                 m_configurationWatcher = null;
             }
 
+            return new ServerDisposeRequest(
+                serverInternal,
+                activeShutdownState,
+                disposeWithoutShutdown);
+        }
+
+        private void CompleteServerDispose(ServerDisposeRequest disposeRequest)
+        {
+            ServerInternalData? serverInternal = disposeRequest.ServerInternal;
             if (serverInternal is not null)
             {
                 // The retained shutdown observer owns provider, subscription, base-class,
@@ -236,15 +307,46 @@ namespace Opc.Ua.Server
                     serverInternal,
                     CancellationToken.None);
             }
-            else if (disposeWithoutShutdown)
+            else if (disposeRequest.DisposeWithoutShutdown)
             {
                 CompleteBaseResourceDisposal(disposeLifecycle: true);
             }
             else
             {
+                ServerShutdownState activeShutdownState = disposeRequest.ActiveShutdownState!;
                 EnsureDeferredServerInternalShutdownObserved(
-                    activeShutdownState!,
-                    activeShutdownState!.ActiveTask!);
+                    activeShutdownState,
+                    activeShutdownState.ActiveTask!);
+            }
+        }
+
+        private async ValueTask CompleteServerDisposeAsync(ServerDisposeRequest disposeRequest)
+        {
+            ServerInternalData? serverInternal = disposeRequest.ServerInternal;
+            if (serverInternal is not null)
+            {
+                await GetOrStartServerInternalShutdown(
+                        serverInternal,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+                await CompleteBaseResourceDisposalAsync(disposeLifecycle: false)
+                    .ConfigureAwait(false);
+            }
+            else if (disposeRequest.DisposeWithoutShutdown)
+            {
+                await CompleteBaseResourceDisposalAsync(disposeLifecycle: true)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                ServerShutdownState activeShutdownState = disposeRequest.ActiveShutdownState!;
+                Task activeShutdown = activeShutdownState.ActiveTask!;
+                EnsureDeferredServerInternalShutdownObserved(
+                    activeShutdownState,
+                    activeShutdown);
+                await activeShutdown.ConfigureAwait(false);
+                await CompleteBaseResourceDisposalAsync(disposeLifecycle: false)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -4465,6 +4567,7 @@ namespace Opc.Ua.Server
 
         private void CompleteBaseResourceDisposal(bool disposeLifecycle)
         {
+            TaskCompletionSource<object?> disposalCompletion;
             lock (m_shutdownCoordinationLock)
             {
                 if (m_baseResourceDisposalStarted)
@@ -4473,6 +4576,9 @@ namespace Opc.Ua.Server
                 }
                 m_baseResourceDisposalStarted = true;
                 m_baseResourceDisposalCount++;
+                m_baseResourceDisposalCompletion ??= new TaskCompletionSource<object?>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                disposalCompletion = m_baseResourceDisposalCompletion;
             }
 
             var failures = new List<Exception>();
@@ -4555,6 +4661,36 @@ namespace Opc.Ua.Server
                 m_logger.ServerShutdownResourceDisposalFailed(
                     terminalError,
                     terminalError.Message);
+                disposalCompletion.TrySetException(terminalError);
+            }
+            else
+            {
+                disposalCompletion.TrySetResult(null);
+            }
+        }
+
+        private async ValueTask CompleteBaseResourceDisposalAsync(bool disposeLifecycle)
+        {
+            Task disposalCompletion = GetBaseResourceDisposalCompletionTask();
+            CompleteBaseResourceDisposal(disposeLifecycle);
+            await disposalCompletion.ConfigureAwait(false);
+        }
+
+        private Task GetBaseResourceDisposalCompletionTask()
+        {
+            lock (m_shutdownCoordinationLock)
+            {
+                if (m_baseResourceDisposalCompleted)
+                {
+                    Exception? disposalError = m_baseResourceDisposalError;
+                    return disposalError is null
+                        ? Task.CompletedTask
+                        : Task.FromException(disposalError);
+                }
+
+                m_baseResourceDisposalCompletion ??= new TaskCompletionSource<object?>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                return m_baseResourceDisposalCompletion.Task;
             }
         }
 
@@ -5304,6 +5440,7 @@ namespace Opc.Ua.Server
         private bool m_baseResourceDisposalCompleted;
         private int m_baseResourceDisposalCount;
         private Exception? m_baseResourceDisposalError;
+        private TaskCompletionSource<object?>? m_baseResourceDisposalCompletion;
         private bool m_serverSemaphoreDisposed;
         internal Action? AfterNodeManagerLifecycleShutdownStartedForTest { get; set; }
         internal Action? AfterServerShutdownJoinerRegisteredForTest { get; set; }
@@ -5392,6 +5529,25 @@ namespace Opc.Ua.Server
         private IServerRateLimiterProvider? m_rateLimiterProvider;
         private bool m_ownsRateLimiterProvider;
         private readonly ILogger m_eventLogger;
+
+        private readonly struct ServerDisposeRequest
+        {
+            public ServerDisposeRequest(
+                ServerInternalData? serverInternal,
+                ServerShutdownState? activeShutdownState,
+                bool disposeWithoutShutdown)
+            {
+                ServerInternal = serverInternal;
+                ActiveShutdownState = activeShutdownState;
+                DisposeWithoutShutdown = disposeWithoutShutdown;
+            }
+
+            public ServerInternalData? ServerInternal { get; }
+
+            public ServerShutdownState? ActiveShutdownState { get; }
+
+            public bool DisposeWithoutShutdown { get; }
+        }
 
         private sealed class ServerShutdownState
         {
