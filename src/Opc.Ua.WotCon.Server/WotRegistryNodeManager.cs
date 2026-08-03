@@ -487,7 +487,10 @@ namespace Opc.Ua.WotCon.Server
             MessageSecurityMode securityMode = operationContext.ChannelContext?
                 .EndpointDescription?.SecurityMode ??
                 MessageSecurityMode.None;
-            if (securityMode != policy.MinimumSecurityMode)
+            // MinimumSecurityMode is a floor, not an exact match: MessageSecurityMode is ordered by
+            // strength (Invalid < None < Sign < SignAndEncrypt), so a channel at or above the
+            // configured mode is accepted and Invalid is always rejected.
+            if (securityMode < policy.MinimumSecurityMode)
             {
                 m_logger.ManagementCallDeniedSecurityMode(operation, securityMode);
                 return StatusCodes.BadUserAccessDenied;
