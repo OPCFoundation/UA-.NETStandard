@@ -436,5 +436,83 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(prim2.Kind, Is.EqualTo(UsdPrimKindEnum.Component));
             UsdTestHelpers.AssertString(prim2.Metadata["comment"], "torque curve peaks at (n) then drops)");
         }
+
+        [Test]
+        public void Color3fArray_FlatComponentRun_IsRegroupedIntoTupleRows()
+        {
+            // A tuple-group base type handed back as a flat run of components must be regrouped
+            // per tuple, so a color3f[] still authors "[(r, g, b), …]" and not a flat list.
+            string usda = EmitRootAttribute(
+                "Mesh",
+                new UsdAttribute("primvars:displayColor", "color3f[]")
+                {
+                    Value = UsdTestHelpers.NumberArray(1.0, 0.0, 0.0, 0.0, 1.0, 0.0),
+                });
+
+            Assert.That(
+                usda,
+                Does.Contain("color3f[] primvars:displayColor = [(1.0, 0.0, 0.0), (0.0, 1.0, 0.0)]"));
+        }
+
+        [Test]
+        public void Color3fArray_GroupedRows_AreEmittedOnePerElement()
+        {
+            // Three already-grouped rows are themselves divisible by the group width, so the
+            // writer must notice the elements are sequences and not regroup them a second time.
+            string usda = EmitRootAttribute(
+                "Mesh",
+                new UsdAttribute("primvars:displayColor", "color3f[]")
+                {
+                    Value = UsdTestHelpers.Array(
+                        UsdTestHelpers.NumberTuple(1.0, 0.0, 0.0),
+                        UsdTestHelpers.NumberTuple(0.0, 1.0, 0.0),
+                        UsdTestHelpers.NumberTuple(0.0, 0.0, 1.0)),
+                });
+
+            Assert.That(
+                usda,
+                Does.Contain(
+                    "color3f[] primvars:displayColor = "
+                    + "[(1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)]"));
+        }
+
+        [Test]
+        public void OpaqueAbsentValue_RendersAsEmptyText()
+        {
+            bool rendered = UsdaWriter.TryRenderOpaqueValue(UsdValue.Null, out string text);
+
+            Assert.That(rendered, Is.True);
+            Assert.That(text, Is.Empty);
+        }
+
+        [Test]
+        public void CompositeMetadata_IsEmittedInUsdSyntax()
+        {
+            // A tuple/array metadata value has no scalar spelling, so it renders through the
+            // structured renderer rather than being published as a CLR type name.
+            var stage = new UsdStage("Meta") { DefaultPrim = "P" };
+            var prim = new UsdPrim("P", "Xform");
+            prim.Metadata["extent"] = UsdTestHelpers.NumberTuple(1.0, 2.0);
+            prim.Metadata["order"] = UsdTestHelpers.IntegerArray(1L, 2L);
+            prim.Metadata["source"] = UsdTestHelpers.Array(UsdValue.FromPathReference("/P/A"));
+            stage.AddRootPrim(prim);
+
+            string usda = UsdaWriter.Write(stage);
+
+            Assert.That(usda, Does.Contain("extent = (1.0, 2.0)"));
+            Assert.That(usda, Does.Contain("order = [1, 2]"));
+            Assert.That(usda, Does.Contain("source = ['/P/A']"));
+            Assert.That(usda, Does.Not.Contain("System."));
+        }
+
+        [Test]
+        public void BoolAttribute_IsEmittedAsALowerCaseLiteral()
+        {
+            string usda = EmitRootAttribute(
+                "Xform",
+                new UsdAttribute("visible", "bool") { Value = UsdValue.From(false) });
+
+            Assert.That(usda, Does.Contain("bool visible = false"));
+        }
     }
 }

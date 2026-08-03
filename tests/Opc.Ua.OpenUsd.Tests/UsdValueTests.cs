@@ -295,6 +295,156 @@ namespace Opc.Ua.OpenUsdScene.Tests
         }
 
         [Test]
+        public void TryGetMatrixReadsTheRows()
+        {
+            UsdValue value = UsdValue.FromMatrix(
+                new[]
+                {
+                    UsdValue.FromTuple(new[] { UsdValue.From(1.0), UsdValue.From(0.0) }.ToArrayOf()),
+                    UsdValue.FromTuple(new[] { UsdValue.From(0.0), UsdValue.From(1.0) }.ToArrayOf())
+                }.ToArrayOf());
+
+            Assert.That(value.Kind, Is.EqualTo(UsdValueKind.Matrix));
+            Assert.That(value.TryGetMatrix(out ArrayOf<UsdValue> rows), Is.True);
+            Assert.That(rows.Count, Is.EqualTo(2));
+            Assert.That(value.TryGetArray(out ArrayOf<UsdValue> _), Is.False);
+        }
+
+        [Test]
+        public void TryGetNumberRejectsANonNumericKind()
+        {
+            Assert.That(UsdValue.FromString("1.5").TryGetNumber(out double value), Is.False);
+            Assert.That(value, Is.Zero);
+            Assert.That(UsdValue.Null.TryGetNumber(out double absent), Is.False);
+            Assert.That(absent, Is.Zero);
+        }
+
+        [Test]
+        public void ScalarsRenderTheirInvariantForm()
+        {
+            Assert.That(UsdValue.Null.ToString(), Is.Empty);
+            Assert.That(UsdValue.From(true).ToString(), Is.EqualTo("true"));
+            Assert.That(UsdValue.From(false).ToString(), Is.EqualTo("false"));
+            Assert.That(UsdValue.From(-3L).ToString(), Is.EqualTo("-3"));
+            Assert.That(UsdValue.From(0.5).ToString(), Is.EqualTo("0.5"));
+            Assert.That(UsdValue.FromToken("vertex").ToString(), Is.EqualTo("vertex"));
+            Assert.That(UsdValue.FromAssetPath("./a.usda").ToString(), Is.EqualTo("./a.usda"));
+            Assert.That(UsdValue.FromPathReference("/P/A").ToString(), Is.EqualTo("/P/A"));
+        }
+
+        [Test]
+        public void CompositesRenderTheirItems()
+        {
+            UsdValue tuple = UsdValue.FromTuple(
+                new[] { UsdValue.From(1.0), UsdValue.FromString("a") }.ToArrayOf());
+            UsdValue array = UsdValue.FromArray(
+                new[] { UsdValue.From(1L), UsdValue.From(2L) }.ToArrayOf());
+            UsdValue matrix = UsdValue.FromMatrix(new[] { tuple }.ToArrayOf());
+
+            Assert.That(tuple.ToString(), Is.EqualTo("(1, a)"));
+            Assert.That(array.ToString(), Is.EqualTo("[1, 2]"));
+            Assert.That(matrix.ToString(), Is.EqualTo("((1, a))"));
+            Assert.That(UsdValue.FromArray(default).ToString(), Is.EqualTo("[]"));
+        }
+
+        [Test]
+        public void AnEmptyDictionaryRendersAsEmptyBraces()
+        {
+            UsdValue value = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal));
+
+            Assert.That(value.ToString(), Is.EqualTo("{}"));
+        }
+
+        [Test]
+        public void CompositesOfDifferentLengthsAreNotEqual()
+        {
+            UsdValue first = UsdValue.FromArray(new[] { UsdValue.From(1L) }.ToArrayOf());
+            UsdValue second = UsdValue.FromArray(
+                new[] { UsdValue.From(1L), UsdValue.From(2L) }.ToArrayOf());
+
+            Assert.That(first, Is.Not.EqualTo(second));
+        }
+
+        [Test]
+        public void DictionariesOfDifferentSizesAreNotEqual()
+        {
+            UsdValue first = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal)
+                {
+                    ["a"] = UsdValue.From(1L)
+                });
+            UsdValue second = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal)
+                {
+                    ["a"] = UsdValue.From(1L),
+                    ["b"] = UsdValue.From(2L)
+                });
+
+            Assert.That(first, Is.Not.EqualTo(second));
+        }
+
+        [Test]
+        public void DictionariesThatDifferInAKeyAreNotEqual()
+        {
+            UsdValue first = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal)
+                {
+                    ["a"] = UsdValue.From(1L)
+                });
+            UsdValue second = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal)
+                {
+                    ["b"] = UsdValue.From(1L)
+                });
+
+            Assert.That(first, Is.Not.EqualTo(second));
+        }
+
+        [Test]
+        public void EmptyDictionariesAreEqualAndShareAHashCode()
+        {
+            UsdValue first = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal));
+            UsdValue second = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal));
+
+            Assert.That(first, Is.EqualTo(second));
+            Assert.That(first.GetHashCode(), Is.EqualTo(second.GetHashCode()));
+        }
+
+        [Test]
+        public void EveryKindProducesAHashCode()
+        {
+            // An absent value and every text kind must hash without reading an unset payload.
+            UsdValue absent = UsdValue.Null;
+            UsdValue alsoAbsent = default;
+            UsdValue path = UsdValue.FromPathReference("/P");
+            UsdValue samePath = UsdValue.FromPathReference("/P");
+            UsdValue number = UsdValue.From(1.5);
+            UsdValue sameNumber = UsdValue.From(1.5);
+            UsdValue flag = UsdValue.From(true);
+            UsdValue sameFlag = UsdValue.From(true);
+
+            Assert.That(absent.GetHashCode(), Is.EqualTo(alsoAbsent.GetHashCode()));
+            Assert.That(path.GetHashCode(), Is.EqualTo(samePath.GetHashCode()));
+            Assert.That(number.GetHashCode(), Is.EqualTo(sameNumber.GetHashCode()));
+            Assert.That(flag.GetHashCode(), Is.EqualTo(sameFlag.GetHashCode()));
+        }
+
+        [Test]
+        public void EqualsAcceptsABoxedValueAndRejectsAnotherType()
+        {
+            object boxed = UsdValue.From(1L);
+
+            bool matchesBoxed = UsdValue.From(1L).Equals(boxed);
+            bool matchesOtherType = UsdValue.From(1L).Equals("1");
+
+            Assert.That(matchesBoxed, Is.True);
+            Assert.That(matchesOtherType, Is.False);
+        }
+
+        [Test]
         public void ValuesOfDifferentKindsAreNotEqual()
         {
             Assert.That(UsdValue.From(1L), Is.Not.EqualTo(UsdValue.From(1.0)));

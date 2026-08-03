@@ -159,6 +159,60 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(attr.Connections, Is.Empty);
         }
 
+        [Test]
+        public void QuotedRelationshipTarget_StillParsesAsATarget()
+        {
+            // A relationship target authored as a quoted string rather than a </path> reference
+            // is read from the value's text rather than dropped.
+            UsdStage stage = UsdaReader.Parse(
+                Wrap("    rel material:binding = \"/P/Mat\""),
+                "Rel");
+
+            UsdRelationship rel = UsdTestHelpers.RequireRelationship(
+                UsdTestHelpers.RequirePrim(stage, "/P"), "material:binding");
+            Assert.That(rel.Targets, Is.EqualTo(new[] { "/P/Mat" }));
+        }
+
+        [Test]
+        public void QuotedRelationshipTargetList_ParsesEachTarget()
+        {
+            UsdStage stage = UsdaReader.Parse(
+                Wrap("    rel material:binding = [\"/P/MatA\", \"/P/MatB\"]"),
+                "Rel");
+
+            UsdRelationship rel = UsdTestHelpers.RequireRelationship(
+                UsdTestHelpers.RequirePrim(stage, "/P"), "material:binding");
+            Assert.That(rel.Targets, Is.EqualTo(new[] { "/P/MatA", "/P/MatB" }));
+        }
+
+        [Test]
+        public void QuotedConnectionTarget_StillParsesAsATarget()
+        {
+            // A target authored as a quoted string rather than a </path> reference is still a
+            // target: the reader falls back to reading the value's text rather than dropping it.
+            UsdStage stage = UsdaReader.Parse(
+                Wrap("    token inputs:surface.connect = \"/P/A.outputs:surface\""),
+                "Conn");
+
+            UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:surface");
+            Assert.That(attr.Connections, Is.EqualTo(new[] { "/P/A.outputs:surface" }));
+        }
+
+        [Test]
+        public void QuotedConnectionTargetList_ParsesEachTarget()
+        {
+            UsdStage stage = UsdaReader.Parse(
+                Wrap("    token inputs:surface.connect = [\"/P/A.outputs:surface\", \"/P/B.outputs:surface\"]"),
+                "Conn");
+
+            UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:surface");
+            Assert.That(attr.Connections, Is.EqualTo(new[]
+            {
+                "/P/A.outputs:surface",
+                "/P/B.outputs:surface",
+            }));
+        }
+
         // ---- Task 1.2: asset arrays ---------------------------------------------------
 
         [Test]

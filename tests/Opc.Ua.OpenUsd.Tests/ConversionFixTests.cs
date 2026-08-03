@@ -90,6 +90,17 @@ namespace Opc.Ua.OpenUsdScene.Tests
         }
 
         [Test]
+        public void OpaqueBoolean_RendersItsUsdSpelling()
+        {
+            // A bool carried opaquely must author USD's "true"/"false", never a CLR spelling.
+            bool ok = Coerce("mvtype", UsdValue.From(true), out Variant v);
+
+            Assert.That(ok, Is.True);
+            Assert.That(v.TryGetValue(out string rendered), Is.True);
+            Assert.That(rendered, Is.EqualTo("true"));
+        }
+
+        [Test]
         public void OpaqueNestedTuple_RendersRecursively()
         {
             // matrix2d authored as two nested 2-tuples must render every level.

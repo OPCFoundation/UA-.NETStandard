@@ -107,6 +107,74 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(UsdSceneSignature.Compute(b), Is.Not.EqualTo(UsdSceneSignature.Compute(a)));
         }
 
+        [Test]
+        public void Signature_NormalizesEveryValueKind()
+        {
+            // Every kind must reach the normalizer: an unnormalized kind would make two
+            // different scenes sign identically.
+            var a = new UsdStage("S");
+            UsdPrim pa = a.AddRootPrim(new UsdPrim("X", "Xform"));
+            pa.Attributes.Add(new UsdAttribute("flag", "bool") { Value = UsdValue.From(true) });
+
+            var b = new UsdStage("S");
+            UsdPrim pb = b.AddRootPrim(new UsdPrim("X", "Xform"));
+            pb.Attributes.Add(new UsdAttribute("flag", "bool") { Value = UsdValue.From(false) });
+
+            Assert.That(UsdSceneSignature.Compute(b), Is.Not.EqualTo(UsdSceneSignature.Compute(a)));
+            Assert.That(UsdSceneSignature.FirstDifference(a, b), Is.Not.Null);
+        }
+
+        [Test]
+        public void Signature_OfADictionaryValueIsIndependentOfEntryOrder()
+        {
+            var a = new UsdStage("S");
+            UsdPrim pa = a.AddRootPrim(new UsdPrim("X", "Xform"));
+            pa.Attributes.Add(new UsdAttribute("d", "dictionary")
+            {
+                Value = Dictionary(("author", UsdValue.FromString("acme")), ("order", UsdValue.From(3L)))
+            });
+
+            var b = new UsdStage("S");
+            UsdPrim pb = b.AddRootPrim(new UsdPrim("X", "Xform"));
+            pb.Attributes.Add(new UsdAttribute("d", "dictionary")
+            {
+                Value = Dictionary(("order", UsdValue.From(3L)), ("author", UsdValue.FromString("acme")))
+            });
+
+            Assert.That(UsdSceneSignature.Compute(b), Is.EqualTo(UsdSceneSignature.Compute(a)));
+        }
+
+        [Test]
+        public void Signature_DetectsAChangedDictionaryEntry()
+        {
+            var a = new UsdStage("S");
+            UsdPrim pa = a.AddRootPrim(new UsdPrim("X", "Xform"));
+            pa.Attributes.Add(new UsdAttribute("d", "dictionary")
+            {
+                Value = Dictionary(("nested", Dictionary(("depth", UsdValue.From(1L)))))
+            });
+
+            var b = new UsdStage("S");
+            UsdPrim pb = b.AddRootPrim(new UsdPrim("X", "Xform"));
+            pb.Attributes.Add(new UsdAttribute("d", "dictionary")
+            {
+                Value = Dictionary(("nested", Dictionary(("depth", UsdValue.From(2L)))))
+            });
+
+            Assert.That(UsdSceneSignature.Compute(b), Is.Not.EqualTo(UsdSceneSignature.Compute(a)));
+        }
+
+        private static UsdValue Dictionary(params (string Key, UsdValue Value)[] entries)
+        {
+            var map = new System.Collections.Generic.Dictionary<string, UsdValue>(
+                System.StringComparer.Ordinal);
+            foreach ((string key, UsdValue value) in entries)
+            {
+                map[key] = value;
+            }
+            return UsdValue.FromDictionary(map);
+        }
+
         private static UsdStage BuildStage(bool withNonComposedState)
         {
             var stage = new UsdStage("S")
