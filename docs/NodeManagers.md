@@ -319,6 +319,25 @@ partially applied model.
 
 ### Node manager lifecycle impact on clients
 
+#### Reload modes
+
+All reload modes build and validate the replacement generation before Clients can see it. The
+commit then switches new service requests to the replacement generation atomically. Namespace URI
+indexes are append-only server state, so reloads can add namespace URIs but do not renumber
+existing indexes. Requests that already captured the retired generation are allowed to complete
+before the server detaches and disposes it.
+
+The modes differ in the client contract for work already attached to the retired generation:
+
+| Mode | Existing MonitoredItems | Browse continuation points and in-flight requests | When to choose it | Cost |
+| --- | --- | --- | --- | --- |
+| Normal reload, `ReloadAsync` | The server detaches items from the retired generation before the routing switch, attaches compatible items to the replacement after commit, and reports `BadNodeIdUnknown` once for removed or incompatible items. Subscriptions and compatible MonitoredItem ids are preserved. | Existing requests complete on the generation they captured. Continuation points that captured the retired generation are invalidated after that request drain because no old MonitoredItems remain to keep the generation alive. | The default for compatible model updates where Clients should keep subscriptions and receive a clear status only for removed nodes. | Requires the replacement to support monitored-item attachment and may fail the reload if an unexpected item incompatibility is detected. |
+| Shadow reload, `ShadowReloadAsync` | Existing items stay on the retired generation and continue sampling there. New MonitoredItems are created on the replacement. The retired generation is disposed only after those old items are deleted, their Sessions close, or they otherwise drain. | Requests and continuation points that already captured the retired generation keep using it while it remains shadow-retired. Cleanup invalidates remaining continuation points only once no old MonitoredItems are active. | Use when existing subscriptions must keep exactly the old model semantics while new Clients move to the replacement, for example during long migrations or when compatible hand-over is not desirable. | Runs two generations at once, including the old sampling/event fan-out, so memory and model resources remain allocated until Clients drain. |
+| Immediate reload, `ImmediateReloadAsync` | The server detaches every item owned by the retired generation and reports `BadNodeIdUnknown`; it does not try to attach compatible items to the replacement. Clients may recreate items against the new generation. | Existing requests complete on the generation they captured. Continuation points that captured the retired generation are invalidated after the request drain, and the old generation can then be detached promptly. | Use for destructive or security-sensitive changes where serving or migrating old items is worse than forcing Clients to resubscribe. | Causes deliberate subscription churn and one bad status per old data MonitoredItem. |
+
+All three modes are intentional: normal reload preserves compatible subscriptions, shadow reload
+preserves old subscriptions without migration, and immediate reload fails old subscriptions fast.
+
 #### MonitoredItems
 
 Active MonitoredItems survive reload and removal. A compatible NodeId in a replacement generation
