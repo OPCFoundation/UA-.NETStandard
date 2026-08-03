@@ -157,9 +157,11 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
-        public async Task NonPersistedRebuildPerformsNoRegistryCalls()
+        public async Task NonPersistedRebuildMirrorsThingDescriptionToRegistry()
         {
-            var bridge = new Mock<IWotRegistryService>(MockBehavior.Strict);
+            using var registry = new WotRegistryService();
+            var requests = new List<WotUpsertResourceRequest>();
+            Mock<IWotRegistryService> bridge = CreateRecordingBridge(registry, requests);
             using var harness = new ManagerHarness(m_tempFolder, bridge.Object);
             await harness.StartAsync().ConfigureAwait(false);
             AssetEntry entry = await CreateAssetEntryAsync(harness, "asset-001").ConfigureAwait(false);
@@ -170,7 +172,8 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
-            bridge.VerifyNoOtherCalls();
+            Assert.That(requests, Has.Count.EqualTo(1));
+            AssertUpsertRequest(requests[0], WotRegistryGroups.ThingDescriptions, "asset-001", td);
         }
 
         [Test]

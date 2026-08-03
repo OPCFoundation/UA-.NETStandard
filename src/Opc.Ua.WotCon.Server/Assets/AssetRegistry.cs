@@ -456,7 +456,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <param name="entry">The asset entry to rebuild.</param>
         /// <param name="td">The thing description to materialise.</param>
         /// <param name="persistOnSuccess">
-        /// Whether to persist the TD to disk and mirror it into the registry on success.
+        /// Whether to persist the TD to disk on success.
         /// </param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>A <see cref="ServiceResult"/> indicating the outcome.</returns>
@@ -578,8 +578,9 @@ namespace Opc.Ua.WotCon.Server.Assets
                 if (persistOnSuccess)
                 {
                     PersistTdToDisk(entry.Name, td);
-                    await MirrorToRegistryAsync(entry.Name, td, ct).ConfigureAwait(false);
                 }
+
+                await MirrorToRegistryAsync(entry.Name, td, ct).ConfigureAwait(false);
             }
             finally
             {
