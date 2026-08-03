@@ -298,18 +298,30 @@ namespace Opc.Ua.OpenUsd.Client
             item.Notification += OnModelChangeEvent;
             subscription.AddItem(item);
             await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
-
-            // A rejected event item is not a degraded mode, it is a broken one: every
-            // Dynamic component would keep whatever composition it happened to resolve at
-            // start-up and silently never reconcile again. Say so rather than compose a
-            // twin that quietly stops matching the server.
-            if (ServiceResult.IsBad(item.Status.Error))
-            {
-                throw new InvalidOperationException(
-                    "OpenUSD model-change subscription was rejected by the server " +
-                    $"({item.Status.Error}) — Dynamic components could not be reconciled.");
-            }
+            ThrowIfModelChangeRejected(item.Status?.Error, eventSource);
             m_logger.ModelChangeSubscribed(eventSource);
+        }
+
+        /// <summary>
+        /// Throws when the server refused the model-change monitored item.
+        /// </summary>
+        /// <remarks>
+        /// A rejected event item is not a degraded mode, it is a broken one: every Dynamic
+        /// component would keep whatever composition it happened to resolve at start-up and
+        /// silently never reconcile again. Say so rather than compose a twin that quietly
+        /// stops matching the server.
+        /// </remarks>
+        /// <param name="error">The status the server returned for the item.</param>
+        /// <param name="eventSource">The node the item was created on.</param>
+        internal static void ThrowIfModelChangeRejected(ServiceResult? error, NodeId eventSource)
+        {
+            if (!ServiceResult.IsBad(error))
+            {
+                return;
+            }
+            throw new InvalidOperationException(
+                $"OpenUSD model-change subscription on {eventSource} was rejected by the " +
+                $"server ({error}) — Dynamic components could not be reconciled.");
         }
 
         private void OnModelChangeEvent(MonitoredItem item, MonitoredItemNotificationEventArgs e)
