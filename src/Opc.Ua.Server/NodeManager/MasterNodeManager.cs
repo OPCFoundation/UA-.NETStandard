@@ -5738,6 +5738,9 @@ namespace Opc.Ua.Server
                 }
 
                 var rollbackErrors = new List<Exception>();
+                // A later owner can reject the transfer after earlier owners already moved
+                // their items. Roll those earlier owners back in reverse order so custom
+                // managers can restore source-session sampling or other transfer side effects.
                 for (int ii = m_participants.Count - 1; ii >= 0; ii--)
                 {
                     MonitoredItemTransferParticipant participant = m_participants[ii];

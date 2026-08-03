@@ -1237,8 +1237,7 @@ namespace Opc.Ua.Server.Tests
 
 
         [Test]
-        [Ignore("Resend trigger rollback is covered by the monitored-item transfer stack slice.")]
-        public async Task TransferMonitoredItemsAsyncFailureRollsBackOwnerAndResendAsync()
+        public async Task TransferMonitoredItemsAsyncFailureRollsBackPriorOwnerAndAllowsRetryAsync()
         {
             var sourceSession = new Mock<ISession>();
             sourceSession.SetupGet(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
@@ -1278,7 +1277,8 @@ namespace Opc.Ua.Server.Tests
                             {
                                 processedItems[ii] = true;
                                 errors[ii] = ServiceResult.Good;
-                                if (sendInitialValues)
+                                if (sendInitialValues &&
+                                    !transferOptions.DeferInitialValues)
                                 {
                                     monitoredItems[ii].SetupResendDataTrigger();
                                 }
@@ -1306,7 +1306,8 @@ namespace Opc.Ua.Server.Tests
                             {
                                 processedItems[ii] = true;
                                 errors[ii] = ServiceResult.Good;
-                                if (sendInitialValues)
+                                if (sendInitialValues &&
+                                    !transferOptions.DeferInitialValues)
                                 {
                                     monitoredItems[ii].SetupResendDataTrigger();
                                 }
@@ -1380,13 +1381,14 @@ namespace Opc.Ua.Server.Tests
             using var laterItem = CreateMonitoredItem(laterOwner.Object, sourceSession.Object, 4, 5, 84);
 
             var failedErrors = new List<ServiceResult> { null!, null! };
-            Assert.ThrowsAsync<InvalidOperationException>(
+            Assert.That(
                 async () => await sut.TransferMonitoredItemsAsync(
                     new OperationContext(destinationSession.Object, DiagnosticsMasks.None),
                     true,
                     [item, laterItem],
                     failedErrors,
-                    cancellationToken: CancellationToken.None).ConfigureAwait(false));
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>());
 
             Assert.Multiple(() =>
             {
