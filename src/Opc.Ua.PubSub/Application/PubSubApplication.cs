@@ -652,6 +652,8 @@ namespace Opc.Ua.PubSub.Application
                 catch (Exception ex)
                 {
                     m_logger.FailedToEnableConnection(ex, connection.Name);
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    throw;
                 }
             }
             // Start the metadata publisher AFTER the
