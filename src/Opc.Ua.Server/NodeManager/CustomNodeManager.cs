@@ -5796,6 +5796,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Rolls back side effects produced by a failed monitored-item transfer.
         /// </summary>
+        /// <remarks>
+        /// The master node manager calls this after an earlier owner accepted a
+        /// TransferSubscriptions hand-over but a later owner rejected the same transaction.
+        /// Override the hook below to undo ownership, sampling, or session state changed
+        /// during transfer.
+        /// </remarks>
         /// <param name="context">The source context to restore.</param>
         /// <param name="monitoredItems">The set of monitoring items to roll back.</param>
         /// <param name="processedItems">The list of bool with items that were already processed.</param>
