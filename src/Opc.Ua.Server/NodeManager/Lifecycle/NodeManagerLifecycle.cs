@@ -998,6 +998,10 @@ namespace Opc.Ua.Server
                 retirementMode != ReloadRetirementMode.Migrate;
             bool deferForActiveMonitoredItems =
                 retirementMode == ReloadRetirementMode.Graceful;
+            ServiceResult? immediateRetirementError =
+                retirementMode == ReloadRetirementMode.Immediate
+                    ? new ServiceResult(StatusCodes.BadNodeIdUnknown)
+                    : null;
             try
             {
                 EnsureRequestCallbackAllowed(allowRequestCallback);
@@ -1012,6 +1016,13 @@ namespace Opc.Ua.Server
                 EnsureRequestCallbackAllowed(allowRequestCallback);
                 (server, host) = GetRunningServer(allowRequestCallback);
                 namespaceCountBefore = server.NamespaceUris.Count;
+                if (immediateRetirementError is not null)
+                {
+                    EnsureImmediateRetirementSupported(
+                        server,
+                        current.Prepared.NodeManager);
+                }
+
                 replacementManager = await createNodeManager(
                     server,
                     m_server.CurrentConfiguration,
@@ -1067,24 +1078,17 @@ namespace Opc.Ua.Server
                     rollbackTransitionCommit =
                         () => monitoredItemTransition.RollbackAsync(CancellationToken.None);
                 }
-                else if (retirementMode == ReloadRetirementMode.Immediate)
+                Func<ValueTask>? beforeReloadCommit = beforeTransitionCommit;
+                if (immediateRetirementError is not null)
                 {
-                    MonitoredItemTransition monitoredItemTransition =
-                        await PrepareMonitoredItemRemovalAsync(
-                            server,
-                            current.Prepared.NodeManager,
-                            ct).ConfigureAwait(false);
-                    beforeTransitionCommit =
-                        () => monitoredItemTransition.DetachCurrentAsync(ct);
-                    afterTransitionCommit = () =>
+                    beforeReloadCommit = () =>
                     {
-                        monitoredItemTransition.MarkDeletedItems();
+                        EnsureImmediateRetirementSupported(
+                            server,
+                            current.Prepared.NodeManager);
                         return default;
                     };
-                    rollbackTransitionCommit =
-                        () => monitoredItemTransition.RollbackAsync(CancellationToken.None);
                 }
-                Func<ValueTask>? beforeReloadCommit = beforeTransitionCommit;
                 ArrayOf<SemanticChangeStructureDataType> semanticChanges =
                     GetSemanticChanges(
                         current.Prepared.NodeManager,
@@ -1146,7 +1150,7 @@ namespace Opc.Ua.Server
                     droppedInboundReferences,
                     needsDetachment: true,
                     allowActiveMonitoredItems: deferForActiveMonitoredItems,
-                    detachActiveMonitoredItems: retirementMode == ReloadRetirementMode.Immediate);
+                    immediateRetirementError: immediateRetirementError);
                 lock (m_registrationLock)
                 {
                     m_retiredNodeManagers.Add(retired);
@@ -1195,6 +1199,14 @@ namespace Opc.Ua.Server
                     else
                     {
                         InvalidateContinuationPoints(server, retired.NodeManager);
+                        if (immediateRetirementError is not null)
+                        {
+                            await RetireMonitoredItemsAsync(
+                                    server,
+                                    retired.NodeManager,
+                                    immediateRetirementError)
+                                .ConfigureAwait(false);
+                        }
                     }
                 }
 
@@ -1363,8 +1375,7 @@ namespace Opc.Ua.Server
                                     droppedInboundReferences,
                                     needsDetachment: true,
                                     allowActiveMonitoredItems: deferForActiveMonitoredItems,
-                                    detachActiveMonitoredItems:
-                                        retirementMode == ReloadRetirementMode.Immediate));
+                                    immediateRetirementError: immediateRetirementError));
                         }
 
                         if (CanRecoverRunningServer(server, host))
@@ -1909,21 +1920,6 @@ namespace Opc.Ua.Server
                 deletedItems: items);
         }
 
-        private static async ValueTask DetachActiveMonitoredItemsAsync(
-            IServerInternal server,
-            IAsyncNodeManager nodeManager)
-        {
-            MonitoredItemTransition monitoredItemTransition =
-                await PrepareMonitoredItemRemovalAsync(
-                    server,
-                    nodeManager,
-                    CancellationToken.None).ConfigureAwait(false);
-            await monitoredItemTransition
-                .DetachCurrentAsync(CancellationToken.None)
-                .ConfigureAwait(false);
-            monitoredItemTransition.MarkDeletedItems();
-        }
-
         private static async ValueTask<MonitoredItemTransition>
             PrepareMonitoredItemTransitionAsync(
                 IServerInternal server,
@@ -2111,6 +2107,93 @@ namespace Opc.Ua.Server
                 }
             }
             return false;
+        }
+
+        private static void EnsureImmediateRetirementSupported(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager)
+        {
+            foreach (ISubscription subscription in server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription.MonitoredItemCount == 0)
+                {
+                    continue;
+                }
+                if (subscription is not ISubscriptionMonitoredItemLifecycle tracker)
+                {
+                    throw new NotSupportedException(
+                        "The configured subscription cannot verify NodeManager ownership.");
+                }
+                if (!tracker.HasMonitoredItems(nodeManager))
+                {
+                    continue;
+                }
+                if (subscription is not INodeManagerMonitoredItemRetirementTracker retirementTracker ||
+                    !retirementTracker.CanRetireMonitoredItems(nodeManager))
+                {
+                    throw new NotSupportedException(
+                        "The configured subscription cannot retire NodeManager-owned monitored items.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Retires every monitored item owned by the NodeManager, optionally releasing the owner references afterwards.
+        /// </summary>
+        private static ValueTask RetireMonitoredItemsAsync(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            ServiceResult error,
+            bool detachOwner = false)
+        {
+            RetireMonitoredItemsCore(server, nodeManager, error);
+            if (detachOwner)
+            {
+                DetachRetiredMonitoredItemsCore(server, nodeManager);
+            }
+            return default;
+        }
+
+        private static void RetireMonitoredItemsCore(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            ServiceResult error)
+        {
+            foreach (ISubscription subscription in server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription.MonitoredItemCount == 0)
+                {
+                    continue;
+                }
+                if (subscription is not ISubscriptionMonitoredItemLifecycle tracker)
+                {
+                    throw new NotSupportedException(
+                        "The configured subscription cannot verify NodeManager ownership.");
+                }
+                if (!tracker.HasMonitoredItems(nodeManager))
+                {
+                    continue;
+                }
+                if (subscription is not INodeManagerMonitoredItemRetirementTracker retirementTracker)
+                {
+                    throw new NotSupportedException(
+                        "The configured subscription cannot retire NodeManager-owned monitored items.");
+                }
+                retirementTracker.RetireMonitoredItems(nodeManager, error);
+            }
+        }
+
+        private static void DetachRetiredMonitoredItemsCore(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager)
+        {
+            foreach (ISubscription subscription in server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription is INodeManagerMonitoredItemRetirementTracker retirementTracker)
+                {
+                    retirementTracker.DetachRetiredMonitoredItems(nodeManager);
+                }
+            }
         }
 
         private static void InvalidateContinuationPoints(
@@ -3249,6 +3332,14 @@ namespace Opc.Ua.Server
                             InvalidateContinuationPoints(
                                 server,
                                 retiredNodeManager.NodeManager);
+                            if (retiredNodeManager.ImmediateRetirementError is not null)
+                            {
+                                await RetireMonitoredItemsAsync(
+                                        server,
+                                        retiredNodeManager.NodeManager,
+                                        retiredNodeManager.ImmediateRetirementError)
+                                    .ConfigureAwait(false);
+                            }
                         }
                         drainReady.Add(retiredNodeManager);
                     }
@@ -3418,17 +3509,27 @@ namespace Opc.Ua.Server
                     retired.NotificationsSuspended = true;
                 }
 
+                if (retired.ImmediateRetirementError is not null)
+                {
+                    await RetireMonitoredItemsAsync(
+                            server,
+                            retired.NodeManager,
+                            retired.ImmediateRetirementError)
+                        .ConfigureAwait(false);
+                }
                 if (!retired.RequestsDrained)
                 {
                     throw new InvalidOperationException(
                         "A retired NodeManager cannot be detached before its requests drain.");
                 }
                 InvalidateContinuationPoints(server, retired.NodeManager);
-                if (retired.DetachActiveMonitoredItems)
+                if (retired.ImmediateRetirementError is not null)
                 {
-                    await DetachActiveMonitoredItemsAsync(
+                    await RetireMonitoredItemsAsync(
                             server,
-                            retired.NodeManager)
+                            retired.NodeManager,
+                            retired.ImmediateRetirementError,
+                            detachOwner: true)
                         .ConfigureAwait(false);
                 }
                 EnsureNoActiveMonitoredItems(server, retired.NodeManager);
@@ -3883,13 +3984,13 @@ namespace Opc.Ua.Server
                 List<LocalReference> pendingReferences,
                 bool needsDetachment,
                 bool allowActiveMonitoredItems = false,
-                bool detachActiveMonitoredItems = false)
+                ServiceResult? immediateRetirementError = null)
             {
                 NodeManager = nodeManager;
                 PendingReferences = pendingReferences;
                 NeedsDetachment = needsDetachment;
                 AllowActiveMonitoredItems = allowActiveMonitoredItems;
-                DetachActiveMonitoredItems = detachActiveMonitoredItems;
+                ImmediateRetirementError = immediateRetirementError;
             }
 
             public IAsyncNodeManager NodeManager { get; }
@@ -3925,10 +4026,9 @@ namespace Opc.Ua.Server
             public bool AllowActiveMonitoredItems { get; }
 
             /// <summary>
-            /// Gets whether active monitored items should be detached and marked deleted
-            /// once requests using this generation have drained.
+            /// Gets the status queued to monitored items before immediate cleanup.
             /// </summary>
-            public bool DetachActiveMonitoredItems { get; }
+            public ServiceResult? ImmediateRetirementError { get; }
 
             public ShutdownCleanupState ShutdownCleanup { get; } = new();
         }
