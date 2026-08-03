@@ -412,8 +412,9 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Coordinates the detached monitored item hand-over between the current and replacement
-    /// NodeManagers during a lifecycle transition.
+    /// Coordinates handing monitored items from a source session to a destination session, so a
+    /// TransferSubscriptions request can be prepared across every owning NodeManager and then
+    /// committed or rolled back as one unit.
     /// </summary>
     internal interface IMonitoredItemTransferCoordinator
     {
