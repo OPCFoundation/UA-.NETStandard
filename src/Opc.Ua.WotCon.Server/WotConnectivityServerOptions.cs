@@ -196,7 +196,7 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>
         /// Whether <see cref="InitialValue"/> was explicitly specified.
         /// </summary>
-        public bool HasInitialValue { get; init; }
+        public bool HasInitialValue { get; private set; }
 
         /// <summary>
         /// Optional description.
