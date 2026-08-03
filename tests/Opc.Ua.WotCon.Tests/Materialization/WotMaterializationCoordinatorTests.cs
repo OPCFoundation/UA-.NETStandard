@@ -29,8 +29,10 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -339,6 +341,72 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(m_host.AddCount, Is.Zero, "A dry run must not project.");
             Assert.That(result.NewGeneration, Is.Zero);
+            Assert.That(m_coordinator.Generation, Is.Zero);
+            Assert.That(result.Results.Single().Generation, Is.EqualTo(1u));
+        }
+
+        [Test]
+        public async Task DryRunRetirementDoesNotTearDownProjection()
+        {
+            var binders = new RecordingBinderRegistry();
+            m_coordinator.Dispose();
+            m_coordinator = new WotMaterializationCoordinator(
+                m_registry, m_host, binders, documentConverter: m_converter);
+
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            Assert.That(m_host.AddCount, Is.EqualTo(1));
+            Assert.That(binders.ActivatedPlans, Has.Count.EqualTo(1));
+
+            await m_registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "td-a");
+            WotRefreshResult dryRun = await m_coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { DryRun = true }
+            });
+
+            Assert.That(m_host.RemoveCount, Is.Zero, "A dry-run retirement must not remove the projection.");
+            Assert.That(binders.DeactivatedPlans, Is.Empty,
+                "A dry-run retirement must not deactivate active binding plans.");
+            Assert.That(dryRun.Summary.Retired, Is.EqualTo(1u));
+            WoTResourceLoadResultDataType retired = dryRun.Results.Single();
+            Assert.That(retired.ResourceId, Is.EqualTo("td-a"));
+            Assert.That(retired.Outcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
+            Assert.That(retired.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
+            Assert.That(retired.Message, Does.Contain("would be retired"));
+
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            Assert.That(m_host.RemoveCount, Is.EqualTo(1),
+                "The committed retirement must still find the tracked closure after the dry run.");
+            Assert.That(binders.DeactivatedPlans, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task DryRunsDoNotAdvanceExpectedGeneration()
+        {
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            WotRefreshResult committed = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            uint expectedGeneration = committed.NewGeneration;
+            Assert.That(expectedGeneration, Is.EqualTo(m_coordinator.Generation));
+
+            for (int i = 0; i < 2; i++)
+            {
+                WotRefreshResult dryRun = await m_coordinator.RefreshAsync(new WotRefreshRequest
+                {
+                    Options = new WoTRefreshOptionsDataType { DryRun = true }
+                });
+
+                Assert.That(dryRun.NewGeneration, Is.Zero);
+                Assert.That(m_coordinator.Generation, Is.EqualTo(expectedGeneration));
+            }
+
+            WotRefreshResult afterDryRuns = await m_coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                ExpectedGeneration = expectedGeneration
+            });
+
+            Assert.That(afterDryRuns.Summary.Outcome, Is.Not.EqualTo(WoTOutcomeEnum.Rejected));
+            Assert.That(m_coordinator.Generation, Is.EqualTo(expectedGeneration + 1));
         }
 
         [Test]
@@ -436,6 +504,41 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_host.AddCount, Is.Zero,
                 "A content-less placeholder resource must not project.");
             Assert.That(result.Results, Is.Empty);
+        }
+
+        private sealed class RecordingBinderRegistry : IWotBinderRegistry
+        {
+            public List<WotBindingPlan> ActivatedPlans { get; } = [];
+            public List<WotBindingPlan> DeactivatedPlans { get; } = [];
+
+            public IReadOnlyList<WoTBindingCapabilityDataType> Capabilities { get; }
+                = [];
+
+            public WotBindingPlan Prepare(WotBindingPlanRequest request)
+            {
+                var entry = new WotCompiledForm(
+                    new WotBindingIdentity("rec", "1.0", "urn:rec"),
+                    WotAffordanceKind.Property, "value", "/properties/value/forms/0",
+                    WoTBindingCapabilityEnum.ReadProperty, "readproperty",
+                    new WotEndpointDescriptor("rec", null, -1, "rec://x"),
+                    new WotAddressingDescriptor("value"),
+                    new WotOperationDescriptor(WoTBindingCapabilityEnum.ReadProperty, "readproperty", "GET"),
+                    new WotPayloadDescriptor("application/json", "json"),
+                    [], isExecutable: true);
+                return new WotBindingPlan(request.ResourceXid, [], [entry], [], []);
+            }
+
+            public ValueTask ActivateAsync(WotBindingPlan plan, CancellationToken cancellationToken = default)
+            {
+                ActivatedPlans.Add(plan);
+                return default;
+            }
+
+            public ValueTask DeactivateAsync(WotBindingPlan plan, CancellationToken cancellationToken = default)
+            {
+                DeactivatedPlans.Add(plan);
+                return default;
+            }
         }
     }
 }
