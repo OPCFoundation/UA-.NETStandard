@@ -20,7 +20,7 @@ Reference the generator as an **analyzer** (no runtime dependency):
 
 ```xml
 <ItemGroup>
-  <ProjectReference Include="...\Opc.Ua.SourceGeneration.csproj">
+  <ProjectReference Include="../Opc.Ua.SourceGeneration.csproj">
     <OutputItemType>Analyzer</OutputItemType>
     <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
   </ProjectReference>
@@ -45,4 +45,4 @@ See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandar
 and the
 [Source-Generated Data Types guide][source-generated-data-types].
 
-[source-generated-data-types]: ../../docs/SourceGeneratedDataTypes.md
+[source-generated-data-types]: https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/SourceGeneratedDataTypes.md

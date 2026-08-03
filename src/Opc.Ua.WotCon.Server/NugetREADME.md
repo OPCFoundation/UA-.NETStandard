@@ -29,6 +29,6 @@ existing monitored items on the retired generation until they drain.
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [WoT Connectivity guide](../../docs/WoTConnectivity.md).
-See also the [WoT protocol bindings guide](../../docs/WotBindings.md)
-and [WoT aggregation sample](../../samples/WotCon/README.md).
+and the [WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTConnectivity.md).
+See also the [WoT protocol bindings guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotBindings.md)
+and [WoT aggregation sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/WotCon/README.md).
