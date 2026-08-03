@@ -41,6 +41,7 @@ using Opc.Ua;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Hosting;
+using Opc.Ua.WotCon.Server.Registry;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -207,6 +208,37 @@ namespace Microsoft.Extensions.DependencyInjection
             return new WotConServerBuilder(builder.Services);
         }
 
+        /// <summary>
+        /// Enables best-effort mirroring of WoT Connectivity asset Thing
+        /// Descriptions into an injected WoT xRegistry service.
+        /// </summary>
+        /// <param name="builder">The WoT Connectivity builder.</param>
+        /// <param name="groupId">Registry group id for mirrored Thing
+        /// Descriptions.</param>
+        /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="groupId"/> is <c>null</c>.</exception>
+        public static IWotConServerBuilder AddWotRegistryBridge(
+            this IWotConServerBuilder builder,
+            string groupId = WotRegistryGroups.ThingDescriptions)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (groupId is null)
+            {
+                throw new ArgumentNullException(nameof(groupId));
+            }
+
+            builder.Services.TryAddSingleton<WotRegistryBridgeRegistrationMarker>();
+            builder.Services.AddOptions<WotConnectivityServerOptions>().Configure(options =>
+            {
+                options.RegistryBridgeGroupId = groupId;
+            });
+            return builder;
+        }
+
         private static void EnsureFirstRegistration(IServiceCollection services)
         {
             foreach (ServiceDescriptor d in services)
@@ -239,6 +271,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     MaxThingDescriptionSize = configured.MaxThingDescriptionSize,
                     MaxOpenFileHandlesPerAsset = configured.MaxOpenFileHandlesPerAsset,
                     Discovery = configured.Discovery,
+                    RegistryBridge = configured.RegistryBridge,
+                    RegistryBridgeGroupId = configured.RegistryBridgeGroupId,
                     License = configured.License,
                     ManagementAccess = configured.ManagementAccess
                 };
@@ -265,6 +299,12 @@ namespace Microsoft.Extensions.DependencyInjection
                     }
                 }
 
+                if (merged.RegistryBridge is null &&
+                    sp.GetService<WotRegistryBridgeRegistrationMarker>() is not null)
+                {
+                    merged.RegistryBridge = sp.GetRequiredService<IWotRegistryService>();
+                }
+
                 return new WotConnectivityNodeManagerFactory(merged);
             });
 
@@ -284,6 +324,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 d.ImplementationType?.Name == "OpcUaServerHostedService");
         }
 #pragma warning restore IDE0051, RCS1213
+
+        private sealed class WotRegistryBridgeRegistrationMarker
+        {
+        }
 
         private sealed class WotConServerBuilder : IWotConServerBuilder
         {
