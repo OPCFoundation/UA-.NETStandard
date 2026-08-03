@@ -72,6 +72,33 @@ Optional flow when `DiscoverAssets` / `CreateAssetForEndpoint` /
    `IWotAssetDiscoveryProvider.CreateThingDescriptionAsync` and runs
    the same materialisation path — no client upload needed.
 
+### Mirroring assets into the WoT xRegistry
+
+WoT Connectivity can mirror each successfully materialised asset Thing
+Description into the WoT xRegistry. The bridge is default-off: when
+`WotConnectivityServerOptions.RegistryBridge` is `null`, asset create,
+update, and delete do not call the registry. This keeps existing
+deployments unchanged.
+
+Enable the bridge by assigning an `IWotRegistryService` directly, or by
+using the DI builder helper when the registry service is registered in the
+same service collection:
+
+```csharp
+builder.AddServer(serverOptions)
+    .AddWotConServer(wotOptions =>
+    {
+        wotOptions.ThingDescriptionStorageFolder = "wot-assets";
+    })
+    .AddWotRegistryBridge();
+```
+
+`AddWotRegistryBridge()` resolves `IWotRegistryService` from DI and mirrors
+TDs into the `thingdescriptions` group by default. Pass a custom group id
+to override it. Mirroring is best-effort: registry rejection or I/O failure
+is logged and the asset lifecycle still succeeds, matching the existing
+secondary persistence policy for TD files.
+
 ---
 
 ## 2. Writing a custom `IWotAssetProvider`

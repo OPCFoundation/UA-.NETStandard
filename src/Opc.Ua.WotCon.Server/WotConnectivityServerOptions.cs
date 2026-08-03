@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua.WotCon.Server.Assets;
+using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server
 {
@@ -113,6 +114,20 @@ namespace Opc.Ua.WotCon.Server
         /// (Discover / CreateForEndpoint / ConnectionTest).
         /// </summary>
         public IWotAssetDiscoveryProvider? Discovery { get; set; }
+
+        /// <summary>
+        /// Optional registry service that mirrors materialized asset Thing
+        /// Descriptions into the WoT xRegistry. When <c>null</c>, registry
+        /// mirroring is disabled and asset lifecycle behavior is unchanged.
+        /// </summary>
+        public IWotRegistryService? RegistryBridge { get; set; }
+
+        /// <summary>
+        /// Registry group id used by <see cref="RegistryBridge"/> when mirroring
+        /// asset Thing Descriptions. Defaults to the well-known Thing
+        /// Description group.
+        /// </summary>
+        public string RegistryBridgeGroupId { get; set; } = WotRegistryGroups.ThingDescriptions;
 
         /// <summary>
         /// Allow-list / deny-list policy applied to every endpoint URI
