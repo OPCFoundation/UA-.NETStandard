@@ -183,7 +183,20 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>
         /// The initial value (must be assignable to a <c>Variant</c>).
         /// </summary>
-        public Variant InitialValue { get; init; }
+        public Variant InitialValue
+        {
+            get => m_initialValue;
+            init
+            {
+                m_initialValue = value;
+                HasInitialValue = true;
+            }
+        }
+
+        /// <summary>
+        /// Whether <see cref="InitialValue"/> was explicitly specified.
+        /// </summary>
+        public bool HasInitialValue { get; init; }
 
         /// <summary>
         /// Optional description.
@@ -194,5 +207,7 @@ namespace Opc.Ua.WotCon.Server
         /// Whether the parameter is writable.
         /// </summary>
         public bool Writable { get; init; } = true;
+
+        private Variant m_initialValue;
     }
 }

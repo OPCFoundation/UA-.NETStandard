@@ -65,9 +65,22 @@ namespace Opc.Ua.WotCon.Tests
             var param = new WotConfigurationParameter();
 
             Assert.That(param.DataType, Is.EqualTo(Ua.DataTypeIds.String));
+            Assert.That(param.HasInitialValue, Is.False);
             Assert.That(param.InitialValue.IsNull, Is.True);
             Assert.That(param.Writable, Is.True);
             Assert.That(param.Description, Is.Null);
+        }
+
+        [Test]
+        public void SettingConfigurationParameterInitialValueMarksItSpecified()
+        {
+            var param = new WotConfigurationParameter
+            {
+                InitialValue = Variant.Null
+            };
+
+            Assert.That(param.HasInitialValue, Is.True);
+            Assert.That(param.InitialValue, Is.EqualTo(Variant.Null));
         }
 
         [Test]
