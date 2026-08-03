@@ -1210,11 +1210,8 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (instance != null)
-
                 {
-
                     return instance;
-
                 }
                 return base.FindChild(
                     context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
