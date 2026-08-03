@@ -171,7 +171,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             {
                 sb.Append('\u0001').Append("TS(");
                 bool first = true;
-                foreach (KeyValuePair<double, object?> sample in attr.TimeSamples)
+                foreach (KeyValuePair<double, UsdValue> sample in attr.TimeSamples)
                 {
                     if (!first)
                     {
@@ -220,40 +220,41 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         /// deterministic serialization): numbers become doubles, tuples and arrays become a single
         /// ordered-list form, so lossless <c>int</c>/<c>float</c> and tuple/array differences collapse.
         /// </summary>
-        private static string NormalizeValue(object? value)
+        private static string NormalizeValue(UsdValue value)
         {
-            switch (value)
+            switch (value.Kind)
             {
-                case null:
+                case UsdValueKind.Null:
                     return "null";
-                case bool b:
+                case UsdValueKind.Boolean:
+                    value.TryGetBoolean(out bool b);
                     return b ? "true" : "false";
-                case string s:
+                case UsdValueKind.String:
+                case UsdValueKind.Token:
+                case UsdValueKind.AssetPath:
+                case UsdValueKind.PathReference:
+                    value.TryGetText(out string s);
                     return Quote(s);
-                case double d:
+                case UsdValueKind.Double:
+                    value.TryGetDouble(out double d);
                     return FormatNumber(d);
-                case float f:
-                    return FormatNumber(f);
-                case long l:
+                case UsdValueKind.Integer:
+                    value.TryGetInteger(out long l);
                     return FormatNumber(l);
-                case int i:
-                    return FormatNumber(i);
+                case UsdValueKind.Dictionary:
+                    value.TryGetDictionary(out IReadOnlyDictionary<string, UsdValue> entries);
+                    return "{" + string.Join(
+                        ",",
+                        entries
+                            .OrderBy(static e => e.Key, StringComparer.Ordinal)
+                            .Select(static e => Quote(e.Key) + ":" + NormalizeValue(e.Value)))
+                        + "}";
+                default:
+                    value.TryGetItems(out ArrayOf<UsdValue> items);
+                    return "[" + string.Join(
+                        ",",
+                        (items.ToArray() ?? []).Select(NormalizeValue)) + "]";
             }
-
-            if (value is object?[] tuple)
-            {
-                return "[" + string.Join(",", tuple.Select(NormalizeValue)) + "]";
-            }
-            if (value is System.Collections.IEnumerable enumerable)
-            {
-                var items = new List<string>();
-                foreach (object? item in enumerable)
-                {
-                    items.Add(NormalizeValue(item));
-                }
-                return "[" + string.Join(",", items) + "]";
-            }
-            return Quote(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty);
         }
 
         private static string FormatNumber(double d)
