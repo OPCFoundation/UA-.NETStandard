@@ -1530,6 +1530,8 @@ namespace Opc.Ua
                         return ExpandedNodeId.ToNodeId(encodeable!.TypeId, namespaceUris);
                     }
 
+                    // Opaque ExtensionObjects may carry the DataTypeId itself; FindDataTypeId only resolves
+                    // encoding ids, so accept a known type before falling back to encoding lookup.
                     var extensionTypeId = ExpandedNodeId.ToNodeId(
                         extension.TypeId,
                         namespaceUris);
