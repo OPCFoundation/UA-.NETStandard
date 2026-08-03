@@ -95,9 +95,11 @@ builder.AddServer(serverOptions)
 
 `AddWotRegistryBridge()` resolves `IWotRegistryService` from DI and mirrors
 TDs into the `thingdescriptions` group by default. Pass a custom group id
-to override it. Mirroring is best-effort: registry rejection or I/O failure
-is logged and the asset lifecycle still succeeds, matching the existing
-secondary persistence policy for TD files.
+to override it. Mirroring follows the same durability decision as TD file
+persistence: a `RebuildAsync(..., persistOnSuccess: false, ...)` updates the
+live asset but is not mirrored into the registry. Mirroring is best-effort:
+registry rejection or I/O failure is logged and the asset lifecycle still
+succeeds, matching the existing secondary persistence policy for TD files.
 
 ---
 

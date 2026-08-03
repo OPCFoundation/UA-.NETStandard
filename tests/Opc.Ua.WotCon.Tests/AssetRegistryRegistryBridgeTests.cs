@@ -93,7 +93,7 @@ namespace Opc.Ua.WotCon.Tests
             ThingDescription td = CreateThingDescription("asset-001", "sim://opcua.test/wot/asset-001");
 
             ServiceResult status = await harness.Registry
-                .RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None)
+                .RebuildAsync(entry, td, persistOnSuccess: true, CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
@@ -116,12 +116,12 @@ namespace Opc.Ua.WotCon.Tests
             await harness.Registry.RebuildAsync(
                 entry,
                 original,
-                persistOnSuccess: false,
+                persistOnSuccess: true,
                 CancellationToken.None).ConfigureAwait(false);
             ServiceResult status = await harness.Registry.RebuildAsync(
                 entry,
                 updated,
-                persistOnSuccess: false,
+                persistOnSuccess: true,
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
@@ -143,7 +143,7 @@ namespace Opc.Ua.WotCon.Tests
             await harness.Registry.RebuildAsync(
                 entry,
                 td,
-                persistOnSuccess: false,
+                persistOnSuccess: true,
                 CancellationToken.None).ConfigureAwait(false);
 
             ServiceResult status = await harness.Registry
@@ -154,6 +154,23 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(deletes[0].GroupId, Is.EqualTo(WotRegistryGroups.ThingDescriptions));
             Assert.That(deletes[0].ResourceId, Is.EqualTo("asset-001"));
             Assert.That(registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "asset-001"), Is.Null);
+        }
+
+        [Test]
+        public async Task NonPersistedRebuildPerformsNoRegistryCalls()
+        {
+            var bridge = new Mock<IWotRegistryService>(MockBehavior.Strict);
+            using var harness = new ManagerHarness(m_tempFolder, bridge.Object);
+            await harness.StartAsync().ConfigureAwait(false);
+            AssetEntry entry = await CreateAssetEntryAsync(harness, "asset-001").ConfigureAwait(false);
+            ThingDescription td = CreateThingDescription("asset-001", "sim://opcua.test/wot/asset-001");
+
+            ServiceResult status = await harness.Registry
+                .RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(status), Is.True);
+            bridge.VerifyNoOtherCalls();
         }
 
         [Test]
@@ -196,7 +213,7 @@ namespace Opc.Ua.WotCon.Tests
             ThingDescription td = CreateThingDescription("asset-001", "sim://opcua.test/wot/asset-001");
 
             ServiceResult status = await harness.Registry
-                .RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None)
+                .RebuildAsync(entry, td, persistOnSuccess: true, CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
@@ -221,7 +238,7 @@ namespace Opc.Ua.WotCon.Tests
             ThingDescription td = CreateThingDescription("asset-001", "sim://opcua.test/wot/asset-001");
 
             ServiceResult status = await harness.Registry
-                .RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None)
+                .RebuildAsync(entry, td, persistOnSuccess: true, CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
