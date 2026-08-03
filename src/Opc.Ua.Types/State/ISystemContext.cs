@@ -126,26 +126,9 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A context that knows the operation it was created for.
-    /// <para>
-    /// Implement this alongside <see cref="ISystemContext"/> so that a callback which receives
-    /// the context can hand its operation to an API that has to know which operation invoked it.
-    /// A context that wraps another context forwards the operation of the context it wraps.
-    /// </para>
-    /// </summary>
-    public interface IOperationContextProvider
-    {
-        /// <summary>
-        /// The operation the context was created for, or <c>null</c> when the context does not
-        /// belong to an operation.
-        /// </summary>
-        IOperationContext? OperationContext { get; }
-    }
-
-    /// <summary>
     /// A generic implementation for ISystemContext interface.
     /// </summary>
-    public class SystemContext : ISystemContext, IOperationContext, IOperationContextProvider
+    public class SystemContext : ISystemContext, IOperationContext
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SystemContext"/> class.
@@ -374,30 +357,6 @@ namespace Opc.Ua
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris
             };
-        }
-
-        /// <summary>
-        /// Returns the operation the system context was created for, or <c>null</c> when the
-        /// context does not belong to an operation.
-        /// <para>
-        /// A callback that receives an <see cref="ISystemContext"/> uses this to hand its
-        /// operation to an API that has to know which operation invoked it, without having to
-        /// downcast to a concrete context type. A context built for the server itself rather than
-        /// for a request carries no operation and returns <c>null</c>, as does a context that does
-        /// not implement <see cref="IOperationContextProvider"/>.
-        /// </para>
-        /// </summary>
-        /// <param name="context">The system context to read the operation from.</param>
-        /// <returns>The operation context, or <c>null</c>.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public static IOperationContext? GetOperationContext(this ISystemContext context)
-        {
-            if (context is null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
-            return (context as IOperationContextProvider)?.OperationContext;
         }
     }
 }

@@ -52,8 +52,7 @@ namespace Opc.Ua
     /// <summary>
     /// A generic implementation for ISystemContext interface.
     /// </summary>
-    public class SessionSystemContext : ISessionSystemContext, ISessionOperationContext,
-        IOperationContextProvider
+    public class SessionSystemContext : ISessionSystemContext, ISessionOperationContext
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SessionSystemContext"/> class.

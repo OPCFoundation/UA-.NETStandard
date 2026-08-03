@@ -48,7 +48,7 @@ namespace Opc.Ua
     /// serve here because it is not part of the virtual <c>FindChild</c>
     /// contract the copy goes through.
     /// </remarks>
-    internal sealed class NodeIdFactorySuppressedContext : ISystemContext, IOperationContextProvider
+    internal sealed class NodeIdFactorySuppressedContext : ISystemContext
     {
         /// <summary>
         /// Wraps the supplied context.
@@ -91,9 +91,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public ITelemetryContext Telemetry => m_context.Telemetry;
-
-        /// <inheritdoc/>
-        public IOperationContext? OperationContext => m_context.GetOperationContext();
 
         private readonly ISystemContext m_context;
     }

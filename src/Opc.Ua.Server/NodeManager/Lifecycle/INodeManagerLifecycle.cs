@@ -48,7 +48,7 @@ namespace Opc.Ua.Server
         /// <param name="factory">The factory that creates the NodeManager.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
         /// when the caller is not serving an operation. A callback passes the context it was
-        /// invoked with; see <see cref="SystemContextExtensions.GetOperationContext"/>.</param>
+        /// invoked with; see <see cref="SystemContextOperationExtensions.GetOperationContext"/>.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <exception cref="System.InvalidOperationException">
         /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
         /// <param name="factory">The factory that creates the NodeManager.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
         /// when the caller is not serving an operation. A callback passes the context it was
-        /// invoked with; see <see cref="SystemContextExtensions.GetOperationContext"/>.</param>
+        /// invoked with; see <see cref="SystemContextOperationExtensions.GetOperationContext"/>.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <exception cref="System.InvalidOperationException">
         /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server
         /// <param name="replacement">The factory that creates the next generation.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
         /// when the caller is not serving an operation. A callback passes the context it was
-        /// invoked with; see <see cref="SystemContextExtensions.GetOperationContext"/>.</param>
+        /// invoked with; see <see cref="SystemContextOperationExtensions.GetOperationContext"/>.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <exception cref="System.InvalidOperationException">
         /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server
         /// <param name="replacement">The factory that creates the next generation.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
         /// when the caller is not serving an operation. A callback passes the context it was
-        /// invoked with; see <see cref="SystemContextExtensions.GetOperationContext"/>.</param>
+        /// invoked with; see <see cref="SystemContextOperationExtensions.GetOperationContext"/>.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <exception cref="System.InvalidOperationException">
         /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server
         /// <param name="registration">The registration to remove.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
         /// when the caller is not serving an operation. A callback passes the context it was
-        /// invoked with; see <see cref="SystemContextExtensions.GetOperationContext"/>.</param>
+        /// invoked with; see <see cref="SystemContextOperationExtensions.GetOperationContext"/>.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <exception cref="System.InvalidOperationException">
         /// <paramref name="callerContext"/> is a Client request that is still executing. Such a

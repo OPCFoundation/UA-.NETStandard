@@ -33,7 +33,7 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.Tests.Stack.State
 {
     /// <summary>
-    /// Tests for <see cref="SystemContextExtensions"/>, which is how a callback hands
+    /// Tests for <see cref="SystemContextOperationExtensions"/>, which is how a callback hands
     /// the operation it is serving to an API that has to know which operation invoked it.
     /// </summary>
     [TestFixture]
@@ -41,13 +41,13 @@ namespace Opc.Ua.Core.Tests.Stack.State
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class SystemContextExtensionsTests
+    public class SystemContextOperationExtensionsTests
     {
         [Test]
         public void GetOperationContextThrowsArgumentNullExceptionWhenContextNull()
         {
             Assert.That(
-                () => SystemContextExtensions.GetOperationContext(null),
+                () => SystemContextOperationExtensions.GetOperationContext(null),
                 Throws.ArgumentNullException);
         }
 
