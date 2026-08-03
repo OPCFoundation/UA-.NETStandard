@@ -41,6 +41,7 @@ using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Client.Hosting;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Hosting;
+using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Tests.Hosting
 {
@@ -100,6 +101,81 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 regs.Any(r => ReferenceEquals(r.SyncFactory, factory)),
                 Is.True,
                 "Expected at least one OpcUaServerNodeManagerRegistration wrapping the WotCon factory.");
+        }
+
+        [Test]
+        public void WotRegistryBridgeIsInertWithoutOptIn()
+        {
+            int resolveCount = 0;
+            IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton<IWotRegistryService>(_ =>
+            {
+                resolveCount++;
+                throw new InvalidOperationException("The registry bridge should not be resolved.");
+            });
+
+            services.AddOpcUa().AddWotConServer(_ => { });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            WotConnectivityServerOptions options = GetMergedWotOptions(sp);
+
+            Assert.That(options.RegistryBridge, Is.Null);
+            Assert.That(resolveCount, Is.Zero);
+        }
+
+        [Test]
+        public void WotRegistryBridgeUsesDefaultGroupIdWhenOptedIn()
+        {
+            var registry = new Moq.Mock<IWotRegistryService>(Moq.MockBehavior.Strict);
+            IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton(registry.Object);
+
+            services.AddOpcUa().AddWotConServer(_ => { }).AddWotRegistryBridge();
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            WotConnectivityServerOptions options = GetMergedWotOptions(sp);
+
+            Assert.That(options.RegistryBridge, Is.SameAs(registry.Object));
+            Assert.That(options.RegistryBridgeGroupId, Is.EqualTo(WotRegistryGroups.ThingDescriptions));
+        }
+
+        [Test]
+        public void WotRegistryBridgeFlowsConfiguredGroupId()
+        {
+            var registry = new Moq.Mock<IWotRegistryService>(Moq.MockBehavior.Strict);
+            IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton(registry.Object);
+
+            services.AddOpcUa().AddWotConServer(_ => { }).AddWotRegistryBridge("custom-things");
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            WotConnectivityServerOptions options = GetMergedWotOptions(sp);
+
+            Assert.That(options.RegistryBridge, Is.SameAs(registry.Object));
+            Assert.That(options.RegistryBridgeGroupId, Is.EqualTo("custom-things"));
+        }
+
+        [Test]
+        public void WotRegistryBridgeDoesNotOverrideExplicitOption()
+        {
+            var explicitBridge = new Moq.Mock<IWotRegistryService>(Moq.MockBehavior.Strict);
+            var registeredBridge = new Moq.Mock<IWotRegistryService>(Moq.MockBehavior.Strict);
+            IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton(registeredBridge.Object);
+
+            services.AddOpcUa()
+                .AddWotConServer(o => o.RegistryBridge = explicitBridge.Object)
+                .AddWotRegistryBridge();
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            WotConnectivityServerOptions options = GetMergedWotOptions(sp);
+
+            Assert.That(options.RegistryBridge, Is.SameAs(explicitBridge.Object));
+            Assert.That(options.RegistryBridge, Is.Not.SameAs(registeredBridge.Object));
         }
 
         [Test]
@@ -349,6 +425,18 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             IOpcUaBuilder returned = builder.AddWotConClient(o => o.LazyConnect = false);
 
             Assert.That(returned, Is.SameAs(builder));
+        }
+
+        private static WotConnectivityServerOptions GetMergedWotOptions(IServiceProvider sp)
+        {
+            WotConnectivityNodeManagerFactory factory =
+                sp.GetRequiredService<WotConnectivityNodeManagerFactory>();
+
+            return (WotConnectivityServerOptions)typeof(WotConnectivityNodeManagerFactory)
+                .GetField("m_options",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(factory)!;
         }
     }
 }

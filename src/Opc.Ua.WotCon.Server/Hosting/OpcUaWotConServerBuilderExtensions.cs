@@ -325,9 +325,7 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 #pragma warning restore IDE0051, RCS1213
 
-        private sealed class WotRegistryBridgeRegistrationMarker
-        {
-        }
+        private sealed class WotRegistryBridgeRegistrationMarker;
 
         private sealed class WotConServerBuilder : IWotConServerBuilder
         {
