@@ -1621,6 +1621,51 @@ Notes:
   `ISystemContext.NodeIdFactory`. `AsyncCustomNodeManager` supplies one
   that allocates from the manager's namespace; override `New` to derive
   ids from the parent chain instead.
+* **A node copy never assigns.** `NodeState.Create(context, source)`
+  initialises each child from its source right after creating it, which
+  overwrites any NodeId minted along the way — so minting one would only
+  consume identifiers, and leak them for factories that track outstanding
+  allocations. The copy therefore calls
+  `CreateChild(context, browseName, assignInstanceNodeIds: false)`.
+
+#### Custom node types and assignment control
+
+`NodeState.FindChild` and `NodeState.CreateChild` carry
+`assignInstanceNodeIds` as their last parameter. It defaults to `true`, so
+callers that state no intent keep materialising children with per-instance
+NodeIds. A type that declares children overrides `FindChild`, resolves the
+ones it declares, and passes the request on — both to its
+`CreateOrReplace<Child>` helpers and to the base:
+
+```csharp
+protected override BaseInstanceState? FindChild(
+    ISystemContext context,
+    QualifiedName browseName,
+    bool createOrReplace,
+    BaseInstanceState? replacement,
+    bool assignInstanceNodeIds = true)
+{
+    if (browseName.Name == BrowseNames.EnumStrings)
+    {
+        return !createOrReplace
+            ? EnumStrings
+            : CreateOrReplaceEnumStrings(context, replacement, assignInstanceNodeIds);
+    }
+
+    return base.FindChild(
+        context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
+}
+```
+
+Source generated types emit exactly this shape. Because the request is an
+argument, every type — generated or hand-written — sees the real
+`ISystemContext` during a copy; nothing wraps the context to hide the
+`NodeIdFactory`.
+
+> **Breaking change in 2.0.** The four argument `FindChild` and the two
+> argument `CreateChild` are gone. An override written against 1.5.378 fails
+> to compile until the parameter is added; see the
+> [migration guide](migrate/2.0.x/node-states.md#nodestate-findchild-and-createchild-state-nodeid-assignment).
 
 ### Current limitations
 
