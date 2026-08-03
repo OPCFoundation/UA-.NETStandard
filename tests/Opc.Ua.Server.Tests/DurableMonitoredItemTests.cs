@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -962,9 +963,10 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task DataValueQueueSamplingIntervalChangeAppliedAsync()
+        public Task DataValueQueueSamplingIntervalChangeAppliedAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var timeProvider = new FakeTimeProvider();
 
             bool called = false;
             void DiscardValueHandler() => called = true;
@@ -974,7 +976,8 @@ namespace Opc.Ua.Server.Tests
                 false,
                 m_factory.Create(telemetry),
                 telemetry,
-                DiscardValueHandler);
+                DiscardValueHandler,
+                timeProvider);
 
             queueHandler.SetQueueSize(3, true, DiagnosticsMasks.All);
 
@@ -988,7 +991,7 @@ namespace Opc.Ua.Server.Tests
             var statuscode2 = new ServiceResult(StatusCodes.Good);
             var dataValue2 = new DataValue(new Variant(false));
 
-            await Task.Delay(5).ConfigureAwait(false);
+            timeProvider.Advance(TimeSpan.FromMilliseconds(2));
 
             queueHandler.QueueValue(dataValue2, statuscode2);
 
@@ -1002,6 +1005,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo(dataValue));
             Assert.That(resultError, Is.EqualTo(statuscode));
+
+            return Task.CompletedTask;
         }
 
         [Test]
