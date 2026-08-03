@@ -14,6 +14,7 @@ Here is a list of available documentation for different topics:
 * Support for [ECC Certificates](EccProfiles.md).
 * Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
 * Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
+* [Custom NodeSet2 workflow](CustomNodeSet2Workflow.md) - Recommended workflow for ModelDesign, ModelCompiler, and runtime instantiation.
 
 ## Reference application related
 
