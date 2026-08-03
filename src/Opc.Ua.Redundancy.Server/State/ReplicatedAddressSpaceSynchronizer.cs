@@ -271,10 +271,13 @@ namespace Opc.Ua.Redundancy.Server
             // corrected a stale materialized value), re-broadcast so the change
             // propagates transitively across the cluster. This terminates once every
             // replica's merge and reconciliation are no-ops (LWW is idempotent), and
-            // complements the transport's own gossip.
+            // complements the transport's own gossip. Await the inbound re-broadcast
+            // so inbound apply completion means the correcting frame was queued or
+            // sent, instead of leaving it to a fire-and-forget continuation that can
+            // be starved or canceled independently of the apply operation.
             if (diffs.Count > 0 || reconciled)
             {
-                Broadcast(mergedSnapshot);
+                await SendQuietlyAsync(mergedSnapshot).ConfigureAwait(false);
             }
         }
 
