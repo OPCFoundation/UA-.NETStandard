@@ -325,6 +325,22 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         }
 
         [Test]
+        public async Task LazyConnectRequiresRegisteredManagedSessionFactoryAsync()
+        {
+            IServiceCollection services = new ServiceCollection();
+            services.AddOpcUa().AddWotConClient();
+
+            await using ServiceProvider sp = services.BuildServiceProvider();
+            Func<CancellationToken, Task<WotConnectivityClient>> factory =
+                sp.GetRequiredService<Func<CancellationToken, Task<WotConnectivityClient>>>();
+
+            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
+
+            Assert.That(ex.Message, Does.Contain("AddClient"));
+        }
+
+        [Test]
         public void AddWotConClientReturnsBuilder()
         {
             IServiceCollection services = new ServiceCollection();
