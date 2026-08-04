@@ -34,9 +34,14 @@ using Opc.Ua.OpenUsd.Connector;
 //
 // Usage: Opc.Ua.OpenUsd.Connector [--server <opc.tcp url>] [--out <live.usda>]
 //            [--seconds N] [--fetch-assets <dir>] [--insecure]
-//            [--enable-commands] [--command-value <double>]
+//            [--enable-commands] [--command-value <double>] [--federate]
 //            [--view] [--renderer <Auto|Storm|D3D12|Vulkan>] [--stage <stage.usda>]
 //            [--plugins <plugin/usd dir>]
+//
+// --federate honours component bindings that name another server, opening a session
+// to each and composing it into the same stage. It is opt-in because the endpoint
+// comes from the server rather than the operator; the same --insecure posture
+// governs certificate acceptance for those sessions.
 //
 // --view renders the composed stage and streams the same live values into it, so the
 // twin animates on screen. It needs the optional Opc.Ua.OpenUsd.Connector.Viewer
