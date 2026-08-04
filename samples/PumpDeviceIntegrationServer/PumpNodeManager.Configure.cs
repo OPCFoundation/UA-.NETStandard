@@ -52,18 +52,6 @@ namespace Pumps
     /// </remarks>
     public partial class PumpNodeManager
     {
-        /// <summary>
-        /// Shaft angular position of the primary pump, in degrees. This is what
-        /// makes the OpenUSD twin look like it is running.
-        /// </summary>
-        private double ShaftAngleDegrees =>
-            m_primarySimulation?.ShaftAngleDegrees ?? 0.0;
-
-        /// <summary>
-        /// The supervision alarm state the OpenUSD status-light binding follows.
-        /// </summary>
-        private bool AlarmActive => m_primarySimulation?.AlarmActive ?? false;
-
         partial void Configure(INodeManagerBuilder builder)
         {
             Server.Telemetry.CreateLogger<PumpNodeManager>()
@@ -134,27 +122,88 @@ namespace Pumps
                         pump.NodeId);
                 }
 
-                // The OpenUSD twin follows the first pump, so remember it.
-                m_primarySimulation ??= simulation;
+                // The OpenUSD twin of this pump renders this simulation.
+                if (m_twins.TryGetValue(pump.NodeId, out PumpTwin? twin))
+                {
+                    twin.Simulation = simulation;
+                }
             }
         }
 
+        /// <summary>
+        /// Configures the nameplate of one simulated unit with the
+        /// identification data published in <c>DATASHEET.md</c>. The
+        /// properties themselves are materialised by
+        /// <see cref="PumpNodeManager.MaterialiseNameplate"/>; this method
+        /// only assigns their values through the fluent builder. Fields
+        /// that identify the individual unit rather than the product are
+        /// derived from <paramref name="pumpNumber"/>.
+        /// </summary>
+        /// <param name="builder">The active fluent builder.</param>
+        /// <param name="pump">The pump whose nameplate is configured.</param>
+        /// <param name="pumpNumber">One-based number of the simulated unit.</param>
         private static void WithIdentification(
             INodeManagerBuilder builder,
             PumpState pump,
             int pumpNumber)
         {
             string serialNumber = "SN-" + pumpNumber.ToString("D3", CultureInfo.InvariantCulture);
+            string assetId = "PMP-" +
+                (1000 + pumpNumber).ToString(CultureInfo.InvariantCulture);
+            string componentName = "Feed Pump " + (char)('A' + ((pumpNumber - 1) % 26));
+            string location = "Plant 1 / Utility Skid / Bay " +
+                (pumpNumber + 2).ToString(CultureInfo.InvariantCulture);
+            string fabricationNumber = "F-2025-" +
+                pumpNumber.ToString("D4", CultureInfo.InvariantCulture);
+
             builder.Node(pump.Identification!.NodeId)
-                .WithProperty("Manufacturer", Variant.From(new LocalizedText("SimPump Corp")))
-                .WithProperty("Model", Variant.From(new LocalizedText("PumpX-2000")))
+                .WithProperty(
+                    "Manufacturer",
+                    new LocalizedText(PumpDatasheet.Nameplate.Manufacturer))
+                .WithProperty(
+                    "ManufacturerUri",
+                    PumpDatasheet.Nameplate.ManufacturerUri)
+                .WithProperty(
+                    "Model",
+                    new LocalizedText(PumpDatasheet.Nameplate.Model))
+                .WithProperty("ProductCode", PumpDatasheet.Nameplate.ProductCode)
+                .WithProperty("DeviceClass", PumpDatasheet.Nameplate.DeviceClass)
+                .WithProperty(
+                    "HardwareRevision",
+                    PumpDatasheet.Nameplate.HardwareRevision)
+                .WithProperty(
+                    "SoftwareRevision",
+                    PumpDatasheet.Nameplate.SoftwareRevision)
                 .WithProperty("SerialNumber", serialNumber)
                 .WithProperty(
                     "ProductInstanceUri",
-                    "urn:simdevice:SimPump:PumpX-2000:" + serialNumber)
-                .WithProperty("DeviceClass", "Pump")
-                .WithProperty("HardwareRevision", "1.0")
-                .WithProperty("SoftwareRevision", "2.5.3");
+                    PumpDatasheet.Nameplate.ProductInstanceUriPrefix + serialNumber)
+                .WithProperty("AssetId", assetId)
+                .WithProperty("ComponentName", new LocalizedText(componentName))
+                .WithProperty("Location", location)
+                .WithProperty(
+                    "YearOfConstruction",
+                    PumpDatasheet.Nameplate.YearOfConstruction)
+                .WithProperty(
+                    "MonthOfConstruction",
+                    PumpDatasheet.Nameplate.MonthOfConstruction)
+                .WithProperty(
+                    "DayOfConstruction",
+                    PumpDatasheet.Nameplate.DayOfConstruction)
+                .WithProperty(
+                    "ArticleNumber",
+                    PumpDatasheet.Nameplate.ArticleNumber)
+                .WithProperty(
+                    "OrderProductCode",
+                    PumpDatasheet.Nameplate.OrderProductCode)
+                .WithProperty(
+                    "TypeOfProduct",
+                    PumpDatasheet.Nameplate.TypeOfProduct)
+                .WithProperty("Supplier", PumpDatasheet.Nameplate.Supplier)
+                .WithProperty(
+                    "CountryOfOrigin",
+                    PumpDatasheet.Nameplate.CountryOfOrigin)
+                .WithProperty("FabricationNumber", fabricationNumber);
         }
 
         private void WithMaintenance(INodeManagerBuilder builder, PumpState pump)
@@ -185,50 +234,50 @@ namespace Pumps
                 builder,
                 measurements.DifferentialPressure!.NodeId,
                 EngineeringUnits.Pascal,
-                min: 0,
-                max: 1_000_000,
+                min: PumpDatasheet.Ranges.DifferentialPressureMin,
+                max: PumpDatasheet.Ranges.DifferentialPressureMax,
                 out IValueUpdater<double> pressure);
             AddMeasurement(
                 builder,
                 measurements.FluidTemperature!.NodeId,
                 EngineeringUnits.Kelvin,
-                min: 233.15,
-                max: 473.15,
+                min: PumpDatasheet.Ranges.FluidTemperatureMin,
+                max: PumpDatasheet.Ranges.FluidTemperatureMax,
                 out IValueUpdater<double> fluidTemperature);
             AddMeasurement(
                 builder,
                 measurements.BearingTemperature!.NodeId,
                 EngineeringUnits.Kelvin,
-                min: 233.15,
-                max: 473.15,
+                min: PumpDatasheet.Ranges.BearingTemperatureMin,
+                max: PumpDatasheet.Ranges.BearingTemperatureMax,
                 out IValueUpdater<double> bearingTemperature);
             AddMeasurement(
                 builder,
                 measurements.PumpPowerInput!.NodeId,
                 EngineeringUnits.Watt,
-                min: 0,
-                max: 50_000,
+                min: PumpDatasheet.Ranges.PumpPowerInputMin,
+                max: PumpDatasheet.Ranges.PumpPowerInputMax,
                 out IValueUpdater<double> power);
             AddMeasurement(
                 builder,
                 measurements.MassFlow!.NodeId,
                 EngineeringUnits.KilogramsPerSecond,
-                min: 0,
-                max: 1.0,
+                min: PumpDatasheet.Ranges.MassFlowMin,
+                max: PumpDatasheet.Ranges.MassFlowMax,
                 out IValueUpdater<double> flow);
             AddMeasurement(
                 builder,
                 measurements.PumpEfficiency!.NodeId,
                 EngineeringUnits.Percent,
-                min: 0,
-                max: 100,
+                min: PumpDatasheet.Ranges.PumpEfficiencyMin,
+                max: PumpDatasheet.Ranges.PumpEfficiencyMax,
                 out IValueUpdater<double> efficiency);
             AddMeasurement(
                 builder,
                 measurements.Level!.NodeId,
                 EngineeringUnits.Metre,
-                min: 0,
-                max: 10,
+                min: PumpDatasheet.Ranges.LevelMin,
+                max: PumpDatasheet.Ranges.LevelMax,
                 out IValueUpdater<double> level);
 
             builder.Variable<uint>(measurements.NumberOfStarts!.NodeId)
@@ -240,13 +289,17 @@ namespace Pumps
             INodeBuilder<PumpState> pumpBuilder = builder.Node<PumpState>(pump.NodeId);
             INodeBuilder<SupervisionState> events = pumpBuilder.Components().Events();
 
+            // The alarm reports the bearing-temperature chain, so its
+            // source node is the measurement and its limits are the
+            // datasheet trip points.
             IAlarmBuilder<NonExclusiveLimitAlarmState> overTempAlarm = events
                 .CreateLimitAlarm(new QualifiedName("OverTempAlarm", pumpsNs))
                 .WithLimits(
-                    highHigh: 373.15,
-                    high: 363.15,
-                    low: 283.15,
-                    lowLow: 273.15)
+                    highHigh: PumpDatasheet.TripPoints.BearingTemperatureHighHigh,
+                    high: PumpDatasheet.TripPoints.BearingTemperatureHigh,
+                    low: PumpDatasheet.TripPoints.BearingTemperatureLow,
+                    lowLow: PumpDatasheet.TripPoints.BearingTemperatureLowLow)
+                .MonitorVariable(measurements.BearingTemperature)
                 .OnAcknowledge((ctx, c, eventId, comment) => ServiceResult.Good);
 
             IVariableBuilder<bool> cavitationBuilder = events.Components()
@@ -268,7 +321,6 @@ namespace Pumps
                 new LocalizedText("Motor overheat"),
                 new LocalizedText("No motor overheat"),
                 out IValueUpdater<bool> motorOverheat);
-            overTempAlarm.MonitorVariable(motorOverheatBuilder.Node);
             motorOverheatBuilder.ActivatesAlarm(overTempAlarm);
 
             return new PumpSimulationState(
@@ -353,25 +405,42 @@ namespace Pumps
         /// </remarks>
         private void TrackSignal(BaseVariableState variable, Func<double> getter)
         {
-            m_liveSignals.Add((variable, getter));
+            lock (m_simulationRegistrationLock)
+            {
+                m_liveSignals = [.. m_liveSignals, (variable, getter)];
+            }
         }
 
         private void PublishOpenUsdSignals()
         {
             DateTime now = DateTime.UtcNow;
-            foreach ((BaseVariableState variable, Func<double> getter) in m_liveSignals)
+            foreach ((BaseVariableState variable, Func<double> getter) in
+                Volatile.Read(ref m_liveSignals))
             {
                 variable.Value = getter();
                 variable.Timestamp = now;
                 variable.ClearChangeMasks(SystemContext, includeChildren: false);
             }
 
-            BaseDataVariableState? alarm = m_alarmActiveVar;
-            if (alarm != null)
+            foreach (PumpTwin twin in m_twins.Values)
             {
-                alarm.Value = AlarmActive;
-                alarm.Timestamp = now;
-                alarm.ClearChangeMasks(SystemContext, includeChildren: false);
+                BaseDataVariableState? alarm = twin.AlarmActive;
+                if (alarm != null)
+                {
+                    alarm.Value = twin.AlarmActiveState;
+                    alarm.Timestamp = now;
+                    alarm.ClearChangeMasks(SystemContext, includeChildren: false);
+                }
+
+                BaseDataVariableState? surface = twin.FluidSurface;
+                if (surface != null)
+                {
+                    surface.Value = new ExtensionObject(
+                        FluidSurfaceAt(twin.Simulation?.LevelMetres ??
+                            PumpDatasheet.Simulation.LevelNominal));
+                    surface.Timestamp = now;
+                    surface.ClearChangeMasks(SystemContext, includeChildren: false);
+                }
             }
         }
 
@@ -412,7 +481,8 @@ namespace Pumps
                 IValueUpdater<bool> cavitation,
                 IValueUpdater<bool> motorOverheat)
             {
-                m_phaseOffset = profileIndex * 17L;
+                m_phaseOffset =
+                    profileIndex * PumpDatasheet.Simulation.PhaseOffsetTicks;
                 m_tickInterval = tickInterval;
                 m_pressure = pressure;
                 m_fluidTemperature = fluidTemperature;
@@ -437,37 +507,55 @@ namespace Pumps
                 m_hasPublishedGoodValue = true;
             }
 
+            /// <summary>
+            /// Publishes one simulation step. Volumetric flow is the only
+            /// independent variable; head, differential pressure, mass
+            /// flow, efficiency and shaft power all follow from the
+            /// datasheet characteristic curves, so the published values
+            /// stay mutually consistent.
+            /// </summary>
             private void Publish(long tick, bool publishAll, StatusCode statusCode)
             {
                 long localTick = tick + m_phaseOffset;
                 DateTime sourceTimestamp = DateTime.UtcNow;
-                m_pressure.SetValue(
-                    200_000.0 + (50_000.0 * Math.Sin(localTick * 0.03)),
-                    statusCode,
-                    sourceTimestamp);
-                m_fluidTemperature.SetValue(
-                    313.15 + (5.0 * Math.Sin(localTick * 0.01)),
-                    statusCode,
-                    sourceTimestamp);
+
+                double flow = PumpDatasheet.Hydraulics.RatedFlow *
+                    (1.0 + (PumpDatasheet.Simulation.FlowModulation *
+                        Math.Sin(localTick * PumpDatasheet.Simulation.FlowRate)));
+                double head = Head(flow);
+                double efficiency = Efficiency(flow);
+                double massFlow = PumpDatasheet.Hydraulics.FluidDensity *
+                    flow / 3600.0;
+                double differentialPressure =
+                    PumpDatasheet.Hydraulics.FluidDensity *
+                    PumpDatasheet.Hydraulics.GravitationalAcceleration * head;
+                double shaftPower = differentialPressure * (flow / 3600.0) /
+                    (efficiency / 100.0);
+                double bearingTemperature =
+                    PumpDatasheet.Simulation.BearingTemperatureBase +
+                    (PumpDatasheet.Simulation.BearingTemperatureLoadRise *
+                        shaftPower / PumpDatasheet.Hydraulics.RatedShaftPower) +
+                    CoolingFaultExcursion(localTick);
+                double level = PumpDatasheet.Simulation.LevelNominal +
+                    (PumpDatasheet.Simulation.LevelAmplitude *
+                        Math.Sin(localTick * PumpDatasheet.Simulation.LevelRate));
+                Volatile.Write(ref m_levelMetres, level);
+
+                m_pressure.SetValue(differentialPressure, statusCode, sourceTimestamp);
+                m_flow.SetValue(massFlow, statusCode, sourceTimestamp);
+                m_efficiency.SetValue(efficiency, statusCode, sourceTimestamp);
+                m_power.SetValue(shaftPower, statusCode, sourceTimestamp);
                 m_bearingTemperature.SetValue(
-                    333.15 + (8.0 * Math.Cos(localTick * 0.008)),
+                    bearingTemperature,
                     statusCode,
                     sourceTimestamp);
-                m_power.SetValue(
-                    5_000.0 + (500.0 * Math.Sin(localTick * 0.02)),
-                    statusCode,
-                    sourceTimestamp);
-                double flow = 0.05 + (0.005 * Math.Cos(localTick * 0.04));
-                m_flow.SetValue(
-                    flow,
-                    statusCode,
-                    sourceTimestamp);
-                m_efficiency.SetValue(
-                    75.0 + (10.0 * Math.Sin(localTick * 0.015)),
-                    statusCode,
-                    sourceTimestamp);
-                m_level.SetValue(
-                    2.5 + (0.5 * Math.Sin(localTick * 0.02)),
+                m_level.SetValue(level, statusCode, sourceTimestamp);
+                m_fluidTemperature.SetValue(
+                    PumpDatasheet.Simulation.FluidTemperatureNominal +
+                    (PumpDatasheet.Simulation.FluidTemperatureAmplitude *
+                        Math.Sin(
+                            localTick *
+                            PumpDatasheet.Simulation.FluidTemperatureRate)),
                     statusCode,
                     sourceTimestamp);
 
@@ -479,34 +567,86 @@ namespace Pumps
                 // Unbounded on purpose - wrapping at 360 would make a client
                 // that interpolates between samples spin the shaft backwards
                 // across the wrap.
-                double rpm = NominalRpm * (flow / NominalFlow);
+                double rpm = PumpDatasheet.Hydraulics.RatedSpeed *
+                    (massFlow / PumpDatasheet.Hydraulics.RatedMassFlow);
                 double seconds = m_tickInterval.TotalSeconds;
                 Volatile.Write(
                     ref m_shaftAngle,
                     Volatile.Read(ref m_shaftAngle) + (rpm * 6.0 * seconds));
 
-                uint numberOfStarts = checked((uint)(localTick / 3_600));
+                uint numberOfStarts = checked((uint)(localTick /
+                    PumpDatasheet.Simulation.StartIntervalTicks));
                 if (publishAll || numberOfStarts != m_currentNumberOfStarts)
                 {
                     m_currentNumberOfStarts = numberOfStarts;
                     m_numberOfStarts.SetValue(numberOfStarts, statusCode, sourceTimestamp);
                 }
 
-                long cavitationCycle = localTick % 40;
-                bool cavitation = cavitationCycle >= 32 && cavitationCycle < 36;
+                // Cavitation is reported once the suction head falls below
+                // the NPSH requirement, with hysteresis so the supervision
+                // state does not chatter at the threshold.
+                bool cavitation = m_currentCavitation
+                    ? level < PumpDatasheet.TripPoints.CavitationClearLevel
+                    : level < PumpDatasheet.TripPoints.CavitationSetLevel;
                 if (publishAll || cavitation != m_currentCavitation)
                 {
                     m_currentCavitation = cavitation;
                     m_cavitation.SetValue(cavitation, statusCode, sourceTimestamp);
                 }
 
-                long overheatCycle = localTick % 64;
-                bool motorOverheat = overheatCycle >= 56 && overheatCycle < 60;
+                bool motorOverheat = m_currentMotorOverheat
+                    ? bearingTemperature >=
+                        PumpDatasheet.TripPoints.MotorOverheatClear
+                    : bearingTemperature >=
+                        PumpDatasheet.TripPoints.MotorOverheatSet;
                 if (publishAll || motorOverheat != m_currentMotorOverheat)
                 {
                     m_currentMotorOverheat = motorOverheat;
                     m_motorOverheat.SetValue(motorOverheat, statusCode, sourceTimestamp);
                 }
+            }
+
+            /// <summary>
+            /// Head curve of the datasheet, in m for a flow in m&#179;/h.
+            /// </summary>
+            private static double Head(double flow)
+            {
+                return PumpDatasheet.Hydraulics.ShutoffHead -
+                    (PumpDatasheet.Hydraulics.HeadCurveCoefficient * flow * flow);
+            }
+
+            /// <summary>
+            /// Efficiency curve of the datasheet, in percent for a flow in
+            /// m&#179;/h.
+            /// </summary>
+            private static double Efficiency(double flow)
+            {
+                double deviation =
+                    (flow - PumpDatasheet.Hydraulics.RatedFlow) /
+                    PumpDatasheet.Hydraulics.RatedFlow;
+                return PumpDatasheet.Hydraulics.RatedEfficiency *
+                    (1.0 - (PumpDatasheet.Hydraulics.EfficiencyCurveFactor *
+                        deviation * deviation));
+            }
+
+            /// <summary>
+            /// Bearing temperature rise in K caused by the periodic
+            /// bearing-cooling interruption documented in the datasheet.
+            /// The ramp crosses both the high and the high-high trip point
+            /// so a complete alarm cycle is observable.
+            /// </summary>
+            private static double CoolingFaultExcursion(long tick)
+            {
+                long cycle = tick % PumpDatasheet.Simulation.CoolingFaultPeriodTicks;
+                if (cycle < PumpDatasheet.Simulation.CoolingFaultOnsetTick)
+                {
+                    return 0.0;
+                }
+                long rampTicks = PumpDatasheet.Simulation.CoolingFaultPeriodTicks -
+                    PumpDatasheet.Simulation.CoolingFaultOnsetTick;
+                return PumpDatasheet.Simulation.CoolingFaultRise *
+                    (cycle - PumpDatasheet.Simulation.CoolingFaultOnsetTick) /
+                    rampTicks;
             }
 
             /// <summary>
@@ -521,16 +661,10 @@ namespace Pumps
             public bool AlarmActive => m_currentCavitation || m_currentMotorOverheat;
 
             /// <summary>
-            /// Nominal speed of a 2-pole 50 Hz pump set, in revolutions per
-            /// minute.
+            /// Suction vessel level in metres, as last published. Drives the
+            /// OpenUSD liquid-surface binding.
             /// </summary>
-            private const double NominalRpm = 2900.0;
-
-            /// <summary>
-            /// Mass flow at the nominal duty point, in kilograms per second.
-            /// The shaft turns in proportion to how close the pump is to it.
-            /// </summary>
-            private const double NominalFlow = 0.05;
+            public double LevelMetres => Volatile.Read(ref m_levelMetres);
 
             private readonly long m_phaseOffset;
             private readonly TimeSpan m_tickInterval;
@@ -548,6 +682,7 @@ namespace Pumps
             private bool m_currentCavitation;
             private bool m_currentMotorOverheat;
             private double m_shaftAngle;
+            private double m_levelMetres;
             private bool m_hasPublishedGoodValue;
         }
 
@@ -560,12 +695,15 @@ namespace Pumps
         /// Measurement Variables created outside the fluent builder, paired
         /// with the getter that yields their latest simulated value.
         /// </summary>
-        private readonly List<(BaseVariableState Variable, Func<double> Getter)> m_liveSignals = [];
-
-        /// <summary>
-        /// The simulation the OpenUSD twin follows.
-        /// </summary>
-        private PumpSimulationState? m_primarySimulation;
+        /// <remarks>
+        /// Held as an immutable snapshot that <see cref="TrackSignal"/> replaces
+        /// under <see cref="m_simulationRegistrationLock"/>. A pump can be added
+        /// through <c>CreatePumpAsync</c> while the simulation timer is running,
+        /// and mutating a list while the tick enumerates it would throw on the
+        /// timer thread and stop the simulation for every pump. Publishing from a
+        /// snapshot keeps the tick allocation-free and lock-free.
+        /// </remarks>
+        private (BaseVariableState Variable, Func<double> Getter)[] m_liveSignals = [];
     }
 
     internal static partial class PumpNodeManagerLog

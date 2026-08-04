@@ -1706,9 +1706,10 @@ namespace Opc.Ua.Client.Subscriptions
                                 response.ResponseHeader.StringTable.ToList())
                                 .ConfigureAwait(false);
                             Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
+                            m_lastUnknownSubscriptionId = 0;
+                            m_consecutiveUnresolvedResponses = 0;
                         }
-                        else if (!ct.IsCancellationRequested &&
-                            !m_outer.m_subscriptionHistory.Contains(subscriptionId))
+                        else if (!ct.IsCancellationRequested)
                         {
                             //
                             // The identifier does not resolve to any subscription
@@ -1720,16 +1721,39 @@ namespace Opc.Ua.Client.Subscriptions
                             // healthy subscription. Leaving a genuine orphan alive
                             // until its lifetime expires is the safe trade-off.
                             //
-                            if (m_outer.HasSubscriptionsPendingCreation())
-                            {
-                                m_logger.PublishWorkerDeferredUnknownSubscription(
-                                    Index, handle, subscriptionId);
-                                moreNotifications = true;
-                            }
-                            else
+                            // None of the branches below made progress, so the
+                            // server can answer the next publish request with the
+                            // very same undeliverable response. Publishing again
+                            // without waiting would busy-spin against the server
+                            // and flood the log, and a transport that completes
+                            // synchronously would never release the worker's
+                            // thread pool thread. Therefore always throttle here.
+                            //
+                            if (m_outer.m_subscriptionHistory.Contains(subscriptionId))
                             {
                                 // ignore messages with a subscription that was deleted
                                 // Do not delete publish requests of stale subscriptions
+                                moreNotifications = false;
+                                await DelayUnresolvedSubscriptionAsync(ct)
+                                    .ConfigureAwait(false);
+                            }
+                            else if (m_outer.HasSubscriptionsPendingCreation())
+                            {
+                                // Log only the first response of a run for the
+                                // same identifier so a long lived creation window
+                                // cannot flood the log.
+                                if (m_lastUnknownSubscriptionId != subscriptionId)
+                                {
+                                    m_lastUnknownSubscriptionId = subscriptionId;
+                                    m_logger.PublishWorkerDeferredUnknownSubscription(
+                                        Index, handle, subscriptionId);
+                                }
+                                moreNotifications = false;
+                                await DelayUnresolvedSubscriptionAsync(ct)
+                                    .ConfigureAwait(false);
+                            }
+                            else
+                            {
                                 m_logger.PublishWorkerReceivedUnknownSubscription(
                                     Index, handle, subscriptionId);
                                 Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
@@ -1737,6 +1761,17 @@ namespace Opc.Ua.Client.Subscriptions
                                     null,
                                     [subscriptionId],
                                     ct).ConfigureAwait(false);
+                                //
+                                // Retire the identifier so responses that were
+                                // already in flight, or that the server emits
+                                // before the delete takes effect, are ignored
+                                // instead of triggering another delete. Without
+                                // this the worker issues DeleteSubscriptions for
+                                // the same orphan on every publish response.
+                                //
+                                m_outer.RetireSubscriptionId(subscriptionId);
+                                m_lastUnknownSubscriptionId = 0;
+                                m_consecutiveUnresolvedResponses = 0;
                                 moreNotifications = true;
                             }
                         }
@@ -1866,6 +1901,28 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                 }
                 m_logger.PublishWorkerStopped(Index);
+            }
+
+            /// <summary>
+            /// Back off after a publish response that carried a subscription
+            /// identifier this manager could not dispatch to. The server keeps
+            /// answering with the same undeliverable response until the
+            /// identifier resolves or the subscription is gone, so without an
+            /// explicit delay the worker would issue publish requests in a
+            /// tight loop - and a transport that completes synchronously would
+            /// additionally never release its thread pool thread. The delay
+            /// escalates and is bounded so a healthy subscription sharing this
+            /// worker is not starved.
+            /// </summary>
+            /// <param name="ct"></param>
+            private Task DelayUnresolvedSubscriptionAsync(CancellationToken ct)
+            {
+                int count = ++m_consecutiveUnresolvedResponses;
+                int backoffMs = Math.Min(
+                    kBaseUnresolvedBackoffMs << Math.Min(count - 1, 4),
+                    (int)s_maxUnresolvedBackoff.TotalMilliseconds);
+                return m_outer.m_timeProvider
+                    .Delay(TimeSpan.FromMilliseconds(backoffMs), ct);
             }
 
             /// <summary>
@@ -2062,8 +2119,12 @@ namespace Opc.Ua.Client.Subscriptions
             private readonly CancellationTokenSource m_cts;
             private int m_consecutivePublishErrors;
             private StatusCode m_lastLoggedErrorStatus;
+            private uint m_lastUnknownSubscriptionId;
+            private int m_consecutiveUnresolvedResponses;
             private const int kBasePublishBackoffMs = 200;
+            private const int kBaseUnresolvedBackoffMs = 20;
             private static readonly TimeSpan s_maxPublishBackoff = TimeSpan.FromSeconds(5);
+            private static readonly TimeSpan s_maxUnresolvedBackoff = TimeSpan.FromMilliseconds(250);
         }
 
         private static readonly TimeSpan s_maxOperationTimeout = TimeSpan.FromMinutes(30);

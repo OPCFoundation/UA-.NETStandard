@@ -133,7 +133,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
             var stage = new UsdStage("Arity") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
             // float3 declares three components; only two are authored — it cannot be honoured.
-            prim.Attributes.Add(new UsdAttribute("badVec", "float3") { Value = new object[] { 1f, 2f } });
+            prim.Attributes.Add(
+                new UsdAttribute("badVec", "float3") { Value = UsdTestHelpers.NumberTuple(1.0, 2.0) });
             stage.AddRootPrim(prim);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
@@ -153,7 +154,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             var stage = new UsdStage("Arity") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
             prim.Attributes.Add(
-                new UsdAttribute("goodVec", "float3") { Value = new object[] { 1f, 2f, 3f } });
+                new UsdAttribute("goodVec", "float3") { Value = UsdTestHelpers.NumberTuple(1.0, 2.0, 3.0) });
             stage.AddRootPrim(prim);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
@@ -211,8 +212,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Dup") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            prim.Attributes.Add(new UsdAttribute("dup", "double") { Value = 1.0 });
-            prim.Attributes.Add(new UsdAttribute("dup", "token") { Value = "x" });
+            prim.Attributes.Add(new UsdAttribute("dup", "double") { Value = UsdValue.From(1.0) });
+            prim.Attributes.Add(new UsdAttribute("dup", "token") { Value = UsdValue.FromString("x") });
             stage.AddRootPrim(prim);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
@@ -231,7 +232,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Odd") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            prim.Attributes.Add(new UsdAttribute("a:b:c", "double") { Value = 1.0 });
+            prim.Attributes.Add(new UsdAttribute("a:b:c", "double") { Value = UsdValue.From(1.0) });
             stage.AddRootPrim(prim);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
