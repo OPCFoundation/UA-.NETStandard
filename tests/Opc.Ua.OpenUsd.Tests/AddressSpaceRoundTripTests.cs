@@ -72,10 +72,10 @@ namespace Opc.Ua.OpenUsdScene.Tests
             var stage = new UsdStage("Geo") { DefaultPrim = "Site", UpAxis = "Z", MetersPerUnit = 1.0 };
             var site = new UsdPrim("Site", "Xform");
             site.ApiSchemas.Add(new UsdApiSchema("CesiumGeoreferencePrim"));
-            site.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = 47.6062 });
+            site.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = UsdValue.From(47.6062) });
             site.Attributes.Add(
-                new UsdAttribute("cesium:anchor:longitude", "double") { Value = -122.3321 });
-            site.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = 56.0 });
+                new UsdAttribute("cesium:anchor:longitude", "double") { Value = UsdValue.From(-122.3321) });
+            site.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = UsdValue.From(56.0) });
             stage.AddRootPrim(site);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
@@ -93,7 +93,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("S") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            prim.Attributes.Add(new UsdAttribute("radius", "double") { Value = 2.5 });
+            prim.Attributes.Add(new UsdAttribute("radius", "double") { Value = UsdValue.From(2.5) });
             stage.AddRootPrim(prim);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
@@ -117,7 +117,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             prim.Attributes.Add(
                 new UsdAttribute("xformOp:translate", "double3")
                 {
-                    Value = new object[] { 1.0, 2.0, 3.0 }
+                    Value = UsdTestHelpers.NumberTuple(1.0, 2.0, 3.0)
                 });
             stage.AddRootPrim(prim);
 

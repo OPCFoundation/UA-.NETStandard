@@ -96,63 +96,81 @@ def Xform "Gripper" (
         uniform token[] xformOpOrder = ["xformOp:translate"]
     }
 
-    # Jaw carriers and the machined gripping fingers.
-    def Cube "CarrierUpper" (
-        prepend apiSchemas = ["MaterialBindingAPI"]
-    )
+    # Jaw carriers and the machined gripping fingers. Each jaw is one Xform so a single
+    # transform strokes the carrier and its finger together - binding the carrier alone
+    # would slide the block out from under the finger it is bolted to. Like every other
+    # live-bound prim it declares one matrix op: this file is referenced onto the flange,
+    # so any op order declared here sits in a layer weaker than the one a connector edits
+    # and could not be cleared from there. The authored pose is the fully open one, with
+    # the finger inner faces at y = +/-0.048, clearing a 70 mm part.
+    def Xform "JawUpper"
     {
-        double size = 1
-        color3f[] primvars:displayColor = [(0.16, 0.17, 0.19)]
-        rel material:binding = </Gripper/Materials/Anodised>
-        double3 xformOp:translate = (0.1080, 0.0420, 0)
-        double3 xformOp:scale = (0.0260, 0.0130, 0.0300)
-        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0.0600, 0, 1) )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+
+        def Cube "Carrier" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.16, 0.17, 0.19)]
+            rel material:binding = </Gripper/Materials/Anodised>
+            double3 xformOp:translate = (0.1080, 0, 0)
+            double3 xformOp:scale = (0.0260, 0.0130, 0.0300)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Mesh "Finger" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform bool doubleSided = true
+            int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+            int[] faceVertexIndices = [0, 1, 2, 3, 7, 6, 5, 4, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
+            point3f[] points = [
+                (0.1210, -0.0120, -0.0230), (0.1900, -0.0120, -0.0170),
+                (0.1900, 0.0100, -0.0170), (0.1210, 0.0120, -0.0230),
+                (0.1210, -0.0120, 0.0230), (0.1900, -0.0120, 0.0170),
+                (0.1900, 0.0100, 0.0170), (0.1210, 0.0120, 0.0230)
+            ]
+            color3f[] primvars:displayColor = [(0.05, 0.05, 0.06)]
+            rel material:binding = </Gripper/Materials/JawBlack>
+        }
     }
 
-    def Cube "CarrierLower" (
-        prepend apiSchemas = ["MaterialBindingAPI"]
-    )
+    def Xform "JawLower"
     {
-        double size = 1
-        color3f[] primvars:displayColor = [(0.16, 0.17, 0.19)]
-        rel material:binding = </Gripper/Materials/Anodised>
-        double3 xformOp:translate = (0.1080, -0.0420, 0)
-        double3 xformOp:scale = (0.0260, 0.0130, 0.0300)
-        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
-    }
+        matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, -0.0600, 0, 1) )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
 
-    def Mesh "FingerUpper" (
-        prepend apiSchemas = ["MaterialBindingAPI"]
-    )
-    {
-        uniform bool doubleSided = true
-        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
-        int[] faceVertexIndices = [0, 1, 2, 3, 7, 6, 5, 4, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
-        point3f[] points = [
-            (0.1210, 0.0300, -0.0230), (0.1900, 0.0300, -0.0170),
-            (0.1900, 0.0520, -0.0170), (0.1210, 0.0540, -0.0230),
-            (0.1210, 0.0300, 0.0230), (0.1900, 0.0300, 0.0170),
-            (0.1900, 0.0520, 0.0170), (0.1210, 0.0540, 0.0230)
-        ]
-        color3f[] primvars:displayColor = [(0.05, 0.05, 0.06)]
-        rel material:binding = </Gripper/Materials/JawBlack>
-    }
+        def Cube "Carrier" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.16, 0.17, 0.19)]
+            rel material:binding = </Gripper/Materials/Anodised>
+            double3 xformOp:translate = (0.1080, 0, 0)
+            double3 xformOp:scale = (0.0260, 0.0130, 0.0300)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
 
-    def Mesh "FingerLower" (
-        prepend apiSchemas = ["MaterialBindingAPI"]
-    )
-    {
-        uniform bool doubleSided = true
-        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
-        int[] faceVertexIndices = [0, 1, 2, 3, 7, 6, 5, 4, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
-        point3f[] points = [
-            (0.1210, -0.0540, -0.0230), (0.1900, -0.0520, -0.0170),
-            (0.1900, -0.0300, -0.0170), (0.1210, -0.0300, -0.0230),
-            (0.1210, -0.0540, 0.0230), (0.1900, -0.0520, 0.0170),
-            (0.1900, -0.0300, 0.0170), (0.1210, -0.0300, 0.0230)
-        ]
-        color3f[] primvars:displayColor = [(0.05, 0.05, 0.06)]
-        rel material:binding = </Gripper/Materials/JawBlack>
+        def Mesh "Finger" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform bool doubleSided = true
+            int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+            int[] faceVertexIndices = [0, 1, 2, 3, 7, 6, 5, 4, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
+            point3f[] points = [
+                (0.1210, -0.0120, -0.0230), (0.1900, -0.0100, -0.0170),
+                (0.1900, 0.0120, -0.0170), (0.1210, 0.0120, -0.0230),
+                (0.1210, -0.0120, 0.0230), (0.1900, -0.0100, 0.0170),
+                (0.1900, 0.0120, 0.0170), (0.1210, 0.0120, 0.0230)
+            ]
+            color3f[] primvars:displayColor = [(0.05, 0.05, 0.06)]
+            rel material:binding = </Gripper/Materials/JawBlack>
+        }
     }
 
     # Pneumatic feed to the drive.

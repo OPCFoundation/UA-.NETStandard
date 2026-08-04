@@ -3079,38 +3079,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Dispatches an incoming request and marks the calling flow as serving that request.
-        /// <para>
-        /// The mark has to be applied here rather than while the request is being validated. An
-        /// <see cref="AsyncLocal{T}"/> written inside an <c>async</c> method is visible only to
-        /// that method and to the methods it calls, never to the caller that awaited it, so a mark
-        /// applied by <see cref="ValidateRequestAsync"/> would never reach the service handler.
-        /// Applied here it covers the handler and every NodeManager callback beneath it, which is
-        /// what lets the lifecycle API reject a re-entrant call instead of deadlocking on its own
-        /// request.
-        /// </para>
-        /// </summary>
-        /// <param name="request">The request.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        protected override async Task ProcessRequestAsync(
-            IEndpointIncomingRequest request,
-            CancellationToken cancellationToken = default)
-        {
-            // The request manager is published part-way through startup, so a request that
-            // arrives while the server is still starting has nothing to enrol with yet. Such a
-            // request is rejected by request validation instead of being dispatched.
-            RequestManager? requestManager = m_serverInternal?.RequestManager;
-            if (requestManager == null)
-            {
-                await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            using IDisposable dispatchScope = requestManager.EnterServiceDispatchScope();
-            await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Updates the server state.
         /// </summary>
         /// <param name="state">The state.</param>
@@ -4060,7 +4028,7 @@ namespace Opc.Ua.Server
             }
 
             if (joiningActiveShutdown &&
-                serverInternal.RequestManager.IsExecutingRequest)
+                serverInternal.RequestManager.GetCurrentRequestIdForLifecycleExtension() is not null)
             {
                 // The shared shutdown drains requests. A request joining that task must
                 // become an excluded lifecycle waiter before it awaits the drain owner.
@@ -4111,7 +4079,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? shutdownWaiter = null;
-            if (shutdown.Server.RequestManager.IsExecutingRequest)
+            if (shutdown.Server.RequestManager.GetCurrentRequestIdForLifecycleExtension() is not null)
             {
                 shutdownWaiter = shutdown.Server.RequestManager.RegisterLifecycleExtension()
                     .EnterLifecycleWaiter();

@@ -189,7 +189,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                     lines.Add(pad + "    instanceable = true");
                 }
                 lines.AddRange(varLines);
-                foreach (KeyValuePair<string, object?> entry in prim.Metadata)
+                foreach (KeyValuePair<string, UsdValue> entry in prim.Metadata)
                 {
                     EmitMetaEntry(entry.Key, entry.Value, pad + "    ", lines, typed: false);
                 }
@@ -326,7 +326,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         private static void EmitTimeSamples(UsdAttribute attr, string attrPad, string pre, List<string> lines)
         {
             lines.Add(attrPad + pre + attr.TypeName + " " + attr.Name + ".timeSamples = {");
-            foreach (KeyValuePair<double, object?> sample in attr.TimeSamples)
+            foreach (KeyValuePair<double, UsdValue> sample in attr.TimeSamples)
             {
                 lines.Add(attrPad + "    " + FormatTimeCode(sample.Key) + ": "
                     + UsdVal(sample.Value, attr.TypeName) + ",");
@@ -500,78 +500,96 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         /// <param name="value">The parsed USD value.</param>
         /// <param name="text">The rendered <c>.usda</c> text when the method returns <c>true</c>.</param>
         /// <returns><c>true</c> when the value could be rendered.</returns>
-        internal static bool TryRenderOpaqueValue(object? value, out string text)
+        internal static bool TryRenderOpaqueValue(UsdValue value, out string text)
         {
             text = string.Empty;
-            switch (value)
+            switch (value.Kind)
             {
-                case null:
+                case UsdValueKind.Null:
                     return true;
-                case bool b:
+                case UsdValueKind.Boolean:
+                    value.TryGetBoolean(out bool b);
                     text = b ? "true" : "false";
                     return true;
-                case string s:
-                    text = s;
+                case UsdValueKind.String:
+                case UsdValueKind.Token:
+                case UsdValueKind.AssetPath:
+                case UsdValueKind.PathReference:
+                    value.TryGetText(out text);
                     return true;
-                case double:
-                case float:
-                case long:
-                case int:
+                case UsdValueKind.Integer:
+                case UsdValueKind.Double:
                     text = PyStr(value);
                     return true;
+                case UsdValueKind.Tuple:
+                case UsdValueKind.Matrix:
+                    value.TryGetItems(out ArrayOf<UsdValue> tuple);
+                    return TryRenderOpaqueSequence(tuple, asTuple: true, out text);
+                case UsdValueKind.Array:
+                    value.TryGetArray(out ArrayOf<UsdValue> list);
+                    return TryRenderOpaqueSequence(list, asTuple: false, out text);
+                default:
+                    return false;
             }
-            if (value is object?[] tuple)
-            {
-                return TryRenderOpaqueSequence(tuple, asTuple: true, out text);
-            }
-            if (value is List<object?> list)
-            {
-                return TryRenderOpaqueSequence(list, asTuple: false, out text);
-            }
-            return false;
         }
 
         private static bool TryRenderOpaqueSequence(
-            IReadOnlyList<object?> items, bool asTuple, out string text)
+            ArrayOf<UsdValue> items, bool asTuple, out string text)
         {
             text = string.Empty;
-            var parts = new List<string>(items.Count);
-            foreach (object? item in items)
+            System.ReadOnlySpan<UsdValue> span = items.Span;
+            var parts = new List<string>(span.Length);
+            for (int ii = 0; ii < span.Length; ii++)
             {
+                UsdValue item = span[ii];
                 if (!TryRenderOpaqueValue(item, out string part))
                 {
                     return false;
                 }
                 // A string leaf inside a USD tuple/array is authored quoted.
-                parts.Add(item is string ? "\"" + part + "\"" : part);
+                parts.Add(IsText(item) ? "\"" + part + "\"" : part);
             }
             string joined = string.Join(", ", parts);
             text = asTuple ? "(" + joined + ")" : "[" + joined + "]";
             return true;
         }
 
+        private static bool IsText(UsdValue value)
+        {
+            return value.Kind is UsdValueKind.String
+                or UsdValueKind.Token
+                or UsdValueKind.AssetPath
+                or UsdValueKind.PathReference;
+        }
+
+        private static bool IsSequence(UsdValue value)
+        {
+            return value.Kind is UsdValueKind.Tuple
+                or UsdValueKind.Array
+                or UsdValueKind.Matrix;
+        }
+
         /// <summary>
         /// Emits one §6.3 metadata entry (a scalar/tuple/array field or a nested dictionary) into
         /// the prim's <c>( … )</c> block, symmetric with <c>UsdaReader.ApplyCustomPrimMeta</c>. A
-        /// nested <see cref="IDictionary{TKey,TValue}"/> is emitted as a <c>{ … }</c> block whose
-        /// entries are one indent deeper. A dictionary entry carries a USD value-type token
+        /// nested dictionary is emitted as a <c>{ … }</c> block whose entries are one indent
+        /// deeper. A dictionary entry carries a USD value-type token
         /// (<paramref name="typed"/>); a top-level prim metadata field does not.
         /// </summary>
         private static void EmitMetaEntry(
-            string key, object? value, string pad, List<string> lines, bool typed)
+            string key, UsdValue value, string pad, List<string> lines, bool typed)
         {
-            if (value is IDictionary<string, object?> dict)
+            if (value.TryGetDictionary(out IReadOnlyDictionary<string, UsdValue> dict))
             {
                 lines.Add(pad + (typed ? "dictionary " : string.Empty) + key + " = {");
-                foreach (KeyValuePair<string, object?> entry in dict)
+                foreach (KeyValuePair<string, UsdValue> entry in dict)
                 {
                     EmitMetaEntry(entry.Key, entry.Value, pad + "    ", lines, typed: true);
                 }
                 lines.Add(pad + "}");
                 return;
             }
-            bool isSequence = value is object?[] || value is List<object?>;
-            string prefix = typed && !isSequence ? MetaTypeToken(value) + " " : string.Empty;
+            string prefix = typed && !IsSequence(value) ? MetaTypeToken(value) + " " : string.Empty;
             lines.Add(pad + prefix + key + " = " + RenderMetaScalar(value));
         }
 
@@ -580,19 +598,17 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         /// token is only cosmetic on a round trip (the reader discards it), so an integer maps to
         /// <c>int</c> and a floating point value to <c>double</c>.
         /// </summary>
-        private static string MetaTypeToken(object? value)
+        private static string MetaTypeToken(UsdValue value)
         {
-            switch (value)
+            switch (value.Kind)
             {
-                case bool _:
+                case UsdValueKind.Boolean:
                     return "bool";
-                case long _:
-                case int _:
+                case UsdValueKind.Integer:
                     return "int";
-                case double _:
-                case float _:
+                case UsdValueKind.Double:
                     return "double";
-                case IDictionary<string, object?> _:
+                case UsdValueKind.Dictionary:
                     return "dictionary";
                 default:
                     return "string";
@@ -605,82 +621,80 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         /// same invariant formatting as attribute values, and a tuple/array falls back to
         /// <see cref="PyStr"/>.
         /// </summary>
-        private static string RenderMetaScalar(object? value)
+        private static string RenderMetaScalar(UsdValue value)
         {
-            switch (value)
+            switch (value.Kind)
             {
-                case null:
+                case UsdValueKind.Null:
                     return "\"\"";
-                case string s:
+                case UsdValueKind.String:
+                case UsdValueKind.Token:
+                case UsdValueKind.AssetPath:
+                case UsdValueKind.PathReference:
+                    value.TryGetText(out string s);
                     return "\"" + s + "\"";
-                case bool b:
+                case UsdValueKind.Boolean:
+                    value.TryGetBoolean(out bool b);
                     return b ? "true" : "false";
-                case double d:
+                case UsdValueKind.Double:
+                    value.TryGetDouble(out double d);
                     return FormatDouble(d);
-                case float f:
-                    return FormatDouble(f);
-                case long l:
+                case UsdValueKind.Integer:
+                    value.TryGetInteger(out long l);
                     return l.ToString(CultureInfo.InvariantCulture);
-                case int i:
-                    return i.ToString(CultureInfo.InvariantCulture);
+                default:
+                    return PyStr(value);
             }
-            return PyStr(value);
         }
 
         /// <summary>
         /// Renders an attribute value as authored <c>.usda</c> text (port of <c>_usd_val</c>).
         /// </summary>
-        private static string UsdVal(object? value, string typeName)
+        private static string UsdVal(UsdValue value, string typeName)
         {
-            switch (value)
+            switch (value.Kind)
             {
-                case null:
+                case UsdValueKind.Null:
                     return string.Empty;
-                case string s:
+                case UsdValueKind.String:
+                case UsdValueKind.Token:
+                case UsdValueKind.AssetPath:
+                case UsdValueKind.PathReference:
+                    value.TryGetText(out string s);
                     return RenderStringValue(s, typeName);
-                case bool b:
+                case UsdValueKind.Boolean:
+                    value.TryGetBoolean(out bool b);
                     return b ? "true" : "false";
+                default:
+                    break;
             }
 
             // Shape contract: whether a value is authored as a USD array "[...]" or as a USD tuple
-            // "(...)" is decided by the ATTRIBUTE TYPE, never by the CLR container that carries the
-            // value. An array-typed attribute (TypeName ending in "[]") always emits "[...]"; a
+            // "(...)" is decided by the ATTRIBUTE TYPE, never by the kind that carries the value.
+            // An array-typed attribute (TypeName ending in "[]") always emits "[...]"; a
             // fixed-size math scalar (double3, color3f, matrix4d, ...) emits a single parenthesised
-            // tuple "(...)" through PyStr below. Keying on the type name — rather than on
-            // "value is List<object?>" — keeps this contract intact no matter which container the
-            // coercion layer hands back: UsdValueCoercion.Decoerce returns object?[] for both a
-            // flat array and an array-of-tuples, while the reader returns List<object?>; both must
-            // round-trip to the same "[...]" text here (regression guard for the H-1 defect where
-            // every exported array fell through to PyStr and was corrupted into a "(...)" tuple).
+            // tuple "(...)" through PyStr below. Keying on the type name keeps this contract intact
+            // no matter which composite kind the coercion layer hands back (regression guard for
+            // the H-1 defect where every exported array fell through to PyStr and was corrupted
+            // into a "(...)" tuple).
             if (typeName.EndsWith("[]", System.StringComparison.Ordinal)
-                && TryGetSequence(value, out IReadOnlyList<object?> items))
+                && value.TryGetItems(out ArrayOf<UsdValue> items))
             {
                 string baseType = typeName.Substring(0, typeName.Length - 2);
                 return RenderArray(items, baseType);
             }
 
-            return PyStr(value);
-        }
-
-        /// <summary>
-        /// Exposes a value as a sequence when it is one of the two containers the document model
-        /// and coercion layer use for a USD array: <c>object?[]</c> (returned by
-        /// <see cref="UsdValueCoercion.Decoerce"/>) or <c>List&lt;object?&gt;</c> (returned by the
-        /// reader). Anything else is not a sequence and is rendered as a scalar/tuple by the caller.
-        /// </summary>
-        private static bool TryGetSequence(object? value, out IReadOnlyList<object?> items)
-        {
-            switch (value)
+            if (value.TryGetItems(out ArrayOf<UsdValue> components))
             {
-                case object?[] array:
-                    items = array;
-                    return true;
-                case List<object?> list:
-                    items = list;
-                    return true;
+                // A fixed-size math scalar (double3, color3f, matrix4d, ...) is authored as a
+                // single parenthesised tuple whatever composite kind carries it, because the
+                // TypeName decides the shape - not the kind. Rendering through PyStr instead
+                // would emit "[1.0, 2.0, 3.0]" for a value the coercion layer handed back as an
+                // array, which is the H-1 defect.
+                return "(" + JoinPyStr(components) + ")";
             }
-            items = System.Array.Empty<object?>();
-            return false;
+
+            return PyStr(value);
         }
 
         /// <summary>
@@ -692,32 +706,33 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         /// an <c>asset[]</c> is authored with <c>@…@</c> delimiters (§6.2); any other string element
         /// uses USD's double-quote form, never PyStr's single quotes.
         /// </summary>
-        private static string RenderArray(IReadOnlyList<object?> items, string baseType)
+        private static string RenderArray(ArrayOf<UsdValue> items, string baseType)
         {
             bool assetArray = string.Equals(baseType, "asset", System.StringComparison.Ordinal);
+            System.ReadOnlySpan<UsdValue> span = items.Span;
 
             if (s_tupleGroupTypes.Contains(baseType)
-                && items.Count > 0
-                && items.Count % 3 == 0
-                && !AnyElementIsSequence(items))
+                && span.Length > 0
+                && span.Length % 3 == 0
+                && !AnyElementIsSequence(span))
             {
-                var groups = new List<string>(items.Count / 3);
-                for (int i = 0; i < items.Count; i += 3)
+                var groups = new List<string>(span.Length / 3);
+                for (int i = 0; i < span.Length; i += 3)
                 {
                     var g = new List<string>(3);
                     for (int j = i; j < i + 3; j++)
                     {
-                        g.Add(PyStr(items[j]));
+                        g.Add(PyStr(span[j]));
                     }
                     groups.Add("(" + string.Join(", ", g) + ")");
                 }
                 return "[" + string.Join(", ", groups) + "]";
             }
 
-            var elems = new List<string>(items.Count);
-            foreach (object? x in items)
+            var elems = new List<string>(span.Length);
+            for (int ii = 0; ii < span.Length; ii++)
             {
-                elems.Add(RenderArrayElement(x, assetArray));
+                elems.Add(RenderArrayElement(span[ii], assetArray));
             }
             return "[" + string.Join(", ", elems) + "]";
         }
@@ -727,20 +742,20 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         /// any other string element double-quoted (USD's string/token form), and a grouped tuple row
         /// or scalar through <see cref="PyStr"/> (which parenthesises a tuple).
         /// </summary>
-        private static string RenderArrayElement(object? x, bool assetArray)
+        private static string RenderArrayElement(UsdValue x, bool assetArray)
         {
-            if (x is string s)
+            if (x.TryGetText(out string s))
             {
                 return assetArray ? "@" + s + "@" : "\"" + s + "\"";
             }
             return PyStr(x);
         }
 
-        private static bool AnyElementIsSequence(IReadOnlyList<object?> items)
+        private static bool AnyElementIsSequence(System.ReadOnlySpan<UsdValue> items)
         {
-            foreach (object? x in items)
+            for (int ii = 0; ii < items.Length; ii++)
             {
-                if (x is object?[] || x is List<object?>)
+                if (IsSequence(items[ii]))
                 {
                     return true;
                 }
@@ -752,45 +767,48 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         /// Renders a scalar or tuple element with Python <c>str()</c> semantics so the output
         /// re-parses identically (integers plain, floats keep a decimal point, tuples parenthesised).
         /// </summary>
-        private static string PyStr(object? x)
+        private static string PyStr(UsdValue x)
         {
-            switch (x)
+            switch (x.Kind)
             {
-                case null:
+                case UsdValueKind.Null:
                     return "None";
-                case bool b:
+                case UsdValueKind.Boolean:
+                    x.TryGetBoolean(out bool b);
                     return b ? "True" : "False";
-                case string s:
+                case UsdValueKind.String:
+                case UsdValueKind.Token:
+                case UsdValueKind.AssetPath:
+                case UsdValueKind.PathReference:
+                    x.TryGetText(out string s);
                     return "'" + s + "'";
-                case double d:
+                case UsdValueKind.Double:
+                    x.TryGetDouble(out double d);
                     return FormatDouble(d);
-                case float f:
-                    return FormatDouble(f);
-                case long l:
+                case UsdValueKind.Integer:
+                    x.TryGetInteger(out long l);
                     return l.ToString(CultureInfo.InvariantCulture);
-                case int i:
-                    return i.ToString(CultureInfo.InvariantCulture);
+                case UsdValueKind.Tuple:
+                case UsdValueKind.Matrix:
+                    x.TryGetItems(out ArrayOf<UsdValue> tuple);
+                    return "(" + JoinPyStr(tuple) + ")";
+                case UsdValueKind.Array:
+                    x.TryGetArray(out ArrayOf<UsdValue> generic);
+                    return "[" + JoinPyStr(generic) + "]";
+                default:
+                    return string.Empty;
             }
+        }
 
-            if (x is object?[] tuple)
+        private static string JoinPyStr(ArrayOf<UsdValue> items)
+        {
+            System.ReadOnlySpan<UsdValue> span = items.Span;
+            var parts = new List<string>(span.Length);
+            for (int ii = 0; ii < span.Length; ii++)
             {
-                var parts = new List<string>();
-                foreach (object? e in tuple)
-                {
-                    parts.Add(PyStr(e));
-                }
-                return "(" + string.Join(", ", parts) + ")";
+                parts.Add(PyStr(span[ii]));
             }
-            if (x is List<object?> generic)
-            {
-                var parts = new List<string>();
-                foreach (object? e in generic)
-                {
-                    parts.Add(PyStr(e));
-                }
-                return "[" + string.Join(", ", parts) + "]";
-            }
-            return System.Convert.ToString(x, CultureInfo.InvariantCulture) ?? string.Empty;
+            return string.Join(", ", parts);
         }
 
         /// <summary>
