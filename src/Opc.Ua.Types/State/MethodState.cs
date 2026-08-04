@@ -522,25 +522,26 @@ namespace Opc.Ua
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState? replacement)
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds = true)
         {
-            if (browseName.IsNull)
-            {
-                return null;
-            }
-            BaseInstanceState? instance = null;
             switch (browseName.Name)
             {
                 case BrowseNames.InputArguments:
-                    instance = !createOrReplace ?
-                        OutputArguments : CreateOrReplaceInputArguments(context, replacement);
-                    break;
+                    return !createOrReplace
+                        ? InputArguments
+                        : CreateOrReplaceInputArguments(
+                            context, replacement, assignInstanceNodeIds);
                 case BrowseNames.OutputArguments:
-                    instance = !createOrReplace ?
-                        OutputArguments : CreateOrReplaceOutputArguments(context, replacement);
-                    break;
+                    return !createOrReplace
+                        ? OutputArguments
+                        : CreateOrReplaceOutputArguments(
+                            context, replacement, assignInstanceNodeIds);
+                default:
+                    return base.FindChild(
+                        context, browseName, createOrReplace, replacement,
+                        assignInstanceNodeIds);
             }
-            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
         }
 
         /// <summary>

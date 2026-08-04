@@ -516,9 +516,13 @@ def Xform "Cell"
 
     # Shared work table the two arms transfer parts across. Placed clear of the AGV
     # drive lane, which spans |y| <= 0.77 as the platforms trace their figure-eight.
-    def Xform "WorkTable"
+    # Two transfer stations at opposite ends of the cell. R1 carries a part from A to B and
+    # R2 carries it back from B to A, so both have to traverse the aisle and pass each other -
+    # which is what makes the corridor interlock meaningful rather than decorative. Each table
+    # is approached from the aisle in front of it (y ~ 0.35), well inside the 1.61 m arm reach.
+    def Xform "WorkTableA"
     {
-        double3 xformOp:translate = (0, 1.45, 0)
+        double3 xformOp:translate = (-2.6, 1.2, 0)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
         def Cube "Top" (
@@ -581,27 +585,295 @@ def Xform "Cell"
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
 
-        def Cube "PartA" (
+        # Painted slot outlines. The server places a part at the matching slot pose, so the
+        # markings and the live part transforms cannot disagree.
+        def Cube "Slot1" (
             prepend apiSchemas = ["MaterialBindingAPI"]
         )
         {
             double size = 1
-            color3f[] primvars:displayColor = [(0.20, 0.42, 0.62)]
-            rel material:binding = </Cell/Materials/PartBlue>
-            double3 xformOp:translate = (-0.22, 0.06, 0.7875)
-            double3 xformOp:scale = (0.070, 0.070, 0.035)
+            color3f[] primvars:displayColor = [(0.85, 0.72, 0.12)]
+            rel material:binding = </Cell/Materials/SafetyYellow>
+            double3 xformOp:translate = (-0.22, 0, 0.7706)
+            double3 xformOp:scale = (0.100, 0.100, 0.001)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
 
-        def Cube "PartB" (
+        def Cube "Slot2" (
             prepend apiSchemas = ["MaterialBindingAPI"]
         )
         {
             double size = 1
-            color3f[] primvars:displayColor = [(0.20, 0.42, 0.62)]
-            rel material:binding = </Cell/Materials/PartBlue>
-            double3 xformOp:translate = (0.24, -0.05, 0.7875)
-            double3 xformOp:scale = (0.070, 0.070, 0.035)
+            color3f[] primvars:displayColor = [(0.85, 0.72, 0.12)]
+            rel material:binding = </Cell/Materials/SafetyYellow>
+            double3 xformOp:translate = (0, 0, 0.7706)
+            double3 xformOp:scale = (0.100, 0.100, 0.001)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Slot3" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.85, 0.72, 0.12)]
+            rel material:binding = </Cell/Materials/SafetyYellow>
+            double3 xformOp:translate = (0.22, 0, 0.7706)
+            double3 xformOp:scale = (0.100, 0.100, 0.001)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Xform "WorkTableB"
+    {
+        double3 xformOp:translate = (2.6, 1.2, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Cube "Top" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.46, 0.47, 0.49)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (0, 0, 0.760)
+            double3 xformOp:scale = (0.700, 0.450, 0.020)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegA" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.24, 0.25, 0.26)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (-0.31, -0.185, 0.375)
+            double3 xformOp:scale = (0.030, 0.030, 0.750)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegB" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.24, 0.25, 0.26)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (0.31, -0.185, 0.375)
+            double3 xformOp:scale = (0.030, 0.030, 0.750)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegC" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.24, 0.25, 0.26)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (0.31, 0.185, 0.375)
+            double3 xformOp:scale = (0.030, 0.030, 0.750)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegD" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.24, 0.25, 0.26)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (-0.31, 0.185, 0.375)
+            double3 xformOp:scale = (0.030, 0.030, 0.750)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Slot1" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.85, 0.72, 0.12)]
+            rel material:binding = </Cell/Materials/SafetyYellow>
+            double3 xformOp:translate = (-0.22, 0, 0.7706)
+            double3 xformOp:scale = (0.100, 0.100, 0.001)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Slot2" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.85, 0.72, 0.12)]
+            rel material:binding = </Cell/Materials/SafetyYellow>
+            double3 xformOp:translate = (0, 0, 0.7706)
+            double3 xformOp:scale = (0.100, 0.100, 0.001)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Slot3" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.85, 0.72, 0.12)]
+            rel material:binding = </Cell/Materials/SafetyYellow>
+            double3 xformOp:translate = (0.22, 0, 0.7706)
+            double3 xformOp:scale = (0.100, 0.100, 0.001)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    # Parts in circulation. Each carries a single matrix transform authored live by the
+    # server: the slot pose of whichever table holds it, or the gripper TCP pose while a
+    # robot carries it. The geometry sits on a child prim so the live matrix stays the only
+    # op on the part itself.
+    def Xform "Parts"
+    {
+        def Xform "Part01"
+        {
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (-2.82, 1.2, 0.7875, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cube "Body" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.20, 0.42, 0.62)]
+                rel material:binding = </Cell/Materials/PartBlue>
+                double3 xformOp:scale = (0.070, 0.070, 0.035)
+                uniform token[] xformOpOrder = ["xformOp:scale"]
+            }
+        }
+
+        def Xform "Part02"
+        {
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (-2.6, 1.2, 0.7875, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cube "Body" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.20, 0.42, 0.62)]
+                rel material:binding = </Cell/Materials/PartBlue>
+                double3 xformOp:scale = (0.070, 0.070, 0.035)
+                uniform token[] xformOpOrder = ["xformOp:scale"]
+            }
+        }
+
+        def Xform "Part03"
+        {
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (2.38, 1.2, 0.7875, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cube "Body" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.20, 0.42, 0.62)]
+                rel material:binding = </Cell/Materials/PartBlue>
+                double3 xformOp:scale = (0.070, 0.070, 0.035)
+                uniform token[] xformOpOrder = ["xformOp:scale"]
+            }
+        }
+    }
+
+    # Charging docks, one in each robot's home corner. A robot whose battery falls below the
+    # threshold routes here before resuming the transfer cycle.
+    def Xform "Docks"
+    {
+        def Xform "D1"
+        {
+            double3 xformOp:translate = (-0.8, -2.0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "Pad" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+                rel material:binding = </Cell/Materials/CabinetGrey>
+                double3 xformOp:translate = (0, 0, 0.006)
+                double3 xformOp:scale = (0.620, 0.620, 0.012)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "Contact" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.85, 0.72, 0.12)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0.28, 0.070)
+                double3 xformOp:scale = (0.240, 0.040, 0.140)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+
+        def Xform "D2"
+        {
+            double3 xformOp:translate = (0.8, -2.0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "Pad" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+                rel material:binding = </Cell/Materials/CabinetGrey>
+                double3 xformOp:translate = (0, 0, 0.006)
+                double3 xformOp:scale = (0.620, 0.620, 0.012)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "Contact" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.85, 0.72, 0.12)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0.28, 0.070)
+                double3 xformOp:scale = (0.240, 0.040, 0.140)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+    }
+
+    # Painted travel lanes. Outbound traffic keeps to the northern lane and return traffic to
+    # the southern one, so two robots crossing the cell pass on opposite sides of the aisle.
+    def Xform "Lanes"
+    {
+        def Cube "Outbound" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.72, 0.73, 0.74)]
+            rel material:binding = </Cell/Materials/FloorPaint>
+            double3 xformOp:translate = (0, 0.35, -0.0134)
+            double3 xformOp:scale = (5.400, 0.060, 0.002)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Return" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.72, 0.73, 0.74)]
+            rel material:binding = </Cell/Materials/FloorPaint>
+            double3 xformOp:translate = (0, -1.15, -0.0134)
+            double3 xformOp:scale = (5.400, 0.060, 0.002)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
     }
@@ -629,6 +901,31 @@ def Xform "Cell"
             matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (1.2, 0, 0, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
         }
+    }
+
+    # The view a host opens on. A cell is a wide, shallow scene sitting inside a fence, so
+    # framing its bounds automatically puts the eye close enough to be inside the cage,
+    # looking at whichever robot happens to be nearest. This is the establishing shot: the
+    # whole floor, both work tables, the docks and the controller cabinet, from the front and
+    # far enough back to keep the fence in frame.
+    #
+    # A UsdGeomCamera looks down its own -Z with +Y up, so the matrix rows are the camera
+    # basis in world: +X right, +Y up-and-tilted-forward, +Z back along the view. The eye
+    # sits 12 m out from the cell centre at 28 degrees of elevation.
+    def Camera "OverviewCamera"
+    {
+        token projection = "perspective"
+        float focalLength = 24
+        float horizontalAperture = 20.955
+        float verticalAperture = 13.97
+        float2 clippingRange = (0.1, 200)
+        matrix4d xformOp:transform = (
+            (1, 0, 0, 0),
+            (0, 0.469472, 0.882948, 0),
+            (0, -0.882948, 0.469472, 0),
+            (0, -10.7954, 6.3837, 1)
+        )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
     }
 
     # Overhead camera framing the whole cell. Hosts can start on it by prim path.
