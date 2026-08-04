@@ -195,8 +195,9 @@ namespace AiModelManagement.Client
                 NodeId digest = await FindChildAsync(model, "Digest", ct).ConfigureAwait(false);
 
                 Console.WriteLine(
-                    "    uses model            {0}",
-                    Unbox(await ReadAsync(modelId, ct).ConfigureAwait(false)));
+                    "    uses model            {0} ({1})",
+                    Unbox(await ReadAsync(modelId, ct).ConfigureAwait(false)),
+                    model);
 
                 if (!digest.IsNull)
                 {
