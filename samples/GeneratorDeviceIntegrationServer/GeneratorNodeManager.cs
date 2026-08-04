@@ -291,13 +291,19 @@ namespace Generators
             GeneratorSetState set = builder.Device;
             set.DisplayName = new LocalizedText(GetGeneratorDisplayName(setNumber));
 
-            WriteNameplate(builder, setNumber);
             MaterialiseOptionalChildren(set);
             AttachOpenUsdRepresentation(set, setNumber);
 
             await AddPredefinedNodeAsync(SystemContext, set, cancellationToken)
                 .ConfigureAwait(false);
             await AddRootNotifierAsync(set, cancellationToken).ConfigureAwait(false);
+
+            // The nameplate is written after the subtree is registered. Each
+            // identification property registers itself as it is created, so writing
+            // beforehand lets the subsequent subtree registration replace those
+            // nodes with freshly materialised, valueless ones - the properties then
+            // browse but read BadNotReadable.
+            WriteNameplate(builder, setNumber);
 
             onRegistered?.Invoke(set);
 
@@ -338,6 +344,36 @@ namespace Generators
                     CultureInfo.InvariantCulture,
                     $"urn:simgen.example.com:GenX-500:{GetSerialNumber(setNumber)}");
             });
+
+            // Nameplate properties the generated factory already materialised keep
+            // the declaration's access level, which grants no read. Only properties
+            // the builder creates itself come out readable, so the ones that were
+            // already there have to be opened explicitly or they browse but answer
+            // BadNotReadable.
+            GeneratorSetState set = builder.Device;
+            MakeReadable(
+                set.Manufacturer, set.ManufacturerUri, set.Model, set.ProductCode,
+                set.HardwareRevision, set.SoftwareRevision, set.DeviceRevision,
+                set.SerialNumber, set.DeviceManual, set.ProductInstanceUri,
+                set.RevisionCounter);
+        }
+
+        /// <summary>
+        /// Grants current-read access to variables that carry a static value.
+        /// </summary>
+        /// <param name="variables">The variables to open for reading.</param>
+        private static void MakeReadable(params BaseVariableState?[] variables)
+        {
+            foreach (BaseVariableState? variable in variables)
+            {
+                if (variable == null)
+                {
+                    continue;
+                }
+                variable.AccessLevel = AccessLevels.CurrentRead;
+                variable.UserAccessLevel = AccessLevels.CurrentRead;
+                variable.MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate;
+            }
         }
 
         /// <summary>
