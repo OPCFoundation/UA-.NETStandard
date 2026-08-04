@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Pumps;
@@ -67,14 +69,13 @@ namespace Opc.Ua.Di.Tests
         private static readonly string[] s_expectedPumpSurface =
         [
             "AlarmActive",
+            "BayPosition",
             "Bearing",
             "Bearing/OpenUsdRepresentation",
             "Bearing/OpenUsdRepresentation/PrimPath",
             "Bearing/OpenUsdRepresentation/Stage",
             "Events",
             "Events/OverTempAlarm",
-            // The fluent alarm builder attaches four unnamed condition
-            // children; they are part of the captured baseline.
             "Events/OverTempAlarm/",
             "Events/OverTempAlarm/",
             "Events/OverTempAlarm/",
@@ -83,8 +84,6 @@ namespace Opc.Ua.Di.Tests
             "Events/OverTempAlarm/AckedState/Id",
             "Events/OverTempAlarm/Acknowledge",
             "Events/OverTempAlarm/Acknowledge/InputArguments",
-            // Argument properties on argument-less standard methods, as pinned
-            // by the source generator change earlier in this stack.
             "Events/OverTempAlarm/Acknowledge/OutputArguments",
             "Events/OverTempAlarm/ActiveState",
             "Events/OverTempAlarm/ActiveState/Id",
@@ -129,14 +128,29 @@ namespace Opc.Ua.Di.Tests
             "Events/SupervisionPumpOperation/MotorOverheat",
             "Events/SupervisionPumpOperation/MotorOverheat/FalseState",
             "Events/SupervisionPumpOperation/MotorOverheat/TrueState",
+            "FluidSurfacePosition",
             "Identification",
+            "Identification/ArticleNumber",
+            "Identification/AssetId",
+            "Identification/ComponentName",
+            "Identification/CountryOfOrigin",
+            "Identification/DayOfConstruction",
             "Identification/DeviceClass",
+            "Identification/FabricationNumber",
             "Identification/HardwareRevision",
+            "Identification/Location",
             "Identification/Manufacturer",
+            "Identification/ManufacturerUri",
             "Identification/Model",
+            "Identification/MonthOfConstruction",
+            "Identification/OrderProductCode",
+            "Identification/ProductCode",
             "Identification/ProductInstanceUri",
             "Identification/SerialNumber",
             "Identification/SoftwareRevision",
+            "Identification/Supplier",
+            "Identification/TypeOfProduct",
+            "Identification/YearOfConstruction",
             "Impeller",
             "Impeller/OpenUsdRepresentation",
             "Impeller/OpenUsdRepresentation/PrimPath",
@@ -145,19 +159,31 @@ namespace Opc.Ua.Di.Tests
             "Maintenance/GeneralMaintenance",
             "Maintenance/GeneralMaintenance/MaintenancePlan",
             "OpenUsdRepresentation",
-            "OpenUsdRepresentation/AlarmActiveVisibility",
-            "OpenUsdRepresentation/AlarmActiveVisibility/AlarmAspect",
-            "OpenUsdRepresentation/AlarmActiveVisibility/BadQualityAction",
-            "OpenUsdRepresentation/AlarmActiveVisibility/BindingDefinitionId",
-            "OpenUsdRepresentation/AlarmActiveVisibility/Enabled",
-            "OpenUsdRepresentation/AlarmActiveVisibility/RenderTargetKind",
-            "OpenUsdRepresentation/AlarmActiveVisibility/Scale",
-            "OpenUsdRepresentation/AlarmActiveVisibility/SignalRole",
-            "OpenUsdRepresentation/AlarmActiveVisibility/SourceNodeId",
-            "OpenUsdRepresentation/AlarmActiveVisibility/TargetPrimPath",
-            "OpenUsdRepresentation/AlarmActiveVisibility/TargetPropertyName",
-            "OpenUsdRepresentation/AlarmActiveVisibility/TargetStage",
-            "OpenUsdRepresentation/AlarmActiveVisibility/TargetUsdTypeName",
+            "OpenUsdRepresentation/AlarmRingVisibility",
+            "OpenUsdRepresentation/AlarmRingVisibility/AlarmAspect",
+            "OpenUsdRepresentation/AlarmRingVisibility/BadQualityAction",
+            "OpenUsdRepresentation/AlarmRingVisibility/BindingDefinitionId",
+            "OpenUsdRepresentation/AlarmRingVisibility/Enabled",
+            "OpenUsdRepresentation/AlarmRingVisibility/RenderTargetKind",
+            "OpenUsdRepresentation/AlarmRingVisibility/Scale",
+            "OpenUsdRepresentation/AlarmRingVisibility/SignalRole",
+            "OpenUsdRepresentation/AlarmRingVisibility/SourceNodeId",
+            "OpenUsdRepresentation/AlarmRingVisibility/TargetPrimPath",
+            "OpenUsdRepresentation/AlarmRingVisibility/TargetPropertyName",
+            "OpenUsdRepresentation/AlarmRingVisibility/TargetStage",
+            "OpenUsdRepresentation/AlarmRingVisibility/TargetUsdTypeName",
+            "OpenUsdRepresentation/BayLayout",
+            "OpenUsdRepresentation/BayLayout/BadQualityAction",
+            "OpenUsdRepresentation/BayLayout/BindingDefinitionId",
+            "OpenUsdRepresentation/BayLayout/Enabled",
+            "OpenUsdRepresentation/BayLayout/RenderTargetKind",
+            "OpenUsdRepresentation/BayLayout/Scale",
+            "OpenUsdRepresentation/BayLayout/SignalRole",
+            "OpenUsdRepresentation/BayLayout/SourceNodeId",
+            "OpenUsdRepresentation/BayLayout/TargetPrimPath",
+            "OpenUsdRepresentation/BayLayout/TargetPropertyName",
+            "OpenUsdRepresentation/BayLayout/TargetStage",
+            "OpenUsdRepresentation/BayLayout/TargetUsdTypeName",
             "OpenUsdRepresentation/BearingComponent",
             "OpenUsdRepresentation/BearingComponent/BindingDefinitionId",
             "OpenUsdRepresentation/BearingComponent/Cardinality",
@@ -178,18 +204,69 @@ namespace Opc.Ua.Di.Tests
             "OpenUsdRepresentation/BearingTempColor/TargetPropertyName",
             "OpenUsdRepresentation/BearingTempColor/TargetStage",
             "OpenUsdRepresentation/BearingTempColor/TargetUsdTypeName",
-            "OpenUsdRepresentation/DiffPressureEmissive",
-            "OpenUsdRepresentation/DiffPressureEmissive/BadQualityAction",
-            "OpenUsdRepresentation/DiffPressureEmissive/BindingDefinitionId",
-            "OpenUsdRepresentation/DiffPressureEmissive/Enabled",
-            "OpenUsdRepresentation/DiffPressureEmissive/RenderTargetKind",
-            "OpenUsdRepresentation/DiffPressureEmissive/Scale",
-            "OpenUsdRepresentation/DiffPressureEmissive/SignalRole",
-            "OpenUsdRepresentation/DiffPressureEmissive/SourceNodeId",
-            "OpenUsdRepresentation/DiffPressureEmissive/TargetPrimPath",
-            "OpenUsdRepresentation/DiffPressureEmissive/TargetPropertyName",
-            "OpenUsdRepresentation/DiffPressureEmissive/TargetStage",
-            "OpenUsdRepresentation/DiffPressureEmissive/TargetUsdTypeName",
+            "OpenUsdRepresentation/BearingTempNeedle",
+            "OpenUsdRepresentation/BearingTempNeedle/BadQualityAction",
+            "OpenUsdRepresentation/BearingTempNeedle/BindingDefinitionId",
+            "OpenUsdRepresentation/BearingTempNeedle/Enabled",
+            "OpenUsdRepresentation/BearingTempNeedle/Offset",
+            "OpenUsdRepresentation/BearingTempNeedle/RenderTargetKind",
+            "OpenUsdRepresentation/BearingTempNeedle/Scale",
+            "OpenUsdRepresentation/BearingTempNeedle/SignalRole",
+            "OpenUsdRepresentation/BearingTempNeedle/SourceNodeId",
+            "OpenUsdRepresentation/BearingTempNeedle/TargetPrimPath",
+            "OpenUsdRepresentation/BearingTempNeedle/TargetPropertyName",
+            "OpenUsdRepresentation/BearingTempNeedle/TargetStage",
+            "OpenUsdRepresentation/BearingTempNeedle/TargetUsdTypeName",
+            "OpenUsdRepresentation/CavitationHalo",
+            "OpenUsdRepresentation/CavitationHalo/AlarmAspect",
+            "OpenUsdRepresentation/CavitationHalo/BadQualityAction",
+            "OpenUsdRepresentation/CavitationHalo/BindingDefinitionId",
+            "OpenUsdRepresentation/CavitationHalo/Enabled",
+            "OpenUsdRepresentation/CavitationHalo/RenderTargetKind",
+            "OpenUsdRepresentation/CavitationHalo/Scale",
+            "OpenUsdRepresentation/CavitationHalo/SignalRole",
+            "OpenUsdRepresentation/CavitationHalo/SourceNodeId",
+            "OpenUsdRepresentation/CavitationHalo/TargetPrimPath",
+            "OpenUsdRepresentation/CavitationHalo/TargetPropertyName",
+            "OpenUsdRepresentation/CavitationHalo/TargetStage",
+            "OpenUsdRepresentation/CavitationHalo/TargetUsdTypeName",
+            "OpenUsdRepresentation/DischargePressureNeedle",
+            "OpenUsdRepresentation/DischargePressureNeedle/BadQualityAction",
+            "OpenUsdRepresentation/DischargePressureNeedle/BindingDefinitionId",
+            "OpenUsdRepresentation/DischargePressureNeedle/Enabled",
+            "OpenUsdRepresentation/DischargePressureNeedle/RenderTargetKind",
+            "OpenUsdRepresentation/DischargePressureNeedle/Scale",
+            "OpenUsdRepresentation/DischargePressureNeedle/SignalRole",
+            "OpenUsdRepresentation/DischargePressureNeedle/SourceNodeId",
+            "OpenUsdRepresentation/DischargePressureNeedle/TargetPrimPath",
+            "OpenUsdRepresentation/DischargePressureNeedle/TargetPropertyName",
+            "OpenUsdRepresentation/DischargePressureNeedle/TargetStage",
+            "OpenUsdRepresentation/DischargePressureNeedle/TargetUsdTypeName",
+            "OpenUsdRepresentation/EfficiencyReadout",
+            "OpenUsdRepresentation/EfficiencyReadout/BadQualityAction",
+            "OpenUsdRepresentation/EfficiencyReadout/BindingDefinitionId",
+            "OpenUsdRepresentation/EfficiencyReadout/Enabled",
+            "OpenUsdRepresentation/EfficiencyReadout/RenderTargetKind",
+            "OpenUsdRepresentation/EfficiencyReadout/Scale",
+            "OpenUsdRepresentation/EfficiencyReadout/SignalRole",
+            "OpenUsdRepresentation/EfficiencyReadout/SourceNodeId",
+            "OpenUsdRepresentation/EfficiencyReadout/TargetPrimPath",
+            "OpenUsdRepresentation/EfficiencyReadout/TargetPropertyName",
+            "OpenUsdRepresentation/EfficiencyReadout/TargetStage",
+            "OpenUsdRepresentation/EfficiencyReadout/TargetUsdTypeName",
+            "OpenUsdRepresentation/FluidTempColor",
+            "OpenUsdRepresentation/FluidTempColor/BadQualityAction",
+            "OpenUsdRepresentation/FluidTempColor/BindingDefinitionId",
+            "OpenUsdRepresentation/FluidTempColor/Enabled",
+            "OpenUsdRepresentation/FluidTempColor/Offset",
+            "OpenUsdRepresentation/FluidTempColor/RenderTargetKind",
+            "OpenUsdRepresentation/FluidTempColor/Scale",
+            "OpenUsdRepresentation/FluidTempColor/SignalRole",
+            "OpenUsdRepresentation/FluidTempColor/SourceNodeId",
+            "OpenUsdRepresentation/FluidTempColor/TargetPrimPath",
+            "OpenUsdRepresentation/FluidTempColor/TargetPropertyName",
+            "OpenUsdRepresentation/FluidTempColor/TargetStage",
+            "OpenUsdRepresentation/FluidTempColor/TargetUsdTypeName",
             "OpenUsdRepresentation/ImpellerComponent",
             "OpenUsdRepresentation/ImpellerComponent/BindingDefinitionId",
             "OpenUsdRepresentation/ImpellerComponent/Cardinality",
@@ -197,6 +274,56 @@ namespace Opc.Ua.Di.Tests
             "OpenUsdRepresentation/ImpellerComponent/CompositionArc",
             "OpenUsdRepresentation/ImpellerComponent/Enabled",
             "OpenUsdRepresentation/ImpellerComponent/TargetPrimPath",
+            "OpenUsdRepresentation/MassFlowReadout",
+            "OpenUsdRepresentation/MassFlowReadout/BadQualityAction",
+            "OpenUsdRepresentation/MassFlowReadout/BindingDefinitionId",
+            "OpenUsdRepresentation/MassFlowReadout/Enabled",
+            "OpenUsdRepresentation/MassFlowReadout/RenderTargetKind",
+            "OpenUsdRepresentation/MassFlowReadout/Scale",
+            "OpenUsdRepresentation/MassFlowReadout/SignalRole",
+            "OpenUsdRepresentation/MassFlowReadout/SourceNodeId",
+            "OpenUsdRepresentation/MassFlowReadout/SourceSemanticId",
+            "OpenUsdRepresentation/MassFlowReadout/TargetPrimPath",
+            "OpenUsdRepresentation/MassFlowReadout/TargetPropertyName",
+            "OpenUsdRepresentation/MassFlowReadout/TargetStage",
+            "OpenUsdRepresentation/MassFlowReadout/TargetUsdTypeName",
+            "OpenUsdRepresentation/MotorFanSpin",
+            "OpenUsdRepresentation/MotorFanSpin/BadQualityAction",
+            "OpenUsdRepresentation/MotorFanSpin/BindingDefinitionId",
+            "OpenUsdRepresentation/MotorFanSpin/Enabled",
+            "OpenUsdRepresentation/MotorFanSpin/RenderTargetKind",
+            "OpenUsdRepresentation/MotorFanSpin/Scale",
+            "OpenUsdRepresentation/MotorFanSpin/SignalRole",
+            "OpenUsdRepresentation/MotorFanSpin/SourceNodeId",
+            "OpenUsdRepresentation/MotorFanSpin/TargetPrimPath",
+            "OpenUsdRepresentation/MotorFanSpin/TargetPropertyName",
+            "OpenUsdRepresentation/MotorFanSpin/TargetStage",
+            "OpenUsdRepresentation/MotorFanSpin/TargetUsdTypeName",
+            "OpenUsdRepresentation/NumberOfStartsReadout",
+            "OpenUsdRepresentation/NumberOfStartsReadout/BadQualityAction",
+            "OpenUsdRepresentation/NumberOfStartsReadout/BindingDefinitionId",
+            "OpenUsdRepresentation/NumberOfStartsReadout/Enabled",
+            "OpenUsdRepresentation/NumberOfStartsReadout/RenderTargetKind",
+            "OpenUsdRepresentation/NumberOfStartsReadout/Scale",
+            "OpenUsdRepresentation/NumberOfStartsReadout/SignalRole",
+            "OpenUsdRepresentation/NumberOfStartsReadout/SourceNodeId",
+            "OpenUsdRepresentation/NumberOfStartsReadout/TargetPrimPath",
+            "OpenUsdRepresentation/NumberOfStartsReadout/TargetPropertyName",
+            "OpenUsdRepresentation/NumberOfStartsReadout/TargetStage",
+            "OpenUsdRepresentation/NumberOfStartsReadout/TargetUsdTypeName",
+            "OpenUsdRepresentation/OverheatHalo",
+            "OpenUsdRepresentation/OverheatHalo/AlarmAspect",
+            "OpenUsdRepresentation/OverheatHalo/BadQualityAction",
+            "OpenUsdRepresentation/OverheatHalo/BindingDefinitionId",
+            "OpenUsdRepresentation/OverheatHalo/Enabled",
+            "OpenUsdRepresentation/OverheatHalo/RenderTargetKind",
+            "OpenUsdRepresentation/OverheatHalo/Scale",
+            "OpenUsdRepresentation/OverheatHalo/SignalRole",
+            "OpenUsdRepresentation/OverheatHalo/SourceNodeId",
+            "OpenUsdRepresentation/OverheatHalo/TargetPrimPath",
+            "OpenUsdRepresentation/OverheatHalo/TargetPropertyName",
+            "OpenUsdRepresentation/OverheatHalo/TargetStage",
+            "OpenUsdRepresentation/OverheatHalo/TargetUsdTypeName",
             "OpenUsdRepresentation/PrimPath",
             "OpenUsdRepresentation/ShaftSpin",
             "OpenUsdRepresentation/ShaftSpin/BadQualityAction",
@@ -224,6 +351,18 @@ namespace Opc.Ua.Di.Tests
             "OpenUsdRepresentation/SpeedSetpointCommand/TargetStage",
             "OpenUsdRepresentation/SpeedSetpointCommand/TargetUsdTypeName",
             "OpenUsdRepresentation/Stage",
+            "OpenUsdRepresentation/SuctionLevelRise",
+            "OpenUsdRepresentation/SuctionLevelRise/BadQualityAction",
+            "OpenUsdRepresentation/SuctionLevelRise/BindingDefinitionId",
+            "OpenUsdRepresentation/SuctionLevelRise/Enabled",
+            "OpenUsdRepresentation/SuctionLevelRise/RenderTargetKind",
+            "OpenUsdRepresentation/SuctionLevelRise/Scale",
+            "OpenUsdRepresentation/SuctionLevelRise/SignalRole",
+            "OpenUsdRepresentation/SuctionLevelRise/SourceNodeId",
+            "OpenUsdRepresentation/SuctionLevelRise/TargetPrimPath",
+            "OpenUsdRepresentation/SuctionLevelRise/TargetPropertyName",
+            "OpenUsdRepresentation/SuctionLevelRise/TargetStage",
+            "OpenUsdRepresentation/SuctionLevelRise/TargetUsdTypeName",
             "Operational",
             "Operational/Measurements",
             "Operational/Measurements/BearingTemperature",
@@ -324,6 +463,46 @@ namespace Opc.Ua.Di.Tests
             Assert.That(
                 second,
                 Contains.Item("Events/SupervisionPumpOperation/MotorOverheat/TrueState"));
+        }
+
+        /// <summary>
+        /// Every configured pump must contribute its shaft angle to the
+        /// simulation publish set exactly once.
+        /// </summary>
+        /// <remarks>
+        /// Signal registration runs once per pump as it is materialised, and the
+        /// twin is already in the dictionary by then. Registering by walking every
+        /// twin therefore re-registered each earlier pump, so the first pump ended
+        /// up published N times per tick for N pumps - redundant writes and
+        /// <c>ClearChangeMasks</c> calls growing as N(N+1)/2.
+        /// </remarks>
+        [Test]
+        public void EveryPumpPublishesItsShaftAngleExactlyOnce()
+        {
+            FieldInfo? field = typeof(PumpNodeManager).GetField(
+                "m_liveSignals", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.That(field, Is.Not.Null,
+                "PumpNodeManager.m_liveSignals is gone - update this regression test.");
+
+            var signals = (Array)field!.GetValue(m_manager)!;
+            List<NodeId> published = signals
+                .Cast<object>()
+                .Select(entry => ((BaseVariableState)((ITuple)entry)[0]!).NodeId)
+                .ToList();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(published, Is.Unique,
+                    "A Variable is published more than once per simulation tick.");
+                foreach (PumpState pump in new[] { m_configuredPump!, m_secondPump! })
+                {
+                    NodeId shaftAngle = new(
+                        pump.NodeId.IdentifierAsString + "_ShaftAngle",
+                        pump.NodeId.NamespaceIndex);
+                    Assert.That(published.Count(id => id == shaftAngle), Is.EqualTo(1),
+                        pump.BrowseName.Name + " must publish its shaft angle exactly once.");
+                }
+            });
         }
 
         /// <summary>

@@ -397,7 +397,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Live") { DefaultPrim = "Rig" };
             var rig = new UsdPrim("Rig", "Xform");
-            rig.Attributes.Add(new UsdAttribute("speed", "double") { Value = 0.0, Live = true });
+            rig.Attributes.Add(new UsdAttribute("speed", "double") { Value = UsdValue.From(0.0), Live = true });
             stage.AddRootPrim(rig);
             return stage;
         }

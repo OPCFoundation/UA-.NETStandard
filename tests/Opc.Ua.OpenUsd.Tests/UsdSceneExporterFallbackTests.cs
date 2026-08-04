@@ -113,7 +113,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void AMetadataEntryWithoutABrowseNameIsSkipped()
         {
             var prim = new UsdPrim("Mesh", "Mesh");
-            prim.Metadata["author"] = "Ada";
+            prim.Metadata["author"] = UsdValue.FromString("Ada");
             var stage = new UsdStage("Test");
             stage.AddRootPrim(prim);
             MaterializedScene scene = MaterializationHarness.Materialize(stage);
@@ -166,8 +166,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         private static UsdStage ConnectedScene()
         {
             var prim = new UsdPrim("Mesh", "Mesh") { Kind = UsdPrimKindEnum.Component };
-            prim.Attributes.Add(new UsdAttribute("size", "double") { Value = 2.0 });
-            var radius = new UsdAttribute("radius", "double") { Value = 1.0 };
+            prim.Attributes.Add(new UsdAttribute("size", "double") { Value = UsdValue.From(2.0) });
+            var radius = new UsdAttribute("radius", "double") { Value = UsdValue.From(1.0) };
             radius.Connections.Add("/Mesh.size");
             radius.Connections.Add("/Elsewhere.size");
             prim.Attributes.Add(radius);

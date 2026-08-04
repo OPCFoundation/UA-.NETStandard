@@ -204,7 +204,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Solo") { DefaultPrim = "Shared" };
             var prim = new UsdPrim("Shared", "Xform");
-            prim.Attributes.Add(new UsdAttribute("value", "double") { Value = 1.0 });
+            prim.Attributes.Add(new UsdAttribute("value", "double") { Value = UsdValue.From(1.0) });
             stage.AddRootPrim(prim);
             return stage;
         }
