@@ -75,9 +75,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Gets whether the owning server has started its ordered shutdown sequence.
-        /// </summary>
+        /// <inheritdoc/>
         public bool IsShuttingDown => m_shuttingDown;
 
         internal long ShutdownCleanupProgress =>
