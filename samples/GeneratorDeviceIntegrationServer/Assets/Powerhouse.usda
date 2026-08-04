@@ -7,4 +7,34 @@
 
 def Xform "Powerhouse"
 {
+    def Mesh "Floor"
+    {
+        point3f[] points = [(-6.000, -5.000, 0.000), (6.000, -5.000, 0.000), (6.000, 26.000, 0.000), (-6.000, 26.000, 0.000)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        color3f[] primvars:displayColor = [(0.180, 0.190, 0.200)]
+    }
+    def DistantLight "KeyLight"
+    {
+        float inputs:intensity = 650
+        float inputs:angle = 0.5
+        double3 xformOp:rotateXYZ = (45.000, 0.000, -35.000)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+    def DomeLight "FillDome"
+    {
+        float inputs:intensity = 120
+        color3f inputs:color = (0.720, 0.790, 0.900)
+    }
+    def Scope "Generators"
+    {
+    }
+    def Camera "HeroCamera"
+    {
+        # Operator viewpoint in front of the row; frames generator sets laid out along +Y at 6 m pitch.
+        float focalLength = 20
+        double3 xformOp:translate = (9.500, -5.500, 1.700)
+        double3 xformOp:rotateXYZ = (84.000, 0.000, 48.000)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+    }
 }
