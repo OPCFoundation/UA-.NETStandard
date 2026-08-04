@@ -719,7 +719,7 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
             if (SyncNodeManager is ITransferMonitoredItemsAsyncNodeManager asyncNodeManager)

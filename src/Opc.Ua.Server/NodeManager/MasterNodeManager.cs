@@ -5418,7 +5418,29 @@ namespace Opc.Ua.Server
                 context,
                 sendInitialValues,
                 monitoredItems,
-                errors).AsTask().GetAwaiter().GetResult();
+                errors,
+                new MonitoredItemTransferOptions()).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        [Obsolete("Use TransferMonitoredItemsAsync with MonitoredItemTransferOptions.")]
+        public virtual ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+        {
+            return TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                errors,
+                new MonitoredItemTransferOptions(),
+                cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -5427,7 +5449,7 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
             if (context == null)
@@ -5460,7 +5482,7 @@ namespace Opc.Ua.Server
                 bool sendInitialValues,
                 IList<IMonitoredItem> monitoredItems,
                 IList<ServiceResult> errors,
-                MonitoredItemTransferOptions? transferOptions,
+                MonitoredItemTransferOptions transferOptions,
                 CancellationToken cancellationToken)
         {
             return PrepareMonitoredItemsTransferAsync(
@@ -5478,7 +5500,7 @@ namespace Opc.Ua.Server
                 bool sendInitialValues,
                 IList<IMonitoredItem> monitoredItems,
                 IList<ServiceResult> errors,
-                MonitoredItemTransferOptions? transferOptions,
+                MonitoredItemTransferOptions transferOptions,
                 CancellationToken cancellationToken)
         {
             if (destinationContext == null)
@@ -5498,7 +5520,7 @@ namespace Opc.Ua.Server
             var effectiveTransferOptions = new MonitoredItemTransferOptions
             {
                 DeferInitialValues = sendInitialValues ||
-                    (transferOptions?.DeferInitialValues ?? false)
+                    transferOptions.DeferInitialValues
             };
 
             // preset results for unknown nodes
@@ -5538,18 +5560,15 @@ namespace Opc.Ua.Server
 
                     try
                     {
-                        using (MonitoredItemTransferExecution.BeginDeferredInitialValues())
-                        {
-                            await owner.TransferMonitoredItemsAsync(
-                                    destinationContext,
-                                    sendInitialValues,
-                                    monitoredItems,
-                                    ownedItems,
-                                    errors,
-                                    effectiveTransferOptions,
-                                    cancellationToken)
-                                .ConfigureAwait(false);
-                        }
+                        await owner.TransferMonitoredItemsAsync(
+                                destinationContext,
+                                sendInitialValues,
+                                monitoredItems,
+                                ownedItems,
+                                errors,
+                                effectiveTransferOptions,
+                                cancellationToken)
+                            .ConfigureAwait(false);
                     }
                     catch (Exception transferError)
                     {

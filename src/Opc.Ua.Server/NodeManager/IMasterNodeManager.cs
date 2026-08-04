@@ -364,7 +364,7 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -433,7 +433,7 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken);
     }
 

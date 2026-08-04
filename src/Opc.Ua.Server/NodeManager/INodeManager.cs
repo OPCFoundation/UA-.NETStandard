@@ -332,7 +332,7 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null);
+            MonitoredItemTransferOptions transferOptions);
 
         /// <summary>
         /// Changes the monitoring mode for a set of monitored items.
@@ -627,7 +627,7 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default);
 
     }
@@ -642,51 +642,7 @@ namespace Opc.Ua.Server
         /// calls to <see cref="IMonitoredItem.SetupResendDataTrigger"/> until
         /// the owning subscription commits the transfer.
         /// </summary>
-        /// <remarks>
-        /// This explicit option takes precedence over the ambient
-        /// <see cref="MonitoredItemTransferExecution.DeferInitialValues"/> fallback.
-        /// </remarks>
         public bool DeferInitialValues { get; set; }
-    }
-
-    /// <summary>
-    /// Ambient monitored-item transfer state used as a fallback for legacy
-    /// transfer implementations that have not been updated to consume
-    /// <see cref="MonitoredItemTransferOptions"/>.
-    /// </summary>
-    public static class MonitoredItemTransferExecution
-    {
-        /// <summary>
-        /// Gets a value indicating whether current transfer callbacks should
-        /// defer initial values until the transaction commits.
-        /// </summary>
-        public static bool DeferInitialValues => s_deferInitialValues.Value > 0;
-
-        /// <summary>
-        /// Begins an ambient scope that asks legacy transfer callbacks to defer
-        /// initial values until the transaction commits.
-        /// </summary>
-        /// <returns>A disposable scope that restores the previous ambient state.</returns>
-        public static IDisposable BeginDeferredInitialValues()
-        {
-            s_deferInitialValues.Value++;
-            return new DeferredInitialValuesScope();
-        }
-
-        private sealed class DeferredInitialValuesScope : IDisposable
-        {
-            public void Dispose()
-            {
-                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
-                {
-                    s_deferInitialValues.Value--;
-                }
-            }
-
-            private int m_disposed;
-        }
-
-        private static readonly AsyncLocal<int> s_deferInitialValues = new();
     }
 
     /// <summary>

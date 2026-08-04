@@ -788,7 +788,7 @@ namespace Opc.Ua.Server
                     sendInitialValues,
                     monitoredItems,
                     errors,
-                    transferOptions: null,
+                    new MonitoredItemTransferOptions(),
                     cancellationToken)
                 .ConfigureAwait(false);
 

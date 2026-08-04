@@ -3115,12 +3115,11 @@ namespace Opc.Ua.Sample
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null)
+            MonitoredItemTransferOptions transferOptions)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IList<IMonitoredItem> transferredItems = [];
-            bool deferInitialValues = transferOptions?.DeferInitialValues
-                ?? MonitoredItemTransferExecution.DeferInitialValues;
+            bool deferInitialValues = transferOptions.DeferInitialValues;
             lock (Lock)
             {
                 for (int ii = 0; ii < monitoredItems.Count; ii++)

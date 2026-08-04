@@ -219,7 +219,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 true,
                 values.MonitoredItems,
                 values.TransferProcessed,
-                values.TransferErrors).ConfigureAwait(false);
+                values.TransferErrors,
+                new MonitoredItemTransferOptions()).ConfigureAwait(false);
             await adapter.SetMonitoringModeAsync(
                 values.Context,
                 MonitoringMode.Reporting,
@@ -382,7 +383,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 true,
                 values.MonitoredItems,
                 values.TransferProcessed,
-                values.TransferErrors).ConfigureAwait(false);
+                values.TransferErrors,
+                new MonitoredItemTransferOptions()).ConfigureAwait(false);
             await adapter.SetMonitoringModeAsync(
                 values.Context,
                 MonitoringMode.Reporting,
@@ -826,7 +828,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 true,
                 values.MonitoredItems,
                 values.TransferProcessed,
-                values.TransferErrors));
+                values.TransferErrors,
+                It.IsAny<MonitoredItemTransferOptions>()));
             manager.Setup(m => m.SetMonitoringMode(
                 values.Context,
                 MonitoringMode.Reporting,

@@ -2428,7 +2428,13 @@ namespace Opc.Ua.Server.Tests
             var errors = new List<ServiceResult> { null };
             var operationContext = new OperationContext(new RequestHeader(), null, RequestType.TransferSubscriptions, RequestLifetime.None);
 
-            await manager.TransferMonitoredItemsAsync(operationContext, true, monitoredItems, processed, errors).ConfigureAwait(false);
+            await manager.TransferMonitoredItemsAsync(
+                operationContext,
+                true,
+                monitoredItems,
+                processed,
+                errors,
+                new MonitoredItemTransferOptions()).ConfigureAwait(false);
 
             Assert.That(processed[0], Is.True);
             Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
@@ -2445,7 +2451,13 @@ namespace Opc.Ua.Server.Tests
             var syncErrors = new List<ServiceResult> { null };
             var syncItems = new List<IMonitoredItem> { secondItem };
 
-            syncManager.TransferMonitoredItems(operationContext, true, syncItems, syncProcessed, syncErrors);
+            syncManager.TransferMonitoredItems(
+                operationContext,
+                true,
+                syncItems,
+                syncProcessed,
+                syncErrors,
+                new MonitoredItemTransferOptions());
 
             Assert.That(syncProcessed[0], Is.True);
             Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
@@ -5667,7 +5679,7 @@ namespace Opc.Ua.Server.Tests
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
             return m_adapter.TransferMonitoredItemsAsync(
