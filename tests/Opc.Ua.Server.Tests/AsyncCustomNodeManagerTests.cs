@@ -5674,18 +5674,6 @@ namespace Opc.Ua.Server.Tests
                         context, sendInitialValues, monitoredItems, processedItems, errors, transferOptions, cancellationToken);
         }
 
-        public ValueTask RollbackMonitoredItemsTransferAsync(
-            OperationContext context,
-            IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems,
-            IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
-            CancellationToken cancellationToken = default)
-        {
-            return m_adapter.RollbackMonitoredItemsTransferAsync(
-                        context, monitoredItems, processedItems, errors, transferOptions, cancellationToken);
-        }
-
         public ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,

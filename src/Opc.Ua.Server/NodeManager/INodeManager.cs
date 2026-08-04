@@ -335,21 +335,6 @@ namespace Opc.Ua.Server
             MonitoredItemTransferOptions? transferOptions = null);
 
         /// <summary>
-        /// Rolls back side effects produced by a failed monitored-item transfer.
-        /// </summary>
-        /// <remarks>
-        /// Implementations should undo owner-side effects recorded during
-        /// <see cref="TransferMonitoredItems"/> and must not apply the forward
-        /// transfer notification a second time.
-        /// </remarks>
-        void RollbackMonitoredItemsTransfer(
-            OperationContext context,
-            IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems,
-            IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null);
-
-        /// <summary>
         /// Changes the monitoring mode for a set of monitored items.
         /// </summary>
         void SetMonitoringMode(
@@ -645,21 +630,6 @@ namespace Opc.Ua.Server
             MonitoredItemTransferOptions? transferOptions = null,
             CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Rolls back side effects produced by a failed monitored-item transfer.
-        /// </summary>
-        /// <remarks>
-        /// Implementations should undo owner-side effects recorded during
-        /// <see cref="TransferMonitoredItemsAsync"/> and must not apply the forward
-        /// transfer notification a second time.
-        /// </remarks>
-        ValueTask RollbackMonitoredItemsTransferAsync(
-            OperationContext context,
-            IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems,
-            IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
-            CancellationToken cancellationToken = default);
     }
 
     /// <summary>

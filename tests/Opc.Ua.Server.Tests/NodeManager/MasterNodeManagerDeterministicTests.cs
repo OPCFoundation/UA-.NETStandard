@@ -1237,7 +1237,7 @@ namespace Opc.Ua.Server.Tests
 
 
         [Test]
-        public async Task TransferMonitoredItemsAsyncFailureRollsBackPriorOwnerAndAllowsRetryAsync()
+        public async Task TransferMonitoredItemsAsyncOwnerFailureLogsAndAllowsRetryAsync()
         {
             var sourceSession = new Mock<ISession>();
             sourceSession.SetupGet(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
@@ -1253,8 +1253,6 @@ namespace Opc.Ua.Server.Tests
             var laterOwner = new Mock<IAsyncNodeManager>();
             ISession observedOwner = sourceSession.Object;
             ISession observedLaterOwner = sourceSession.Object;
-            int rollbackCalls = 0;
-            int laterRollbackCalls = 0;
             int ownerForwardCalls = 0;
             int laterForwardCalls = 0;
             bool failNextDestinationCallback = true;
@@ -1324,53 +1322,6 @@ namespace Opc.Ua.Server.Tests
                     })
                 .Returns(default(ValueTask));
 
-            owner.Setup(nodeManager => nodeManager.RollbackMonitoredItemsTransferAsync(
-                    It.IsAny<OperationContext>(),
-                    It.IsAny<IList<IMonitoredItem>>(),
-                    It.IsAny<IList<bool>>(),
-                    It.IsAny<IList<ServiceResult>>(),
-                    It.IsAny<MonitoredItemTransferOptions>(),
-                    It.IsAny<CancellationToken>()))
-                .Callback<OperationContext, IList<IMonitoredItem>, IList<bool>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
-                    (context, monitoredItems, processedItems, errors, _, _) =>
-                    {
-                        for (int ii = 0; ii < monitoredItems.Count; ii++)
-                        {
-                            if (!processedItems[ii] &&
-                                ReferenceEquals(monitoredItems[ii].NodeManager, owner.Object))
-                            {
-                                processedItems[ii] = true;
-                                errors[ii] = ServiceResult.Good;
-                            }
-                        }
-                        observedOwner = context.Session;
-                        rollbackCalls++;
-                    })
-                .Returns(default(ValueTask));
-            laterOwner.Setup(nodeManager => nodeManager.RollbackMonitoredItemsTransferAsync(
-                    It.IsAny<OperationContext>(),
-                    It.IsAny<IList<IMonitoredItem>>(),
-                    It.IsAny<IList<bool>>(),
-                    It.IsAny<IList<ServiceResult>>(),
-                    It.IsAny<MonitoredItemTransferOptions>(),
-                    It.IsAny<CancellationToken>()))
-                .Callback<OperationContext, IList<IMonitoredItem>, IList<bool>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
-                    (context, monitoredItems, processedItems, errors, _, _) =>
-                    {
-                        for (int ii = 0; ii < monitoredItems.Count; ii++)
-                        {
-                            if (!processedItems[ii] &&
-                                ReferenceEquals(monitoredItems[ii].NodeManager, laterOwner.Object))
-                            {
-                                processedItems[ii] = true;
-                                errors[ii] = ServiceResult.Good;
-                            }
-                        }
-                        observedLaterOwner = context.Session;
-                        laterRollbackCalls++;
-                    })
-                .Returns(default(ValueTask));
-
             using var sut = new MasterNodeManager(
                 m_server.CurrentInstance,
                 m_fixture.Config,
@@ -1381,26 +1332,25 @@ namespace Opc.Ua.Server.Tests
             using var laterItem = CreateMonitoredItem(laterOwner.Object, sourceSession.Object, 4, 5, 84);
 
             var failedErrors = new List<ServiceResult> { null!, null! };
-            Assert.That(
-                async () => await sut.TransferMonitoredItemsAsync(
-                    new OperationContext(destinationSession.Object, DiagnosticsMasks.None),
-                    true,
-                    [item, laterItem],
-                    failedErrors,
-                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
-                Throws.TypeOf<InvalidOperationException>());
+            await sut.TransferMonitoredItemsAsync(
+                new OperationContext(destinationSession.Object, DiagnosticsMasks.None),
+                true,
+                [item, laterItem],
+                failedErrors,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
-                Assert.That(observedOwner, Is.SameAs(sourceSession.Object));
+                Assert.That(observedOwner, Is.SameAs(destinationSession.Object));
                 Assert.That(observedLaterOwner, Is.SameAs(destinationSession.Object));
                 Assert.That(ownerForwardCalls, Is.EqualTo(1));
                 Assert.That(laterForwardCalls, Is.EqualTo(1));
-                Assert.That(rollbackCalls, Is.EqualTo(1));
-                Assert.That(laterRollbackCalls, Is.Zero);
-                Assert.That(item.IsResendData, Is.False);
+                Assert.That(failedErrors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(failedErrors[1].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+                Assert.That(item.IsResendData, Is.True);
                 Assert.That(laterItem.IsResendData, Is.False);
             });
+            _ = Publish(item);
 
             var retryErrors = new List<ServiceResult> { null!, null! };
             await sut.TransferMonitoredItemsAsync(
