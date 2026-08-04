@@ -33,6 +33,33 @@ using Opc.Ua.Server.Fluent;
 namespace Generators
 {
     /// <summary>
+    /// Small numeric helpers that are not available on every target framework.
+    /// </summary>
+    /// <remarks>
+    /// <c>Math.Clamp</c> arrived after .NET Standard 2.0, and this sample builds for
+    /// net48 as well, so the sample carries its own rather than gating the call
+    /// sites behind conditional compilation.
+    /// </remarks>
+    internal static class Numeric
+    {
+        /// <summary>
+        /// Clamps a value to an inclusive range.
+        /// </summary>
+        /// <param name="value">The value to clamp.</param>
+        /// <param name="min">Lower bound.</param>
+        /// <param name="max">Upper bound.</param>
+        /// <returns>The value, bounded by <paramref name="min"/> and <paramref name="max"/>.</returns>
+        public static double Clamp(double value, double min, double max)
+        {
+            if (value < min)
+            {
+                return min;
+            }
+            return value > max ? max : value;
+        }
+    }
+
+    /// <summary>
     /// The twelve operating states of a generating set.
     /// </summary>
     /// <remarks>
@@ -360,7 +387,7 @@ namespace Generators
             double phase = (tick * m_tickSeconds / 45.0) + (m_profile * 0.9);
             double swing = Math.Sin(phase) * GeneratorDatasheet.Simulation.LoadSwingFraction;
             double load = GeneratorDatasheet.Simulation.NominalLoadFraction + swing;
-            return Math.Clamp(load, 0.05, 1.10);
+            return Numeric.Clamp(load, 0.05, 1.10);
         }
 
         /// <summary>

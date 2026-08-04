@@ -243,9 +243,7 @@ namespace Generators
         /// <returns>The prim path.</returns>
         private static string PrimPathFor(GeneratorSetState set)
         {
-            return string.Create(
-                CultureInfo.InvariantCulture,
-                $"{GeneratorsScopePrimPath}/{set.BrowseName.Name}");
+            return FormattableString.Invariant($"{GeneratorsScopePrimPath}/{set.BrowseName.Name}");
         }
 
         /// <summary>
@@ -312,7 +310,7 @@ namespace Generators
             {
                 X = 0.0,
                 Y = 0.0,
-                Z = tankFloor + (tankHeight * Math.Clamp(levelPercent, 0.0, 100.0) / 100.0),
+                Z = tankFloor + (tankHeight * Numeric.Clamp(levelPercent, 0.0, 100.0) / 100.0),
             };
         }
 
@@ -655,13 +653,13 @@ namespace Generators
         /// </summary>
         public double LoadNeedleDegrees =>
             -(GaugeSweepDegrees / 2.0) + (GaugeSweepDegrees *
-                Math.Clamp((Simulation?.LoadFraction ?? 0.0) / 1.2, 0.0, 1.0));
+                Numeric.Clamp((Simulation?.LoadFraction ?? 0.0) / 1.2, 0.0, 1.0));
 
         /// <summary>
         /// Gets the coolant-gauge needle angle, in degrees.
         /// </summary>
         public double TempNeedleDegrees =>
-            -(GaugeSweepDegrees / 2.0) + (GaugeSweepDegrees * Math.Clamp(
+            -(GaugeSweepDegrees / 2.0) + (GaugeSweepDegrees * Numeric.Clamp(
                 (Simulation?.CoolantCelsius ?? 0.0) / GeneratorDatasheet.Ranges.CoolantMaxCelsius,
                 0.0,
                 1.0));

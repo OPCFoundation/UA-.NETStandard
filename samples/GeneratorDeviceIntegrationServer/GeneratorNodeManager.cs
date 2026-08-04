@@ -340,9 +340,7 @@ namespace Generators
                 id.DeviceRevision = GeneratorDatasheet.Identity.DeviceRevision;
                 id.SerialNumber = GetSerialNumber(setNumber);
                 id.DeviceManual = "https://simgen.example.com/genx-500/manual";
-                id.ProductInstanceUri = string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"urn:simgen.example.com:GenX-500:{GetSerialNumber(setNumber)}");
+                id.ProductInstanceUri = FormattableString.Invariant($"urn:simgen.example.com:GenX-500:{GetSerialNumber(setNumber)}");
             });
 
             // Nameplate properties the generated factory already materialised keep
@@ -495,7 +493,7 @@ namespace Generators
         /// <returns>The browse name.</returns>
         internal static string GetGeneratorBrowseName(int setNumber)
         {
-            return string.Create(CultureInfo.InvariantCulture, $"GeneratorSet_{setNumber}");
+            return FormattableString.Invariant($"GeneratorSet_{setNumber}");
         }
 
         /// <summary>
@@ -505,7 +503,7 @@ namespace Generators
         /// <returns>The display name.</returns>
         internal static string GetGeneratorDisplayName(int setNumber)
         {
-            return string.Create(CultureInfo.InvariantCulture, $"Generator Set {setNumber}");
+            return FormattableString.Invariant($"Generator Set {setNumber}");
         }
 
         /// <summary>
@@ -515,7 +513,7 @@ namespace Generators
         /// <returns>The serial number.</returns>
         internal static string GetSerialNumber(int setNumber)
         {
-            return string.Create(CultureInfo.InvariantCulture, $"SG-500-{setNumber:D3}");
+            return FormattableString.Invariant($"SG-500-{setNumber:D3}");
         }
     }
 

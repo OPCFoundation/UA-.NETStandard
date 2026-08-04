@@ -120,9 +120,7 @@ static bool TryReadGeneratorCount(string? value, out int generatorCount, out str
     if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) ||
         parsed < minCount || parsed > maxCount)
     {
-        error = string.Create(
-            CultureInfo.InvariantCulture,
-            $"Invalid --generators value '{value}'. Specify an integer between {minCount} and {maxCount}.");
+        error = FormattableString.Invariant($"Invalid --generators value '{value}'. Specify an integer between {minCount} and {maxCount}.");
         return false;
     }
 

@@ -157,7 +157,14 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
   locations drive geospatial metadata; a generic connector renders the cell
   live. See [Positioning](Positioning.md).
 * [`PumpDeviceIntegrationServer`](../samples/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
-  component composition, cross-server components, and served-asset delivery.
+  component composition and served-asset delivery.
+* [`GeneratorDeviceIntegrationServer`](../samples/GeneratorDeviceIntegrationServer) — the Generators companion
+  specification with a datasheet-driven simulation and one independent twin per
+  configured generating set.
+* [`SiteCompositionServer`](../samples/SiteCompositionServer) — a supervisory server that owns no devices and
+  composes the machines of the pump and generator servers into a single scene
+  through cross-server components. Render it with the connector's `--federate`
+  option. See [Samples](../samples/SiteCompositionServer/README.md).
 
 ## The connector tool
 
