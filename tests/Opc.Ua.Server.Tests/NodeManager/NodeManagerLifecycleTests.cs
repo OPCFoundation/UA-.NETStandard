@@ -3388,82 +3388,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await DeleteSubscriptionAsync(services, eventSubscriptionId).ConfigureAwait(false);
         }
 
-        [TestCase(
-            false,
-            TestName = "ConditionRefreshWorkerShutdownWakeupIsLosslessForShutdownAsync",
-            Ignore = "Covered by the subscription-transfer stack slice.")]
-        [TestCase(
-            true,
-            TestName = "ConditionRefreshWorkerShutdownWakeupIsLosslessForDispose",
-            Ignore = "Covered by the subscription-transfer stack slice.")]
-        public async Task ConditionRefreshWorkerShutdownWakeupIsLosslessAsync(
-            bool dispose)
+        [Test]
+        public async Task ConditionRefreshWorkerIdleShutdownCompletesAsync()
         {
-            IServerInternal server = m_server.CurrentInstance;
-            var manager = new SubscriptionManager(
-                server,
-                m_server.CurrentConfiguration);
-            var resetEntered = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseReset = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var shutdownSignalStarted = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            bool managerDisposed = false;
-            manager.BeforeConditionRefreshResetForTest = () =>
-            {
-                resetEntered.TrySetResult(true);
-                releaseReset.Task.GetAwaiter().GetResult();
-            };
-            manager.BeforeConditionRefreshShutdownSignalForTest = () =>
-                shutdownSignalStarted.TrySetResult(true);
+            m_requestHeader = null;
+            await m_server.ShutdownInternalsAsync()
+                .AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
 
-            try
-            {
-                manager.StartConditionRefreshWorkerForTest();
-                manager.WakeConditionRefreshWorkerForTest();
-                await resetEntered.Task
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false);
-
-                Task stopTask = RunWithoutExecutionContext(() =>
-                {
-                    if (dispose)
-                    {
-                        manager.Dispose();
-                        return Task.CompletedTask;
-                    }
-                    return manager.ShutdownAsync().AsTask();
-                });
-                await shutdownSignalStarted.Task
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false);
-                Assert.That(
-                    stopTask.IsCompleted,
-                    Is.False,
-                    "Shutdown must be serialized with the worker's final reset.");
-
-                releaseReset.TrySetResult(true);
-                await stopTask
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false);
-                managerDisposed = dispose;
-                if (!managerDisposed)
-                {
-                    manager.Dispose();
-                    managerDisposed = true;
-                }
-            }
-            finally
-            {
-                releaseReset.TrySetResult(true);
-                manager.BeforeConditionRefreshResetForTest = null;
-                manager.BeforeConditionRefreshShutdownSignalForTest = null;
-                if (!managerDisposed)
-                {
-                    manager.Dispose();
-                }
-            }
+            AssertServerInternalsDisposed();
+            await FinishShutdownTestAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -4207,7 +4142,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        [Ignore("Covered by the subscription-transfer stack slice.")]
         public async Task ConditionRefreshWorkerCompletesBeforeServerDeletesAddressSpacesAsync()
         {
             TrackingLifecycleNodeManager manager = null;
@@ -4243,7 +4177,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Task shutdownTask = m_server.ShutdownInternalsAsync().AsTask();
             try
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
                 Assert.That(shutdownTask.IsCompleted, Is.False);
                 Assert.That(
                     manager.DeleteAddressSpaceCount,

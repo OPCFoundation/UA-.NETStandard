@@ -128,6 +128,8 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Wait();
                 try
                 {
+                    SignalConditionRefreshWorkerShutdown();
+
                     publishQueues = [.. m_publishQueues.Values];
                     m_publishQueues.Clear();
 
@@ -260,14 +262,8 @@ namespace Opc.Ua.Server
                     TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default);
 
-                m_conditionRefreshEvent.Reset();
-
                 // TODO: Ensure shutdown awaits completion and a cancellation token is passed
-                _ = Task.Factory.StartNew(
-                    ConditionRefreshWorkerAsync,
-                    default,
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default);
+                m_conditionRefreshWorkerTask = StartConditionRefreshWorker();
             }
             finally
             {
@@ -283,13 +279,14 @@ namespace Opc.Ua.Server
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                BeforeConditionRefreshShutdownSignalForTest?.Invoke();
-
-                // stop the publishing thread.
-                m_shutdownEvent.Set();
-
-                // trigger the condition refresh thread.
-                m_conditionRefreshEvent.Set();
+                // stop the publishing thread and trigger the condition refresh thread.
+                SignalConditionRefreshWorkerShutdown();
+                Task? conditionRefreshWorkerTask = m_conditionRefreshWorkerTask;
+                if (conditionRefreshWorkerTask is not null)
+                {
+                    await conditionRefreshWorkerTask.ConfigureAwait(false);
+                    m_conditionRefreshWorkerTask = null;
+                }
 
                 // dispose of publish queues.
                 foreach (SessionPublishQueue queue in m_publishQueues.Values)
@@ -2375,6 +2372,7 @@ namespace Opc.Ua.Server
                 while (true)
                 {
                     ConditionRefreshTask? conditionRefreshTask = null;
+                    bool shutdownRequested = false;
 
                     lock (m_conditionRefreshLock)
                     {
@@ -2382,11 +2380,20 @@ namespace Opc.Ua.Server
                         {
                             conditionRefreshTask = m_conditionRefreshQueue.Dequeue();
                         }
+                        else if (m_shutdownEvent.WaitOne(0))
+                        {
+                            shutdownRequested = true;
+                        }
                         else
                         {
-                            BeforeConditionRefreshResetForTest?.Invoke();
                             m_conditionRefreshEvent.Reset();
                         }
+                    }
+
+                    if (shutdownRequested)
+                    {
+                        m_logger.SubscriptionConditionRefreshTaskTaskIdX8Exited(Task.CurrentId);
+                        break;
                     }
 
                     if (conditionRefreshTask == null)
@@ -2538,6 +2545,7 @@ namespace Opc.Ua.Server
         private readonly Queue<ConditionRefreshTask> m_conditionRefreshQueue;
         private readonly ManualResetEvent m_conditionRefreshEvent;
         private readonly ISubscriptionStore m_subscriptionStore;
+        private Task? m_conditionRefreshWorkerTask;
 
         private readonly Lock m_statusMessagesLock = new();
         private readonly Lock m_eventLock = new();
@@ -2545,24 +2553,25 @@ namespace Opc.Ua.Server
         private event SubscriptionEventHandler? m_SubscriptionCreated;
         private event SubscriptionEventHandler? m_SubscriptionDeleted;
 
-        internal Action? BeforeConditionRefreshResetForTest { get; set; }
-
-        internal Action? BeforeConditionRefreshShutdownSignalForTest { get; set; }
-
-        internal void WakeConditionRefreshWorkerForTest()
+        private Task StartConditionRefreshWorker()
         {
-            m_conditionRefreshEvent.Set();
+            m_conditionRefreshEvent.Reset();
+            return Task.Factory.StartNew(
+                    static state => ((SubscriptionManager)state!).ConditionRefreshWorkerAsync(),
+                    this,
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default)
+                .Unwrap();
         }
 
-        internal void StartConditionRefreshWorkerForTest()
+        private void SignalConditionRefreshWorkerShutdown()
         {
-            m_shutdownEvent.Reset();
-            m_conditionRefreshEvent.Reset();
-            _ = Task.Factory.StartNew(
-                ConditionRefreshWorkerAsync,
-                default,
-                TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                TaskScheduler.Default);
+            lock (m_conditionRefreshLock)
+            {
+                m_shutdownEvent.Set();
+                m_conditionRefreshEvent.Set();
+            }
         }
     }
 
