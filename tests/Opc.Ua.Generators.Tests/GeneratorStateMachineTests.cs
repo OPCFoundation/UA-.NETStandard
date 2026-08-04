@@ -210,6 +210,96 @@ namespace Opc.Ua.Generators.Tests
         }
 
         /// <summary>
+        /// Every state the model declares is reached by the running simulation.
+        /// </summary>
+        /// <remarks>
+        /// Distinct from <see cref="EveryStateIsReachableFromOff"/>, which walks the
+        /// declared transition table. This one drives the actual simulation, and it
+        /// is the test that would have caught Synchronizing and Paralleled being
+        /// declared, drawn in the README and never entered: a client browsing the
+        /// state machine saw two states it could never observe.
+        /// </remarks>
+        [Test]
+        public void EveryStateIsEnteredByTheRunningSimulation()
+        {
+            var seen = new HashSet<GeneratorRunState>();
+
+            // Profile 0 energises a dead bus; a later profile synchronises onto a
+            // live one, so both paths have to run to cover the model.
+            foreach (int profile in new[] { 0, 1 })
+            {
+                GeneratorSimulation simulation = SimulationHarness.Create(profile);
+                simulation.StateChanged = (from, to) => seen.Add(to);
+                seen.Add(simulation.State);
+
+                for (int tick = 0; tick < 4000; tick++)
+                {
+                    simulation.Advance(tick);
+                }
+            }
+
+            // A protection trip and the emergency stop are commanded, not part of
+            // the free-running cycle.
+            GeneratorSimulation tripped = SimulationHarness.Create();
+            SimulationHarness.AdvanceUntil(tripped, GeneratorRunState.Loaded);
+            tripped.StateChanged = (from, to) => seen.Add(to);
+            tripped.Trip();
+
+            GeneratorSimulation stopped = SimulationHarness.Create();
+            SimulationHarness.AdvanceUntil(stopped, GeneratorRunState.Loaded);
+            stopped.StateChanged = (from, to) => seen.Add(to);
+            stopped.RequestState(GeneratorRunState.EmergencyStopped);
+
+            var missing = new List<GeneratorRunState>();
+            foreach (GeneratorRunState state in Enum.GetValues(typeof(GeneratorRunState))
+                .Cast<GeneratorRunState>())
+            {
+                if (!seen.Contains(state))
+                {
+                    missing.Add(state);
+                }
+            }
+
+            Assert.That(missing, Is.Empty, "States the model declares but nothing enters.");
+        }
+
+        /// <summary>
+        /// A start commanded through a method is counted, not just an automatic one.
+        /// </summary>
+        /// <remarks>
+        /// The counter used to be incremented only in the automatic cycle, so the
+        /// more a client used Start or StartTest the further NumberOfStarts drifted
+        /// from the truth - the opposite of what a start counter is for.
+        /// </remarks>
+        [Test]
+        public void ACommandedStartIsCounted()
+        {
+            GeneratorSimulation simulation = SimulationHarness.Create();
+
+            Assert.That(GeneratorCommands.Start(simulation), Is.True);
+            simulation.Advance(0);
+
+            Assert.That(
+                SimulationHarness.LastStartCount(simulation),
+                Is.EqualTo(1u),
+                "A commanded start was not counted.");
+        }
+
+        /// <summary>
+        /// The automatic cycle counts its starts exactly once each.
+        /// </summary>
+        [Test]
+        public void AnAutomaticStartIsCountedOnce()
+        {
+            GeneratorSimulation simulation = SimulationHarness.Create();
+            Assert.That(
+                SimulationHarness.AdvanceUntil(simulation, GeneratorRunState.Loaded),
+                Is.True);
+
+            Assert.That(SimulationHarness.LastStartCount(simulation), Is.EqualTo(1u));
+        }
+
+        /// <summary>
         /// A set starts shut down rather than in whatever the enum's default is.
         /// </summary>
         [Test]

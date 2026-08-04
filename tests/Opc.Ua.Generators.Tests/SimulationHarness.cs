@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Generators;
 using Opc.Ua.Server.Fluent;
 
@@ -92,6 +93,9 @@ namespace Opc.Ua.Generators.Tests
         /// </summary>
         public static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(500);
 
+        private static readonly ConditionalWeakTable<GeneratorSimulation, RecordingUpdater<uint>>
+            s_startCounters = new();
+
         /// <summary>
         /// Creates a simulation for one set.
         /// </summary>
@@ -99,18 +103,38 @@ namespace Opc.Ua.Generators.Tests
         /// <returns>A simulation publishing into recording updaters.</returns>
         public static GeneratorSimulation Create(int profile = 0)
         {
-            return new GeneratorSimulation(
+            var starts = new RecordingUpdater<uint>();
+            var simulation = new GeneratorSimulation(
                 profile,
                 Interval,
                 new EngineUpdaters(
                     Double(), Double(), Double(), Double(), Double(), Double(), Double(),
-                    new RecordingUpdater<uint>()),
+                    starts),
                 new AlternatorUpdaters(
                     Double(), Double(), Double(), Double(), Double(), Double(), Double(), Double(),
                     [Phase(), Phase(), Phase()]),
                 new PlantUpdaters(
                     Double(), Double(), Double(), Double(), Double(),
                     new RecordingUpdater<bool>(), new RecordingUpdater<bool>()));
+
+            s_startCounters.Add(simulation, starts);
+            return simulation;
+        }
+
+        /// <summary>
+        /// Returns the start count a simulation last published.
+        /// </summary>
+        /// <param name="simulation">A simulation created by this harness.</param>
+        /// <returns>The last published value of <c>Engine/NumberOfStarts</c>.</returns>
+        /// <remarks>
+        /// Read from the updater the set actually publishes through rather than from
+        /// a field, so the test sees what a client would see.
+        /// </remarks>
+        public static uint LastStartCount(GeneratorSimulation simulation)
+        {
+            return s_startCounters.TryGetValue(simulation, out RecordingUpdater<uint>? starts)
+                ? starts.Last
+                : 0u;
         }
 
         /// <summary>

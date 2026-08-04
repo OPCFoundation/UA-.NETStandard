@@ -118,9 +118,23 @@ def main():
 
     uris = root.find(qname("NamespaceUris"))
     if uris is not None:
-        for uri in list(uris):
-            if (uri.text or "").strip() == IA_URI:
-                uris.remove(uri)
+        entries = list(uris)
+        for index, uri in enumerate(entries):
+            if (uri.text or "").strip() != IA_URI:
+                continue
+            # NodeIds are encoded as ns=<1-based index into NamespaceUris>, so
+            # removing anything but the last entry silently renumbers every
+            # namespace after it and rebinds every NodeId that referenced them.
+            # Fail loudly rather than emit a quietly corrupted model.
+            if index != len(entries) - 1:
+                print(
+                    f"ERROR: {IA_URI} is entry {index + 1} of {len(entries)} in "
+                    "NamespaceUris, not the last. Removing it would renumber the "
+                    "namespaces that follow and rebind their NodeIds. Drop the "
+                    "namespace by rewriting the affected NodeIds instead."
+                )
+                return 1
+            uris.remove(uri)
 
     models = root.find(qname("Models"))
     if models is not None:

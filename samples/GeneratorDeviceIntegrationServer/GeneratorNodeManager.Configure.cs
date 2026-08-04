@@ -45,8 +45,43 @@ namespace Generators
     {
         private readonly ConcurrentDictionary<NodeId, GeneratorSimulation> m_simulations = new();
         private readonly Lock m_registrationLock = new();
+
+        /// <summary>
+        /// Serialises the simulation tick against client method calls.
+        /// </summary>
+        /// <remarks>
+        /// The tick runs on a thread-pool thread and method calls arrive on request
+        /// threads, and both drive state transitions and write the same address-space
+        /// nodes. One gate for the whole plant rather than one per set: a tick is
+        /// microseconds of arithmetic, so the contention is irrelevant, and a single
+        /// gate cannot be taken in the wrong order.
+        /// </remarks>
+        private readonly Lock m_simulationGate = new();
         private long m_ticks;
         private int m_nextProfile;
+        private GeneratorSimulation? m_faultSubject;
+
+        /// <summary>
+        /// Seconds between the start of one fault cycle and the next.
+        /// </summary>
+        private const double FaultCycleSeconds = 150.0;
+
+        /// <summary>
+        /// Seconds a fault is left in place, long enough to trip and annunciate.
+        /// </summary>
+        private const double FaultDwellSeconds = 20.0;
+
+        /// <summary>
+        /// The faults the schedule rotates through, one per cycle, so a long run
+        /// exercises every protection rather than the same one repeatedly.
+        /// </summary>
+        private static readonly GeneratorFault[] s_faultRotation =
+        [
+            GeneratorFault.CoolingFailure,
+            GeneratorFault.OilPressureLoss,
+            GeneratorFault.Overload,
+            GeneratorFault.GovernorFailure,
+        ];
 
         /// <summary>
         /// Wires the simulation for every materialised set and starts the tick.
@@ -192,27 +227,87 @@ namespace Generators
                     batteryVoltage, breakerClosed, availableToLoad));
 
             m_simulations[set.NodeId] = simulation;
+
+            // The last set registered is the one the fault schedule drives, so the
+            // rest of the plant stays a clean reference.
+            m_faultSubject = simulation;
+
             AttachSimulationToTwin(set, simulation);
             AttachProtectionAlarms(set, simulation);
             AttachStateMachine(set, simulation);
         }
 
         /// <summary>
+        /// Lets the last set develop a fault on a slow rotation, so the protection
+        /// path is exercised in a running plant.
+        /// </summary>
+        /// <param name="tick">Monotonic tick counter.</param>
+        /// <remarks>
+        /// <para>
+        /// A set running to its datasheet cannot protect-trip: the healthy curves
+        /// are bounded well inside every trip point, which is what a datasheet
+        /// means. Without a deliberate excursion the four alarms, the shutdown
+        /// class, <c>ResetFaults</c> and the whole Fault branch of the state machine
+        /// would be code that never runs - and a sample that documents alarms which
+        /// never fire is worse than one that has none.
+        /// </para>
+        /// <para>
+        /// Confined to the highest-numbered set so the rest of the plant stays a
+        /// clean reference, and disabled entirely with <c>--no-faults</c>.
+        /// </para>
+        /// </remarks>
+        private void DriveFaultSchedule(long tick)
+        {
+            if (!InjectFaults || m_simulations.IsEmpty)
+            {
+                return;
+            }
+
+            double seconds = tick * SimulationInterval.TotalSeconds;
+            int slot = (int)(seconds / FaultCycleSeconds);
+            double intoSlot = seconds - (slot * FaultCycleSeconds);
+
+            // Healthy for most of each cycle, then one fault long enough to trip,
+            // annunciate and shut the set down before the next cycle clears it.
+            GeneratorFault fault = intoSlot < FaultCycleSeconds - FaultDwellSeconds
+                ? GeneratorFault.None
+                : s_faultRotation[slot % s_faultRotation.Length];
+
+            GeneratorSimulation? subject = m_faultSubject;
+            if (subject != null && subject.Fault != fault)
+            {
+                subject.InjectFault(fault);
+            }
+        }
+
+        /// <summary>
         /// Advances every set by one tick.
         /// </summary>
+        /// <remarks>
+        /// Runs on a thread-pool thread while client requests are served on their
+        /// own threads, so it is serialised against the method handlers by
+        /// <see cref="m_simulationGate"/>. Without that, a tick and a concurrent
+        /// EmergencyStop can both transition the same set and race on the paired
+        /// CurrentState / CurrentState.Id write, leaving a client with a state name
+        /// that does not match the state node beside it.
+        /// </remarks>
         private void AdvanceSimulation()
         {
             long tick = Interlocked.Increment(ref m_ticks);
             double seconds = SimulationInterval.TotalSeconds;
-            foreach (GeneratorSimulation simulation in m_simulations.Values)
+            lock (m_simulationGate)
             {
-                simulation.Advance(tick);
+                foreach (GeneratorSimulation simulation in m_simulations.Values)
+                {
+                    simulation.Advance(tick);
+                }
+                DriveFaultSchedule(tick);
+                foreach (GeneratorTwin twin in m_twins.Values)
+                {
+                    twin.AdvanceFan(seconds);
+                }
+                EvaluateProtections();
             }
-            foreach (GeneratorTwin twin in m_twins.Values)
-            {
-                twin.AdvanceFan(seconds);
-            }
-            EvaluateProtections();
             PublishOpenUsdSignals();
         }
 

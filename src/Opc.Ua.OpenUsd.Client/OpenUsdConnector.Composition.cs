@@ -168,9 +168,25 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     ISession remote = await m_remoteSessionFactory(c.ComponentEndpointUrl!, ct)
                         .ConfigureAwait(false);
-                    var remoteConn = new OpenUsdConnector(
-                        remote, m_sink, m_options, m_telemetry, ownsSession: true);
-                    m_remoteConnectors.Add(remoteConn);
+
+                    // The session is owned by nobody until the connector that will
+                    // close it is in m_remoteConnectors. If the constructor throws in
+                    // between, the outer catch would log and move on while the
+                    // channel and the server-side session stay alive until the
+                    // server's session timeout expires.
+                    OpenUsdConnector remoteConn;
+                    try
+                    {
+                        remoteConn = new OpenUsdConnector(
+                            remote, m_sink, m_options, m_telemetry, ownsSession: true);
+                        m_remoteConnectors.Add(remoteConn);
+                    }
+                    catch
+                    {
+                        await remote.CloseAsync(ct).ConfigureAwait(false);
+                        throw;
+                    }
+
                     await remoteConn.StartAsync(ct).ConfigureAwait(false);
                     m_logger.CrossServerFederated(c.ComponentEndpointUrl!);
                 }

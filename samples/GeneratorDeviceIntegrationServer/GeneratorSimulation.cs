@@ -183,6 +183,36 @@ namespace Generators
         IValueUpdater<bool> AvailableToLoad);
 
     /// <summary>
+    /// A fault a generating set can develop, past the point where a protection
+    /// supervising it must annunciate.
+    /// </summary>
+    /// <remarks>
+    /// The healthy physics in <see cref="GeneratorDatasheet"/> are functions of load
+    /// fraction alone, and by construction they stay inside the trip points - a set
+    /// running to its datasheet cannot protect-trip, which is the whole point of the
+    /// datasheet. A fault is therefore modelled as a deviation applied to the
+    /// measured value <em>after</em> the healthy value is derived, which is what a
+    /// real fault is: the machine no longer follows its curve.
+    /// </remarks>
+    internal enum GeneratorFault
+    {
+        /// <summary>Running to the datasheet.</summary>
+        None,
+
+        /// <summary>Radiator or fan failure: jacket water climbs past its limit.</summary>
+        CoolingFailure,
+
+        /// <summary>Pump or leak: oil pressure collapses while the engine turns.</summary>
+        OilPressureLoss,
+
+        /// <summary>The set is asked for more than its rating.</summary>
+        Overload,
+
+        /// <summary>Governor failure: the engine runs away.</summary>
+        GovernorFailure,
+    }
+
+    /// <summary>
     /// One generating set's simulated behaviour.
     /// </summary>
     /// <remarks>
@@ -220,6 +250,7 @@ namespace Generators
         private double m_fuelLevelPercent = GeneratorDatasheet.Simulation.InitialFuelPercent;
         private double m_coolantCelsius = GeneratorDatasheet.Simulation.AmbientCelsius;
         private uint m_starts;
+        private GeneratorFault m_fault;
 
         /// <summary>
         /// Initialises the simulation for one set.
@@ -245,6 +276,26 @@ namespace Generators
             // Stagger the sets so a plant shows several states at once rather than
             // every machine marching in lockstep.
             m_stateSeconds = -profile * 6.0;
+        }
+
+        /// <summary>
+        /// Gets the fault the set is currently running with.
+        /// </summary>
+        public GeneratorFault Fault => m_fault;
+
+        /// <summary>
+        /// Gives the set a fault, or clears one.
+        /// </summary>
+        /// <param name="fault">The fault to develop, or
+        /// <see cref="GeneratorFault.None"/> to run to the datasheet again.</param>
+        /// <remarks>
+        /// Kept separate from the healthy curves so the datasheet identities still
+        /// hold for a healthy set: a fault deviates the measured value from the
+        /// curve rather than changing the curve.
+        /// </remarks>
+        public void InjectFault(GeneratorFault fault)
+        {
+            m_fault = fault;
         }
 
         /// <summary>
@@ -428,7 +479,6 @@ namespace Generators
                     Enter(GeneratorRunState.Ready);
                     break;
                 case GeneratorRunState.Ready when m_stateSeconds > 3.0:
-                    m_starts++;
                     Enter(GeneratorRunState.Starting);
                     break;
                 case GeneratorRunState.Starting when m_stateSeconds > CrankSeconds:
@@ -437,7 +487,20 @@ namespace Generators
                 case GeneratorRunState.Warmup when m_stateSeconds > WarmupSeconds:
                     Enter(GeneratorRunState.Running);
                     break;
+                // The first set energises a dead bus and simply closes onto it;
+                // every other set has to match voltage, frequency and phase to a bus
+                // that is already live before its breaker can close. Without this the
+                // Synchronizing and Paralleled states, and the five transitions
+                // through them, would be declared by the model and never observed.
                 case GeneratorRunState.Running when m_stateSeconds > 6.0:
+                    Enter(m_profile == 0
+                        ? GeneratorRunState.Loaded
+                        : GeneratorRunState.Synchronizing);
+                    break;
+                case GeneratorRunState.Synchronizing when m_stateSeconds > 8.0:
+                    Enter(GeneratorRunState.Paralleled);
+                    break;
+                case GeneratorRunState.Paralleled when m_stateSeconds > 25.0:
                     Enter(GeneratorRunState.Loaded);
                     break;
                 case GeneratorRunState.Loaded when m_stateSeconds > 180.0:
@@ -471,6 +534,13 @@ namespace Generators
             m_stateSeconds = 0.0;
             if (previous != state)
             {
+                // Counted here rather than in the automatic cycle, so a start
+                // commanded through the Start or StartTest method is counted too. A
+                // start counter that only sees half the starts is worse than none.
+                if (state == GeneratorRunState.Starting)
+                {
+                    m_starts++;
+                }
                 StateChanged?.Invoke(previous, state);
             }
         }
@@ -489,7 +559,15 @@ namespace Generators
             double phase = (tick * m_tickSeconds / 45.0) + (m_profile * 0.9);
             double swing = Math.Sin(phase) * GeneratorDatasheet.Simulation.LoadSwingFraction;
             double load = GeneratorDatasheet.Simulation.NominalLoadFraction + swing;
-            return Numeric.Clamp(load, 0.05, 1.10);
+            if (m_fault == GeneratorFault.Overload)
+            {
+                load = GeneratorDatasheet.TripPoints.OverloadFraction + 0.06;
+            }
+
+            // The ceiling is above the overload trip point rather than equal to it:
+            // clamping to exactly the trip point makes a strictly-greater-than
+            // comparison unsatisfiable, so the protection could never annunciate.
+            return Numeric.Clamp(load, 0.05, GeneratorDatasheet.TripPoints.OverloadFraction + 0.10);
         }
 
         /// <summary>
@@ -547,6 +625,28 @@ namespace Generators
             OilPressureBar = spinning
                 ? GeneratorDatasheet.Engine.RatedOilPressureBar * (0.85 + (0.15 * load))
                 : 0.0;
+
+            // A fault deviates the measurement from the healthy curve, which is what
+            // takes it past a trip point. Applied here rather than inside the curves
+            // so the datasheet identities keep holding for a healthy set.
+            switch (m_fault)
+            {
+                case GeneratorFault.CoolingFailure when spinning:
+                    m_coolantCelsius +=
+                        (GeneratorDatasheet.TripPoints.HighCoolantCelsius + 8.0 - m_coolantCelsius)
+                            * 0.25;
+                    break;
+                case GeneratorFault.OilPressureLoss when spinning:
+                    OilPressureBar = GeneratorDatasheet.TripPoints.LowOilPressureBar * 0.5;
+                    break;
+                case GeneratorFault.GovernorFailure when spinning:
+                    SpeedRpm = GeneratorDatasheet.TripPoints.OverspeedRpm * 1.04;
+                    speed = SpeedRpm;
+                    frequency = speed * GeneratorDatasheet.Electrical.Poles / 120.0;
+                    break;
+                default:
+                    break;
+            }
 
             double fuelLitresPerHour = spinning
                 ? GeneratorDatasheet.Curves.FuelLitresPerHour(load)

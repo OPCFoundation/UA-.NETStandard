@@ -176,42 +176,87 @@ namespace Generators
                 {
                     continue;
                 }
+
+                bool shutdown = false;
                 foreach (ProtectionAlarm alarm in entry.Value)
                 {
                     bool active = alarm.IsTripped();
+
+                    // A shutdown-class protection latches. Stopping the engine is
+                    // what removes the condition that tripped it - oil pressure and
+                    // coolant temperature are only supervised while the set turns -
+                    // so following the condition would clear the alarm on the very
+                    // next tick and leave an operator with a stopped machine and no
+                    // indication of why. It stays annunciated until ResetFaults,
+                    // which is what a real control panel does. A warning-class
+                    // protection does not stop anything, so it follows its condition.
+                    if (alarm.IsLatched)
+                    {
+                        continue;
+                    }
+
                     if (active == alarm.WasActive)
                     {
                         continue;
                     }
                     alarm.WasActive = active;
+                    Annunciate(alarm, active);
+                    shutdown |= active && alarm.IsShutdown;
+                }
 
-                    alarm.State.SetActiveState(SystemContext, active);
-                    alarm.State.CreateOrReplaceRetain(SystemContext, null!).Value = active;
-                    alarm.State.CreateOrReplaceTime(SystemContext, null!).Value = DateTime.UtcNow;
-                    alarm.State.CreateOrReplaceReceiveTime(SystemContext, null!).Value = DateTime.UtcNow;
-                    alarm.State.CreateOrReplaceMessage(SystemContext, null!).Value = new LocalizedText(
-                        active ? "Protection tripped." : "Protection cleared.");
-                    alarm.State.ClearChangeMasks(SystemContext, true);
-
-                    var snapshot = new InstanceStateSnapshot();
-                    snapshot.Initialize(SystemContext, alarm.State);
-                    alarm.State.ReportEvent(SystemContext, snapshot);
-
-                    // A shutdown-class protection stops the machine; a warning does
-                    // not. Reporting a trip without stopping the set would publish a
-                    // generator that is on fire and still loaded.
-                    if (active && alarm.IsShutdown)
-                    {
-                        simulation.Trip();
-                    }
+                // A shutdown-class protection stops the machine; a warning does not.
+                // Reporting a trip without stopping the set would publish a generator
+                // that is on fire and still loaded.
+                //
+                // Tripping is deferred until every protection has been evaluated:
+                // stopping the set mid-loop makes its remaining conditions read
+                // healthy, so a set that lost oil pressure and overspeed at the same
+                // moment would annunciate only whichever came first in the table -
+                // exactly the case one-alarm-per-function exists to show.
+                if (shutdown)
+                {
+                    simulation.Trip();
                 }
             }
+        }
+
+        /// <summary>
+        /// Publishes one alarm's new active state and reports it as an event.
+        /// </summary>
+        /// <param name="alarm">The alarm whose state changed.</param>
+        /// <param name="active">Whether the protection is now tripped.</param>
+        /// <remarks>
+        /// A client learns of condition state changes only through events, so the
+        /// node update and the event have to travel together. Updating the node
+        /// alone leaves an alarm-list client showing a stale condition until it
+        /// happens to issue a ConditionRefresh.
+        /// </remarks>
+        private void Annunciate(ProtectionAlarm alarm, bool active)
+        {
+            DateTime now = DateTime.UtcNow;
+            alarm.State.SetActiveState(SystemContext, active);
+            alarm.State.CreateOrReplaceRetain(SystemContext, null!).Value = active;
+            alarm.State.CreateOrReplaceTime(SystemContext, null!).Value = now;
+            alarm.State.CreateOrReplaceReceiveTime(SystemContext, null!).Value = now;
+            alarm.State.CreateOrReplaceMessage(SystemContext, null!).Value = new LocalizedText(
+                active ? "Protection tripped." : "Protection cleared.");
+            alarm.State.ClearChangeMasks(SystemContext, true);
+
+            var snapshot = new InstanceStateSnapshot();
+            snapshot.Initialize(SystemContext, alarm.State);
+            alarm.State.ReportEvent(SystemContext, snapshot);
         }
 
         /// <summary>
         /// Clears the latched protections of one set.
         /// </summary>
         /// <param name="set">The generator set.</param>
+        /// <remarks>
+        /// Each clear is reported as an event, for the same reason a trip is: a
+        /// client that saw the alarm go active learns it is over only from the
+        /// event, so clearing the node silently would leave the alarm displayed as
+        /// active and retained indefinitely.
+        /// </remarks>
         private void ClearLatchedAlarms(GeneratorSetState set)
         {
             if (!m_alarms.TryGetValue(set.NodeId, out List<ProtectionAlarm>? alarms))
@@ -220,10 +265,12 @@ namespace Generators
             }
             foreach (ProtectionAlarm alarm in alarms)
             {
+                if (!alarm.WasActive)
+                {
+                    continue;
+                }
                 alarm.WasActive = false;
-                alarm.State.SetActiveState(SystemContext, false);
-                alarm.State.CreateOrReplaceRetain(SystemContext, null!).Value = false;
-                alarm.State.ClearChangeMasks(SystemContext, true);
+                Annunciate(alarm, false);
             }
         }
     }
@@ -335,6 +382,18 @@ namespace Generators
         /// Gets or sets the last reported active state, so only changes raise events.
         /// </summary>
         public bool WasActive { get; set; }
+
+        /// <summary>
+        /// Gets a value indicating whether the alarm is latched on.
+        /// </summary>
+        /// <remarks>
+        /// A shutdown-class protection holds its annunciation until it is reset,
+        /// because the shutdown removes the condition that caused it: oil pressure
+        /// and coolant temperature are only supervised while the engine turns, so an
+        /// alarm that followed its condition would clear on the tick after the trip
+        /// and leave an operator with a stopped machine and no indication of why.
+        /// </remarks>
+        public bool IsLatched => IsShutdown && WasActive;
 
         /// <summary>
         /// Evaluates the trip condition.

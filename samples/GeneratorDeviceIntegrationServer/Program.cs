@@ -58,9 +58,15 @@ if (!TryReadGeneratorCount(builder.Configuration["generators"], out int generato
 // "localhost" for local-only development).
 string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0";
 
+// A set running to its datasheet cannot protect-trip, so by default the last set
+// develops faults on a slow rotation to exercise the alarm path. Pass
+// --faults false for a purely healthy plant.
+bool injectFaults = !bool.TryParse(builder.Configuration["faults"], out bool f) || f;
+
 builder.Services.Configure<GeneratorDeviceIntegrationOptions>(options =>
 {
     options.GeneratorCount = generatorCount;
+    options.InjectFaults = injectFaults;
 });
 
 builder.Services

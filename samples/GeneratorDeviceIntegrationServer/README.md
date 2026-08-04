@@ -17,6 +17,7 @@ dotnet run --project samples/GeneratorDeviceIntegrationServer -- \
 | Argument | Default | Meaning |
 |---|---|---|
 | `--generators N` | 2 | How many sets to simulate (1…100) |
+| `--faults` | `true` | Let the last set develop faults on a slow rotation |
 | `--port` | 62543 | Endpoint port |
 | `--host` | `0.0.0.0` | Bind host |
 
@@ -97,14 +98,21 @@ sample attaches behaviour to it in lifecycle mode rather than defining states:
 
 ```
 Off ──▶ Ready ──▶ Starting ──▶ Warmup ──▶ Running ──┬──▶ Loaded ──▶ Cooldown ──▶ Stopping ──▶ Off
-                     │                              └──▶ Synchronizing ──▶ Paralleled
-                     ▼                                          (Running / Loaded)
+                     │                              └──▶ Synchronizing ──▶ Paralleled ──▶ Loaded
+                     ▼
                    Fault ──▶ Off                 any running state ──▶ Fault / EmergencyStopped ──▶ Off
 ```
 
-Twelve states, twenty-two declared transitions. `CurrentState` carries the readable
-name **and** its `Id` property, because a client that gets a name it cannot resolve
-to a state node is no better off than one that got nothing.
+Twelve states, twenty-two declared transitions. The first set energises a dead bus
+and closes straight onto it; every other set has to match voltage, frequency and
+phase to a bus that is already live, which is what puts `Synchronizing` and
+`Paralleled` on the path. Without that they would be states the model declares,
+the diagram draws and a client can never observe — so a test drives the simulation
+and asserts every declared state is actually entered.
+
+`CurrentState` carries the readable name **and** its `Id` property, because a
+client that gets a name it cannot resolve to a state node is no better off than one
+that got nothing.
 
 The states and transition numbers live in [`GeneratorStateMap.cs`](GeneratorStateMap.cs),
 apart from the node manager, because they are a statement about the model rather
@@ -129,6 +137,16 @@ both, which is also how a real control panel annunciates.
 pointing at the variable it actually supervises — otherwise a client can see that
 something tripped but not what was being watched.
 
+**A healthy set cannot trip.** The datasheet curves are bounded well inside every
+trip point — that is what a datasheet means — so a plant running to spec would
+leave all four alarms, the shutdown class, `ResetFaults` and the whole `Fault`
+branch of the state machine as code that never runs. The last set therefore
+develops a fault on a slow rotation (`CoolingFailure` → `OilPressureLoss` →
+`Overload` → `GovernorFailure`), trips, annunciates, shuts down and recovers. A
+fault deviates the *measurement* from the curve, which is what a real fault does,
+so the datasheet identities keep holding for every healthy set. Pass
+`--faults false` for a purely healthy plant.
+
 > **The trap that cost the most here.** `ProtectionFunction` is *mandatory* on the
 > type, so the generated factory materialises it. `IsShutdown` and `SubsystemName`
 > are *optional* and it does not. Calling `CreateOrReplaceIsShutdown(...).Value = x`
@@ -139,6 +157,26 @@ something tripped but not what was being watched.
 > This was found by reading the running server with a client, not by reading the
 > code, because the code looks correct. `GeneratorProtectionAlarmNodeTests` now
 > asserts that every published member carries a reference a client can follow.
+
+A shutdown trip is applied **after** every protection has been evaluated, not
+inside the loop. Stopping the set mid-loop makes its remaining conditions read
+healthy, so a set that lost oil pressure and overspeed in the same moment would
+annunciate only whichever came first in the table — exactly the case that
+one-alarm-per-function exists to show.
+
+**A shutdown-class alarm latches; a warning-class one follows its condition.** The
+trip is what removes the condition — oil pressure and coolant temperature are only
+supervised while the engine turns — so an alarm that simply tracked its input would
+go active for a single tick and clear, leaving an operator with a stopped machine
+and no indication of why. It stays annunciated until the set leaves the shutdown
+state, whether through `ResetFaults` or the automatic recovery. This was found by
+watching a running server, not by a test: every unit test that checked the
+*condition* passed.
+
+Both raising and clearing report an event. A client learns of condition state
+changes only through events, so clearing the node silently — which `ResetFaults`
+used to do — leaves an alarm-list client showing the condition as active and
+retained until it happens to issue a `ConditionRefresh`.
 
 Low oil pressure is **bypassed while cranking**. Oil pressure has not built during
 a start, so supervising it there trips every set the moment it tries to run; a real

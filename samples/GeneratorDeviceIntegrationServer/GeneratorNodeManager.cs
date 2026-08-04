@@ -62,6 +62,17 @@ namespace Generators
         /// Gets or sets the interval used by the live simulation loop.
         /// </summary>
         public TimeSpan SimulationInterval { get; set; } = TimeSpan.FromMilliseconds(250);
+
+        /// <summary>
+        /// Gets or sets whether the last set develops faults on a slow rotation.
+        /// </summary>
+        /// <remarks>
+        /// On by default. A set running to its datasheet stays well inside every
+        /// trip point, so without a deliberate excursion the protection alarms, the
+        /// shutdown class and the Fault branch of the state machine are all code
+        /// that never runs. Turn it off to watch a plant that is purely healthy.
+        /// </remarks>
+        public bool InjectFaults { get; set; } = true;
     }
 
     /// <summary>
@@ -174,6 +185,11 @@ namespace Generators
         /// Gets the interval the simulation loop ticks at.
         /// </summary>
         internal TimeSpan SimulationInterval => m_options.SimulationInterval;
+
+        /// <summary>
+        /// Gets whether the fault schedule is running.
+        /// </summary>
+        internal bool InjectFaults => m_options.InjectFaults;
 
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)

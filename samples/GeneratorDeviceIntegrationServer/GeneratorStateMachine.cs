@@ -70,6 +70,18 @@ namespace Generators
                     machine.DoTransition(SystemContext, transition, 0, default, []);
                 }
                 PublishState(machine, to);
+
+                // Shutdown alarms latch, so something has to release them. Leaving a
+                // shutdown state is that moment, whether the operator got there with
+                // ResetFaults or the set recovered on its own - otherwise an
+                // unattended plant accumulates alarms that are annunciated forever on
+                // machines that are running again.
+                if (to == GeneratorRunState.Off &&
+                    from is GeneratorRunState.Fault or GeneratorRunState.EmergencyStopped)
+                {
+                    ClearLatchedAlarms(set);
+                }
+
                 m_logger.GeneratorStateChanged(set.NodeId, to);
             };
 
@@ -169,7 +181,13 @@ namespace Generators
         /// </summary>
         /// <param name="method">The method to bind, when present.</param>
         /// <param name="handler">Returns whether the request was accepted.</param>
-        private static void Bind(
+        /// <remarks>
+        /// Every handler runs under <see cref="m_simulationGate"/>, so a command and
+        /// the simulation tick cannot transition the same set at once. Taking the
+        /// gate here rather than in each handler means a handler added later cannot
+        /// forget it.
+        /// </remarks>
+        private void Bind(
             MethodState? method,
             Func<ArrayOf<Variant>, List<Variant>, bool> handler)
         {
@@ -178,9 +196,14 @@ namespace Generators
                 return;
             }
             method.OnCallMethod2 = (ctx, m, objectId, inputs, outputs) =>
-                handler(inputs, outputs)
-                    ? ServiceResult.Good
-                    : StatusCodes.BadInvalidState;
+            {
+                bool accepted;
+                lock (m_simulationGate)
+                {
+                    accepted = handler(inputs, outputs);
+                }
+                return accepted ? ServiceResult.Good : StatusCodes.BadInvalidState;
+            };
         }
     }
 }

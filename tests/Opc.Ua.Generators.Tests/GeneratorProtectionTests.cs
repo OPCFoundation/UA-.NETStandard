@@ -312,6 +312,171 @@ namespace Opc.Ua.Generators.Tests
             Assert.That(simulation.Trip(), Is.False);
         }
 
+        /// <summary>
+        /// Every protection can actually fire.
+        /// </summary>
+        /// <remarks>
+        /// The test that would have caught the sample's worst defect. All four
+        /// protections were unreachable: the healthy curves are bounded well inside
+        /// every trip point (that is what a datasheet means), and overload was
+        /// clamped to exactly its own trip point, so a strictly-greater-than
+        /// comparison could never be true. `EvaluateProtections`, the shutdown
+        /// class, `ResetFaults` and the whole Fault branch of the state machine were
+        /// code that never ran, while the README documented them as observable.
+        /// Asserting that a healthy set stays quiet is only half the contract.
+        /// </remarks>
+        [Test]
+        public void EveryProtectionCanFire()
+        {
+            (GeneratorFault Fault, string Alarm)[] cases =
+            [
+                (GeneratorFault.OilPressureLoss, "LowOilPressureAlarm"),
+                (GeneratorFault.CoolingFailure, "HighCoolantTemperatureAlarm"),
+                (GeneratorFault.GovernorFailure, "OverspeedAlarm"),
+                (GeneratorFault.Overload, "OverloadAlarm"),
+            ];
+
+            foreach ((GeneratorFault fault, string name) in cases)
+            {
+                GeneratorSimulation simulation = SimulationHarness.Create();
+                Assert.That(
+                    SimulationHarness.AdvanceUntil(simulation, GeneratorRunState.Loaded),
+                    Is.True);
+
+                ProtectionDefinition definition = Definitions().Single(d => d.Name == name);
+                simulation.InjectFault(fault);
+
+                bool tripped = false;
+                for (int tick = 0; tick < 400 && !tripped; tick++)
+                {
+                    simulation.Advance(tick);
+                    tripped = definition.IsTripped(simulation);
+                }
+
+                Assert.That(tripped, Is.True, $"{name} never tripped on {fault}.");
+            }
+        }
+
+        /// <summary>
+        /// A shutdown-class fault stops the set; a warning-class one does not.
+        /// </summary>
+        /// <remarks>
+        /// Overload is the only warning here. A set that keeps running while
+        /// overloaded is correct - the operator is told, and the machine carries on
+        /// - whereas one that keeps running with no oil pressure is not.
+        /// </remarks>
+        [Test]
+        public void OnlyShutdownClassFaultsStopTheSet()
+        {
+            GeneratorSimulation warned = RunWithFault(GeneratorFault.Overload);
+            Assert.That(
+                warned.ProtectionTripped,
+                Is.False,
+                "A warning-class protection must not stop the set.");
+            Assert.That(
+                Definitions().Single(d => d.Name == "OverloadAlarm").IsTripped(warned),
+                Is.True);
+        }
+
+        /// <summary>
+        /// Clearing the fault lets the protection clear again.
+        /// </summary>
+        /// <remarks>
+        /// A protection that latches and can never clear is indistinguishable from a
+        /// stuck sensor, and it would leave the alarm retained forever.
+        /// </remarks>
+        [Test]
+        public void AProtectionClearsWhenTheFaultGoesAway()
+        {
+            GeneratorSimulation simulation = RunWithFault(GeneratorFault.Overload);
+            ProtectionDefinition overload = Definitions().Single(d => d.Name == "OverloadAlarm");
+            Assert.That(overload.IsTripped(simulation), Is.True);
+
+            simulation.InjectFault(GeneratorFault.None);
+            for (int tick = 0; tick < 200 && overload.IsTripped(simulation); tick++)
+            {
+                simulation.Advance(tick);
+            }
+
+            Assert.That(overload.IsTripped(simulation), Is.False);
+        }
+
+        /// <summary>
+        /// A shutdown trip removes the very condition that caused it.
+        /// </summary>
+        /// <remarks>
+        /// This is why a shutdown-class alarm has to latch. Oil pressure and coolant
+        /// temperature are only supervised while the engine turns, so the moment the
+        /// trip stops the set the condition reads healthy again. An alarm that simply
+        /// followed its condition would go active for one tick and clear, leaving an
+        /// operator with a stopped machine and no indication of why it stopped -
+        /// which was the observed behaviour before the latch was added, and was
+        /// invisible to every test that only checked the condition.
+        /// </remarks>
+        [Test]
+        public void AShutdownTripRemovesTheConditionThatCausedIt()
+        {
+            GeneratorSimulation simulation = SimulationHarness.Create();
+            SimulationHarness.AdvanceUntil(simulation, GeneratorRunState.Loaded);
+            ProtectionDefinition coolant = Definitions()
+                .Single(d => d.Name == "HighCoolantTemperatureAlarm");
+
+            simulation.InjectFault(GeneratorFault.CoolingFailure);
+            for (int tick = 0; tick < 400 && !coolant.IsTripped(simulation); tick++)
+            {
+                simulation.Advance(tick);
+            }
+            Assert.That(coolant.IsTripped(simulation), Is.True, "Never tripped.");
+
+            simulation.Trip();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(simulation.State, Is.EqualTo(GeneratorRunState.Fault));
+                Assert.That(
+                    coolant.IsTripped(simulation),
+                    Is.False,
+                    "The condition should read healthy once the set has stopped.");
+            });
+        }
+
+        /// <summary>
+        /// A shutdown alarm latches once active; a warning alarm does not.
+        /// </summary>
+        [Test]
+        public void OnlyShutdownAlarmsLatch()
+        {
+            var shutdown = new ProtectionAlarm(null!, () => false, isShutdown: true);
+            var warning = new ProtectionAlarm(null!, () => false, isShutdown: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(shutdown.IsLatched, Is.False, "Not latched before it goes active.");
+                Assert.That(warning.IsLatched, Is.False);
+            });
+
+            shutdown.WasActive = true;
+            warning.WasActive = true;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(shutdown.IsLatched, Is.True, "A shutdown alarm holds until reset.");
+                Assert.That(warning.IsLatched, Is.False, "A warning alarm follows its condition.");
+            });
+        }
+
+        private static GeneratorSimulation RunWithFault(GeneratorFault fault)
+        {
+            GeneratorSimulation simulation = SimulationHarness.Create();
+            SimulationHarness.AdvanceUntil(simulation, GeneratorRunState.Loaded);
+            simulation.InjectFault(fault);
+            for (int tick = 0; tick < 200; tick++)
+            {
+                simulation.Advance(tick);
+            }
+            return simulation;
+        }
+
         private static List<ProtectionDefinition> Definitions()
         {
             var definitions = new List<ProtectionDefinition>();

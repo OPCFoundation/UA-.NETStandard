@@ -129,6 +129,34 @@ silent in both directions: the code looks right, and the server answers reads on
 everything it does publish, so only a client comparing against the type definition
 notices.
 
+**A simulation that cannot leave its healthy band cannot exercise its
+protections.** The datasheet curves are bounded inside every trip point by
+construction, so a faithful simulation of a healthy machine leaves the entire
+protection path — alarms, shutdown class, `ResetFaults`, the `Fault` branch of the
+state machine — as dead code, while the documentation describes it as working. The
+sample therefore injects a deviation into the *measurement* rather than the curve,
+which is what a real fault is, and rotates it so a long run exercises every
+protection. The lesson generalises: when the model says a thing cannot happen, the
+code that handles it needs a deliberate way to be reached, or it is untested.
+
+**Trip after evaluating, not during.** Stopping the set inside the evaluation loop
+makes its remaining conditions read healthy, so simultaneous trips collapse to
+whichever protection came first in the table — defeating the reason for having one
+alarm instance per function.
+
+**A shutdown protection must latch.** The trip removes the condition that caused
+it, because the supervised quantities are only meaningful while the machine runs.
+An alarm that tracks its input therefore annunciates for one tick and clears,
+which tells an operator that something stopped the set but not what. Latch until
+the set leaves the shutdown state. This one is easy to miss in review and in unit
+tests — the condition logic is correct in isolation; the defect only appears when
+the trip and the supervision interact over time.
+
+**Clearing is an event, not just a state change.** A client learns of condition
+state changes only through events. Clearing an alarm node without reporting leaves
+an alarm-list client displaying it as active and retained until a
+`ConditionRefresh`.
+
 Trip conditions read the hysteresis the simulation already applies, so alarms latch
 and clear cleanly rather than chattering on the threshold, and events are reported
 only on change. A shutdown-class trip stops the machine; a warning does not —
@@ -150,6 +178,22 @@ than an honest refusal.
 The method semantics are expressed against the simulation rather than against
 address-space nodes, which keeps each handler down to one line and lets the
 behaviour be tested without standing up a server.
+
+### Concurrency
+
+The simulation tick runs on a thread-pool thread while client requests are served
+on their own threads, and both drive state transitions and write the same
+address-space nodes. They are serialised by a single gate held across the whole
+tick and across every method handler.
+
+This matters more than it looks. Without it, a tick moving a set to `Cooldown` and
+a concurrent `EmergencyStop` both fire the state-change callback, and the paired
+`CurrentState` / `CurrentState.Id` writes interleave — leaving a client with a
+state *name* from one transition and a state *node* from the other. That is the
+precise failure the paired write exists to prevent, reintroduced by the threading
+model rather than by the write itself. One gate for the whole plant rather than one
+per set: a tick is microseconds of arithmetic, so the contention is irrelevant, and
+a single gate cannot be acquired in the wrong order.
 
 ## Cross-server composition
 
