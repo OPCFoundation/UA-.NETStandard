@@ -484,7 +484,6 @@ namespace Opc.Ua.Server
                     {
                         IsDetached: true
                     } &&
-                    !IsRetired(monitoredItem.Value) &&
                     IsOwnedBy(monitoredItem.Value, nodeManager));
             }
         }
@@ -505,7 +504,6 @@ namespace Opc.Ua.Server
                             {
                                 IsDetached: true
                             } &&
-                            !IsRetired(monitoredItem) &&
                             IsOwnedBy(monitoredItem, nodeManager))
                 ];
             }
@@ -575,16 +573,11 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         void INodeManagerMonitoredItemRetirementTracker.RetireMonitoredItems(
-            IAsyncNodeManager nodeManager,
-            ServiceResult error)
+            IAsyncNodeManager nodeManager)
         {
             if (nodeManager is null)
             {
                 throw new ArgumentNullException(nameof(nodeManager));
-            }
-            if (error is null)
-            {
-                throw new ArgumentNullException(nameof(error));
             }
 
             IRetirableMonitoredItem[] ownedItems;
@@ -613,36 +606,7 @@ namespace Opc.Ua.Server
 
             foreach (IRetirableMonitoredItem monitoredItem in ownedItems)
             {
-                monitoredItem.Retire(error);
-            }
-        }
-
-        /// <inheritdoc/>
-        void INodeManagerMonitoredItemRetirementTracker.DetachRetiredMonitoredItems(
-            IAsyncNodeManager nodeManager)
-        {
-            if (nodeManager is null)
-            {
-                throw new ArgumentNullException(nameof(nodeManager));
-            }
-
-            IRetirableMonitoredItem[] retiredItems;
-            lock (m_lock)
-            {
-                retiredItems =
-                [
-                    .. m_monitoredItems.Values
-                        .Select(monitoredItem => monitoredItem.Value)
-                        .Where(monitoredItem =>
-                            IsRetired(monitoredItem) &&
-                            IsOwnedBy(monitoredItem, nodeManager))
-                        .Cast<IRetirableMonitoredItem>()
-                ];
-            }
-
-            foreach (IRetirableMonitoredItem monitoredItem in retiredItems)
-            {
-                monitoredItem.DetachOwner();
+                monitoredItem.Retire();
             }
         }
 
@@ -657,11 +621,6 @@ namespace Opc.Ua.Server
                         out LinkedListNode<IMonitoredItem>? node) &&
                     ReferenceEquals(node.Value, monitoredItem);
             }
-        }
-
-        private static bool IsRetired(IMonitoredItem monitoredItem)
-        {
-            return monitoredItem is IRetirableMonitoredItem { IsRetired: true };
         }
 
         private static bool IsOwnedBy(

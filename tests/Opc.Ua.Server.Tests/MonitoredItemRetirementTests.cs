@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -35,10 +37,11 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Covers the immediate-retirement contract a <see cref="MonitoredItem"/>
-    /// implements for the NodeManager lifecycle: a retired item stops accepting
-    /// values and events, reports a terminal status, and only then releases its
-    /// owner references.
+    /// Covers the immediate-retirement contract a <see cref="MonitoredItem"/> implements for
+    /// the NodeManager lifecycle. Retirement reuses the detached-item path: the item is parked
+    /// on the long lived CoreNodeManager, marked deleted and reports a terminal
+    /// Bad_NodeIdUnknown, exactly like a monitored Node that was deleted. Ownership-sensitive
+    /// services then route to the parked owner, so no retirement-specific checks are needed.
     /// </summary>
     [TestFixture]
     [Category("Subscription")]
@@ -50,59 +53,51 @@ namespace Opc.Ua.Server.Tests
         public void SetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
+            m_coreNodeManager = new Mock<ICoreNodeManager>().Object;
         }
 
         [Test]
-        public void RetireRejectsANullError()
+        public void RetireParksADataChangeItemOnTheDetachedOwner()
+        {
+            var nodeManager = new Mock<IAsyncNodeManager>().Object;
+            using MonitoredItem item = CreateDataChangeItem(nodeManager, new object());
+            var detachable = (IDetachableMonitoredItem)item;
+            IRetirableMonitoredItem retirable = item;
+
+            Assert.That(detachable.IsDetached, Is.False);
+            Assert.That(item.NodeManager, Is.SameAs(nodeManager));
+
+            retirable.Retire();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(detachable.IsDetached, Is.True);
+                Assert.That(detachable.IsDeleted, Is.True);
+                Assert.That(item.NodeManager, Is.SameAs(m_coreNodeManager));
+                Assert.That(item.ManagerHandle, Is.Not.Null);
+            });
+        }
+
+        [Test]
+        public void RetireQueuesTheTerminalBadNodeIdUnknownOnADataChangeItem()
         {
             using MonitoredItem item = CreateDataChangeItem();
             IRetirableMonitoredItem retirable = item;
 
-            ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
-                () => retirable.Retire(null!));
-
-            Assert.That(exception.ParamName, Is.EqualTo("error"));
-        }
-
-        [Test]
-        public void RetireMarksTheItemRetiredAndRecordsTheError()
-        {
-            using MonitoredItem item = CreateDataChangeItem();
-            IRetirableMonitoredItem retirable = item;
-            var error = new ServiceResult(StatusCodes.BadNodeIdUnknown);
-
-            Assert.That(retirable.IsRetired, Is.False);
-            Assert.That(retirable.RetirementError, Is.Null);
-
-            retirable.Retire(error);
-
-            Assert.That(retirable.IsRetired, Is.True);
-            Assert.That(retirable.RetirementError, Is.SameAs(error));
-        }
-
-        [Test]
-        public void RetireIsIdempotentAndKeepsTheFirstError()
-        {
-            using MonitoredItem item = CreateDataChangeItem();
-            IRetirableMonitoredItem retirable = item;
-            var first = new ServiceResult(StatusCodes.BadNodeIdUnknown);
-            var second = new ServiceResult(StatusCodes.BadOutOfService);
-
-            retirable.Retire(first);
-            retirable.Retire(second);
-
-            Assert.That(retirable.RetirementError, Is.SameAs(first));
-        }
-
-        [Test]
-        public void RetireQueuesTheTerminalStatusOnADataChangeItem()
-        {
-            using MonitoredItem item = CreateDataChangeItem();
-            IRetirableMonitoredItem retirable = item;
-
-            retirable.Retire(new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            retirable.Retire();
 
             Assert.That(item.IsReadyToPublish, Is.True);
+
+            Queue<MonitoredItemNotification> notifications = Publish(item, 10, out bool more);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(notifications, Has.Count.EqualTo(1));
+                Assert.That(
+                    notifications.Peek().Value.StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(more, Is.False);
+            });
         }
 
         [Test]
@@ -113,22 +108,45 @@ namespace Opc.Ua.Server.Tests
             item.SubscriptionCallback = subscription.Object;
             IRetirableMonitoredItem retirable = item;
 
-            retirable.Retire(new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            retirable.Retire();
 
             subscription.Verify(s => s.ItemReadyToPublish(item), Times.Once);
         }
 
         [Test]
-        public void RetireLeavesAnEventItemWithNothingToPublish()
+        public void RetireIsIdempotentAndNotifiesTheSubscriptionOnce()
         {
-            using MonitoredItem item = CreateEventItem();
+            using MonitoredItem item = CreateDataChangeItem();
+            var subscription = new Mock<ISubscription>();
+            item.SubscriptionCallback = subscription.Object;
             IRetirableMonitoredItem retirable = item;
 
-            retirable.Retire(new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            retirable.Retire();
+            retirable.Retire();
 
-            Assert.That(retirable.IsRetired, Is.True);
-            Assert.That(item.IsReadyToPublish, Is.False);
-            Assert.That(item.IsReadyToTrigger, Is.False);
+            Assert.Multiple(() =>
+            {
+                Assert.That(((IDetachableMonitoredItem)item).IsDetached, Is.True);
+                subscription.Verify(s => s.ItemReadyToPublish(item), Times.Once);
+            });
+        }
+
+        [Test]
+        public void RetireParksAnEventItemWithNothingToPublish()
+        {
+            using MonitoredItem item = CreateEventItem();
+            var detachable = (IDetachableMonitoredItem)item;
+            IRetirableMonitoredItem retirable = item;
+
+            retirable.Retire();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(detachable.IsDetached, Is.True);
+                Assert.That(detachable.IsDeleted, Is.True);
+                Assert.That(item.IsReadyToPublish, Is.False);
+                Assert.That(item.IsReadyToTrigger, Is.False);
+            });
         }
 
         [Test]
@@ -136,7 +154,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItem item = CreateDataChangeItem();
             IRetirableMonitoredItem retirable = item;
-            retirable.Retire(new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            retirable.Retire();
 
             Assert.That(
                 () => item.QueueValue(new DataValue(new Variant(42)), null, true),
@@ -149,7 +167,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItem item = CreateEventItem();
             IRetirableMonitoredItem retirable = item;
-            retirable.Retire(new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            retirable.Retire();
 
             Assert.That(
                 () => item.QueueEvent(new EventFieldList()),
@@ -163,7 +181,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItem item = CreateEventItem();
             IRetirableMonitoredItem retirable = item;
-            retirable.Retire(new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            retirable.Retire();
 
             Assert.That(
                 () => item.QueueEvent(new Mock<IFilterTarget>().Object, true),
@@ -180,46 +198,6 @@ namespace Opc.Ua.Server.Tests
                 () => item.QueueEvent(null!, false));
 
             Assert.That(exception.ParamName, Is.EqualTo("instance"));
-        }
-
-        [Test]
-        public void DetachOwnerRequiresRetirementFirst()
-        {
-            using MonitoredItem item = CreateDataChangeItem();
-            IRetirableMonitoredItem retirable = item;
-
-            Assert.That(
-                () => retirable.DetachOwner(),
-                Throws.InstanceOf<InvalidOperationException>());
-        }
-
-        [Test]
-        public void DetachOwnerReleasesTheNodeManagerReferencesAfterRetirement()
-        {
-            var nodeManager = new Mock<IAsyncNodeManager>().Object;
-            using MonitoredItem item = CreateDataChangeItem(nodeManager, new object());
-            IRetirableMonitoredItem retirable = item;
-
-            Assert.That(item.NodeManager, Is.SameAs(nodeManager));
-            Assert.That(item.ManagerHandle, Is.Not.Null);
-
-            retirable.Retire(new ServiceResult(StatusCodes.BadNodeIdUnknown));
-            retirable.DetachOwner();
-
-            Assert.That(item.NodeManager, Is.Null);
-            Assert.That(item.ManagerHandle, Is.Null);
-        }
-
-        [Test]
-        public void DetachOwnerIsIdempotentAfterRetirement()
-        {
-            using MonitoredItem item = CreateDataChangeItem();
-            IRetirableMonitoredItem retirable = item;
-            retirable.Retire(new ServiceResult(StatusCodes.BadNodeIdUnknown));
-
-            retirable.DetachOwner();
-
-            Assert.That(() => retirable.DetachOwner(), Throws.Nothing);
         }
 
         private MonitoredItem CreateDataChangeItem(
@@ -267,6 +245,7 @@ namespace Opc.Ua.Server.Tests
             server.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
             server.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
             server.Setup(s => s.SubscriptionStore).Returns(Mock.Of<ISubscriptionStore>());
+            server.Setup(s => s.CoreNodeManager).Returns(m_coreNodeManager);
 
             return new MonitoredItem(
                 server.Object,
@@ -288,6 +267,24 @@ namespace Opc.Ua.Server.Tests
                 sourceSamplingInterval: 1000);
         }
 
+        private Queue<MonitoredItemNotification> Publish(
+            MonitoredItem item,
+            uint maxNotificationsPerPublish,
+            out bool more)
+        {
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            ILogger logger = m_telemetry.CreateLogger<MonitoredItemRetirementTests>();
+            more = item.Publish(
+                new OperationContext(item),
+                notifications,
+                diagnostics,
+                maxNotificationsPerPublish,
+                logger);
+            return notifications;
+        }
+
         private ITelemetryContext m_telemetry;
+        private ICoreNodeManager m_coreNodeManager;
     }
 }

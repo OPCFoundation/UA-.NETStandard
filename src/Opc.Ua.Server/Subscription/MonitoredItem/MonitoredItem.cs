@@ -434,11 +434,6 @@ namespace Opc.Ua.Server
         {
             get
             {
-                if (m_retirementNotificationPending)
-                {
-                    return true;
-                }
-
                 // check if aggregate interval has passed.
                 if (m_calculator != null && m_calculator.HasEndTimePassed(DateTime.UtcNow))
                 {
@@ -509,7 +504,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_retirementError is null &&
+                if (!m_isDetached &&
                     MonitoringMode == MonitoringMode.Reporting &&
                     (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                 {
@@ -630,10 +625,21 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                NodeManager = owner;
-                ManagerHandle = DetachedHandle;
-                m_isDetached = true;
+                ParkOnDetachedOwner(owner);
             }
+        }
+
+        /// <summary>
+        /// Parks the item on the supplied long lived owner so that ownership-sensitive services route to the
+        /// shared detached-item handling instead of the retired NodeManager generation. The caller must hold
+        /// <see cref="m_lock"/>.
+        /// </summary>
+        /// <param name="owner">The long lived NodeManager to park the item on.</param>
+        private void ParkOnDetachedOwner(IAsyncNodeManager owner)
+        {
+            NodeManager = owner;
+            ManagerHandle = DetachedHandle;
+            m_isDetached = true;
         }
 
         /// <summary>
@@ -1081,15 +1087,6 @@ namespace Opc.Ua.Server
 
                 InitializeQueue();
 
-                if (m_retirementError is not null &&
-                    monitoringMode == MonitoringMode.Reporting &&
-                    (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
-                {
-                    m_retirementNotificationPending = true;
-                    m_readyToPublish = true;
-                    m_subscription?.ItemReadyToPublish(this);
-                }
-
                 return previousMode;
             }
         }
@@ -1110,7 +1107,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_retirementError is not null)
+                if (m_isDetached)
                 {
                     return;
                 }
@@ -1223,62 +1220,34 @@ namespace Opc.Ua.Server
                 overflow);
         }
 
-        bool IRetirableMonitoredItem.IsRetired
+        void IRetirableMonitoredItem.Retire()
         {
-            get
-            {
-                lock (m_lock)
-                {
-                    return m_retirementError is not null;
-                }
-            }
-        }
-
-        ServiceResult? IRetirableMonitoredItem.RetirementError
-        {
-            get
-            {
-                lock (m_lock)
-                {
-                    return m_retirementError;
-                }
-            }
-        }
-
-        void IRetirableMonitoredItem.Retire(ServiceResult error)
-        {
-            if (error is null)
-            {
-                throw new ArgumentNullException(nameof(error));
-            }
-
             ISubscription? subscription = null;
             lock (m_lock)
             {
-                if (m_retirementError is not null)
+                if (m_isDetached)
                 {
                     return;
                 }
 
-                m_retirementError = error;
+                // Retirement reuses the detached-item path: park the item on the long lived
+                // CoreNodeManager and mark it deleted so ownership-sensitive services route through
+                // the shared detached-item handling and terminate with Bad_NodeIdUnknown, exactly
+                // like a monitored Node that was deleted (OPC UA Part 4 §5.8.4.1).
+                ParkOnDetachedOwner(GetDetachedOwner(m_server));
+                m_isDeleted = true;
+
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                 {
                     m_calculator = null;
                     m_dataChangeQueueHandler?.Dispose();
                     m_dataChangeQueueHandler = null;
-                    m_retirementNotificationPending = true;
-                    DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
-                    var value = new DataValue(
-                        Variant.Null,
-                        error.StatusCode,
-                        utcNow,
-                        utcNow);
                     if (!m_lastValue.IsNull)
                     {
                         m_readyToTrigger = true;
                     }
-                    m_lastValue = value;
-                    m_lastError = error;
+                    m_lastValue = CreateNodeIdUnknownValue();
+                    m_lastError = new ServiceResult(StatusCodes.BadNodeIdUnknown);
                     m_readyToPublish = true;
                     subscription = m_subscription;
                 }
@@ -1293,20 +1262,6 @@ namespace Opc.Ua.Server
             }
 
             subscription?.ItemReadyToPublish(this);
-        }
-
-        void IRetirableMonitoredItem.DetachOwner()
-        {
-            lock (m_lock)
-            {
-                if (m_retirementError is null)
-                {
-                    throw new InvalidOperationException(
-                        "A monitored item must be retired before its owner is detached.");
-                }
-                NodeManager = null!;
-                ManagerHandle = null!;
-            }
         }
 
         /// <summary>
@@ -1381,7 +1336,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_retirementError is not null)
+                if (m_isDetached)
                 {
                     return;
                 }
@@ -1442,7 +1397,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_retirementError is not null)
+                if (m_isDetached)
                 {
                     return;
                 }
@@ -1717,8 +1672,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     // pull any unprocessed data.
-                    if (!m_retirementNotificationPending &&
-                        m_calculator != null &&
+                    if (m_calculator != null &&
                         m_calculator.HasEndTimePassed(DateTime.UtcNow))
                     {
                         while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
@@ -1771,7 +1725,6 @@ namespace Opc.Ua.Server
                 // reset state variables.
                 m_readyToPublish = moreValuesToPublish;
                 m_readyToTrigger = moreValuesToPublish;
-                m_retirementNotificationPending = false;
                 m_resendData = false;
                 m_triggered = false;
 
@@ -2410,8 +2363,6 @@ namespace Opc.Ua.Server
         private bool m_structureChanged;
         private ISubscription? m_subscription;
         private ServiceResult? m_samplingError;
-        private ServiceResult? m_retirementError;
-        private bool m_retirementNotificationPending;
         private IAggregateCalculator? m_calculator;
         private bool m_triggered;
         private bool m_resendData;

@@ -5232,14 +5232,6 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                ServiceResult? retirementError = GetRetirementError(monitoredItems[ii]);
-                if (retirementError is not null)
-                {
-                    errors[ii] = retirementError;
-                    itemsToModify[ii].Processed = true;
-                    continue;
-                }
-
                 if (monitoredItems[ii] is IDetachableMonitoredItem
                     {
                         IsDetached: true
@@ -5852,7 +5844,6 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < itemsToDelete.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = itemsToDelete[ii];
-                ServiceResult? retirementError = GetRetirementError(monitoredItem);
                 bool isDetached = monitoredItem is IDetachableMonitoredItem
                 {
                     IsDetached: true
@@ -5860,10 +5851,8 @@ namespace Opc.Ua.Server
                 processedItems.Add(
                     ServiceResult.IsBad(errors[ii]) ||
                     monitoredItem == null ||
-                    retirementError is not null ||
                     isDetached);
-                if ((retirementError is not null || isDetached) &&
-                    monitoredItem is not null)
+                if (isDetached && monitoredItem is not null)
                 {
                     errors[ii] = ServiceResult.Good;
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
@@ -6025,7 +6014,6 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < itemsToModify.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = itemsToModify[ii];
-                ServiceResult? retirementError = GetRetirementError(monitoredItem);
                 bool isDetached = monitoredItem is IDetachableMonitoredItem
                 {
                     IsDetached: true
@@ -6034,13 +6022,6 @@ namespace Opc.Ua.Server
                     ServiceResult.IsBad(errors[ii]) ||
                     monitoredItem == null ||
                     isDetached);
-                if (retirementError is not null && monitoredItem is not null)
-                {
-                    monitoredItem.SetMonitoringMode(monitoringMode);
-                    processedItems[ii] = true;
-                    errors[ii] = ServiceResult.Good;
-                    continue;
-                }
                 if (isDetached && monitoredItem is not null)
                 {
                     MonitoringMode previousMode =
@@ -6161,13 +6142,6 @@ namespace Opc.Ua.Server
             }
 
             return owners;
-        }
-
-        private static ServiceResult? GetRetirementError(IMonitoredItem? monitoredItem)
-        {
-            return monitoredItem is IRetirableMonitoredItem { RetirementError: { } error }
-                ? error
-                : null;
         }
 
         /// <summary>

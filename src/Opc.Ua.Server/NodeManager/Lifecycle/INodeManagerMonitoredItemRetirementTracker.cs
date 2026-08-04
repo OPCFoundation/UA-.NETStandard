@@ -40,13 +40,9 @@ namespace Opc.Ua.Server
         bool CanRetireMonitoredItems(IAsyncNodeManager nodeManager);
 
         /// <summary>
-        /// Invalidates all monitored items owned by the NodeManager.
+        /// Retires all monitored items owned by the NodeManager by parking them on the long lived
+        /// CoreNodeManager so they report a terminal Bad_NodeIdUnknown, exactly like deleted Nodes.
         /// </summary>
-        void RetireMonitoredItems(IAsyncNodeManager nodeManager, ServiceResult error);
-
-        /// <summary>
-        /// Releases owner references from retired monitored items.
-        /// </summary>
-        void DetachRetiredMonitoredItems(IAsyncNodeManager nodeManager);
+        void RetireMonitoredItems(IAsyncNodeManager nodeManager);
     }
 }

@@ -113,31 +113,7 @@ namespace Opc.Ua.Server.Tests
             INodeManagerMonitoredItemRetirementTracker tracker = subscription;
 
             ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
-                () => tracker.RetireMonitoredItems(null!, StatusCodes.BadNodeIdUnknown));
-
-            Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
-        }
-
-        [Test]
-        public void RetireMonitoredItemsThrowsForNullError()
-        {
-            using Subscription subscription = CreateSubscription();
-            INodeManagerMonitoredItemRetirementTracker tracker = subscription;
-
-            ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
-                () => tracker.RetireMonitoredItems(CreateNodeManager(), null!));
-
-            Assert.That(exception.ParamName, Is.EqualTo("error"));
-        }
-
-        [Test]
-        public void DetachRetiredMonitoredItemsThrowsForNullNodeManager()
-        {
-            using Subscription subscription = CreateSubscription();
-            INodeManagerMonitoredItemRetirementTracker tracker = subscription;
-
-            ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
-                () => tracker.DetachRetiredMonitoredItems(null!));
+                () => tracker.RetireMonitoredItems(null!));
 
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
         }
@@ -175,9 +151,7 @@ namespace Opc.Ua.Server.Tests
             INodeManagerMonitoredItemRetirementTracker tracker = subscription;
 
             Assert.That(
-                () => tracker.RetireMonitoredItems(
-                    CreateNodeManager(),
-                    StatusCodes.BadNodeIdUnknown),
+                () => tracker.RetireMonitoredItems(CreateNodeManager()),
                 Throws.InstanceOf<NotSupportedException>());
         }
 
@@ -236,13 +210,11 @@ namespace Opc.Ua.Server.Tests
             var item = new RetirableMonitoredItemStub(5, nodeManager);
             AddMonitoredItem(subscription, item);
             INodeManagerMonitoredItemRetirementTracker tracker = subscription;
-            var error = new ServiceResult(StatusCodes.BadNodeIdUnknown);
 
-            tracker.RetireMonitoredItems(nodeManager, error);
+            tracker.RetireMonitoredItems(nodeManager);
 
             Assert.That(item.RetireCount, Is.EqualTo(1));
             Assert.That(item.IsRetired, Is.True);
-            Assert.That(item.RetirementError, Is.SameAs(error));
         }
 
         [Test]
@@ -255,7 +227,7 @@ namespace Opc.Ua.Server.Tests
             AddMonitoredItem(subscription, foreign);
             INodeManagerMonitoredItemRetirementTracker tracker = subscription;
 
-            tracker.RetireMonitoredItems(owner, StatusCodes.BadNodeIdUnknown);
+            tracker.RetireMonitoredItems(owner);
 
             Assert.That(foreign.RetireCount, Is.Zero);
         }
@@ -269,9 +241,7 @@ namespace Opc.Ua.Server.Tests
             INodeManagerMonitoredItemRetirementTracker tracker = subscription;
 
             Assert.That(
-                () => tracker.RetireMonitoredItems(
-                    nodeManager,
-                    StatusCodes.BadNodeIdUnknown),
+                () => tracker.RetireMonitoredItems(nodeManager),
                 Throws.InstanceOf<NotSupportedException>());
         }
 
@@ -285,46 +255,9 @@ namespace Opc.Ua.Server.Tests
             INodeManagerMonitoredItemRetirementTracker tracker = subscription;
 
             Assert.That(
-                () => tracker.RetireMonitoredItems(
-                    nodeManager,
-                    StatusCodes.BadNodeIdUnknown),
+                () => tracker.RetireMonitoredItems(nodeManager),
                 Throws.InstanceOf<NotSupportedException>());
             Assert.That(durable.RetireCount, Is.Zero);
-        }
-
-        [Test]
-        public void DetachRetiredMonitoredItemsDetachesOnlyRetiredOwnedItems()
-        {
-            IAsyncNodeManager nodeManager = CreateNodeManager();
-            using Subscription subscription = CreateSubscription();
-
-            var retired = new RetirableMonitoredItemStub(8, nodeManager);
-            retired.Retire(StatusCodes.BadNodeIdUnknown);
-            var live = new RetirableMonitoredItemStub(9, nodeManager);
-            AddMonitoredItem(subscription, retired);
-            AddMonitoredItem(subscription, live);
-            INodeManagerMonitoredItemRetirementTracker tracker = subscription;
-
-            tracker.DetachRetiredMonitoredItems(nodeManager);
-
-            Assert.That(retired.DetachCount, Is.EqualTo(1));
-            Assert.That(live.DetachCount, Is.Zero);
-        }
-
-        [Test]
-        public void DetachRetiredMonitoredItemsIgnoresRetiredItemsOfAnotherNodeManager()
-        {
-            IAsyncNodeManager owner = CreateNodeManager();
-            IAsyncNodeManager other = CreateNodeManager();
-            using Subscription subscription = CreateSubscription();
-            var foreign = new RetirableMonitoredItemStub(10, other);
-            foreign.Retire(StatusCodes.BadNodeIdUnknown);
-            AddMonitoredItem(subscription, foreign);
-            INodeManagerMonitoredItemRetirementTracker tracker = subscription;
-
-            tracker.DetachRetiredMonitoredItems(owner);
-
-            Assert.That(foreign.DetachCount, Is.Zero);
         }
 
         [Test]
@@ -482,22 +415,12 @@ namespace Opc.Ua.Server.Tests
 
         public bool IsRetired { get; private set; }
 
-        public ServiceResult RetirementError { get; private set; }
-
         public int RetireCount { get; private set; }
 
-        public int DetachCount { get; private set; }
-
-        public void Retire(ServiceResult error)
+        public void Retire()
         {
             IsRetired = true;
-            RetirementError = error;
             RetireCount++;
-        }
-
-        public void DetachOwner()
-        {
-            DetachCount++;
         }
     }
 }

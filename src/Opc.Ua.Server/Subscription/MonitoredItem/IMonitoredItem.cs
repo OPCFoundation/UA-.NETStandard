@@ -153,29 +153,18 @@ namespace Opc.Ua.Server
 
     /// <summary>
     /// Internal lifecycle contract used to invalidate a monitored item when its owning NodeManager generation is
-    /// retired immediately.
+    /// retired immediately. Retirement reuses the detached-item path: the item is parked on the long lived
+    /// CoreNodeManager and reports a terminal Bad_NodeIdUnknown, exactly like a monitored Node that was deleted
+    /// (see OPC UA Part 4 §5.8.4.1). Ownership-sensitive services then route to the parked owner and are handled
+    /// by the shared detached-item logic, so no retirement-specific checks are needed on the service paths.
     /// </summary>
     internal interface IRetirableMonitoredItem
     {
         /// <summary>
-        /// Gets whether the item has been retired.
+        /// Parks the item on the long lived CoreNodeManager and queues its terminal Bad_NodeIdUnknown status when
+        /// the monitored item kind supports status values. The call is idempotent.
         /// </summary>
-        bool IsRetired { get; }
-
-        /// <summary>
-        /// Gets the error reported for the retired item.
-        /// </summary>
-        ServiceResult? RetirementError { get; }
-
-        /// <summary>
-        /// Marks the item retired and queues its terminal status when the monitored item kind supports status values.
-        /// </summary>
-        void Retire(ServiceResult error);
-
-        /// <summary>
-        /// Releases references to the disposed owner after retirement is final.
-        /// </summary>
-        void DetachOwner();
+        void Retire();
     }
 
     /// <summary>
