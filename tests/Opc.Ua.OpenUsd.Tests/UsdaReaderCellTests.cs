@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Opc.Ua;
 using Opc.Ua.OpenUsdScene.Scene;
 
 namespace Opc.Ua.OpenUsdScene.Tests
@@ -71,7 +72,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdAttribute over = UsdTestHelpers.RequireAttribute(cell, "inputs:speedOverride");
             Assert.That(over.Custom, Is.True);
             Assert.That(over.TypeName, Is.EqualTo("double"));
-            Assert.That(over.Value, Is.EqualTo(100L));
+            UsdTestHelpers.AssertInteger(over.Value, 100L);
         }
 
         [Test]
@@ -82,12 +83,14 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             UsdAttribute visibility = UsdTestHelpers.RequireAttribute(beacon, "visibility");
             Assert.That(visibility.TypeName, Is.EqualTo("token"));
-            Assert.That(visibility.Value, Is.EqualTo("invisible"));
+            UsdTestHelpers.AssertText(visibility.Value, "invisible");
 
             UsdAttribute color = UsdTestHelpers.RequireAttribute(beacon, "primvars:displayColor");
-            var outer = color.Value as List<object?>;
-            Assert.That(outer, Is.Not.Null);
-            Assert.That(outer![0] as object?[], Is.EqualTo(new object?[] { 1L, 0L, 0L }));
+            Assert.That(color.Value.TryGetArray(out ArrayOf<UsdValue> outer), Is.True);
+            Assert.That(outer.Count, Is.EqualTo(1));
+            Assert.That(outer[0].TryGetTuple(out ArrayOf<UsdValue> tuple), Is.True);
+            Assert.That(tuple.ToArray()!.Select(v => v.TryGetInteger(out long integer) ? integer : -1L).ToArray(),
+                Is.EqualTo(new[] { 1L, 0L, 0L }));
         }
 
         [Test]
@@ -98,11 +101,13 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             UsdAttribute intensity = UsdTestHelpers.RequireAttribute(key, "intensity");
             Assert.That(intensity.TypeName, Is.EqualTo("float"));
-            Assert.That(intensity.Value, Is.EqualTo(650L));
+            UsdTestHelpers.AssertInteger(intensity.Value, 650L);
 
             UsdAttribute rotate = UsdTestHelpers.RequireAttribute(key, "xformOp:rotateXYZ");
             Assert.That(rotate.TypeName, Is.EqualTo("double3"));
-            Assert.That(rotate.Value as object?[], Is.EqualTo(new object?[] { -45L, 0L, 35L }));
+            Assert.That(rotate.Value.TryGetTuple(out ArrayOf<UsdValue> rotateValues), Is.True);
+            Assert.That(rotateValues.ToArray()!.Select(v => v.TryGetInteger(out long integer) ? integer : 0L).ToArray(),
+                Is.EqualTo(new[] { -45L, 0L, 35L }));
         }
 
         [TestCase(R1)]
@@ -169,7 +174,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdPrim j2 = UsdTestHelpers.RequirePrim(_stage, R1 + "/Base/J1/J2");
             UsdAttribute rotateY = UsdTestHelpers.RequireAttribute(j2, "xformOp:rotateY");
             Assert.That(rotateY.Live, Is.True);
-            Assert.That(rotateY.Value, Is.EqualTo(-30L));
+            UsdTestHelpers.AssertInteger(rotateY.Value, -30L);
         }
 
         [Test]

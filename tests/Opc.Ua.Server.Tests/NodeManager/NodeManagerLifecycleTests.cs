@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task RegistrationsReturnsDefensiveSnapshotsAsync()
         {
             NodeManagerRegistration first = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateOptions(kModelNamespaceUri, kFirstRegistrationValue))
+                .AddRuntimeNodeSetAsync(CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null)
                 .ConfigureAwait(false);
 
             ArrayOf<NodeManagerRegistration> snapshotAfterFirstAdd =
@@ -195,7 +195,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(snapshotAfterFirstAdd.Count, Is.EqualTo(1));
 
             NodeManagerRegistration second = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue))
+                .AddRuntimeNodeSetAsync(CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue), null)
                 .ConfigureAwait(false);
 
             // The earlier snapshot variable must remain frozen at its original contents.
@@ -286,13 +286,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             MismatchKind mismatchKind)
         {
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null)
                 .ConfigureAwait(false);
 
             // Establish a genuinely current generation (2) and a genuinely stale handle
             // (the original, now-superseded generation-1 handle).
             NodeManagerRegistration current = await m_server.NodeManagerLifecycle
-                .ReloadRuntimeNodeSetAsync(original, CreateGenerationOptions(generation: 2))
+                .ReloadRuntimeNodeSetAsync(original, CreateGenerationOptions(generation: 2), null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -325,7 +325,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 Assert.That(
                     async () => await m_server.NodeManagerLifecycle
-                        .ReloadAsync(mismatched, replacementFactory.Object)
+                        .ReloadAsync(mismatched, replacementFactory.Object, null)
                         .ConfigureAwait(false),
                     Throws.InvalidOperationException.With.Message.Contains(expectedMessage));
 
@@ -340,7 +340,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(
                     async () => await m_server.NodeManagerLifecycle
-                        .RemoveAsync(mismatched)
+                        .RemoveAsync(mismatched, null)
                         .ConfigureAwait(false),
                     Throws.InvalidOperationException.With.Message.Contains(expectedMessage));
             }
@@ -384,7 +384,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 async () => await freshServer.NodeManagerLifecycle
-                    .AddAsync(factory.Object)
+                    .AddAsync(factory.Object, null)
                     .ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
@@ -402,17 +402,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void AddAsyncFromServiceDispatchScopeRejectsWithoutInvokingFactory()
+        public void AddAsyncFromAnExecutingRequestRejectsWithoutInvokingFactory()
         {
             IServerInternal server = m_server.CurrentInstance;
             var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
 
-            using IDisposable dispatchScope =
-                server.RequestManager.EnterServiceDispatchScope();
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
 
             Assert.That(
                 async () => await m_server.NodeManagerLifecycle
-                    .AddAsync(factory.Object)
+                    .AddAsync(factory.Object, callerContext, CancellationToken.None)
                     .ConfigureAwait(false),
                 Throws.InvalidOperationException.With.Message.Contains(
                     "cannot run from an OPC UA request callback"));
@@ -424,6 +424,134 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Times.Never);
         }
 
+        [Test]
+        public void ReloadAndRemoveFromAnExecutingRequestAreRejected()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            var replacement = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+            var registration = new NodeManagerRegistration(
+                Guid.NewGuid(),
+                1,
+                new Mock<IAsyncNodeManager>().Object);
+
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    async () => await m_server.NodeManagerLifecycle
+                        .ReloadAsync(registration, replacement.Object, callerContext, CancellationToken.None)
+                        .ConfigureAwait(false),
+                    Throws.InvalidOperationException.With.Message.Contains(
+                        "cannot run from an OPC UA request callback"));
+                Assert.That(
+                    async () => await m_server.NodeManagerLifecycle
+                        .RemoveAsync(registration, callerContext, CancellationToken.None)
+                        .ConfigureAwait(false),
+                    Throws.InvalidOperationException.With.Message.Contains(
+                        "cannot run from an OPC UA request callback"));
+            });
+            replacement.Verify(
+                candidate => candidate.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task AddAsyncFromAContextThatIsNotAnExecutingRequestIsAllowedAsync()
+        {
+            // An internal operation carries a context of its own that was never enrolled as a
+            // request. It cannot wait for itself, so the lifecycle operation must proceed. The
+            // ambient marker this guard replaced could not tell the two apart.
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext callerContext = CreateRequestContext(requestLifetime);
+
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(
+                    CreateGenerationOptions(generation: 1),
+                    callerContext,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(registration, Is.Not.Null);
+
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(registration, callerContext, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task AddAsyncAfterTheRequestCompletedIsAllowedAsync()
+        {
+            // The guard is bound to the request that is executing, not to the flow that served
+            // it, so a context whose scope has been disposed no longer blocks the lifecycle.
+            IServerInternal server = m_server.CurrentInstance;
+            using var requestLifetime = new RequestLifetime();
+            OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
+            callerContext.Dispose();
+
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(
+                    CreateGenerationOptions(generation: 1),
+                    callerContext,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(registration, Is.Not.Null);
+
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(registration, callerContext, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public void LifecycleCallFromANodeManagerCallbackContextIsRejected()
+        {
+            // A NodeManager or Method callback receives an ISystemContext that was copied for
+            // the request. Handing that operation to the lifecycle is the explicit replacement
+            // for the ambient marker, so it must be both reachable and rejected.
+            IServerInternal server = m_server.CurrentInstance;
+            var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
+            ISystemContext callbackContext = server.DefaultSystemContext.Copy(callerContext);
+
+            Assert.That(callbackContext.GetOperationContext(), Is.SameAs(callerContext));
+            Assert.That(
+                async () => await m_server.NodeManagerLifecycle
+                    .AddAsync(factory.Object, callbackContext.GetOperationContext(), CancellationToken.None)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "cannot run from an OPC UA request callback"));
+        }
+
+        /// <summary>
+        /// Creates a context that is enrolled as an executing request, the way
+        /// <see cref="StandardServer"/> enrols a validated request. Disposing the context
+        /// completes the request.
+        /// </summary>
+        private static OperationContext CreateExecutingRequest(
+            IServerInternal server,
+            RequestLifetime requestLifetime)
+        {
+            OperationContext context = CreateRequestContext(requestLifetime);
+            context.AttachRequestScope(server.RequestManager.EnterRequestScope(context));
+            return context;
+        }
+
+        private static OperationContext CreateRequestContext(RequestLifetime requestLifetime)
+        {
+            return new OperationContext(
+                new RequestHeader { RequestHandle = 1, TimeoutHint = 0 },
+                null,
+                RequestType.Read,
+                requestLifetime);
+        }
+
         /// <summary>
         /// When the replacement factory throws during Reload, the sentinel exception must
         /// propagate unchanged, the current generation's registration, routing, value, and
@@ -433,7 +561,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ReloadAsyncWhenReplacementFactoryThrowsKeepsCurrentManagerAsync()
         {
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -453,7 +581,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 async () => await m_server.NodeManagerLifecycle
-                    .ReloadAsync(original, replacementFactory.Object)
+                    .ReloadAsync(original, replacementFactory.Object, null)
                     .ConfigureAwait(false),
                 Throws.TypeOf<SentinelException>());
 
@@ -486,7 +614,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ReloadAsyncWhenReplacementFactoryReturnsNullKeepsCurrentManagerAsync()
         {
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -506,7 +634,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 async () => await m_server.NodeManagerLifecycle
-                    .ReloadAsync(original, replacementFactory.Object)
+                    .ReloadAsync(original, replacementFactory.Object, null)
                     .ConfigureAwait(false),
                 Throws.InvalidOperationException.With.Message.Contains(
                     "The replacement NodeManager factory returned null."));
@@ -549,7 +677,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ReloadAsyncWhenReplacementCreateAddressSpaceFailsKeepsCurrentManagerAsync()
         {
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -585,7 +713,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 async () => await m_server.NodeManagerLifecycle
-                    .ReloadAsync(original, replacementFactory.Object)
+                    .ReloadAsync(original, replacementFactory.Object, null)
                     .ConfigureAwait(false),
                 Throws.TypeOf<SentinelException>());
 
@@ -626,7 +754,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ReloadAsyncRetainsCompatibleMonitoredItemAsync()
         {
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -657,7 +785,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(initial.Value.WrappedValue.GetInt32(), Is.EqualTo(kGeneration1Value));
 
                 NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
-                    .ReloadRuntimeNodeSetAsync(original, CreateGenerationOptions(generation: 2))
+                    .ReloadRuntimeNodeSetAsync(original, CreateGenerationOptions(generation: 2), null)
                     .ConfigureAwait(false);
 
                 IMonitoredItem reloadedItem = subscription
@@ -693,7 +821,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ReloadAsyncDroppedNodeRecoversSameMonitoredItemAsync()
         {
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -720,7 +848,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     acknowledgements).ConfigureAwait(false);
 
                 NodeManagerRegistration dropped = await m_server.NodeManagerLifecycle
-                    .ReloadRuntimeNodeSetAsync(original, CreateDroppedGenerationOptions())
+                    .ReloadRuntimeNodeSetAsync(original, CreateDroppedGenerationOptions(), null)
                     .ConfigureAwait(false);
 
                 IMonitoredItem detachedItem = subscription
@@ -737,7 +865,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(bad.Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
 
                 NodeManagerRegistration recovered = await m_server.NodeManagerLifecycle
-                    .ReloadRuntimeNodeSetAsync(dropped, CreateGenerationOptions(generation: 2))
+                    .ReloadRuntimeNodeSetAsync(dropped, CreateGenerationOptions(generation: 2), null)
                     .ConfigureAwait(false);
 
                 IMonitoredItem recoveredItem = subscription
@@ -767,7 +895,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task RemoveAsyncPublishesBadRecoversAndClientDeletesSameItemAsync()
         {
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -792,7 +920,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     subscriptionId,
                     acknowledgements).ConfigureAwait(false);
 
-                await m_server.NodeManagerLifecycle.RemoveAsync(original).ConfigureAwait(false);
+                await m_server.NodeManagerLifecycle.RemoveAsync(original, null).ConfigureAwait(false);
 
                 IMonitoredItem detachedItem = subscription
                     .GetRecoverableMonitoredItemsSnapshot([valueNodeId])
@@ -807,7 +935,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(bad.Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
 
                 NodeManagerRegistration added = await m_server.NodeManagerLifecycle
-                    .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 2))
+                    .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 2), null)
                     .ConfigureAwait(false);
                 IMonitoredItem recoveredItem = subscription
                     .GetMonitoredItemsSnapshot(added.NodeManager)
@@ -864,7 +992,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             m_logger,
                             kModelNamespaceUri)));
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddAsync(factory.Object)
+                .AddAsync(factory.Object, null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -1016,7 +1144,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(nodeManager.Object);
 
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddAsync(factory.Object)
+                .AddAsync(factory.Object, null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -1033,7 +1161,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.EqualTo(1));
 
             Task firstRemoval = m_server.NodeManagerLifecycle
-                .RemoveAsync(registration)
+                .RemoveAsync(registration, null)
                 .AsTask();
             try
             {
@@ -1088,7 +1216,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             nodeManagerAsDisposable.Verify(d => d.Dispose(), Times.Never);
 
             await m_server.NodeManagerLifecycle
-                .RemoveAsync(registration)
+                .RemoveAsync(registration, null)
                 .ConfigureAwait(false);
 
             nodeManager.Verify(
@@ -1147,7 +1275,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             AggregateException exception = Assert.ThrowsAsync<AggregateException>(
                 async () => await m_server.NodeManagerLifecycle
-                    .AddAsync(factory.Object)
+                    .AddAsync(factory.Object, null)
                     .ConfigureAwait(false));
 
             string[] failureMessages = [.. exception
@@ -1208,7 +1336,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(nodeManager.Object);
 
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddAsync(factory.Object)
+                .AddAsync(factory.Object, null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -1218,7 +1346,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 async () => await m_server.NodeManagerLifecycle
-                    .RemoveAsync(registration)
+                    .RemoveAsync(registration, null)
                     .ConfigureAwait(false),
                 Throws.TypeOf<SentinelException>()
                     .With.Message.EqualTo(ExpectedMessage));
@@ -1246,7 +1374,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             failSessionClosing = false;
             await m_server.NodeManagerLifecycle
-                .RemoveAsync(registration)
+                .RemoveAsync(registration, null)
                 .ConfigureAwait(false);
 
             Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
@@ -1300,7 +1428,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(originalManager.Object);
 
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddAsync(originalFactory.Object)
+                .AddAsync(originalFactory.Object, null)
                 .ConfigureAwait(false);
 
             Mock<IAsyncNodeManager> replacementManager =
@@ -1319,7 +1447,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             InvalidOperationException exception =
                 Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await m_server.NodeManagerLifecycle
-                        .ReloadAsync(original, replacementFactory.Object)
+                        .ReloadAsync(original, replacementFactory.Object, null)
                         .ConfigureAwait(false));
 
             Assert.That(
@@ -1360,7 +1488,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             failRetiredSessionClosing = false;
             await m_server.NodeManagerLifecycle
-                .RemoveAsync(replacement)
+                .RemoveAsync(replacement, null)
                 .ConfigureAwait(false);
 
             originalManager.Verify(
@@ -1398,7 +1526,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(ownerManager.Object);
             NodeManagerRegistration ownerRegistration = await m_server.NodeManagerLifecycle
-                .AddAsync(ownerFactory.Object)
+                .AddAsync(ownerFactory.Object, null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -1466,7 +1594,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             InvalidOperationException exception =
                 Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await m_server.NodeManagerLifecycle
-                        .AddAsync(retainedFactory.Object)
+                        .AddAsync(retainedFactory.Object, null)
                         .ConfigureAwait(false));
 
             Assert.That(
@@ -1500,10 +1628,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             failAddReferences = false;
             failDeleteReference = false;
             await m_server.NodeManagerLifecycle
-                .RemoveAsync(retainedRegistration)
+                .RemoveAsync(retainedRegistration, null)
                 .ConfigureAwait(false);
             await m_server.NodeManagerLifecycle
-                .RemoveAsync(ownerRegistration)
+                .RemoveAsync(ownerRegistration, null)
                 .ConfigureAwait(false);
 
             retainedManager.Verify(
@@ -1538,7 +1666,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(ownerManager.Object);
             NodeManagerRegistration ownerRegistration = await m_server.NodeManagerLifecycle
-                .AddAsync(ownerFactory.Object)
+                .AddAsync(ownerFactory.Object, null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -1607,7 +1735,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(originalManager.Object);
             NodeManagerRegistration originalRegistration =
                 await m_server.NodeManagerLifecycle
-                    .AddAsync(originalFactory.Object)
+                    .AddAsync(originalFactory.Object, null)
                     .ConfigureAwait(false);
 
             Mock<IAsyncNodeManager> replacementManager =
@@ -1650,7 +1778,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     async () => await m_server.NodeManagerLifecycle
                         .ReloadAsync(
                             originalRegistration,
-                            replacementFactory.Object)
+                            replacementFactory.Object,
+                            null)
                         .ConfigureAwait(false));
 
             Assert.That(
@@ -1686,10 +1815,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             failReplacementAddReferences = false;
             failRollbackDelete = false;
             await m_server.NodeManagerLifecycle
-                .RemoveAsync(retainedRegistration)
+                .RemoveAsync(retainedRegistration, null)
                 .ConfigureAwait(false);
             await m_server.NodeManagerLifecycle
-                .RemoveAsync(ownerRegistration)
+                .RemoveAsync(ownerRegistration, null)
                 .ConfigureAwait(false);
 
             originalManager.Verify(
@@ -1727,7 +1856,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(ownerManager.Object);
             NodeManagerRegistration ownerRegistration = await m_server.NodeManagerLifecycle
-                .AddAsync(ownerFactory.Object)
+                .AddAsync(ownerFactory.Object, null)
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -1906,7 +2035,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         removeExternalReferences: false)
                     .ConfigureAwait(false);
                 await m_server.NodeManagerLifecycle
-                    .RemoveAsync(ownerRegistration)
+                    .RemoveAsync(ownerRegistration, null)
                     .ConfigureAwait(false);
             }
         }
@@ -1922,13 +2051,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ArgumentNullException exception =
                 Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await lifecycle
-                        .AddAsync((IAsyncNodeManagerFactory)null!)
+                        .AddAsync((IAsyncNodeManagerFactory)null!, null)
                         .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("factory"));
 
             exception = Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
-                    .AddAsync((INodeManagerFactory)null!)
+                    .AddAsync((INodeManagerFactory)null!, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("factory"));
 
@@ -1936,7 +2065,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 async () => await lifecycle
                     .ReloadAsync(
                         null!,
-                        (IAsyncNodeManagerFactory)null!)
+                        (IAsyncNodeManagerFactory)null!,
+                        null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
 
@@ -1944,25 +2074,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 async () => await lifecycle
                     .ReloadAsync(
                         null!,
-                        (INodeManagerFactory)null!)
+                        (INodeManagerFactory)null!,
+                        null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
 
             exception = Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
-                    .ReloadAsync(null!, asyncFactory)
+                    .ReloadAsync(null!, asyncFactory, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
             exception = Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
-                    .ReloadAsync(null!, syncFactory)
+                    .ReloadAsync(null!, syncFactory, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
             exception = Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
-                    .RemoveAsync(null!)
+                    .RemoveAsync(null!, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
@@ -2091,7 +2222,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(owned.Object);
             NodeManagerRegistration registration = await m_server
                 .NodeManagerLifecycle
-                .AddAsync(factory.Object)
+                .AddAsync(factory.Object, null)
                 .ConfigureAwait(false);
             var duplicate = new PreparedNodeManager(owned.Object, []);
             Assert.That(
@@ -2117,7 +2248,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     "already been staged"));
 
             await m_server.NodeManagerLifecycle
-                .RemoveAsync(registration)
+                .RemoveAsync(registration, null)
                 .ConfigureAwait(false);
         }
 
@@ -2139,7 +2270,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var lifecycle = new NodeManagerLifecycle(m_server);
 
             NodeManagerRegistration registration = await lifecycle
-                .AddAsync(factory.Object)
+                .AddAsync(factory.Object, null)
                 .ConfigureAwait(false);
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
@@ -2154,7 +2285,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 async () => await lifecycle
-                    .AddAsync(factory.Object)
+                    .AddAsync(factory.Object, null)
                     .ConfigureAwait(false),
                 Throws.InvalidOperationException.With.Message.Contains(
                     "shutting down"));
@@ -2221,7 +2352,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 async () => await m_server.NodeManagerLifecycle
-                    .AddAsync(factory.Object)
+                    .AddAsync(factory.Object, null)
                     .ConfigureAwait(false),
                 Throws.TypeOf<SentinelException>()
                     .With.Message.EqualTo(ExpectedMessage));
@@ -2289,7 +2420,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 uint urisVersionBeforeAdd = await ReadUrisVersionAsync().ConfigureAwait(false);
 
                 NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                    .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                    .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null)
                     .ConfigureAwait(false);
 
                 EventFieldList addEvent;
@@ -2308,7 +2439,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 uint urisVersionBeforeReload = urisVersionAfterAdd;
 
                 registration = await m_server.NodeManagerLifecycle
-                    .ReloadRuntimeNodeSetAsync(registration, CreateGenerationOptions(generation: 2))
+                    .ReloadRuntimeNodeSetAsync(registration, CreateGenerationOptions(generation: 2), null)
                     .ConfigureAwait(false);
 
                 EventFieldList reloadEvent;
@@ -2326,7 +2457,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 int namespaceCountBeforeRemove = server.NamespaceUris.Count;
                 uint urisVersionBeforeRemove = urisVersionAfterReload;
 
-                await m_server.NodeManagerLifecycle.RemoveAsync(registration).ConfigureAwait(false);
+                await m_server.NodeManagerLifecycle.RemoveAsync(registration, null).ConfigureAwait(false);
 
                 EventFieldList removeEvent;
                 (removeEvent, acknowledgements) = await PublishForModelChangeEventAsync(
