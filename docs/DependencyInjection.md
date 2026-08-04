@@ -361,6 +361,7 @@ public sealed class RuntimeModelService(INodeManagerLifecycle lifecycle)
             {
                 Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
             },
+            callerContext: null,
             ct);
     }
 }

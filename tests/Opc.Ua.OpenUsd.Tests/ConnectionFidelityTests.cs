@@ -59,8 +59,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // distinguishable from any incidental sort or hash order (which would give a, b).
             var stage = new UsdStage("S") { DefaultPrim = "Sink" };
             var src = new UsdPrim("Src", "Xform");
-            src.Attributes.Add(new UsdAttribute("a", "double") { Value = 1.0 });
-            src.Attributes.Add(new UsdAttribute("b", "double") { Value = 2.0 });
+            src.Attributes.Add(new UsdAttribute("a", "double") { Value = UsdValue.From(1.0) });
+            src.Attributes.Add(new UsdAttribute("b", "double") { Value = UsdValue.From(2.0) });
             var sink = new UsdPrim("Sink", "Xform");
             var input = new UsdAttribute("in", "double");
             input.Connections.Add("/Src.b");
@@ -85,8 +85,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // snapshotted verbatim onto the materialization result, keyed by attribute node.
             var stage = new UsdStage("S") { DefaultPrim = "Sink" };
             var src = new UsdPrim("Src", "Xform");
-            src.Attributes.Add(new UsdAttribute("a", "double") { Value = 1.0 });
-            src.Attributes.Add(new UsdAttribute("b", "double") { Value = 2.0 });
+            src.Attributes.Add(new UsdAttribute("a", "double") { Value = UsdValue.From(1.0) });
+            src.Attributes.Add(new UsdAttribute("b", "double") { Value = UsdValue.From(2.0) });
             var sink = new UsdPrim("Sink", "Xform");
             var input = new UsdAttribute("in", "double");
             input.Connections.Add("/Src.b");
@@ -115,8 +115,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // preserved separately on the result (asserted by the tests above).
             var stage = new UsdStage("S") { DefaultPrim = "Sink" };
             var src = new UsdPrim("Src", "Xform");
-            src.Attributes.Add(new UsdAttribute("a", "double") { Value = 1.0 });
-            src.Attributes.Add(new UsdAttribute("b", "double") { Value = 2.0 });
+            src.Attributes.Add(new UsdAttribute("a", "double") { Value = UsdValue.From(1.0) });
+            src.Attributes.Add(new UsdAttribute("b", "double") { Value = UsdValue.From(2.0) });
             var sink = new UsdPrim("Sink", "Xform");
             var input = new UsdAttribute("in", "double");
             input.Connections.Add("/Src.b");
@@ -162,7 +162,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // authored order, proving the side channel — not the edges — drives the export.
             var stage = new UsdStage("S") { DefaultPrim = "Sink" };
             var src = new UsdPrim("Src", "Xform");
-            src.Attributes.Add(new UsdAttribute("out", "double") { Value = 1.0 });
+            src.Attributes.Add(new UsdAttribute("out", "double") { Value = UsdValue.From(1.0) });
             var sink = new UsdPrim("Sink", "Xform");
             var input = new UsdAttribute("in", "double");
             input.Connections.Add("/Missing.target");
@@ -190,9 +190,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // must report both independently (§5.4, §7.2).
             var stage = new UsdStage("S") { DefaultPrim = "Sink" };
             var src = new UsdPrim("Src", "Xform");
-            src.Attributes.Add(new UsdAttribute("out", "double") { Value = 3.0 });
+            src.Attributes.Add(new UsdAttribute("out", "double") { Value = UsdValue.From(3.0) });
             var sink = new UsdPrim("Sink", "Xform");
-            var input = new UsdAttribute("in", "double") { Value = 1.5 };
+            var input = new UsdAttribute("in", "double") { Value = UsdValue.From(1.5) };
             input.Connections.Add("/Src.out");
             sink.Attributes.Add(input);
             stage.AddRootPrim(src);
@@ -206,7 +206,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             UsdStage exported = ms.Context.ExportUsdStage(ms.Result);
             UsdAttribute exportedInput = AttributeOf(exported, "Sink", "in");
-            Assert.That(exportedInput.Value, Is.EqualTo(1.5),
+            UsdTestHelpers.AssertDouble(exportedInput.Value, 1.5);
+            Assert.That(exportedInput.Value.IsNull, Is.False,
                 "The exported attribute must still report its default value.");
             Assert.That(exportedInput.Connections, Is.EqualTo(new[] { "/Src.out" }),
                 "The exported attribute must also report its connection.");

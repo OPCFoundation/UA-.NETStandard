@@ -43,6 +43,30 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
+## Migrating node types that override FindChild or CreateChild
+
+`NodeState.FindChild` and `NodeState.CreateChild` take
+`assignInstanceNodeIds` as their last parameter, and the four argument
+`FindChild` / two argument `CreateChild` virtuals are gone. The parameter
+defaults to `true`, so **call sites are unaffected**; an override fails to
+compile (`CS0115`) until the parameter is added and passed on.
+
+Behaviour note: a node copy — `NodeState.Create(context, source)` and the
+`Initialize(ISystemContext, NodeState)` path behind it — now passes
+`assignInstanceNodeIds: false`. It no longer asks
+`ISystemContext.NodeIdFactory` for identifiers that the copy overwrites
+from the source on the very next statement. If your `INodeIdFactory`
+counts, reserves or audits every allocation, expect **fewer** calls than in
+1.5.378 for the same address space; the resulting NodeIds are unchanged.
+Any `NodeState` subclass you own must thread the argument into its
+`CreateOrReplace<Child>` calls to get that benefit.
+
+See
+[Node states § FindChild and CreateChild](migrate/2.0.x/node-states.md#nodestate-findchild-and-createchild-state-nodeid-assignment)
+for the before/after and
+[Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
+for the runtime rules.
+
 ## Migrating servers that relied on unserved history advertisement
 
 Server startup now reconciles variables that advertise history with the
