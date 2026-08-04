@@ -113,6 +113,65 @@ protected override void OnAfterCreate(ISystemContext context, NodeState node, Ca
 }
 ```
 
+#### NodeState FindChild and CreateChild state NodeId assignment
+
+`NodeState.FindChild` and `NodeState.CreateChild` now take
+`assignInstanceNodeIds` as their last parameter, and the old four argument
+`FindChild` / two argument `CreateChild` virtuals are gone. The parameter
+defaults to `true`, so **call sites keep compiling and keep the 1.5.378
+behaviour** — only overrides have to change:
+
+```csharp
+// Before
+protected override BaseInstanceState FindChild(
+    ISystemContext context,
+    QualifiedName browseName,
+    bool createOrReplace,
+    BaseInstanceState replacement)
+{
+    if (browseName.Name == BrowseNames.MyChild)
+    {
+        return createOrReplace
+            ? CreateOrReplaceMyChild(context, replacement)
+            : MyChild;
+    }
+    return base.FindChild(context, browseName, createOrReplace, replacement);
+}
+
+// After — add the parameter and pass it on
+protected override BaseInstanceState FindChild(
+    ISystemContext context,
+    QualifiedName browseName,
+    bool createOrReplace,
+    BaseInstanceState replacement,
+    bool assignInstanceNodeIds = true)
+{
+    if (browseName.Name == BrowseNames.MyChild)
+    {
+        return createOrReplace
+            ? CreateOrReplaceMyChild(context, replacement, assignInstanceNodeIds)
+            : MyChild;
+    }
+    return base.FindChild(
+        context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
+}
+```
+
+A missing override raises `CS0115` (`no suitable method found to
+override`), so the compiler points at every site that needs the parameter.
+Repeat the `= true` default in the override so callers bound to your derived
+type keep the same behaviour.
+
+Why: a node copy creates each child and then initialises it from its source,
+which overwrites any NodeId minted along the way. Passing
+`assignInstanceNodeIds: false` — what `NodeState.Create(context, source)`
+now does — stops the `ISystemContext.NodeIdFactory` from being asked for
+identifiers that are immediately discarded, and leaked by factories that
+track outstanding allocations. Thread the argument into every
+`CreateOrReplace<Child>` call your override makes; source generated types
+already do. See
+[Custom node types and assignment control](../../NodeManagers.md#custom-node-types-and-assignment-control).
+
 ### INodeManager3 - new role-permission and method-resolution hooks
 
 2.0 introduces `INodeManager3`, an extension of `INodeManager2` that surfaces explicit hooks for per-role permission evaluation and for resolving the target of a `Call` request. `CustomNodeManager2` implements the new members with safe defaults that mirror the previous behavior, so node managers that already derive from `CustomNodeManager2` need no changes.

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,6 +58,12 @@ namespace Opc.Ua.Di.Tests
     {
         private ITelemetryContext m_telemetry = null!;
         private IHost? m_host;
+        /// <summary>
+        /// Pumps the fixture's server materialises, which is the
+        /// PumpDeviceIntegrationOptions default.
+        /// </summary>
+        private const int ExpectedPumpCount = 2;
+
         private ISession? m_session;
         private ISession? m_privilegedSession;
         private ApplicationConfiguration m_clientConfig = null!;
@@ -343,12 +350,12 @@ namespace Opc.Ua.Di.Tests
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
             OpenUsdConnector.RepresentationInfo? rep = await PumpRepAsync(connector).ConfigureAwait(false);
 
-            Assert.That(rep, Is.Not.Null, "OpenUsdRepresentation not discovered on Pump #1.");
-            Assert.That(rep!.PrimPath, Is.EqualTo("/Plant/Pumps/P101"));
+            Assert.That(rep, Is.Not.Null, "OpenUsdRepresentation not discovered on Pump_1.");
+            Assert.That(rep!.PrimPath, Is.EqualTo("/Plant/Pumps/Pump_1"));
             Assert.That(rep.StageNodeId.IsNull, Is.False);
             Assert.That(rep.RootLayerIdentifier, Is.EqualTo("asset-repo/Plant.usd"));
-            // 0.1 telemetry (3) + 0.2 alarm (1) + 0.2 command (1) = 5 bindings.
-            Assert.That(rep.Bindings, Has.Count.EqualTo(5));
+            // Layout (1) + telemetry (10) + supervision alarms (3) + command (1).
+            Assert.That(rep.Bindings, Has.Count.EqualTo(15));
         }
 
         [Test]
@@ -428,9 +435,9 @@ namespace Opc.Ua.Di.Tests
             await connector.StopAsync().ConfigureAwait(false);
 
             // The UaAlarmToUsd binding subscribes the alarm-active aspect and authors
-            // the status-light visibility token (initially "invisible" until an alarm).
-            Assert.That(sink.WasWritten("/Plant/Pumps/P101/StatusLight", "visibility"), Is.True,
-                "Alarm binding did not author StatusLight visibility.");
+            // the alarm-ring visibility token (initially "invisible" until an alarm).
+            Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/AlarmRing", "visibility"), Is.True,
+                "Alarm binding did not author AlarmRing visibility.");
         }
 
         [Test]
@@ -447,13 +454,23 @@ namespace Opc.Ua.Di.Tests
         {
             var connector = new OpenUsdConnector(
                 m_privilegedSession!, new MockUsdSink(), enableCommands: true);
-            OpenUsdConnector.RepresentationInfo? rep = await PumpRepAsync(connector).ConfigureAwait(false);
+            // Every pump declares a command binding, and the connector issues the
+            // command to the first one it discovers, so the assertion has to read
+            // that same target rather than assuming a particular pump.
+            System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> reps =
+                await connector.DiscoverAllRepresentationsAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
             NodeId target = NodeId.Null;
-            foreach (OpenUsdConnector.BindingInfo b in rep!.Bindings)
+            foreach (OpenUsdConnector.RepresentationInfo r in reps)
             {
-                if (b.Intent == OpenUsdIntentProfile.UsdToUaCommand)
+                foreach (OpenUsdConnector.BindingInfo b in r.Bindings)
                 {
-                    target = b.CommandTargetNodeId;
+                    if (target.IsNull &&
+                        b.Intent == OpenUsdIntentProfile.UsdToUaCommand &&
+                        !b.CommandTargetNodeId.IsNull)
+                    {
+                        target = b.CommandTargetNodeId;
+                    }
                 }
             }
             Assert.That(target.IsNull, Is.False, "Command target NodeId missing.");
@@ -547,12 +564,12 @@ namespace Opc.Ua.Di.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(sink.WasWritten("/Plant/Pumps/P101/Impeller", "xformOp:rotateZ"), Is.True,
+                Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Impeller", "xformOp:rotateZ"), Is.True,
                     "Rotation binding produced no value.");
-                Assert.That(sink.WasWritten("/Plant/Pumps/P101/Body/Mat/Surface", "inputs:diffuseColor"), Is.True,
+                Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Body/Mat/Surface", "inputs:diffuseColor"), Is.True,
                     "DisplayColor binding produced no value.");
-                Assert.That(sink.WasWritten("/Plant/Pumps/P101/StatusLight/Mat/Surface", "inputs:emissiveColor"), Is.True,
-                    "EmissiveColor binding produced no value.");
+                Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Discharge/Gauge/Needle", "xformOp:rotateZ"), Is.True,
+                    "Discharge pressure gauge produced no value.");
                 Assert.That(sink.TotalWrites, Is.GreaterThan(0));
             });
         }
@@ -569,9 +586,9 @@ namespace Opc.Ua.Di.Tests
             {
                 Assert.Multiple(() =>
                 {
-                    Assert.That(sink.WasPrimComposed("/Plant/Pumps/P101/Impeller"), Is.True,
+                    Assert.That(sink.WasPrimComposed("/Plant/Pumps/Pump_1/Impeller"), Is.True,
                         "Impeller component prim not composed.");
-                    Assert.That(sink.WasPrimComposed("/Plant/Pumps/P101/Bearing"), Is.True,
+                    Assert.That(sink.WasPrimComposed("/Plant/Pumps/Pump_1/Bearing"), Is.True,
                         "Bearing component prim not composed.");
                 });
             }
@@ -582,10 +599,14 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public async Task ProductionLineAggregatesPumpsAsync()
+        public async Task OnlySimulatedPumpsAreComposedAsync()
         {
-            // 1..n composition (§5.12): a ProductionLine aggregates its pumps as
-            // instanceable reference prims under a Pumps scope.
+            // The rendered hall holds exactly the pumps the connected server
+            // simulates. The ProductionLine aggregation and the cross-server
+            // component are address-space topology, not machines anyone drives,
+            // so composing them put pumps in the twin that no client could
+            // account for - and a federated pump from another server is not this
+            // server's to show at all.
             var sink = new MockUsdSink();
             var connector = new OpenUsdConnector(m_session!, sink);
             await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
@@ -593,65 +614,19 @@ namespace Opc.Ua.Di.Tests
             {
                 Assert.Multiple(() =>
                 {
-                    Assert.That(sink.WasPrimComposed("/Plant/Line1/Pumps/P_201"), Is.True,
-                        "Aggregated pump P-201 prim not composed.");
-                    Assert.That(sink.WasPrimComposed("/Plant/Line1/Pumps/P_202"), Is.True,
-                        "Aggregated pump P-202 prim not composed.");
-                    Assert.That(sink.IsPrimActive("/Plant/Line1/Pumps/P_201"), Is.True);
+                    for (int i = 1; i <= ExpectedPumpCount; i++)
+                    {
+                        string prim = $"/Plant/Pumps/Pump_{i}";
+                        Assert.That(sink.WasPrimComposed(prim), Is.True, prim);
+                        Assert.That(sink.IsPrimActive(prim), Is.True, prim);
+                    }
+                    Assert.That(sink.WasPrimComposed($"/Plant/Pumps/Pump_{ExpectedPumpCount + 1}"),
+                        Is.False, "A pump the server does not simulate was composed.");
+                    Assert.That(sink.WasPrimComposed("/Plant/Line1/Pumps/P_201"), Is.False,
+                        "An aggregated line pump was composed into the twin.");
+                    Assert.That(sink.WasPrimComposed("/Plant/Line1/RemotePump"), Is.False,
+                        "The cross-server pump was composed into the twin.");
                 });
-            }
-            finally
-            {
-                await connector.StopAsync().ConfigureAwait(false);
-            }
-        }
-
-        [Test]
-        public async Task CrossServerComponentIsComposedAsync()
-        {
-            // Cross-server composition (§5.14): the Line declares a component on another
-            // server; the connector composes its reference prim (federation drives its
-            // bindings only when a remote session factory is supplied — not here).
-            var sink = new MockUsdSink();
-            var connector = new OpenUsdConnector(m_session!, sink);
-            await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
-            try
-            {
-                Assert.That(sink.WasPrimComposed("/Plant/Line1/RemotePump"), Is.True,
-                    "Cross-server component prim not composed.");
-            }
-            finally
-            {
-                await connector.StopAsync().ConfigureAwait(false);
-            }
-        }
-
-        [Test]
-        [Ignore("Blocked by OPCFoundation/UA-.NETStandard#4061: a runtime-added child is "
-            + "intermittently missing from a client Browse after CreateNodeAsync/AddNodeAsync + "
-            + "GeneralModelChange, so the connector does not reliably observe the dynamically added "
-            + "pump. Server-side state is correct; the browse is intermittently served stale. "
-            + "Re-enable once the upstream browse-consistency issue is fixed.")]
-        public async Task DynamicPumpIsComposedThenDeactivatedAsync()
-        {
-            // Dynamic composition (§5.13): the server periodically adds then removes a
-            // pump, emitting model-change events; the connector reconciles the prim
-            // (composed active on add, active=false on remove).
-            var sink = new MockUsdSink();
-            var connector = new OpenUsdConnector(m_session!, sink);
-            await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
-            try
-            {
-                const string dyn = "/Plant/Line1/Pumps/P_203";
-                bool appeared = await PollAsync(
-                    () => sink.WasPrimComposed(dyn) && sink.IsPrimActive(dyn), TimeSpan.FromSeconds(20))
-                    .ConfigureAwait(false);
-                Assert.That(appeared, Is.True, "Dynamically added pump prim was not composed.");
-
-                bool deactivated = await PollAsync(
-                    () => sink.WasPrimComposed(dyn) && !sink.IsPrimActive(dyn), TimeSpan.FromSeconds(20))
-                    .ConfigureAwait(false);
-                Assert.That(deactivated, Is.True, "Dynamically removed pump prim was not deactivated.");
             }
             finally
             {
@@ -666,26 +641,240 @@ namespace Opc.Ua.Di.Tests
             System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> reps =
                 await connector.DiscoverAllRepresentationsAsync(CancellationToken.None).ConfigureAwait(false);
 
-            OpenUsdConnector.RepresentationInfo? pump = reps.Find(r => r.PrimPath == "/Plant/Pumps/P101");
-            OpenUsdConnector.RepresentationInfo? line = reps.Find(r => r.PrimPath == "/Plant/Line1");
+            OpenUsdConnector.RepresentationInfo? pump = reps.Find(r => r.PrimPath == "/Plant/Pumps/Pump_1");
+            OpenUsdConnector.RepresentationInfo? plant = reps.Find(r => r.PrimPath == "/Plant");
 
             Assert.Multiple(() =>
             {
-                Assert.That(reps, Has.Count.GreaterThanOrEqualTo(2), "Expected pump + line representations.");
+                Assert.That(reps, Has.Count.GreaterThanOrEqualTo(2), "Expected plant + pump representations.");
                 Assert.That(pump, Is.Not.Null);
                 Assert.That(pump!.Components, Has.Count.EqualTo(2), "Pump should have 2 (1:1) component bindings.");
-                Assert.That(line, Is.Not.Null);
-                // Line: a Many aggregation + a cross-server component.
-                Assert.That(line!.Components.Exists(c => c.Cardinality == OpenUsdCardinality.Many), Is.True);
-                Assert.That(line.Components.Exists(c => !string.IsNullOrEmpty(c.ComponentEndpointUrl)), Is.True);
+                Assert.That(plant, Is.Not.Null, "The plant aggregation representation was not discovered.");
+                // The plant composes one referenced pump prim per configured pump.
+                Assert.That(plant!.Components.Exists(c => c.Cardinality == OpenUsdCardinality.Many), Is.True);
             });
+        }
+
+        /// <summary>
+        /// Every configured pump has to be a twin in its own right: its own prim,
+        /// discoverable through the registry, and driven by its own simulation.
+        /// The sample previously bound every pump to one hard-coded prim path and
+        /// registered only the first representation, so a server started with
+        /// <c>--pumps N</c> rendered a single machine.
+        /// </summary>
+        [Test]
+        public async Task EveryConfiguredPumpIsAnIndependentTwinAsync()
+        {
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
+            System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> reps =
+                await connector.DiscoverAllRepresentationsAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+
+            System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> pumps =
+                reps.FindAll(r => r.PrimPath != null &&
+                    r.PrimPath.StartsWith("/Plant/Pumps/", StringComparison.Ordinal) &&
+                    !r.PrimPath.EndsWith("/Impeller", StringComparison.Ordinal) &&
+                    !r.PrimPath.EndsWith("/Bearing", StringComparison.Ordinal));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(pumps, Has.Count.EqualTo(ExpectedPumpCount),
+                    "Every configured pump must publish a discoverable representation.");
+                Assert.That(
+                    pumps.ConvertAll(r => r.PrimPath).Distinct().Count(),
+                    Is.EqualTo(pumps.Count),
+                    "Two pumps must never share a prim.");
+                foreach (OpenUsdConnector.RepresentationInfo pump in pumps)
+                {
+                    string primPath = pump.PrimPath!;
+                    Assert.That(pump.Bindings, Is.Not.Empty, primPath);
+                    Assert.That(
+                        pump.Bindings.TrueForAll(b =>
+                            b.PrimPath != null &&
+                            b.PrimPath.StartsWith(primPath, StringComparison.Ordinal)),
+                        Is.True,
+                        primPath + " has a binding that targets another pump's prim.");
+                }
+            });
+
+            // The shaft angle is integrated per pump from its own phase-shifted
+            // duty point, so two pumps can never report the same angle.
+            System.Collections.Generic.List<double> angles = [];
+            foreach (OpenUsdConnector.RepresentationInfo pump in pumps)
+            {
+                OpenUsdConnector.BindingInfo? shaft = pump.Bindings.Find(
+                    b => b.PropertyName == "xformOp:rotateZ" &&
+                        b.PrimPath != null &&
+                        b.PrimPath.EndsWith("/Impeller", StringComparison.Ordinal));
+                Assert.That(shaft, Is.Not.Null, pump.PrimPath + " has no shaft binding.");
+                DataValue value = await m_session!.ReadValueAsync(
+                    shaft!.SourceNodeId, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(value.WrappedValue.TryGetValue(out double angle), Is.True);
+                angles.Add(angle);
+            }
+
+            Assert.That(angles.Distinct().Count(), Is.EqualTo(angles.Count),
+                "Every pump must integrate its own shaft angle.");
+        }
+
+        /// <summary>
+        /// Asserts that every prim a transform binding targets declares the op the
+        /// connector actually authors in its <c>xformOpOrder</c>.
+        /// A Translation, Rotation or Scale render target resolves to a single
+        /// <c>xformOp:transform</c> matrix; every other <c>xformOp:</c> property is
+        /// authored under its own name. USD only evaluates ops named in
+        /// <c>xformOpOrder</c>, and the list is uniform, so a connector cannot add
+        /// itself to it from a stronger layer. When the asset named the wrong op the
+        /// value was silently discarded, which parked every composed pump on the
+        /// origin - the hall rendered N stacked machines and looked like it held one.
+        /// </summary>
+        [Test]
+        public async Task TransformBindingsTargetDeclaredXformOpsAsync()
+        {
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
+            string cacheDir = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "PumpXformOps", System.IO.Path.GetRandomFileName());
+            try
+            {
+                System.Collections.Generic.List<OpenUsdConnector.FetchedAsset> assets =
+                    await connector.FetchServedAssetsAsync(cacheDir, CancellationToken.None).ConfigureAwait(false);
+                OpenUsdConnector.FetchedAsset? component = assets.Find(a => a.Identifier == "pump.usda");
+                Assert.That(component, Is.Not.Null, "pump.usda was not served.");
+                string layer = System.IO.File.ReadAllText(component!.LocalPath);
+
+                OpenUsdConnector.RepresentationInfo? pump = await PumpRepAsync(connector).ConfigureAwait(false);
+                Assert.That(pump, Is.Not.Null);
+
+                System.Collections.Generic.List<OpenUsdConnector.BindingInfo> transforms =
+                    pump!.Bindings.FindAll(b => b.PropertyName != null &&
+                        b.PropertyName.StartsWith("xformOp:", StringComparison.Ordinal));
+                Assert.That(transforms, Is.Not.Empty, "The pump publishes no transform bindings.");
+
+                Assert.Multiple(() =>
+                {
+                    foreach (OpenUsdConnector.BindingInfo binding in transforms)
+                    {
+                        // Bindings address the composed stage (/Plant/Pumps/Pump_1/...);
+                        // the asset authors the same prims under its own root (/Pump/...).
+                        string assetPath = "/Pump" + binding.PrimPath![pump.PrimPath!.Length..];
+                        string authored = AuthoredOpFor(binding.PropertyName!);
+                        Assert.That(
+                            DeclaredXformOps(layer, assetPath),
+                            Does.Contain(authored),
+                            $"{assetPath} is bound to {binding.PropertyName}, which a connector authors as " +
+                            $"{authored}, but it does not list {authored} in xformOpOrder - so USD discards " +
+                            "every value written to it.");
+                    }
+                });
+            }
+            finally
+            {
+                if (System.IO.Directory.Exists(cacheDir))
+                {
+                    System.IO.Directory.Delete(cacheDir, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the xform op a connector authors for a bound op name. Translation,
+        /// rotation and scale are accumulated into one matrix so that the op order
+        /// never has to be rewritten from a stronger layer; anything else, such as the
+        /// scalar <c>xformOp:rotateZ</c> a shaft uses, is authored under its own name.
+        /// </summary>
+        private static string AuthoredOpFor(string propertyName)
+        {
+            return propertyName is "xformOp:translate" or "xformOp:rotateXYZ" or "xformOp:scale"
+                ? "xformOp:transform"
+                : propertyName;
+        }
+
+        /// <summary>
+        /// Reads the <c>xformOpOrder</c> declared on a prim in a USD text layer.
+        /// </summary>
+        private static System.Collections.Generic.List<string> DeclaredXformOps(
+            string layer, string primPath)
+        {
+            var names = new System.Collections.Generic.List<string>();
+            var openedAt = new System.Collections.Generic.List<int>();
+            var ops = new System.Collections.Generic.List<string>();
+            string? pending = null;
+            int depth = 0;
+            bool collecting = false;
+
+            foreach (string line in layer.Split('\n'))
+            {
+                string text = line.Trim();
+                bool inTarget = names.Count > 0 &&
+                    string.Equals("/" + string.Join("/", names), primPath, StringComparison.Ordinal);
+
+                if (text.StartsWith("def ", StringComparison.Ordinal) ||
+                    text.StartsWith("over ", StringComparison.Ordinal) ||
+                    text.StartsWith("class ", StringComparison.Ordinal))
+                {
+                    pending = QuotedTokens(text).FirstOrDefault();
+                }
+
+                // The op list may wrap over several lines, and the declaration itself
+                // contains a bracket pair ("uniform token[]"), so only the text after
+                // the assignment decides whether the list is already closed.
+                if (inTarget && text.Contains("xformOpOrder", StringComparison.Ordinal))
+                {
+                    int assign = text.IndexOf('=', StringComparison.Ordinal);
+                    string tail = assign >= 0 ? text[(assign + 1)..] : text;
+                    ops.AddRange(QuotedTokens(tail));
+                    collecting = !tail.Contains(']', StringComparison.Ordinal);
+                }
+                else if (collecting)
+                {
+                    ops.AddRange(QuotedTokens(text));
+                    collecting = !text.Contains(']', StringComparison.Ordinal);
+                }
+
+                foreach (char c in line)
+                {
+                    if (c == '{')
+                    {
+                        depth++;
+                        if (pending != null)
+                        {
+                            names.Add(pending);
+                            openedAt.Add(depth);
+                            pending = null;
+                        }
+                    }
+                    else if (c == '}')
+                    {
+                        if (openedAt.Count > 0 && openedAt[^1] == depth)
+                        {
+                            names.RemoveAt(names.Count - 1);
+                            openedAt.RemoveAt(openedAt.Count - 1);
+                        }
+                        depth--;
+                    }
+                }
+            }
+
+            return ops;
+        }
+
+        /// <summary>
+        /// Splits the double-quoted tokens out of a line of USD text.
+        /// </summary>
+        private static System.Collections.Generic.IEnumerable<string> QuotedTokens(string line)
+        {
+            string[] parts = line.Split('"');
+            for (int i = 1; i < parts.Length; i += 2)
+            {
+                yield return parts[i];
+            }
         }
 
         private static async Task<OpenUsdConnector.RepresentationInfo?> PumpRepAsync(OpenUsdConnector connector)
         {
             System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> all =
                 await connector.DiscoverAllRepresentationsAsync(CancellationToken.None).ConfigureAwait(false);
-            return all.Find(r => r.PrimPath == "/Plant/Pumps/P101");
+            return all.Find(r => r.PrimPath == "/Plant/Pumps/Pump_1");
         }
 
         private static async Task<bool> PollAsync(Func<bool> condition, TimeSpan timeout)
@@ -706,7 +895,7 @@ namespace Opc.Ua.Di.Tests
         public async Task ServedAssetsAreFetchedVerifiedAndCachedAsync()
         {
             // §5.15 asset content delivery: the server serves its USD layer closure
-            // (Plant.usda RootLayer + pump.usda + remote-pump.usda) via Part 5 FileType;
+            // (Plant.usda RootLayer + pump.usda) via Part 5 FileType;
             // the connector streams, verifies each digest, and caches them locally.
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
             string cacheDir = System.IO.Path.Combine(
@@ -719,12 +908,10 @@ namespace Opc.Ua.Di.Tests
                 OpenUsdConnector.FetchedAsset? root = assets.Find(a => a.Kind == OpenUsdAssetKind.RootLayer);
                 Assert.Multiple(() =>
                 {
-                    Assert.That(assets, Has.Count.EqualTo(3), "Expected 3 served layers.");
+                    Assert.That(assets, Has.Count.EqualTo(2), "Expected 2 served layers.");
                     Assert.That(assets.Exists(a => a.Identifier == "Plant.usda"
                         && a.Kind == OpenUsdAssetKind.RootLayer), Is.True, "Plant.usda RootLayer not served.");
                     Assert.That(assets.Exists(a => a.Identifier == "pump.usda"), Is.True, "pump.usda not served.");
-                    Assert.That(assets.Exists(a => a.Identifier == "remote-pump.usda"), Is.True,
-                        "remote-pump.usda not served.");
                     Assert.That(assets.TrueForAll(a => a.DigestVerified), Is.True,
                         "A served layer failed digest verification.");
                     Assert.That(assets.TrueForAll(a =>

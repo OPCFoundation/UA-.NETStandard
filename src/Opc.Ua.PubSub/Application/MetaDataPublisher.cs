@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
@@ -174,10 +175,34 @@ namespace Opc.Ua.PubSub.Application
                     return;
                 }
                 m_registry.MetaDataChanged += OnMetaDataChanged;
+                m_application.ConfigurationChanged += OnConfigurationChanged;
                 m_subscribed = true;
             }
             SubscribeToDataSets();
             await PublishInitialAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Re-subscribe when the configuration is replaced.
+        /// </summary>
+        /// <remarks>
+        /// Per-dataset subscriptions were taken once, from
+        /// <see cref="StartAsync"/>. An application that is configured after it
+        /// starts therefore never subscribed to anything: at start there were
+        /// no writers to walk, and nothing looked again when they arrived. A
+        /// dataset added later was in the same position even on an application
+        /// configured up front.
+        /// </remarks>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void OnConfigurationChanged(object? sender,
+            PubSubConfigurationChangedEventArgs e)
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                return;
+            }
+            SubscribeToDataSets();
         }
 
         /// <inheritdoc/>
@@ -192,14 +217,11 @@ namespace Opc.Ua.PubSub.Application
                 if (m_subscribed)
                 {
                     m_registry.MetaDataChanged -= OnMetaDataChanged;
+                    m_application.ConfigurationChanged -= OnConfigurationChanged;
                     m_subscribed = false;
                 }
-                foreach (DataSetSubscription subscription in m_dataSetSubscriptions)
-                {
-                    subscription.DataSet.MetaDataChanged -= subscription.Handler;
-                }
-                m_dataSetSubscriptions.Clear();
             }
+            UnsubscribeFromDataSets();
             return default;
         }
 
@@ -214,9 +236,18 @@ namespace Opc.Ua.PubSub.Application
         /// rebuilds and raises <c>MetaDataChanged</c> when the source signals,
         /// but nothing carried that into the registry this publisher watches,
         /// so the empty announcement was the only one a consumer ever saw.
+        ///
+        /// This runs again whenever the configuration changes. Rather than
+        /// reconcile, it drops every existing subscription and takes them
+        /// afresh: a subscription belongs to a
+        /// (connection, writer group, writer) triple, because that is what the
+        /// handler announces for, and a configuration change can add, remove
+        /// or move writers between groups. Reattaching is cheap and a dropped
+        /// subscription cannot outlive the writer it was taken for.
         /// </remarks>
         private void SubscribeToDataSets()
         {
+            UnsubscribeFromDataSets();
             for (int connectionIndex = 0;
                 connectionIndex < m_application.Connections.Count;
                 connectionIndex++)
@@ -239,6 +270,13 @@ namespace Opc.Ua.PubSub.Application
                         PubSubConnection connection = runtime;
                         IWriterGroup group = writerGroup;
                         IDataSetWriter target = writer;
+                        //
+                        // One handler per writer, not per dataset. Several
+                        // writers may share a PublishedDataSet - the same
+                        // DataSetName used from different groups or
+                        // connections - and each announces to its own
+                        // destination, so each needs its own subscription.
+                        //
                         void Handler(object? sender, DataSetMetaDataChangedEventArgs e)
                         {
                             OnDataSetMetaDataChanged(connection, group, target, e);
@@ -268,6 +306,27 @@ namespace Opc.Ua.PubSub.Application
                         }
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Drops every per-dataset subscription currently held.
+        /// </summary>
+        private void UnsubscribeFromDataSets()
+        {
+            DataSetSubscription[] taken;
+            lock (m_gate)
+            {
+                if (m_dataSetSubscriptions.Count == 0)
+                {
+                    return;
+                }
+                taken = m_dataSetSubscriptions.ToArray();
+                m_dataSetSubscriptions.Clear();
+            }
+            for (int index = 0; index < taken.Length; index++)
+            {
+                taken[index].DataSet.MetaDataChanged -= taken[index].Handler;
             }
         }
 

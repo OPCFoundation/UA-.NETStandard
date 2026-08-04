@@ -32,6 +32,7 @@
 #pragma warning disable CA2000
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -978,9 +979,116 @@ namespace Opc.Ua.Client.Subscriptions
                 pending.Created = true;
                 sut.Update();
 
-                await WaitUntilAsync(() => session.DeleteCalls.Count > 0, testCt)
+                await WaitUntilAsync(() => session.DeleteCallsCount > 0, testCt)
                     .ConfigureAwait(false);
-                Assert.That(session.DeleteCalls[0].SubscriptionIds.ToList(),
+                IReadOnlyList<FakeSubscriptionManagerContext.DeleteCall> deleteCalls =
+                    session.DeleteCalls;
+                Assert.That(deleteCalls[0].SubscriptionIds.ToList(),
+                    Does.Contain(4242u));
+            }
+        }
+
+        /// <summary>
+        /// While an identifier stays unresolved the server keeps answering with
+        /// the same undeliverable response. The worker must back off instead of
+        /// republishing immediately - otherwise it busy-spins, hammers the
+        /// server and floods the log until the creation window closes.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerThrottlesWhileSubscriptionIdIsUnresolvedAsync(
+            CancellationToken testCt)
+        {
+            const int kMaxExpectedPublishes = 100;
+
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> createdOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> pendingOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+
+            var created = new FakeManagedSubscription { Id = 1u, Created = true };
+            var pending = new FakeManagedSubscription { Id = 0u };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (handler, options, queue)
+                    => ReferenceEquals(options, createdOptions) ? created : pending;
+
+                sut.Add(m_mockNotificationDataHandler.Object, createdOptions);
+                sut.Add(m_mockNotificationDataHandler.Object, pendingOptions);
+
+                int publishCount = 0;
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    Interlocked.Increment(ref publishCount);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(4242u, h.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(() => Volatile.Read(ref publishCount) >= 3,
+                    testCt).ConfigureAwait(false);
+                await Task.Delay(500, testCt).ConfigureAwait(false);
+
+                Assert.That(Volatile.Read(ref publishCount),
+                    Is.LessThan(kMaxExpectedPublishes),
+                    "The publish worker must throttle while a subscription id " +
+                    "cannot be resolved instead of republishing in a tight loop.");
+            }
+        }
+
+        /// <summary>
+        /// A genuine orphan must be deleted exactly once. The server keeps
+        /// answering with the orphan until the delete takes effect, so without
+        /// retiring the identifier the worker issues a DeleteSubscriptions call
+        /// for every single publish response.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerDeletesUnknownSubscriptionOnlyOnceAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> options =
+                OptionsFactory.Create<SubscriptionOptions>();
+            var created = new FakeManagedSubscription { Id = 1u, Created = true };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (handler, opts, queue) => created;
+                sut.Add(m_mockNotificationDataHandler.Object, options);
+
+                int publishCount = 0;
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    Interlocked.Increment(ref publishCount);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(4242u, h.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(() => session.DeleteCallsCount > 0, testCt)
+                    .ConfigureAwait(false);
+                await Task.Delay(500, testCt).ConfigureAwait(false);
+
+                IReadOnlyList<FakeSubscriptionManagerContext.DeleteCall> deleteCalls =
+                    session.DeleteCalls;
+                Assert.That(deleteCalls, Has.Count.EqualTo(1),
+                    "The orphaned subscription must be deleted exactly once.");
+                Assert.That(deleteCalls[0].SubscriptionIds.ToList(),
                     Does.Contain(4242u));
             }
         }
