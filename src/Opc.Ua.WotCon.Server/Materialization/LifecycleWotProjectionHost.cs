@@ -78,7 +78,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             RuntimeNodeSetOptions options = BuildOptions(document);
             NodeManagerRegistration registration = await m_lifecycle
-                .AddRuntimeNodeSetAsync(options, cancellationToken)
+                .AddRuntimeNodeSetAsync(options, callerContext: null, cancellationToken)
                 .ConfigureAwait(false);
             return new WotProjectionHandle(
                 document.ClosureKey,
@@ -170,7 +170,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
             {
                 await m_lifecycle
-                    .RemoveAsync(wrapper.Registration, cancellationToken)
+                    .RemoveAsync(wrapper.Registration, callerContext: null, cancellationToken)
                     .ConfigureAwait(false);
             }
         }
