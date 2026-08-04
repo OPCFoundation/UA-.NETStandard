@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -223,11 +224,32 @@ namespace Opc.Ua.OpenUsdScene.Tests
         }
 
         [Test]
-        [TestCase("/Cell/Robots/R1")]
-        [TestCase("/Cell/Robots/R2")]
-        public void RobotMountPointDeclaresASingleMatrixTransformOp(string primPath)
+        public void TheStageOffersItsEstablishingShotFirst()
         {
             UsdStage stage = LoadSample("Cell.usda");
+
+            // A connector opens on the first camera the served root layer authors, because
+            // framing the bounds of an enclosed scene automatically puts the eye inside the
+            // fence. The overview therefore has to come before the overhead camera.
+            List<UsdPrim> cameras = stage.AllPrims()
+                .Where(p => string.Equals(p.TypeName, "Camera", StringComparison.Ordinal))
+                .ToList();
+
+            Assert.That(cameras, Is.Not.Empty, "The cell authors no camera to open on.");
+            Assert.That(cameras[0].Path, Is.EqualTo("/Cell/OverviewCamera"));
+        }
+
+        [Test]
+        [TestCase("Cell.usda", "/Cell/Robots/R1")]
+        [TestCase("Cell.usda", "/Cell/Robots/R2")]
+        [TestCase("Cell.usda", "/Cell/Parts/Part01")]
+        [TestCase("Cell.usda", "/Cell/Parts/Part02")]
+        [TestCase("Cell.usda", "/Cell/Parts/Part03")]
+        [TestCase("tool.usda", "/Gripper/JawUpper")]
+        [TestCase("tool.usda", "/Gripper/JawLower")]
+        public void LiveBoundPrimDeclaresASingleMatrixTransformOp(string asset, string primPath)
+        {
+            UsdStage stage = LoadSample(asset);
 
             UsdPrim? mount = stage.Find(primPath);
             Assert.That(mount, Is.Not.Null);
@@ -245,6 +267,22 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(
                 Flatten(order!.Value), Is.EqualTo("xformOp:transform"),
                 $"{primPath} must order exactly the matrix op.");
+        }
+
+        [Test]
+        [TestCase("/Gripper/JawUpper")]
+        [TestCase("/Gripper/JawLower")]
+        public void GripperJawCarriesItsFingerSoTheWholeJawStrokes(string jawPath)
+        {
+            UsdStage stage = LoadSample("tool.usda");
+
+            // The jaw is driven as one prim. If the carrier and the finger were siblings
+            // under the gripper body, stroking the bound prim would slide the carrier out
+            // from under the finger it is bolted to.
+            Assert.That(stage.Find(jawPath + "/Carrier"), Is.Not.Null,
+                $"{jawPath} must own its carrier.");
+            Assert.That(stage.Find(jawPath + "/Finger"), Is.Not.Null,
+                $"{jawPath} must own its finger.");
         }
 
         [Test]
