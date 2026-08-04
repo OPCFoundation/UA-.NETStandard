@@ -1,0 +1,10 @@
+#usda 1.0
+(
+    defaultPrim = "Generator"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Generator"
+{
+}

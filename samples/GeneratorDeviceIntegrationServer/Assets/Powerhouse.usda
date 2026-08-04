@@ -1,0 +1,10 @@
+#usda 1.0
+(
+    defaultPrim = "Powerhouse"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Powerhouse"
+{
+}
