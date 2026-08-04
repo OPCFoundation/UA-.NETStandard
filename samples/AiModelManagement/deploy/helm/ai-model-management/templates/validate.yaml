@@ -1,0 +1,27 @@
+{{/*
+Refuses configurations that would deploy something misleading.
+
+Each of these is a real mistake that produces a Server which looks healthy and
+answers questions wrongly - which is worse than one that fails to start, because
+nobody investigates a green pod.
+*/}}
+
+{{- if and (eq .Values.backend.authentication "ApiKey") (not (include "ai-model-management.hasCredential" .)) }}
+{{- fail "backend.authentication is ApiKey but no credential is supplied. Set credentials.existingSecret, or use authentication: Anonymous for an endpoint that needs none." }}
+{{- end }}
+
+{{- if and .Values.credentials.create .Values.credentials.existingSecret }}
+{{- fail "Set either credentials.existingSecret or credentials.create, not both." }}
+{{- end }}
+
+{{- if and .Values.ai.enableFallback (not .Values.fallbackBackend.enabled) }}
+{{- fail "ai.enableFallback publishes a fallback deployment, but fallbackBackend.enabled is false, so it has nothing to reach. A fallback that always fails is worse than none: set fallbackBackend.enabled, or turn ai.enableFallback off." }}
+{{- end }}
+
+{{- if and .Values.fallbackBackend.enabled (eq .Values.fallbackBackend.endpointUri .Values.backend.endpointUri) }}
+{{- fail "The fallback endpoint is the same as the primary. That is a retry, not a fallback: it fails for every reason the primary just failed for." }}
+{{- end }}
+
+{{- if and (not .Values.backend.egressPermitted) (ne .Values.backend.site "OnServer") }}
+{{- fail "backend.egressPermitted is false but backend.site is not OnServer, so this Server would publish EgressPermitted=false while sending payloads off the machine. Set egressPermitted, or point the backend at a local runtime." }}
+{{- end }}

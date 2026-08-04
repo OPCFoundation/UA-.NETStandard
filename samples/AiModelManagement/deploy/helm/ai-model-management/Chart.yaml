@@ -1,0 +1,15 @@
+apiVersion: v2
+name: ai-model-management
+description: |
+  An OPC UA Server that exposes AI models - hosted or on-device - through the
+  OPC UA AI Model Management and Inference companion specification.
+type: application
+version: 0.1.0
+appVersion: "0.2.0"
+keywords:
+  - opcua
+  - ai
+  - inference
+home: https://github.com/OPCFoundation/UA-.NETStandard
+sources:
+  - https://github.com/OPCFoundation/UA-.NETStandard
