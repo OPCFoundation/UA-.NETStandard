@@ -46,6 +46,10 @@ namespace Opc.Ua.Server.Hosting
             => Current.Registrations;
 
         /// <inheritdoc/>
+        public bool IsShuttingDown
+            => Current.IsShuttingDown;
+
+        /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> AddAsync(
             IAsyncNodeManagerFactory factory,
             CancellationToken ct = default)
