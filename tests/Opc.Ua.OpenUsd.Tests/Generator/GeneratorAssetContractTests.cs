@@ -83,6 +83,30 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
         }
 
         /// <summary>
+        /// A prim a live binding recolours declares its own displayColor.
+        /// </summary>
+        /// <remarks>
+        /// The colour bindings write <c>primvars:displayColor</c>. A prim that does
+        /// not declare that attribute still ends up with the value in the override
+        /// layer, so the file looks right, but the renderer rejects the update
+        /// ("the attribute is not a vec3f array") and the colour never animates in a
+        /// viewport. Both generator colour targets were authored with only a
+        /// material binding and neither ever moved.
+        /// </remarks>
+        [Test]
+        public void RecolouredPrimsDeclareDisplayColor()
+        {
+            foreach (string prim in new[] { "Core", "Stack" })
+            {
+                Assert.That(
+                    BlockOf(prim),
+                    Does.Contain("primvars:displayColor"),
+                    $"'{prim}' is driven by a colour binding, so it must declare " +
+                    "primvars:displayColor or the renderer cannot update it.");
+            }
+        }
+
+        /// <summary>
         /// Indicator geometry starts hidden.
         /// </summary>
         /// <remarks>

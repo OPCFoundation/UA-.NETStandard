@@ -275,7 +275,7 @@ namespace Generators
                     .ConfigureAwait(false);
             }
 
-            OrganiseRepresentations();
+            await OrganiseRepresentationsAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

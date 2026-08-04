@@ -221,6 +221,20 @@ namespace Opc.Ua.OpenUsd.Connector
                 {
                     List<OpenUsdConnector.FetchedAsset> fetched =
                         await fetcher.FetchServedAssetsAsync(cacheDir!, CancellationToken.None).ConfigureAwait(false);
+
+                    // A federated stage is only half fetched at this point. Composition
+                    // has authored reference arcs onto prims owned by other servers, but
+                    // the layers those arcs resolve against live on those servers, so
+                    // without this the viewport shows the primary server's shell with
+                    // empty placeholders where every subordinate's machines should be -
+                    // live values arriving onto prims that have no geometry behind them.
+                    if (connectorOptions?.RemoteSessionFactory != null)
+                    {
+                        fetched.AddRange(await FetchFederatedAssetsAsync(
+                            fetcher, config, sessionFactory, telemetry, cacheDir!, insecure)
+                            .ConfigureAwait(false));
+                    }
+
                     if (fetched.Count > 0)
                     {
                         WriteStageUsda(cacheDir!, fetched);
@@ -561,16 +575,123 @@ namespace Opc.Ua.OpenUsd.Connector
             return null;
         }
 
-        private static void WriteStageUsda(string cacheDir, List<OpenUsdConnector.FetchedAsset> fetched)
+        /// <summary>
+        /// Fetches the asset closure of every server named by a cross-server component.
+        /// </summary>
+        /// <param name="primary">Connector on the primary session, used for discovery.</param>
+        /// <param name="config">Application configuration for the outbound sessions.</param>
+        /// <param name="sessionFactory">Factory used to open the outbound sessions.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="cacheDir">Directory every layer is fetched into.</param>
+        /// <param name="insecure">Whether to accept an unsecured endpoint.</param>
+        /// <returns>The layers fetched from the subordinate servers.</returns>
+        /// <remarks>
+        /// Everything lands in the same cache directory on purpose: a component's
+        /// <c>ComponentAssetReference</c> is a plain relative identifier such as
+        /// <c>@pump.usda@</c>, so it only resolves if the subordinate's layer sits
+        /// beside the primary server's. Best-effort per server, for the same reason
+        /// federation itself is: one unreachable subordinate costs its own geometry,
+        /// not the whole scene.
+        /// </remarks>
+        private static async Task<List<OpenUsdConnector.FetchedAsset>> FetchFederatedAssetsAsync(
+            OpenUsdConnector primary,
+            ApplicationConfiguration config,
+            DefaultSessionFactory sessionFactory,
+            ITelemetryContext telemetry,
+            string cacheDir,
+            bool insecure)
         {
-            OpenUsdConnector.FetchedAsset? root = fetched.Find(a => a.Kind == OpenUsdAssetKind.RootLayer);
-            string rootName = root != null ? Path.GetFileName(root.LocalPath) : "base.usda";
-            var sb = new StringBuilder();
-            sb.Append("#usda 1.0\n(\n");
-            sb.Append("    doc = \"Self-contained OpenUSD stage: server-delivered base layers + the live OPC UA override.\"\n");
-            sb.Append("    subLayers = [\n        @./live.usda@,\n        @./").Append(rootName).Append("@\n    ]\n");
-            sb.Append(")\n");
-            File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), sb.ToString());
+            var result = new List<OpenUsdConnector.FetchedAsset>();
+            var endpoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (OpenUsdConnector.RepresentationInfo rep in
+                await primary.DiscoverAllRepresentationsAsync(CancellationToken.None).ConfigureAwait(false))
+            {
+                foreach (OpenUsdConnector.ComponentInfo component in rep.Components)
+                {
+                    if (component.Enabled && !string.IsNullOrEmpty(component.ComponentEndpointUrl))
+                    {
+                        endpoints.Add(component.ComponentEndpointUrl!);
+                    }
+                }
+            }
+
+            foreach (string endpointUrl in endpoints)
+            {
+                ISession? remote = null;
+                OpenUsdConnector? remoteFetcher = null;
+                try
+                {
+                    remote = await OpenRemoteSessionAsync(
+                        config, sessionFactory, telemetry, endpointUrl, insecure, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    remoteFetcher = new OpenUsdConnector(remote, new MockUsdSink(), enableCommands: false);
+                    List<OpenUsdConnector.FetchedAsset> got = await remoteFetcher
+                        .FetchServedAssetsAsync(cacheDir, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    result.AddRange(got);
+                    Console.WriteLine(
+                        $"Fetched {got.Count} layer(s) from the federated server {endpointUrl}.");
+                }
+#pragma warning disable CA1031 // One unreachable subordinate must not fail the stage.
+                catch (Exception ex)
+#pragma warning restore CA1031
+                {
+                    // TODO: narrow once RemoteSessionFactory documents what it may throw.
+                    Console.Error.WriteLine(
+                        $"WARNING: could not fetch assets from {endpointUrl}: {ex.Message}");
+                }
+                finally
+                {
+                    if (remoteFetcher != null)
+                    {
+                        await remoteFetcher.DisposeAsync().ConfigureAwait(false);
+                    }
+                    if (remote != null)
+                    {
+                        await remote.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+                private static void WriteStageUsda(string cacheDir, List<OpenUsdConnector.FetchedAsset> fetched)
+                {
+                    // Every server contributes its own root layer, so a federated stage has
+                    // several. Taking only the first would render the primary server's shell
+                    // and silently drop every subordinate's machines. live.usda stays first,
+                    // because the OPC UA overrides must win over every base layer.
+                    var roots = new List<string>();
+                    foreach (OpenUsdConnector.FetchedAsset asset in fetched)
+                    {
+                        if (asset.Kind != OpenUsdAssetKind.RootLayer)
+                        {
+                            continue;
+                        }
+                        string name = Path.GetFileName(asset.LocalPath);
+                        if (!roots.Contains(name))
+                        {
+                            roots.Add(name);
+                        }
+                    }
+                    if (roots.Count == 0)
+                    {
+                        roots.Add("base.usda");
+                    }
+
+                    var sb = new StringBuilder();
+                    sb.Append("#usda 1.0\n(\n");
+                    sb.Append("    doc = \"Self-contained OpenUSD stage: server-delivered base layers + the live OPC UA override.\"\n");
+                    sb.Append("    subLayers = [\n        @./live.usda@");
+                    foreach (string root in roots)
+                    {
+                        sb.Append(",\n        @./").Append(root).Append('@');
+                    }
+                    sb.Append("\n    ]\n");
+                    sb.Append(")\n");
+                    File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), sb.ToString());
 
             // The override layer is only written once the first values arrive, so seed an
             // empty one now. Without it a viewer that opens the stage first reports the

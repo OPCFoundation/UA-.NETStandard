@@ -386,7 +386,7 @@ namespace Generators
         /// binding makes a connector's stale-prim sweep deactivate the component
         /// prims that live under the same target prefix.
         /// </remarks>
-        private void OrganiseRepresentations()
+        private async ValueTask OrganiseRepresentationsAsync(CancellationToken cancellationToken)
         {
             if (m_openUsdRoot?.Representations is FolderState registry)
             {
@@ -396,7 +396,7 @@ namespace Generators
                 }
             }
 
-            MaterialisePlantAggregation();
+            await MaterialisePlantAggregationAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -409,7 +409,8 @@ namespace Generators
         /// cannot carry the per-set rotation, colour and position that make the sets
         /// look like independent machines.
         /// </remarks>
-        private void MaterialisePlantAggregation()
+        /// <param name="cancellationToken">Cancellation token.</param>
+        private async ValueTask MaterialisePlantAggregationAsync(CancellationToken cancellationToken)
         {
             if (m_powerhouseStage == null || m_twins.IsEmpty)
             {
@@ -446,6 +447,17 @@ namespace Generators
                     Opc.Ua.Generators.ObjectTypes.GeneratorSetType,
                     Opc.Ua.Generators.Namespaces.Generators,
                     Server.NamespaceUris));
+
+            // DeviceSet was registered long before this runs, so the representation
+            // has to be registered on its own. Without this it exists only as a C#
+            // object hanging off an already-registered parent: RegisterInDiscovery
+            // below lists it, but no client can resolve or browse it, so a connector
+            // never sees the aggregation and never composes any generator geometry.
+            // The sets then render as live values on prims that have nothing behind
+            // them - an empty powerhouse that reports 250 kW.
+            SystemContext.AssignInstanceChildNodeIds(plant);
+            await AddPredefinedNodeAsync(SystemContext, plant, cancellationToken)
+                .ConfigureAwait(false);
 
             if (m_openUsdRoot?.Representations is FolderState registry)
             {

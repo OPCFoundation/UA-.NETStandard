@@ -138,10 +138,23 @@ def xform_attrs(
     return attributes
 
 
-def cube(name: str, size: Sequence[float], translate: Sequence[float], material_name: str, level: int) -> str:
+def cube(
+    name: str,
+    size: Sequence[float],
+    translate: Sequence[float],
+    material_name: str,
+    level: int,
+    display_color: Sequence[float] | None = None,
+) -> str:
     attributes = ["double size = 1"]
     attributes.extend(xform_attrs(translate=translate, scale=size))
     attributes.append(bind(material_name))
+    if display_color is not None:
+        # A prim a live binding recolours must declare primvars:displayColor
+        # itself. Writing the attribute from the override layer alone puts the
+        # colour in the file but leaves the renderer with nothing to update, so
+        # the value never animates in a viewport.
+        attributes.append(f"color3f[] primvars:displayColor = [({f(display_color[0])}, {f(display_color[1])}, {f(display_color[2])})]")
     return prim("Cube", name, attributes, level=level)
 
 
@@ -153,10 +166,13 @@ def cylinder(
     translate: Sequence[float],
     material_name: str,
     level: int,
+    display_color: Sequence[float] | None = None,
 ) -> str:
     attributes = [f'uniform token axis = "{axis}"', f"double radius = {f(radius)}", f"double height = {f(height)}"]
     attributes.extend(xform_attrs(translate=translate))
     attributes.append(bind(material_name))
+    if display_color is not None:
+        attributes.append(f"color3f[] primvars:displayColor = [({f(display_color[0])}, {f(display_color[1])}, {f(display_color[2])})]")
     return prim("Cylinder", name, attributes, level=level)
 
 
@@ -281,7 +297,7 @@ def build_generator() -> str:
         "Xform",
         "Radiator",
         xform_attrs(translate=(-2.050, 0.000, 1.000)),
-        [cube("Core", (0.180, 1.300, 1.300), (0.000, 0.000, 0.000), "RadiatorDark", 2), fan],
+        [cube("Core", (0.180, 1.300, 1.300), (0.000, 0.000, 0.000), "RadiatorDark", 2, display_color=(0.030, 0.035, 0.040)), fan],
         level=1,
     )
 
@@ -291,7 +307,7 @@ def build_generator() -> str:
         xform_attrs(translate=(-0.400, 0.450, 1.550)),
         [
             cylinder("Silencer", "X", 0.220, 1.100, (0.000, 0.000, 0.000), "ExhaustSteel", 2),
-            cylinder("Stack", "Z", 0.110, 1.200, (-0.450, 0.000, 0.550), "ExhaustSteel", 2),
+            cylinder("Stack", "Z", 0.110, 1.200, (-0.450, 0.000, 0.550), "ExhaustSteel", 2, display_color=(0.620, 0.600, 0.560)),
         ],
         level=1,
     )
@@ -402,6 +418,17 @@ def build_powerhouse() -> str:
     powerhouse = prim(
         "Xform",
         "Powerhouse",
+        [
+            # Declared so a site-level layer can position the whole powerhouse
+            # beside the pump plant. xformOpOrder is uniform and cannot be
+            # rewritten from a stronger layer, so a prim that another layer may
+            # need to place has to declare the op itself - and it must be
+            # xformOp:transform, because that is the single matrix op a
+            # positioning layer writes. Identity here: standalone, the powerhouse
+            # sits at its own origin.
+            "matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )",
+            'uniform token[] xformOpOrder = ["xformOp:transform"]',
+        ],
         children=[
             floor_mesh(),
             prim("DistantLight", "KeyLight", ["float inputs:intensity = 650", "float inputs:angle = 0.5", *xform_attrs(rotate_xyz=(45.000, 0.000, -35.000))], level=1),

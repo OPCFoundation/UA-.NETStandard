@@ -222,6 +222,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.180, 1.300, 1.300)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/RadiatorDark>
+            color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
         }
         def Xform "Fan"
         {
@@ -317,6 +318,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (-0.450, 0.000, 0.550)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/ExhaustSteel>
+            color3f[] primvars:displayColor = [(0.620, 0.600, 0.560)]
         }
     }
     def Xform "ControlPanel"

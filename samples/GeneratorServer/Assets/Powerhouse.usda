@@ -7,6 +7,9 @@
 
 def Xform "Powerhouse"
 {
+    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+    uniform token[] xformOpOrder = ["xformOp:transform"]
+
     def Mesh "Floor"
     {
         point3f[] points = [(-6.000, -5.000, 0.000), (6.000, -5.000, 0.000), (6.000, 26.000, 0.000), (-6.000, 26.000, 0.000)]
