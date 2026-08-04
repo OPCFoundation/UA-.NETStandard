@@ -133,22 +133,16 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         [TearDown]
         public async Task TearDownAsync()
         {
-            if (m_requestHeader is not null)
-            {
-                m_requestHeader.Timestamp = DateTimeUtc.Now;
-                await m_server
-                    .CloseSessionAsync(m_secureChannelContext, m_requestHeader, true, RequestLifetime.None)
-                    .ConfigureAwait(false);
-            }
-
-            m_coordinator?.Dispose();
-            m_registry?.Dispose();
-            m_server?.Dispose();
+            await CloseActiveSessionAsync().ConfigureAwait(false);
 
             if (m_fixture is not null)
             {
                 await m_fixture.StopAsync().ConfigureAwait(false);
             }
+
+            m_coordinator?.Dispose();
+            m_registry?.Dispose();
+            m_server?.Dispose();
 
             if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
             {
@@ -252,6 +246,25 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 "The retired projection's nodes must be cleaned up after the resource is removed.");
         }
 
+        [Test]
+        public async Task ShutdownAfterCoordinatorDisposeRemovesMaterializedAddressSpaceAsync()
+        {
+            await UpsertSensorAsync("sensor", generation: 1).ConfigureAwait(false);
+            WotRefreshResult refresh = await m_coordinator
+                .RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(refresh.Results.Any(r => r.LoadState == WoTLoadStateEnum.Active), Is.True,
+                "The test must exercise shutdown with a live materialized projection.");
+
+            await CloseActiveSessionAsync().ConfigureAwait(false);
+            m_coordinator.Dispose();
+            m_coordinator = null!;
+
+            Assert.That(
+                async () => await m_fixture.StopAsync().ConfigureAwait(false),
+                Throws.Nothing,
+                "Server shutdown must still delete the WoT address space after coordinator disposal.");
+        }
+
         private async Task AssertRegistryProjectionAsync(IServerInternal server)
         {
             var registryNodeId = ExpandedNodeId.ToNodeId(
@@ -278,6 +291,21 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }).ConfigureAwait(false);
             Assert.That(resourceVisible, Is.True,
                 "The group must expose the registered resource document.");
+        }
+
+        private async Task CloseActiveSessionAsync()
+        {
+            if (m_requestHeader is null)
+            {
+                return;
+            }
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            await m_server
+                .CloseSessionAsync(m_secureChannelContext, m_requestHeader, true, RequestLifetime.None)
+                .ConfigureAwait(false);
+            m_requestHeader = null!;
+            m_secureChannelContext = null!;
         }
 
         [Test]
