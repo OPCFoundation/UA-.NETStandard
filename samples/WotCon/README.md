@@ -253,7 +253,7 @@ dotnet publish samples/WotCon/AggregationServer/AggregationServer.csproj -c Rele
 dotnet publish samples/WotCon/AggregationClient/AggregationClient.csproj -c Release -f net10.0 -r win-x64 --self-contained true
 ```
 
-Use the published `FlatTagServer.exe` twice with the Source A and Source B arguments above. The client project includes the checked-in `Documents` tree in its publish output, so omit `--documentsDirectory` to use `<publish-directory>\Documents` or pass an explicit external copy.
+Use the published `FlatTagServer.exe` twice with the Source A and Source B arguments above. The client project includes the checked-in `Documents` tree in its publish output, so omit `--documentsDirectory` to use `<publish-directory>/Documents` or pass an explicit external copy.
 
 ## Related documentation
 

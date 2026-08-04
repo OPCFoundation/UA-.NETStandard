@@ -66,7 +66,8 @@ namespace Opc.Ua.WotCon.Server
         /// The minimum acceptable channel security mode. Defaults to
         /// <see cref="MessageSecurityMode.SignAndEncrypt"/>; channels
         /// using <see cref="MessageSecurityMode.None"/> or
-        /// <see cref="MessageSecurityMode.Sign"/> are rejected.
+        /// <see cref="MessageSecurityMode.Sign"/> are rejected. A conformant
+        /// registry mutation surface shall not configure a weaker mode.
         /// </summary>
         public MessageSecurityMode MinimumSecurityMode { get; init; } =
             MessageSecurityMode.SignAndEncrypt;

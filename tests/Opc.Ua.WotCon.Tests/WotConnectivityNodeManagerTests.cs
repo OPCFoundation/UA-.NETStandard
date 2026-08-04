@@ -39,6 +39,7 @@ using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Assets;
+using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 using Opc.Ua.WotCon.Tests.Providers;
 
@@ -91,9 +92,59 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
-        // ----------------------------------------------------------------
-        // CreateAsset: name validation and dup detection.
-        // ----------------------------------------------------------------
+        [Test]
+        public async Task ConfigurationParameterWithoutInitialValueUsesTypedDefault()
+        {
+            using var harness = new ManagerHarness(_tempFolder);
+            harness.Options.Configuration["VendorName"] = new WotConfigurationParameter
+            {
+                DataType = Ua.DataTypeIds.String
+            };
+
+            await harness.StartAsync().ConfigureAwait(false);
+
+            Variant actual = GetConfigurationParameterValue(harness, "VendorName");
+            Variant expected = TypeInfo.GetDefaultVariantValue(Ua.DataTypeIds.String, ValueRanks.Scalar);
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.That(actual, Is.Not.EqualTo(Variant.Null));
+            Assert.That(actual.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.String));
+        }
+
+        [Test]
+        public async Task ConfigurationParameterExplicitNullInitialValueStaysUaNull()
+        {
+            using var harness = new ManagerHarness(_tempFolder);
+            harness.Options.Configuration["VendorName"] = new WotConfigurationParameter
+            {
+                DataType = Ua.DataTypeIds.String,
+                InitialValue = Variant.Null
+            };
+
+            await harness.StartAsync().ConfigureAwait(false);
+
+            Variant actual = GetConfigurationParameterValue(harness, "VendorName");
+
+            Assert.That(actual, Is.EqualTo(Variant.Null));
+        }
+
+        [Test]
+        public async Task ConfigurationParameterSpecifiedInitialValuePassesThrough()
+        {
+            using var harness = new ManagerHarness(_tempFolder);
+            harness.Options.Configuration["VendorName"] = new WotConfigurationParameter
+            {
+                DataType = Ua.DataTypeIds.String,
+                InitialValue = new Variant("Acme")
+            };
+
+            await harness.StartAsync().ConfigureAwait(false);
+
+            Variant actual = GetConfigurationParameterValue(harness, "VendorName");
+
+            Assert.That(actual.TryGetValue(out string? value), Is.True);
+            Assert.That(value, Is.EqualTo("Acme"));
+        }
 
         [Test]
         public async Task CreateAssetWithEmptyNameReturnsBadInvalidArgument()
@@ -195,10 +246,6 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(assetId.IsNull, Is.True);
         }
 
-        // ----------------------------------------------------------------
-        // DeleteAsset: missing-id and happy path.
-        // ----------------------------------------------------------------
-
         [Test]
         public async Task DeleteAssetReturnsBadNotFoundForUnknownId()
         {
@@ -225,10 +272,6 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(ServiceResult.IsGood(status), Is.True);
             Assert.That(harness.Registry.AssetNames, Does.Not.Contain("asset-001"));
         }
-
-        // ----------------------------------------------------------------
-        // Rebuild: BadNotSupported when no factory accepts the TD.
-        // ----------------------------------------------------------------
 
         [Test]
         public async Task RebuildReturnsBadNotSupportedWhenNoFactoryAcceptsTd()
@@ -668,11 +711,6 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(foundTag.Name, Is.EqualTo("Reset"));
         }
 
-        // ----------------------------------------------------------------
-        // Discovery / ConnectionTest / CreateAssetForEndpoint:
-        // BadNotSupported when no discovery provider is configured.
-        // ----------------------------------------------------------------
-
         [Test]
         public async Task DiscoverAssetsReturnsBadNotSupportedWhenNoDiscoveryProvider()
         {
@@ -743,10 +781,6 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(ServiceResult.IsGood(status), Is.True);
             Assert.That(success, Is.True);
         }
-
-        // ----------------------------------------------------------------
-        // Persisted-TD reload on startup.
-        // ----------------------------------------------------------------
 
         [Test]
         public async Task RebuildAsync_SkipsTdChildrenWithInvalidNames_AndMaterialisesValidOnes()
@@ -837,6 +871,55 @@ namespace Opc.Ua.WotCon.Tests
             ["Voltage"];
 
         [Test]
+        public async Task LegacyAssetIsMirroredIntoV2RegistryWithoutDivergence()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            using var registry = new WotRegistryService();
+            harness.Options.RegistryBridge = registry;
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            var td = new ThingDescription
+            {
+                Name = "asset-001",
+                Base = "sim://opcua.test/wot/asset-001",
+                Properties = new Dictionary<string, WotProperty>
+                {
+                    ["Voltage"] = new WotProperty { Type = "number" }
+                }
+            };
+            await harness.Registry.RebuildAsync(
+                entry,
+                td,
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            WotResource? resource = registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "asset-001");
+            Assert.That(resource, Is.Not.Null,
+                "A legacy asset must have a matching V2 registry resource.");
+
+            byte[] expected = JsonSerializer.SerializeToUtf8Bytes(
+                td,
+                ThingDescriptionJsonContext.Default.ThingDescription);
+            Assert.That(resource!.DefaultVersion!.Content.ToArray(), Is.EqualTo(expected),
+                "The mirrored registry document must not diverge from the legacy document.");
+
+            ServiceResult delete = await harness.Registry
+                .DeleteAssetAsync(assetId, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(delete), Is.True);
+            Assert.That(
+                registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "asset-001"),
+                Is.Null,
+                "Deleting a legacy asset must remove its registry resource.");
+        }
+
+        [Test]
         public async Task PersistedThingDescriptionsAreRestoredOnStartup()
         {
             // Round 1: create an asset, materialise it with a TD, persist to disk.
@@ -878,10 +961,14 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(reloaded.Registry.AssetNames, Has.Member(assetName));
         }
 
-        // ----------------------------------------------------------------
-        // Harness — minimal in-process node manager backed by a mocked
-        // IServerInternal, mirroring AsyncCustomNodeManagerTests.
-        // ----------------------------------------------------------------
+        private static Variant GetConfigurationParameterValue(ManagerHarness harness, string browseName)
+        {
+            BaseInstanceState parameter = harness.FindManagementChild("Configuration", browseName);
+            var variable = (BaseVariableState)parameter;
+
+            Assert.That(variable.Value, Is.TypeOf<Variant>());
+            return (Variant)variable.Value;
+        }
 
         private sealed class ManagerHarness : IDisposable
         {
@@ -1032,6 +1119,24 @@ namespace Opc.Ua.WotCon.Tests
                         System.Reflection.BindingFlags.Instance |
                         System.Reflection.BindingFlags.NonPublic)!
                     .GetValue(Manager)!;
+
+            public BaseInstanceState FindManagementChild(params string[] browseNames)
+            {
+                NodeState current = (NodeState)typeof(WotConnectivityNodeManager)
+                    .GetField("m_managementObject",
+                        System.Reflection.BindingFlags.Instance |
+                        System.Reflection.BindingFlags.NonPublic)!
+                    .GetValue(Manager)!;
+
+                foreach (string browseName in browseNames)
+                {
+                    var children = new List<BaseInstanceState>();
+                    current.GetChildren(m_serverSystemContext, children);
+                    current = children.Single(c => c.BrowseName.Name == browseName);
+                }
+
+                return (BaseInstanceState)current;
+            }
 
             public async Task StartAsync()
             {
