@@ -267,10 +267,11 @@ jobs:
     needs: [discover, build-and-test]
     runs-on: ubuntu-latest
     # always(): the coverage of a run whose tests failed is still worth
-    # reporting, and build-and-test is skipped wholesale when Azure Pipelines
-    # owns the matrix. The guards below then decide whether there is anything
-    # to do.
-    if: ${{ always() && needs.discover.outputs.gh_owns_build == 'true' && needs.discover.outputs.relevant_changes == 'true' }}
+    # reporting. Gated on the same test_os condition build-and-test itself uses,
+    # rather than on gh_owns_build - a push or scheduled run under the 'ado'
+    # backend still executes the macOS legs here, and their coverage would
+    # otherwise be uploaded and then discarded.
+    if: ${{ always() && needs.discover.outputs.test_os != '[]' && needs.discover.outputs.relevant_changes == 'true' }}
     permissions:
       contents: read
       # Required to upsert the sticky coverage comment. Note that on a
@@ -298,16 +299,27 @@ jobs:
     - name: Detect coverage
       id: probe
       shell: pwsh
+      env:
+        TESTS_RESULT: ${{ needs.build-and-test.result }}
       run: |
         $reports = @(Get-ChildItem -Path coverage-artifacts -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue)
         Write-Host "Found $($reports.Count) Cobertura report(s)."
         "has_reports=$(($reports.Count -gt 0).ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        if ($reports.Count -eq 0) {
-            # Expected when every test job was skipped. The 'build-and-test
-            # summary' job owns the failure signal, so warn rather than
-            # manufacture a red coverage check with no data behind it.
-            Write-Host '::warning title=Code coverage::No Cobertura reports were produced by the test matrix; there is nothing to evaluate.'
+        if ($reports.Count -gt 0) {
+            exit 0
         }
+
+        # Nothing to evaluate. Whether that is expected depends on whether the
+        # test matrix actually ran: if it was skipped there is genuinely no
+        # coverage to collect, but a matrix that completed and published nothing
+        # means the collector is broken, and silently reporting green would hide
+        # that indefinitely.
+        if ($env:TESTS_RESULT -eq 'success') {
+            Write-Host '::error title=Code coverage::The test matrix completed but published no coverage at all; the collector is not working.'
+            exit 1
+        }
+
+        Write-Host "::warning title=Code coverage::The test matrix did not complete (result: $($env:TESTS_RESULT)), so there is no coverage to evaluate."
 
     - name: Merge coverage report
       if: ${{ steps.probe.outputs.has_reports == 'true' }}

@@ -383,70 +383,37 @@ stages:
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
 
-# Terminal stages.  Both depend on this exact list of test stages, because
-# Azure Pipelines only exposes dependencies.<stage>.result for DIRECT
-# dependencies.
+
+# Terminal stages.  Both are stage templates, not job templates, because they
+# read dependencies.<stage>.result - which resolves at STAGE scope only; at job
+# scope 'dependencies' refers to other jobs of the same stage.  Each template
+# derives its own dependsOn from the same stage list it evaluates, so the two
+# can never drift apart.
 #
 # Required check.  Rolls every test stage up into a single status so the GitHub
 # branch ruleset does not have to name matrix-generated jobs, whose names change
 # whenever a test project or an agent is added.
-- stage: gate
-  displayName: 'Tests passed'
-  dependsOn:
-  - build
-  - testfastpr
-  - testaot
-  - testdebug
-  - testnet90
-  - testnet80
-  - testnet472
-  - testnetstandard20
-  - testnetstandard21
-  - testnightly
-  # not(canceled()) rather than the default succeeded(): a stage skipped because
-  # a dependency failed reports to GitHub as 'skipped', and a required check
-  # that reports 'skipped' counts as SATISFIED - so with succeeded() a red build
-  # would sail straight through the ruleset.
-  condition: not(canceled())
-  jobs:
-  - template: .azurepipelines/gate.yml
-    parameters:
-      poolName: ${{ variables.hostPoolName }}
-      poolImage: ${{ variables.hostLinuxImage }}
-      stages:
-      - build
-      - testfastpr
-      - testaot
-      - testdebug
-      - testnet90
-      - testnet80
-      - testnet472
-      - testnetstandard20
-      - testnetstandard21
-      - testnightly
+- template: .azurepipelines/gate.yml
+  parameters:
+    poolName: ${{ variables.hostPoolName }}
+    poolImage: ${{ variables.hostLinuxImage }}
+    stages: &testStages
+    - build
+    - testfastpr
+    - testaot
+    - testdebug
+    - testnet90
+    - testnet80
+    - testnet472
+    - testnetstandard20
+    - testnetstandard21
+    - testnightly
 # Advisory check.  Merges every Cobertura fragment the run produced and
 # evaluates coverage-thresholds.json once.  It reports a clean failure when the
 # thresholds are missed so the miss is visible, but it must NOT be added to the
 # GitHub branch ruleset - 'Tests passed' above is the required check.
-- stage: coverage
-  displayName: 'Code coverage'
-  dependsOn:
-  - build
-  - testfastpr
-  - testaot
-  - testdebug
-  - testnet90
-  - testnet80
-  - testnet472
-  - testnetstandard20
-  - testnetstandard21
-  - testnightly
-  # Evaluate whatever coverage the run did produce even when a test stage
-  # failed: a partial report is still worth publishing, and the gate stage
-  # already carries the failure signal.
-  condition: not(canceled())
-  jobs:
-  - template: .azurepipelines/coverage.yml
-    parameters:
-      poolName: ${{ variables.hostPoolName }}
-      poolImage: ${{ variables.hostLinuxImage }}
+- template: .azurepipelines/coverage.yml
+  parameters:
+    poolName: ${{ variables.hostPoolName }}
+    poolImage: ${{ variables.hostLinuxImage }}
+    stages: *testStages
