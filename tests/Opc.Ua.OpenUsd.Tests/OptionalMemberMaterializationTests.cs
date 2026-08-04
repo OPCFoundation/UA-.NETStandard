@@ -167,7 +167,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void ARelationshipTargetingAnAttributeResolvesToThatAttributeNode()
         {
             var target = new UsdPrim("Mesh", "Mesh");
-            target.Attributes.Add(new UsdAttribute("size", "double") { Value = 2.0 });
+            target.Attributes.Add(new UsdAttribute("size", "double") { Value = UsdValue.From(2.0) });
             var source = new UsdPrim("Binding", "Scope");
             var relationship = new UsdRelationship("drivenBy");
             relationship.Targets.Add("/Mesh.size");
