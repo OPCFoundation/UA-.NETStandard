@@ -401,7 +401,9 @@ namespace Opc.Ua.Client
 
             if (updateBeforeConnect && connection == null)
             {
-                await endpoint.UpdateFromServerAsync(messageContext.Telemetry, ct).ConfigureAwait(false);
+                await endpoint
+                    .UpdateFromServerAsync(configuration, messageContext.Telemetry, ct)
+                    .ConfigureAwait(false);
             }
 
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)

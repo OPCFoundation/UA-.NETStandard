@@ -52,9 +52,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void SampledAttribute_MaterializesDefaultAsValue_AndHistorizes()
         {
-            var attr = new UsdAttribute("angle", "double") { Value = 5.0 };
-            attr.TimeSamples[0.0] = 0.0;
-            attr.TimeSamples[24.0] = 90.0;
+            var attr = new UsdAttribute("angle", "double") { Value = UsdValue.From(5.0) };
+            attr.TimeSamples[0.0] = UsdValue.From(0.0);
+            attr.TimeSamples[24.0] = UsdValue.From(90.0);
             MaterializedScene ms = MaterializeAttr(attr);
 
             UsdAttributeState node = ms.Attr("/P.angle");
@@ -70,8 +70,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void SampledAttribute_WithoutDefault_HasNoValue_ButStillHistorizes()
         {
             var attr = new UsdAttribute("angle", "double");
-            attr.TimeSamples[0.0] = 0.0;
-            attr.TimeSamples[24.0] = 90.0;
+            attr.TimeSamples[0.0] = UsdValue.From(0.0);
+            attr.TimeSamples[24.0] = UsdValue.From(90.0);
             MaterializedScene ms = MaterializeAttr(attr);
 
             UsdAttributeState node = ms.Attr("/P.angle");
@@ -84,10 +84,10 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void HistoricalAccess_ExposesOrderedSamples_KeyedByComposedPath()
         {
-            var attr = new UsdAttribute("angle", "double") { Value = 5.0 };
-            attr.TimeSamples[48.0] = 180.0;
-            attr.TimeSamples[0.0] = 0.0;
-            attr.TimeSamples[24.0] = 90.0;
+            var attr = new UsdAttribute("angle", "double") { Value = UsdValue.From(5.0) };
+            attr.TimeSamples[48.0] = UsdValue.From(180.0);
+            attr.TimeSamples[0.0] = UsdValue.From(0.0);
+            attr.TimeSamples[24.0] = UsdValue.From(90.0);
             MaterializedScene ms = MaterializeAttr(attr);
 
             Assert.That(ms.Result.HistoricalAccessByPath.ContainsKey("/P.angle"), Is.True);
@@ -98,36 +98,37 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(
                 ha.Samples.Select(s => s.TimeCode), Is.EqualTo(new[] { 0.0, 24.0, 48.0 }));
             Assert.That(
-                ha.Samples.Select(s => s.Value), Is.EqualTo(new object?[] { 0.0, 90.0, 180.0 }));
+                ha.Samples.Select(s => s.Value),
+                Is.EqualTo(new[] { UsdValue.From(0.0), UsdValue.From(90.0), UsdValue.From(180.0) }));
         }
 
         [Test]
         public void CoauthoredDefaultAndSamples_AreIndependent()
         {
-            var attr = new UsdAttribute("angle", "double") { Value = 42.0 };
-            attr.TimeSamples[0.0] = 7.0;
+            var attr = new UsdAttribute("angle", "double") { Value = UsdValue.From(42.0) };
+            attr.TimeSamples[0.0] = UsdValue.From(7.0);
             MaterializedScene ms = MaterializeAttr(attr);
 
             // The default and the first sample differ, proving Value is the default, not sample[0].
             Assert.That(ms.Attr("/P.angle").BoxedValue(), Is.EqualTo(42.0));
             Assert.That(
                 ms.Result.HistoricalAccessByPath["/P.angle"].Samples.Single().Value,
-                Is.EqualTo(7.0));
+                Is.EqualTo(UsdValue.From(7.0)));
         }
 
         [Test]
         public void NegativeAndFractionalTimeCodes_ArePreserved()
         {
             var attr = new UsdAttribute("angle", "double");
-            attr.TimeSamples[-12.0] = -1.0;
-            attr.TimeSamples[0.5] = 5.0;
-            attr.TimeSamples[2.25] = 7.5;
+            attr.TimeSamples[-12.0] = UsdValue.From(-1.0);
+            attr.TimeSamples[0.5] = UsdValue.From(5.0);
+            attr.TimeSamples[2.25] = UsdValue.From(7.5);
             MaterializedScene ms = MaterializeAttr(attr);
 
             IReadOnlyList<UsdTimeSample> samples =
                 ms.Result.HistoricalAccessByPath["/P.angle"].Samples;
             Assert.That(samples.Select(s => s.TimeCode), Is.EqualTo(new[] { -12.0, 0.5, 2.25 }));
-            Assert.That(samples[0].Value, Is.EqualTo(-1.0));
+            UsdTestHelpers.AssertDouble(samples[0].Value, -1.0);
         }
 
         [Test]
@@ -136,15 +137,17 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // §8.4: an unrecognized SdfValueTypeName is carried opaquely. Its samples must still be
             // recorded verbatim — the materializer never guesses at or drops an unknown value.
             var attr = new UsdAttribute("mystery", "customType");
-            attr.TimeSamples[0.0] = "opaque-a";
-            attr.TimeSamples[10.0] = "opaque-b";
+            attr.TimeSamples[0.0] = UsdValue.FromString("opaque-a");
+            attr.TimeSamples[10.0] = UsdValue.FromString("opaque-b");
             MaterializedScene ms = MaterializeAttr(attr);
 
             UsdAttributeState node = ms.Attr("/P.mystery");
             Assert.That(node.Historizing, Is.True);
             IReadOnlyList<UsdTimeSample> samples =
                 ms.Result.HistoricalAccessByPath["/P.mystery"].Samples;
-            Assert.That(samples.Select(s => s.Value), Is.EqualTo(new object?[] { "opaque-a", "opaque-b" }));
+            Assert.That(
+                samples.Select(s => s.Value),
+                Is.EqualTo(new[] { UsdValue.FromString("opaque-a"), UsdValue.FromString("opaque-b") }));
         }
 
         // ---- regression: unsampled attributes are untouched ----------------------------
@@ -152,7 +155,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void UnsampledAttribute_IsNotHistorizing_AndAbsentFromHistoricalAccess()
         {
-            var attr = new UsdAttribute("angle", "double") { Value = 5.0 };
+            var attr = new UsdAttribute("angle", "double") { Value = UsdValue.From(5.0) };
             MaterializedScene ms = MaterializeAttr(attr);
 
             Assert.That(ms.Attr("/P.angle").Historizing, Is.False);
@@ -165,7 +168,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void ResolveUtc_WithoutEpoch_ReturnsNull()
         {
             var attr = new UsdAttribute("angle", "double");
-            attr.TimeSamples[24.0] = 90.0;
+            attr.TimeSamples[24.0] = UsdValue.From(90.0);
             // No epoch option and stage declares TimeCodesPerSecond: the timeline is Server-defined.
             MaterializedScene ms = MaterializeAttr(attr, tcps: 24.0, epochUtc: null);
 
@@ -179,7 +182,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var epoch = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             var attr = new UsdAttribute("angle", "double");
-            attr.TimeSamples[48.0] = 180.0;
+            attr.TimeSamples[48.0] = UsdValue.From(180.0);
             MaterializedScene ms = MaterializeAttr(attr, tcps: 24.0, epochUtc: epoch);
 
             UsdHistoricalAccess ha = ms.Result.HistoricalAccessByPath["/P.angle"];
@@ -194,7 +197,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var epoch = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             var attr = new UsdAttribute("angle", "double");
-            attr.TimeSamples[24.0] = 90.0;
+            attr.TimeSamples[24.0] = UsdValue.From(90.0);
             // Epoch declared but the stage has no TimeCodesPerSecond: the rate is unknown, so the
             // mapping stays undefined rather than assuming a rate (fail closed).
             MaterializedScene ms = MaterializeAttr(attr, tcps: null, epochUtc: epoch);
@@ -207,18 +210,18 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void SampledAttribute_RoundTripsThroughExport()
         {
-            var attr = new UsdAttribute("angle", "double") { Value = 5.0 };
-            attr.TimeSamples[-6.0] = -1.0;
-            attr.TimeSamples[0.0] = 0.0;
-            attr.TimeSamples[24.0] = 90.0;
+            var attr = new UsdAttribute("angle", "double") { Value = UsdValue.From(5.0) };
+            attr.TimeSamples[-6.0] = UsdValue.From(-1.0);
+            attr.TimeSamples[0.0] = UsdValue.From(0.0);
+            attr.TimeSamples[24.0] = UsdValue.From(90.0);
             MaterializedScene ms = MaterializeAttr(attr);
 
             UsdStage exported = ms.Context.ExportUsdStage(ms.Result);
             UsdAttribute exportedAttr = exported.Find("/P")!.Attributes.Single();
 
-            Assert.That(exportedAttr.Value, Is.EqualTo(5.0));
+            UsdTestHelpers.AssertDouble(exportedAttr.Value, 5.0);
             Assert.That(exportedAttr.TimeSamples.Keys, Is.EqualTo(new[] { -6.0, 0.0, 24.0 }));
-            Assert.That(exportedAttr.TimeSamples[24.0], Is.EqualTo(90.0));
+            UsdTestHelpers.AssertDouble(exportedAttr.TimeSamples[24.0], 90.0);
         }
 
         [Test]
@@ -226,14 +229,14 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             // Exporting from the stage node alone (no samples map) cannot recover the samples —
             // they live on the result, not the node — but the authored default still round-trips.
-            var attr = new UsdAttribute("angle", "double") { Value = 5.0 };
-            attr.TimeSamples[0.0] = 0.0;
+            var attr = new UsdAttribute("angle", "double") { Value = UsdValue.From(5.0) };
+            attr.TimeSamples[0.0] = UsdValue.From(0.0);
             MaterializedScene ms = MaterializeAttr(attr);
 
             UsdStage exported = ms.Context.ExportUsdStage(ms.Stage);
             UsdAttribute exportedAttr = exported.Find("/P")!.Attributes.Single();
 
-            Assert.That(exportedAttr.Value, Is.EqualTo(5.0));
+            UsdTestHelpers.AssertDouble(exportedAttr.Value, 5.0);
             Assert.That(exportedAttr.TimeSamples, Is.Empty);
         }
 

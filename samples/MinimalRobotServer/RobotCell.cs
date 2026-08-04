@@ -46,6 +46,7 @@ using Opc.Ua.Robotics.Server.Builders;
 using Opc.Ua.Rsl;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.NodeManager;
 using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Robotics
@@ -84,7 +85,7 @@ namespace Robotics
         private static readonly (string BrowseName, string PrimPath, bool HasTool, double PhaseSeconds)[] s_robots =
         [
             ("R1", "/Cell/Robots/R1", true, 0.0),
-            ("R2", "/Cell/Robots/R2", false, 3.0)
+            ("R2", "/Cell/Robots/R2", true, 3.0)
         ];
 
         private static readonly ConditionalWeakTable<AsyncCustomNodeManager, RobotCell> s_cells = new();
@@ -99,6 +100,7 @@ namespace Robotics
         private DiNodeManager? m_manager;
         private NodeId m_r1NodeId;
         private MotionDeviceSystemState? m_robotCell;
+        private readonly CellChoreographer m_choreographer;
 
         /// <summary>
         /// Creates the sample Robotics configurator.
@@ -106,9 +108,20 @@ namespace Robotics
         /// <param name="logger">
         /// The configurator logger.
         /// </param>
-        public RobotCell(ILogger<RobotCell> logger)
+        /// <param name="choreographer">
+        /// The cell choreography every robot, workpiece and twin binding is driven from.
+        /// </param>
+        /// <remarks>
+        /// Required rather than optional: without it the simulation tick has nothing to
+        /// advance and the whole cell silently freezes with its axes at the home pose. A
+        /// missing registration should fail where it is made, not look like a stopped
+        /// robot.
+        /// </remarks>
+        public RobotCell(ILogger<RobotCell> logger, CellChoreographer choreographer)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_choreographer = choreographer ??
+                throw new ArgumentNullException(nameof(choreographer));
         }
 
         private DiNodeManager Manager => m_manager ?? throw new InvalidOperationException(
@@ -132,6 +145,8 @@ namespace Robotics
             s_cells.Remove(context.Manager);
             s_cells.Add(context.Manager, this);
             await MaterialiseOpenUsdFacilityAsync(cancellationToken).ConfigureAwait(false);
+            await MaterialiseTwinNodesAsync(context.InstanceNamespaceIndex, cancellationToken)
+                .ConfigureAwait(false);
             await MaterialiseRobotCellAsync(context, cancellationToken).ConfigureAwait(false);
             Configure(context.Nodes);
             m_logger.RoboticsAddressSpaceReady(m_axes.Count + m_robots.Count + 1);
@@ -158,6 +173,7 @@ namespace Robotics
             public double Max;
             public double PhaseSeconds;
             public int Index;
+            public string RobotId = string.Empty;
         }
 
         internal sealed class RobotRuntime
@@ -225,6 +241,8 @@ namespace Robotics
                             OpenUsdRenderTargetKindEnum.Visibility, 1.0,
                             bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdAlarmBindingType,
                             alarmAspect: OpenUsdAlarmAspectEnum.ActiveState);
+
+                        MaterialiseTwinBindings(cellRep, usdNs);
 
                         CreateBinding(cellRep, usdNs, "SpeedOverrideCommand",
                             new Guid("a1b2c3d4-0003-4a10-9c01-100000000003"),
@@ -327,13 +345,26 @@ namespace Robotics
 
             builder.Configure((state, ctx) =>
             {
-                if (robot.HasTool)
+                // Keyed on the robot itself, not on whether it carries a tool: both robots
+                // do now, and the dynamic tool demo and the speed-override command target
+                // are deliberately R1's.
+                if (string.Equals(robot.BrowseName, "R1", StringComparison.Ordinal))
                 {
                     m_r1NodeId = state.NodeId;
                     m_speedOverrideVar = FindRequiredChild<BaseDataVariableState>(
                         state.ParameterSet!,
                         "SpeedOverride");
                     m_speedOverrideVar.OnReadUserAccessLevel = OnReadCommandTargetUserAccessLevel;
+
+                    // Part 5 §9.32.2: only a node carrying a NodeVersion property may
+                    // trigger a ModelChangeEvent, and the framework drops entries for
+                    // nodes that lack one. Mounting the tool adds a reference to this
+                    // robot, so without this the addition is filtered out and no client
+                    // is ever told the gripper appeared - while the *removal* still
+                    // reports, because a deleted node is no longer in the manager's index
+                    // and takes the "not mine, pass it through" path. A connector that
+                    // starts while the tool is detached would then never compose it.
+                    _ = state.EnableModelChangeTracking(ns);
                 }
 
                 robotRep = AttachRepresentation(state, robot.PrimPath, usdNs);
@@ -407,7 +438,8 @@ namespace Robotics
                     Min = axis.Min,
                     Max = axis.Max,
                     PhaseSeconds = robot.PhaseSeconds,
-                    Index = index
+                    Index = index,
+                    RobotId = robot.BrowseName
                 });
             });
         }
@@ -703,6 +735,8 @@ namespace Robotics
                             },
                             sample.StatusCode,
                             sample.GetEffectiveSourceTimestamp());
+                        RecordPublishedPose(
+                            runtime.SourceId, local.X, local.Y, sampleOrientation.C);
                         return default;
                     },
                     context.CancellationToken).ConfigureAwait(false);
@@ -736,6 +770,34 @@ namespace Robotics
                     runtime.Representation.NodeId,
                     binding,
                     context.CancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Records the platform pose that was just written to the twin.
+        /// </summary>
+        /// <remarks>
+        /// Taken here rather than where the sample is produced, so it is the pose that
+        /// actually reached the address space: a carried part is drawn against it, and a
+        /// part drawn against anything newer floats out in front of the jaws holding it.
+        /// </remarks>
+        /// <param name="robotId">The robot the pose belongs to.</param>
+        /// <param name="x">The X position written, in metres.</param>
+        /// <param name="y">The Y position written, in metres.</param>
+        /// <param name="headingDegrees">The heading written, in degrees.</param>
+        private void RecordPublishedPose(
+            string robotId,
+            double x,
+            double y,
+            double headingDegrees)
+        {
+            foreach (RobotAgent agent in m_choreographer.Robots)
+            {
+                if (string.Equals(agent.Id, robotId, StringComparison.Ordinal))
+                {
+                    agent.PublishedPose = (x, y, headingDegrees);
+                    return;
+                }
             }
         }
 
