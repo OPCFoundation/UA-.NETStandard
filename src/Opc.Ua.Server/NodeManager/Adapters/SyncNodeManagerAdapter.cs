@@ -249,28 +249,11 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null)
+            MonitoredItemTransferOptions transferOptions)
         {
             m_nodeManager.TransferMonitoredItemsAsync(
                     context,
                     sendInitialValues,
-                    monitoredItems,
-                    processedItems,
-                    errors,
-                    transferOptions)
-                .AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <inheritdoc/>
-        public void RollbackMonitoredItemsTransfer(
-            OperationContext context,
-            IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems,
-            IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null)
-        {
-            m_nodeManager.RollbackMonitoredItemsTransferAsync(
-                    context,
                     monitoredItems,
                     processedItems,
                     errors,

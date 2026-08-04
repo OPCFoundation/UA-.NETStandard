@@ -109,6 +109,20 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        /// <summary>
+        /// Gets the number of received frames that completed inbound apply.
+        /// </summary>
+        internal long InboundApplyCount
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_inboundApplyCount;
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public async ValueTask SeedOrHydrateAsync(CancellationToken ct = default)
         {
@@ -151,6 +165,28 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             m_inboundTask = Task.Run(() => DrainInboundAsync(m_cts.Token));
+        }
+
+        /// <summary>
+        /// Waits until inbound apply advances beyond <paramref name="observedCount"/>.
+        /// </summary>
+        /// <param name="observedCount">The inbound apply count already observed by the caller.</param>
+        /// <returns>
+        /// A task that completes when a later inbound apply has completed, or immediately when it already did.
+        /// </returns>
+        internal Task WaitForInboundApplyAfterAsync(long observedCount)
+        {
+            lock (m_lock)
+            {
+                if (m_inboundApplyCount > observedCount)
+                {
+                    return Task.CompletedTask;
+                }
+
+                var waiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_inboundApplyWaiters.Add((observedCount, waiter));
+                return waiter.Task;
+            }
         }
 
         /// <inheritdoc/>
@@ -213,12 +249,44 @@ namespace Opc.Ua.Redundancy.Server
                         m_logger?.CrdtAddressSpaceInboundApplyFailed(ex);
                     }
 
-                    InboundApplied?.Invoke();
+                    PublishInboundApplied();
                 }
             }
             catch (OperationCanceledException)
             {
                 // shutdown
+            }
+        }
+
+        private void PublishInboundApplied()
+        {
+            Action? handler;
+            List<TaskCompletionSource<bool>>? completedWaiters = null;
+            lock (m_lock)
+            {
+                m_inboundApplyCount++;
+                handler = InboundApplied;
+                for (int ii = m_inboundApplyWaiters.Count - 1; ii >= 0; ii--)
+                {
+                    (long observedCount, TaskCompletionSource<bool> waiter) = m_inboundApplyWaiters[ii];
+                    if (m_inboundApplyCount <= observedCount)
+                    {
+                        continue;
+                    }
+
+                    completedWaiters ??= [];
+                    completedWaiters.Add(waiter);
+                    m_inboundApplyWaiters.RemoveAt(ii);
+                }
+            }
+
+            handler?.Invoke();
+            if (completedWaiters != null)
+            {
+                foreach (TaskCompletionSource<bool> waiter in completedWaiters)
+                {
+                    waiter.TrySetResult(true);
+                }
             }
         }
 
@@ -706,8 +774,10 @@ namespace Opc.Ua.Redundancy.Server
         private readonly LWWMap<string, ByteString> m_map = new();
         private readonly Dictionary<string, byte[]> m_lastApplied = [];
         private readonly NodeIdDictionary<NodeState> m_attached = [];
+        private readonly List<(long ObservedCount, TaskCompletionSource<bool> Waiter)> m_inboundApplyWaiters = [];
         private readonly AsyncLocal<bool> m_applyingInbound = new();
         private Task? m_inboundTask;
+        private long m_inboundApplyCount;
         private bool m_started;
         private bool m_disposed;
     }

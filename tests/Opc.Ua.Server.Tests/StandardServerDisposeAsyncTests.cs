@@ -246,7 +246,7 @@ namespace Opc.Ua.Server.Tests
         {
             Assert.That(server.BaseResourcesDisposedForTest, Is.True);
             Assert.That(server.ServerSemaphoreDisposedForTest, Is.True);
-            Assert.That(server.DeferredServerShutdownTerminalErrorForTest, Is.Null);
+            Assert.That(server.ServerShutdownResourceDisposalErrorForTest, Is.Null);
         }
 
         private static async Task CleanupAsync(
