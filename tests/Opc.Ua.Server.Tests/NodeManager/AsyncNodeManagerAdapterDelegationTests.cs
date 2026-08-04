@@ -27,15 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
 
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+#nullable enable
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Sample;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.NodeManager
@@ -220,12 +219,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 true,
                 values.MonitoredItems,
                 values.TransferProcessed,
-                values.TransferErrors).ConfigureAwait(false);
-            await adapter.RollbackMonitoredItemsTransferAsync(
-                values.Context,
-                values.MonitoredItems,
-                values.TransferProcessed,
-                values.TransferErrors).ConfigureAwait(false);
+                values.TransferErrors,
+                new MonitoredItemTransferOptions()).ConfigureAwait(false);
             await adapter.SetMonitoringModeAsync(
                 values.Context,
                 MonitoringMode.Reporting,
@@ -388,12 +383,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 true,
                 values.MonitoredItems,
                 values.TransferProcessed,
-                values.TransferErrors).ConfigureAwait(false);
-            await adapter.RollbackMonitoredItemsTransferAsync(
-                values.Context,
-                values.MonitoredItems,
-                values.TransferProcessed,
-                values.TransferErrors).ConfigureAwait(false);
+                values.TransferErrors,
+                new MonitoredItemTransferOptions()).ConfigureAwait(false);
             await adapter.SetMonitoringModeAsync(
                 values.Context,
                 MonitoringMode.Reporting,
@@ -429,89 +420,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.SameAs(values.RoleResult));
 
             manager.VerifyAll();
-        }
-
-        [Test]
-        public async Task RollbackMonitoredItemsTransferAsyncForwardsToPlainSyncManagerAsync()
-        {
-            var manager = new Mock<INodeManager>(MockBehavior.Strict);
-            using var adapter = new AsyncNodeManagerAdapter(manager.Object);
-            TestValues values = CreateTestValues();
-            var options = new MonitoredItemTransferOptions { DeferInitialValues = true };
-            manager.Setup(m => m.RollbackMonitoredItemsTransfer(
-                values.Context,
-                values.MonitoredItems,
-                values.TransferProcessed,
-                values.TransferErrors,
-                options));
-
-            await adapter.RollbackMonitoredItemsTransferAsync(
-                values.Context,
-                values.MonitoredItems,
-                values.TransferProcessed,
-                values.TransferErrors,
-                options).ConfigureAwait(false);
-
-            manager.VerifyAll();
-        }
-
-        [Test]
-        public async Task RollbackMonitoredItemsTransferAsyncForwardsToNodeManager2Async()
-        {
-            var manager = new Mock<INodeManager2>(MockBehavior.Strict);
-            using var adapter = new AsyncNodeManagerAdapter(manager.Object);
-            TestValues values = CreateTestValues();
-            var options = new MonitoredItemTransferOptions { DeferInitialValues = true };
-            manager.Setup(m => m.RollbackMonitoredItemsTransfer(
-                values.Context,
-                values.MonitoredItems,
-                values.TransferProcessed,
-                values.TransferErrors,
-                options));
-
-            await adapter.RollbackMonitoredItemsTransferAsync(
-                values.Context,
-                values.MonitoredItems,
-                values.TransferProcessed,
-                values.TransferErrors,
-                options).ConfigureAwait(false);
-
-            manager.VerifyAll();
-        }
-
-        [Test]
-        public async Task RollbackMonitoredItemsTransferAsyncFiresSampleNodeManagerHookAsync()
-        {
-            var server = new Mock<IServerInternal>();
-            var namespaceUris = new NamespaceTable();
-            server.SetupGet(s => s.NamespaceUris).Returns(namespaceUris);
-            server.SetupGet(s => s.ServerUris).Returns(new StringTable());
-            server.SetupGet(s => s.TypeTree).Returns(new TypeTable(namespaceUris));
-            server.SetupGet(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
-            server.SetupGet(s => s.DefaultSystemContext)
-                .Returns(new ServerSystemContext(server.Object, NewOpContext(RequestType.Unknown)));
-            var manager = new TestSampleNodeManager(server.Object);
-            using var adapter = new AsyncNodeManagerAdapter(manager);
-            var item = new Mock<IMonitoredItem>();
-            item.SetupGet(monitoredItem => monitoredItem.ManagerHandle)
-                .Returns(new MonitoredNode(server.Object, adapter, new BaseDataVariableState(null)));
-            IList<IMonitoredItem> monitoredItems = [item.Object];
-            IList<bool> processedItems = [false];
-            IList<ServiceResult> errors = [ServiceResult.Good];
-
-            await adapter.RollbackMonitoredItemsTransferAsync(
-                NewOpContext(RequestType.Unknown),
-                monitoredItems,
-                processedItems,
-                errors).ConfigureAwait(false);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(manager.RolledBackItems, Has.Count.EqualTo(1));
-                Assert.That(manager.RolledBackItems[0], Is.SameAs(item.Object));
-                Assert.That(processedItems[0], Is.True);
-                Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            });
         }
 
         [Test]
@@ -776,14 +684,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<MonitoredItemTransferOptions>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
-            manager.Setup(m => m.RollbackMonitoredItemsTransferAsync(
-                    values.Context,
-                    values.MonitoredItems,
-                    values.TransferProcessed,
-                    values.TransferErrors,
-                    It.IsAny<MonitoredItemTransferOptions>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(default(ValueTask));
             manager.Setup(m => m.SetMonitoringModeAsync(
                     values.Context,
                     MonitoringMode.Reporting,
@@ -926,11 +826,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             manager.Setup(m => m.TransferMonitoredItems(
                 values.Context,
                 true,
-                values.MonitoredItems,
-                values.TransferProcessed,
-                values.TransferErrors));
-            manager.Setup(m => m.RollbackMonitoredItemsTransfer(
-                values.Context,
                 values.MonitoredItems,
                 values.TransferProcessed,
                 values.TransferErrors,
@@ -1086,24 +981,5 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public ServiceResult RoleResult { get; set; } = null!;
         }
 
-        private sealed class TestSampleNodeManager : SampleNodeManager
-        {
-            public TestSampleNodeManager(IServerInternal server)
-                : base(server)
-            {
-            }
-
-            public IList<IMonitoredItem> RolledBackItems { get; } = [];
-
-            protected override void OnMonitoredItemsTransferRolledBack(
-                ServerSystemContext context,
-                IList<IMonitoredItem> monitoredItems)
-            {
-                foreach (IMonitoredItem monitoredItem in monitoredItems)
-                {
-                    RolledBackItems.Add(monitoredItem);
-                }
-            }
-        }
     }
 }
