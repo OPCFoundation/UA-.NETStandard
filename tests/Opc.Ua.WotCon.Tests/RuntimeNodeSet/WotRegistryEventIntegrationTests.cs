@@ -126,14 +126,14 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     .ConfigureAwait(false);
             }
 
-            m_coordinator?.Dispose();
-            m_registry?.Dispose();
-            m_server?.Dispose();
-
             if (m_fixture is not null)
             {
                 await m_fixture.StopAsync().ConfigureAwait(false);
             }
+
+            m_coordinator?.Dispose();
+            m_registry?.Dispose();
+            m_server?.Dispose();
 
             if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
             {
