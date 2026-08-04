@@ -43,6 +43,14 @@ namespace Opc.Ua.Server
         ArrayOf<NodeManagerRegistration> Registrations { get; }
 
         /// <summary>
+        /// Gets whether the owning server has started its ordered shutdown sequence.
+        /// Once this is set, the lifecycle rejects add and reload requests and tears
+        /// down every remaining registration itself, so callers that only want to
+        /// release a registration during teardown can skip the round trip.
+        /// </summary>
+        bool IsShuttingDown { get; }
+
+        /// <summary>
         /// Creates and publishes a NodeManager from an asynchronous factory.
         /// </summary>
         ValueTask<NodeManagerRegistration> AddAsync(
