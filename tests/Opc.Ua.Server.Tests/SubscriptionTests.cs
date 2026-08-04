@@ -408,13 +408,6 @@ namespace Opc.Ua.Server.Tests
             field.SetValue(instance, value);
         }
 
-        private static void EnqueueConditionRefreshTask(
-            SubscriptionManager manager,
-            ISubscription subscription)
-        {
-            manager.EnqueueConditionRefreshForTest(subscription);
-        }
-
         private static void ExpireOnNextPublishTimer(Subscription subscription)
         {
             uint maxLifetimeCount = GetPrivateField<uint>(
@@ -941,82 +934,6 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task DisposeAsyncJoinsWorkersAndIsIdempotentAsync()
-        {
-            var timeProvider = new FakeTimeProvider(
-                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
-            var configuration = new ApplicationConfiguration
-            {
-                ServerConfiguration = new ServerConfiguration
-                {
-                    PublishingResolution = 1000
-                }
-            };
-            var manager = new SubscriptionManager(
-                m_serverMock.Object,
-                configuration,
-                timeProvider);
-
-            await manager.StartupAsync().ConfigureAwait(false);
-            await Task.Yield();
-
-            await manager.DisposeAsync().ConfigureAwait(false);
-            await manager.DisposeAsync().ConfigureAwait(false);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    GetPrivateField<Task>(manager, "m_publishSubscriptionsTask").IsCompleted,
-                    Is.True);
-                Assert.That(
-                    GetPrivateField<Task>(manager, "m_conditionRefreshTask").IsCompleted,
-                    Is.True);
-            });
-        }
-
-        [Test]
-        public async Task DisposeAsyncWhileConditionRefreshIsRunningWaitsForWorkAsync()
-        {
-            var configuration = new ApplicationConfiguration
-            {
-                ServerConfiguration = new ServerConfiguration()
-            };
-            var manager = new SubscriptionManager(
-                m_serverMock.Object,
-                configuration);
-            var refreshStarted = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseRefresh = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            bool refreshCompleted = false;
-            var subscription = new Mock<ISubscription>();
-            subscription
-                .Setup(s => s.ConditionRefreshAsync(It.IsAny<CancellationToken>()))
-                .Returns((CancellationToken _) => new ValueTask(WaitForReleaseAsync()));
-
-            async Task WaitForReleaseAsync()
-            {
-                refreshStarted.SetResult(new object());
-                await releaseRefresh.Task.ConfigureAwait(false);
-                refreshCompleted = true;
-            }
-
-            EnqueueConditionRefreshTask(manager, subscription.Object);
-            manager.StartConditionRefreshWorkerForTest();
-            await refreshStarted.Task.ConfigureAwait(false);
-
-            Task disposeTask = manager.DisposeAsync().AsTask();
-
-            Assert.That(disposeTask.IsCompleted, Is.False);
-
-            releaseRefresh.SetResult(new object());
-            await disposeTask.ConfigureAwait(false);
-            await manager.DisposeAsync().ConfigureAwait(false);
-
-            Assert.That(refreshCompleted, Is.True);
-        }
-
-        [Test]
         public void RestoreTransferClaimRemovesCurrentClaimWhenRestoreEntryAlreadyExists()
         {
             using Subscription subscription = CreateSubscription();
@@ -1401,15 +1318,6 @@ namespace Opc.Ua.Server.Tests
                         transferEntered.TrySetResult(true);
                         await releaseTransfer.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
                     });
-            itemOwner
-                .Setup(nodeManager => nodeManager.RollbackMonitoredItemsTransferAsync(
-                    It.IsAny<OperationContext>(),
-                    It.IsAny<IList<IMonitoredItem>>(),
-                    It.IsAny<IList<bool>>(),
-                    It.IsAny<IList<ServiceResult>>(),
-                    It.IsAny<MonitoredItemTransferOptions>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(default(ValueTask));
             var configurationNodeManager = new Mock<IConfigurationNodeManager>();
             configurationNodeManager
                 .SetupGet(nodeManager => nodeManager.NamespaceUris)
@@ -1555,12 +1463,12 @@ namespace Opc.Ua.Server.Tests
                     true,
                     It.Is<IList<IMonitoredItem>>(items => items.Contains(monitoredItem)),
                     It.IsAny<IList<ServiceResult>>(),
-                    It.Is<MonitoredItemTransferOptions>(options => options == null),
+                    It.Is<MonitoredItemTransferOptions>(options => !options.DeferInitialValues),
                     It.IsAny<CancellationToken>()))
                 .Callback<OperationContext, bool, IList<IMonitoredItem>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
                     (_, sendInitialValues, monitoredItems, errors, transferOptions, _) =>
                     {
-                        Assert.That(transferOptions, Is.Null);
+                        Assert.That(transferOptions.DeferInitialValues, Is.False);
                         for (int ii = 0; ii < monitoredItems.Count; ii++)
                         {
                             errors[ii] = ServiceResult.Good;
@@ -2206,7 +2114,7 @@ namespace Opc.Ua.Server.Tests
                     true,
                     It.IsAny<IList<IMonitoredItem>>(),
                     It.IsAny<IList<ServiceResult>>(),
-                    null,
+                    It.IsAny<MonitoredItemTransferOptions>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }

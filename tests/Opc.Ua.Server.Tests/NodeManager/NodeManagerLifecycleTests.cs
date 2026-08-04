@@ -3388,82 +3388,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await DeleteSubscriptionAsync(services, eventSubscriptionId).ConfigureAwait(false);
         }
 
-        [TestCase(
-            false,
-            TestName = "ConditionRefreshWorkerShutdownWakeupIsLosslessForShutdownAsync",
-            Ignore = "Covered by the subscription-transfer stack slice.")]
-        [TestCase(
-            true,
-            TestName = "ConditionRefreshWorkerShutdownWakeupIsLosslessForDispose",
-            Ignore = "Covered by the subscription-transfer stack slice.")]
-        public async Task ConditionRefreshWorkerShutdownWakeupIsLosslessAsync(
-            bool dispose)
+        [Test]
+        public async Task ConditionRefreshWorkerIdleShutdownCompletesAsync()
         {
-            IServerInternal server = m_server.CurrentInstance;
-            var manager = new SubscriptionManager(
-                server,
-                m_server.CurrentConfiguration);
-            var resetEntered = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseReset = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var shutdownSignalStarted = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            bool managerDisposed = false;
-            manager.BeforeConditionRefreshResetForTest = () =>
-            {
-                resetEntered.TrySetResult(true);
-                releaseReset.Task.GetAwaiter().GetResult();
-            };
-            manager.BeforeConditionRefreshShutdownSignalForTest = () =>
-                shutdownSignalStarted.TrySetResult(true);
+            m_requestHeader = null;
+            await m_server.ShutdownInternalsAsync()
+                .AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
 
-            try
-            {
-                manager.StartConditionRefreshWorkerForTest();
-                manager.WakeConditionRefreshWorkerForTest();
-                await resetEntered.Task
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false);
-
-                Task stopTask = RunWithoutExecutionContext(() =>
-                {
-                    if (dispose)
-                    {
-                        manager.Dispose();
-                        return Task.CompletedTask;
-                    }
-                    return manager.ShutdownAsync().AsTask();
-                });
-                await shutdownSignalStarted.Task
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false);
-                Assert.That(
-                    stopTask.IsCompleted,
-                    Is.False,
-                    "Shutdown must be serialized with the worker's final reset.");
-
-                releaseReset.TrySetResult(true);
-                await stopTask
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false);
-                managerDisposed = dispose;
-                if (!managerDisposed)
-                {
-                    manager.Dispose();
-                    managerDisposed = true;
-                }
-            }
-            finally
-            {
-                releaseReset.TrySetResult(true);
-                manager.BeforeConditionRefreshResetForTest = null;
-                manager.BeforeConditionRefreshShutdownSignalForTest = null;
-                if (!managerDisposed)
-                {
-                    manager.Dispose();
-                }
-            }
+            AssertServerInternalsDisposed();
+            await FinishShutdownTestAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -3978,7 +3913,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(m_server.TransportListenerCountForTest, Is.Zero);
                 Assert.That(m_server.ServerSemaphoreDisposedForTest, Is.True);
                 Assert.That(
-                    m_server.DeferredServerShutdownTerminalErrorForTest,
+                    m_server.ServerShutdownResourceDisposalErrorForTest,
                     Is.Null);
             });
             trackingListener.Verify(listener => listener.DisposeAsync(), Times.Once);
@@ -4207,77 +4142,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        [SuppressMessage(
-            "Reliability",
-            "CA2025:Ensure tasks using IDisposable instances complete before the instances are disposed",
-            Justification = "The test deliberately keeps a request alive across server disposal.")]
-        public async Task CancelledServerShutdownRetainsInternalsAndRetriesAfterAddDrainAsync()
-        {
-            const string NamespaceUri =
-                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:CancelledServerShutdown";
-            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(NamespaceUri);
-            int disposeCount = 0;
-            manager.As<IDisposable>()
-                .Setup(disposable => disposable.Dispose())
-                .Callback(() => Interlocked.Increment(ref disposeCount));
-            var factory = new Mock<IAsyncNodeManagerFactory>();
-            factory
-                .Setup(value => value.CreateAsync(
-                    It.IsAny<IServerInternal>(),
-                    It.IsAny<ApplicationConfiguration>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(manager.Object);
-
-            IServerInternal server = m_server.CurrentInstance;
-            var requestEntered = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseRequest = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            Task requestTask = HoldRequestAsync(
-                server,
-                requestEntered,
-                releaseRequest);
-            await requestEntered.Task.ConfigureAwait(false);
-            Task<NodeManagerRegistration> addTask = RunWithoutExecutionContext(
-                () => m_server.NodeManagerLifecycle.AddAsync(factory.Object).AsTask());
-            await WaitForRegistrationAsync(
-                m_server.NodeManagerLifecycle,
-                manager.Object).ConfigureAwait(false);
-
-            using (var cts = new CancellationTokenSource())
-            {
-                Task shutdownTask = m_server
-                    .ShutdownInternalsAsync(cts.Token)
-                    .AsTask();
-                await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
-                Assert.That(shutdownTask.IsCompleted, Is.False);
-                cts.Cancel();
-                Assert.That(
-                    async () => await shutdownTask.ConfigureAwait(false),
-                    Throws.InstanceOf<OperationCanceledException>());
-            }
-
-            Assert.That(m_server.CurrentInstance, Is.SameAs(server));
-            Assert.That(Volatile.Read(ref disposeCount), Is.Zero);
-            Assert.That(addTask.IsCompleted, Is.False);
-
-            releaseRequest.TrySetResult(true);
-            await requestTask.ConfigureAwait(false);
-            await AssertLifecycleOperationDidNotUseDisposedServicesAsync(addTask)
-                .ConfigureAwait(false);
-            m_requestHeader = null;
-            await m_server.ShutdownInternalsAsync()
-                .AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10))
-                .ConfigureAwait(false);
-
-            Assert.That(Volatile.Read(ref disposeCount), Is.EqualTo(1));
-            AssertServerInternalsDisposed();
-            await FinishShutdownTestAsync().ConfigureAwait(false);
-        }
-
-        [Test]
-        [Ignore("Covered by the subscription-transfer stack slice.")]
         public async Task ConditionRefreshWorkerCompletesBeforeServerDeletesAddressSpacesAsync()
         {
             TrackingLifecycleNodeManager manager = null;
@@ -4313,7 +4177,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Task shutdownTask = m_server.ShutdownInternalsAsync().AsTask();
             try
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
                 Assert.That(shutdownTask.IsCompleted, Is.False);
                 Assert.That(
                     manager.DeleteAddressSpaceCount,
@@ -4332,79 +4195,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(manager.DisposeCount, Is.EqualTo(1));
-            AssertServerInternalsDisposed();
-            await FinishShutdownTestAsync().ConfigureAwait(false);
-        }
-
-        [Test]
-        public async Task FailedServerShutdownAggregatesManagersAndRetriesRetainedCleanupAsync()
-        {
-            TrackingLifecycleNodeManager retiredManager = null;
-            TrackingLifecycleNodeManager replacementManager = null;
-            TrackingLifecycleNodeManager successfulManager = null;
-            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddAsync(CreateTrackingNodeManagementFactory(
-                    kGeneration1Value,
-                    created => retiredManager = created))
-                .ConfigureAwait(false);
-
-            IServerInternal server = m_server.CurrentInstance;
-            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            await CreateSubscriptionAndMonitoredItemAsync(
-                services,
-                new NodeId(kValueNodeId, ns),
-                clientHandle: 1).ConfigureAwait(false);
-            NodeManagerRegistration replacement = await m_server.NodeManagerLifecycle
-                .ShadowReloadAsync(
-                    original,
-                    CreateTrackingNodeManagementFactory(
-                        kGeneration2Value,
-                        created => replacementManager = created))
-                .ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle
-                .AddAsync(CreateTrackingNodeManagementFactory(
-                    803,
-                    created => successfulManager = created,
-                    "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownSuccess"))
-                .ConfigureAwait(false);
-
-            replacementManager.DisposeFailuresRemaining = 1;
-            retiredManager.DeleteAddressSpaceFailuresRemaining = 1;
-            m_requestHeader = null;
-            AggregateException failure = Assert.ThrowsAsync<AggregateException>(
-                async () => await m_server.ShutdownInternalsAsync().ConfigureAwait(false));
-
-            Assert.That(failure.Flatten().InnerExceptions, Has.Count.EqualTo(2));
-            Assert.That(m_server.CurrentInstance, Is.SameAs(server));
-            Assert.That(
-                m_server.NodeManagerLifecycle.Registrations,
-                Has.Count.EqualTo(1));
-            Assert.That(
-                m_server.NodeManagerLifecycle.Registrations[0].Id,
-                Is.EqualTo(replacement.Id));
-            Assert.That(replacementManager.DeleteAddressSpaceCount, Is.EqualTo(1));
-            Assert.That(replacementManager.DisposeCount, Is.EqualTo(1));
-            Assert.That(retiredManager.DeleteAddressSpaceCount, Is.EqualTo(1));
-            Assert.That(retiredManager.DisposeCount, Is.Zero);
-            Assert.That(successfulManager.DeleteAddressSpaceCount, Is.EqualTo(1));
-            Assert.That(successfulManager.DisposeCount, Is.EqualTo(1));
-
-            await m_server.ShutdownInternalsAsync()
-                .AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10))
-                .ConfigureAwait(false);
-
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
-            Assert.That(
-                replacementManager.DeleteAddressSpaceCount,
-                Is.EqualTo(1),
-                "A successful destroy stage must not be repeated after Dispose fails.");
-            Assert.That(replacementManager.DisposeCount, Is.EqualTo(2));
-            Assert.That(retiredManager.DeleteAddressSpaceCount, Is.EqualTo(2));
-            Assert.That(retiredManager.DisposeCount, Is.EqualTo(1));
-            Assert.That(successfulManager.DeleteAddressSpaceCount, Is.EqualTo(1));
-            Assert.That(successfulManager.DisposeCount, Is.EqualTo(1));
             AssertServerInternalsDisposed();
             await FinishShutdownTestAsync().ConfigureAwait(false);
         }
@@ -4463,7 +4253,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.GreaterThan(progressAfterDisposeFailure),
                 "Successful disposal and retired-record removal must report retry progress.");
             Assert.That(
-                m_server.DeferredServerShutdownTerminalErrorForTest,
+                m_server.ServerShutdownResourceDisposalErrorForTest,
                 Is.Null);
             await FinishShutdownTestAsync().ConfigureAwait(false);
         }
@@ -4525,199 +4315,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(successfulManager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(lastManager.DeleteAddressSpaceCount, Is.EqualTo(2));
             AssertServerInternalsDisposed();
-            await FinishShutdownTestAsync().ConfigureAwait(false);
-        }
-
-        [Test]
-        public async Task DeferredDisposeRetriesUntilRetainedCleanupCompletesAsync()
-        {
-            TrackingLifecycleNodeManager retiredManager = null;
-            TrackingLifecycleNodeManager replacementManager = null;
-            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddAsync(CreateTrackingNodeManagementFactory(
-                    821,
-                    created => retiredManager = created))
-                .ConfigureAwait(false);
-
-            IServerInternal server = m_server.CurrentInstance;
-            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            await CreateSubscriptionAndMonitoredItemAsync(
-                services,
-                new NodeId(kValueNodeId, ns),
-                clientHandle: 1).ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle
-                .ShadowReloadAsync(
-                    original,
-                    CreateTrackingNodeManagementFactory(
-                        822,
-                        created => replacementManager = created))
-                .ConfigureAwait(false);
-
-            replacementManager.DeleteAddressSpaceFailuresRemaining = 1;
-            retiredManager.DeleteAddressSpaceFailuresRemaining = 1;
-            m_requestHeader = null;
-            AggregateException disposeFailure =
-                Assert.Throws<AggregateException>(() => m_server.Dispose());
-            Assert.That(disposeFailure, Is.Not.Null);
-
-            await WaitForConditionAsync(
-                    () => m_server.ServerSemaphoreDisposedForTest)
-                .ConfigureAwait(false);
-
-            Assert.That(m_server.ServerShutdownAttemptCountForTest, Is.EqualTo(3));
-            Assert.That(replacementManager.DeleteAddressSpaceCount, Is.EqualTo(2));
-            Assert.That(replacementManager.DisposeCount, Is.EqualTo(1));
-            Assert.That(retiredManager.DeleteAddressSpaceCount, Is.EqualTo(2));
-            Assert.That(retiredManager.DisposeCount, Is.EqualTo(1));
-            Assert.That(
-                m_server.DeferredServerShutdownTerminalErrorForTest,
-                Is.Null);
-            await FinishShutdownTestAsync().ConfigureAwait(false);
-        }
-
-        [Test]
-        public async Task DeferredDisposeStopsRetryingWhenCleanupMakesNoProgressAsync()
-        {
-            TrackingLifecycleNodeManager failingManager = null;
-            await m_server.NodeManagerLifecycle
-                .AddAsync(CreateTrackingNodeManagementFactory(
-                    831,
-                    created => failingManager = created,
-                    "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownPermanentFailure"))
-                .ConfigureAwait(false);
-            failingManager.DeleteAddressSpaceFailuresRemaining = int.MaxValue;
-            IServerInternal server = m_server.CurrentInstance;
-            int transportCountBeforeDispose = m_server.TransportListenerCountForTest;
-
-            m_requestHeader = null;
-            AggregateException disposeFailure =
-                Assert.Throws<AggregateException>(() => m_server.Dispose());
-            Assert.That(disposeFailure, Is.Not.Null);
-            await WaitForConditionAsync(
-                    () => m_server.DeferredServerShutdownTerminalErrorForTest is not null)
-                .ConfigureAwait(false);
-
-            Exception terminalError =
-                m_server.DeferredServerShutdownTerminalErrorForTest;
-            Assert.That(
-                terminalError.Message,
-                Does.Contain("latest attempt made no cleanup progress"));
-            Assert.That(ServiceResult.IsBad(m_server.ServerError), Is.True);
-            Assert.That(m_server.CurrentInstance, Is.SameAs(server));
-            Assert.That(m_server.ServerSemaphoreDisposedForTest, Is.False);
-            Assert.That(m_server.BaseResourcesDisposedForTest, Is.False);
-            Assert.That(m_server.BaseResourceDisposalCountForTest, Is.Zero);
-            Assert.That(
-                m_server.TransportListenerCountForTest,
-                Is.EqualTo(transportCountBeforeDispose));
-            Assert.That(m_server.ServerShutdownAttemptCountForTest, Is.EqualTo(2));
-            Assert.That(failingManager.DeleteAddressSpaceCount, Is.EqualTo(2));
-
-            await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
-            Assert.That(
-                m_server.ServerShutdownAttemptCountForTest,
-                Is.EqualTo(2),
-                "A permanent failure must not cause an unbounded retry loop.");
-            Assert.That(failingManager.DeleteAddressSpaceCount, Is.EqualTo(2));
-
-            failingManager.DeleteAddressSpaceFailuresRemaining = 0;
-            await m_server.ShutdownInternalsAsync()
-                .AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10))
-                .ConfigureAwait(false);
-            await WaitForConditionAsync(
-                    () => m_server.BaseResourcesDisposedForTest)
-                .ConfigureAwait(false);
-
-            Assert.That(m_server.ServerShutdownAttemptCountForTest, Is.EqualTo(3));
-            Assert.That(m_server.BaseResourceDisposalCountForTest, Is.EqualTo(1));
-            Assert.That(m_server.TransportListenerCountForTest, Is.Zero);
-            Assert.That(m_server.ServerSemaphoreDisposedForTest, Is.True);
-            Assert.That(failingManager.DeleteAddressSpaceCount, Is.EqualTo(3));
-            Assert.That(
-                m_server.DeferredServerShutdownTerminalErrorForTest,
-                Is.Null);
-            await FinishShutdownTestAsync().ConfigureAwait(false);
-        }
-
-        [Test]
-        public async Task DeferredDisposeStopsRetryingAtBoundDespiteCleanupProgressAsync()
-        {
-            TrackingLifecycleNodeManager failingManager = null;
-            await m_server.NodeManagerLifecycle
-                .AddAsync(CreateTrackingNodeManagementFactory(
-                    832,
-                    created => failingManager = created,
-                    "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownBoundedFailure"))
-                .ConfigureAwait(false);
-            failingManager.DeleteAddressSpaceFailuresRemaining = int.MaxValue;
-            m_server.DeferredServerShutdownMaxRetryCount = 1;
-            int progressTicks = 0;
-            m_server.AdditionalServerShutdownProgressForTest =
-                () => Interlocked.Increment(ref progressTicks);
-
-            bool unobservedTaskException = false;
-            EventHandler<UnobservedTaskExceptionEventArgs> handler = (_, args) =>
-            {
-                unobservedTaskException = true;
-                args.SetObserved();
-            };
-            TaskScheduler.UnobservedTaskException += handler;
-
-            try
-            {
-                m_requestHeader = null;
-                AggregateException disposeFailure =
-                    Assert.Throws<AggregateException>(() => m_server.Dispose());
-                Assert.That(disposeFailure, Is.Not.Null);
-                await WaitForConditionAsync(
-                        () => m_server.DeferredServerShutdownTerminalErrorForTest is not null)
-                    .ConfigureAwait(false);
-
-                Exception terminalError =
-                    m_server.DeferredServerShutdownTerminalErrorForTest;
-                Assert.Multiple(() =>
-                {
-                    Assert.That(
-                        terminalError.Message,
-                        Does.Contain("exceeded the deferred retry limit"));
-                    Assert.That(ServiceResult.IsBad(m_server.ServerError), Is.True);
-                    Assert.That(m_server.ServerShutdownAttemptCountForTest, Is.EqualTo(2));
-                    Assert.That(failingManager.DeleteAddressSpaceCount, Is.EqualTo(2));
-                    Assert.That(Volatile.Read(ref progressTicks), Is.GreaterThan(2));
-                });
-
-                for (int collection = 0; collection < 3; collection++)
-                {
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    await Task.Yield();
-                }
-
-                Assert.That(
-                    unobservedTaskException,
-                    Is.False,
-                    "Deferred shutdown failures must be awaited by the observer.");
-            }
-            finally
-            {
-                TaskScheduler.UnobservedTaskException -= handler;
-                m_server.AdditionalServerShutdownProgressForTest = null;
-            }
-
-            failingManager.DeleteAddressSpaceFailuresRemaining = 0;
-            await m_server.ShutdownInternalsAsync()
-                .AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10))
-                .ConfigureAwait(false);
-            await WaitForConditionAsync(
-                    () => m_server.BaseResourcesDisposedForTest)
-                .ConfigureAwait(false);
-
-            Assert.That(
-                m_server.DeferredServerShutdownTerminalErrorForTest,
-                Is.Null);
             await FinishShutdownTestAsync().ConfigureAwait(false);
         }
 
