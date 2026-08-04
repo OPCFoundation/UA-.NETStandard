@@ -743,14 +743,51 @@ namespace Opc.Ua
                 entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
             }
 
-            Task<bool> reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            Task<bool> reconnectTask;
+            try
+            {
+                reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            }
+            catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, sre, ct))
+            {
+                entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            }
+
             if (throwOnReconnectFailure)
             {
-                await AwaitReconnectResultAsync(reconnectTask).ConfigureAwait(false);
+                try
+                {
+                    await AwaitReconnectResultAsync(reconnectTask).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, sre, ct))
+                {
+                    entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                    await AwaitReconnectResultAsync(entry.RequestReconnectAsync(budget, ct))
+                        .ConfigureAwait(false);
+                }
                 return;
             }
 
-            _ = await reconnectTask.ConfigureAwait(false);
+            try
+            {
+                _ = await reconnectTask.ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, sre, ct))
+            {
+                entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                _ = await entry.RequestReconnectAsync(budget, ct).ConfigureAwait(false);
+            }
+        }
+
+        private static bool IsTerminalReconnectRace(
+            ChannelEntry entry,
+            ServiceResultException sre,
+            CancellationToken ct)
+        {
+            return !ct.IsCancellationRequested &&
+                sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                entry.State is ChannelState.Closed or ChannelState.Faulted;
         }
 
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(

@@ -139,11 +139,24 @@ namespace Opc.Ua
                 ITransportChannel channel = await CreateTransportChannelAsync(
                     clientCertificate, clientCertificateChain, ct)
                     .ConfigureAwait(false);
+                bool entryClosed;
                 lock (m_lock)
                 {
-                    m_underlying = channel;
-                    m_clientCertificateVersion = clientCertificateVersion;
-                    m_activeMetricRecorded = true;
+                    entryClosed = m_state is ChannelState.Closed or ChannelState.Faulted;
+                    if (!entryClosed)
+                    {
+                        m_underlying = channel;
+                        m_clientCertificateVersion = clientCertificateVersion;
+                        m_activeMetricRecorded = true;
+                    }
+                }
+                if (entryClosed)
+                {
+                    await CloseTransportBestEffortAsync(channel).ConfigureAwait(false);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel is {0}.",
+                        State);
                 }
                 OwnerManager.RecordChannelActiveChanged(this, 1);
                 TransitionTo(ChannelState.Ready, error: null, attempt: 0);
@@ -909,31 +922,53 @@ namespace Opc.Ua
                 clientCert, clientChain, ct).ConfigureAwait(false);
 
             ITransportChannel? old;
+            bool entryClosed;
             lock (m_lock)
             {
-                old = m_underlying;
-                m_underlying = fresh;
-                m_clientCertificateVersion = certVersion;
+                entryClosed = m_state is ChannelState.Closed or ChannelState.Faulted;
+                if (entryClosed)
+                {
+                    old = null;
+                }
+                else
+                {
+                    old = m_underlying;
+                    m_underlying = fresh;
+                    m_clientCertificateVersion = certVersion;
+                }
+            }
+            if (entryClosed)
+            {
+                await CloseTransportBestEffortAsync(fresh).ConfigureAwait(false);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel is {0}.",
+                    State);
             }
             if (old != null)
             {
-                try
-                {
-                    await old.CloseAsync(default).ConfigureAwait(false);
-                }
-                catch
-                {
-                    // best-effort
-                }
-                try
-                {
-                    OwnerManager.CloseChannel(old);
-                }
-                catch
-                {
-                    // best-effort
-                }
+                await CloseTransportBestEffortAsync(old).ConfigureAwait(false);
                 OwnerManager.OnEntryClosed(this, ChannelCloseReason.Faulted);
+            }
+        }
+
+        private async ValueTask CloseTransportBestEffortAsync(ITransportChannel channel)
+        {
+            try
+            {
+                await channel.CloseAsync(default).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                OwnerManager.Logger?.ChannelEntryLog0(ex);
+            }
+            try
+            {
+                OwnerManager.CloseChannel(channel);
+            }
+            catch (Exception ex)
+            {
+                OwnerManager.Logger?.ChannelEntryLog1(ex);
             }
         }
 

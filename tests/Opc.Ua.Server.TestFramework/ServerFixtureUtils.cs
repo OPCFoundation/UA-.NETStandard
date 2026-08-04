@@ -80,12 +80,28 @@ namespace Opc.Ua.Server.TestFramework
 
             // Find TCP endpoint
             ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
-            EndpointDescription endpoint = endpoints.Find(e =>
+            EndpointDescription endpoint = useSecurity
+                ? endpoints.Find(e =>
+                    e.TransportProfileUri
+                        .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) &&
+                    e.SecurityMode == MessageSecurityMode.Sign &&
+                    e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256) ??
+                    endpoints.Find(e =>
+                        e.TransportProfileUri
+                            .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal) &&
+                        e.SecurityMode == MessageSecurityMode.Sign &&
+                        e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
+                : endpoints.Find(e =>
+                    e.TransportProfileUri
+                        .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
+                    e.TransportProfileUri
+                        .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal));
+            endpoint ??= endpoints.Find(e =>
                 e.TransportProfileUri
                     .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
                 e.TransportProfileUri
                     .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal)) ??
-                throw new NotSupportedException("Unsupported transport profile.");
+                throw new NotSupportedException("Unsupported transport profile or security policy.");
 
             if (useSecurity)
             {
