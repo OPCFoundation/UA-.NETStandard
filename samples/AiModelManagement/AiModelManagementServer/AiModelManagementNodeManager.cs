@@ -270,18 +270,45 @@ namespace AiModelManagement.Server
         private TChild Child<TChild>(NodeState parent, string browseName)
             where TChild : BaseInstanceState
         {
-            BaseInstanceState? child = parent.CreateChild(
-                SystemContext,
-                new QualifiedName(browseName, NamespaceIndex));
+            var qualifiedName = new QualifiedName(browseName, NamespaceIndex);
 
-            if (child is TChild typed)
+            if (parent.FindChild(SystemContext, qualifiedName) is TChild existing)
             {
-                return typed;
+                return existing;
             }
 
-            throw new InvalidOperationException(
-                FormattableString.Invariant(
-                    $"{parent.BrowseName} declares no {browseName} of type {typeof(TChild).Name}."));
+            if (parent.CreateChild(SystemContext, qualifiedName) is not TChild typed)
+            {
+                throw new InvalidOperationException(
+                    FormattableString.Invariant(
+                        $"{parent.BrowseName} declares no {browseName} of type {typeof(TChild).Name}."));
+            }
+
+            // Two things a freshly materialised optional child does not have, and
+            // needs before a client can see it or use it.
+            //
+            // Create runs the child's own initialisation, which is what builds the
+            // members ITS type declares - for a Method, that is InputArguments and
+            // OutputArguments. Without it the Method browses correctly, accepts a
+            // call, and rejects it with BadTooManyArguments no matter what is passed,
+            // because as far as the Server is concerned it takes none.
+            //
+            // ReferenceTypeId is what a Browse names the reference by. A child
+            // without one is indexed, readable by NodeId and callable, but no client
+            // can navigate to it - so the whole optional half of the model simply
+            // is not there, without anything failing.
+            typed.Create(
+                SystemContext,
+                NodeId.Null,
+                qualifiedName,
+                new LocalizedText(browseName),
+                true);
+
+            typed.ReferenceTypeId = typed is PropertyState
+                ? Opc.Ua.ReferenceTypeIds.HasProperty
+                : Opc.Ua.ReferenceTypeIds.HasComponent;
+
+            return typed;
         }
 
         /// <summary>

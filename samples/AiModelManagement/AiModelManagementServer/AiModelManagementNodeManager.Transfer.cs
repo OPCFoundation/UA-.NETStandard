@@ -111,7 +111,7 @@ namespace AiModelManagement.Server
 
                 string transferId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
 
-                node = new InferenceTransferState(m_root!.Jobs);
+                node = new InferenceTransferState(null);
                 node.Create(
                     SystemContext,
                     NodeId.Null,
@@ -136,8 +136,18 @@ namespace AiModelManagement.Server
 
                 WireTransfer(entry);
 
+                // Every member this transfer will ever carry is materialised now,
+                // before the node is indexed. A child created afterwards exists on
+                // the NodeState and is invisible over the wire, which reads as a
+                // result that silently lost its ModelUsed rather than as an error.
+                Child<PropertyState<string>>(node, BrowseNames.ResponseContentType);
+                Child<PropertyState<NodeId>>(node, BrowseNames.ModelUsed);
+                Child<PropertyState<UsageDataType>>(node, BrowseNames.Usage);
+                Child<PropertyState<FinishReasonEnum>>(node, BrowseNames.FinishReason);
+                Child<PropertyState<LocalizedText>>(node, BrowseNames.LastError);
+
                 m_transfers[node.NodeId] = entry;
-                Child<FolderState>(m_root, BrowseNames.Jobs).AddChild(node);
+                Child<FolderState>(m_root!, BrowseNames.Jobs).AddChild(node);
                 AddPredefinedNodeSynchronously(node);
             }
 

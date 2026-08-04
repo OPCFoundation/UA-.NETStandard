@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -90,10 +91,20 @@ namespace AiModelManagement.Bridge
         public InferenceSite Site => m_options.Site;
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<BackendModel>> ListModelsAsync(
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Asked of the endpoint, not of configuration. The question the caller is
+        /// asking is what this source OFFERS, and configuration can only answer what
+        /// this Server was told about - which is a different and usually smaller set.
+        /// Where the endpoint declines to say, the configured list is the fallback
+        /// rather than the answer.
+        /// </remarks>
+        public async ValueTask<IReadOnlyList<BackendModel>> ListModelsAsync(
             string? filter, uint maxResults, CancellationToken ct)
         {
-            IEnumerable<BackendModel> models = m_options.Models;
+            IEnumerable<BackendModel> models =
+                await DiscoverModelsAsync(ct).ConfigureAwait(false);
+
             if (!string.IsNullOrEmpty(filter))
             {
                 models = models.Where(m =>
@@ -104,7 +115,86 @@ namespace AiModelManagement.Bridge
             {
                 models = models.Take((int)maxResults);
             }
-            return new ValueTask<IReadOnlyList<BackendModel>>(models.ToList());
+            return models.ToList();
+        }
+
+        /// <summary>
+        /// Reads the endpoint's model list.
+        /// </summary>
+        /// <remarks>
+        /// Metadata the endpoint does not carry is taken from configuration where a
+        /// configured entry names the same model, so an operator can supply the
+        /// publisher, the digest and the task kind that an OpenAI-compatible listing
+        /// has no field for - without that supplement overriding what the endpoint
+        /// actually reports.
+        /// </remarks>
+        private async ValueTask<IReadOnlyList<BackendModel>> DiscoverModelsAsync(
+            CancellationToken ct)
+        {
+            using var message = new HttpRequestMessage(HttpMethod.Get, m_options.ProbePath);
+            await AuthenticateAsync(message, ct).ConfigureAwait(false);
+
+            try
+            {
+                using HttpResponseMessage response = await m_http
+                    .SendAsync(message, ct)
+                    .ConfigureAwait(false);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return [.. m_options.Models];
+                }
+
+                using Stream body = await response.Content
+                    .ReadAsStreamAsync(ct)
+                    .ConfigureAwait(false);
+
+                using JsonDocument document = await JsonDocument
+                    .ParseAsync(body, cancellationToken: ct)
+                    .ConfigureAwait(false);
+
+                if (!document.RootElement.TryGetProperty("data", out JsonElement data) ||
+                    data.ValueKind != JsonValueKind.Array)
+                {
+                    return [.. m_options.Models];
+                }
+
+                var discovered = new List<BackendModel>();
+
+                foreach (JsonElement element in data.EnumerateArray())
+                {
+                    if (!element.TryGetProperty("id", out JsonElement id) ||
+                        id.GetString() is not { Length: > 0 } name)
+                    {
+                        continue;
+                    }
+
+                    BackendModel? configured = m_options.Models.FirstOrDefault(
+                        m => string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase));
+
+                    discovered.Add(configured is null
+                        ? new BackendModel
+                        {
+                            Publisher = element.TryGetProperty("owned_by", out JsonElement owner)
+                                ? owner.GetString() ?? "unknown"
+                                : "unknown",
+                            Name = name,
+                            Version = "unknown",
+                            Framework = "rest-chat-completions"
+                        }
+                        : configured with { Name = name });
+                }
+
+                return discovered.Count > 0 ? discovered : [.. m_options.Models];
+            }
+            catch (HttpRequestException)
+            {
+                return [.. m_options.Models];
+            }
+            catch (JsonException)
+            {
+                return [.. m_options.Models];
+            }
         }
 
         /// <inheritdoc/>

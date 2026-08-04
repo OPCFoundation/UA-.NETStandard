@@ -66,7 +66,7 @@ namespace AiModelManagement.Server
         /// </remarks>
         private void BuildCatalogue()
         {
-            m_source = new ModelSourceState(m_root!.Sources);
+            m_source = new ModelSourceState(null);
             m_source.Create(
                 SystemContext,
                 NodeId.Null,
@@ -103,7 +103,7 @@ namespace AiModelManagement.Server
                 (context, method, objectId, filter, maxResults, ct) =>
                     ListModelsAsync(filter, maxResults, ct);
 
-            Child<FolderState>(m_root, BrowseNames.Sources).AddChild(m_source);
+            Child<FolderState>(m_root!, BrowseNames.Sources).AddChild(m_source);
 
             // Every model this Server publishes came from that source, and saying so
             // is what makes the provenance walk terminate somewhere meaningful

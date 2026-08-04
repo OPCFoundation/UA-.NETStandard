@@ -12,6 +12,9 @@
     <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalClient/MinimalClient.csproj" />
     <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
+    <Project Path="samples/AiModelManagement/AiModelManagement.Bridge/AiModelManagement.Bridge.csproj" />
+    <Project Path="samples/AiModelManagement/AiModelManagementServer/AiModelManagementServer.csproj" />
+    <Project Path="samples/AiModelManagement/AiModelManagementClient/AiModelManagementClient.csproj" />
     <Project Path="samples/MinimalRobotServer/MinimalRobotServer.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
@@ -267,6 +270,7 @@
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.XRegistry.Tests/Opc.Ua.XRegistry.Tests.csproj" />
+    <Project Path="tests/AiModelManagement.Tests/AiModelManagement.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Kubernetes.Tests/Opc.Ua.Redundancy.Kubernetes.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj" />

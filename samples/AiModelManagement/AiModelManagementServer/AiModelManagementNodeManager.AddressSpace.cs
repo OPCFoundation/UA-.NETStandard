@@ -171,7 +171,12 @@ namespace AiModelManagement.Server
 
         private ModelState CreateModel(BackendModel source, string browseName)
         {
-            var model = new ModelState(m_root!.Models);
+            // Constructed without a parent on purpose. AddChild assigns the parent
+            // AND the reference type that makes the child browsable, but it only
+            // does so when the parent actually changes - so a node handed its parent
+            // in the constructor is indexed by the Server and invisible to a client,
+            // which is a great deal harder to notice than an outright failure.
+            var model = new ModelState(null);
             model.Create(
                 SystemContext,
                 NodeId.Null,
@@ -200,7 +205,7 @@ namespace AiModelManagement.Server
             Child<PropertyState<string>>(model, BrowseNames.DigestAlgorithm).Value =
                 source.DigestAlgorithm;
 
-            m_root.Models!.AddChild(model);
+            Child<FolderState>(m_root!, BrowseNames.Models).AddChild(model);
             return model;
         }
 
@@ -266,7 +271,7 @@ namespace AiModelManagement.Server
             bool egressPermitted,
             bool retainsInput)
         {
-            var deployment = new DeploymentState(m_root!.Deployments);
+            var deployment = new DeploymentState(null);
             deployment.Create(
                 SystemContext,
                 NodeId.Null,
@@ -321,7 +326,7 @@ namespace AiModelManagement.Server
             deployment.AddReference(RefType(AiRefs.UsesModel), false, model.NodeId);
             model.AddReference(RefType(AiRefs.UsesModel), true, deployment.NodeId);
 
-            m_root.Deployments!.AddChild(deployment);
+            Child<FolderState>(m_root!, BrowseNames.Deployments).AddChild(deployment);
             WireDeploymentMethods(deployment);
             return deployment;
         }

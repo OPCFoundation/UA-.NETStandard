@@ -85,7 +85,7 @@ namespace AiModelManagement.Server
             {
                 string jobId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
 
-                job = new InferenceJobState(m_root!.Jobs);
+                job = new InferenceJobState(null);
                 job.Create(
                     SystemContext,
                     NodeId.Null,
@@ -103,10 +103,22 @@ namespace AiModelManagement.Server
                     DateTime.UtcNow;
                 Child<PropertyState<double>>(job, BrowseNames.Progress).Value = 0;
 
+                // Materialised before the node is indexed, for the same reason the
+                // transfer does it: a member created after the fact is invisible to
+                // a client, and a job whose result never appears is a worse failure
+                // than one that fails.
+                Child<PropertyState<ByteString>>(job, BrowseNames.ResponsePayload);
+                Child<PropertyState<string>>(job, BrowseNames.ResponseContentType);
+                Child<PropertyState<NodeId>>(job, BrowseNames.ModelUsed);
+                Child<PropertyState<UsageDataType>>(job, BrowseNames.Usage);
+                Child<PropertyState<FinishReasonEnum>>(job, BrowseNames.FinishReason);
+                Child<PropertyState<LocalizedText>>(job, BrowseNames.LastError);
+                Child<PropertyState<DateTimeUtc>>(job, BrowseNames.FinishedAt);
+
                 job.CurrentState!.Value = new LocalizedText("Running");
                 job.CurrentState!.Id!.Value = ObjectIds.ProgramStateMachineType_Running;
 
-                Child<FolderState>(m_root, BrowseNames.Jobs).AddChild(job);
+                Child<FolderState>(m_root!, BrowseNames.Jobs).AddChild(job);
                 AddPredefinedNodeSynchronously(job);
             }
 
