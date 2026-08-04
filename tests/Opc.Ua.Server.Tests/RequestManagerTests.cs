@@ -391,39 +391,61 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void IsExecutingRequestIsFalseInitiallyAndTrueWithinServiceDispatchScope()
+        public void IsExecutingRequestIsFalseForANullContext()
         {
-            Assert.That(m_requestManager.IsExecutingRequest, Is.False);
-
-            using (m_requestManager.EnterServiceDispatchScope())
-            {
-                Assert.That(m_requestManager.IsExecutingRequest, Is.True);
-            }
-
-            Assert.That(m_requestManager.IsExecutingRequest, Is.False);
+            Assert.That(m_requestManager.IsExecutingRequest(null), Is.False);
         }
 
         [Test]
-        public async Task ServiceDispatchScopeIsVisibleToTheHandlerItDispatchesAsync()
+        public void IsExecutingRequestIsFalseForAContextThatWasNeverRegistered()
         {
-            // The mark has to be visible to everything the dispatcher invokes, because that is
-            // where service handlers and NodeManager callbacks run. An AsyncLocal written inside
-            // an async method never reaches its caller, which is why the mark cannot be applied
-            // while the request is being validated.
+            // An internal operation creates a context of its own without enrolling it as a
+            // request. Such a context is not executing, so a lifecycle operation may proceed.
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext context = CreateOperationContext(80, requestLifetime);
+
+            Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+        }
+
+        [Test]
+        public void IsExecutingRequestIsTrueOnlyWhileTheRequestScopeIsOpen()
+        {
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext context = CreateOperationContext(81, requestLifetime);
+
+            Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+
+            using (m_requestManager.EnterRequestScope(context))
+            {
+                Assert.That(m_requestManager.IsExecutingRequest(context), Is.True);
+            }
+
+            Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+        }
+
+        [Test]
+        public async Task IsExecutingRequestIsVisibleToTheHandlerTheRequestIsDispatchedToAsync()
+        {
+            // The context is handed to the handler explicitly, so the guard works across await
+            // boundaries and background tasks without relying on ambient state.
+            using var requestLifetime = new RequestLifetime();
+            using OperationContext context = CreateOperationContext(82, requestLifetime);
             bool observedInCallee = false;
 
             async Task DispatchAsync()
             {
-                using (m_requestManager.EnterServiceDispatchScope())
+                using (m_requestManager.EnterRequestScope(context))
                 {
-                    await HandleAsync().ConfigureAwait(false);
+                    await HandleAsync(context).ConfigureAwait(false);
                 }
             }
 
-            async Task HandleAsync()
+            async Task HandleAsync(OperationContext callerContext)
             {
                 await Task.Yield();
-                observedInCallee = m_requestManager.IsExecutingRequest;
+                observedInCallee = await Task.Run(
+                    () => m_requestManager.IsExecutingRequest(callerContext))
+                    .ConfigureAwait(false);
             }
 
             await DispatchAsync().ConfigureAwait(false);
@@ -431,25 +453,37 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(observedInCallee, Is.True);
-                Assert.That(m_requestManager.IsExecutingRequest, Is.False);
+                Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
             });
         }
 
         [Test]
-        public void EnterRequestScopeDoesNotMarkTheFlowAsExecutingARequest()
+        public void IsExecutingRequestDistinguishesConcurrentlyExecutingRequests()
         {
-            // Request registration happens inside an async validation method, so anything it
-            // writes to an AsyncLocal is invisible to the handler that awaited it. Tracking the
-            // mark here would make the guard silently useless in production.
-            using var requestLifetime = new RequestLifetime();
-            OperationContext context = CreateOperationContext(60, requestLifetime);
+            // Identity decides, so a request that is executing never makes another context look
+            // like the one the caller is serving.
+            using var outerLifetime = new RequestLifetime();
+            using var innerLifetime = new RequestLifetime();
+            using OperationContext outerContext = CreateOperationContext(83, outerLifetime);
+            using OperationContext innerContext = CreateOperationContext(84, innerLifetime);
 
-            using (m_requestManager.EnterRequestScope(context))
+            using (m_requestManager.EnterRequestScope(outerContext))
             {
-                Assert.That(m_requestManager.IsExecutingRequest, Is.False);
-            }
+                using (m_requestManager.EnterRequestScope(innerContext))
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(m_requestManager.IsExecutingRequest(outerContext), Is.True);
+                        Assert.That(m_requestManager.IsExecutingRequest(innerContext), Is.True);
+                    });
+                }
 
-            Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(m_requestManager.IsExecutingRequest(outerContext), Is.True);
+                    Assert.That(m_requestManager.IsExecutingRequest(innerContext), Is.False);
+                });
+            }
         }
 
         [Test]

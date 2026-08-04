@@ -76,7 +76,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void TokenArray_FromDecoercedShape_EmitsBracketedDoubleQuotedElements()
         {
             // UsdValueCoercion.Decoerce hands the writer an object?[] for a token[] array.
-            object? decoerced = UsdValueCoercion.Decoerce(new string[] { "xformOp:translate" });
+            UsdValue decoerced = UsdValueCoercion.Decoerce(
+                Variant.From((ArrayOf<string>)new[] { "xformOp:translate" }));
 
             string usda = EmitRootAttribute(
                 "Xform",
@@ -100,7 +101,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 new UsdAttribute("xformOpOrder", "token[]")
                 {
                     Variability = UsdVariabilityEnum.Uniform,
-                    Value = new object?[] { "xformOp:translate", "xformOp:scale" },
+                    Value = UsdTestHelpers.TokenArray("xformOp:translate", "xformOp:scale"),
                 });
 
             Assert.That(
@@ -113,7 +114,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             // A color3f[] materializes as a rectangular matrix; Decoerce regroups it into per-tuple
             // rows carried in an object?[]. The writer must emit "[(...)]", not "((...))".
-            object? decoerced = UsdValueCoercion.Decoerce(new float[,] { { 0f, 0f, 1f } });
+            UsdValue decoerced = UsdValueCoercion.Decoerce(
+                Variant.From(new float[,] { { 0f, 0f, 1f } }.ToMatrixOf()));
 
             string usda = EmitRootAttribute(
                 "Mesh",
@@ -130,11 +132,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "Mesh",
                 new UsdAttribute("primvars:displayColor", "color3f[]")
                 {
-                    Value = new object?[]
-                    {
-                        new object?[] { 0.0, 0.0, 1.0 },
-                        new object?[] { 1.0, 1.0, 0.0 },
-                    },
+                    Value = UsdTestHelpers.Array(
+                        UsdTestHelpers.NumberTuple(0.0, 0.0, 1.0),
+                        UsdTestHelpers.NumberTuple(1.0, 1.0, 0.0)),
                 });
 
             Assert.That(
@@ -145,7 +145,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void AssetArray_FromDecoercedShape_EmitsAtDelimitedElements()
         {
-            object? decoerced = UsdValueCoercion.Decoerce(new string[] { "./a.usda" });
+            UsdValue decoerced = UsdValueCoercion.Decoerce(
+                Variant.From((ArrayOf<string>)new[] { "./a.usda" }));
 
             string usda = EmitRootAttribute(
                 "Xform",
@@ -162,7 +163,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             // The type-name keying must not turn a fixed-size math scalar into an array: a double3
             // (ValueRank one-dimension, three components) is a single parenthesised tuple.
-            object? decoerced = UsdValueCoercion.Decoerce(new double[] { 1.0, 2.0, 3.0 });
+            UsdValue decoerced = UsdValueCoercion.Decoerce(
+                Variant.From((ArrayOf<double>)new[] { 1.0, 2.0, 3.0 }));
 
             string usda = EmitRootAttribute(
                 "Xform",
@@ -185,18 +187,18 @@ namespace Opc.Ua.OpenUsdScene.Tests
             mesh.Attributes.Add(new UsdAttribute("xformOpOrder", "token[]")
             {
                 Variability = UsdVariabilityEnum.Uniform,
-                Value = new object?[] { "xformOp:translate", "xformOp:scale" },
+                Value = UsdTestHelpers.TokenArray("xformOp:translate", "xformOp:scale"),
             });
             mesh.Attributes.Add(new UsdAttribute("primvars:displayColor", "color3f[]")
             {
-                Value = new object?[] { new object?[] { 0.0, 0.0, 1.0 } },
+                Value = UsdTestHelpers.Array(UsdTestHelpers.NumberTuple(0.0, 0.0, 1.0)),
             });
             mesh.Attributes.Add(new UsdAttribute("inputs:files", "asset[]")
             {
-                Value = new object?[] { "./a.usda", "./b.usda" },
+                Value = UsdTestHelpers.AssetArray("./a.usda", "./b.usda"),
             });
 
-            var surface = new UsdAttribute("outputs:surface", "token") { Value = "fallback" };
+            var surface = new UsdAttribute("outputs:surface", "token") { Value = UsdValue.FromString("fallback") };
             surface.Connections.Add("/World/Shader.outputs:surface");
             mesh.Attributes.Add(surface);
 
@@ -213,7 +215,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Conn") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            var attr = new UsdAttribute("inputs:surface", "token") { Value = "fallback" };
+            var attr = new UsdAttribute("inputs:surface", "token") { Value = UsdValue.FromString("fallback") };
             attr.Connections.Add("/P/Shader.outputs:surface");
             prim.Attributes.Add(attr);
             stage.AddRootPrim(prim);
@@ -226,7 +228,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             Assert.That(matching, Has.Count.EqualTo(1),
                 "a value co-authored with a .connect must re-parse as one attribute, not two");
-            Assert.That(matching[0].Value, Is.EqualTo("fallback"));
+            UsdTestHelpers.AssertText(matching[0].Value, "fallback");
             Assert.That(matching[0].Connections, Is.EqualTo(new[] { "/P/Shader.outputs:surface" }));
         }
 
@@ -237,10 +239,10 @@ namespace Opc.Ua.OpenUsdScene.Tests
             var prim = new UsdPrim("P", "Xform");
             var attr = new UsdAttribute("xformOp:translate", "double3")
             {
-                Value = new object?[] { 1.0, 2.0, 3.0 },
+                Value = UsdTestHelpers.NumberTuple(1.0, 2.0, 3.0),
             };
-            attr.TimeSamples[0.0] = new object?[] { 1.0, 2.0, 3.0 };
-            attr.TimeSamples[24.0] = new object?[] { 4.0, 5.0, 6.0 };
+            attr.TimeSamples[0.0] = UsdTestHelpers.NumberTuple(1.0, 2.0, 3.0);
+            attr.TimeSamples[24.0] = UsdTestHelpers.NumberTuple(4.0, 5.0, 6.0);
             attr.Connections.Add("/P/Rig.outputs:translate");
             prim.Attributes.Add(attr);
             stage.AddRootPrim(prim);
@@ -255,7 +257,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "value, time samples and .connect on one attribute must not split into duplicates");
             Assert.That(matching[0].Connections, Is.EqualTo(new[] { "/P/Rig.outputs:translate" }));
             Assert.That(matching[0].TimeSamples, Has.Count.EqualTo(2));
-            Assert.That(matching[0].Value, Is.Not.Null);
+            Assert.That(matching[0].Value.IsNull, Is.False);
         }
 
         // ---- M-1: a known string/token attribute with a structured value fails closed ----
@@ -267,7 +269,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
             uint components = UsdValueTypeMap.ComponentCount("token[]");
 
             bool ok = UsdValueCoercion.TryCoerce(
-                new object?[] { new object?[] { 1L, 2L }, new object?[] { 3L, 4L } },
+                UsdTestHelpers.Array(
+                    UsdTestHelpers.IntegerTuple(1L, 2L),
+                    UsdTestHelpers.IntegerTuple(3L, 4L)),
                 mapping,
                 components,
                 out Variant result);
@@ -283,7 +287,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             uint components = UsdValueTypeMap.ComponentCount("string");
 
             bool ok = UsdValueCoercion.TryCoerce(
-                new object?[] { 1L, 2L }, mapping, components, out Variant _);
+                UsdTestHelpers.IntegerTuple(1L, 2L), mapping, components, out Variant _);
 
             Assert.That(ok, Is.False);
         }
@@ -294,7 +298,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdValueTypeMapping mapping = UsdValueTypeMap.Map("string", null);
             uint components = UsdValueTypeMap.ComponentCount("string");
 
-            bool ok = UsdValueCoercion.TryCoerce(42L, mapping, components, out Variant result);
+            bool ok = UsdValueCoercion.TryCoerce(UsdValue.From(42L), mapping, components, out Variant result);
 
             Assert.That(ok, Is.True);
             Assert.That(result.TryGetValue(out string rendered), Is.True);
@@ -309,7 +313,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             uint components = UsdValueTypeMap.ComponentCount("token[]");
 
             bool ok = UsdValueCoercion.TryCoerce(
-                new object?[] { "a", "b" }, mapping, components, out Variant result);
+                UsdTestHelpers.TokenArray("a", "b"), mapping, components, out Variant result);
 
             Assert.That(ok, Is.True);
             Assert.That(result.TryGetValue(out ArrayOf<string> tokens), Is.True);
@@ -341,7 +345,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // The metadata after the ')'-bearing string survived (the block was not truncated).
             Assert.That(prim.Kind, Is.EqualTo(UsdPrimKindEnum.Component));
             Assert.That(prim.Metadata.ContainsKey("comment"), Is.True);
-            Assert.That(prim.Metadata["comment"], Is.EqualTo("note with ) paren and ( too"));
+            UsdTestHelpers.AssertString(prim.Metadata["comment"], "note with ) paren and ( too");
         }
 
         // ---- Defect 9: §6.3 custom prim metadata round-trips through Metadata ----
@@ -351,19 +355,19 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Meta") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            prim.Metadata["displayName"] = "Pump Assembly";
-            prim.Metadata["revision"] = 3L;
-            prim.Metadata["approved"] = true;
-            prim.Metadata["tolerance"] = 0.25;
+            prim.Metadata["displayName"] = UsdValue.FromString("Pump Assembly");
+            prim.Metadata["revision"] = UsdValue.From(3L);
+            prim.Metadata["approved"] = UsdValue.From(true);
+            prim.Metadata["tolerance"] = UsdValue.From(0.25);
             stage.AddRootPrim(prim);
 
             UsdStage reparsed = UsdaReader.Parse(UsdaWriter.Write(stage), stage.StageName);
 
             UsdPrim prim2 = reparsed.Find("/P")!;
-            Assert.That(prim2.Metadata["displayName"], Is.EqualTo("Pump Assembly"));
-            Assert.That(prim2.Metadata["revision"], Is.EqualTo(3L));
-            Assert.That(prim2.Metadata["approved"], Is.True);
-            Assert.That(prim2.Metadata["tolerance"], Is.EqualTo(0.25));
+            UsdTestHelpers.AssertString(prim2.Metadata["displayName"], "Pump Assembly");
+            UsdTestHelpers.AssertInteger(prim2.Metadata["revision"], 3L);
+            UsdTestHelpers.AssertBoolean(prim2.Metadata["approved"], true);
+            UsdTestHelpers.AssertDouble(prim2.Metadata["tolerance"], 0.25);
         }
 
         [Test]
@@ -371,25 +375,24 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Meta") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            var custom = new Dictionary<string, object?>(StringComparer.Ordinal)
+            var custom = new Dictionary<string, UsdValue>(StringComparer.Ordinal)
             {
-                ["author"] = "acme",
-                ["weight"] = 12.5,
-                ["count"] = 7L,
+                ["author"] = UsdValue.FromString("acme"),
+                ["weight"] = UsdValue.From(12.5),
+                ["count"] = UsdValue.From(7L),
             };
-            prim.Metadata["customData"] = custom;
+            prim.Metadata["customData"] = UsdValue.FromDictionary(custom);
             stage.AddRootPrim(prim);
 
             UsdStage reparsed = UsdaReader.Parse(UsdaWriter.Write(stage), stage.StageName);
 
             UsdPrim prim2 = reparsed.Find("/P")!;
             Assert.That(prim2.Metadata.ContainsKey("customData"), Is.True);
-            Assert.That(prim2.Metadata["customData"], Is.InstanceOf<IDictionary<string, object?>>());
-
-            var nested = (IDictionary<string, object?>)prim2.Metadata["customData"]!;
-            Assert.That(nested["author"], Is.EqualTo("acme"));
-            Assert.That(nested["weight"], Is.EqualTo(12.5));
-            Assert.That(nested["count"], Is.EqualTo(7L));
+            Assert.That(prim2.Metadata["customData"].TryGetDictionary(out IReadOnlyDictionary<string, UsdValue> nested),
+                Is.True);
+            UsdTestHelpers.AssertString(nested["author"], "acme");
+            UsdTestHelpers.AssertDouble(nested["weight"], 12.5);
+            UsdTestHelpers.AssertInteger(nested["count"], 7L);
         }
 
         [Test]
@@ -402,7 +405,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 Documentation = "A documented prim",
             };
             prim.ApiSchemas.Add(new UsdApiSchema("PhysicsRigidBodyAPI"));
-            prim.Metadata["displayName"] = "Widget";
+            prim.Metadata["displayName"] = UsdValue.FromString("Widget");
             stage.AddRootPrim(prim);
 
             UsdStage reparsed = UsdaReader.Parse(UsdaWriter.Write(stage), stage.StageName);
@@ -413,7 +416,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(prim2.Documentation, Is.EqualTo("A documented prim"));
             Assert.That(prim2.ApiSchemas.Select(a => a.SchemaName), Does.Contain("PhysicsRigidBodyAPI"));
             Assert.That(prim2.Metadata.ContainsKey("displayName"), Is.True);
-            Assert.That(prim2.Metadata["displayName"], Is.EqualTo("Widget"));
+            UsdTestHelpers.AssertString(prim2.Metadata["displayName"], "Widget");
             Assert.That(prim2.Metadata.ContainsKey("kind"), Is.False);
             Assert.That(prim2.Metadata.ContainsKey("doc"), Is.False);
             Assert.That(prim2.Metadata.ContainsKey("apiSchemas"), Is.False);
@@ -424,14 +427,92 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Meta") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform") { Kind = UsdPrimKindEnum.Component };
-            prim.Metadata["comment"] = "torque curve peaks at (n) then drops)";
+            prim.Metadata["comment"] = UsdValue.FromString("torque curve peaks at (n) then drops)");
             stage.AddRootPrim(prim);
 
             UsdStage reparsed = UsdaReader.Parse(UsdaWriter.Write(stage), stage.StageName);
 
             UsdPrim prim2 = reparsed.Find("/P")!;
             Assert.That(prim2.Kind, Is.EqualTo(UsdPrimKindEnum.Component));
-            Assert.That(prim2.Metadata["comment"], Is.EqualTo("torque curve peaks at (n) then drops)"));
+            UsdTestHelpers.AssertString(prim2.Metadata["comment"], "torque curve peaks at (n) then drops)");
+        }
+
+        [Test]
+        public void Color3fArray_FlatComponentRun_IsRegroupedIntoTupleRows()
+        {
+            // A tuple-group base type handed back as a flat run of components must be regrouped
+            // per tuple, so a color3f[] still authors "[(r, g, b), …]" and not a flat list.
+            string usda = EmitRootAttribute(
+                "Mesh",
+                new UsdAttribute("primvars:displayColor", "color3f[]")
+                {
+                    Value = UsdTestHelpers.NumberArray(1.0, 0.0, 0.0, 0.0, 1.0, 0.0),
+                });
+
+            Assert.That(
+                usda,
+                Does.Contain("color3f[] primvars:displayColor = [(1.0, 0.0, 0.0), (0.0, 1.0, 0.0)]"));
+        }
+
+        [Test]
+        public void Color3fArray_GroupedRows_AreEmittedOnePerElement()
+        {
+            // Three already-grouped rows are themselves divisible by the group width, so the
+            // writer must notice the elements are sequences and not regroup them a second time.
+            string usda = EmitRootAttribute(
+                "Mesh",
+                new UsdAttribute("primvars:displayColor", "color3f[]")
+                {
+                    Value = UsdTestHelpers.Array(
+                        UsdTestHelpers.NumberTuple(1.0, 0.0, 0.0),
+                        UsdTestHelpers.NumberTuple(0.0, 1.0, 0.0),
+                        UsdTestHelpers.NumberTuple(0.0, 0.0, 1.0)),
+                });
+
+            Assert.That(
+                usda,
+                Does.Contain(
+                    "color3f[] primvars:displayColor = "
+                    + "[(1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)]"));
+        }
+
+        [Test]
+        public void OpaqueAbsentValue_RendersAsEmptyText()
+        {
+            bool rendered = UsdaWriter.TryRenderOpaqueValue(UsdValue.Null, out string text);
+
+            Assert.That(rendered, Is.True);
+            Assert.That(text, Is.Empty);
+        }
+
+        [Test]
+        public void CompositeMetadata_IsEmittedInUsdSyntax()
+        {
+            // A tuple/array metadata value has no scalar spelling, so it renders through the
+            // structured renderer rather than being published as a CLR type name.
+            var stage = new UsdStage("Meta") { DefaultPrim = "P" };
+            var prim = new UsdPrim("P", "Xform");
+            prim.Metadata["extent"] = UsdTestHelpers.NumberTuple(1.0, 2.0);
+            prim.Metadata["order"] = UsdTestHelpers.IntegerArray(1L, 2L);
+            prim.Metadata["source"] = UsdTestHelpers.Array(UsdValue.FromPathReference("/P/A"));
+            stage.AddRootPrim(prim);
+
+            string usda = UsdaWriter.Write(stage);
+
+            Assert.That(usda, Does.Contain("extent = (1.0, 2.0)"));
+            Assert.That(usda, Does.Contain("order = [1, 2]"));
+            Assert.That(usda, Does.Contain("source = ['/P/A']"));
+            Assert.That(usda, Does.Not.Contain("System."));
+        }
+
+        [Test]
+        public void BoolAttribute_IsEmittedAsALowerCaseLiteral()
+        {
+            string usda = EmitRootAttribute(
+                "Xform",
+                new UsdAttribute("visible", "bool") { Value = UsdValue.From(false) });
+
+            Assert.That(usda, Does.Contain("bool visible = false"));
         }
     }
 }
