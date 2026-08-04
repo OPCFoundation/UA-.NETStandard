@@ -200,27 +200,56 @@ preferable to weakening the analyzer settings for the whole repository.
 
 ## Notes for anyone extending this
 
-Four things cost real time to find, and all four produce a Server that builds,
-starts, and is wrong in a way nothing reports:
+Six things cost real time to find. All six produce a Server that builds, starts,
+and is wrong in a way nothing reports:
 
-1. **A NodeSet is not necessarily in supertype order.** NodeIds are assigned in
+1. **Dynamic NodeIds must not be numeric here.** The model occupies
+   `ns=2;i=1001`…`ns=2;i=7001`, and a counter issuing numeric ids in the same
+   namespace walks straight into it. The predefined-node index takes the last
+   writer, so a Server that had served a few hundred transfers would quietly have
+   replaced `AiRootType` with an inference job's `FinishedAt` property. String
+   identifiers cannot collide with numeric ones at all, which is a stronger
+   guarantee than any seed value.
+
+2. **The NodeSet may already declare the entry point.** This one declares
+   `ns=2;i=7001` parented to the Server Object. Building another leaves two
+   Objects with the same BrowseName under the Server — one populated, one empty —
+   and which a client finds depends on browse order.
+
+3. **A NodeSet is not necessarily in supertype order.** NodeIds are assigned in
    declaration order, so a model that gains an abstract base after its first
-   concrete subtype will carry a higher NodeId for the base — and the type table
-   refuses a type whose supertype it has not seen. The node manager sorts before
-   loading rather than the NodeSet being renumbered.
+   concrete subtype carries a higher NodeId for the base — and the type table
+   refuses a type whose supertype it has not seen.
 
-2. **Passing a parent to a `NodeState` constructor and then calling `AddChild`
+4. **Passing a parent to a `NodeState` constructor and then calling `AddChild`
    leaves `ReferenceTypeId` null**, because `AddChild` only assigns it when the
    parent actually changes. The node is indexed, readable by NodeId, and
    invisible to `Browse`.
 
-3. **A child materialised by `CreateChild` is never initialised**, so a Method
+5. **A child materialised by `CreateChild` is never initialised**, so a Method
    has no `InputArguments`. It browses, accepts a call, and rejects it with
-   `BadTooManyArguments` whatever is passed.
+   `BadTooManyArguments` whatever is passed. `FindChild` does not create at all,
+   so an optional Method reached that way is simply absent.
 
-4. **A member created after `AddPredefinedNode` is not published at all.** Every
-   member a transfer or a job will ever carry is materialised when the node is
-   created, not when its value first arrives.
+6. **A member — or a folder — created after `AddPredefinedNode` is not
+   published.** The lazily created `Jobs` folder appeared in a Browse of the root
+   while returning `BadNodeIdUnknown` when browsed itself, because it was on the
+   NodeState tree and not in the index.
 
 The common thread is that none of them fails. Run a real client against a real
-Server before believing a green build.
+Server before believing a green build — every one of these was found that way,
+and three of them only after a review agent browsed the running Server.
+
+### Concurrency
+
+Method calls are **not** serialised by the Server, so two handlers can run at
+once on the same node. Two consequences worth knowing:
+
+- The transfer buffers are owned by `StreamFileManager` and reached only through
+  `Snapshot`/`Replace`. Holding the node manager's own lock while touching them
+  would look careful and guarantee nothing, because the FileType methods take a
+  different lock.
+- A transfer can be aborted or expire while its inference is in flight. The
+  completing call re-checks that the transfer is still live under the same lock
+  that removal takes, and drops the answer if it is not.
+

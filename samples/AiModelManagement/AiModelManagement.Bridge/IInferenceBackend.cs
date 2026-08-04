@@ -148,6 +148,17 @@ namespace AiModelManagement.Bridge
         /// Algorithm that produced <see cref="Digest"/>, empty when there is none.
         /// </summary>
         public string DigestAlgorithm { get; init; } = string.Empty;
+
+        /// <summary>
+        /// How the weights are quantized, where that is known.
+        /// </summary>
+        /// <remarks>
+        /// Distinguishes a stand-in from the artefact it stands in for. Two models
+        /// with the same name and version but different quantization give different
+        /// answers, so a client comparing results across a fallback needs to be able
+        /// to see that they are not the same thing.
+        /// </remarks>
+        public string Quantization { get; init; } = string.Empty;
     }
 
     /// <summary>

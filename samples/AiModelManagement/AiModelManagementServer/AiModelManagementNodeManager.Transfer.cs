@@ -224,10 +224,11 @@ namespace AiModelManagement.Server
                     };
                 }
 
-                // Read under the lock. A client is free to keep writing to the
-                // request file while this runs, and an inference is entitled to a
-                // payload that does not change underneath it.
-                payload = entry.Request.ToArray();
+                // Snapshotted through the file manager, which is what actually
+                // serialises against a concurrent Write. Reading the MemoryStream
+                // directly under m_sync would look careful and guarantee nothing:
+                // the two locks do not exclude one another.
+                payload = m_files.Snapshot(Child<FileState>(entry.Node, BrowseNames.Request));
 
                 SetTransferState(entry, TransferStateEnum.Executing);
             }
@@ -269,9 +270,9 @@ namespace AiModelManagement.Server
                     };
                 }
 
-                entry.Response.SetLength(0);
-                entry.Response.Write(outcome.Result.Payload.Span);
-                entry.Response.Position = 0;
+                m_files.Replace(
+                    Child<FileState>(entry.Node, BrowseNames.Response),
+                    outcome.Result.Payload.Span);
 
                 Child<PropertyState<string>>(entry.Node, BrowseNames.ResponseContentType)
                     .Value = outcome.Result.ContentType;

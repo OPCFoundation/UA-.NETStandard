@@ -111,12 +111,41 @@ check("is not passed as an environment variable",
 check("rolls the pods when it changes",
       "checksum/credentials:" in out)
 
+# A digest of a low-entropy secret is recoverable offline, and Pod annotations
+# are readable by anyone with `get pods` - which is granted far more widely than
+# `get secrets`. So the annotation must not be a digest OF THE VALUE.
+import hashlib  # noqa: E402
+value_digest = hashlib.sha256(b"super-secret-value").hexdigest()
+check("the annotation is not a digest of the value",
+      value_digest not in out)
+
 print()
 print("Refusals")
 expect_refusal(
     "an ApiKey endpoint with no credential",
-    "no credential is supplied",
+    "expects a credential but none is supplied",
     "--set", "backend.authentication=ApiKey")
+expect_refusal(
+    "a BearerToken endpoint with no credential",
+    "expects a credential but none is supplied",
+    "--set", "backend.authentication=BearerToken")
+expect_refusal(
+    "a WorkloadIdentity endpoint with no credential",
+    "expects a credential but none is supplied",
+    "--set", "backend.authentication=WorkloadIdentity")
+expect_refusal(
+    "a mounted Secret with no key named",
+    "credentialReference is empty",
+    "--set", "backend.authentication=ApiKey",
+    "--set", "credentials.existingSecret=some-secret",
+    "--set", "backend.credentialReference=")
+expect_refusal(
+    "a fallback claiming no egress while calling off the machine",
+    "fallbackBackend.egressPermitted is false",
+    "--set", "ai.enableFallback=true",
+    "--set", "fallbackBackend.enabled=true",
+    "--set", "fallbackBackend.site=Cloud",
+    "--set", "fallbackBackend.egressPermitted=false")
 expect_refusal(
     "a fallback with nowhere to fall back to",
     "nothing to reach",

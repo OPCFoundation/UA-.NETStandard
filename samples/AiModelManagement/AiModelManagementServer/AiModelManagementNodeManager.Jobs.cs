@@ -60,7 +60,7 @@ namespace AiModelManagement.Server
         /// reason the specification reused it.
         /// </para>
         /// </remarks>
-        private ValueTask<InvokeAsyncMethodStateResult> StartJobAsync(
+        private async ValueTask<InvokeAsyncMethodStateResult> StartJobAsync(
             NodeId objectId,
             ByteString payload,
             string contentType,
@@ -71,18 +71,28 @@ namespace AiModelManagement.Server
             DeploymentState? deployment = FindDeployment(objectId);
             if (deployment is null)
             {
-                return ValueTask.FromResult(new InvokeAsyncMethodStateResult
+                return new InvokeAsyncMethodStateResult
                 {
                     ServiceResult = StatusCodes.BadNodeIdUnknown,
                     Job = NodeId.Null
-                });
+                };
             }
 
             InferenceJobState job;
+            NodeId? stale = null;
             byte[] body = payload.Memory.ToArray();
 
             lock (m_sync)
             {
+                // The same bound transfers already have. Without it any session that
+                // can call this Method can grow the address space indefinitely, and
+                // each job retains its request and response payloads - so the cost
+                // is not only nodes but the bytes they hold.
+                if (m_jobs.Count >= m_options.MaxRetainedJobs)
+                {
+                    stale = ReclaimOldestJob();
+                }
+
                 string jobId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
 
                 job = new InferenceJobState(null);
@@ -120,6 +130,14 @@ namespace AiModelManagement.Server
 
                 Child<FolderState>(m_root!, BrowseNames.Jobs).AddChild(job);
                 AddPredefinedNodeSynchronously(job);
+                m_jobs.Add(job.NodeId);
+            }
+
+            if (stale is not null)
+            {
+                // Outside the lock: only DeleteNodeAsync exists, and holding a lock
+                // across it is what the transfer path had to be fixed for.
+                await DeleteNodeAsync(SystemContext, stale.Value, ct).ConfigureAwait(false);
             }
 
             // Fire and forget by design: the caller has its NodeId and the result
@@ -129,11 +147,38 @@ namespace AiModelManagement.Server
                 () => RunJobAsync(job, deployment, body, contentType),
                 CancellationToken.None);
 
-            return ValueTask.FromResult(new InvokeAsyncMethodStateResult
+            return new InvokeAsyncMethodStateResult
             {
                 ServiceResult = ServiceResult.Good,
                 Job = job.NodeId
-            });
+            };
+        }
+
+        /// <summary>
+        /// Removes the oldest job to make room, and returns its NodeId to delete.
+        /// </summary>
+        /// <remarks>
+        /// Oldest first rather than oldest finished, because a job that has been
+        /// running long enough to be the oldest of a full set is not going to
+        /// finish. A cap that only reclaimed completed jobs would be no cap at all
+        /// against the case it exists for.
+        /// </remarks>
+        private NodeId? ReclaimOldestJob()
+        {
+            if (m_jobs.Count == 0)
+            {
+                return null;
+            }
+
+            NodeId oldest = m_jobs[0];
+            m_jobs.RemoveAt(0);
+
+            if (FindPredefinedNode<InferenceJobState>(oldest) is { } node)
+            {
+                Child<FolderState>(m_root!, BrowseNames.Jobs).RemoveChild(node);
+            }
+
+            return oldest;
         }
 
         private async Task RunJobAsync(

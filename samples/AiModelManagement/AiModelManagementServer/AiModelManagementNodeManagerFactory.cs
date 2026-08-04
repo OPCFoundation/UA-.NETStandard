@@ -47,9 +47,13 @@ namespace AiModelManagement.Server
     /// </remarks>
     public sealed class AiModelManagementNodeManagerFactory : IAsyncNodeManagerFactory
     {
+        /// <summary>Names the fallback backend's configuration section.</summary>
+        public const string FallbackOptionsName = "fallback";
+
         private readonly InferenceBackends m_backends;
         private readonly IOptions<AiModelManagementOptions>? m_options;
         private readonly IOptions<InferenceBackendOptions>? m_backendOptions;
+        private readonly InferenceBackendOptions? m_fallbackBackendOptions;
         private readonly ILogger<AiModelManagementNodeManager>? m_logger;
 
         /// <summary>
@@ -59,11 +63,16 @@ namespace AiModelManagement.Server
             InferenceBackends backends,
             IOptions<AiModelManagementOptions>? options = null,
             IOptions<InferenceBackendOptions>? backendOptions = null,
+            IOptionsMonitor<InferenceBackendOptions>? namedBackendOptions = null,
             ILogger<AiModelManagementNodeManager>? logger = null)
         {
             m_backends = backends;
             m_options = options;
             m_backendOptions = backendOptions;
+            // The fallback's configuration is a NAMED option, so it has to be asked
+            // for by name. Without it the node manager would describe the fallback
+            // deployment using the primary's site, jurisdiction and egress.
+            m_fallbackBackendOptions = namedBackendOptions?.Get(FallbackOptionsName);
             m_logger = logger;
         }
 
@@ -87,6 +96,7 @@ namespace AiModelManagement.Server
                 m_backends,
                 m_options,
                 m_backendOptions,
+                m_fallbackBackendOptions,
                 m_logger);
 #pragma warning restore CA2000
 

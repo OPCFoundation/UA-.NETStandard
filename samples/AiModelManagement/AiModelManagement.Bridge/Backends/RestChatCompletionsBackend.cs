@@ -163,7 +163,14 @@ namespace AiModelManagement.Bridge
 
                 foreach (JsonElement element in data.EnumerateArray())
                 {
-                    if (!element.TryGetProperty("id", out JsonElement id) ||
+                    // ValueKind is checked before GetString, which throws rather
+                    // than returning null when the value is not a string. The
+                    // endpoint is not under this Server's control, so "the field is
+                    // there" and "the field is what it should be" are separate
+                    // questions.
+                    if (element.ValueKind != JsonValueKind.Object ||
+                        !element.TryGetProperty("id", out JsonElement id) ||
+                        id.ValueKind != JsonValueKind.String ||
                         id.GetString() is not { Length: > 0 } name)
                     {
                         continue;
@@ -176,8 +183,9 @@ namespace AiModelManagement.Bridge
                         ? new BackendModel
                         {
                             Publisher = element.TryGetProperty("owned_by", out JsonElement owner)
-                                ? owner.GetString() ?? "unknown"
-                                : "unknown",
+                                && owner.ValueKind == JsonValueKind.String
+                                    ? owner.GetString() ?? "unknown"
+                                    : "unknown",
                             Name = name,
                             Version = "unknown",
                             Framework = "rest-chat-completions"
@@ -193,6 +201,14 @@ namespace AiModelManagement.Bridge
             }
             catch (JsonException)
             {
+                return [.. m_options.Models];
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // HttpClient's own timeout surfaces as TaskCanceledException, not
+                // HttpRequestException. Without this a hung endpoint faults the
+                // ListModels call instead of the source simply reporting nothing -
+                // and a hung endpoint is the ordinary way a remote one fails.
                 return [.. m_options.Models];
             }
         }
@@ -292,6 +308,17 @@ namespace AiModelManagement.Bridge
             catch (HttpRequestException ex)
             {
                 return new BackendProbe { Reachable = false, Detail = ex.Message };
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // A hung endpoint is unreachable for every purpose a caller has, and
+                // saying so is more useful than faulting the probe that exists to
+                // answer exactly this question.
+                return new BackendProbe
+                {
+                    Reachable = false,
+                    Detail = "The endpoint did not answer within the client timeout."
+                };
             }
         }
 
@@ -410,18 +437,31 @@ namespace AiModelManagement.Bridge
             };
         }
 
+        /// <summary>
+        /// Reads a token count, tolerating anything the endpoint might actually send.
+        /// </summary>
+        /// <remarks>
+        /// <c>ValueKind == Number</c> does not mean <c>GetUInt64</c> will succeed: a
+        /// negative or fractional value is still a Number and throws
+        /// <see cref="FormatException"/>, which is not a <see cref="JsonException"/>
+        /// and so escapes the caller's guard. This is on the SUCCESS path, so a
+        /// 200 response carrying <c>"prompt_tokens": -1</c> would fault an inference
+        /// that had otherwise worked.
+        /// </remarks>
         private static ulong ReadCount(JsonElement usage, string first, string? second)
         {
             if (usage.TryGetProperty(first, out JsonElement a) &&
-                a.ValueKind == JsonValueKind.Number)
+                a.ValueKind == JsonValueKind.Number &&
+                a.TryGetUInt64(out ulong firstValue))
             {
-                return a.GetUInt64();
+                return firstValue;
             }
             if (second != null &&
                 usage.TryGetProperty(second, out JsonElement b) &&
-                b.ValueKind == JsonValueKind.Number)
+                b.ValueKind == JsonValueKind.Number &&
+                b.TryGetUInt64(out ulong secondValue))
             {
-                return b.GetUInt64();
+                return secondValue;
             }
             return 0;
         }

@@ -65,10 +65,12 @@ namespace AiModelManagement.Server
     {
         private readonly AiModelManagementOptions m_options;
         private readonly InferenceBackendOptions m_backendOptions;
+        private readonly InferenceBackendOptions m_fallbackBackendOptions;
         private readonly InferenceBackends m_backends;
         private readonly ILogger m_logger;
         private readonly Lock m_sync = new();
         private readonly Dictionary<NodeId, TransferEntry> m_transfers = [];
+        private readonly List<NodeId> m_jobs = [];
         private readonly StreamFileManager m_files;
         private int m_nextId;
 
@@ -85,7 +87,12 @@ namespace AiModelManagement.Server
         /// <param name="configuration">The application configuration.</param>
         /// <param name="backends">Reaches the models this Server publishes.</param>
         /// <param name="options">What this Server publishes.</param>
-        /// <param name="backendOptions">What the backend reaches.</param>
+        /// <param name="backendOptions">What the primary deployment reaches.</param>
+        /// <param name="fallbackBackendOptions">
+        /// What the fallback deployment reaches. Separate from the primary's on
+        /// purpose: the fallback has its own site, jurisdiction and egress, and
+        /// publishing the primary's would describe a deployment that does not exist.
+        /// </param>
         /// <param name="logger">Where diagnostics go.</param>
         public AiModelManagementNodeManager(
             IServerInternal server,
@@ -93,6 +100,7 @@ namespace AiModelManagement.Server
             InferenceBackends backends,
             IOptions<AiModelManagementOptions>? options = null,
             IOptions<InferenceBackendOptions>? backendOptions = null,
+            InferenceBackendOptions? fallbackBackendOptions = null,
             ILogger<AiModelManagementNodeManager>? logger = null)
             : base(
                 server,
@@ -103,6 +111,7 @@ namespace AiModelManagement.Server
             m_backends = backends ?? throw new ArgumentNullException(nameof(backends));
             m_options = options?.Value ?? new AiModelManagementOptions();
             m_backendOptions = backendOptions?.Value ?? new InferenceBackendOptions();
+            m_fallbackBackendOptions = fallbackBackendOptions ?? m_backendOptions;
             m_logger = logger ?? (ILogger)NullLogger<AiModelManagementNodeManager>.Instance;
             m_files = new StreamFileManager(m_options.MaxTransferSize);
             SystemContext.NodeIdFactory = this;
@@ -145,9 +154,21 @@ namespace AiModelManagement.Server
         public NodeId FallbackDeploymentId => m_fallback?.NodeId ?? NodeId.Null;
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// String identifiers, deliberately. Numeric ones would be drawn from the
+        /// same namespace the loaded NodeSet occupies, and this model runs to
+        /// ns=2;i=7001 - so a counter starting at 1 walks into the type nodes, and
+        /// the predefined-node index overwrites rather than rejects. A Server that
+        /// had served a few hundred transfers would quietly have replaced
+        /// <c>AiRootType</c> with an inference job's <c>FinishedAt</c> property.
+        /// A string identifier cannot collide with a numeric one at all, which is a
+        /// stronger guarantee than any seed value.
+        /// </remarks>
         public override NodeId New(ISystemContext context, NodeState node)
         {
-            return new NodeId((uint)Interlocked.Increment(ref m_nextId), NamespaceIndex);
+            return new NodeId(
+                FormattableString.Invariant($"n{Interlocked.Increment(ref m_nextId)}"),
+                NamespaceIndex);
         }
 
         /// <inheritdoc/>
@@ -254,6 +275,37 @@ namespace AiModelManagement.Server
                         $"Could not add {node.BrowseName} ({node.NodeId}): {ex.Message}"),
                     ex);
             }
+        }
+
+        /// <summary>
+        /// The node registered under an identifier, or null when none is.
+        /// </summary>
+        /// <remarks>
+        /// A test seam. The distinction between "on the NodeState tree" and "in the
+        /// predefined-node index" is exactly what two of this sample's defects
+        /// turned on, and it cannot be observed from outside the index.
+        /// </remarks>
+        internal NodeState? IndexedNode(NodeId nodeId)
+        {
+            return PredefinedNodes.TryGetValue(nodeId, out NodeState? node) ? node : null;
+        }
+
+        /// <summary>
+        /// How many nodes of a given type the index holds.
+        /// </summary>
+        internal int CountIndexed<TNode>() where TNode : NodeState
+        {
+            int count = 0;
+
+            foreach (KeyValuePair<NodeId, NodeState> pair in PredefinedNodes)
+            {
+                if (pair.Value is TNode)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         /// <summary>

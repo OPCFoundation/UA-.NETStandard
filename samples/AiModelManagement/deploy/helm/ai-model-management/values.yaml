@@ -53,9 +53,10 @@ backend:
   probePath: "v1/models"
   # Anonymous, ApiKey, BearerToken or WorkloadIdentity.
   authentication: Anonymous
-  # Names the key WITHIN the mounted Secret. Never the secret itself: this value
-  # is published in the address space so a client can tell whether the right
-  # credential is configured, and a client that could read the value could use it.
+  # Names the key WITHIN the mounted Secret - or, for WorkloadIdentity, the token
+  # scope being requested. Never the secret itself: this value is published in the
+  # address space so a client can tell whether the right credential is configured,
+  # and a client that could read the value could use it.
   credentialReference: ""
   apiKeyHeader: api-key
   # Where the data goes. Egress is not made false by encryption, which answers

@@ -128,6 +128,18 @@ namespace AiModelManagement.Server
         public TimeSpan TransferInferenceTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
         /// <summary>
+        /// How many asynchronous jobs the Server keeps before reclaiming the
+        /// oldest.
+        /// </summary>
+        /// <remarks>
+        /// A job retains its request and its response, so an uncapped set grows in
+        /// bytes as well as in nodes, and any session that can call InvokeAsync can
+        /// grow it. Transfers already have both an expiry and a cap; jobs need the
+        /// same for the same reason.
+        /// </remarks>
+        public int MaxRetainedJobs { get; set; } = 64;
+
+        /// <summary>
         /// Identifier of the model source this Server consumes from.
         /// </summary>
         public string SourceId { get; set; } = "model-source";

@@ -18,10 +18,13 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if and .Values.credentials.create .Values.credentials.value }}
-        # Rolls the pods when the credential changes. Without this a rotated
-        # secret sits unused until something else happens to restart the pod,
-        # which is the kind of gap that is only noticed during an incident.
-        checksum/credentials: {{ .Values.credentials.value | sha256sum }}
+        # Rolls the pods when the credential changes. The annotation carries a
+        # digest of the credential's NAME and reference, never of the value:
+        # Pod annotations are readable by anyone with `get pods`, which is granted
+        # far more widely than `get secrets`, and a digest of a low-entropy secret
+        # is recoverable offline. The name changes when the release does, which is
+        # the case this exists to cover on the demo-only inline path.
+        checksum/credentials: {{ printf "%s/%s" (include "ai-model-management.credentialSecretName" .) .Values.backend.credentialReference | sha256sum }}
         {{- end }}
     spec:
       serviceAccountName: {{ include "ai-model-management.serviceAccountName" . }}

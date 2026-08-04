@@ -6,8 +6,16 @@ answers questions wrongly - which is worse than one that fails to start, because
 nobody investigates a green pod.
 */}}
 
-{{- if and (eq .Values.backend.authentication "ApiKey") (not (include "ai-model-management.hasCredential" .)) }}
-{{- fail "backend.authentication is ApiKey but no credential is supplied. Set credentials.existingSecret, or use authentication: Anonymous for an endpoint that needs none." }}
+{{- if and (ne .Values.backend.authentication "Anonymous") (not (include "ai-model-management.hasCredential" .)) }}
+{{- fail "backend.authentication expects a credential but none is supplied. Set credentials.existingSecret, or use authentication: Anonymous for an endpoint that needs none. This applies to BearerToken and WorkloadIdentity as much as ApiKey: without a credential the Server sends no Authorization header at all, while the address space still says it authenticates." }}
+{{- end }}
+
+{{- if and (ne .Values.backend.authentication "Anonymous") (not .Values.backend.credentialReference) }}
+{{- fail "backend.credentialReference is empty, so the Server would authenticate with nothing while publishing AuthenticationKind as though it did. Name the key within the Secret (or the token scope, for WorkloadIdentity)." }}
+{{- end }}
+
+{{- if and .Values.fallbackBackend.enabled (ne .Values.fallbackBackend.site "OnServer") (not .Values.fallbackBackend.egressPermitted) }}
+{{- fail "fallbackBackend.egressPermitted is false but its site is not OnServer, so the fallback deployment would publish EgressPermitted=false while sending payloads off the machine." }}
 {{- end }}
 
 {{- if and .Values.credentials.create .Values.credentials.existingSecret }}

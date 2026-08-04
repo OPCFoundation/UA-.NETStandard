@@ -38,7 +38,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Server.Fluent;
 
-const string fallbackKey = "fallback";
+const string fallbackKey = AiModelManagementNodeManagerFactory.FallbackOptionsName;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -120,7 +120,8 @@ static ICredentialResolver CredentialResolverFor(InferenceBackendOptions options
     return options.Authentication switch
     {
         BackendAuthentication.Anonymous => new NullCredentialResolver(),
-        BackendAuthentication.WorkloadIdentity => new WorkloadIdentityCredentialResolver(),
+        BackendAuthentication.WorkloadIdentity =>
+            new WorkloadIdentityCredentialResolver(options.TokenAudience),
         _ => new FileCredentialResolver(options.CredentialDirectory)
     };
 }

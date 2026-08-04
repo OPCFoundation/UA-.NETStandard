@@ -72,7 +72,7 @@ namespace AiModelManagement.Server
         }
 
         /// <summary>
-        /// Serves a file node from a buffer the caller owns.
+        /// Serves a file node from a buffer this manager owns.
         /// </summary>
         /// <param name="file">The file node to serve.</param>
         /// <param name="content">The buffer behind it.</param>
@@ -81,6 +81,14 @@ namespace AiModelManagement.Server
         /// readable and not writable, which is not a restriction so much as a
         /// statement: a client that could overwrite a model's answer could forge one.
         /// </param>
+        /// <remarks>
+        /// The manager takes ownership of <paramref name="content"/> from here on.
+        /// Everything that touches it afterwards goes through
+        /// <see cref="Snapshot"/> or <see cref="Replace"/>, so the FileType methods
+        /// and whatever is producing the content serialise against each other. Two
+        /// components holding the same MemoryStream under two different locks is a
+        /// data race that shows up as a torn payload rather than an exception.
+        /// </remarks>
         public void Attach(FileState file, MemoryStream content, bool writable)
         {
             ArgumentNullException.ThrowIfNull(file);
@@ -115,52 +123,106 @@ namespace AiModelManagement.Server
                     MethodState _,
                     NodeId objectId,
                     byte mode,
-                    ref uint fileHandle) => Open(objectId, mode, ref fileHandle);
+                    ref uint fileHandle) => Open(context, objectId, mode, ref fileHandle);
             }
 
             if (file.Close is not null)
             {
-                file.Close.OnCall = (ISystemContext _,
+                file.Close.OnCall = (ISystemContext context,
                     MethodState _,
                     NodeId objectId,
-                    uint fileHandle) => Close(objectId, fileHandle);
+                    uint fileHandle) => Close(context, objectId, fileHandle);
             }
 
             if (file.Read is not null)
             {
-                file.Read.OnCall = (ISystemContext _,
+                file.Read.OnCall = (ISystemContext context,
                     MethodState _,
                     NodeId objectId,
                     uint fileHandle,
                     int length,
-                    ref ByteString data) => Read(objectId, fileHandle, length, ref data);
+                    ref ByteString data) => Read(context, objectId, fileHandle, length, ref data);
             }
 
             if (file.Write is not null)
             {
-                file.Write.OnCall = (ISystemContext _,
+                file.Write.OnCall = (ISystemContext context,
                     MethodState _,
                     NodeId objectId,
                     uint fileHandle,
-                    ByteString data) => Write(objectId, fileHandle, data);
+                    ByteString data) => Write(context, objectId, fileHandle, data);
             }
 
             if (file.GetPosition is not null)
             {
-                file.GetPosition.OnCall = (ISystemContext _,
+                file.GetPosition.OnCall = (ISystemContext context,
                     MethodState _,
                     NodeId objectId,
                     uint fileHandle,
-                    ref ulong position) => GetPosition(objectId, fileHandle, ref position);
+                    ref ulong position) => GetPosition(context, objectId, fileHandle, ref position);
             }
 
             if (file.SetPosition is not null)
             {
-                file.SetPosition.OnCall = (ISystemContext _,
+                file.SetPosition.OnCall = (ISystemContext context,
                     MethodState _,
                     NodeId objectId,
                     uint fileHandle,
-                    ulong position) => SetPosition(objectId, fileHandle, position);
+                    ulong position) => SetPosition(context, objectId, fileHandle, position);
+            }
+        }
+
+        /// <summary>
+        /// Copies out the current contents of a file, under this manager's lock.
+        /// </summary>
+        /// <remarks>
+        /// The copy is the point. A caller that read the MemoryStream directly would
+        /// be racing every concurrent Write, and Method calls are not serialised by
+        /// the Server - so a client is entirely free to keep uploading while
+        /// something else reads.
+        /// </remarks>
+        public byte[] Snapshot(FileState file)
+        {
+            ArgumentNullException.ThrowIfNull(file);
+
+            lock (m_lock)
+            {
+                return m_files.TryGetValue(file.NodeId, out Entry? entry)
+                    ? entry.Content.ToArray()
+                    : [];
+            }
+        }
+
+        /// <summary>
+        /// Replaces the contents of a file, under this manager's lock.
+        /// </summary>
+        /// <remarks>
+        /// Refreshes the published Size as well. A client sizes its reads from that
+        /// value, so leaving it stale does not merely mislead - it makes a correct
+        /// client read the wrong number of bytes, and a response written this way
+        /// would appear empty to anyone following Part 5 properly.
+        /// </remarks>
+        public void Replace(FileState file, ReadOnlySpan<byte> content)
+        {
+            ArgumentNullException.ThrowIfNull(file);
+
+            lock (m_lock)
+            {
+                if (!m_files.TryGetValue(file.NodeId, out Entry? entry))
+                {
+                    return;
+                }
+
+                entry.Content.SetLength(0);
+                entry.Content.Write(content);
+                entry.Content.Position = 0;
+
+                // Any handle open on the old contents now points into a buffer that
+                // no longer holds what it was reading, so they are closed rather
+                // than left to return bytes from two different answers.
+                entry.Handles.Clear();
+
+                RefreshSize(entry);
             }
         }
 
@@ -221,7 +283,7 @@ namespace AiModelManagement.Server
             }
         }
 
-        private ServiceResult Open(NodeId objectId, byte mode, ref uint fileHandle)
+        private ServiceResult Open(ISystemContext context, NodeId objectId, byte mode, ref uint fileHandle)
         {
             const byte read = 1;
             const byte writeEraseExisting = 6;
@@ -256,28 +318,27 @@ namespace AiModelManagement.Server
                 }
 
                 fileHandle = ++m_nextHandle;
-                entry.Handles[fileHandle] = new Handle(writing);
-                entry.Handles[fileHandle].Position = writing ? 0 : 0;
+                entry.Handles[fileHandle] = new Handle(writing, SessionIdOf(context));
                 return ServiceResult.Good;
             }
         }
 
-        private ServiceResult Close(NodeId objectId, uint fileHandle)
+        private ServiceResult Close(ISystemContext context, NodeId objectId, uint fileHandle)
         {
             lock (m_lock)
             {
-                if (!m_files.TryGetValue(objectId, out Entry? entry))
+                if (!TryGet(context, objectId, fileHandle, out Entry? entry, out _))
                 {
-                    return StatusCodes.BadNodeIdUnknown;
+                    return StatusCodes.BadInvalidArgument;
                 }
 
-                return entry.Handles.Remove(fileHandle)
-                    ? ServiceResult.Good
-                    : StatusCodes.BadInvalidArgument;
+                entry.Handles.Remove(fileHandle);
+                return ServiceResult.Good;
             }
         }
 
         private ServiceResult Read(
+            ISystemContext context,
             NodeId objectId,
             uint fileHandle,
             int length,
@@ -287,7 +348,7 @@ namespace AiModelManagement.Server
 
             lock (m_lock)
             {
-                if (!TryGet(objectId, fileHandle, out Entry? entry, out Handle? handle))
+                if (!TryGet(context, objectId, fileHandle, out Entry? entry, out Handle? handle))
                 {
                     return StatusCodes.BadInvalidArgument;
                 }
@@ -327,11 +388,11 @@ namespace AiModelManagement.Server
             }
         }
 
-        private ServiceResult Write(NodeId objectId, uint fileHandle, ByteString data)
+        private ServiceResult Write(ISystemContext context, NodeId objectId, uint fileHandle, ByteString data)
         {
             lock (m_lock)
             {
-                if (!TryGet(objectId, fileHandle, out Entry? entry, out Handle? handle))
+                if (!TryGet(context, objectId, fileHandle, out Entry? entry, out Handle? handle))
                 {
                     return StatusCodes.BadInvalidArgument;
                 }
@@ -363,11 +424,11 @@ namespace AiModelManagement.Server
             }
         }
 
-        private ServiceResult GetPosition(NodeId objectId, uint fileHandle, ref ulong position)
+        private ServiceResult GetPosition(ISystemContext context, NodeId objectId, uint fileHandle, ref ulong position)
         {
             lock (m_lock)
             {
-                if (!TryGet(objectId, fileHandle, out _, out Handle? handle))
+                if (!TryGet(context, objectId, fileHandle, out _, out Handle? handle))
                 {
                     return StatusCodes.BadInvalidArgument;
                 }
@@ -377,11 +438,11 @@ namespace AiModelManagement.Server
             }
         }
 
-        private ServiceResult SetPosition(NodeId objectId, uint fileHandle, ulong position)
+        private ServiceResult SetPosition(ISystemContext context, NodeId objectId, uint fileHandle, ulong position)
         {
             lock (m_lock)
             {
-                if (!TryGet(objectId, fileHandle, out Entry? entry, out Handle? handle))
+                if (!TryGet(context, objectId, fileHandle, out Entry? entry, out Handle? handle))
                 {
                     return StatusCodes.BadInvalidArgument;
                 }
@@ -411,7 +472,20 @@ namespace AiModelManagement.Server
             }
         }
 
+        /// <summary>
+        /// Finds a handle, and refuses one that belongs to another Session.
+        /// </summary>
+        /// <remarks>
+        /// Part 5 scopes a FileHandle to the Session that opened it, and the reason
+        /// is worth stating: handles here are small sequential integers, and a
+        /// transfer's NodeId is handed out by <c>BeginTransfer</c>. Without this
+        /// check any session could guess a handle and inject bytes into, reposition,
+        /// or close another session's in-flight upload - which for an inference
+        /// payload means altering what a model is asked, from outside the
+        /// conversation.
+        /// </remarks>
         private bool TryGet(
+            ISystemContext context,
             NodeId objectId,
             uint fileHandle,
             [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Entry? entry,
@@ -424,7 +498,26 @@ namespace AiModelManagement.Server
                 return false;
             }
 
-            return entry.Handles.TryGetValue(fileHandle, out handle);
+            if (!entry.Handles.TryGetValue(fileHandle, out handle))
+            {
+                return false;
+            }
+
+            if (handle.SessionId != SessionIdOf(context))
+            {
+                handle = null;
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// The Session a call arrived on, or a null NodeId outside a Session.
+        /// </summary>
+        private static NodeId SessionIdOf(ISystemContext context)
+        {
+            return (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
         }
 
         private sealed class Entry
@@ -448,12 +541,16 @@ namespace AiModelManagement.Server
 
         private sealed class Handle
         {
-            public Handle(bool writing)
+            public Handle(bool writing, NodeId sessionId)
             {
                 Writing = writing;
+                SessionId = sessionId;
             }
 
             public bool Writing { get; }
+
+            /// <summary>The Session that opened this handle.</summary>
+            public NodeId SessionId { get; }
 
             public long Position { get; set; }
         }

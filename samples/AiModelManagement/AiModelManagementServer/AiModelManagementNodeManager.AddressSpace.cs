@@ -74,41 +74,35 @@ namespace AiModelManagement.Server
         private void CreateAiAddressSpace(
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
+            // The model already declares the entry point - ns=2;i=7001, parented to
+            // the Server Object - so it is adopted rather than built again. Creating
+            // a second one leaves two Objects named AiModelManagement under the
+            // Server, one populated and one empty, and which of them a client finds
+            // depends on browse order. The empty one makes the Server look as though
+            // it publishes no models at all.
+            m_root = FindPredefinedNode<AiRootState>(
+                new NodeId(Opc.Ua.AiModelManagement.Objects.AiModelManagement, NamespaceIndex));
+
+            Child<PropertyState<string>>(m_root, BrowseNames.SpecificationVersion)
+                .Value = SpecificationVersion;
+
+            // Materialised now, before anything is indexed. Jobs is optional, so it
+            // does not exist until something asks for it - and the first thing to
+            // ask is BeginTransfer, long after registration, which would leave the
+            // folder visible in a Browse of the root and unresolvable when browsed.
+            Child<FolderState>(m_root, BrowseNames.Jobs);
+
+            BuildModels();
+            BuildDeployments();
+
+            if (m_options.EnableCatalogue)
             {
-
-                m_root = new AiRootState(null);
-                m_root.Create(
-                    SystemContext,
-                    NodeId.Null,
-                    new QualifiedName("AiModelManagement", NamespaceIndex),
-                    new LocalizedText("AiModelManagement"),
-                    true);
-
-                Child<PropertyState<string>>(m_root, BrowseNames.SpecificationVersion)
-                    .Value = SpecificationVersion;
-
-                // The entry point hangs off the Server Object, so a client that has
-                // just connected finds it without being told the layout.
-                AddExternalReference(
-                    ObjectIds.Server,
-                    ReferenceTypeIds.HasComponent,
-                    false,
-                    m_root.NodeId,
-                    externalReferences);
-                m_root.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.Server);
-
-                BuildModels();
-                BuildDeployments();
-
-                if (m_options.EnableCatalogue)
-                {
-                    BuildCatalogue();
-                }
-
-                // One call: AddPredefinedNode walks the children, so the tree has to
-                // be finished before it is registered, not registered as it is built.
-                AddPredefinedNodeSynchronously(m_root);
+                BuildCatalogue();
             }
+
+            // One call: AddPredefinedNode walks the children, so the tree has to be
+            // finished before it is registered, not registered as it is built.
+            AddPredefinedNodeSynchronously(m_root);
         }
 
         /// <summary>
@@ -155,7 +149,19 @@ namespace AiModelManagement.Server
 
             BackendModel secondary = declared.Count > 1
                 ? declared[1]
-                : primary with { Name = primary.Name + "-compact" };
+                : primary with
+                {
+                    Name = primary.Name + "-compact",
+                    // A synthesised stand-in is a DIFFERENT artefact, so it cannot
+                    // inherit the primary's digest. A provenance walk from a fallback
+                    // answer would otherwise terminate at the primary's digest and
+                    // attribute the answer to weights that never ran - which is
+                    // precisely the comparison a digest exists to support.
+                    Digest = default,
+                    DigestAlgorithm = string.Empty,
+                    Version = primary.Version,
+                    Quantization = "unspecified"
+                };
 
             m_fallbackModel = CreateModel(secondary, "FallbackModel");
         }
@@ -194,6 +200,12 @@ namespace AiModelManagement.Server
             Child<PropertyState<string>>(model, BrowseNames.Framework).Value = source.Framework;
             Child<PropertyState<string>>(model, BrowseNames.TaskKind).Value = source.TaskKind;
 
+            if (!string.IsNullOrEmpty(source.Quantization))
+            {
+                Child<PropertyState<string>>(model, BrowseNames.Quantization).Value =
+                    source.Quantization;
+            }
+
             // Digest and DigestAlgorithm are Mandatory because a provenance walk
             // terminates at them. This sample never holds the artefact, so it
             // publishes what the backend declares; where a backend declares nothing,
@@ -225,22 +237,23 @@ namespace AiModelManagement.Server
                 m_options.PrimaryDeploymentId,
                 "PrimaryDeployment",
                 m_primaryModel!,
-                MapSite(m_backendOptions.Site),
-                m_backendOptions.EgressPermitted,
-                m_backendOptions.RetainsInput);
+                m_backendOptions);
 
             if (!m_options.EnableFallback || m_fallbackModel is null)
             {
                 return;
             }
 
+            // From the FALLBACK's own configuration. Publishing the primary's site,
+            // jurisdiction and egress here would describe a deployment that does not
+            // exist: an operator who points the fallback at a cloud endpoint would
+            // get a Server routing payloads off the machine while telling every
+            // client InferenceLocation=OnServer and EgressPermitted=false.
             m_fallback = CreateDeployment(
                 m_options.FallbackDeploymentId,
                 "FallbackDeployment",
                 m_fallbackModel,
-                InferenceLocationEnum.OnServer,
-                egressPermitted: false,
-                retainsInput: false);
+                m_fallbackBackendOptions);
 
             Child<PropertyState<FallbackPolicyEnum>>(m_primary, BrowseNames.FallbackPolicy)
                 .Value = FallbackPolicyEnum.FallBackTo;
@@ -267,10 +280,9 @@ namespace AiModelManagement.Server
             string deploymentId,
             string browseName,
             ModelState model,
-            InferenceLocationEnum site,
-            bool egressPermitted,
-            bool retainsInput)
+            InferenceBackendOptions backend)
         {
+            InferenceLocationEnum site = MapSite(backend.Site);
             var deployment = new DeploymentState(null);
             deployment.Create(
                 SystemContext,
@@ -296,29 +308,29 @@ namespace AiModelManagement.Server
             // Where the data goes. Egress is not made false by encryption, which
             // answers who can read data in flight and not where the data went.
             Child<PropertyState<string>>(deployment, BrowseNames.DataJurisdiction).Value =
-                m_backendOptions.DataJurisdiction;
+                backend.DataJurisdiction;
             Child<PropertyState<bool>>(deployment, BrowseNames.EgressPermitted).Value =
-                egressPermitted;
+                backend.EgressPermitted;
             Child<PropertyState<bool>>(deployment, BrowseNames.RetainsInput).Value =
-                retainsInput;
+                backend.RetainsInput;
 
             // Published before a client calls rather than discovered from a
             // rejection: the real bound is the smallest of several limits, and a
             // client can see none of them.
             Child<PropertyState<uint>>(deployment, BrowseNames.MaxInlinePayloadSize).Value =
-                m_backendOptions.MaxInlinePayloadSize;
+                backend.MaxInlinePayloadSize;
 
             Child<PropertyState<ReachabilityEnum>>(deployment, BrowseNames.Reachability)
                 .Value = ReachabilityEnum.Unknown;
             Child<PropertyState<uint>>(deployment, BrowseNames.ConsecutiveFailures).Value = 0;
 
             if (site != InferenceLocationEnum.OnServer &&
-                !string.IsNullOrEmpty(m_backendOptions.EndpointUri))
+                !string.IsNullOrEmpty(backend.EndpointUri))
             {
                 // The endpoint, never the credential. The address space says where
                 // the Server goes; what it presents on arrival stays out of it.
                 Child<PropertyState<string>>(deployment, BrowseNames.EndpointUri).Value =
-                    m_backendOptions.EndpointUri;
+                    backend.EndpointUri;
             }
 
             // Exactly one UsesModel reference: the only defined path from a running

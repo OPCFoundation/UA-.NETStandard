@@ -116,6 +116,26 @@ namespace AiModelManagement.Server
                         (ulong)body.Length,
                         ct).ConfigureAwait(false);
 
+                if (!transfer.Accepted)
+                {
+                    // The refusal travels. Reporting Good with a null Transfer would
+                    // tell the caller "too large for inline, use transfer null",
+                    // which is indistinguishable from a real transfer it cannot
+                    // find - and once MaxConcurrentTransfers is reached that is the
+                    // ordinary outcome rather than an edge case.
+                    return new InvokeMethodStateResult
+                    {
+                        ServiceResult = transfer.ServiceResult,
+                        ResponsePayload = ByteString.Empty,
+                        ResponseContentType = string.Empty,
+                        ModelUsed = NodeId.Null,
+                        Usage = new UsageDataType(),
+                        SafetyAssessment = ArrayOf<SafetyAssessmentDataType>.Empty,
+                        TransferRequired = true,
+                        Transfer = NodeId.Null
+                    };
+                }
+
                 return new InvokeMethodStateResult
                 {
                     ServiceResult = ServiceResult.Good,

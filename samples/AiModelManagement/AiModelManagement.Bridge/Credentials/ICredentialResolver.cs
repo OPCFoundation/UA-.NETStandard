@@ -158,12 +158,13 @@ namespace AiModelManagement.Bridge
     public sealed class WorkloadIdentityCredentialResolver : ICredentialResolver
     {
         private readonly Azure.Core.TokenCredential m_credential;
+        private readonly string m_audience;
 
         /// <summary>
         /// Creates a resolver over the ambient platform identity.
         /// </summary>
-        public WorkloadIdentityCredentialResolver()
-            : this(new Azure.Identity.DefaultAzureCredential())
+        public WorkloadIdentityCredentialResolver(string audience = "")
+            : this(new Azure.Identity.DefaultAzureCredential(), audience)
         {
         }
 
@@ -172,21 +173,34 @@ namespace AiModelManagement.Bridge
         /// exercise this path without a cloud.
         /// </summary>
         /// <param name="credential">The credential to request tokens from.</param>
-        public WorkloadIdentityCredentialResolver(Azure.Core.TokenCredential credential)
+        public WorkloadIdentityCredentialResolver(
+            Azure.Core.TokenCredential credential,
+            string audience = "")
         {
             m_credential = credential ?? throw new ArgumentNullException(nameof(credential));
+            m_audience = audience ?? string.Empty;
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// The audience configured at construction wins; the reference is the
+        /// fallback. Workload identity has no secret to name, so what
+        /// <c>CredentialReference</c> means on this path is the scope being asked
+        /// for - and letting a deployment state that explicitly, under a name that
+        /// says so, avoids a member whose meaning changes with the authentication
+        /// kind.
+        /// </remarks>
         public async ValueTask<string?> ResolveAsync(string reference, CancellationToken ct)
         {
-            if (string.IsNullOrEmpty(reference))
+            string scope = !string.IsNullOrEmpty(m_audience) ? m_audience : reference;
+
+            if (string.IsNullOrEmpty(scope))
             {
                 return null;
             }
 
             Azure.Core.AccessToken token = await m_credential
-                .GetTokenAsync(new Azure.Core.TokenRequestContext(new[] { reference }), ct)
+                .GetTokenAsync(new Azure.Core.TokenRequestContext([scope]), ct)
                 .ConfigureAwait(false);
             return token.Token;
         }
