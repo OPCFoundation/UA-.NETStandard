@@ -15,20 +15,16 @@
 #   * Stages that are Schedule/Manual-only report 'Skipped' on a pull request.
 #     That is a legitimate outcome, so 'Skipped' passes while 'Failed' and
 #     'Canceled' do not.
-#   * An empty result is rejected. dependencies.<stage>.result is only readable
-#     at STAGE scope and only for DIRECT dependencies, so an empty value means
-#     the stage list and the dependsOn list have drifted apart - which would
-#     otherwise silently turn the gate into a no-op. This template derives both
-#     lists from the same parameter so they cannot drift, and the check is kept
-#     as a backstop.
+#   * The set of stages it checks is read from the 'dependencies' context rather
+#     than from a second hand-maintained list, so the stages it verifies are by
+#     construction exactly the stages it depends on.
 #
-# This is a stage template, not a jobs template, precisely because
-# dependencies.<stage>.result does NOT resolve at job scope: there,
+# This is a stage template, not a jobs template, because the 'dependencies'
+# context holding stage results resolves at STAGE scope only; at job scope
 # 'dependencies' refers to other jobs of the same stage.
 #
 parameters:
-# Names of the stages to roll up. Used for both dependsOn and the result
-# lookups, so the two can never disagree.
+# Stages to depend on, and therefore to verify.
 - name: stages
   type: object
   default: []
@@ -47,11 +43,12 @@ stages:
   dependsOn: ${{ parameters.stages }}
   condition: not(canceled())
   variables:
-    # Stage scope: dependencies.<stage>.result is the whole stage's rollup,
-    # which avoids enumerating the generated testall* / buildall* job names.
-    # Jobs of this stage inherit these.
-    ${{ each stage in parameters.stages }}:
-      stageresult_${{ stage }}: $[ dependencies.${{ stage }}.result ]
+    # The whole dependency map as JSON: { "<stage>": { "result": "...", ... } }.
+    # Serialising it wholesale avoids emitting one variable per stage and, more
+    # importantly, means the gate cannot check a different set of stages than it
+    # depends on. Azure Pipelines has no YAML anchors, so the alternative would
+    # be a second copy of the stage list.
+    stageResults: $[ convertToJson(dependencies) ]
   jobs:
   - job: gate
     displayName: Tests passed
@@ -74,12 +71,22 @@ stages:
         script: |
           $ErrorActionPreference = 'Stop'
 
-          $names = @($env:STAGE_NAMES -split ',' |
-              ForEach-Object { $_.Trim() } |
-              Where-Object { $_ })
+          if ([string]::IsNullOrWhiteSpace($env:STAGE_RESULTS)) {
+              Write-Host "##vso[task.logissue type=error]No stage results were supplied; the gate cannot verify anything."
+              exit 1
+          }
 
-          if ($names.Count -eq 0) {
-              Write-Host "##vso[task.logissue type=error]No stage names were supplied; the gate cannot verify anything."
+          try {
+              $deps = $env:STAGE_RESULTS | ConvertFrom-Json
+          }
+          catch {
+              Write-Host "##vso[task.logissue type=error]Could not parse the stage results: $($_.Exception.Message)"
+              exit 1
+          }
+
+          $stages = @($deps.PSObject.Properties)
+          if ($stages.Count -eq 0) {
+              Write-Host "##vso[task.logissue type=error]This stage has no dependencies, so the gate would verify nothing."
               exit 1
           }
 
@@ -87,29 +94,15 @@ stages:
           # is a pull request, or the CI backend switch stood it down.
           $acceptable = @('Succeeded', 'SucceededWithIssues', 'Skipped')
           $bad = @()
-          $unresolved = @()
 
           Write-Host 'Stage results:'
-          foreach ($name in $names) {
-              # GetEnvironmentVariable is case-sensitive on Linux, so this has
-              # to match the RESULT_<stage> names the template emits exactly.
-              $result = [System.Environment]::GetEnvironmentVariable("RESULT_$name")
-              $shown = if ([string]::IsNullOrWhiteSpace($result)) { '<unresolved>' } else { $result }
-              Write-Host ("  {0,-22} {1}" -f $name, $shown)
-              if ([string]::IsNullOrWhiteSpace($result)) {
-                  $unresolved += $name
+          foreach ($stage in ($stages | Sort-Object Name)) {
+              $result = $stage.Value.result
+              $shown = if ([string]::IsNullOrWhiteSpace($result)) { 'Skipped (did not report)' } else { $result }
+              Write-Host ("  {0,-22} {1}" -f $stage.Name, $shown)
+              if (-not [string]::IsNullOrWhiteSpace($result) -and $acceptable -notcontains $result) {
+                  $bad += "$($stage.Name) ($result)"
               }
-              elseif ($acceptable -notcontains $result) {
-                  $bad += "$name ($result)"
-              }
-          }
-
-          # An unresolved result means the stage is not a direct dependency of
-          # this one. Failing loudly beats silently accepting a gate that
-          # verifies nothing.
-          if ($unresolved.Count -gt 0) {
-              Write-Host "##vso[task.logissue type=error]Could not read the result of: $($unresolved -join ', '). Every stage listed here must also be a direct dependsOn of this stage."
-              exit 1
           }
 
           if ($bad.Count -gt 0) {
@@ -118,9 +111,7 @@ stages:
               exit 1
           }
 
-          Write-Host 'Every test stage either succeeded or was intentionally skipped.'
+          Write-Host "Every one of the $($stages.Count) test stage(s) either succeeded or was intentionally skipped."
           exit 0
       env:
-        STAGE_NAMES: ${{ join(',', parameters.stages) }}
-        ${{ each stage in parameters.stages }}:
-          RESULT_${{ stage }}: $(stageresult_${{ stage }})
+        STAGE_RESULTS: $(stageResults)

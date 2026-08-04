@@ -37,6 +37,24 @@ parameters:
   values:
   - ado
   - actions
+# Every stage that runs tests, consumed by the two terminal stages at the bottom
+# of this file.  It is a parameter purely so the list is written once: Azure
+# Pipelines supports no YAML anchors, and a second hand-maintained copy would
+# drift.  There is no reason to override it at queue time.
+- name: testStages
+  displayName: 'Test stages rolled up by the Tests passed and Code coverage stages (do not change)'
+  type: object
+  default:
+  - build
+  - testfastpr
+  - testaot
+  - testdebug
+  - testnet90
+  - testnet80
+  - testnet472
+  - testnetstandard20
+  - testnetstandard21
+  - testnightly
 
 trigger:
   batch: 'true'
@@ -385,10 +403,10 @@ stages:
 
 
 # Terminal stages.  Both are stage templates, not job templates, because they
-# read dependencies.<stage>.result - which resolves at STAGE scope only; at job
-# scope 'dependencies' refers to other jobs of the same stage.  Each template
-# derives its own dependsOn from the same stage list it evaluates, so the two
-# can never drift apart.
+# read the 'dependencies' context holding stage results, which resolves at STAGE
+# scope only; at job scope 'dependencies' refers to other jobs of the same
+# stage.  Each reads the set of stages to check out of that context, so it can
+# only ever verify exactly what it depends on.
 #
 # Required check.  Rolls every test stage up into a single status so the GitHub
 # branch ruleset does not have to name matrix-generated jobs, whose names change
@@ -397,17 +415,7 @@ stages:
   parameters:
     poolName: ${{ variables.hostPoolName }}
     poolImage: ${{ variables.hostLinuxImage }}
-    stages: &testStages
-    - build
-    - testfastpr
-    - testaot
-    - testdebug
-    - testnet90
-    - testnet80
-    - testnet472
-    - testnetstandard20
-    - testnetstandard21
-    - testnightly
+    stages: ${{ parameters.testStages }}
 # Advisory check.  Merges every Cobertura fragment the run produced and
 # evaluates coverage-thresholds.json once.  It reports a clean failure when the
 # thresholds are missed so the miss is visible, but it must NOT be added to the
@@ -416,4 +424,4 @@ stages:
   parameters:
     poolName: ${{ variables.hostPoolName }}
     poolImage: ${{ variables.hostLinuxImage }}
-    stages: *testStages
+    stages: ${{ parameters.testStages }}

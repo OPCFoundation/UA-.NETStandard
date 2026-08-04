@@ -15,9 +15,8 @@
 # the stage timeout.
 #
 parameters:
-# Names of the test stages this check runs after. Used for both dependsOn and
-# for deciding whether missing coverage is expected (every stage skipped) or a
-# real problem (a stage ran but published nothing).
+# Stages to depend on. Their results decide whether missing coverage is
+# expected (nothing ran) or a real problem (a stage ran but published nothing).
 - name: stages
   type: object
   default: []
@@ -45,9 +44,8 @@ stages:
   # stage already carries the failure signal.
   condition: not(canceled())
   variables:
-    # Stage scope - see gate.yml for why this cannot live at job scope.
-    ${{ each stage in parameters.stages }}:
-      stageresult_${{ stage }}: $[ dependencies.${{ stage }}.result ]
+    # See gate.yml: the dependency map as JSON, resolvable at stage scope only.
+    stageResults: $[ convertToJson(dependencies) ]
   jobs:
   - job: coverage
     displayName: Code coverage
@@ -103,12 +101,13 @@ stages:
           # genuinely no coverage to collect, but a stage that ran and published
           # nothing means the collector is broken, and silently reporting green
           # would hide that indefinitely.
-          $names = @($env:STAGE_NAMES -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
           $ran = @()
-          foreach ($name in $names) {
-              $result = [System.Environment]::GetEnvironmentVariable("RESULT_$name")
-              if ($result -eq 'Succeeded' -or $result -eq 'SucceededWithIssues') {
-                  $ran += $name
+          if (-not [string]::IsNullOrWhiteSpace($env:STAGE_RESULTS)) {
+              $deps = $env:STAGE_RESULTS | ConvertFrom-Json
+              foreach ($stage in $deps.PSObject.Properties) {
+                  if ($stage.Value.result -eq 'Succeeded' -or $stage.Value.result -eq 'SucceededWithIssues') {
+                      $ran += $stage.Name
+                  }
               }
           }
 
@@ -120,9 +119,7 @@ stages:
           Write-Host "##vso[task.logissue type=warning]No test stage completed, so there is no coverage to evaluate."
           exit 0
       env:
-        STAGE_NAMES: ${{ join(',', parameters.stages) }}
-        ${{ each stage in parameters.stages }}:
-          RESULT_${{ stage }}: $(stageresult_${{ stage }})
+        STAGE_RESULTS: $(stageResults)
     - task: DotNetCoreCLI@2
       displayName: Install ReportGenerator tool
       condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
