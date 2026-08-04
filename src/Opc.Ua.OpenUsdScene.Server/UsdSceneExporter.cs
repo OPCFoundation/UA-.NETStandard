@@ -209,11 +209,10 @@ namespace Opc.Ua.OpenUsdScene.Server
                 // Infer liveness from the write access, so a Mode A attribute that is not
                 // historized still exports as live.
                 Live = (attributeNode.AccessLevel & Opc.Ua.AccessLevels.CurrentWrite) != 0,
-                // BoxingBehavior.Legacy unwraps an ArrayOf<T>/MatrixOf<T> to the T[]/T[,]
-                // shapes Decoerce consumes, so array, tuple and matrix values survive the
-                // round trip instead of being stringified as an opaque struct (§7.2).
-                Value = UsdValueCoercion.Decoerce(
-                    attributeNode.Value.AsBoxedObject(Variant.BoxingBehavior.Legacy))
+                // Decoerce reads the Variant through its typed accessors, so an ArrayOf<T> or
+                // MatrixOf<T> keeps its shape and array, tuple and matrix values survive the
+                // round trip without a boxing accessor (§7.2).
+                Value = UsdValueCoercion.Decoerce(attributeNode.Value)
             };
 
             // §7.2: time samples are held by the materialization result, not the node, so recover
@@ -411,14 +410,14 @@ namespace Opc.Ua.OpenUsdScene.Server
 
         /// <summary>
         /// Recovers a <c>Metadata/</c> folder into a metadata dictionary (§6.3), the inverse of the
-        /// materializer's typed authoring. A leaf Property is read back in its own type — Legacy
-        /// boxing unwraps an <c>ArrayOf&lt;T&gt;</c>/<c>MatrixOf&lt;T&gt;</c> and <c>Decoerce</c>
-        /// reverses the §6.2 coercion, so a value round-trips as itself rather than an opaque box
-        /// (the same fix as the attribute-value path). A nested Metadata folder is recovered as a
-        /// nested dictionary, so structured <c>customData</c> keeps its authored nesting to any depth.
+        /// materializer's typed authoring. A leaf Property is read back in its own type through
+        /// <c>Decoerce</c>, which reverses the §6.2 coercion off the Variant's typed accessors, so
+        /// a value round-trips as itself rather than an opaque box. A nested Metadata folder is
+        /// recovered as a nested dictionary, so structured <c>customData</c> keeps its authored
+        /// nesting to any depth.
         /// </summary>
         private static void ReadMetadataFolder(
-            ISystemContext context, NodeState folder, IDictionary<string, object?> into)
+            ISystemContext context, NodeState folder, IDictionary<string, UsdValue> into)
         {
             var children = new List<BaseInstanceState>();
             folder.GetChildren(context, children);
@@ -432,13 +431,12 @@ namespace Opc.Ua.OpenUsdScene.Server
                 switch (child)
                 {
                     case BaseVariableState property:
-                        into[key] = UsdValueCoercion.Decoerce(
-                            property.Value.AsBoxedObject(Variant.BoxingBehavior.Legacy));
+                        into[key] = UsdValueCoercion.Decoerce(property.Value);
                         break;
                     case FolderState subFolder:
-                        var nested = new Dictionary<string, object?>(StringComparer.Ordinal);
+                        var nested = new Dictionary<string, UsdValue>(StringComparer.Ordinal);
                         ReadMetadataFolder(context, subFolder, nested);
-                        into[key] = nested;
+                        into[key] = UsdValue.FromDictionary(nested);
                         break;
                 }
             }

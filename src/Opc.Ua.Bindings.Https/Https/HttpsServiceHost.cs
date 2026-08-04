@@ -226,8 +226,11 @@ namespace Opc.Ua.Bindings
                     description);
                 description.TransportProfileUri = TransportProfileUri;
 
-                // if no mutual TLS authentication is used, anonymous user tokens are not allowed
-                if (!httpsMutualTls)
+                // Keep the HTTPS authentication policy that requires an
+                // authenticated user when mutual TLS is disabled. WSS carries
+                // normal UASC sessions, so it uses the server's configured OPC UA
+                // user-token policies just like UA TCP, including Anonymous.
+                if (!httpsMutualTls && !Profiles.IsWssBinary(TransportProfileUri))
                 {
                     description.UserIdentityTokens = description.UserIdentityTokens
                         .Filter(token => token.TokenType != UserTokenType.Anonymous);

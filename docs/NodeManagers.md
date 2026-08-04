@@ -281,17 +281,17 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 
     public async ValueTask LoadAsync(IAsyncNodeManagerFactory factory, CancellationToken ct)
     {
-        m_registration = await lifecycle.AddAsync(factory, ct);
+        m_registration = await lifecycle.AddAsync(factory, callerContext: null, ct);
     }
 
     public async ValueTask ReloadAsync(IAsyncNodeManagerFactory replacement, CancellationToken ct)
     {
-        m_registration = await lifecycle.ReloadAsync(m_registration!, replacement, ct);
+        m_registration = await lifecycle.ReloadAsync(m_registration!, replacement, callerContext: null, ct);
     }
 
     public ValueTask RemoveAsync(CancellationToken ct)
     {
-        return lifecycle.RemoveAsync(m_registration!, ct);
+        return lifecycle.RemoveAsync(m_registration!, callerContext: null, ct);
     }
 }
 ```
@@ -303,11 +303,40 @@ reloaded or removed; startup, diagnostics, and core NodeManagers are protected.
 `INodeManagerLifecycle` is a host control-plane API. Do not invoke reload or removal from inside an
 OPC UA service or Method callback: teardown waits for the requests that already captured the retired
 routing generation to complete before disposing it, so a lifecycle call made from within such a
-request would wait for itself. The server detects this and throws `InvalidOperationException` rather
-than deadlocking. Detection relies on the request being dispatched through the server's service
-pipeline, so as a second line of defence the wait is bounded: it lasts at most as long as the
-longest deadline still outstanding plus `RequestManager.RequestDrainTimeout`, after which the
-lifecycle operation fails with a `TimeoutException` instead of blocking indefinitely.
+request would wait for itself.
+
+Every lifecycle method takes the operation the caller is running under. Pass it from a NodeManager
+or Method callback and the server rejects the call with an `InvalidOperationException` instead of
+deadlocking:
+
+```csharp
+private async ValueTask<ServiceResult> OnReloadModelAsync(
+    ISystemContext context,
+    MethodState method,
+    IList<Variant> inputArguments,
+    IList<Variant> outputArguments,
+    CancellationToken ct)
+{
+    // Throws InvalidOperationException: the call is serving a Client request.
+    await m_lifecycle.ReloadAsync(
+        m_registration,
+        replacement,
+        context.GetOperationContext(),
+        ct);
+    return ServiceResult.Good;
+}
+```
+
+A control-plane caller — a hosted service, or anything resolved from dependency injection — is not
+serving a request and passes `null`.
+
+The guard is an identity check against the requests the server is currently executing, not ambient
+state, so an internal operation that was never enrolled as a Client request is allowed through, and
+a context whose request has already completed no longer blocks anything. A caller that is inside a
+request but passes no operation is not detected; for that case the wait is bounded instead: it lasts
+at most as long as the longest deadline still outstanding plus `RequestManager.RequestDrainTimeout`,
+after which the lifecycle operation fails with a `TimeoutException` instead of blocking
+indefinitely.
 
 A server that rejects requests of its own by overriding `StandardServer.OnRequestValidatedAsync`
 does not interfere with this: a rejected request is completed before the exception leaves the
@@ -1172,17 +1201,17 @@ child on demand (matching the runtime's `AddEngineeringUnits` /
 `AddEURange` helpers) and then set the Value attribute.
 
 ```csharp
-builder.Variable<double>("Pumps/Pump #1/Operational/Measurements/FluidTemperature")
+builder.Variable<double>("Pumps/Pump_1/Operational/Measurements/FluidTemperature")
        .OnRead(SimulateTemperature)
        .WithEngineeringUnits(
            new EUInformation("K", "Kelvin",
                "http://www.opcfoundation.org/UA/units/un/cefact"))
-       .WithEURange(min: 233.15, max: 473.15);
+       .WithEURange(min: 263.15, max: 393.15);
 
 // Convenience: set both at once.
-builder.Variable<double>("Pumps/Pump #1/Operational/Measurements/Pressure")
+builder.Variable<double>("Pumps/Pump_1/Operational/Measurements/DifferentialPressure")
        .OnRead(SimulatePressure)
-       .WithUnits(EUInformations.Pascal, min: 0, max: 1_000_000);
+       .WithUnits(EUInformations.Pascal, min: 0, max: 400_000);
 ```
 
 Fail-fast behaviour: calling these on a non-`BaseAnalogState` variable
@@ -1200,14 +1229,19 @@ Typed overloads exist for every built-in OPC UA scalar (`string`,
 hatch.
 
 ```csharp
-builder.Node("Pumps/Pump #1/Identification")
-       .WithProperty("Manufacturer", "SimPump Corp")
-       .WithProperty("Model", "PumpX-2000")
+builder.Node("Pumps/Pump_1/Identification")
+       .WithProperty("Manufacturer", new LocalizedText("SimPump Corp"))
+       .WithProperty("Model", new LocalizedText("PumpX-2000"))
        .WithProperty("SerialNumber", "SN-001")
        .WithProperty("DeviceClass", "Pump")
        .WithProperty("ProductInstanceUri",
            "urn:simdevice:SimPump:PumpX-2000:SN-001");
 ```
+
+Pass the CLR type the model declares for the property — `LocalizedText`
+for `Manufacturer` / `Model` / `ComponentName`, `ushort` for
+`YearOfConstruction`, `byte` for `MonthOfConstruction`, and so on. The
+typed overloads make the choice explicit at the call site.
 
 Reference resolution is by browse-name only (case-sensitive,
 namespace-agnostic), matching the AOT-safe constraint of the rest of
@@ -1592,6 +1626,51 @@ Notes:
   `ISystemContext.NodeIdFactory`. `AsyncCustomNodeManager` supplies one
   that allocates from the manager's namespace; override `New` to derive
   ids from the parent chain instead.
+* **A node copy never assigns.** `NodeState.Create(context, source)`
+  initialises each child from its source right after creating it, which
+  overwrites any NodeId minted along the way — so minting one would only
+  consume identifiers, and leak them for factories that track outstanding
+  allocations. The copy therefore calls
+  `CreateChild(context, browseName, assignInstanceNodeIds: false)`.
+
+#### Custom node types and assignment control
+
+`NodeState.FindChild` and `NodeState.CreateChild` carry
+`assignInstanceNodeIds` as their last parameter. It defaults to `true`, so
+callers that state no intent keep materialising children with per-instance
+NodeIds. A type that declares children overrides `FindChild`, resolves the
+ones it declares, and passes the request on — both to its
+`CreateOrReplace<Child>` helpers and to the base:
+
+```csharp
+protected override BaseInstanceState? FindChild(
+    ISystemContext context,
+    QualifiedName browseName,
+    bool createOrReplace,
+    BaseInstanceState? replacement,
+    bool assignInstanceNodeIds = true)
+{
+    if (browseName.Name == BrowseNames.EnumStrings)
+    {
+        return !createOrReplace
+            ? EnumStrings
+            : CreateOrReplaceEnumStrings(context, replacement, assignInstanceNodeIds);
+    }
+
+    return base.FindChild(
+        context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
+}
+```
+
+Source generated types emit exactly this shape. Because the request is an
+argument, every type — generated or hand-written — sees the real
+`ISystemContext` during a copy; nothing wraps the context to hide the
+`NodeIdFactory`.
+
+> **Breaking change in 2.0.** The four argument `FindChild` and the two
+> argument `CreateChild` are gone. An override written against 1.5.378 fails
+> to compile until the parameter is added; see the
+> [migration guide](migrate/2.0.x/node-states.md#nodestate-findchild-and-createchild-state-nodeid-assignment).
 
 ### Current limitations
 

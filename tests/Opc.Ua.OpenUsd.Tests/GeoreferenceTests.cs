@@ -105,8 +105,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
             var site = new UsdPrim("Site", "Xform");
             site.ApiSchemas.Add(new UsdApiSchema("CesiumGeoreferencePrim"));
             // Latitude only — a partial anchor would place the prim at a wrong position.
-            site.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = Latitude });
-            site.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = Height });
+            site.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = UsdValue.From(Latitude) });
+            site.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = UsdValue.From(Height) });
             stage.AddRootPrim(site);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
@@ -141,19 +141,19 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             var site = new UsdPrim("Site", "Xform");
             site.ApiSchemas.Add(new UsdApiSchema("CesiumGeoreferencePrim"));
-            site.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = Latitude });
+            site.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = UsdValue.From(Latitude) });
             site.Attributes.Add(
-                new UsdAttribute("cesium:anchor:longitude", "double") { Value = Longitude });
-            site.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = Height });
+                new UsdAttribute("cesium:anchor:longitude", "double") { Value = UsdValue.From(Longitude) });
+            site.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = UsdValue.From(Height) });
 
             var anchor = new UsdPrim("Anchor", "Xform");
             anchor.ApiSchemas.Add(new UsdApiSchema("CesiumGlobeAnchorAPI"));
             anchor.Attributes.Add(
-                new UsdAttribute("cesium:anchor:latitude", "double") { Value = AnchorLatitude });
+                new UsdAttribute("cesium:anchor:latitude", "double") { Value = UsdValue.From(AnchorLatitude) });
             anchor.Attributes.Add(
-                new UsdAttribute("cesium:anchor:longitude", "double") { Value = AnchorLongitude });
+                new UsdAttribute("cesium:anchor:longitude", "double") { Value = UsdValue.From(AnchorLongitude) });
             anchor.Attributes.Add(
-                new UsdAttribute("cesium:anchor:height", "double") { Value = AnchorHeight });
+                new UsdAttribute("cesium:anchor:height", "double") { Value = UsdValue.From(AnchorHeight) });
 
             site.AddChild(anchor);
             stage.AddRootPrim(site);
