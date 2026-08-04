@@ -92,9 +92,18 @@
     inherited file, which keeps every new package from having to remember an
     empty `<PackageLicenseFile></PackageLicenseFile>` override.
 
-    Items are evaluated after all properties, so the `LICENSE.txt` `None` item
-    in `common.props` picks up the cleared value and still packs the license
-    text at the package root.
+    Clearing the property does NOT drop the license text from the package. The
+    `LICENSE.txt` in `common.props` is packed by an explicit
+    `<None Include="..." Pack="true" />` item, which is independent of the
+    NuGet license *metadata* this block clears. Its
+    `PackagePath="$(PackageLicenseFile)"` does observe the cleared value even
+    though `Directory.Build.targets` is imported after `common.props`, because
+    MSBuild evaluates every property of every import in an earlier pass than
+    any item: verify with
+    `dotnet msbuild <project> -getItem:None`, which reports an empty
+    `PackagePath` for `LICENSE.txt` (while `logo.jpg` keeps `images/logo.jpg`).
+    An empty `PackagePath` packs the file at the package root, which is where
+    the shared license text lands either way.
   -->
   <PropertyGroup Condition="'$(PackageLicenseExpression)' != ''">
     <PackageLicenseFile />
