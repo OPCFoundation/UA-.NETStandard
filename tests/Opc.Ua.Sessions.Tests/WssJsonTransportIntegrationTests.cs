@@ -135,6 +135,25 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
+        public async Task AnonymousSessionOverWssBinaryOpensWithoutMutualTlsAsync()
+        {
+            EndpointDescription wss = m_server.GetEndpoints()
+                .ToArray()
+                .First(ep =>
+                    string.Equals(ep.TransportProfileUri, Profiles.UaWssTransport, StringComparison.Ordinal) &&
+                    ep.SecurityMode == MessageSecurityMode.None);
+            Assert.That(
+                wss.UserIdentityTokens.ToArray(),
+                Has.Some.Matches<UserTokenPolicy>(token => token.TokenType == UserTokenType.Anonymous));
+
+            using var session = await m_clientFixture
+                .ConnectAsync(m_endpointUrl.ToString())
+                .ConfigureAwait(false);
+            Assert.That(session.Connected, Is.True);
+            await session.CloseAsync().ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task GetEndpointsOverWssJsonReturnsServerEndpointsAsync()
         {
             // Discovery does not yet advertise the JSON sub-protocol explicitly

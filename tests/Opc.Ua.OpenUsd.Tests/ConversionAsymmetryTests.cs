@@ -84,13 +84,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void ParseValue_BracketedPathReferenceList_ParsesEachTarget()
         {
-            object? value = UsdaReader.ParseValue("[</P/A.outputs:surface>, </P/B.outputs:surface>]");
+            UsdValue value = UsdaReader.ParseValue("[</P/A.outputs:surface>, </P/B.outputs:surface>]");
 
-            Assert.That(value, Is.EqualTo(new List<object?>
-            {
-                "/P/A.outputs:surface",
-                "/P/B.outputs:surface",
-            }));
+            UsdTestHelpers.AssertTextItems(value, "/P/A.outputs:surface", "/P/B.outputs:surface");
         }
 
         [Test]
@@ -163,14 +159,68 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(attr.Connections, Is.Empty);
         }
 
+        [Test]
+        public void QuotedRelationshipTarget_StillParsesAsATarget()
+        {
+            // A relationship target authored as a quoted string rather than a </path> reference
+            // is read from the value's text rather than dropped.
+            UsdStage stage = UsdaReader.Parse(
+                Wrap("    rel material:binding = \"/P/Mat\""),
+                "Rel");
+
+            UsdRelationship rel = UsdTestHelpers.RequireRelationship(
+                UsdTestHelpers.RequirePrim(stage, "/P"), "material:binding");
+            Assert.That(rel.Targets, Is.EqualTo(new[] { "/P/Mat" }));
+        }
+
+        [Test]
+        public void QuotedRelationshipTargetList_ParsesEachTarget()
+        {
+            UsdStage stage = UsdaReader.Parse(
+                Wrap("    rel material:binding = [\"/P/MatA\", \"/P/MatB\"]"),
+                "Rel");
+
+            UsdRelationship rel = UsdTestHelpers.RequireRelationship(
+                UsdTestHelpers.RequirePrim(stage, "/P"), "material:binding");
+            Assert.That(rel.Targets, Is.EqualTo(new[] { "/P/MatA", "/P/MatB" }));
+        }
+
+        [Test]
+        public void QuotedConnectionTarget_StillParsesAsATarget()
+        {
+            // A target authored as a quoted string rather than a </path> reference is still a
+            // target: the reader falls back to reading the value's text rather than dropping it.
+            UsdStage stage = UsdaReader.Parse(
+                Wrap("    token inputs:surface.connect = \"/P/A.outputs:surface\""),
+                "Conn");
+
+            UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:surface");
+            Assert.That(attr.Connections, Is.EqualTo(new[] { "/P/A.outputs:surface" }));
+        }
+
+        [Test]
+        public void QuotedConnectionTargetList_ParsesEachTarget()
+        {
+            UsdStage stage = UsdaReader.Parse(
+                Wrap("    token inputs:surface.connect = [\"/P/A.outputs:surface\", \"/P/B.outputs:surface\"]"),
+                "Conn");
+
+            UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:surface");
+            Assert.That(attr.Connections, Is.EqualTo(new[]
+            {
+                "/P/A.outputs:surface",
+                "/P/B.outputs:surface",
+            }));
+        }
+
         // ---- Task 1.2: asset arrays ---------------------------------------------------
 
         [Test]
         public void ParseValue_AssetArray_ParsesEachElementUnwrapped()
         {
-            object? value = UsdaReader.ParseValue("[@./a.usda@, @./b.usda@]");
+            UsdValue value = UsdaReader.ParseValue("[@./a.usda@, @./b.usda@]");
 
-            Assert.That(value, Is.EqualTo(new List<object?> { "./a.usda", "./b.usda" }));
+            UsdTestHelpers.AssertTextItems(value, "./a.usda", "./b.usda");
         }
 
         [Test]
@@ -181,7 +231,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "Assets");
 
             UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:files");
-            Assert.That(attr.Value, Is.EqualTo(new List<object?> { "./a.usda", "./b.usda" }));
+            UsdTestHelpers.AssertTextItems(attr.Value, "./a.usda", "./b.usda");
         }
 
         [Test]
@@ -201,14 +251,16 @@ namespace Opc.Ua.OpenUsdScene.Tests
             var prim = new UsdPrim("P", "Xform");
             prim.Attributes.Add(new UsdAttribute("inputs:files", "asset[]")
             {
-                Value = new List<object?> { "./a.usda", "./b.usda" },
+                Value = UsdTestHelpers.AssetArray("./a.usda", "./b.usda"),
             });
             stage.AddRootPrim(prim);
 
             UsdStage reparsed = UsdaReader.Parse(UsdaWriter.Write(stage), stage.StageName);
 
             UsdAttribute reparsedAttr = AttributeNamed(reparsed, "/P", "inputs:files");
-            Assert.That(reparsedAttr.Value, Is.EqualTo(new List<object?> { "./a.usda", "./b.usda" }));
+            Assert.That(reparsedAttr.Value.TryGetArray(out ArrayOf<UsdValue> paths), Is.True);
+            Assert.That(paths.ToArray()!.Select(p => p.TryGetAssetPath(out string text) ? text : string.Empty).ToArray(),
+                Is.EqualTo(new[] { "./a.usda", "./b.usda" }));
         }
 
         [Test]
@@ -219,7 +271,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "Assets");
 
             UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:file");
-            Assert.That(attr.Value, Is.EqualTo("./pump.usda"));
+            UsdTestHelpers.AssertAssetPath(attr.Value, "./pump.usda");
         }
     }
 }

@@ -268,6 +268,48 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// Every FindChild override a generated type emits carries the
+        /// assignment argument with its <c>true</c> default: the caller states
+        /// its intent, so no second overload, capability property or context
+        /// wrapper is needed to reach the override.
+        /// </summary>
+        [Test]
+        public void GeneratedTypesEmitOneFindChildOverrideCarryingTheAssignmentFlag()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+            string source = files.Values.Single(value =>
+                value.Contains(" CreateOrReplaceRed(", StringComparison.Ordinal));
+
+            const string signature =
+                "protected override global::Opc.Ua.BaseInstanceState? FindChild(";
+            var parameterLists = new List<string>();
+            for (int index = source.IndexOf(signature, StringComparison.Ordinal);
+                index >= 0;
+                index = source.IndexOf(signature, index + signature.Length, StringComparison.Ordinal))
+            {
+                int start = index + signature.Length;
+                int end = source.IndexOf(')', start);
+                parameterLists.Add(source.Substring(start, end - start));
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(parameterLists, Is.Not.Empty,
+                    "A type declaring children must resolve them in a FindChild override.");
+                Assert.That(parameterLists, Has.All.Contains("bool assignInstanceNodeIds = true"),
+                    "Every override must carry the argument, and repeat the default so " +
+                    "callers keep the 1.5.378 behaviour.");
+                Assert.That(source, Does.Not.Contain("SupportsInstanceNodeIdAssignmentControl"),
+                    "Assignment control is stated per call, not advertised per type.");
+                Assert.That(source, Does.Contain("return base.FindChild("),
+                    "An unmatched browse name must pass the request on to the base.");
+                Assert.That(source, Does.Contain(
+                    "context, browseName, createOrReplace, replacement, assignInstanceNodeIds);"),
+                    "The request must be forwarded verbatim to the base.");
+            });
+        }
+
+        /// <summary>
         /// The generated factories build declaration subtrees whose NodeIds
         /// must stay at their type-level values - the enclosing
         /// CreateInstanceOf&lt;Type&gt; factory rebases the finished subtree in

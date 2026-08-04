@@ -96,8 +96,8 @@ namespace Opc.Ua.OpenUsdScene.Server
         /// Creates a time sample.
         /// </summary>
         /// <param name="timeCode">The stage-timeline time code.</param>
-        /// <param name="value">The sampled value, in the same object shapes the reader produces.</param>
-        public UsdTimeSample(double timeCode, object? value)
+        /// <param name="value">The sampled value, in the same shape the reader produces.</param>
+        public UsdTimeSample(double timeCode, UsdValue value)
         {
             TimeCode = timeCode;
             Value = value;
@@ -111,7 +111,7 @@ namespace Opc.Ua.OpenUsdScene.Server
         /// <summary>
         /// The sampled value.
         /// </summary>
-        public object? Value { get; }
+        public UsdValue Value { get; }
 
         /// <inheritdoc/>
         public bool Equals(UsdTimeSample other)

@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
+using Opc.Ua;
 using Opc.Ua.OpenUsdScene.Scene;
 using Opc.Ua.OpenUsdScene.Server;
 
@@ -51,24 +53,24 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("S") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            prim.Metadata["author"] = "Ada";
-            prim.Metadata["visible"] = true;
-            prim.Metadata["count"] = 7;
-            prim.Metadata["huge"] = 9_000_000_000L;
-            prim.Metadata["scale"] = 2.5;
+            prim.Metadata["author"] = UsdValue.FromString("Ada");
+            prim.Metadata["visible"] = UsdValue.From(true);
+            prim.Metadata["count"] = UsdValue.From(7L);
+            prim.Metadata["huge"] = UsdValue.From(9_000_000_000L);
+            prim.Metadata["scale"] = UsdValue.From(2.5);
             stage.AddRootPrim(prim);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
             UsdStage exported = ms.Context.ExportUsdStage(ms.Result);
 
-            IDictionary<string, object?> md = PrimOf(exported, "P").Metadata;
+            IDictionary<string, UsdValue> md = PrimOf(exported, "P").Metadata;
             Assert.Multiple(() =>
             {
-                Assert.That(md["author"], Is.EqualTo("Ada"));
-                Assert.That(md["visible"], Is.True);
-                Assert.That(md["count"], Is.EqualTo(7));
-                Assert.That(md["huge"], Is.EqualTo(9_000_000_000L));
-                Assert.That(md["scale"], Is.EqualTo(2.5));
+                UsdTestHelpers.AssertString(md["author"], "Ada");
+                UsdTestHelpers.AssertBoolean(md["visible"], true);
+                UsdTestHelpers.AssertInteger(md["count"], 7L);
+                UsdTestHelpers.AssertInteger(md["huge"], 9_000_000_000L);
+                UsdTestHelpers.AssertDouble(md["scale"], 2.5);
             });
         }
 
@@ -80,10 +82,10 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // authored kind rather than an opaque string.
             var stage = new UsdStage("S") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            prim.Metadata["count"] = 7;
-            prim.Metadata["scale"] = 2.5;
-            prim.Metadata["visible"] = true;
-            prim.Metadata["author"] = "Ada";
+            prim.Metadata["count"] = UsdValue.From(7L);
+            prim.Metadata["scale"] = UsdValue.From(2.5);
+            prim.Metadata["visible"] = UsdValue.From(true);
+            prim.Metadata["author"] = UsdValue.FromString("Ada");
             stage.AddRootPrim(prim);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
@@ -91,8 +93,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.Multiple(() =>
             {
                 PropertyState count = MetaProperty(ms, "/P", "count");
-                Assert.That(count.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Int32));
-                Assert.That(count.Value.AsBoxedObject(), Is.EqualTo(7));
+                Assert.That(count.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Int64));
+                Assert.That(count.Value.AsBoxedObject(), Is.EqualTo(7L));
 
                 PropertyState scale = MetaProperty(ms, "/P", "scale");
                 Assert.That(scale.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Double));
@@ -113,19 +115,21 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("S") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            prim.Metadata["order"] = new int[] { 3, 1, 2 };
+            prim.Metadata["order"] = UsdTestHelpers.IntegerArray(3L, 1L, 2L);
             stage.AddRootPrim(prim);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
 
-            // The materialized value is a typed one-dimensional Int32 array, not text.
+            // The materialized value is a typed one-dimensional Int64 array, not text.
             PropertyState order = MetaProperty(ms, "/P", "order");
-            Assert.That(order.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Int32));
+            Assert.That(order.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Int64));
             Assert.That(order.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
 
             UsdStage exported = ms.Context.ExportUsdStage(ms.Result);
-            IDictionary<string, object?> md = PrimOf(exported, "P").Metadata;
-            Assert.That(md["order"], Is.EqualTo(new[] { 3, 1, 2 }),
+            IDictionary<string, UsdValue> md = PrimOf(exported, "P").Metadata;
+            Assert.That(md["order"].TryGetArray(out ArrayOf<UsdValue> values), Is.True);
+            Assert.That(values.ToArray()!.Select(v => v.TryGetInteger(out long integer) ? integer : 0L).ToArray(),
+                Is.EqualTo(new[] { 3L, 1L, 2L }),
                 "The array must round-trip element-wise, preserving order.");
         }
 
@@ -136,16 +140,17 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("S") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            var customData = new Dictionary<string, object?>(StringComparer.Ordinal)
+            var revisionData = new Dictionary<string, UsdValue>(StringComparer.Ordinal)
             {
-                ["author"] = "Ada",
-                ["revision"] = new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["major"] = 1,
-                    ["minor"] = 2
-                }
+                ["major"] = UsdValue.From(1L),
+                ["minor"] = UsdValue.From(2L)
             };
-            prim.Metadata["customData"] = customData;
+            var customData = new Dictionary<string, UsdValue>(StringComparer.Ordinal)
+            {
+                ["author"] = UsdValue.FromString("Ada"),
+                ["revision"] = UsdValue.FromDictionary(revisionData)
+            };
+            prim.Metadata["customData"] = UsdValue.FromDictionary(customData);
             stage.AddRootPrim(prim);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
@@ -160,18 +165,18 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "The nested dictionary must materialize as one nested Metadata sub-folder.");
 
             UsdStage exported = ms.Context.ExportUsdStage(ms.Result);
-            IDictionary<string, object?> md = PrimOf(exported, "P").Metadata;
+            IDictionary<string, UsdValue> md = PrimOf(exported, "P").Metadata;
 
-            Assert.That(md["customData"], Is.InstanceOf<IDictionary<string, object?>>());
-            var exportedCustom = (IDictionary<string, object?>)md["customData"]!;
-            Assert.That(exportedCustom["author"], Is.EqualTo("Ada"));
+            Assert.That(md["customData"].TryGetDictionary(out IReadOnlyDictionary<string, UsdValue> exportedCustom),
+                Is.True);
+            UsdTestHelpers.AssertString(exportedCustom["author"], "Ada");
 
-            Assert.That(exportedCustom["revision"], Is.InstanceOf<IDictionary<string, object?>>());
-            var revision = (IDictionary<string, object?>)exportedCustom["revision"]!;
+            Assert.That(exportedCustom["revision"].TryGetDictionary(out IReadOnlyDictionary<string, UsdValue> revision),
+                Is.True);
             Assert.Multiple(() =>
             {
-                Assert.That(revision["major"], Is.EqualTo(1));
-                Assert.That(revision["minor"], Is.EqualTo(2));
+                UsdTestHelpers.AssertInteger(revision["major"], 1L);
+                UsdTestHelpers.AssertInteger(revision["minor"], 2L);
             });
         }
 

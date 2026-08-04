@@ -108,8 +108,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             UsdPrim high = set.Variants.Single();
             Assert.That(high.Attributes.Select(a => a.Name), Is.EqualTo(new[] { "resolution", "quality" }));
-            Assert.That(high.Attributes[0].Value, Is.EqualTo(1024L));
-            Assert.That(high.Attributes[1].Value, Is.EqualTo("best"));
+            UsdTestHelpers.AssertInteger(high.Attributes[0].Value, 1024L);
+            UsdTestHelpers.AssertString(high.Attributes[1].Value, "best");
         }
 
         [Test]
@@ -199,16 +199,16 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdStage stage = BuildStageWithBranches("high", "low");
             // Give the branches distinct bodies so a lost or reordered branch is observable.
             UsdVariantSet set = stage.Find("/P")!.VariantSets.Single();
-            set.Variants[0].Attributes.Add(new UsdAttribute("resolution", "int") { Value = 1024L });
-            set.Variants[1].Attributes.Add(new UsdAttribute("resolution", "int") { Value = 256L });
+            set.Variants[0].Attributes.Add(new UsdAttribute("resolution", "int") { Value = UsdValue.From(1024L) });
+            set.Variants[1].Attributes.Add(new UsdAttribute("resolution", "int") { Value = UsdValue.From(256L) });
 
             string written = UsdaWriter.Write(stage);
             UsdStage reparsed = UsdaReader.Parse(written, stage.StageName);
 
             UsdVariantSet reSet = reparsed.Find("/P")!.VariantSets.Single();
             Assert.That(reSet.Variants.Select(v => v.Name), Is.EqualTo(new[] { "high", "low" }));
-            Assert.That(reSet.Variants[0].Attributes.Single().Value, Is.EqualTo(1024L));
-            Assert.That(reSet.Variants[1].Attributes.Single().Value, Is.EqualTo(256L));
+            UsdTestHelpers.AssertInteger(reSet.Variants[0].Attributes.Single().Value, 1024L);
+            UsdTestHelpers.AssertInteger(reSet.Variants[1].Attributes.Single().Value, 256L);
         }
 
         [Test]
@@ -216,7 +216,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             UsdStage stage = BuildStageWithBranches("high", "low");
             UsdVariantSet set = stage.Find("/P")!.VariantSets.Single();
-            set.Variants[0].Attributes.Add(new UsdAttribute("resolution", "int") { Value = 1024L });
+            set.Variants[0].Attributes.Add(new UsdAttribute("resolution", "int") { Value = UsdValue.From(1024L) });
             set.Variants[0].AddChild(new UsdPrim("Detail", "Xform"));
 
             string firstWrite = UsdaWriter.Write(stage);
@@ -235,14 +235,14 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdStage a = BuildStageWithBranches("high", "low");
             a.Find("/P")!.VariantSets.Single().Selection = "high";
             a.Find("/P")!.VariantSets.Single().Variants[0]
-                .Attributes.Add(new UsdAttribute("resolution", "int") { Value = 1024L });
+                .Attributes.Add(new UsdAttribute("resolution", "int") { Value = UsdValue.From(1024L) });
 
             UsdStage b = BuildStageWithBranches("high", "low");
             b.Find("/P")!.VariantSets.Single().Selection = "high";
             b.Find("/P")!.VariantSets.Single().Variants[0]
-                .Attributes.Add(new UsdAttribute("resolution", "int") { Value = 256L });
+                .Attributes.Add(new UsdAttribute("resolution", "int") { Value = UsdValue.From(256L) });
             b.Find("/P")!.VariantSets.Single().Variants[1]
-                .Attributes.Add(new UsdAttribute("extra", "double") { Value = 3.5 });
+                .Attributes.Add(new UsdAttribute("extra", "double") { Value = UsdValue.From(3.5) });
 
             Assert.That(
                 UsdSceneSignature.Compute(b),
