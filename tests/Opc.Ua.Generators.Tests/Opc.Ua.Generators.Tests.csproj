@@ -32,6 +32,11 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <Compile Remove="GeneratorDatasheetConformanceTests.cs" />
+    <Compile Remove="GeneratorMethodTests.cs" />
+    <Compile Remove="GeneratorProtectionAlarmNodeTests.cs" />
+    <Compile Remove="GeneratorProtectionTests.cs" />
+    <Compile Remove="GeneratorStateMachineTests.cs" />
+    <Compile Remove="SimulationHarness.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />

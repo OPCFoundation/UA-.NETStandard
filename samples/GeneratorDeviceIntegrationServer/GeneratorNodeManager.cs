@@ -292,6 +292,7 @@ namespace Generators
             set.DisplayName = new LocalizedText(GetGeneratorDisplayName(setNumber));
 
             MaterialiseOptionalChildren(set);
+            MaterialiseProtectionAlarms(set);
             AttachOpenUsdRepresentation(set, setNumber);
 
             await AddPredefinedNodeAsync(SystemContext, set, cancellationToken)

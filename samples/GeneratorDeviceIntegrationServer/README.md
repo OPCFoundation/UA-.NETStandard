@@ -83,16 +83,113 @@ Verified live against a running server at 87.17 % load:
 Each set carries its own state and a phase-shifted duty point, so no two sets in a
 plant report the same numbers — a four-set run showed 81.9 / 66.3 / 55.1 / 56.6 %.
 
+## Control: state machine, protections, methods
+
+The three surfaces the specification defines for controlling a set are all wired,
+and all three are driven from **one** decider — the simulation's operating state.
+A state machine driven independently of the physics eventually reports a machine as
+running while the simulation says it is stopped, and nothing at run time notices.
+
+### `OperatingState`
+
+`GeneratorStateMachineType` is mandatory on the type, so it already exists; the
+sample attaches behaviour to it in lifecycle mode rather than defining states:
+
+```
+Off ──▶ Ready ──▶ Starting ──▶ Warmup ──▶ Running ──┬──▶ Loaded ──▶ Cooldown ──▶ Stopping ──▶ Off
+                     │                              └──▶ Synchronizing ──▶ Paralleled
+                     ▼                                          (Running / Loaded)
+                   Fault ──▶ Off                 any running state ──▶ Fault / EmergencyStopped ──▶ Off
+```
+
+Twelve states, twenty-two declared transitions. `CurrentState` carries the readable
+name **and** its `Id` property, because a client that gets a name it cannot resolve
+to a state node is no better off than one that got nothing.
+
+The states and transition numbers live in [`GeneratorStateMap.cs`](GeneratorStateMap.cs),
+apart from the node manager, because they are a statement about the model rather
+than about how this server publishes it — and because a test then holds them
+against `GeneratorSimulation.IsLegalTransition` in both directions.
+
+### Protection alarms
+
+Four `GeneratorProtectionAlarmType` instances per set — **one per protection
+function**, not one instance whose `ProtectionFunction` changes. A set can trip on
+low oil pressure and overspeed in the same moment and an operator needs to see
+both, which is also how a real control panel annunciates.
+
+| Alarm | Supervises | Trips | Class |
+|---|---|---|---|
+| `LowOilPressureAlarm` | `LubricationSystem/OilPressure` | < 1.7 bar | shutdown |
+| `HighCoolantTemperatureAlarm` | `Engine/CoolantTemperature` | > 98 °C | shutdown |
+| `OverspeedAlarm` | `Engine/Speed` | > 1725 min⁻¹ | shutdown |
+| `OverloadAlarm` | `Alternator/LoadPercent` | > 110 % | warning |
+
+`OffNormalAlarmType` takes *healthy* as normal, so each instance carries `InputNode`
+pointing at the variable it actually supervises — otherwise a client can see that
+something tripped but not what was being watched.
+
+> **The trap that cost the most here.** `ProtectionFunction` is *mandatory* on the
+> type, so the generated factory materialises it. `IsShutdown` and `SubsystemName`
+> are *optional* and it does not. Calling `CreateOrReplaceIsShutdown(...).Value = x`
+> on its own **appears to work** — the child exists, it is returned by
+> `GetChildren`, it holds the value — but it has no `ReferenceTypeId`, so there is
+> no reference for a browse to follow and the property is simply absent from every
+> client's view. Optional members must be opted into with `AddXxx(context)` first.
+> This was found by reading the running server with a client, not by reading the
+> code, because the code looks correct. `GeneratorProtectionAlarmNodeTests` now
+> asserts that every published member carries a reference a client can follow.
+
+Low oil pressure is **bypassed while cranking**. Oil pressure has not built during
+a start, so supervising it there trips every set the moment it tries to run; a real
+set bypasses the trip for exactly this reason. This was a live defect here before
+the bypass was added, and a test now pins it.
+
+### Methods
+
+| Method | Effect | Refused when |
+|---|---|---|
+| `Start` | `Off` → `Ready` → `Starting`, or `Ready` → `Starting` | already running |
+| `Stop` | → `Cooldown` | not running |
+| `EmergencyStop` | → `EmergencyStopped`, breaker open | see below |
+| `ResetFaults` | clears latched alarms; `Fault`/`EmergencyStopped` → `Off` | never |
+| `StartTest` | starts the set and publishes `Test` mode | already running |
+| `SetOperatingMode` | writes `OperatingMode` | mode is not declared |
+
+A refused request answers **`BadInvalidState`** rather than quietly doing nothing:
+a method that silently succeeds without acting is the worst of the three outcomes,
+because a client cannot tell it from a real success. Legality is decided in exactly
+one place — `GeneratorSimulation.RequestState` — so no caller can drive a machine
+from `Off` straight to `Loaded` by picking the right method.
+
+Resetting a healthy set is a **no-op success**. An operator pressing reset on a
+running machine has not done anything wrong, and answering `Bad` would only train
+them to ignore the result.
+
+> **A note on the emergency stop.** The model declares an emergency stop only out
+> of `Running`, `Loaded` and `Paralleled`, so this sample refuses it from `Starting`
+> and `Warmup`. A real panel stops from anywhere. That is the specification's shape,
+> not this sample's choice, and it is left visible — with a test that pins it —
+> rather than papered over with an undeclared transition.
+
+The method semantics live in [`GeneratorCommands.cs`](GeneratorCommands.cs),
+expressed against the simulation rather than against address-space nodes, so they
+can be held to account by a test without standing up a server.
+
 ## The OpenUSD twin
 
 Each set owns a `GeneratorTwin` with its own prim path, signal Variables and
 bindings, so `--generators N` renders N machines that move independently. Sets lay
 out along +Y at 6 m pitch.
 
-Fifteen live bindings drive the bay position, radiator fan, load and coolant gauge
+Sixteen live bindings drive the bay position, radiator fan, load and coolant gauge
 needles, exhaust and radiator colour, fuel-tank surface, a red alarm ring, overheat
 and low-oil halos at the subsystem each fault belongs to, a run lamp, and
-frequency / power / engine-hours / load readouts.
+frequency / power / engine-hours / load / operating-state readouts.
+
+The operating-state readout is what makes an idle machine legible: without it the
+3D view shows *that* a set is not turning but not *why* — `Cooldown` and
+`EmergencyStopped` look identical from the outside.
 
 ### The authoring rule that matters
 

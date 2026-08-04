@@ -290,6 +290,8 @@ namespace Generators
                 set, "LowOilPressure", Opc.Ua.DataTypeIds.Boolean, Variant.From(false));
             twin.Running = CreateVariable(
                 set, "Running", Opc.Ua.DataTypeIds.Boolean, Variant.From(false));
+            twin.OperatingStateName = CreateVariable(
+                set, "OperatingStateName", Opc.Ua.DataTypeIds.String, Variant.From("Off"));
         }
 
         /// <summary>
@@ -508,6 +510,7 @@ namespace Generators
                 UpdateBoolean(twin.LowOilPressure, sim.LowOilPressure, now);
                 UpdateBoolean(twin.Running, sim.SpeedRpm > 100.0, now);
                 UpdateSurface(twin.FuelSurface, sim.FuelLevelPercent, now);
+                UpdateText(twin.OperatingStateName, sim.State.ToString(), now);
             }
         }
 
@@ -520,6 +523,23 @@ namespace Generators
         private void UpdateBoolean(BaseDataVariableState? variable, bool value, DateTime now)
         {
             if (variable == null)
+            {
+                return;
+            }
+            variable.Value = value;
+            variable.Timestamp = now;
+            variable.ClearChangeMasks(SystemContext, includeChildren: false);
+        }
+
+        /// <summary>
+        /// Publishes a text indication.
+        /// </summary>
+        /// <param name="variable">The Variable to write.</param>
+        /// <param name="value">The value.</param>
+        /// <param name="now">Sample timestamp.</param>
+        private void UpdateText(BaseDataVariableState? variable, string value, DateTime now)
+        {
+            if (variable == null || Equals(variable.Value, value))
             {
                 return;
             }
@@ -634,13 +654,18 @@ namespace Generators
         public BaseDataVariableState? Running { get; set; }
 
         /// <summary>
+        /// Gets or sets the operating state name shown on the twin.
+        /// </summary>
+        public BaseDataVariableState? OperatingStateName { get; set; }
+
+        /// <summary>
         /// Gets every signal Variable this twin owns.
         /// </summary>
         public IEnumerable<BaseDataVariableState?> Signals =>
         [
             BayPosition, FanAngle, LoadNeedle, TempNeedle, ExhaustCelsius,
             RadiatorCelsius, FuelSurface, ProtectionTripped, CoolantOverTemperature,
-            LowOilPressure, Running,
+            LowOilPressure, Running, OperatingStateName,
         ];
 
         /// <summary>

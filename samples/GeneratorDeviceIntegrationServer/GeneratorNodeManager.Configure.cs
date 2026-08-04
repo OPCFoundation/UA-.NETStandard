@@ -193,6 +193,8 @@ namespace Generators
 
             m_simulations[set.NodeId] = simulation;
             AttachSimulationToTwin(set, simulation);
+            AttachProtectionAlarms(set, simulation);
+            AttachStateMachine(set, simulation);
         }
 
         /// <summary>
@@ -210,6 +212,7 @@ namespace Generators
             {
                 twin.AdvanceFan(seconds);
             }
+            EvaluateProtections();
             PublishOpenUsdSignals();
         }
 
@@ -288,6 +291,6 @@ namespace Generators
             Level = LogLevel.Debug,
             Message = "Generator set {NodeId} entered state {State}.")]
         public static partial void GeneratorStateChanged(
-            this ILogger logger, NodeId nodeId, string state);
+            this ILogger logger, NodeId nodeId, GeneratorRunState state);
     }
 }

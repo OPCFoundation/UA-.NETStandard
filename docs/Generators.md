@@ -81,6 +81,76 @@ that.
 The published datasheet, the engineering ranges, the trip points and the
 simulation all read the same constants, so they cannot drift apart.
 
+## Control surfaces
+
+The specification defines three ways to observe and command a set, and all three
+are driven from the **same** decider: the simulation's operating state. This is
+the design point worth copying. A state machine advanced independently of the
+physics that produced it will eventually report a machine as running while the
+simulation says it is stopped — and because both halves are internally consistent,
+nothing at run time notices.
+
+### `GeneratorStateMachineType`
+
+Twelve states and twenty-two declared transitions, mandatory on the type. Because
+the node already exists, the sample attaches behaviour to it in **lifecycle mode**
+(`StateMachineBuilder.For(machine, context)`) rather than defining states — see
+[State machines](StateMachines.md).
+
+The simulation raises a transition callback; the address space follows it. Both
+`CurrentState` and its `Id` property are written, because a client that receives a
+state *name* it cannot resolve to a state *node* is no better off than one that
+received nothing.
+
+The state and transition number tables are deliberately kept apart from the node
+manager, in `GeneratorStateMap`, and a test holds them against the simulation's
+own legality function in **both** directions: a transition the physics permits but
+the map lacks moves a machine without telling a client; one the map holds but the
+physics refuses is dead weight that looks supported.
+
+### `GeneratorProtectionAlarmType`
+
+One instance **per protection function** rather than a single instance whose
+`ProtectionFunction` changes. A set can trip on low oil pressure and overspeed in
+the same moment, and collapsing them loses the second; it is also how a real
+control panel annunciates.
+
+Because `OffNormalAlarmType` takes *healthy* as the normal state, each instance
+carries `InputNode` pointing at the variable it supervises. Without it a client can
+see that something tripped but not what was being watched.
+
+**Optional members must be opted into.** `ProtectionFunction` is mandatory on the
+type and is materialised by the generated factory; `IsShutdown` and `SubsystemName`
+are optional and are not. Writing to an optional member with `CreateOrReplace`
+alone produces a child that exists, appears in `GetChildren` and holds the value —
+but carries no `ReferenceTypeId`, so no browse can reach it and the property is
+absent from a client's view. Call `AddXxx(context)` before writing. The failure is
+silent in both directions: the code looks right, and the server answers reads on
+everything it does publish, so only a client comparing against the type definition
+notices.
+
+Trip conditions read the hysteresis the simulation already applies, so alarms latch
+and clear cleanly rather than chattering on the threshold, and events are reported
+only on change. A shutdown-class trip stops the machine; a warning does not —
+reporting a trip without stopping the set would publish a generator that is on fire
+and still loaded.
+
+One trap worth naming: supervising low oil pressure during cranking trips every set
+the moment it tries to start, because pressure has not built yet. Real sets bypass
+that trip for exactly this reason.
+
+### Methods
+
+Legality is decided in exactly one place, so no caller can drive a machine from
+`Off` straight to `Loaded` by picking the right method. A refused request answers
+`BadInvalidState` rather than silently doing nothing — a method that appears to
+succeed without acting is indistinguishable from a real success, which is worse
+than an honest refusal.
+
+The method semantics are expressed against the simulation rather than against
+address-space nodes, which keeps each handler down to one line and lets the
+behaviour be tested without standing up a server.
+
 ## Cross-server composition
 
 `SiteCompositionServer` demonstrates composing several servers at a supervisory

@@ -299,13 +299,110 @@ namespace Generators
         /// Gets a value indicating whether the coolant is above its trip point.
         /// </summary>
         public bool CoolantOverTemperature =>
-            m_coolantCelsius > GeneratorDatasheet.TripPoints.HighCoolantCelsius;
+            IsSpinning && m_coolantCelsius > GeneratorDatasheet.TripPoints.HighCoolantCelsius;
 
         /// <summary>
-        /// Gets a value indicating whether oil pressure is below its trip point while running.
+        /// Gets a value indicating whether oil pressure is below its trip point.
         /// </summary>
+        /// <remarks>
+        /// Only supervised once the engine is turning at speed. A real set bypasses
+        /// the low-oil-pressure trip while cranking, because oil pressure has not
+        /// built yet - supervising it during start-up trips every set the moment it
+        /// tries to start.
+        /// </remarks>
         public bool LowOilPressure =>
-            SpeedRpm > 100.0 && OilPressureBar < GeneratorDatasheet.TripPoints.LowOilPressureBar;
+            IsSpinning && OilPressureBar < GeneratorDatasheet.TripPoints.LowOilPressureBar;
+
+        /// <summary>
+        /// Gets a value indicating whether the engine is turning at rated speed.
+        /// </summary>
+        public bool IsSpinning =>
+            m_state is GeneratorRunState.Warmup
+                or GeneratorRunState.Running
+                or GeneratorRunState.Loaded
+                or GeneratorRunState.Synchronizing
+                or GeneratorRunState.Paralleled
+                or GeneratorRunState.Cooldown;
+
+        /// <summary>
+        /// Gets or sets the callback invoked when the operating state changes.
+        /// </summary>
+        /// <remarks>
+        /// The enum below is the single decider of what state a set is in; the
+        /// address-space state machine follows it through this callback. Having one
+        /// place decide is what keeps the two from disagreeing - a state machine
+        /// driven independently of the physics eventually reports a machine as
+        /// running while the simulation says it is stopped.
+        /// </remarks>
+        public Action<GeneratorRunState, GeneratorRunState>? StateChanged { get; set; }
+
+        /// <summary>
+        /// Requests a state change from outside the automatic cycle.
+        /// </summary>
+        /// <param name="state">The state to enter.</param>
+        /// <returns>
+        /// <see langword="true"/> when the request was accepted.
+        /// </returns>
+        /// <remarks>
+        /// Used by the generator-set methods. Legality is checked here rather than
+        /// in each handler so a caller cannot force a machine from Off straight to
+        /// Loaded.
+        /// </remarks>
+        public bool RequestState(GeneratorRunState state)
+        {
+            if (!IsLegalTransition(m_state, state))
+            {
+                return false;
+            }
+            Enter(state);
+            return true;
+        }
+
+        /// <summary>
+        /// Returns whether a transition between two states is declared by the model.
+        /// </summary>
+        /// <param name="from">Current state.</param>
+        /// <param name="to">Requested state.</param>
+        /// <returns><see langword="true"/> when the transition exists.</returns>
+        public static bool IsLegalTransition(GeneratorRunState from, GeneratorRunState to)
+        {
+            return (from, to) switch
+            {
+                (GeneratorRunState.Off, GeneratorRunState.Ready) => true,
+                (GeneratorRunState.Ready, GeneratorRunState.Starting) => true,
+                (GeneratorRunState.Ready, GeneratorRunState.Off) => true,
+                (GeneratorRunState.Starting, GeneratorRunState.Warmup) => true,
+                (GeneratorRunState.Starting, GeneratorRunState.Fault) => true,
+                (GeneratorRunState.Warmup, GeneratorRunState.Running) => true,
+                (GeneratorRunState.Running, GeneratorRunState.Loaded) => true,
+                (GeneratorRunState.Running, GeneratorRunState.Synchronizing) => true,
+                (GeneratorRunState.Running, GeneratorRunState.Cooldown) => true,
+                (GeneratorRunState.Running, GeneratorRunState.Fault) => true,
+                (GeneratorRunState.Running, GeneratorRunState.EmergencyStopped) => true,
+                (GeneratorRunState.Synchronizing, GeneratorRunState.Paralleled) => true,
+                (GeneratorRunState.Synchronizing, GeneratorRunState.Running) => true,
+                (GeneratorRunState.Paralleled, GeneratorRunState.Loaded) => true,
+                (GeneratorRunState.Paralleled, GeneratorRunState.Fault) => true,
+                (GeneratorRunState.Paralleled, GeneratorRunState.EmergencyStopped) => true,
+                (GeneratorRunState.Loaded, GeneratorRunState.Cooldown) => true,
+                (GeneratorRunState.Loaded, GeneratorRunState.Fault) => true,
+                (GeneratorRunState.Loaded, GeneratorRunState.EmergencyStopped) => true,
+                (GeneratorRunState.Cooldown, GeneratorRunState.Stopping) => true,
+                (GeneratorRunState.Stopping, GeneratorRunState.Off) => true,
+                (GeneratorRunState.Fault, GeneratorRunState.Off) => true,
+                (GeneratorRunState.EmergencyStopped, GeneratorRunState.Off) => true,
+                _ => false,
+            };
+        }
+
+        /// <summary>
+        /// Trips the set on a protection, if it is running.
+        /// </summary>
+        /// <returns><see langword="true"/> when the set was tripped.</returns>
+        public bool Trip()
+        {
+            return RequestState(GeneratorRunState.Fault);
+        }
 
         /// <summary>
         /// Advances the set by one tick and publishes every derived value.
@@ -369,8 +466,13 @@ namespace Generators
         /// <param name="state">The state to enter.</param>
         private void Enter(GeneratorRunState state)
         {
+            GeneratorRunState previous = m_state;
             m_state = state;
             m_stateSeconds = 0.0;
+            if (previous != state)
+            {
+                StateChanged?.Invoke(previous, state);
+            }
         }
 
         /// <summary>

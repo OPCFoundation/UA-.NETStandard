@@ -67,6 +67,7 @@ namespace Generators
             ["PowerReadout"] = new Guid("8f2a1c40-000d-4a3b-9c11-6d5e2f7a9b0d"),
             ["EngineHoursReadout"] = new Guid("8f2a1c40-000e-4a3b-9c11-6d5e2f7a9b0e"),
             ["LoadReadout"] = new Guid("8f2a1c40-000f-4a3b-9c11-6d5e2f7a9b0f"),
+            ["OperatingStateReadout"] = new Guid("8f2a1c40-0010-4a3b-9c11-6d5e2f7a9b10"),
         };
 
         /// <summary>
@@ -118,7 +119,10 @@ namespace Generators
                 OpenUsdRenderTargetKindEnum.Translation, 1.0);
 
             // A red ring around the machine reads from any camera angle, which a
-            // small lamp does not.
+            // small lamp does not. It aggregates: the per-protection alarms are
+            // individually browsable and each carries its own ActiveState, but the
+            // ring answers the only question worth asking from across a hall - is
+            // this machine in trouble - rather than picking one protection to show.
             Bind(rep, ns, "ProtectionRing", twin.ProtectionTripped!.NodeId,
                 prim + "/AlarmRing", "visibility", "token",
                 OpenUsdRenderTargetKindEnum.Visibility, 1.0,
@@ -159,6 +163,12 @@ namespace Generators
 
             Bind(rep, ns, "LoadReadout", alternator.LoadPercent!.NodeId,
                 prim, "ua:loadPercent", "double",
+                OpenUsdRenderTargetKindEnum.Custom, 1.0);
+
+            // The operating state is what makes an idle machine legible: without it
+            // a stopped set and a faulted one look identical in the viewport.
+            Bind(rep, ns, "OperatingStateReadout", twin.OperatingStateName!.NodeId,
+                prim, "ua:operatingState", "string",
                 OpenUsdRenderTargetKindEnum.Custom, 1.0);
         }
 
