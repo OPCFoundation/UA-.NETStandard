@@ -46,7 +46,7 @@ string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0"
 string pumpServer = builder.Configuration["pump-server"]
     ?? "opc.tcp://localhost:62542/PumpDeviceIntegrationServer";
 string generatorServer = builder.Configuration["generator-server"]
-    ?? "opc.tcp://localhost:62543/GeneratorDeviceIntegrationServer";
+    ?? "opc.tcp://localhost:62543/GeneratorServer";
 
 builder.Services.Configure<SiteCompositionOptions>(options =>
 {

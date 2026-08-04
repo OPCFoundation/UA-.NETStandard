@@ -32,8 +32,9 @@ using System.Linq;
 using Generators;
 using NUnit.Framework;
 using Opc.Ua.Generators;
+using GeneratorModel = Opc.Ua.Generators;
 
-namespace Opc.Ua.Generators.Tests
+namespace Opc.Ua.OpenUsd.Tests.Generator
 {
     /// <summary>
     /// Holds the protection alarm nodes to the shape a client can actually read.
@@ -71,7 +72,7 @@ namespace Opc.Ua.Generators.Tests
         public void TheFactoryDoesNotMaterialiseOptionalMembers()
         {
             SystemContext context = CreateContext();
-            GeneratorProtectionAlarmState alarm = CreateAlarm(context);
+            GeneratorModel.GeneratorProtectionAlarmState alarm = CreateAlarm(context);
 
             Assert.Multiple(() =>
             {
@@ -94,7 +95,7 @@ namespace Opc.Ua.Generators.Tests
         public void EveryPublishedMemberCarriesAReferenceAClientCanFollow()
         {
             SystemContext context = CreateContext();
-            GeneratorProtectionAlarmState alarm = CreateAlarm(context);
+            GeneratorModel.GeneratorProtectionAlarmState alarm = CreateAlarm(context);
 
             GeneratorProtections.ApplyDefinition(
                 alarm, context, GeneratorProtections.Definitions[0]);
@@ -124,7 +125,7 @@ namespace Opc.Ua.Generators.Tests
         public void TheOptionalMembersArePublishedAsProperties()
         {
             SystemContext context = CreateContext();
-            GeneratorProtectionAlarmState alarm = CreateAlarm(context);
+            GeneratorModel.GeneratorProtectionAlarmState alarm = CreateAlarm(context);
 
             GeneratorProtections.ApplyDefinition(
                 alarm, context, GeneratorProtections.Definitions[0]);
@@ -133,16 +134,16 @@ namespace Opc.Ua.Generators.Tests
             {
                 Assert.That(
                     alarm.IsShutdown!.ReferenceTypeId,
-                    Is.EqualTo(ReferenceTypeIds.HasProperty));
+                    Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasProperty));
                 Assert.That(
                     alarm.SubsystemName!.ReferenceTypeId,
-                    Is.EqualTo(ReferenceTypeIds.HasProperty));
+                    Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasProperty));
                 Assert.That(
                     alarm.IsShutdown.TypeDefinitionId,
-                    Is.EqualTo(VariableTypeIds.PropertyType));
+                    Is.EqualTo(Opc.Ua.VariableTypeIds.PropertyType));
                 Assert.That(
                     alarm.SubsystemName.TypeDefinitionId,
-                    Is.EqualTo(VariableTypeIds.PropertyType));
+                    Is.EqualTo(Opc.Ua.VariableTypeIds.PropertyType));
             });
         }
 
@@ -159,7 +160,7 @@ namespace Opc.Ua.Generators.Tests
         public void ApplyingADefinitionMakesTheOptionalMembersBrowsableChildren()
         {
             SystemContext context = CreateContext();
-            GeneratorProtectionAlarmState alarm = CreateAlarm(context);
+            GeneratorModel.GeneratorProtectionAlarmState alarm = CreateAlarm(context);
 
             GeneratorProtections.ApplyDefinition(
                 alarm, context, GeneratorProtections.Definitions[0]);
@@ -183,7 +184,7 @@ namespace Opc.Ua.Generators.Tests
         public void ApplyingADefinitionIsIdempotent()
         {
             SystemContext context = CreateContext();
-            GeneratorProtectionAlarmState alarm = CreateAlarm(context);
+            GeneratorModel.GeneratorProtectionAlarmState alarm = CreateAlarm(context);
             ProtectionDefinition definition = GeneratorProtections.Definitions[0];
 
             GeneratorProtections.ApplyDefinition(alarm, context, definition);
@@ -215,7 +216,7 @@ namespace Opc.Ua.Generators.Tests
             for (int i = 0; i < GeneratorProtections.Definitions.Count; i++)
             {
                 ProtectionDefinition definition = GeneratorProtections.Definitions[i];
-                GeneratorProtectionAlarmState alarm = CreateAlarm(context);
+                GeneratorModel.GeneratorProtectionAlarmState alarm = CreateAlarm(context);
                 GeneratorProtections.ApplyDefinition(alarm, context, definition);
 
                 var children = new List<BaseInstanceState>();
@@ -239,14 +240,14 @@ namespace Opc.Ua.Generators.Tests
                         Is.EqualTo(definition.Subsystem),
                         $"{definition.Name} does not publish its subsystem.");
                     Assert.That(
-                        (function as PropertyState<GeneratorProtectionFunctionEnum>)?.Value,
+                        (function as PropertyState<GeneratorModel.GeneratorProtectionFunctionEnum>)?.Value,
                         Is.EqualTo(definition.Function),
                         $"{definition.Name} does not publish its protection function.");
                 });
             }
         }
 
-        private static GeneratorProtectionAlarmState CreateAlarm(ISystemContext context)
+        private static GeneratorModel.GeneratorProtectionAlarmState CreateAlarm(ISystemContext context)
         {
             // The same factory the node manager uses, so the mandatory members are
             // materialised exactly as they are in the running server. Constructing
@@ -263,7 +264,7 @@ namespace Opc.Ua.Generators.Tests
 
         private static List<string> ChildNames(
             ISystemContext context,
-            GeneratorProtectionAlarmState alarm)
+            GeneratorModel.GeneratorProtectionAlarmState alarm)
         {
             var children = new List<BaseInstanceState>();
             alarm.GetChildren(context, children);
@@ -274,7 +275,7 @@ namespace Opc.Ua.Generators.Tests
         private static SystemContext CreateContext()
         {
             var namespaceUris = new NamespaceTable();
-            namespaceUris.GetIndexOrAppend(Namespaces.Generators);
+            namespaceUris.GetIndexOrAppend(GeneratorModel.Namespaces.Generators);
             return new SystemContext(null!)
             {
                 NamespaceUris = namespaceUris,

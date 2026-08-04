@@ -589,14 +589,14 @@ namespace Generators
     /// </summary>
     internal static partial class GeneratorNodeManagerLog    {
         [LoggerMessage(
-            EventId = GeneratorDeviceIntegrationServerEventIds.GeneratorNodeManager + 0,
+            EventId = GeneratorServerEventIds.GeneratorNodeManager + 0,
             Level = LogLevel.Information,
             Message = "Generator address space ready: {NodeCount} nodes, {SetCount} generator set(s).")]
         public static partial void GeneratorAddressSpaceReady(
             this ILogger logger, int nodeCount, int setCount);
 
         [LoggerMessage(
-            EventId = GeneratorDeviceIntegrationServerEventIds.GeneratorNodeManager + 1,
+            EventId = GeneratorServerEventIds.GeneratorNodeManager + 1,
             Level = LogLevel.Information,
             Message = "Materialised generator set '{BrowseName}' as {NodeId}.")]
         public static partial void MaterialisedGeneratorSet(

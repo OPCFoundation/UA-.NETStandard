@@ -31,9 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Generators;
+using GeneratorModel = Opc.Ua.Generators;
 using NUnit.Framework;
 
-namespace Opc.Ua.Generators.Tests
+namespace Opc.Ua.OpenUsd.Tests.Generator
 {
     /// <summary>
     /// Holds the simulated operating state machine to what the model declares.

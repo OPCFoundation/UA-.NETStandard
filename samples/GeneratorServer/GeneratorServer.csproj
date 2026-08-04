@@ -3,8 +3,8 @@
     <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
-    <AssemblyName>GeneratorDeviceIntegrationServer</AssemblyName>
-    <PackageId>GeneratorDeviceIntegrationServer</PackageId>
+    <AssemblyName>GeneratorServer</AssemblyName>
+    <PackageId>GeneratorServer</PackageId>
     <Description>Self-contained .NET console OPC UA server demonstrating the Generators companion specification end-to-end, including a datasheet-driven generator-set simulation, a twelve-state operating state machine, protection alarms and a per-set OpenUSD twin.</Description>
     <RootNamespace>Generators</RootNamespace>
     <Nullable>enable</Nullable>

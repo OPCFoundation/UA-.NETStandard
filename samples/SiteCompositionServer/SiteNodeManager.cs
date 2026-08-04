@@ -351,7 +351,7 @@ namespace SiteComposition
             {
                 m_siteStage = null;
                 m_openUsdRoot = null;
-                m_log.LogError(ex, "Failed to materialise the OpenUSD facility.");
+                m_log.OpenUsdFacilityFailed(ex);
             }
         }
 
@@ -482,15 +482,37 @@ namespace SiteComposition
     }
 
     /// <summary>
+    /// Event id offsets for the site composition server.
+    /// </summary>
+    /// <remarks>
+    /// Each per-file <c>&lt;ClassName&gt;Log</c> class allocates its event ids relative
+    /// to the offset constant below, using <c>offset + &lt;zero-based message index&gt;</c>,
+    /// so two files cannot silently claim the same id.
+    /// </remarks>
+    internal static class SiteCompositionServerEventIds
+    {
+        /// <summary>
+        /// Offset for messages raised by <see cref="SiteNodeManager"/>.
+        /// </summary>
+        public const int SiteNodeManager = 0;
+    }
+
+    /// <summary>
     /// Source-generated log messages for <see cref="SiteNodeManager"/>.
     /// </summary>
     internal static partial class SiteNodeManagerLog
     {
         [LoggerMessage(
-            EventId = 0,
+            EventId = SiteCompositionServerEventIds.SiteNodeManager + 0,
             Level = LogLevel.Information,
             Message = "Site composition ready. Pump server: {PumpServer}. Generator server: {GeneratorServer}.")]
         public static partial void SiteAddressSpaceReady(
             this ILogger logger, string pumpServer, string generatorServer);
+
+        [LoggerMessage(
+            EventId = SiteCompositionServerEventIds.SiteNodeManager + 1,
+            Level = LogLevel.Error,
+            Message = "Failed to materialise the OpenUSD facility.")]
+        public static partial void OpenUsdFacilityFailed(this ILogger logger, Exception exception);
     }
 }

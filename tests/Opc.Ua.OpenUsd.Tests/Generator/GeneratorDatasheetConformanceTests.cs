@@ -31,9 +31,10 @@ using System;
 using System.IO;
 using System.Linq;
 using Generators;
+using GeneratorModel = Opc.Ua.Generators;
 using NUnit.Framework;
 
-namespace Opc.Ua.Generators.Tests
+namespace Opc.Ua.OpenUsd.Tests.Generator
 {
     /// <summary>
     /// Asserts that the simulation model and the published datasheet agree.
@@ -240,7 +241,7 @@ namespace Opc.Ua.Generators.Tests
             while (dir != null)
             {
                 string candidate = Path.Combine(
-                    dir.FullName, "samples", "GeneratorDeviceIntegrationServer", "DATASHEET.md");
+                    dir.FullName, "samples", "GeneratorServer", "DATASHEET.md");
                 if (File.Exists(candidate))
                 {
                     return candidate;

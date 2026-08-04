@@ -5,7 +5,7 @@
 > **This is a simulated device.** *SimGen Systems* and the *GenX-500* do not
 > exist. The data below are ordinary engineering parameters for a mid-size
 > industrial diesel generating set, chosen so that the simulation in
-> `GeneratorDeviceIntegrationServer` is physically self-consistent. They describe
+> `GeneratorServer` is physically self-consistent. They describe
 > no real product.
 >
 > Every value here is also a constant in

@@ -73,15 +73,15 @@ builder.Services
     .AddOpcUa()
     .AddServer(o =>
     {
-        o.ApplicationName = "GeneratorDeviceIntegrationServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:GeneratorDeviceIntegrationServer";
-        o.ProductUri = "uri:opcfoundation.org:GeneratorDeviceIntegrationServer";
+        o.ApplicationName = "GeneratorServer";
+        o.ApplicationUri = "urn:localhost:OPCFoundation:GeneratorServer";
+        o.ProductUri = "uri:opcfoundation.org:GeneratorServer";
         // Sample convenience only; never auto-accept untrusted certificates in production.
         o.AutoAcceptUntrustedCertificates = true;
         o.PkiRoot = Path.Combine(AppContext.BaseDirectory, "pki");
         o.RejectSHA1Certificates = true;
         o.MinCertificateKeySize = 2048;
-        o.EndpointUrls.Add($"opc.tcp://{host}:{port}/GeneratorDeviceIntegrationServer");
+        o.EndpointUrls.Add($"opc.tcp://{host}:{port}/GeneratorServer");
     })
     .AddNodeManager<GeneratorNodeManagerFactory>()
     // Demonstrate the declarative DI topology-element builder once the node

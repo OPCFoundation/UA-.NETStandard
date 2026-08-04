@@ -31,7 +31,7 @@ using System;
 using System.IO;
 using NUnit.Framework;
 
-namespace Opc.Ua.Generators.Tests
+namespace Opc.Ua.OpenUsd.Tests.Generator
 {
     /// <summary>
     /// Pins the authoring contract the OpenUSD connector depends on.
@@ -52,7 +52,7 @@ namespace Opc.Ua.Generators.Tests
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string path = Path.Combine(AppContext.BaseDirectory, "Assets", "generator.usda");
+            string path = Path.Combine(AppContext.BaseDirectory, "Assets", "Sample", "generator.usda");
             Assert.That(File.Exists(path), Is.True, $"The generated asset is missing: {path}");
             m_asset = File.ReadAllText(path);
         }

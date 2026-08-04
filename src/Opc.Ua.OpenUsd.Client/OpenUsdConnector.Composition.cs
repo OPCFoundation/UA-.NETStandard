@@ -194,6 +194,14 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     throw;
                 }
+                // TODO: narrow to the transport and service exceptions once
+                // RemoteSessionFactory documents what it is allowed to throw. The
+                // catch is deliberately broad today because the factory is a public
+                // extension point: a caller-supplied implementation can throw
+                // anything, and letting an unanticipated type escape would take down
+                // the entire stage for one unreachable subordinate - the exact
+                // failure this handler exists to prevent. Cancellation is re-thrown
+                // above, so the broad catch never swallows a cancellation.
 #pragma warning disable CA1031 // One unreachable subordinate must not fail the stage.
                 catch (Exception ex)
 #pragma warning restore CA1031

@@ -29,9 +29,10 @@
 
 using System.Collections.Generic;
 using Generators;
+using GeneratorModel = Opc.Ua.Generators;
 using NUnit.Framework;
 
-namespace Opc.Ua.Generators.Tests
+namespace Opc.Ua.OpenUsd.Tests.Generator
 {
     /// <summary>
     /// Holds the six generator-set methods to what they claim to do.
@@ -298,9 +299,9 @@ namespace Opc.Ua.Generators.Tests
         /// <summary>
         /// A selector position naming a real mode is accepted.
         /// </summary>
-        [TestCase((int)GeneratorOperatingModeEnum.Auto)]
-        [TestCase((int)GeneratorOperatingModeEnum.Manual)]
-        [TestCase((int)GeneratorOperatingModeEnum.Test)]
+        [TestCase((int)GeneratorModel.GeneratorOperatingModeEnum.Auto)]
+        [TestCase((int)GeneratorModel.GeneratorOperatingModeEnum.Manual)]
+        [TestCase((int)GeneratorModel.GeneratorOperatingModeEnum.Test)]
         public void ADeclaredOperatingModeIsAccepted(int requested)
         {
             ArrayOf<Variant> arguments = new Variant[] { new(requested) };
@@ -309,7 +310,7 @@ namespace Opc.Ua.Generators.Tests
             {
                 Assert.That(
                     GeneratorCommands.TryReadOperatingMode(
-                        arguments, out GeneratorOperatingModeEnum mode),
+                        arguments, out GeneratorModel.GeneratorOperatingModeEnum mode),
                     Is.True);
                 Assert.That((int)mode, Is.EqualTo(requested));
             });
@@ -325,7 +326,7 @@ namespace Opc.Ua.Generators.Tests
 
             Assert.That(
                 GeneratorCommands.TryReadOperatingMode(
-                    arguments, out GeneratorOperatingModeEnum _),
+                    arguments, out GeneratorModel.GeneratorOperatingModeEnum _),
                 Is.False);
         }
 
@@ -337,7 +338,7 @@ namespace Opc.Ua.Generators.Tests
         {
             Assert.That(
                 GeneratorCommands.TryReadOperatingMode(
-                    default, out GeneratorOperatingModeEnum _),
+                    default, out GeneratorModel.GeneratorOperatingModeEnum _),
                 Is.False);
         }
 

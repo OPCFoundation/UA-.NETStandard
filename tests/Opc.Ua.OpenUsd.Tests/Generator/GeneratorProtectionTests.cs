@@ -30,9 +30,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using Generators;
+using GeneratorModel = Opc.Ua.Generators;
 using NUnit.Framework;
 
-namespace Opc.Ua.Generators.Tests
+namespace Opc.Ua.OpenUsd.Tests.Generator
 {
     /// <summary>
     /// Holds the protection table to the datasheet and to the simulation.
@@ -53,7 +54,7 @@ namespace Opc.Ua.Generators.Tests
         [Test]
         public void EveryProtectionFunctionIsAnnunciatedExactlyOnce()
         {
-            GeneratorProtectionFunctionEnum[] functions = Definitions()
+            GeneratorModel.GeneratorProtectionFunctionEnum[] functions = Definitions()
                 .Select(d => d.Function)
                 .ToArray();
 
@@ -61,10 +62,10 @@ namespace Opc.Ua.Generators.Tests
             {
                 Assert.That(functions, Is.EquivalentTo(new[]
                 {
-                    GeneratorProtectionFunctionEnum.LowOilPressure,
-                    GeneratorProtectionFunctionEnum.HighCoolantTemperature,
-                    GeneratorProtectionFunctionEnum.Overspeed,
-                    GeneratorProtectionFunctionEnum.Overload,
+                    GeneratorModel.GeneratorProtectionFunctionEnum.LowOilPressure,
+                    GeneratorModel.GeneratorProtectionFunctionEnum.HighCoolantTemperature,
+                    GeneratorModel.GeneratorProtectionFunctionEnum.Overspeed,
+                    GeneratorModel.GeneratorProtectionFunctionEnum.Overload,
                 }));
                 Assert.That(functions.Distinct().Count(), Is.EqualTo(functions.Length));
             });

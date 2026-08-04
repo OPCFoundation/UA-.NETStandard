@@ -1,4 +1,4 @@
-# GeneratorDeviceIntegrationServer
+# GeneratorServer
 
 A self-contained OPC UA server implementing the **Generators companion
 specification** (`http://opcfoundation.org/UA/Generators/`) end to end: N
@@ -10,7 +10,7 @@ and the two are composed into one scene by
 [`SiteCompositionServer`](../SiteCompositionServer).
 
 ```
-dotnet run --project samples/GeneratorDeviceIntegrationServer -- \
+dotnet run --project samples/GeneratorServer -- \
     --host localhost --port 62543 --generators 4
 ```
 
@@ -260,13 +260,14 @@ and the whitelist is the only thing to edit when more types are needed.
 
 ```
 dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
-    --server opc.tcp://localhost:62543/GeneratorDeviceIntegrationServer \
+    --server opc.tcp://localhost:62543/GeneratorServer \
     --insecure --view
 ```
 
 ## See also
 
 - [`DATASHEET.md`](DATASHEET.md) — the product datasheet the server is aligned to
+- [`Generators.md`](Generators.md) — the model, the simulation design and cross-server composition
 - [OpenUSD bindings](../../docs/OpenUsd.md)
 - [Device integration](../../docs/DeviceIntegration.md)
 - [`SiteCompositionServer`](../SiteCompositionServer) — composes this server with the pump server

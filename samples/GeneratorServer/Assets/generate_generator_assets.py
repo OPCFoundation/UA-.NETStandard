@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate the OpenUSD text assets for the GeneratorDeviceIntegrationServer sample.
+Generate the OpenUSD text assets for the GeneratorServer sample.
 
 This script writes generator.usda and Powerhouse.usda in the same directory as the
 script. Those outputs are generated artifacts and must never be hand-edited;

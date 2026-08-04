@@ -5,7 +5,7 @@ several subordinate servers into a single live 3D scene.
 
 This is the SCADA-level counterpart to a device server. Where
 [`PumpDeviceIntegrationServer`](../PumpDeviceIntegrationServer) and
-[`GeneratorDeviceIntegrationServer`](../GeneratorDeviceIntegrationServer) each
+[`GeneratorServer`](../GeneratorServer) each
 publish their own machines and their own twin, this server publishes a *site* and
 says which server owns what.
 
@@ -16,7 +16,7 @@ flowchart TD
   C["Opc.Ua.OpenUsd.Connector<br/>--federate"]
   S["SiteCompositionServer<br/>site shell + camera<br/>owns no devices"]
   P["PumpDeviceIntegrationServer<br/>pumps"]
-  G["GeneratorDeviceIntegrationServer<br/>generator sets"]
+  G["GeneratorServer<br/>generator sets"]
 
   C -->|"primary session"| S
   S -.->|"ComponentEndpointUrl"| P
@@ -42,7 +42,7 @@ Start the two device servers, then the site server:
 
 ```
 dotnet run --project samples/PumpDeviceIntegrationServer -- --host localhost --port 62542 --pumps 3
-dotnet run --project samples/GeneratorDeviceIntegrationServer -- --host localhost --port 62543 --generators 2
+dotnet run --project samples/GeneratorServer -- --host localhost --port 62543 --generators 2
 dotnet run --project samples/SiteCompositionServer -- --host localhost --port 62544
 ```
 
@@ -97,5 +97,5 @@ A verified run against three servers produces one override layer containing:
 ## See also
 
 - [OpenUSD bindings](../../docs/OpenUsd.md)
-- [`GeneratorDeviceIntegrationServer`](../GeneratorDeviceIntegrationServer)
+- [`GeneratorServer`](../GeneratorServer)
 - [`PumpDeviceIntegrationServer`](../PumpDeviceIntegrationServer)

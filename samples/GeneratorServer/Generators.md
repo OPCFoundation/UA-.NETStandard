@@ -2,9 +2,9 @@
 
 The draft **Generators companion specification**
 (`http://opcfoundation.org/UA/Generators/`) realised end to end by
-[`GeneratorDeviceIntegrationServer`](../samples/GeneratorDeviceIntegrationServer),
+[`GeneratorServer`](README.md),
 and composed with the pump sample by
-[`SiteCompositionServer`](../samples/SiteCompositionServer).
+[`SiteCompositionServer`](../SiteCompositionServer).
 
 ## The model
 
@@ -95,7 +95,7 @@ nothing at run time notices.
 Twelve states and twenty-two declared transitions, mandatory on the type. Because
 the node already exists, the sample attaches behaviour to it in **lifecycle mode**
 (`StateMachineBuilder.For(machine, context)`) rather than defining states — see
-[State machines](StateMachines.md).
+[State machines](../../docs/StateMachines.md).
 
 The simulation raises a transition callback; the address space follows it. Both
 `CurrentState` and its `Id` property are written, because a client that receives a
@@ -220,8 +220,8 @@ is down is logged and skipped, and the rest of the scene still renders.
 
 ## See also
 
-- [`GeneratorDeviceIntegrationServer`](../samples/GeneratorDeviceIntegrationServer) and its [datasheet](../samples/GeneratorDeviceIntegrationServer/DATASHEET.md)
-- [`SiteCompositionServer`](../samples/SiteCompositionServer)
-- [OpenUSD](OpenUsd.md)
-- [Device Integration](DeviceIntegration.md)
-- [State machines](StateMachines.md)
+- [`GeneratorServer`](README.md) and its [datasheet](DATASHEET.md)
+- [`SiteCompositionServer`](../SiteCompositionServer)
+- [OpenUSD](../../docs/OpenUsd.md)
+- [Device Integration](../../docs/DeviceIntegration.md)
+- [State machines](../../docs/StateMachines.md)

@@ -382,7 +382,7 @@ namespace Generators
     internal static partial class GeneratorSimulationLog
     {
         [LoggerMessage(
-            EventId = GeneratorDeviceIntegrationServerEventIds.GeneratorSimulation + 0,
+            EventId = GeneratorServerEventIds.GeneratorSimulation + 0,
             Level = LogLevel.Debug,
             Message = "Generator set {NodeId} entered state {State}.")]
         public static partial void GeneratorStateChanged(

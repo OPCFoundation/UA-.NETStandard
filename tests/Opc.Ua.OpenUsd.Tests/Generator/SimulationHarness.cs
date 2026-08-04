@@ -31,9 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Generators;
+using GeneratorModel = Opc.Ua.Generators;
 using Opc.Ua.Server.Fluent;
 
-namespace Opc.Ua.Generators.Tests
+namespace Opc.Ua.OpenUsd.Tests.Generator
 {
     /// <summary>
     /// Records what a simulation publishes, so a test can build a
