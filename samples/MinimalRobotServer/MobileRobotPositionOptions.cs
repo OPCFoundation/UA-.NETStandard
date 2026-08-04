@@ -157,6 +157,12 @@ namespace Robotics
         /// <summary>
         /// How often a new position is published, in milliseconds.
         /// </summary>
-        public int UpdateIntervalMilliseconds { get; set; } = 200;
+        /// <remarks>
+        /// This matches the cell's simulation tick on purpose. Publishing the platform
+        /// slower than the arm and the workpieces makes the robot lag its own gripper: at
+        /// 200 ms and cruise speed the platform trails by 170 mm, and a carried part - which
+        /// rides the tool centre point - visibly floats out in front of the jaws.
+        /// </remarks>
+        public int UpdateIntervalMilliseconds { get; set; } = 50;
     }
 }

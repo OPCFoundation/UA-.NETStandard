@@ -36,10 +36,9 @@ using Opc.Ua.OpenUsdScene.Scene;
 namespace Opc.Ua.OpenUsdScene.Tests
 {
     /// <summary>
-    /// Unit tests for the §6.3 metadata coercion rules of the materializer: every CLR scalar
+    /// Unit tests for the §6.3 metadata coercion rules of the materializer: every USD scalar
     /// kind keeps its own OPC UA DataType, a homogeneous sequence keeps its element type, and
-    /// anything the mapping cannot represent falls back to its invariant textual form rather
-    /// than being dropped or guessed at.
+    /// mixed sequences fall back to their textual form rather than being dropped or guessed at.
     /// </summary>
     [TestFixture]
     [Category("OpenUsd")]
@@ -49,8 +48,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void AnEntryWithAnEmptyKeyIsSkipped()
         {
             var prim = new UsdPrim("Cube", "Cube");
-            prim.Metadata[string.Empty] = "dropped";
-            prim.Metadata["kept"] = "value";
+            prim.Metadata[string.Empty] = UsdValue.FromString("dropped");
+            prim.Metadata["kept"] = UsdValue.FromString("value");
 
             List<PropertyState> properties = MetadataProperties(prim);
 
@@ -62,7 +61,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void AnEntryWithANullValueBecomesAValuelessProperty()
         {
             var prim = new UsdPrim("Cube", "Cube");
-            prim.Metadata["missing"] = null;
+            prim.Metadata["missing"] = UsdValue.Null;
 
             PropertyState property = SingleMetadataProperty(prim);
 
@@ -70,14 +69,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(property.Value.IsNull, Is.True);
         }
 
-        [TestCase((sbyte)-8, Opc.Ua.DataTypes.SByte)]
-        [TestCase((byte)8, Opc.Ua.DataTypes.Byte)]
-        [TestCase((short)-16, Opc.Ua.DataTypes.Int16)]
-        [TestCase((ushort)16, Opc.Ua.DataTypes.UInt16)]
-        [TestCase(32u, Opc.Ua.DataTypes.UInt32)]
-        [TestCase(64UL, Opc.Ua.DataTypes.UInt64)]
-        [TestCase(1.5f, Opc.Ua.DataTypes.Float)]
-        public void AScalarKeepsItsOwnDataType(object value, uint expectedDataType)
+        [TestCaseSource(nameof(ScalarCases))]
+        public void AScalarKeepsItsOwnDataType(UsdValue value, uint expectedDataType)
         {
             var prim = new UsdPrim("Cube", "Cube");
             prim.Metadata["scalar"] = value;
@@ -92,11 +85,11 @@ namespace Opc.Ua.OpenUsdScene.Tests
         }
 
         [Test]
-        public void AnUnrepresentableScalarIsCarriedAsInvariantText()
+        public void ATextScalarIsCarriedAsText()
         {
             var prim = new UsdPrim("Cube", "Cube");
             var stamp = new DateTime(2026, 3, 4, 5, 6, 7, DateTimeKind.Utc);
-            prim.Metadata["stamp"] = new UnprintableMetadata(stamp);
+            prim.Metadata["stamp"] = UsdValue.FromString(stamp.ToString("O"));
 
             PropertyState property = SingleMetadataProperty(prim);
 
@@ -106,11 +99,14 @@ namespace Opc.Ua.OpenUsdScene.Tests
         }
 
         [Test]
-        public void ANestedWriteOnlyDictionaryBecomesASubFolder()
+        public void ANestedDictionaryBecomesASubFolder()
         {
             var prim = new UsdPrim("Cube", "Cube");
-            var nested = new WriteOnlyMetadataDictionary { ["vendor"] = "Contoso" };
-            prim.Metadata["customData"] = nested;
+            var nested = new Dictionary<string, UsdValue>(StringComparer.Ordinal)
+            {
+                ["vendor"] = UsdValue.FromString("Contoso")
+            };
+            prim.Metadata["customData"] = UsdValue.FromDictionary(nested);
 
             MaterializedScene scene = Materialize(prim);
             FolderState metadata = MetadataFolder(scene);
@@ -129,7 +125,12 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void ABooleanSequenceKeepsItsElementType()
         {
             PropertyState property = SingleMetadataProperty(
-                WithMetadata("flags", new[] { true, false, true }));
+                WithMetadata(
+                    "flags",
+                    UsdTestHelpers.Array(
+                        UsdValue.From(true),
+                        UsdValue.From(false),
+                        UsdValue.From(true))));
 
             Assert.That(property.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
             Assert.That(property.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Boolean));
@@ -142,7 +143,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void ALongSequenceKeepsItsElementType()
         {
             PropertyState property = SingleMetadataProperty(
-                WithMetadata("ticks", new[] { 9_000_000_000L, 2L }));
+                WithMetadata("ticks", UsdTestHelpers.IntegerArray(9_000_000_000L, 2L)));
 
             Assert.That(property.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Int64));
             Assert.That(property.Value.TryGetValue(out ArrayOf<long> values), Is.True);
@@ -153,7 +154,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void AnUnsignedSequenceWidensToInt64()
         {
             PropertyState property = SingleMetadataProperty(
-                WithMetadata("ids", new[] { 1u, 2u }));
+                WithMetadata("ids", UsdTestHelpers.IntegerArray(1L, 2L)));
 
             Assert.That(property.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Int64));
             Assert.That(property.Value.TryGetValue(out ArrayOf<long> values), Is.True);
@@ -164,7 +165,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void AFloatingPointSequenceKeepsItsElementType()
         {
             PropertyState property = SingleMetadataProperty(
-                WithMetadata("scales", new[] { 1.5f, 2.5f }));
+                WithMetadata("scales", UsdTestHelpers.NumberArray(1.5, 2.5)));
 
             Assert.That(property.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Double));
             Assert.That(property.Value.TryGetValue(out ArrayOf<double> values), Is.True);
@@ -175,7 +176,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void AnEmptySequenceFallsBackToAStringSequence()
         {
             PropertyState property = SingleMetadataProperty(
-                WithMetadata("tags", Array.Empty<object>()));
+                WithMetadata("tags", UsdValue.FromArray(ArrayOf<UsdValue>.Empty)));
 
             Assert.That(property.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
             Assert.That(property.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.String));
@@ -187,7 +188,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void ASequenceHoldingANullElementFallsBackToText()
         {
             PropertyState property = SingleMetadataProperty(
-                WithMetadata("order", new object?[] { 3, null }));
+                WithMetadata("order", UsdTestHelpers.Array(UsdValue.From(3L), UsdValue.Null)));
 
             Assert.That(property.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.String));
             Assert.That(property.Value.TryGetValue(out ArrayOf<string> values), Is.True);
@@ -200,14 +201,24 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void ASequenceWithAnUnconvertibleElementFallsBackToText()
         {
             PropertyState property = SingleMetadataProperty(
-                WithMetadata("flags", new object[] { true, "not-a-boolean" }));
+                WithMetadata(
+                    "flags",
+                    UsdTestHelpers.Array(UsdValue.From(true), UsdValue.FromString("not-a-boolean"))));
 
             Assert.That(property.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.String));
             Assert.That(property.Value.TryGetValue(out ArrayOf<string> values), Is.True);
             Assert.That(values[1], Is.EqualTo("not-a-boolean"));
         }
 
-        private static UsdPrim WithMetadata(string key, object value)
+        private static IEnumerable<TestCaseData> ScalarCases()
+        {
+            yield return new TestCaseData(UsdValue.From(false), Opc.Ua.DataTypes.Boolean);
+            yield return new TestCaseData(UsdValue.From(32L), Opc.Ua.DataTypes.Int64);
+            yield return new TestCaseData(UsdValue.From(1.5), Opc.Ua.DataTypes.Double);
+            yield return new TestCaseData(UsdValue.FromString("text"), Opc.Ua.DataTypes.String);
+        }
+
+        private static UsdPrim WithMetadata(string key, UsdValue value)
         {
             var prim = new UsdPrim("Cube", "Cube");
             prim.Metadata[key] = value;
@@ -245,102 +256,5 @@ namespace Opc.Ua.OpenUsdScene.Tests
             return properties[0];
         }
 
-        /// <summary>
-        /// A metadata value of a kind the §6.3 mapping does not represent, so the materializer
-        /// must fall back to its invariant textual form.
-        /// </summary>
-        private sealed class UnprintableMetadata
-        {
-            private readonly DateTime m_stamp;
-
-            public UnprintableMetadata(DateTime stamp)
-            {
-                m_stamp = stamp;
-            }
-
-            public override string ToString()
-            {
-                return m_stamp.ToString("O");
-            }
-        }
-
-        /// <summary>
-        /// A dictionary that implements only the mutable dictionary contract, so the nested
-        /// customData detection has to fall through to its second, read-write case.
-        /// </summary>
-        private sealed class WriteOnlyMetadataDictionary : IDictionary<string, object?>
-        {
-            private readonly Dictionary<string, object?> m_inner =
-                new Dictionary<string, object?>(StringComparer.Ordinal);
-
-            public object? this[string key]
-            {
-                get => m_inner[key];
-                set => m_inner[key] = value;
-            }
-
-            public ICollection<string> Keys => m_inner.Keys;
-
-            public ICollection<object?> Values => m_inner.Values;
-
-            public int Count => m_inner.Count;
-
-            public bool IsReadOnly => false;
-
-            public void Add(string key, object? value)
-            {
-                m_inner.Add(key, value);
-            }
-
-            public void Add(KeyValuePair<string, object?> item)
-            {
-                m_inner.Add(item.Key, item.Value);
-            }
-
-            public void Clear()
-            {
-                m_inner.Clear();
-            }
-
-            public bool Contains(KeyValuePair<string, object?> item)
-            {
-                return m_inner.TryGetValue(item.Key, out object? found) && Equals(found, item.Value);
-            }
-
-            public bool ContainsKey(string key)
-            {
-                return m_inner.ContainsKey(key);
-            }
-
-            public void CopyTo(KeyValuePair<string, object?>[] array, int arrayIndex)
-            {
-                ((ICollection<KeyValuePair<string, object?>>)m_inner).CopyTo(array, arrayIndex);
-            }
-
-            public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
-            {
-                return m_inner.GetEnumerator();
-            }
-
-            public bool Remove(string key)
-            {
-                return m_inner.Remove(key);
-            }
-
-            public bool Remove(KeyValuePair<string, object?> item)
-            {
-                return m_inner.Remove(item.Key);
-            }
-
-            public bool TryGetValue(string key, out object? value)
-            {
-                return m_inner.TryGetValue(key, out value);
-            }
-
-            IEnumerator IEnumerable.GetEnumerator()
-            {
-                return m_inner.GetEnumerator();
-            }
-        }
     }
 }

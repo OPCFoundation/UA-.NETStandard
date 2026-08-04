@@ -31,11 +31,10 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
   <!-- Artist-authored USD layers embedded so the server ships (and serves) its own
-       twin geometry: Plant.usda (RootLayer) + pump.usda + remote-pump.usda (References). -->
+       twin geometry: Plant.usda (RootLayer) + pump.usda (Reference). -->
   <ItemGroup>
     <EmbeddedResource Include="Assets\Plant.usda"><LogicalName>Plant.usda</LogicalName></EmbeddedResource>
     <EmbeddedResource Include="Assets\pump.usda"><LogicalName>pump.usda</LogicalName></EmbeddedResource>
-    <EmbeddedResource Include="Assets\remote-pump.usda"><LogicalName>remote-pump.usda</LogicalName></EmbeddedResource>
   </ItemGroup>
   <!-- Machinery + Pumps NodeSet2 XMLs are source-generated locally;
        no library refs needed. The generator emits typed classes,

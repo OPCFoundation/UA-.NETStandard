@@ -711,6 +711,12 @@ namespace Opc.Ua.OpenUsd.Client
             if (anyDynamic)
             {
                 await SubscribeModelChangesAsync(eventSource, ct).ConfigureAwait(false);
+
+                // The components above were composed from the address space as it stood
+                // *before* this subscription existed, so a change in between was seen by
+                // neither. Re-resolve once now that both are in place. The resolve is
+                // idempotent and serialized with the event-driven ones.
+                await RunRecomposeAsync().ConfigureAwait(false);
             }
         }
 

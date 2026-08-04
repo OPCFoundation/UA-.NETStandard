@@ -171,7 +171,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Injection");
             var prim = new UsdPrim("Target");
-            prim.Attributes.Add(new UsdAttribute("label", typeName) { Value = value });
+            prim.Attributes.Add(new UsdAttribute("label", typeName) { Value = UsdValue.FromString(value) });
             stage.AddRootPrim(prim);
             return stage;
         }
