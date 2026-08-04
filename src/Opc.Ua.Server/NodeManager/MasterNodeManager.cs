@@ -5418,7 +5418,29 @@ namespace Opc.Ua.Server
                 context,
                 sendInitialValues,
                 monitoredItems,
-                errors).AsTask().GetAwaiter().GetResult();
+                errors,
+                new MonitoredItemTransferOptions()).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        [Obsolete("Use TransferMonitoredItemsAsync with MonitoredItemTransferOptions.")]
+        public virtual ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+        {
+            return TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                errors,
+                new MonitoredItemTransferOptions(),
+                cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -5427,7 +5449,7 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
             if (context == null)
@@ -5443,49 +5465,28 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(errors));
             }
 
-            using OperationContext sourceContext = CreateTransferSourceContext(
-                context,
-                monitoredItems);
             IMonitoredItemTransferTransaction transaction =
                 await PrepareMonitoredItemsTransferAsync(
                     context,
-                    sourceContext,
                     sendInitialValues,
                     monitoredItems,
                     errors,
                     transferOptions,
                     cancellationToken).ConfigureAwait(false);
-            try
-            {
-                transaction.Commit();
-            }
-            catch (Exception commitError)
-            {
-                try
-                {
-                    await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (Exception rollbackError)
-                {
-                    throw new AggregateException(commitError, rollbackError);
-                }
-                throw;
-            }
+            transaction.Commit();
         }
 
         ValueTask<IMonitoredItemTransferTransaction>
             IMonitoredItemTransferCoordinator.PrepareMonitoredItemsTransferAsync(
                 OperationContext destinationContext,
-                OperationContext sourceContext,
                 bool sendInitialValues,
                 IList<IMonitoredItem> monitoredItems,
                 IList<ServiceResult> errors,
-                MonitoredItemTransferOptions? transferOptions,
+                MonitoredItemTransferOptions transferOptions,
                 CancellationToken cancellationToken)
         {
             return PrepareMonitoredItemsTransferAsync(
                 destinationContext,
-                sourceContext,
                 sendInitialValues,
                 monitoredItems,
                 errors,
@@ -5496,20 +5497,15 @@ namespace Opc.Ua.Server
         private async ValueTask<IMonitoredItemTransferTransaction>
             PrepareMonitoredItemsTransferAsync(
                 OperationContext destinationContext,
-                OperationContext sourceContext,
                 bool sendInitialValues,
                 IList<IMonitoredItem> monitoredItems,
                 IList<ServiceResult> errors,
-                MonitoredItemTransferOptions? transferOptions,
+                MonitoredItemTransferOptions transferOptions,
                 CancellationToken cancellationToken)
         {
             if (destinationContext == null)
             {
                 throw new ArgumentNullException(nameof(destinationContext));
-            }
-            if (sourceContext == null)
-            {
-                throw new ArgumentNullException(nameof(sourceContext));
             }
             if (monitoredItems == null)
             {
@@ -5521,20 +5517,16 @@ namespace Opc.Ua.Server
             }
 
             var processedItems = new List<bool>(monitoredItems.Count);
-            var originalErrors = new ServiceResult[errors.Count];
-            var resendStates = new bool[monitoredItems.Count];
             var effectiveTransferOptions = new MonitoredItemTransferOptions
             {
                 DeferInitialValues = sendInitialValues ||
-                    (transferOptions?.DeferInitialValues ?? false)
+                    transferOptions.DeferInitialValues
             };
 
             // preset results for unknown nodes
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = monitoredItems[ii];
-                originalErrors[ii] = errors[ii];
-                resendStates[ii] = monitoredItem?.IsResendData ?? false;
                 bool isDetached = monitoredItem is IDetachableMonitoredItem
                 {
                     IsDetached: true
@@ -5547,7 +5539,6 @@ namespace Opc.Ua.Server
                     : new ServiceResult(StatusCodes.BadMonitoredItemIdInvalid);
             }
 
-            var participants = new List<MonitoredItemTransferParticipant>();
             List<(IAsyncNodeManager Owner, List<int> Indices)>? owners =
                 GroupDataMonitoredItemsByOwner(
                     monitoredItems,
@@ -5569,46 +5560,32 @@ namespace Opc.Ua.Server
 
                     try
                     {
-                        using (MonitoredItemTransferExecution.BeginDeferredInitialValues())
-                        {
-                            await owner.TransferMonitoredItemsAsync(
-                                    destinationContext,
-                                    sendInitialValues,
-                                    monitoredItems,
-                                    ownedItems,
-                                    errors,
-                                    effectiveTransferOptions,
-                                    cancellationToken)
-                                .ConfigureAwait(false);
-                        }
+                        await owner.TransferMonitoredItemsAsync(
+                                destinationContext,
+                                sendInitialValues,
+                                monitoredItems,
+                                ownedItems,
+                                errors,
+                                effectiveTransferOptions,
+                                cancellationToken)
+                            .ConfigureAwait(false);
                     }
                     catch (Exception transferError)
                     {
-                        var failedTransaction = new MonitoredItemTransferTransaction(
-                            sourceContext,
-                            sendInitialValues,
-                            monitoredItems,
-                            errors,
-                            originalErrors,
-                            resendStates,
-                            participants,
-                            effectiveTransferOptions);
-                        try
+                        m_logger.MonitoredItemTransferFailedForNodeManager(
+                            transferError,
+                            owner.GetType().Name);
+                        foreach (int ii in indices)
                         {
-                            await failedTransaction.RollbackAsync(CancellationToken.None)
-                                .ConfigureAwait(false);
+                            errors[ii] = ServiceResult.Create(
+                                transferError,
+                                StatusCodes.BadUnexpectedError,
+                                string.Empty);
+                            ownedItems[ii] = true;
+                            processedItems[ii] = true;
                         }
-                        catch (Exception rollbackError)
-                        {
-                            throw new AggregateException(transferError, rollbackError);
-                        }
-                        throw;
+                        continue;
                     }
-
-                    participants.Add(
-                        new MonitoredItemTransferParticipant(
-                            owner,
-                            [.. indices]));
 
                     // Merge the owner's processed marks back into the shared list.
                     foreach (int ii in indices)
@@ -5622,84 +5599,22 @@ namespace Opc.Ua.Server
             }
 
             return new MonitoredItemTransferTransaction(
-                sourceContext,
                 sendInitialValues,
                 monitoredItems,
-                errors,
-                originalErrors,
-                resendStates,
-                participants,
-                effectiveTransferOptions);
-        }
-
-        private static OperationContext CreateTransferSourceContext(
-            OperationContext destinationContext,
-            IList<IMonitoredItem> monitoredItems)
-        {
-            if (destinationContext == null)
-            {
-                throw new ArgumentNullException(nameof(destinationContext));
-            }
-            if (monitoredItems == null)
-            {
-                throw new ArgumentNullException(nameof(monitoredItems));
-            }
-
-            ISession? sourceSession = null;
-            for (int ii = 0; ii < monitoredItems.Count; ii++)
-            {
-                sourceSession = monitoredItems[ii]?.Session;
-                if (sourceSession != null)
-                {
-                    break;
-                }
-            }
-
-            return sourceSession != null
-                ? new OperationContext(sourceSession, destinationContext.DiagnosticsMask)
-                : new OperationContext(
-                    new RequestHeader(),
-                    null!,
-                    RequestType.Unknown,
-                    RequestLifetime.None);
-        }
-
-        private sealed class MonitoredItemTransferParticipant
-        {
-            public MonitoredItemTransferParticipant(
-                IAsyncNodeManager nodeManager,
-                int[] processedItems)
-            {
-                NodeManager = nodeManager;
-                ProcessedItems = processedItems;
-            }
-
-            public IAsyncNodeManager NodeManager { get; }
-
-            public int[] ProcessedItems { get; }
+                errors);
         }
 
         private sealed class MonitoredItemTransferTransaction :
             IMonitoredItemTransferTransaction
         {
             public MonitoredItemTransferTransaction(
-                OperationContext sourceContext,
                 bool sendInitialValues,
                 IList<IMonitoredItem> monitoredItems,
-                IList<ServiceResult> errors,
-                ServiceResult[] originalErrors,
-                bool[] resendStates,
-                List<MonitoredItemTransferParticipant> participants,
-                MonitoredItemTransferOptions transferOptions)
+                IList<ServiceResult> errors)
             {
-                m_sourceContext = sourceContext;
                 m_sendInitialValues = sendInitialValues;
                 m_monitoredItems = monitoredItems;
                 m_errors = errors;
-                m_originalErrors = originalErrors;
-                m_resendStates = resendStates;
-                m_participants = participants;
-                m_transferOptions = transferOptions;
             }
 
             public void Commit()
@@ -5735,66 +5650,9 @@ namespace Opc.Ua.Server
                 }
             }
 
-            public async ValueTask RollbackAsync(CancellationToken cancellationToken)
-            {
-                int previousState = Interlocked.Exchange(ref m_state, 2);
-                if (previousState == 2)
-                {
-                    return;
-                }
-
-                var rollbackErrors = new List<Exception>();
-                for (int ii = m_participants.Count - 1; ii >= 0; ii--)
-                {
-                    MonitoredItemTransferParticipant participant = m_participants[ii];
-                    var processedItems = Enumerable.Repeat(true, m_monitoredItems.Count).ToList();
-                    for (int jj = 0; jj < participant.ProcessedItems.Length; jj++)
-                    {
-                        processedItems[participant.ProcessedItems[jj]] = false;
-                    }
-                    var errors = Enumerable.Repeat(ServiceResult.Good, m_monitoredItems.Count).ToList();
-                    try
-                    {
-                        await participant.NodeManager.RollbackMonitoredItemsTransferAsync(
-                                m_sourceContext,
-                                m_monitoredItems,
-                                processedItems,
-                                errors,
-                                m_transferOptions,
-                                cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                    catch (Exception error)
-                    {
-                        rollbackErrors.Add(error);
-                    }
-                }
-
-                for (int ii = 0; ii < m_monitoredItems.Count; ii++)
-                {
-                    if (m_monitoredItems[ii] is IMonitoredItemTransferState transferState)
-                    {
-                        transferState.RestoreResendDataTrigger(m_resendStates[ii]);
-                    }
-                    m_errors[ii] = m_originalErrors[ii];
-                }
-
-                if (rollbackErrors.Count > 0)
-                {
-                    throw new AggregateException(
-                        "One or more monitored-item owners could not roll back a failed transfer.",
-                        rollbackErrors);
-                }
-            }
-
-            private readonly OperationContext m_sourceContext;
             private readonly bool m_sendInitialValues;
             private readonly IList<IMonitoredItem> m_monitoredItems;
             private readonly IList<ServiceResult> m_errors;
-            private readonly ServiceResult[] m_originalErrors;
-            private readonly bool[] m_resendStates;
-            private readonly List<MonitoredItemTransferParticipant> m_participants;
-            private readonly MonitoredItemTransferOptions m_transferOptions;
             private int m_state;
         }
 
@@ -7683,6 +7541,13 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             uint monitoredItemId);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 23, Level = LogLevel.Error,
+            Message = "NodeManager threw an exception transferring monitored items. NodeManager={NodeManager}")]
+        public static partial void MonitoredItemTransferFailedForNodeManager(
+            this ILogger logger,
+            Exception ex,
+            string nodeManager);
 
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 17, Level = LogLevel.Debug,
             Message = "Current user has no granted role.")]

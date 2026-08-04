@@ -7262,6 +7262,34 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItems">The set of monitoring items to update.</param>
         /// <param name="processedItems">The list of bool with items that were already processed.</param>
         /// <param name="errors">Any errors.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        [Obsolete("Use TransferMonitoredItemsAsync with MonitoredItemTransferOptions.")]
+        public virtual ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+        {
+            return TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                processedItems,
+                errors,
+                new MonitoredItemTransferOptions(),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
+        /// <param name="monitoredItems">The set of monitoring items to update.</param>
+        /// <param name="processedItems">The list of bool with items that were already processed.</param>
+        /// <param name="errors">Any errors.</param>
         /// <param name="transferOptions">Options that describe the transfer execution.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         public virtual async ValueTask TransferMonitoredItemsAsync(
@@ -7270,13 +7298,12 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             var transferredItems = new List<IMonitoredItem>();
-            bool deferInitialValues = transferOptions?.DeferInitialValues
-                ?? MonitoredItemTransferExecution.DeferInitialValues;
+            bool deferInitialValues = transferOptions.DeferInitialValues;
 
             await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -7317,76 +7344,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rolls back side effects produced by a failed monitored-item transfer.
-        /// </summary>
-        /// <param name="context">The source context to restore.</param>
-        /// <param name="monitoredItems">The set of monitoring items to roll back.</param>
-        /// <param name="processedItems">The list of bool with items that were already processed.</param>
-        /// <param name="errors">Any errors.</param>
-        /// <param name="transferOptions">Options that describe the transfer execution.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        public virtual async ValueTask RollbackMonitoredItemsTransferAsync(
-            OperationContext context,
-            IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems,
-            IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
-            CancellationToken cancellationToken = default)
-        {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
-            var rolledBackItems = new List<IMonitoredItem>();
-
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                for (int ii = 0; ii < monitoredItems.Count; ii++)
-                {
-                    if (processedItems[ii] || monitoredItems[ii] == null)
-                    {
-                        continue;
-                    }
-
-                    NodeHandle? handle = IsHandleInNamespace(monitoredItems[ii].ManagerHandle);
-                    if (handle == null)
-                    {
-                        continue;
-                    }
-
-                    processedItems[ii] = true;
-                    rolledBackItems.Add(monitoredItems[ii]);
-                    errors[ii] = StatusCodes.Good;
-                }
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
-            }
-
-            await OnMonitoredItemsTransferRolledBackAsync(systemContext, rolledBackItems, cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Called after transfer of MonitoredItems.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="monitoredItems">The transferred monitored items.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         protected virtual ValueTask OnMonitoredItemsTransferredAsync(
-            ServerSystemContext context,
-            IList<IMonitoredItem> monitoredItems,
-            CancellationToken cancellationToken = default)
-        {
-            // defined by the sub-class
-            return new ValueTask();
-        }
-
-        /// <summary>
-        /// Called after rollback of a failed monitored-item transfer.
-        /// </summary>
-        /// <param name="context">The source context restored by rollback.</param>
-        /// <param name="monitoredItems">The monitored items rolled back.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        protected virtual ValueTask OnMonitoredItemsTransferRolledBackAsync(
             ServerSystemContext context,
             IList<IMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)

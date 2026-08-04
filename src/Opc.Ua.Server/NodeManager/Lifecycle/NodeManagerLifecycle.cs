@@ -37,6 +37,17 @@ using Opc.Ua.Server.RuntimeNodeSet;
 namespace Opc.Ua.Server
 {
     /// <summary>
+    /// Factory opt-in for lifecycle operations initiated from OPC UA request callbacks.
+    /// </summary>
+    internal interface IRequestCallbackSafeNodeManagerFactory
+    {
+        /// <summary>
+        /// Gets whether request callbacks may enter lifecycle work without deadlocking request drains.
+        /// </summary>
+        bool AllowLifecycleFromRequestCallback { get; }
+    }
+
+    /// <summary>
     /// Default live NodeManager lifecycle provider owned by a <see cref="StandardServer"/>.
     /// </summary>
     public sealed class NodeManagerLifecycle : INodeManagerLifecycle, IDisposable
@@ -63,6 +74,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
+
+        /// <inheritdoc/>
+        public bool IsShuttingDown => m_shuttingDown;
 
         internal long ShutdownCleanupProgress =>
             Interlocked.Read(ref m_shutdownCleanupProgress);
@@ -290,6 +304,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> AddAsync(
             IAsyncNodeManagerFactory factory,
+            IOperationContext? callerContext,
             CancellationToken ct = default)
         {
             if (factory is null)
@@ -300,12 +315,14 @@ namespace Opc.Ua.Server
             return AddCoreAsync(
                 factory.CreateAsync,
                 IsRequestCallbackSafe(factory),
+                callerContext,
                 ct);
         }
 
         /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> AddAsync(
             INodeManagerFactory factory,
+            IOperationContext? callerContext,
             CancellationToken ct = default)
         {
             if (factory is null)
@@ -317,6 +334,7 @@ namespace Opc.Ua.Server
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
                     factory.Create(server, configuration).ToAsyncNodeManager()),
                 allowRequestCallback: false,
+                callerContext,
                 ct);
         }
 
@@ -324,6 +342,7 @@ namespace Opc.Ua.Server
         public ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
+            IOperationContext? callerContext,
             CancellationToken ct = default)
         {
             if (replacement is null)
@@ -336,6 +355,7 @@ namespace Opc.Ua.Server
                 replacement.CreateAsync,
                 ReloadRetirementMode.Migrate,
                 allowRequestCallback: IsRequestCallbackSafe(replacement),
+                callerContext,
                 ct);
         }
 
@@ -343,6 +363,7 @@ namespace Opc.Ua.Server
         public ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
+            IOperationContext? callerContext,
             CancellationToken ct = default)
         {
             if (replacement is null)
@@ -356,6 +377,7 @@ namespace Opc.Ua.Server
                     replacement.Create(server, configuration).ToAsyncNodeManager()),
                 ReloadRetirementMode.Migrate,
                 allowRequestCallback: false,
+                callerContext,
                 ct);
         }
 
@@ -375,6 +397,7 @@ namespace Opc.Ua.Server
                 replacement.CreateAsync,
                 ReloadRetirementMode.Graceful,
                 allowRequestCallback: IsRequestCallbackSafe(replacement),
+                callerContext: null,
                 ct);
         }
 
@@ -395,6 +418,7 @@ namespace Opc.Ua.Server
                     replacement.Create(server, configuration).ToAsyncNodeManager()),
                 ReloadRetirementMode.Graceful,
                 allowRequestCallback: false,
+                callerContext: null,
                 ct);
         }
 
@@ -414,6 +438,7 @@ namespace Opc.Ua.Server
                 replacement.CreateAsync,
                 ReloadRetirementMode.Immediate,
                 allowRequestCallback: IsRequestCallbackSafe(replacement),
+                callerContext: null,
                 ct);
         }
 
@@ -434,12 +459,14 @@ namespace Opc.Ua.Server
                     replacement.Create(server, configuration).ToAsyncNodeManager()),
                 ReloadRetirementMode.Immediate,
                 allowRequestCallback: false,
+                callerContext: null,
                 ct);
         }
 
         /// <inheritdoc/>
         public async ValueTask RemoveAsync(
             NodeManagerRegistration registration,
+            IOperationContext? callerContext,
             CancellationToken ct = default)
         {
             if (registration is null)
@@ -454,14 +481,14 @@ namespace Opc.Ua.Server
             bool allowRequestCallback =
                 permissionState.AllowLifecycleFromRequestCallback;
             (IServerInternal entryServer, _) =
-                GetRunningServer(allowRequestCallback);
+                GetRunningServer(allowRequestCallback, callerContext);
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
                 .ConfigureAwait(false);
             try
             {
-                EnsureRequestCallbackAllowed(allowRequestCallback);
+                EnsureRequestCallbackAllowed(allowRequestCallback, callerContext);
                 (IServerInternal cleanupServer, IDynamicNodeManagerHost cleanupHost) =
                     GetRunningServer(allowRequestCallback);
                 await CleanupRetiredNodeManagersAsync(cleanupServer, cleanupHost)
@@ -729,11 +756,12 @@ namespace Opc.Ua.Server
         private async ValueTask<NodeManagerRegistration> AddCoreAsync(
             CreateNodeManagerAsync createNodeManager,
             bool allowRequestCallback,
-            CancellationToken ct)
+            IOperationContext? callerContext,
+            CancellationToken ct = default)
         {
             using OperationLifetime operation = EnterLifecycleOperation();
             (IServerInternal entryServer, _) =
-                GetRunningServer(allowRequestCallback);
+                GetRunningServer(allowRequestCallback, callerContext);
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
@@ -969,7 +997,8 @@ namespace Opc.Ua.Server
             CreateNodeManagerAsync createNodeManager,
             ReloadRetirementMode retirementMode,
             bool allowRequestCallback,
-            CancellationToken ct)
+            IOperationContext? callerContext,
+            CancellationToken ct = default)
         {
             if (registration is null)
             {
@@ -982,7 +1011,7 @@ namespace Opc.Ua.Server
             allowRequestCallback = factoryAllowsRequestCallback &&
                 permissionState.AllowLifecycleFromRequestCallback;
             (IServerInternal entryServer, _) =
-                GetRunningServer(allowRequestCallback);
+                GetRunningServer(allowRequestCallback, callerContext);
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
@@ -1002,7 +1031,7 @@ namespace Opc.Ua.Server
                 retirementMode == ReloadRetirementMode.Immediate;
             try
             {
-                EnsureRequestCallbackAllowed(allowRequestCallback);
+                EnsureRequestCallbackAllowed(allowRequestCallback, callerContext);
                 (IServerInternal cleanupServer, IDynamicNodeManagerHost cleanupHost) =
                     GetRunningServer(allowRequestCallback);
                 await CleanupRetiredNodeManagersAsync(cleanupServer, cleanupHost)
@@ -1011,7 +1040,7 @@ namespace Opc.Ua.Server
                 current = GetCurrentState(registration);
                 allowRequestCallback = factoryAllowsRequestCallback &&
                     current.AllowLifecycleFromRequestCallback;
-                EnsureRequestCallbackAllowed(allowRequestCallback);
+                EnsureRequestCallbackAllowed(allowRequestCallback, callerContext);
                 (server, host) = GetRunningServer(allowRequestCallback);
                 namespaceCountBefore = server.NamespaceUris.Count;
                 if (immediateRetirement)
@@ -1484,7 +1513,8 @@ namespace Opc.Ua.Server
         }
 
         private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer(
-            bool allowRequestCallback = false)
+            bool allowRequestCallback = false,
+            IOperationContext? callerContext = null)
         {
             if (m_disposed)
             {
@@ -1503,7 +1533,7 @@ namespace Opc.Ua.Server
             }
 
             IServerInternal server = m_server.CurrentInstance;
-            if (server.RequestManager.IsExecutingRequest &&
+            if (server.RequestManager.IsExecutingRequest(callerContext) &&
                 !allowRequestCallback)
             {
                 throw new InvalidOperationException(
@@ -1776,10 +1806,14 @@ namespace Opc.Ua.Server
             }
         }
 
-        private void EnsureRequestCallbackAllowed(bool allowRequestCallback)
+        private void EnsureRequestCallbackAllowed(
+            bool allowRequestCallback,
+            IOperationContext? callerContext)
         {
-            if (m_server.CurrentState == ServerState.Running &&
-                m_server.CurrentInstance.RequestManager.IsExecutingRequest &&
+            // The server state is deliberately not consulted. A request that is still executing
+            // while the server shuts down would otherwise slip past the guard and wait for its
+            // own request, and the request registry reports an exact answer in every state.
+            if (m_server.CurrentInstance.RequestManager.IsExecutingRequest(callerContext) &&
                 !allowRequestCallback)
             {
                 throw new InvalidOperationException(
@@ -1801,10 +1835,20 @@ namespace Opc.Ua.Server
         {
             RequestManagerLifecycleExtension? extension =
                 server.RequestManager.LifecycleExtension;
-            return extension is not null &&
-                server.RequestManager.IsExecutingRequest
-                    ? extension.EnterLifecycleWaiter()
-                    : null;
+            if (extension is null)
+            {
+                return null;
+            }
+
+            // The drain waiter correlates by the ambient request that is executing the
+            // lifecycle operation, not by the explicit caller context. ShadowReloadAsync and
+            // other internal callers pass a null caller context but still run inside a request
+            // scope, so gating on the ambient request keeps them excluded from their own drain.
+            uint? currentRequestId =
+                server.RequestManager.GetCurrentRequestIdForLifecycleExtension();
+            return currentRequestId.HasValue && currentRequestId.Value != uint.MaxValue
+                ? extension.EnterLifecycleWaiter()
+                : null;
         }
 
         private static bool IsRequestCallbackSafe(IAsyncNodeManagerFactory factory)

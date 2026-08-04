@@ -130,8 +130,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Frees any unmanaged resources.
+        /// Frees resources by running the asynchronous disposal core synchronously.
         /// </summary>
+        /// <remarks>
+        /// Callers should prefer <see cref="DisposeAsync"/>. If <see cref="DisposeAsync"/> has already run,
+        /// this method is a no-op.
+        /// </remarks>
         public void Dispose()
         {
             Dispose(true);
@@ -139,8 +143,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Frees managed resources that require asynchronous shutdown.
+        /// Frees resources asynchronously.
         /// </summary>
+        /// <remarks>
+        /// This is the preferred disposal path. A subsequent call to <see cref="Dispose()"/> is a no-op.
+        /// </remarks>
         public async ValueTask DisposeAsync()
         {
             await DisposeAsyncCore().ConfigureAwait(false);
@@ -148,20 +155,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Runs the asynchronous disposal core synchronously when disposing managed resources.
         /// </summary>
-        /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+        /// <param name="disposing">
+        /// <c>true</c> to release managed resources; <c>false</c> to release only unmanaged resources.
+        /// </param>
+        /// <remarks>
+        /// If <see cref="DisposeAsyncCore"/> has already run, this method is a no-op.
+        /// </remarks>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
+            if (disposing && Volatile.Read(ref m_disposed) == 0)
             {
-                DisposeManagedResources();
+#pragma warning disable CA2012 // Owner-approved sync dispose path blocks here; TODO: remove if contract changes.
+                DisposeAsyncCore().GetAwaiter().GetResult();
+#pragma warning restore CA2012
             }
         }
 
         /// <summary>
         /// An overrideable version of asynchronous dispose.
         /// </summary>
+        /// <remarks>
+        /// This method performs the full managed-resource cleanup. <see cref="Dispose()"/> calls this method
+        /// synchronously when callers use the synchronous disposal path.
+        /// </remarks>
         protected virtual async ValueTask DisposeAsyncCore()
         {
             if (Interlocked.Exchange(ref m_disposed, 1) != 0)
@@ -169,32 +187,6 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            await DisposeManagedResourcesAsync().ConfigureAwait(false);
-        }
-
-        private void DisposeManagedResources()
-        {
-            DisposeManagedResourcesBeforeSubscriptionManager();
-            SubscriptionManager?.Dispose();
-            DisposeManagedResourcesAfterSubscriptionManager();
-        }
-
-        private async ValueTask DisposeManagedResourcesAsync()
-        {
-            DisposeManagedResourcesBeforeSubscriptionManager();
-            if (SubscriptionManager is IAsyncDisposable asyncSubscriptionManager)
-            {
-                await asyncSubscriptionManager.DisposeAsync().ConfigureAwait(false);
-            }
-            else
-            {
-                SubscriptionManager?.Dispose();
-            }
-            DisposeManagedResourcesAfterSubscriptionManager();
-        }
-
-        private void DisposeManagedResourcesBeforeSubscriptionManager()
-        {
             m_roleStateBinding?.Dispose();
             m_roleStateBinding = null;
             (RoleManager as IDisposable)?.Dispose();
@@ -216,10 +208,14 @@ namespace Opc.Ua.Server
             CoreNodeManager = null!;
             SessionManager?.Dispose();
             SessionManager = null!;
-        }
-
-        private void DisposeManagedResourcesAfterSubscriptionManager()
-        {
+            if (SubscriptionManager is IAsyncDisposable asyncSubscriptionManager)
+            {
+                await asyncSubscriptionManager.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                SubscriptionManager?.Dispose();
+            }
             SubscriptionManager = null!;
             MonitoredItemQueueFactory?.Dispose();
             MonitoredItemQueueFactory = null!;

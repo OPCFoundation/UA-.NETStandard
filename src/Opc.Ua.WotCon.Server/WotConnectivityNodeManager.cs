@@ -446,8 +446,9 @@ namespace Opc.Ua.WotCon.Server
                 child.ValueRank = ValueRanks.Scalar;
                 child.AccessLevel = kv.Value.Writable ? AccessLevels.CurrentReadOrWrite : AccessLevels.CurrentRead;
                 child.UserAccessLevel = child.AccessLevel;
-                child.Value = kv.Value.InitialValue
-                    ?? TypeInfo.GetDefaultVariantValue(kv.Value.DataType, ValueRanks.Scalar);
+                child.Value = kv.Value.HasInitialValue
+                    ? kv.Value.InitialValue
+                    : TypeInfo.GetDefaultVariantValue(kv.Value.DataType, ValueRanks.Scalar);
                 if (!string.IsNullOrEmpty(kv.Value.Description))
                 {
                     child.Description = new LocalizedText(kv.Value.Description);
@@ -578,7 +579,10 @@ namespace Opc.Ua.WotCon.Server
             MessageSecurityMode securityMode = operationContext.ChannelContext?
                 .EndpointDescription?.SecurityMode ??
                 MessageSecurityMode.None;
-            if (securityMode != policy.MinimumSecurityMode)
+            // MinimumSecurityMode is a floor, not an exact match: MessageSecurityMode is ordered by
+            // strength (Invalid < None < Sign < SignAndEncrypt), so a channel at or above the
+            // configured mode is accepted and Invalid is always rejected.
+            if (securityMode < policy.MinimumSecurityMode)
             {
                 m_logger.ManagementCallDeniedSecurityMode(operation, securityMode, policy.MinimumSecurityMode);
                 throw new ServiceResultException(

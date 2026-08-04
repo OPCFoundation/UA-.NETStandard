@@ -849,7 +849,10 @@ namespace Opc.Ua.Server
         /// <param name="context">The session to which the subscription is transferred.</param>
         /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default)
+        public async ValueTask TransferSessionAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            CancellationToken cancellationToken = default)
         {
             ISession destinationSession = context.Session;
             ISession? sourceSession;
@@ -865,13 +868,14 @@ namespace Opc.Ua.Server
                 errors.Add(null!);
             }
 
-            await m_server.NodeManager.TransferMonitoredItemsAsync(
-                context,
-                sendInitialValues,
-                monitoredItems,
-                errors,
-                null,
-                cancellationToken)
+            await m_server.NodeManager
+                .TransferMonitoredItemsAsync(
+                    context,
+                    sendInitialValues,
+                    monitoredItems,
+                    errors,
+                    new MonitoredItemTransferOptions(),
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             int badTransfers = 0;
@@ -908,7 +912,6 @@ namespace Opc.Ua.Server
                 Diagnostics.SessionId = destinationSession.Id;
             }
         }
-
 
         /// <inheritdoc/>
         public bool IsTransferIdentityCompatible(ISession targetSession)
@@ -1000,63 +1003,45 @@ namespace Opc.Ua.Server
                 errors.Add(null!);
             }
 
-            OperationContext? sourceContext = null;
             IMonitoredItemTransferTransaction? monitoredItemTransaction = null;
-            try
+            if (m_server.NodeManager is IMonitoredItemTransferCoordinator coordinator)
             {
-                if (m_server.NodeManager is IMonitoredItemTransferCoordinator coordinator)
+                monitoredItemTransaction = await coordinator.PrepareMonitoredItemsTransferAsync(
+                    context,
+                    sendInitialValues,
+                    monitoredItems,
+                    errors,
+                    new MonitoredItemTransferOptions
+                    {
+                        DeferInitialValues = sendInitialValues
+                    },
+                    cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                var fallbackTransaction = new ResendStateTransferTransaction(
+                    monitoredItems);
+                try
                 {
-                    sourceContext = sourceSession != null
-                        ? new OperationContext(sourceSession, context.DiagnosticsMask)
-                        : new OperationContext(
-                            new RequestHeader(),
-                            null!,
-                            RequestType.Unknown,
-                            RequestLifetime.None);
-                    monitoredItemTransaction = await coordinator.PrepareMonitoredItemsTransferAsync(
+                    // The non-coordinator contract has no commit callback.
+                    // Keep legacy eager resend semantics instead of
+                    // requesting deferral that cannot be committed here.
+                    await m_server.NodeManager.TransferMonitoredItemsAsync(
                         context,
-                        sourceContext,
                         sendInitialValues,
                         monitoredItems,
                         errors,
-                        new MonitoredItemTransferOptions
-                        {
-                            DeferInitialValues = sendInitialValues
-                        },
+                        new MonitoredItemTransferOptions(),
                         cancellationToken)
                         .ConfigureAwait(false);
                 }
-                else
+                catch
                 {
-                    var fallbackTransaction = new ResendStateTransferTransaction(
-                        monitoredItems);
-                    try
-                    {
-                        // The non-coordinator contract has no commit callback.
-                        // Keep legacy eager resend semantics instead of
-                        // requesting deferral that cannot be committed here.
-                        await m_server.NodeManager.TransferMonitoredItemsAsync(
-                            context,
-                            sendInitialValues,
-                            monitoredItems,
-                            errors,
-                            transferOptions: null,
-                            cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        await fallbackTransaction.RollbackAsync(CancellationToken.None)
-                            .ConfigureAwait(false);
-                        throw;
-                    }
-                    monitoredItemTransaction = fallbackTransaction;
+                    fallbackTransaction.Rollback();
+                    throw;
                 }
-            }
-            catch
-            {
-                sourceContext?.Dispose();
-                throw;
+                monitoredItemTransaction = fallbackTransaction;
             }
 
             int badTransfers = 0;
@@ -1076,8 +1061,7 @@ namespace Opc.Ua.Server
                 this,
                 sourceSession,
                 context.Session,
-                monitoredItemTransaction,
-                sourceContext);
+                monitoredItemTransaction);
         }
 
         /// <summary>
@@ -1123,25 +1107,22 @@ namespace Opc.Ua.Server
         internal sealed class PreparedSessionTransfer
         {
             /// <summary>
-            /// Initializes a prepared transfer with the source context and monitored item transaction to dispose.
+            /// Initializes a prepared transfer with the monitored item transaction to commit.
             /// </summary>
             /// <param name="subscription">The subscription being transferred.</param>
             /// <param name="sourceSession">The session that owned the subscription when preparation started.</param>
             /// <param name="destinationSession">The session that will own the subscription after commit.</param>
             /// <param name="monitoredItemTransaction">The prepared monitored item transfer, if one was needed.</param>
-            /// <param name="sourceContext">The source operation context created for monitored item callbacks.</param>
             public PreparedSessionTransfer(
                 Subscription subscription,
                 ISession? sourceSession,
                 ISession destinationSession,
-                IMonitoredItemTransferTransaction? monitoredItemTransaction,
-                OperationContext? sourceContext)
+                IMonitoredItemTransferTransaction? monitoredItemTransaction)
             {
                 m_subscription = subscription;
                 m_sourceSession = sourceSession;
                 m_destinationSession = destinationSession;
                 m_monitoredItemTransaction = monitoredItemTransaction;
-                m_sourceContext = sourceContext;
             }
 
             /// <summary>
@@ -1179,58 +1160,39 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
-            /// Restores source ownership and monitored item state when a later transfer step fails.
+            /// Restores source ownership when a later transfer step fails.
             /// </summary>
-            /// <param name="cancellationToken">The token that aborts monitored item rollback.</param>
+            /// <param name="cancellationToken">The unused cancellation token.</param>
             /// <returns>A task that completes when rollback has finished.</returns>
             /// <exception cref="AggregateException">One or more rollback steps failed.</exception>
-            public async ValueTask RollbackAsync(CancellationToken cancellationToken)
+            public ValueTask RollbackAsync(CancellationToken cancellationToken)
             {
+                _ = cancellationToken;
                 var rollbackErrors = new List<Exception>();
                 try
                 {
-                    try
+                    lock (m_subscription.m_lock)
                     {
-                        lock (m_subscription.m_lock)
+                        if (ReferenceEquals(m_subscription.Session, m_destinationSession))
                         {
-                            if (ReferenceEquals(m_subscription.Session, m_destinationSession))
-                            {
-                                m_subscription.Session = m_sourceSession!;
-                            }
-                            else if (!ReferenceEquals(m_subscription.Session, m_sourceSession))
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadSubscriptionIdInvalid,
-                                    "Subscription ownership changed while rolling back transfer.");
-                            }
+                            m_subscription.Session = m_sourceSession!;
                         }
-
-                        lock (m_subscription.DiagnosticsWriteLock)
+                        else if (!ReferenceEquals(m_subscription.Session, m_sourceSession))
                         {
-                            m_subscription.Diagnostics.SessionId = m_sourceSession?.Id ?? default;
+                            throw new ServiceResultException(
+                                StatusCodes.BadSubscriptionIdInvalid,
+                                "Subscription ownership changed while rolling back transfer.");
                         }
                     }
-                    catch (Exception error)
-                    {
-                        rollbackErrors.Add(error);
-                    }
 
-                    if (m_monitoredItemTransaction != null)
+                    lock (m_subscription.DiagnosticsWriteLock)
                     {
-                        try
-                        {
-                            await m_monitoredItemTransaction.RollbackAsync(cancellationToken)
-                                .ConfigureAwait(false);
-                        }
-                        catch (Exception error)
-                        {
-                            rollbackErrors.Add(error);
-                        }
+                        m_subscription.Diagnostics.SessionId = m_sourceSession?.Id ?? default;
                     }
                 }
-                finally
+                catch (Exception error)
                 {
-                    DisposeSourceContext();
+                    rollbackErrors.Add(error);
                 }
 
                 if (rollbackErrors.Count > 0)
@@ -1239,26 +1201,21 @@ namespace Opc.Ua.Server
                         "The subscription transfer could not be fully rolled back.",
                         rollbackErrors);
                 }
+
+                return default;
             }
 
             /// <summary>
-            /// Releases the source operation context after a successful transfer.
+            /// Completes the prepared transfer after all transfer steps have succeeded.
             /// </summary>
             public void Complete()
             {
-                DisposeSourceContext();
-            }
-
-            private void DisposeSourceContext()
-            {
-                Interlocked.Exchange(ref m_sourceContext, null)?.Dispose();
             }
 
             private readonly Subscription m_subscription;
             private readonly ISession? m_sourceSession;
             private readonly ISession m_destinationSession;
             private readonly IMonitoredItemTransferTransaction? m_monitoredItemTransaction;
-            private OperationContext? m_sourceContext;
         }
 
         private sealed class ResendStateTransferTransaction :
@@ -1288,13 +1245,11 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Restores each monitored item's resend-data trigger to the captured value.
             /// </summary>
-            /// <param name="cancellationToken">Unused token; rollback is synchronous and idempotent.</param>
-            /// <returns>A completed task.</returns>
-            public ValueTask RollbackAsync(CancellationToken cancellationToken)
+            public void Rollback()
             {
                 if (Interlocked.Exchange(ref m_rolledBack, 1) != 0)
                 {
-                    return default;
+                    return;
                 }
 
                 for (int ii = 0; ii < m_monitoredItems.Count; ii++)
@@ -1304,13 +1259,11 @@ namespace Opc.Ua.Server
                         transferState.RestoreResendDataTrigger(m_resendStates[ii]);
                     }
                 }
-                return default;
             }
 
             private readonly IList<IMonitoredItem> m_monitoredItems;
             private readonly bool[] m_resendStates;
             private int m_rolledBack;
-
         }
 
         /// <summary>

@@ -54,7 +54,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WoTRefreshOptionsDataType Options { get; set; } = new WoTRefreshOptionsDataType();
 
         /// <summary>
-        /// Gets or sets the caller's expected registry generation. When non-zero
+        /// Gets or sets the caller's expected refresh generation. When non-zero
         /// and it does not match the current generation, the refresh is rejected.
         /// </summary>
         public uint ExpectedGeneration { get; set; }

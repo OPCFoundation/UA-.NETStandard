@@ -364,7 +364,7 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -412,8 +412,9 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Coordinates the detached monitored item hand-over between the current and replacement
-    /// NodeManagers during a lifecycle transition.
+    /// Coordinates handing monitored items from a source session to a destination session, so a
+    /// TransferSubscriptions request can be prepared across every owning NodeManager and then
+    /// committed or rolled back as one unit.
     /// </summary>
     internal interface IMonitoredItemTransferCoordinator
     {
@@ -421,25 +422,23 @@ namespace Opc.Ua.Server
         /// Prepares monitored items for transfer to another session without committing the move.
         /// </summary>
         /// <param name="destinationContext">The operation context for the destination session.</param>
-        /// <param name="sourceContext">The operation context for the source session.</param>
         /// <param name="sendInitialValues">Whether the destination should receive initial values.</param>
         /// <param name="monitoredItems">The monitored items to transfer.</param>
         /// <param name="errors">The per-item transfer results to update.</param>
         /// <param name="transferOptions">Optional transfer behavior supplied by the caller.</param>
         /// <param name="cancellationToken">The token that aborts preparation.</param>
-        /// <returns>A transaction that commits or rolls back the prepared transfer.</returns>
+        /// <returns>A transaction that commits the prepared transfer.</returns>
         ValueTask<IMonitoredItemTransferTransaction> PrepareMonitoredItemsTransferAsync(
             OperationContext destinationContext,
-            OperationContext sourceContext,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken);
     }
 
     /// <summary>
-    /// Represents a prepared monitored item transfer whose ownership change is still reversible.
+    /// Represents a prepared monitored item transfer that defers initial value queuing until commit.
     /// </summary>
     internal interface IMonitoredItemTransferTransaction
     {
@@ -447,12 +446,5 @@ namespace Opc.Ua.Server
         /// Makes the prepared transfer visible to the destination session.
         /// </summary>
         void Commit();
-
-        /// <summary>
-        /// Restores the source session ownership when the prepared transfer cannot be committed.
-        /// </summary>
-        /// <param name="cancellationToken">The token that aborts rollback.</param>
-        /// <returns>A task that completes when rollback has finished.</returns>
-        ValueTask RollbackAsync(CancellationToken cancellationToken);
     }
 }

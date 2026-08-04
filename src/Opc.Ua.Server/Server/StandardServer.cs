@@ -42,8 +42,16 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
-    /// <inheritdoc/>
-    public class StandardServer : SessionServerBase, IStandardServer
+    /// <summary>
+    /// The standard implementation of a UA server.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Dispose()"/> performs the same orderly shutdown as
+    /// <see cref="DisposeAsync"/> and blocks until all owned resources have been
+    /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
+    /// so the shutdown does not block their thread.
+    /// </remarks>
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -180,7 +188,54 @@ namespace Opc.Ua.Server
         /// </summary>
         internal ServerDataTypeDefinitionResolver? ComplexTypeResolverHolder { get; set; }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Initiates disposal of this server.
+        /// </summary>
+        /// <remarks>
+        /// This synchronous <see cref="IDisposable.Dispose"/> entry point intentionally
+        /// blocks on the asynchronous disposal core so deterministic resource release is
+        /// preserved for synchronous callers. Prefer <see cref="DisposeAsync"/> whenever
+        /// the caller can await the shutdown.
+        /// </remarks>
+        public new void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Asynchronously shuts down and disposes this server.
+        /// </summary>
+        /// <returns>A task that completes after all owned server resources have been released.</returns>
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Asynchronously shuts down and disposes this server.
+        /// </summary>
+        /// <returns>A task that completes after all owned server resources have been released.</returns>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            ServerDisposeRequest disposeRequest = BeginServerDispose();
+            await CompleteServerDisposeAsync(disposeRequest).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Synchronously disposes this server.
+        /// </summary>
+        /// <remarks>
+        /// When <paramref name="disposing"/> is <c>true</c>, this method deliberately
+        /// blocks on <see cref="DisposeAsyncCore"/>. That is the owner-approved exception
+        /// to the repository's sync-over-async rule for classes that implement both
+        /// synchronous and asynchronous disposal.
+        /// </remarks>
+        /// <param name="disposing">
+        /// <c>true</c> when called from <see cref="Dispose()"/>; <c>false</c> when called
+        /// by a finalizer.
+        /// </param>
         protected override void Dispose(bool disposing)
         {
             if (!disposing)
@@ -189,24 +244,42 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            if (IsServerDisposeAlreadyRequested())
+            {
+                return;
+            }
+
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult();
+        }
+
+        private bool IsServerDisposeAlreadyRequested()
+        {
+            lock (m_shutdownStateLock)
+            {
+                return m_disposalRequested;
+            }
+        }
+
+        private ServerDisposeRequest BeginServerDispose()
+        {
             ServerInternalData? serverInternal;
             ServerShutdownState? activeShutdownState = null;
             bool disposeWithoutShutdown = false;
             bool firstDisposeRequest;
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 // Dispose must initiate the same orderly shutdown path as StopAsync when the
                 // server is still running, because server resources are released only after
                 // request admission closes and admitted requests drain. Repeat Dispose calls are
-                // safe: m_disposeRequested lets them observe the already-published shutdown task
+                // safe: m_disposalRequested lets them observe the already-published shutdown task
                 // or repeat only null-safe cleanup after disposal has completed.
-                firstDisposeRequest = !m_disposeRequested;
-                m_disposeRequested = true;
+                firstDisposeRequest = !m_disposalRequested;
+                m_disposalRequested = true;
                 serverInternal = m_serverInternal;
                 if (serverInternal is null)
                 {
                     if (m_serverShutdownState is
-                        { ActiveTask.IsCompleted: false } shutdownState)
+                        { ActiveShutdownTask.IsCompleted: false } shutdownState)
                     {
                         activeShutdownState = shutdownState;
                     }
@@ -228,23 +301,48 @@ namespace Opc.Ua.Server
                 m_configurationWatcher = null;
             }
 
+            return new ServerDisposeRequest(
+                serverInternal,
+                activeShutdownState,
+                disposeWithoutShutdown);
+        }
+
+        private async ValueTask CompleteServerDisposeAsync(ServerDisposeRequest disposeRequest)
+        {
+            ServerInternalData? serverInternal = disposeRequest.ServerInternal;
             if (serverInternal is not null)
             {
-                // The retained shutdown observer owns provider, subscription, base-class,
-                // and semaphore disposal after every admitted request has drained.
-                _ = GetOrStartServerInternalShutdown(
-                    serverInternal,
-                    CancellationToken.None);
+                try
+                {
+                    await GetOrStartServerInternalShutdown(
+                            serverInternal,
+                            CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    await CompleteBaseResourceDisposalAsync(disposeLifecycle: false)
+                        .ConfigureAwait(false);
+                }
             }
-            else if (disposeWithoutShutdown)
+            else if (disposeRequest.DisposeWithoutShutdown)
             {
-                CompleteBaseResourceDisposal(disposeLifecycle: true);
+                await CompleteBaseResourceDisposalAsync(disposeLifecycle: true)
+                    .ConfigureAwait(false);
             }
             else
             {
-                EnsureDeferredServerInternalShutdownObserved(
-                    activeShutdownState!,
-                    activeShutdownState!.ActiveTask!);
+                ServerShutdownState activeShutdownState = disposeRequest.ActiveShutdownState!;
+                Task activeShutdown = activeShutdownState.ActiveShutdownTask!;
+                try
+                {
+                    await activeShutdown.ConfigureAwait(false);
+                }
+                finally
+                {
+                    await CompleteBaseResourceDisposalAsync(disposeLifecycle: false)
+                        .ConfigureAwait(false);
+                }
             }
         }
 
@@ -2981,38 +3079,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Dispatches an incoming request and marks the calling flow as serving that request.
-        /// <para>
-        /// The mark has to be applied here rather than while the request is being validated. An
-        /// <see cref="AsyncLocal{T}"/> written inside an <c>async</c> method is visible only to
-        /// that method and to the methods it calls, never to the caller that awaited it, so a mark
-        /// applied by <see cref="ValidateRequestAsync"/> would never reach the service handler.
-        /// Applied here it covers the handler and every NodeManager callback beneath it, which is
-        /// what lets the lifecycle API reject a re-entrant call instead of deadlocking on its own
-        /// request.
-        /// </para>
-        /// </summary>
-        /// <param name="request">The request.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        protected override async Task ProcessRequestAsync(
-            IEndpointIncomingRequest request,
-            CancellationToken cancellationToken = default)
-        {
-            // The request manager is published part-way through startup, so a request that
-            // arrives while the server is still starting has nothing to enrol with yet. Such a
-            // request is rejected by request validation instead of being dispatched.
-            RequestManager? requestManager = m_serverInternal?.RequestManager;
-            if (requestManager == null)
-            {
-                await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            using IDisposable dispatchScope = requestManager.EnterServiceDispatchScope();
-            await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Updates the server state.
         /// </summary>
         /// <param name="state">The state.</param>
@@ -3083,6 +3149,38 @@ namespace Opc.Ua.Server
             }
 
             throw new ServiceResultException(new ServiceResult(resultCode, result));
+        }
+
+        /// <summary>
+        /// Dispatches an incoming request and marks the calling flow as serving that request.
+        /// <para>
+        /// The mark has to be applied here rather than while the request is being validated. An
+        /// <see cref="AsyncLocal{T}"/> written inside an <c>async</c> method is visible only to
+        /// that method and to the methods it calls, never to the caller that awaited it, so a mark
+        /// applied by <see cref="ValidateRequestAsync"/> would never reach the service handler.
+        /// Applied here it covers the handler and every NodeManager callback beneath it, which is
+        /// what lets a NodeManager lifecycle drain exclude the request that started the operation
+        /// instead of deadlocking on its own request.
+        /// </para>
+        /// </summary>
+        /// <param name="request">The request.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected override async Task ProcessRequestAsync(
+            IEndpointIncomingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            // The request manager is published part-way through startup, so a request that
+            // arrives while the server is still starting has nothing to enrol with yet. Such a
+            // request is rejected by request validation instead of being dispatched.
+            RequestManager? requestManager = m_serverInternal?.RequestManager;
+            if (requestManager == null)
+            {
+                await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            using IDisposable dispatchScope = requestManager.EnterServiceDispatchScope();
+            await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -3912,7 +4010,7 @@ namespace Opc.Ua.Server
             {
                 await GetOrStartServerInternalShutdown(
                         serverInternal,
-                        cancellationToken)
+                        CancellationToken.None)
                     .ConfigureAwait(false);
             }
         }
@@ -3925,34 +4023,31 @@ namespace Opc.Ua.Server
             Task shutdown;
             TaskCompletionSource<object?>? reservedShutdown = null;
             bool joiningActiveShutdown = false;
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 if (m_serverShutdownState is null ||
                     !ReferenceEquals(m_serverShutdownState.Server, serverInternal))
                 {
                     m_serverShutdownState = new ServerShutdownState(serverInternal);
-                    m_serverShutdownState.LastDeferredRetryProgress =
-                        GetServerShutdownProgress(m_serverShutdownState);
                 }
                 shutdownState = m_serverShutdownState;
 
-                if (shutdownState.Completed)
+                if (shutdownState.ShutdownCompleted)
                 {
                     shutdown = Task.CompletedTask;
                 }
-                else if (shutdownState.ActiveTask is { IsCompleted: false } activeTask)
+                else if (shutdownState.ActiveShutdownTask is { IsCompleted: false } activeTask)
                 {
                     shutdown = activeTask;
                     joiningActiveShutdown = true;
                 }
                 else
                 {
-                    shutdownState.TerminalError = null;
                     shutdownState.AttemptCount++;
                     reservedShutdown = new TaskCompletionSource<object?>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
                     shutdown = reservedShutdown.Task;
-                    shutdownState.ActiveTask = shutdown;
+                    shutdownState.ActiveShutdownTask = shutdown;
                 }
             }
 
@@ -3964,9 +4059,8 @@ namespace Opc.Ua.Server
                     cancellationToken);
             }
 
-            EnsureDeferredServerInternalShutdownObserved(shutdownState, shutdown);
             if (joiningActiveShutdown &&
-                serverInternal.RequestManager.IsExecutingRequest)
+                serverInternal.RequestManager.GetCurrentRequestIdForLifecycleExtension() is not null)
             {
                 // The shared shutdown drains requests. A request joining that task must
                 // become an excluded lifecycle waiter before it awaits the drain owner.
@@ -4017,7 +4111,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? shutdownWaiter = null;
-            if (shutdown.Server.RequestManager.IsExecutingRequest)
+            if (shutdown.Server.RequestManager.GetCurrentRequestIdForLifecycleExtension() is not null)
             {
                 shutdownWaiter = shutdown.Server.RequestManager.RegisterLifecycleExtension()
                     .EnterLifecycleWaiter();
@@ -4025,7 +4119,7 @@ namespace Opc.Ua.Server
             }
             try
             {
-                await ShutdownServerInternalCoreAsync(shutdown, cancellationToken)
+                await CloseAdmissionDrainRequestsAndTearDownServerAsync(shutdown, cancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -4034,10 +4128,23 @@ namespace Opc.Ua.Server
             }
         }
 
-        private async Task ShutdownServerInternalCoreAsync(
+        /// <summary>
+        /// Runs the ordered server-internal shutdown sequence.
+        /// </summary>
+        /// <remarks>
+        /// The shutdown order is intentional and must preserve three guarantees:
+        /// 1. Request admission closes before teardown starts, so no new service call can enter
+        ///    the retiring server internals.
+        /// 2. Requests admitted before admission closed are drained before sessions and
+        ///    NodeManagers are stopped.
+        /// 3. Server internals, lifecycle state, base resources, and synchronization resources
+        ///    are disposed exactly once, even when Dispose, DisposeAsync, and StopAsync race.
+        /// </remarks>
+        private async Task CloseAdmissionDrainRequestsAndTearDownServerAsync(
             ServerShutdownState shutdown,
             CancellationToken cancellationToken)
         {
+            var failures = new List<Exception>();
             if (!shutdown.RequestAdmissionClosed)
             {
                 shutdown.Server.RequestManager.RegisterLifecycleExtension().CloseAdmission();
@@ -4053,7 +4160,7 @@ namespace Opc.Ua.Server
             var lifecycle = NodeManagerLifecycle as NodeManagerLifecycle;
             ValueTask lifecyclePreparation = default;
             bool prepareLifecycle = lifecycle is not null &&
-                !shutdown.LifecyclePrepared;
+                !shutdown.NodeManagerLifecyclePrepared;
             if (prepareLifecycle)
             {
                 // BeginShutdownAsync records shutdown intent synchronously before its first
@@ -4070,12 +4177,19 @@ namespace Opc.Ua.Server
 
             if (prepareLifecycle)
             {
-                await lifecyclePreparation.ConfigureAwait(false);
-                shutdown.LifecyclePrepared = true;
+                try
+                {
+                    await lifecyclePreparation.ConfigureAwait(false);
+                    shutdown.NodeManagerLifecyclePrepared = true;
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(ex);
+                }
             }
             else if (lifecycle is null)
             {
-                shutdown.LifecyclePrepared = true;
+                shutdown.NodeManagerLifecyclePrepared = true;
             }
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -4083,9 +4197,9 @@ namespace Opc.Ua.Server
             {
                 if (!ReferenceEquals(m_serverInternal, shutdown.Server))
                 {
-                    lock (m_shutdownCoordinationLock)
+                    lock (m_shutdownStateLock)
                     {
-                        shutdown.Completed = true;
+                        shutdown.ShutdownCompleted = true;
                     }
                     return;
                 }
@@ -4097,13 +4211,20 @@ namespace Opc.Ua.Server
 
             if (!shutdown.SubscriptionsStopped)
             {
-                await shutdown.Server.SubscriptionManager
-                    .ShutdownAsync(cancellationToken)
-                    .ConfigureAwait(false);
-                shutdown.SubscriptionsStopped = true;
+                try
+                {
+                    await shutdown.Server.SubscriptionManager
+                        .ShutdownAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                    shutdown.SubscriptionsStopped = true;
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(ex);
+                }
             }
 
-            if (!shutdown.RequestsDrained)
+            if (!shutdown.AdmittedRequestsDrained)
             {
                 Func<Task>? beforeRequestDrain = BeforeServerRequestDrainForTest;
                 if (beforeRequestDrain is not null)
@@ -4114,7 +4235,7 @@ namespace Opc.Ua.Server
                     .WaitForCurrentRequestsAsync(cancellationToken);
                 AfterServerRequestDrainStartedForTest?.Invoke();
                 await requestDrain.ConfigureAwait(false);
-                shutdown.RequestsDrained = true;
+                shutdown.AdmittedRequestsDrained = true;
             }
 
             if (!shutdown.SessionsStopped)
@@ -4127,26 +4248,36 @@ namespace Opc.Ua.Server
 
             if (!shutdown.NodeManagersStopped)
             {
-                // Final node-manager cleanup owns retained resources and must finish even
-                // if the caller abandons the shutdown request.
-                await shutdown.Server.NodeManager
-                    .ShutdownAsync(CancellationToken.None)
-                    .ConfigureAwait(false);
-                shutdown.NodeManagersStopped = true;
+                try
+                {
+                    await shutdown.Server.NodeManager
+                        .ShutdownAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                    shutdown.NodeManagersStopped = true;
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(ex);
+                }
             }
 
             if (!shutdown.LifecycleCompleted)
             {
-                if (lifecycle is not null)
+                try
                 {
-                    // CompleteShutdownAsync disposes retired lifecycle state; cancelling it
-                    // would leak managers that are no longer reachable for a later retry.
-                    await lifecycle.CompleteShutdownAsync(
-                            shutdown.Server,
-                            CancellationToken.None)
-                        .ConfigureAwait(false);
+                    if (lifecycle is not null)
+                    {
+                        await lifecycle.CompleteShutdownAsync(
+                                shutdown.Server,
+                                CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    shutdown.LifecycleCompleted = true;
                 }
-                shutdown.LifecycleCompleted = true;
+                catch (Exception ex)
+                {
+                    failures.Add(ex);
+                }
             }
 
             // The final disposal stage owns the server semaphore. It must not be cancelled
@@ -4161,12 +4292,12 @@ namespace Opc.Ua.Server
                         (NodeManagerLifecycle as IDisposable)?.Dispose();
                         shutdown.LifecycleDisposed = true;
                     }
-                    if (!shutdown.InternalsDisposed)
+                    if (!shutdown.ServerInternalsDisposed)
                     {
                         shutdown.Server.Dispose();
-                        shutdown.InternalsDisposed = true;
+                        shutdown.ServerInternalsDisposed = true;
                     }
-                    lock (m_shutdownCoordinationLock)
+                    lock (m_shutdownStateLock)
                     {
                         if (ReferenceEquals(m_serverInternal, shutdown.Server))
                         {
@@ -4186,286 +4317,25 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Release();
             }
 
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
-                shutdown.Completed = true;
-            }
-        }
-
-        private void EnsureDeferredServerInternalShutdownObserved(
-            ServerShutdownState shutdownState,
-            Task shutdown)
-        {
-            bool observe = false;
-            bool completeDisposal = false;
-            lock (m_shutdownCoordinationLock)
-            {
-                if (m_disposeRequested &&
-                    ReferenceEquals(m_serverShutdownState, shutdownState))
-                {
-                    if (shutdownState.Completed &&
-                        shutdown.IsCompleted &&
-                        m_serverInternal is null)
-                    {
-                        completeDisposal = true;
-                    }
-                    else if (!shutdownState.DeferredObserverActive)
-                    {
-                        shutdownState.DeferredObserverActive = true;
-                        observe = true;
-                    }
-                }
-            }
-            if (completeDisposal)
-            {
-                CompleteBaseResourceDisposal(disposeLifecycle: false);
-            }
-            else if (observe)
-            {
-                _ = ObserveDeferredServerInternalShutdownSafelyAsync(
-                    shutdownState,
-                    shutdown);
-            }
-        }
-
-        private async Task ObserveDeferredServerInternalShutdownSafelyAsync(
-            ServerShutdownState shutdownState,
-            Task shutdown)
-        {
-            try
-            {
-                await ObserveDeferredServerInternalShutdownAsync(
-                        shutdownState,
-                        shutdown)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                var terminalError = new AggregateException(
-                    "Deferred server shutdown observer failed. Server internals and synchronization resources " +
-                    "remain retained for an explicit retry.",
-                    ex);
-                RecordDeferredServerShutdownTerminalError(shutdownState, terminalError);
-            }
-        }
-
-        [SuppressMessage(
-            "Maintainability",
-            "CA1508:Avoid dead conditional code",
-            Justification = "ActiveTask can be replaced concurrently by an explicit shutdown retry.")]
-        private async Task ObserveDeferredServerInternalShutdownAsync(
-            ServerShutdownState shutdownState,
-            Task shutdown)
-        {
-            var failures = new List<Exception>();
-            Task activeShutdown = shutdown;
-            while (true)
-            {
-                try
-                {
-                    await activeShutdown.ConfigureAwait(false);
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    failures.Add(ex);
-                    ServerError = new ServiceResult(ex);
-                }
-
-                ServerInternalData? serverInternal = null;
-                Task? concurrentShutdown = null;
-                int retryCount = 0;
-                Exception? terminalError = null;
-                lock (m_shutdownCoordinationLock)
-                {
-                    if (m_disposeRequested &&
-                        ReferenceEquals(m_serverShutdownState, shutdownState) &&
-                        ReferenceEquals(m_serverInternal, shutdownState.Server))
-                    {
-                        if (shutdownState.ActiveTask is { } latestShutdown &&
-                            !ReferenceEquals(latestShutdown, activeShutdown))
-                        {
-                            concurrentShutdown = latestShutdown;
-                        }
-                        else
-                        {
-                            long progress = GetServerShutdownProgress(shutdownState);
-                            terminalError = TryCreateDeferredServerShutdownTerminalError(
-                                shutdownState,
-                                failures);
-                            if (terminalError is null &&
-                                (shutdownState.DeferredRetryCount == 0 ||
-                                    progress > shutdownState.LastDeferredRetryProgress))
-                            {
-                                shutdownState.LastDeferredRetryProgress = progress;
-                                retryCount = ++shutdownState.DeferredRetryCount;
-                                serverInternal = shutdownState.Server;
-                            }
-                            else
-                            {
-                                terminalError ??= new AggregateException(
-                                    $"Deferred server shutdown stopped after {shutdownState.AttemptCount} attempt(s) " +
-                                    "because the latest attempt made no cleanup progress. Server internals and " +
-                                    "synchronization resources remain retained for an explicit retry.",
-                                    failures);
-                                shutdownState.TerminalError = terminalError;
-                                shutdownState.DeferredObserverActive = false;
-                                ServerError = new ServiceResult(terminalError);
-                            }
-                        }
-                    }
-                    else if (ReferenceEquals(m_serverShutdownState, shutdownState))
-                    {
-                        shutdownState.DeferredObserverActive = false;
-                    }
-                }
-                if (terminalError is not null)
-                {
-                    m_logger.DeferredServerShutdownTerminated(
-                        terminalError,
-                        terminalError.Message);
-                }
-
-                if (concurrentShutdown is not null)
-                {
-                    activeShutdown = concurrentShutdown;
-                    continue;
-                }
-                if (serverInternal is null)
-                {
-                    return;
-                }
-
-                await Task.Delay(GetDeferredShutdownRetryDelay(retryCount))
-                    .ConfigureAwait(false);
-
-                lock (m_shutdownCoordinationLock)
-                {
-                    if (shutdownState.Completed)
-                    {
-                        break;
-                    }
-                    if (!m_disposeRequested ||
-                        !ReferenceEquals(m_serverShutdownState, shutdownState) ||
-                        !ReferenceEquals(m_serverInternal, shutdownState.Server))
-                    {
-                        shutdownState.DeferredObserverActive = false;
-                        return;
-                    }
-                }
-
-                activeShutdown = GetOrStartServerInternalShutdown(
-                    serverInternal,
-                    CancellationToken.None);
+                shutdown.ShutdownCompleted = true;
             }
 
-            bool completeDisposal;
-            lock (m_shutdownCoordinationLock)
+            if (failures.Count > 0)
             {
-                if (ReferenceEquals(m_serverShutdownState, shutdownState))
-                {
-                    shutdownState.TerminalError = null;
-                    shutdownState.DeferredObserverActive = false;
-                }
-                completeDisposal = m_disposeRequested &&
-                    m_serverInternal is null &&
-                    shutdownState.Completed;
-            }
-            if (completeDisposal)
-            {
-                CompleteBaseResourceDisposal(disposeLifecycle: false);
-            }
-        }
-
-        private AggregateException? TryCreateDeferredServerShutdownTerminalError(
-            ServerShutdownState shutdownState,
-            List<Exception> failures)
-        {
-            int maxRetryCount = Math.Max(DeferredServerShutdownMaxRetryCount, 0);
-            if (shutdownState.DeferredRetryCount >= maxRetryCount)
-            {
-                return new AggregateException(
-                    $"Deferred server shutdown stopped after {shutdownState.AttemptCount} attempt(s) because it " +
-                    $"exceeded the deferred retry limit of {maxRetryCount} retry attempt(s). Server internals and " +
-                    "synchronization resources remain retained for an explicit retry.",
+                var shutdownError = new AggregateException(
+                    "One or more server shutdown stages failed after resources were released.",
                     failures);
+                ServerError = new ServiceResult(shutdownError);
+                throw shutdownError;
             }
-
-            DateTimeOffset now = TimeProvider.GetUtcNow();
-            shutdownState.DeferredRetryStartedAt ??= now;
-            TimeSpan retryBudget = DeferredServerShutdownRetryBudget;
-            if (retryBudget <= TimeSpan.Zero ||
-                now - shutdownState.DeferredRetryStartedAt.Value >= retryBudget)
-            {
-                return new AggregateException(
-                    $"Deferred server shutdown stopped after {shutdownState.AttemptCount} attempt(s) because it " +
-                    $"exceeded the deferred retry time budget of {retryBudget}. Server internals and " +
-                    "synchronization resources remain retained for an explicit retry.",
-                    failures);
-            }
-
-            return null;
         }
-
-        private void RecordDeferredServerShutdownTerminalError(
-            ServerShutdownState shutdownState,
-            Exception terminalError)
-        {
-            lock (m_shutdownCoordinationLock)
-            {
-                if (ReferenceEquals(m_serverShutdownState, shutdownState))
-                {
-                    shutdownState.TerminalError = terminalError;
-                    shutdownState.DeferredObserverActive = false;
-                    ServerError = new ServiceResult(terminalError);
-                }
-            }
-            m_logger.DeferredServerShutdownTerminated(
-                terminalError,
-                terminalError.Message);
-        }
-
-        private long GetServerShutdownProgress(ServerShutdownState shutdown)
-        {
-            long progress = 0;
-            progress += shutdown.LifecyclePrepared ? 1 : 0;
-            progress += shutdown.SubscriptionsStopped ? 1 : 0;
-            progress += shutdown.RequestAdmissionClosed ? 1 : 0;
-            progress += shutdown.RequestsDrained ? 1 : 0;
-            progress += shutdown.SessionsStopped ? 1 : 0;
-            progress += shutdown.NodeManagersStopped ? 1 : 0;
-            progress += shutdown.LifecycleCompleted ? 1 : 0;
-            progress += shutdown.LifecycleDisposed ? 1 : 0;
-            progress += shutdown.InternalsDisposed ? 1 : 0;
-            if (shutdown.Server.NodeManager is MasterNodeManager masterNodeManager)
-            {
-                progress += masterNodeManager.ShutdownCompletedNodeManagerCount;
-            }
-            if (NodeManagerLifecycle is NodeManagerLifecycle lifecycle)
-            {
-                progress += lifecycle.ShutdownCleanupProgress;
-            }
-            Func<long>? additionalProgress = AdditionalServerShutdownProgressForTest;
-            if (additionalProgress is not null)
-            {
-                progress += additionalProgress();
-            }
-            return progress;
-        }
-
-        private static TimeSpan GetDeferredShutdownRetryDelay(int retryCount)
-        {
-            int exponent = Math.Min(Math.Max(retryCount - 1, 0), 6);
-            return TimeSpan.FromMilliseconds(10 * (1 << exponent));
-        }
-
-        private const int kDefaultDeferredServerShutdownMaxRetryCount = 64;
-        private static readonly TimeSpan kDefaultDeferredServerShutdownRetryBudget =
-            TimeSpan.FromMinutes(1);
 
         private void CompleteBaseResourceDisposal(bool disposeLifecycle)
         {
-            lock (m_shutdownCoordinationLock)
+            TaskCompletionSource<object?> disposalCompletion;
+            lock (m_shutdownStateLock)
             {
                 if (m_baseResourceDisposalStarted)
                 {
@@ -4473,6 +4343,9 @@ namespace Opc.Ua.Server
                 }
                 m_baseResourceDisposalStarted = true;
                 m_baseResourceDisposalCount++;
+                m_baseResourceDisposalCompletion ??= new TaskCompletionSource<object?>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                disposalCompletion = m_baseResourceDisposalCompletion;
             }
 
             var failures = new List<Exception>();
@@ -4540,14 +4413,10 @@ namespace Opc.Ua.Server
                     "One or more base server resources could not be disposed.",
                     failures)
                 : null;
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 m_baseResourceDisposalCompleted = true;
                 m_baseResourceDisposalError = terminalError;
-                if (m_serverShutdownState is { } shutdownState)
-                {
-                    shutdownState.TerminalError = terminalError;
-                }
             }
             if (terminalError is not null)
             {
@@ -4555,12 +4424,42 @@ namespace Opc.Ua.Server
                 m_logger.ServerShutdownResourceDisposalFailed(
                     terminalError,
                     terminalError.Message);
+                disposalCompletion.TrySetException(terminalError);
+            }
+            else
+            {
+                disposalCompletion.TrySetResult(null);
+            }
+        }
+
+        private async ValueTask CompleteBaseResourceDisposalAsync(bool disposeLifecycle)
+        {
+            Task disposalCompletion = GetBaseResourceDisposalCompletionTask();
+            CompleteBaseResourceDisposal(disposeLifecycle);
+            await disposalCompletion.ConfigureAwait(false);
+        }
+
+        private Task GetBaseResourceDisposalCompletionTask()
+        {
+            lock (m_shutdownStateLock)
+            {
+                if (m_baseResourceDisposalCompleted)
+                {
+                    Exception? disposalError = m_baseResourceDisposalError;
+                    return disposalError is null
+                        ? Task.CompletedTask
+                        : Task.FromException(disposalError);
+                }
+
+                m_baseResourceDisposalCompletion ??= new TaskCompletionSource<object?>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                return m_baseResourceDisposalCompletion.Task;
             }
         }
 
         private void DisposeServerSemaphore()
         {
-            lock (m_shutdownCoordinationLock)
+            lock (m_shutdownStateLock)
             {
                 if (m_serverSemaphoreDisposed)
                 {
@@ -5291,7 +5190,12 @@ namespace Opc.Ua.Server
             => ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!;
 
         private readonly Lock m_registrationLock = new();
-        private readonly Lock m_shutdownCoordinationLock = new();
+        private readonly Lock m_shutdownStateLock = new();
+        [SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "Disposed exactly once by CompleteBaseResourceDisposal. " +
+                "TODO: remove when analyzer follows disposal helpers.")]
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         [SuppressMessage(
             "Usage",
@@ -5299,11 +5203,12 @@ namespace Opc.Ua.Server
             Justification = "Disposed by the coordinated asynchronous server shutdown task.")]
         private ServerInternalData? m_serverInternal;
         private ServerShutdownState? m_serverShutdownState;
-        private bool m_disposeRequested;
+        private bool m_disposalRequested;
         private bool m_baseResourceDisposalStarted;
         private bool m_baseResourceDisposalCompleted;
         private int m_baseResourceDisposalCount;
         private Exception? m_baseResourceDisposalError;
+        private TaskCompletionSource<object?>? m_baseResourceDisposalCompletion;
         private bool m_serverSemaphoreDisposed;
         internal Action? AfterNodeManagerLifecycleShutdownStartedForTest { get; set; }
         internal Action? AfterServerShutdownJoinerRegisteredForTest { get; set; }
@@ -5311,19 +5216,11 @@ namespace Opc.Ua.Server
         internal Action? AfterServerRequestDrainStartedForTest { get; set; }
         internal Func<Task>? BeforeServerRequestDrainForTest { get; set; }
         internal Func<Task>? BeforeServerShutdownSemaphoreReleaseForTest { get; set; }
-        internal int DeferredServerShutdownMaxRetryCount { get; set; } =
-            kDefaultDeferredServerShutdownMaxRetryCount;
-
-        internal TimeSpan DeferredServerShutdownRetryBudget { get; set; } =
-            kDefaultDeferredServerShutdownRetryBudget;
-
-        internal Func<long>? AdditionalServerShutdownProgressForTest { get; set; }
-
         internal bool ServerSemaphoreDisposedForTest
         {
             get
             {
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
                     return m_serverSemaphoreDisposed;
                 }
@@ -5334,7 +5231,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
                     return m_serverShutdownState?.AttemptCount ?? 0;
                 }
@@ -5345,7 +5242,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
                     return m_baseResourceDisposalCompleted;
                 }
@@ -5356,21 +5253,20 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
                     return m_baseResourceDisposalCount;
                 }
             }
         }
 
-        internal Exception? DeferredServerShutdownTerminalErrorForTest
+        internal Exception? ServerShutdownResourceDisposalErrorForTest
         {
             get
             {
-                lock (m_shutdownCoordinationLock)
+                lock (m_shutdownStateLock)
                 {
-                    return m_serverShutdownState?.TerminalError ??
-                        m_baseResourceDisposalError;
+                    return m_baseResourceDisposalError;
                 }
             }
         }
@@ -5393,6 +5289,25 @@ namespace Opc.Ua.Server
         private bool m_ownsRateLimiterProvider;
         private readonly ILogger m_eventLogger;
 
+        private readonly struct ServerDisposeRequest
+        {
+            public ServerDisposeRequest(
+                ServerInternalData? serverInternal,
+                ServerShutdownState? activeShutdownState,
+                bool disposeWithoutShutdown)
+            {
+                ServerInternal = serverInternal;
+                ActiveShutdownState = activeShutdownState;
+                DisposeWithoutShutdown = disposeWithoutShutdown;
+            }
+
+            public ServerInternalData? ServerInternal { get; }
+
+            public ServerShutdownState? ActiveShutdownState { get; }
+
+            public bool DisposeWithoutShutdown { get; }
+        }
+
         private sealed class ServerShutdownState
         {
             public ServerShutdownState(ServerInternalData server)
@@ -5402,27 +5317,17 @@ namespace Opc.Ua.Server
 
             public ServerInternalData Server { get; }
 
-            public Task? ActiveTask { get; set; }
+            public Task? ActiveShutdownTask { get; set; }
 
             public int AttemptCount { get; set; }
 
-            public int DeferredRetryCount { get; set; }
-
-            public long LastDeferredRetryProgress { get; set; }
-
-            public DateTimeOffset? DeferredRetryStartedAt { get; set; }
-
-            public bool DeferredObserverActive { get; set; }
-
-            public Exception? TerminalError { get; set; }
-
-            public bool LifecyclePrepared { get; set; }
+            public bool NodeManagerLifecyclePrepared { get; set; }
 
             public bool SubscriptionsStopped { get; set; }
 
             public bool RequestAdmissionClosed { get; set; }
 
-            public bool RequestsDrained { get; set; }
+            public bool AdmittedRequestsDrained { get; set; }
 
             public bool SessionsStopped { get; set; }
 
@@ -5432,9 +5337,9 @@ namespace Opc.Ua.Server
 
             public bool LifecycleDisposed { get; set; }
 
-            public bool InternalsDisposed { get; set; }
+            public bool ServerInternalsDisposed { get; set; }
 
-            public bool Completed { get; set; }
+            public bool ShutdownCompleted { get; set; }
         }
 
         /// <summary>
@@ -5659,13 +5564,6 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 33, Level = LogLevel.Error,
             Message = "CertificateManager change observer failed to fan-out cert update.")]
         public static partial void CertificateManagerChangeObserverFailedToFanOut(this ILogger logger, Exception ex);
-
-        [LoggerMessage(EventId = ServerEventIds.StandardServer + 34, Level = LogLevel.Error,
-            Message = "Deferred server shutdown terminated. {ErrorMessage}")]
-        public static partial void DeferredServerShutdownTerminated(
-            this ILogger logger,
-            Exception ex,
-            string? errorMessage);
 
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 35, Level = LogLevel.Error,
             Message = "Server shutdown resource disposal failed. {ErrorMessage}")]

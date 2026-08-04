@@ -1193,6 +1193,7 @@ namespace Opc.Ua.Server.Tests
                     false,
                     [],
                     [],
+                    new MonitoredItemTransferOptions(),
                     cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
@@ -1212,6 +1213,7 @@ namespace Opc.Ua.Server.Tests
                 false,
                 monitoredItems,
                 errors,
+                new MonitoredItemTransferOptions(),
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
@@ -1229,6 +1231,7 @@ namespace Opc.Ua.Server.Tests
                 true,
                 [item],
                 errors,
+                new MonitoredItemTransferOptions(),
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -1237,7 +1240,7 @@ namespace Opc.Ua.Server.Tests
 
 
         [Test]
-        public async Task TransferMonitoredItemsAsyncFailureRollsBackOwnerAndResendAsync()
+        public async Task TransferMonitoredItemsAsyncOwnerFailureLogsAndAllowsRetryAsync()
         {
             var sourceSession = new Mock<ISession>();
             sourceSession.SetupGet(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
@@ -1253,8 +1256,6 @@ namespace Opc.Ua.Server.Tests
             var laterOwner = new Mock<IAsyncNodeManager>();
             ISession observedOwner = sourceSession.Object;
             ISession observedLaterOwner = sourceSession.Object;
-            int rollbackCalls = 0;
-            int laterRollbackCalls = 0;
             int ownerForwardCalls = 0;
             int laterForwardCalls = 0;
             bool failNextDestinationCallback = true;
@@ -1277,7 +1278,8 @@ namespace Opc.Ua.Server.Tests
                             {
                                 processedItems[ii] = true;
                                 errors[ii] = ServiceResult.Good;
-                                if (sendInitialValues)
+                                if (sendInitialValues &&
+                                    !transferOptions.DeferInitialValues)
                                 {
                                     monitoredItems[ii].SetupResendDataTrigger();
                                 }
@@ -1305,7 +1307,8 @@ namespace Opc.Ua.Server.Tests
                             {
                                 processedItems[ii] = true;
                                 errors[ii] = ServiceResult.Good;
-                                if (sendInitialValues)
+                                if (sendInitialValues &&
+                                    !transferOptions.DeferInitialValues)
                                 {
                                     monitoredItems[ii].SetupResendDataTrigger();
                                 }
@@ -1322,53 +1325,6 @@ namespace Opc.Ua.Server.Tests
                     })
                 .Returns(default(ValueTask));
 
-            owner.Setup(nodeManager => nodeManager.RollbackMonitoredItemsTransferAsync(
-                    It.IsAny<OperationContext>(),
-                    It.IsAny<IList<IMonitoredItem>>(),
-                    It.IsAny<IList<bool>>(),
-                    It.IsAny<IList<ServiceResult>>(),
-                    It.IsAny<MonitoredItemTransferOptions>(),
-                    It.IsAny<CancellationToken>()))
-                .Callback<OperationContext, IList<IMonitoredItem>, IList<bool>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
-                    (context, monitoredItems, processedItems, errors, _, _) =>
-                    {
-                        for (int ii = 0; ii < monitoredItems.Count; ii++)
-                        {
-                            if (!processedItems[ii] &&
-                                ReferenceEquals(monitoredItems[ii].NodeManager, owner.Object))
-                            {
-                                processedItems[ii] = true;
-                                errors[ii] = ServiceResult.Good;
-                            }
-                        }
-                        observedOwner = context.Session;
-                        rollbackCalls++;
-                    })
-                .Returns(default(ValueTask));
-            laterOwner.Setup(nodeManager => nodeManager.RollbackMonitoredItemsTransferAsync(
-                    It.IsAny<OperationContext>(),
-                    It.IsAny<IList<IMonitoredItem>>(),
-                    It.IsAny<IList<bool>>(),
-                    It.IsAny<IList<ServiceResult>>(),
-                    It.IsAny<MonitoredItemTransferOptions>(),
-                    It.IsAny<CancellationToken>()))
-                .Callback<OperationContext, IList<IMonitoredItem>, IList<bool>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
-                    (context, monitoredItems, processedItems, errors, _, _) =>
-                    {
-                        for (int ii = 0; ii < monitoredItems.Count; ii++)
-                        {
-                            if (!processedItems[ii] &&
-                                ReferenceEquals(monitoredItems[ii].NodeManager, laterOwner.Object))
-                            {
-                                processedItems[ii] = true;
-                                errors[ii] = ServiceResult.Good;
-                            }
-                        }
-                        observedLaterOwner = context.Session;
-                        laterRollbackCalls++;
-                    })
-                .Returns(default(ValueTask));
-
             using var sut = new MasterNodeManager(
                 m_server.CurrentInstance,
                 m_fixture.Config,
@@ -1379,25 +1335,26 @@ namespace Opc.Ua.Server.Tests
             using var laterItem = CreateMonitoredItem(laterOwner.Object, sourceSession.Object, 4, 5, 84);
 
             var failedErrors = new List<ServiceResult> { null!, null! };
-            Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await sut.TransferMonitoredItemsAsync(
-                    new OperationContext(destinationSession.Object, DiagnosticsMasks.None),
-                    true,
-                    [item, laterItem],
-                    failedErrors,
-                    cancellationToken: CancellationToken.None).ConfigureAwait(false));
+            await sut.TransferMonitoredItemsAsync(
+                new OperationContext(destinationSession.Object, DiagnosticsMasks.None),
+                true,
+                [item, laterItem],
+                failedErrors,
+                new MonitoredItemTransferOptions(),
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
-                Assert.That(observedOwner, Is.SameAs(sourceSession.Object));
+                Assert.That(observedOwner, Is.SameAs(destinationSession.Object));
                 Assert.That(observedLaterOwner, Is.SameAs(destinationSession.Object));
                 Assert.That(ownerForwardCalls, Is.EqualTo(1));
                 Assert.That(laterForwardCalls, Is.EqualTo(1));
-                Assert.That(rollbackCalls, Is.EqualTo(1));
-                Assert.That(laterRollbackCalls, Is.Zero);
-                Assert.That(item.IsResendData, Is.False);
+                Assert.That(failedErrors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(failedErrors[1].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+                Assert.That(item.IsResendData, Is.True);
                 Assert.That(laterItem.IsResendData, Is.False);
             });
+            _ = Publish(item);
 
             var retryErrors = new List<ServiceResult> { null!, null! };
             await sut.TransferMonitoredItemsAsync(
@@ -1405,6 +1362,7 @@ namespace Opc.Ua.Server.Tests
                 false,
                 [item, laterItem],
                 retryErrors,
+                new MonitoredItemTransferOptions(),
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -1415,6 +1373,113 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(laterItem.IsResendData, Is.False);
                 Assert.That(Publish(item), Is.Empty);
                 Assert.That(Publish(laterItem), Is.Empty);
+            });
+        }
+
+        [Test]
+        public async Task TransferMonitoredItemsAsyncFlowsExplicitOptionsToEachOwnerAsync()
+        {
+            var destinationSession = new Mock<ISession>();
+            destinationSession.SetupGet(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
+            destinationSession.SetupGet(session => session.EffectiveIdentity)
+                .Returns(new Mock<IUserIdentity>().Object);
+            destinationSession.SetupGet(session => session.PreferredLocales).Returns([]);
+            OperationContext destinationContext = new(destinationSession.Object, DiagnosticsMasks.None);
+            var sourceSession = new Mock<ISession>();
+            sourceSession.SetupGet(session => session.EffectiveIdentity)
+                .Returns(new Mock<IUserIdentity>().Object);
+            sourceSession.SetupGet(session => session.PreferredLocales).Returns([]);
+
+            var firstOwner = new Mock<IAsyncNodeManager>();
+            var secondOwner = new Mock<IAsyncNodeManager>();
+            OperationContext? firstContext = null;
+            OperationContext? secondContext = null;
+            MonitoredItemTransferOptions? firstOptions = null;
+            MonitoredItemTransferOptions? secondOptions = null;
+
+            firstOwner.Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<bool>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, bool, IList<IMonitoredItem>, IList<bool>, IList<ServiceResult>,
+                    MonitoredItemTransferOptions, CancellationToken>(
+                    (context, _, monitoredItems, processedItems, errors, transferOptions, _) =>
+                    {
+                        firstContext = context;
+                        firstOptions = transferOptions;
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            if (!processedItems[ii] &&
+                                ReferenceEquals(monitoredItems[ii].NodeManager, firstOwner.Object))
+                            {
+                                processedItems[ii] = true;
+                                errors[ii] = ServiceResult.Good;
+                            }
+                        }
+                    })
+                .Returns(default(ValueTask));
+
+            secondOwner.Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<bool>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, bool, IList<IMonitoredItem>, IList<bool>, IList<ServiceResult>,
+                    MonitoredItemTransferOptions, CancellationToken>(
+                    (context, _, monitoredItems, processedItems, errors, transferOptions, _) =>
+                    {
+                        secondContext = context;
+                        secondOptions = transferOptions;
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            if (!processedItems[ii] &&
+                                ReferenceEquals(monitoredItems[ii].NodeManager, secondOwner.Object))
+                            {
+                                processedItems[ii] = true;
+                                errors[ii] = ServiceResult.Good;
+                            }
+                        }
+                    })
+                .Returns(default(ValueTask));
+
+            using var sut = new MasterNodeManager(
+                m_server.CurrentInstance,
+                m_fixture.Config,
+                null,
+                firstOwner.Object,
+                secondOwner.Object);
+            using var firstItem = CreateMonitoredItem(firstOwner.Object, sourceSession.Object, 6, 7, 126);
+            using var secondItem = CreateMonitoredItem(secondOwner.Object, sourceSession.Object, 8, 9, 168);
+            var errors = new List<ServiceResult> { null!, null! };
+
+            await sut.TransferMonitoredItemsAsync(
+                destinationContext,
+                true,
+                [firstItem, secondItem],
+                errors,
+                new MonitoredItemTransferOptions(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstContext, Is.SameAs(destinationContext));
+                Assert.That(secondContext, Is.SameAs(destinationContext));
+                Assert.That(firstOptions, Is.Not.Null);
+                Assert.That(secondOptions, Is.Not.Null);
+                Assert.That(firstOptions!.DeferInitialValues, Is.True);
+                Assert.That(secondOptions!.DeferInitialValues, Is.True);
+                Assert.That(firstOptions, Is.SameAs(secondOptions));
+                Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(Publish(firstItem), Has.Count.EqualTo(1));
+                Assert.That(Publish(secondItem), Has.Count.EqualTo(1));
             });
         }
 
