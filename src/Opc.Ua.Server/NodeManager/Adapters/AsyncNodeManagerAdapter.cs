@@ -719,7 +719,7 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
             if (SyncNodeManager is ITransferMonitoredItemsAsyncNodeManager asyncNodeManager)
@@ -743,36 +743,6 @@ namespace Opc.Ua.Server
                 transferOptions);
 
             // Return a completed ValueTask since the underlying call is synchronous.
-            return default;
-        }
-
-        /// <inheritdoc/>
-        public ValueTask RollbackMonitoredItemsTransferAsync(
-            OperationContext context,
-            IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems,
-            IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null,
-            CancellationToken cancellationToken = default)
-        {
-            if (SyncNodeManager is ITransferMonitoredItemsAsyncNodeManager asyncNodeManager)
-            {
-                return asyncNodeManager.RollbackMonitoredItemsTransferAsync(
-                    context,
-                    monitoredItems,
-                    processedItems,
-                    errors,
-                    transferOptions,
-                    cancellationToken);
-            }
-
-            SyncNodeManager.RollbackMonitoredItemsTransfer(
-                context,
-                monitoredItems,
-                processedItems,
-                errors,
-                transferOptions);
-
             return default;
         }
 

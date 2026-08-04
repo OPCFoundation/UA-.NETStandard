@@ -620,18 +620,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
     }
 
     /// <summary>
-    /// Marks a RuntimeNodeSet factory whose lifecycle entry points can safely run while a request
-    /// callback is suspended.
-    /// </summary>
-    internal interface IRequestCallbackSafeNodeManagerFactory
-    {
-        /// <summary>
-        /// Gets whether request callbacks may enter lifecycle work without deadlocking request drains.
-        /// </summary>
-        bool AllowLifecycleFromRequestCallback { get; }
-    }
-
-    /// <summary>
     /// Source-generated log messages for RuntimeNodeSetNodeManagerFactory.
     /// </summary>
     internal static partial class RuntimeNodeSetNodeManagerFactoryLog
