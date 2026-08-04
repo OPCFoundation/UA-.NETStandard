@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Opc.Ua;
 using Opc.Ua.OpenUsdScene.Scene;
 
 namespace Opc.Ua.OpenUsdScene.Tests
@@ -126,25 +127,26 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdAttribute axis = UsdTestHelpers.RequireAttribute(body, "axis");
             Assert.That(axis.TypeName, Is.EqualTo("token"));
             Assert.That(axis.Variability, Is.EqualTo(UsdVariabilityEnum.Uniform));
-            Assert.That(axis.Value, Is.EqualTo("Z"));
+            UsdTestHelpers.AssertText(axis.Value, "Z");
 
             UsdAttribute radius = UsdTestHelpers.RequireAttribute(body, "radius");
             Assert.That(radius.TypeName, Is.EqualTo("double"));
-            Assert.That(radius.Value, Is.EqualTo(0.5));
+            UsdTestHelpers.AssertDouble(radius.Value, 0.5);
 
             UsdAttribute color = UsdTestHelpers.RequireAttribute(body, "primvars:displayColor");
             Assert.That(color.TypeName, Is.EqualTo("color3f[]"));
-            var outer = color.Value as List<object?>;
-            Assert.That(outer, Is.Not.Null);
-            Assert.That(outer!, Has.Count.EqualTo(1));
-            var tuple = outer[0] as object?[];
-            Assert.That(tuple, Is.Not.Null);
-            Assert.That(tuple!, Is.EqualTo(new object?[] { 0L, 0L, 1L }));
+            Assert.That(color.Value.TryGetArray(out ArrayOf<UsdValue> outer), Is.True);
+            Assert.That(outer, Has.Count.EqualTo(1));
+            Assert.That(outer[0].TryGetTuple(out ArrayOf<UsdValue> tuple), Is.True);
+            Assert.That(tuple.ToArray()!.Select(v => v.TryGetInteger(out long integer) ? integer : -1L).ToArray(),
+                Is.EqualTo(new[] { 0L, 0L, 1L }));
 
             UsdAttribute order = UsdTestHelpers.RequireAttribute(body, "xformOpOrder");
             Assert.That(order.TypeName, Is.EqualTo("token[]"));
             Assert.That(order.Variability, Is.EqualTo(UsdVariabilityEnum.Uniform));
-            Assert.That(order.Value, Is.EqualTo(new List<object?> { "xformOp:translate" }));
+            Assert.That(order.Value.TryGetArray(out ArrayOf<UsdValue> orderValues), Is.True);
+            Assert.That(orderValues.ToArray()!.Select(v => v.TryGetText(out string token) ? token : string.Empty).ToArray(),
+                Is.EqualTo(new[] { "xformOp:translate" }));
         }
 
         [Test]
@@ -156,15 +158,16 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(rotateZ.TypeName, Is.EqualTo("double"));
             Assert.That(rotateZ.Variability, Is.EqualTo(UsdVariabilityEnum.Varying));
             Assert.That(rotateZ.Live, Is.True);
-            Assert.That(rotateZ.Value, Is.TypeOf<long>());
-            Assert.That(rotateZ.Value, Is.Zero);
+            UsdTestHelpers.AssertInteger(rotateZ.Value, 0L);
 
             UsdAttribute setpoint = UsdTestHelpers.RequireAttribute(impeller, "inputs:speedSetpoint");
             Assert.That(setpoint.Custom, Is.True);
             Assert.That(setpoint.TypeName, Is.EqualTo("double"));
 
             UsdAttribute order = UsdTestHelpers.RequireAttribute(impeller, "xformOpOrder");
-            Assert.That(order.Value, Is.EqualTo(new List<object?> { "xformOp:translate", "xformOp:rotateZ" }));
+            Assert.That(order.Value.TryGetArray(out ArrayOf<UsdValue> orderValues), Is.True);
+            Assert.That(orderValues.ToArray()!.Select(v => v.TryGetText(out string token) ? token : string.Empty).ToArray(),
+                Is.EqualTo(new[] { "xformOp:translate", "xformOp:rotateZ" }));
         }
 
         [Test]
@@ -186,7 +189,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             UsdAttribute surface = UsdTestHelpers.RequireAttribute(mat, "outputs:surface");
             Assert.That(surface.TypeName, Is.EqualTo("token"));
-            Assert.That(surface.Value, Is.Null);
+            Assert.That(surface.Value.IsNull, Is.True);
             Assert.That(surface.Connections, Is.EqualTo(new[]
             {
                 "/Plant/Pumps/P101/StatusLight/Mat/Surface.outputs:surface",
@@ -202,17 +205,21 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdAttribute id = UsdTestHelpers.RequireAttribute(shader, "info:id");
             Assert.That(id.TypeName, Is.EqualTo("token"));
             Assert.That(id.Variability, Is.EqualTo(UsdVariabilityEnum.Uniform));
-            Assert.That(id.Value, Is.EqualTo("UsdPreviewSurface"));
+            UsdTestHelpers.AssertText(id.Value, "UsdPreviewSurface");
 
             UsdAttribute diffuse = UsdTestHelpers.RequireAttribute(shader, "inputs:diffuseColor");
             Assert.That(diffuse.TypeName, Is.EqualTo("color3f"));
-            Assert.That(diffuse.Value as object?[], Is.EqualTo(new object?[] { 0.1, 0.1, 0.1 }));
+            Assert.That(diffuse.Value.TryGetTuple(out ArrayOf<UsdValue> diffuseValues), Is.True);
+            Assert.That(diffuseValues.ToArray()!.Select(v => v.TryGetDouble(out double d) ? d : double.NaN).ToArray(),
+                Is.EqualTo(new[] { 0.1, 0.1, 0.1 }));
 
             UsdAttribute emissive = UsdTestHelpers.RequireAttribute(shader, "inputs:emissiveColor");
-            Assert.That(emissive.Value as object?[], Is.EqualTo(new object?[] { 0L, 0L, 0L }));
+            Assert.That(emissive.Value.TryGetTuple(out ArrayOf<UsdValue> emissiveValues), Is.True);
+            Assert.That(emissiveValues.ToArray()!.Select(v => v.TryGetInteger(out long integer) ? integer : -1L).ToArray(),
+                Is.EqualTo(new[] { 0L, 0L, 0L }));
 
             UsdAttribute outputs = UsdTestHelpers.RequireAttribute(shader, "outputs:surface");
-            Assert.That(outputs.Value, Is.Null);
+            Assert.That(outputs.Value.IsNull, Is.True);
             Assert.That(outputs.Connections, Is.Empty);
         }
     }

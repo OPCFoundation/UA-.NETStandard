@@ -12,9 +12,7 @@
       /Plant/Pumps/P101/Body           primvars:displayColor(BearingTemperature -> DisplayColor)
       /Plant/Pumps/P101/Body/Mat/Surface.inputs:diffuseColor
                                                             (BearingTemperature -> DisplayColor)
-      /Plant/Pumps/P101/StatusLight/Mat/Surface.inputs:emissiveColor
-                                                            (DifferentialPressure -> EmissiveColor)
-      /Plant/Pumps/P101/StatusLight.visibility              (alarm ActiveState -> Visibility)
+      /Plant/Pumps/P101/AlarmRing.visibility                (supervision alarm -> Visibility)
       /Plant/Pumps/P101/Impeller.inputs:speedSetpoint       (opt-in command intent -> UA write)
 
     MODEL
@@ -151,20 +149,25 @@ def Xform "Plant"
         uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
     }
 
-    # Three-quarter view along the pump line. A horizontal end-suction pump is
-    # all profile, so an overhead camera shows little but baseplate; this one
-    # looks down the line from the front-right and slightly above, which reads
-    # the volute, the coupling guard and the motor. Hosts start on it by prim
-    # path (the connector's --camera option).
+    # Operator's viewpoint. A person stands in the aisle on the discharge side
+    # of the line at eye height and looks across the row: every configured pump
+    # is in shot at a three-quarter angle, so the volute, the coupling guard,
+    # the gauges and the turning shaft all read on each machine. The pitch is
+    # only 7 degrees below horizontal - the gantry view a steeper camera gives
+    # shows little but baseplate. The suction vessels stand behind the pumps
+    # from here and the aggregation aisle further back again, which gives the
+    # shot its depth. The framing holds from one pump up to eight, so it does
+    # not have to be retuned for --pumps N. Hosts start on it by prim path (the
+    # connector's --camera option).
     def Camera "HeroCamera"
     {
         token projection = "perspective"
-        float focalLength = 24
+        float focalLength = 20
         float horizontalAperture = 20.955
         float verticalAperture = 13.97
-        float2 clippingRange = (0.1, 200)
-        double3 xformOp:translate = (6.0, -5.94, 3.77)
-        double3 xformOp:rotateXYZ = (70, 0, 41)
+        float2 clippingRange = (0.1, 300)
+        double3 xformOp:translate = (8.0, -4.5, 1.65)
+        double3 xformOp:rotateXYZ = (83, 0, 45)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
     }
 
@@ -173,7 +176,7 @@ def Xform "Plant"
         int[] faceVertexCounts = [4]
         int[] faceVertexIndices = [0, 1, 2, 3]
         point3f[] points = [
-            (-4, -3.4, 0), (7, -3.4, 0), (7, 4.2, 0), (-4, 4.2, 0)
+            (-4, -3, 0), (4, -3, 0), (4, 14, 0), (-4, 14, 0)
         ]
         normal3f[] primvars:normals = [
             (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)
@@ -185,7 +188,15 @@ def Xform "Plant"
 
     def Scope "Pumps"
     {
+        # Authoring master for the pump component asset. The server composes
+        # one referenced </Pump> prim per configured pump into this scope, so
+        # rendering the master as well would show a phantom extra machine that
+        # no OPC UA object drives. It stays in the layer - deactivated - because
+        # generate_pump_assets.py extracts pump.usda from
+        # it. Edit it, re-run the generator, never hand-edit the generated
+        # layer.
         def Xform "P101" (
+            active = false
             kind = "component"
         )
         {
@@ -370,8 +381,36 @@ def Xform "Plant"
                     double height = 0.055
                     double radius = 0.051
                     color3f[] primvars:displayColor = [(0.02, 0.22, 0.55)]
-                    rel material:binding = </Plant/Looks/PumpBlue>
+                    rel material:binding = </Plant/Pumps/P101/Suction/Neck/Mat>
                     double3 xformOp:translate = (-0.822, 0, 0.28)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                    # Own material, so the suction line can be tinted by the
+                    # pumped fluid temperature without recolouring every other
+                    # blue casting that shares the Looks scope.
+                    def Material "Mat"
+                    {
+                        token outputs:surface.connect = </Plant/Pumps/P101/Suction/Neck/Mat/Surface.outputs:surface>
+
+                        def Shader "Surface"
+                        {
+                            uniform token info:id = "UsdPreviewSurface"
+                            color3f inputs:diffuseColor = (0.02, 0.22, 0.55)
+                            float inputs:metallic = 0.1
+                            float inputs:roughness = 0.45
+                            token outputs:surface
+                        }
+                    }
+                }
+
+                # Cavitation indication, at the suction eye where the fault is.
+                # Hidden until the supervision state asserts.
+                def Sphere "CavitationHalo"
+                {
+                    double radius = 0.090
+                    color3f[] primvars:displayColor = [(0.95, 0.85, 0.15)]
+                    token visibility = "invisible"
+                    double3 xformOp:translate = (-0.845, 0, 0.28)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                 }
 
@@ -535,6 +574,33 @@ def Xform "Plant"
                         double3 xformOp:translate = (-0.645, 0.108, 0.470)
                         uniform token[] xformOpOrder = ["xformOp:translate"]
                     }
+
+                    # Discharge pressure needle. The binding contract drives
+                    # xformOp:rotateZ, but this dial faces +Y, so a static rotateX
+                    # lays the needle's local Z along the world Y axis before the
+                    # driven rotation - the same trick the impeller uses to put a
+                    # horizontal shaft on a rotateZ binding.
+                    def Xform "Needle"
+                    {
+                        double3 xformOp:translate = (-0.645, 0.121, 0.470)
+                        double xformOp:rotateX = 90
+                        double xformOp:rotateZ = 0
+                        uniform token[] xformOpOrder = [
+                            "xformOp:translate", "xformOp:rotateX", "xformOp:rotateZ"
+                        ]
+
+                        def Cube "Pointer" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                        )
+                        {
+                            double size = 1.0
+                            color3f[] primvars:displayColor = [(0.75, 0.10, 0.08)]
+                            rel material:binding = </Plant/Looks/DarkSteel>
+                            double3 xformOp:translate = (0.015, 0, 0)
+                            double3 xformOp:scale = (0.030, 0.0035, 0.0035)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                        }
+                    }
                 }
             }
 
@@ -603,6 +669,110 @@ def Xform "Plant"
                     double3 xformOp:translate = (-0.330, 0.064, 0.245)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                 }
+
+                # Bearing-temperature gauge on the bracket. Same rotateX trick as
+                # the discharge gauge: the dial faces +Y, the binding drives Z.
+                def Xform "TempGauge"
+                {
+                    def Cylinder "Dial" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        uniform token axis = "Y"
+                        double height = 0.018
+                        double radius = 0.032
+                        color3f[] primvars:displayColor = [(0.90, 0.90, 0.88)]
+                        rel material:binding = </Plant/Looks/Galvanised>
+                        double3 xformOp:translate = (-0.300, 0.070, 0.345)
+                        uniform token[] xformOpOrder = ["xformOp:translate"]
+                    }
+
+                    def Xform "Needle"
+                    {
+                        double3 xformOp:translate = (-0.300, 0.081, 0.345)
+                        double xformOp:rotateX = 90
+                        double xformOp:rotateZ = 0
+                        uniform token[] xformOpOrder = [
+                            "xformOp:translate", "xformOp:rotateX", "xformOp:rotateZ"
+                        ]
+
+                        def Cube "Pointer" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                        )
+                        {
+                            double size = 1.0
+                            color3f[] primvars:displayColor = [(0.75, 0.10, 0.08)]
+                            rel material:binding = </Plant/Looks/DarkSteel>
+                            double3 xformOp:translate = (0.012, 0, 0)
+                            double3 xformOp:scale = (0.024, 0.003, 0.003)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                        }
+                    }
+                }
+            }
+
+            # Suction vessel the pump draws from. Drawn at a fraction of a real
+            # vessel's height so it does not tower over the machine; the liquid
+            # surface rides on the published Level.
+            def Xform "SuctionVessel"
+            {
+                double3 xformOp:translate = (-1.35, 0, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                def Cylinder "Shell" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                )
+                {
+                    uniform token axis = "Z"
+                    double height = 1.05
+                    double radius = 0.30
+                    color3f[] primvars:displayColor = [(0.55, 0.56, 0.58)]
+                    rel material:binding = </Plant/Looks/Galvanised>
+                    double3 xformOp:translate = (0, 0, 0.525)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                }
+
+                def Cylinder "Skirt" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                )
+                {
+                    uniform token axis = "Z"
+                    double height = 0.04
+                    double radius = 0.32
+                    color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
+                    rel material:binding = </Plant/Looks/DarkSteel>
+                    double3 xformOp:translate = (0, 0, 0.020)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                }
+
+                # The liquid surface. Its height above the vessel floor is driven
+                # by the published suction level, so the twin shows the pump
+                # running down its supply and refilling.
+                def Cylinder "Surface" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                )
+                {
+                    uniform token axis = "Z"
+                    double height = 0.012
+                    double radius = 0.285
+                    color3f[] primvars:displayColor = [(0.10, 0.42, 0.72)]
+                    rel material:binding = </Plant/Looks/PumpBlue>
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0.5, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+
+                def Cylinder "DownPipe" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                )
+                {
+                    uniform token axis = "X"
+                    double height = 0.42
+                    double radius = 0.040
+                    color3f[] primvars:displayColor = [(0.02, 0.22, 0.55)]
+                    rel material:binding = </Plant/Looks/PumpBlue>
+                    double3 xformOp:translate = (0.28, 0, 0.28)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                }
             }
 
             def Cylinder "Bearing" (
@@ -614,6 +784,18 @@ def Xform "Plant"
                 double radius = 0.052
                 color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
                 rel material:binding = </Plant/Looks/DarkSteel>
+                double3 xformOp:translate = (-0.300, 0, 0.28)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            # Motor-overheat indication, on the bearing bracket where the fault
+            # is. Hidden until the supervision state asserts, so it says which
+            # fault the alarm ring is drawn for.
+            def Sphere "OverheatHalo"
+            {
+                double radius = 0.105
+                color3f[] primvars:displayColor = [(1.0, 0.18, 0.08)]
+                token visibility = "invisible"
                 double3 xformOp:translate = (-0.300, 0, 0.28)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
             }
@@ -941,6 +1123,80 @@ def Xform "Plant"
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                 }
 
+                # Cooling fan inside the cowl. It sits on the motor shaft, so it
+                # turns with the duty point: a pump that is barely moving fluid is
+                # visibly loafing. Same rotateY-then-rotateZ trick as the impeller,
+                # because the shaft is horizontal but the binding drives Z.
+                def Xform "FanBlades"
+                {
+                    double3 xformOp:translate = (0.660, 0, 0.28)
+                    double xformOp:rotateY = 90
+                    double xformOp:rotateZ = 0
+                    uniform token[] xformOpOrder = [
+                        "xformOp:translate", "xformOp:rotateY", "xformOp:rotateZ"
+                    ]
+
+                    def Cylinder "Hub" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        uniform token axis = "Z"
+                        double height = 0.030
+                        double radius = 0.028
+                        color3f[] primvars:displayColor = [(0.20, 0.21, 0.23)]
+                        rel material:binding = </Plant/Looks/DarkSteel>
+                        uniform token[] xformOpOrder = []
+                    }
+
+                    def Cube "BladeA" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        double size = 1.0
+                        color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
+                        rel material:binding = </Plant/Looks/DarkSteel>
+                        double3 xformOp:translate = (0.055, 0, 0)
+                        double3 xformOp:scale = (0.110, 0.028, 0.008)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                    }
+
+                    def Cube "BladeB" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        double size = 1.0
+                        color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
+                        rel material:binding = </Plant/Looks/DarkSteel>
+                        double3 xformOp:translate = (-0.055, 0, 0)
+                        double3 xformOp:scale = (0.110, 0.028, 0.008)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                    }
+
+                    def Cube "BladeC" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        double size = 1.0
+                        color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
+                        rel material:binding = </Plant/Looks/DarkSteel>
+                        double3 xformOp:translate = (0, 0.055, 0)
+                        double3 xformOp:scale = (0.028, 0.110, 0.008)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                    }
+
+                    def Cube "BladeD" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        double size = 1.0
+                        color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
+                        rel material:binding = </Plant/Looks/DarkSteel>
+                        double3 xformOp:translate = (0, -0.055, 0)
+                        double3 xformOp:scale = (0.028, 0.110, 0.008)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                    }
+                }
+
                 def Cube "FinTop" (
                     prepend apiSchemas = ["MaterialBindingAPI"]
                 )
@@ -1082,119 +1338,37 @@ def Xform "Plant"
                 }
             }
 
-            # Beacon hardware. Permanently mounted on a real skid, so it sits
-            # outside the alarm-gated prim below - only the lamp itself is gated.
-            def Xform "Beacon"
+            # Alarm ring. A red circle drawn on the floor around the
+            # machine is legible from anywhere in the hall and from any
+            # camera angle, which a lamp on a mast is not: a beacon reads
+            # only when you happen to be looking at it. Hidden until the
+            # pump's own supervision state asserts.
+            def Mesh "AlarmRing"
             {
-                double3 xformOp:translate = (0.10, -0.32, 0.12)
-                uniform token[] xformOpOrder = ["xformOp:translate"]
-
-                def Cylinder "Post" (
-                    prepend apiSchemas = ["MaterialBindingAPI"]
-                )
-                {
-                    uniform token axis = "Z"
-                    double height = 0.520
-                    double radius = 0.016
-                    color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
-                    rel material:binding = </Plant/Looks/DarkSteel>
-                    double3 xformOp:translate = (0, 0, 0.260)
-                    uniform token[] xformOpOrder = ["xformOp:translate"]
-                }
-
-                def Cylinder "Housing" (
-                    prepend apiSchemas = ["MaterialBindingAPI"]
-                )
-                {
-                    uniform token axis = "Z"
-                    double height = 0.050
-                    double radius = 0.050
-                    color3f[] primvars:displayColor = [(0.20, 0.21, 0.23)]
-                    rel material:binding = </Plant/Looks/DarkSteel>
-                    double3 xformOp:translate = (0, 0, 0.545)
-                    uniform token[] xformOpOrder = ["xformOp:translate"]
-                }
-
-                # The lamp itself is permanently mounted; its emissive colour is
-                # driven by discharge pressure, so its glow tracks the duty point
-                # and shows at a glance that the pump is running. It borrows the
-                # material the emissive binding targets under StatusLight.
-                def Sphere "Lamp" (
-                    prepend apiSchemas = ["MaterialBindingAPI"]
-                )
-                {
-                    double radius = 0.050
-                    color3f[] primvars:displayColor = [(0.90, 0.20, 0.16)]
-                    rel material:binding = </Plant/Pumps/P101/StatusLight/Mat>
-                    double3 xformOp:translate = (0, 0, 0.585)
-                    uniform token[] xformOpOrder = ["xformOp:translate"]
-                }
-            }
-
-            def Xform "StatusLight"
-            {
-                double3 xformOp:translate = (0.10, -0.32, 0.12)
-                uniform token[] xformOpOrder = ["xformOp:translate"]
-
-                token visibility = "inherited"
-
-                # Alarm halo - only this is gated by the supervision alarm, so a
-                # cleared alarm leaves the beacon hardware and lamp on show.
-                def Sphere "Halo" (
-                    prepend apiSchemas = ["MaterialBindingAPI"]
-                )
-                {
-                    double radius = 0.085
-                    color3f[] primvars:displayColor = [(1.0, 0.35, 0.10)]
-                    rel material:binding = </Plant/Pumps/P101/StatusLight/Mat>
-                    double3 xformOp:translate = (0, 0, 0.585)
-                    uniform token[] xformOpOrder = ["xformOp:translate"]
-                }
-
-                def Material "Mat"
-                {
-                    token outputs:surface.connect = </Plant/Pumps/P101/StatusLight/Mat/Surface.outputs:surface>
-
-                    def Shader "Surface"
-                    {
-                        uniform token info:id = "UsdPreviewSurface"
-                        color3f inputs:diffuseColor = (0.1, 0.1, 0.1)
-                        color3f inputs:emissiveColor = (0, 0, 0)
-                        float inputs:roughness = 0.25
-                        token outputs:surface
-                    }
-                }
+                int[] faceVertexCounts = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+                int[] faceVertexIndices = [0, 2, 3, 1, 2, 4, 5, 3, 4, 6, 7, 5, 6, 8, 9, 7, 8, 10, 11, 9, 10, 12, 13, 11, 12, 14, 15, 13, 14, 16, 17, 15, 16, 18, 19, 17, 18, 20, 21, 19, 20, 22, 23, 21, 22, 24, 25, 23, 24, 26, 27, 25, 26, 28, 29, 27, 28, 30, 31, 29, 30, 32, 33, 31, 32, 34, 35, 33, 34, 36, 37, 35, 36, 38, 39, 37, 38, 40, 41, 39, 40, 42, 43, 41, 42, 44, 45, 43, 44, 46, 47, 45, 46, 48, 49, 47, 48, 50, 51, 49, 50, 52, 53, 51, 52, 54, 55, 53, 54, 56, 57, 55, 56, 58, 59, 57, 58, 60, 61, 59, 60, 62, 63, 61, 62, 64, 65, 63, 64, 66, 67, 65, 66, 68, 69, 67, 68, 70, 71, 69, 70, 72, 73, 71, 72, 74, 75, 73, 74, 76, 77, 75, 76, 78, 79, 77, 78, 80, 81, 79, 80, 82, 83, 81, 82, 84, 85, 83, 84, 86, 87, 85, 86, 88, 89, 87, 88, 90, 91, 89, 90, 92, 93, 91, 92, 94, 95, 93, 94, 0, 1, 95]
+                point3f[] points = [
+                    (1.0200, 0.0000, 0.0150), (0.8800, 0.0000, 0.0150), (1.0106, 0.1436, 0.0150), (0.8718, 0.1253, 0.0150), (0.9825, 0.2847, 0.0150), (0.8473, 0.2485, 0.0150),
+                    (0.9363, 0.4210, 0.0150), (0.8069, 0.3674, 0.0150), (0.8726, 0.5500, 0.0150), (0.7514, 0.4800, 0.0150), (0.7927, 0.6696, 0.0150), (0.6816, 0.5844, 0.0150),
+                    (0.6978, 0.7778, 0.0150), (0.5988, 0.6788, 0.0150), (0.5896, 0.8727, 0.0150), (0.5044, 0.7616, 0.0150), (0.4700, 0.9526, 0.0150), (0.4000, 0.8314, 0.0150),
+                    (0.3410, 1.0163, 0.0150), (0.2874, 0.8869, 0.0150), (0.2047, 1.0625, 0.0150), (0.1685, 0.9273, 0.0150), (0.0636, 1.0906, 0.0150), (0.0453, 0.9518, 0.0150),
+                    (-0.0800, 1.1000, 0.0150), (-0.0800, 0.9600, 0.0150), (-0.2236, 1.0906, 0.0150), (-0.2053, 0.9518, 0.0150), (-0.3647, 1.0625, 0.0150), (-0.3285, 0.9273, 0.0150),
+                    (-0.5010, 1.0163, 0.0150), (-0.4474, 0.8869, 0.0150), (-0.6300, 0.9526, 0.0150), (-0.5600, 0.8314, 0.0150), (-0.7496, 0.8727, 0.0150), (-0.6644, 0.7616, 0.0150),
+                    (-0.8578, 0.7778, 0.0150), (-0.7588, 0.6788, 0.0150), (-0.9527, 0.6696, 0.0150), (-0.8416, 0.5844, 0.0150), (-1.0326, 0.5500, 0.0150), (-0.9114, 0.4800, 0.0150),
+                    (-1.0963, 0.4210, 0.0150), (-0.9669, 0.3674, 0.0150), (-1.1425, 0.2847, 0.0150), (-1.0073, 0.2485, 0.0150), (-1.1706, 0.1436, 0.0150), (-1.0318, 0.1253, 0.0150),
+                    (-1.1800, 0.0000, 0.0150), (-1.0400, 0.0000, 0.0150), (-1.1706, -0.1436, 0.0150), (-1.0318, -0.1253, 0.0150), (-1.1425, -0.2847, 0.0150), (-1.0073, -0.2485, 0.0150),
+                    (-1.0963, -0.4210, 0.0150), (-0.9669, -0.3674, 0.0150), (-1.0326, -0.5500, 0.0150), (-0.9114, -0.4800, 0.0150), (-0.9527, -0.6696, 0.0150), (-0.8416, -0.5844, 0.0150),
+                    (-0.8578, -0.7778, 0.0150), (-0.7588, -0.6788, 0.0150), (-0.7496, -0.8727, 0.0150), (-0.6644, -0.7616, 0.0150), (-0.6300, -0.9526, 0.0150), (-0.5600, -0.8314, 0.0150),
+                    (-0.5010, -1.0163, 0.0150), (-0.4474, -0.8869, 0.0150), (-0.3647, -1.0625, 0.0150), (-0.3285, -0.9273, 0.0150), (-0.2236, -1.0906, 0.0150), (-0.2053, -0.9518, 0.0150),
+                    (-0.0800, -1.1000, 0.0150), (-0.0800, -0.9600, 0.0150), (0.0636, -1.0906, 0.0150), (0.0453, -0.9518, 0.0150), (0.2047, -1.0625, 0.0150), (0.1685, -0.9273, 0.0150),
+                    (0.3410, -1.0163, 0.0150), (0.2874, -0.8869, 0.0150), (0.4700, -0.9526, 0.0150), (0.4000, -0.8314, 0.0150), (0.5896, -0.8727, 0.0150), (0.5044, -0.7616, 0.0150),
+                    (0.6978, -0.7778, 0.0150), (0.5988, -0.6788, 0.0150), (0.7927, -0.6696, 0.0150), (0.6816, -0.5844, 0.0150), (0.8726, -0.5500, 0.0150), (0.7514, -0.4800, 0.0150),
+                    (0.9363, -0.4210, 0.0150), (0.8069, -0.3674, 0.0150), (0.9825, -0.2847, 0.0150), (0.8473, -0.2485, 0.0150), (1.0106, -0.1436, 0.0150), (0.8718, -0.1253, 0.0150)
+                ]
+                color3f[] primvars:displayColor = [(0.90, 0.05, 0.05)]
+                token visibility = "invisible"
             }
         }
     }
 
-    def Xform "Line1"
-    {
-        def Scope "Pumps"
-        {
-            def Xform "P_201"
-            {
-                double3 xformOp:translate = (0, 1.5, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate"]
-            }
-
-            def Xform "P_202"
-            {
-                double3 xformOp:translate = (0, 2.7, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate"]
-            }
-
-            def Xform "P_203"
-            {
-                double3 xformOp:translate = (0, 3.9, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate"]
-            }
-        }
-
-        def Xform "RemotePump"
-        {
-            double3 xformOp:translate = (0, -1.5, 0)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
-        }
-    }
 }

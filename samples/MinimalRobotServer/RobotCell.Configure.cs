@@ -51,27 +51,6 @@ namespace Robotics
         private const int EstopPeriodTicks = 600;
         private const int EstopActiveFromTick = 560;
 
-        /// <summary>
-        /// Key poses of one transfer cycle, in the axis order A1..A6 (degrees). The arm
-        /// swings to the pick station, descends, closes on the part, lifts clear, traverses
-        /// while rotating the part upright, places it, and retracts. Each entry moves from
-        /// the previous pose over <c>MoveSeconds</c> and then holds for <c>DwellSeconds</c>,
-        /// which is what makes the motion read as a real duty cycle instead of a sweep.
-        /// </summary>
-        private static readonly (double[] Pose, double MoveSeconds, double DwellSeconds)[] s_cycle =
-        [
-            ([0.0, -60.0, 75.0, 0.0, 45.0, 0.0], 1.6, 0.4),
-            ([55.0, -45.0, 70.0, 0.0, 45.0, 0.0], 1.8, 0.2),
-            ([55.0, -30.0, 62.0, 0.0, 58.0, 0.0], 1.0, 0.8),
-            ([55.0, -55.0, 78.0, 0.0, 47.0, 0.0], 1.0, 0.2),
-            ([-15.0, -55.0, 78.0, 0.0, 47.0, 90.0], 2.0, 0.2),
-            ([-45.0, -45.0, 70.0, 0.0, 50.0, 90.0], 1.4, 0.2),
-            ([-45.0, -28.0, 60.0, 0.0, 58.0, 90.0], 1.0, 0.8),
-            ([-45.0, -60.0, 80.0, 0.0, 45.0, 0.0], 1.4, 0.3)
-        ];
-
-        private static readonly double s_cycleSeconds = ComputeCycleSeconds();
-
         partial void Configure(INodeManagerBuilder builder)
         {
             // Single manager-owned simulation tick advances every axis position and the
@@ -83,13 +62,29 @@ namespace Robotics
         private void AdvanceSimulation()
         {
             long t = Interlocked.Increment(ref m_simulationTicks);
-            double time = t * TickSeconds;
 
-            // Drive every axis from the shared pick-and-place cycle, offset per robot so
-            // the two arms are not synchronised, and clamp to the axis' own limits.
+            // Emergency-stop pulses active (~2 s) roughly every 30 s so the safety
+            // beacon (cell) and warning zones (robots) toggle live. It now also halts the
+            // choreography rather than only blinking a lamp.
+            bool estop = (t % EstopPeriodTicks) >= EstopActiveFromTick;
+            UpdateBool(m_estopVar, estop);
+
+            CellChoreographer cell = m_choreographer;
+            cell.EmergencyStop = estop;
+            cell.Advance(TickSeconds);
+            PublishTwinState(cell);
+
+            // Publish the axis positions the choreography produced. They come from the arm
+            // solver, so the arm genuinely reaches the slot it is working rather than
+            // sweeping through a canned pose list.
             foreach (AxisRuntime ax in m_axes)
             {
-                double target = EvaluateCycle(time + ax.PhaseSeconds, ax.Index);
+                RobotAgent? agent = FindAgent(cell, ax.RobotId);
+                if (agent == null || ax.Index >= agent.Axes.Length)
+                {
+                    continue;
+                }
+                double target = agent.Axes[ax.Index];
                 if (target < ax.Min)
                 {
                     target = ax.Min;
@@ -100,54 +95,20 @@ namespace Robotics
                 }
                 UpdateDouble(ax.Position, target);
             }
-
-            // Emergency-stop pulses active (~2 s) roughly every 30 s so the safety
-            // beacon (cell) and warning zones (robots) toggle live.
-            bool estop = (t % EstopPeriodTicks) >= EstopActiveFromTick;
-            UpdateBool(m_estopVar, estop);
         }
 
-        /// <summary>
-        /// Samples the cycle for one axis at a point in time, easing each move so the arm
-        /// accelerates and settles rather than stepping between poses.
-        /// </summary>
-        private static double EvaluateCycle(double time, int axisIndex)
+        private static RobotAgent? FindAgent(CellChoreographer cell, string robotId)
         {
-            double position = time % s_cycleSeconds;
-            if (position < 0.0)
+            foreach (RobotAgent agent in cell.Robots)
             {
-                position += s_cycleSeconds;
-            }
-
-            for (int i = 0; i < s_cycle.Length; i++)
-            {
-                (double[] pose, double move, double dwell) = s_cycle[i];
-                if (position < move)
+                if (string.Equals(agent.Id, robotId, StringComparison.Ordinal))
                 {
-                    double[] previous = s_cycle[(i + s_cycle.Length - 1) % s_cycle.Length].Pose;
-                    double u = position / move;
-                    double eased = u * u * (3.0 - (2.0 * u));
-                    return previous[axisIndex] + ((pose[axisIndex] - previous[axisIndex]) * eased);
+                    return agent;
                 }
-                position -= move;
-                if (position < dwell)
-                {
-                    return pose[axisIndex];
-                }
-                position -= dwell;
             }
-            return s_cycle[^1].Pose[axisIndex];
+            return null;
         }
 
-        private static double ComputeCycleSeconds()
-        {
-            double total = 0.0;
-            foreach ((double[] _, double move, double dwell) in s_cycle)
-            {
-                total += move + dwell;
-            }
-            return total;
-        }
 
         private void UpdateDouble(BaseDataVariableState? v, double value)
         {

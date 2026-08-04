@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 NodeManagerRegistration registration = await m_server
                     .NodeManagerLifecycle
-                    .AddRuntimeNodeSetAsync(CreateOptions(), ct)
+                    .AddRuntimeNodeSetAsync(CreateOptions(), null, ct)
                     .ConfigureAwait(false);
 
                 ModelChangedEventArgs observed = await refreshed.Task
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 // A same-uri reload must not grow the table any further.
                 await m_server.NodeManagerLifecycle
-                    .ReloadRuntimeNodeSetAsync(registration, CreateOptions(), ct)
+                    .ReloadRuntimeNodeSetAsync(registration, CreateOptions(), null, ct)
                     .ConfigureAwait(false);
                 await Task.Delay(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
 
