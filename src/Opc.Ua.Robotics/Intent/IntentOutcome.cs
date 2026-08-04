@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -33,66 +33,6 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.RobotIntent
 {
-    /// <summary>
-    /// Reports the progress of an executing intent back to the address space.
-    /// </summary>
-    /// <remarks>
-    /// Everything here is a status report published at whatever rate a client's
-    /// Subscription asks for. OPC UA is not a real-time control channel, and the
-    /// specification excludes servo-level use as a normative limit rather than a
-    /// caution; see OPC UA - Robot Intent clause 4.3.
-    /// </remarks>
-    public interface IIntentProgress
-    {
-        /// <summary>
-        /// Reports the fraction of the intent completed, in the range 0 to 1.
-        /// A negative value states that the Server cannot estimate it.
-        /// </summary>
-        void ReportProgress(double fraction);
-
-        /// <summary>
-        /// Reports where the driven tool centre point is now.
-        /// </summary>
-        void ReportPose(Pose3DDataType pose);
-    }
-
-    /// <summary>
-    /// What an executor is given when it is asked to carry out one intent.
-    /// </summary>
-    public sealed class IntentExecution
-    {
-        /// <summary>
-        /// Creates an execution context.
-        /// </summary>
-        public IntentExecution(string intentId, IntentDataType intent, IIntentProgress progress)
-        {
-            IntentId = intentId ?? throw new ArgumentNullException(nameof(intentId));
-            Intent = intent ?? throw new ArgumentNullException(nameof(intent));
-            Progress = progress ?? throw new ArgumentNullException(nameof(progress));
-        }
-
-        /// <summary>
-        /// The identifier the intent was admitted under.
-        /// </summary>
-        public string IntentId { get; }
-
-        /// <summary>
-        /// The intent as admitted, after the Server applied its defaults.
-        /// </summary>
-        public IntentDataType Intent { get; }
-
-        /// <summary>
-        /// Progress and pose reporting for this execution.
-        /// </summary>
-        public IIntentProgress Progress { get; }
-
-        /// <summary>
-        /// The mission this intent belongs to, or an empty string when it was
-        /// submitted on its own.
-        /// </summary>
-        public string MissionId { get; init; } = string.Empty;
-    }
-
     /// <summary>
     /// How an intent ended.
     /// </summary>
@@ -180,48 +120,5 @@ namespace Opc.Ua.RobotIntent
                 or ExecutionStateEnum.Cancelled
                 or ExecutionStateEnum.Retriable;
         }
-    }
-
-    /// <summary>
-    /// Carries out intents on the robot.
-    /// </summary>
-    /// <remarks>
-    /// The host owns admission, queueing, the state machine, cancellation and the
-    /// result; an implementation of this interface owns only the doing. Translating an
-    /// intent into whatever the controller actually executes - URScript, RAPID, KRL, a
-    /// TP program - is the whole of its job.
-    /// </remarks>
-    public interface IIntentExecutor
-    {
-        /// <summary>
-        /// Executes one intent.
-        /// </summary>
-        /// <remarks>
-        /// The cancellation token is signalled when a cancel has been ACCEPTED, which
-        /// is the point at which the operation enters Cancelling. An implementation
-        /// brings motion to a controlled end and then returns; it need not return
-        /// Cancelled, because the host records the cancellation itself.
-        /// </remarks>
-        ValueTask<IntentOutcome> ExecuteAsync(
-            IntentExecution execution,
-            CancellationToken cancellationToken);
-
-        /// <summary>
-        /// Decides whether a cancel may be accepted for an intent that is executing.
-        /// </summary>
-        /// <remarks>
-        /// Some motions cannot be abandoned part-way without leaving the cell in a
-        /// worse state than completing them - a tool change mid-exchange, a placement
-        /// mid-release. Returning false refuses this one occasion; declaring
-        /// CancelSupported false in the capability refuses the whole intent type in
-        /// advance.
-        /// <para>
-        /// This has no default implementation because the library targets .NET
-        /// Framework, which has none, and because whether a motion can be safely
-        /// abandoned is a decision worth making deliberately. An executor that has no
-        /// such motions returns true.
-        /// </para>
-        /// </remarks>
-        bool CanCancel(IntentExecution execution);
     }
 }

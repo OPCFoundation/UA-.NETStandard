@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -61,7 +61,7 @@ namespace Opc.Ua.RobotIntent.Server
         private const uint StateSuspended = 3;
         private const uint StateHalted = 4;
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly IntentControllerState m_controller;
         private readonly IIntentExecutor m_executor;
         private readonly IntentControllerHostOptions m_options;
@@ -175,68 +175,77 @@ namespace Opc.Ua.RobotIntent.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
-            if (!HoldsAuthority(sessionId))
-            {
-                return IntentAdmission.Refused(IntentFailureEnum.ControlNotOwned,
-                    "The calling Session does not hold command authority.");
-            }
-            if (!IsSubmissionPermittedInMode())
-            {
-                return IntentAdmission.Refused(IntentFailureEnum.NotPermittedInMode,
-                    "Intents are accepted only in Automatic or AutomaticExternal mode.");
-            }
-            if (!m_safety.PermitsSubmission)
-            {
-                return IntentAdmission.Refused(IntentFailureEnum.NotPermittedInMode,
-                    m_safety.SafetyControllerOk
-                        ? "A stop is asserted."
-                        : "The safety controller reports a fault.");
-            }
             if (intent == null)
             {
                 return IntentAdmission.Refused(IntentFailureEnum.ParameterInvalid,
                     "No intent was supplied.");
             }
-            if (intent is MotionIntentDataType && AnyChannelHeldLocked() &&
-                !m_options.ArbitratesWithRealTimeChannel)
-            {
-                return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
-                    "A real-time channel lease is held and this Server does not "
-                    + "arbitrate between the two command sources.");
-            }
-            if (ExceedsSafeSpeed(intent))
-            {
-                return IntentAdmission.Refused(IntentFailureEnum.SafetyLimitExceeded,
-                    FormattableString.Invariant(
-                        $"The requested speed exceeds the enforced safe limit of {m_safety.SafeSpeedLimit} m/s."));
-            }
 
-            IntentCapabilityDataType? capability = FindCapability(intent);
-            if (capability == null)
-            {
-                return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
-                    $"This Server does not accept {intent.GetType().Name}.");
-            }
-            if (!Permits(capability.SupportedBufferModes, intent.BufferMode))
-            {
-                return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
-                    $"BufferMode {intent.BufferMode} is not accepted for this intent type.");
-            }
-            if (!Permits(capability.SupportedBlockingModes, intent.BlockingMode))
-            {
-                return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
-                    $"BlockingMode {intent.BlockingMode} is not accepted for this intent type.");
-            }
-
-            Check validation = IntentValidation.Validate(intent, m_options);
-            if (!validation.Ok)
-            {
-                return IntentAdmission.Refused(IntentFailureEnum.ParameterInvalid,
-                    validation.Message ?? "The intent is not valid.");
-            }
-
+            // Everything below depends on state another thread can change: the safety
+            // status, the control owner, the channel leases and the capability table.
+            // Admission is decided and acted on under one acquisition, because a check
+            // that releases the lock before it acts is a check the world can invalidate
+            // in between - a stop asserted in that window would otherwise admit work
+            // the Server had already been told to refuse.
             lock (m_lock)
             {
+                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.ControlNotOwned,
+                        "The calling Session does not hold command authority.");
+                }
+                if (!IsSubmissionPermittedInMode())
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.NotPermittedInMode,
+                        "Intents are accepted only in Automatic or AutomaticExternal mode.");
+                }
+                if (!m_safety.PermitsSubmission)
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.NotPermittedInMode,
+                        m_safety.SafetyControllerOk
+                            ? "A stop is asserted."
+                            : "The safety controller reports a fault.");
+                }
+                if (intent is MotionIntentDataType && AnyChannelHeldLocked() &&
+                    !m_options.ArbitratesWithRealTimeChannel)
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
+                        "A real-time channel lease is held and this Server does not "
+                        + "arbitrate between the two command sources.");
+                }
+                if (ExceedsSafeSpeedLocked(intent))
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.SafetyLimitExceeded,
+                        FormattableString.Invariant(
+                            $"The requested speed exceeds the enforced safe limit of {m_safety.SafeSpeedLimit} m/s."));
+                }
+
+                IntentCapabilityDataType? capability = FindCapabilityLocked(intent);
+                if (capability == null)
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
+                        $"This Server does not accept {intent.GetType().Name}.");
+                }
+                if (!Permits(capability.SupportedBufferModes, intent.BufferMode))
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
+                        $"BufferMode {intent.BufferMode} is not accepted for this intent type.");
+                }
+                if (!Permits(capability.SupportedBlockingModes, intent.BlockingMode))
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
+                        $"BlockingMode {intent.BlockingMode} is not accepted for this intent type.");
+                }
+
+                // Last, and deliberately so: a caller that holds no authority must not
+                // learn from the answer whether its parameters would have been valid.
+                Check validation = IntentValidation.Validate(intent, m_options);
+                if (!validation.Ok)
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.ParameterInvalid,
+                        validation.Message ?? "The intent is not valid.");
+                }
+
                 string id = forceNewId ? string.Empty : intent.IntentId ?? string.Empty;
                 if (string.IsNullOrEmpty(id))
                 {
@@ -296,12 +305,12 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            if (!HoldsAuthority(sessionId))
-            {
-                return false;
-            }
             lock (m_lock)
             {
+                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
+                {
+                    return false;
+                }
                 if (!m_intents.TryGetValue(intentId ?? string.Empty, out IntentEntry? entry) ||
                     IntentOutcome.IsTerminal(entry.State))
                 {
@@ -320,12 +329,12 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            if (!HoldsAuthority(sessionId))
-            {
-                return 0;
-            }
             lock (m_lock)
             {
+                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
+                {
+                    return 0;
+                }
                 uint count = 0;
                 foreach (MissionEntry mission in m_missions.Values.ToList())
                 {
@@ -396,12 +405,12 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            if (!HoldsAuthority(sessionId))
-            {
-                return false;
-            }
             lock (m_lock)
             {
+                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
+                {
+                    return false;
+                }
                 if (m_paused)
                 {
                     return true;
@@ -424,12 +433,12 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            if (!HoldsAuthority(sessionId))
-            {
-                return false;
-            }
             lock (m_lock)
             {
+                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
+                {
+                    return false;
+                }
                 if (!m_paused)
                 {
                     return true;
@@ -525,25 +534,6 @@ namespace Opc.Ua.RobotIntent.Server
         }
 
         /// <summary>
-        /// Releases authority held by a Session that has closed.
-        /// </summary>
-        /// <remarks>
-        /// Without this a crashed client locks the robot for good.
-        /// </remarks>
-        public void OnSessionClosed(ISystemContext context, NodeId sessionId)
-        {
-            ReleaseControl(context, sessionId);
-        }
-
-        private bool HoldsAuthority(NodeId? sessionId)
-        {
-            lock (m_lock)
-            {
-                return !m_options.RequireControlAuthority || ControlOwner == sessionId;
-            }
-        }
-
-        /// <summary>
         /// Reports what the safety system is enforcing, and publishes it.
         /// </summary>
         /// <remarks>
@@ -584,6 +574,17 @@ namespace Opc.Ua.RobotIntent.Server
         }
 
         /// <summary>
+        /// Releases authority held by a Session that has closed.
+        /// </summary>
+        /// <remarks>
+        /// Without this a crashed client locks the robot for good.
+        /// </remarks>
+        public void OnSessionClosed(ISystemContext context, NodeId sessionId)
+        {
+            ReleaseControl(context, sessionId);
+        }
+
+        /// <summary>
         /// Whether the intent asks to move faster than the safety system permits.
         /// </summary>
         /// <remarks>
@@ -591,7 +592,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// configured maximum the host does not know, so it is left to the robot, which
         /// does. Refusing what cannot be judged would reject legitimate work.
         /// </remarks>
-        private bool ExceedsSafeSpeed(IntentDataType intent)
+        private bool ExceedsSafeSpeedLocked(IntentDataType intent)
         {
             if (!m_safety.SafeSpeedLimitActive || m_safety.SafeSpeedLimit <= 0)
             {
@@ -662,7 +663,7 @@ namespace Opc.Ua.RobotIntent.Server
             }
         }
 
-        private IntentCapabilityDataType? FindCapability(IntentDataType intent)
+        private IntentCapabilityDataType? FindCapabilityLocked(IntentDataType intent)
         {
             NodeId? typeId = ExpandedNodeId.ToNodeId(intent.TypeId, m_namespaceUris);
             if (typeId is not { } resolved || resolved.IsNull)
@@ -803,13 +804,13 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 return RealTimeLease.Refused("This Server brokers no real-time channels.");
             }
-            if (!HoldsAuthority(sessionId))
-            {
-                return RealTimeLease.Refused(
-                    "The calling Session does not hold command authority.");
-            }
             lock (m_lock)
             {
+                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
+                {
+                    return RealTimeLease.Refused(
+                        "The calling Session does not hold command authority.");
+                }
                 if (!m_channels.TryGetValue(channelId ?? string.Empty, out ChannelEntry? channel))
                 {
                     return RealTimeLease.Refused("No channel with that identifier is offered.");
@@ -968,16 +969,6 @@ namespace Opc.Ua.RobotIntent.Server
                 return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
                     "This Server does not implement missions.");
             }
-            if (!HoldsAuthority(sessionId))
-            {
-                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
-                    "The calling Session does not hold command authority.");
-            }
-            if (!IsSubmissionPermittedInMode())
-            {
-                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
-                    "Missions are accepted only in Automatic or AutomaticExternal mode.");
-            }
             if (mission == null || mission.Steps.IsNull || mission.Steps.IsEmpty)
             {
                 return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
@@ -997,8 +988,22 @@ namespace Opc.Ua.RobotIntent.Server
                     graph.Message ?? "The mission graph is not valid.");
             }
 
+            // Decided under the same acquisition that acts on it, for the reason given
+            // in SubmitCore: authority and mode can both change between a check that
+            // released the lock and the admission that follows it.
             lock (m_lock)
             {
+                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
+                {
+                    return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                        "The calling Session does not hold command authority.");
+                }
+                if (!IsSubmissionPermittedInMode())
+                {
+                    return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                        "Missions are accepted only in Automatic or AutomaticExternal mode.");
+                }
+
                 string id = mission.MissionId ?? string.Empty;
                 if (string.IsNullOrEmpty(id))
                 {
@@ -1045,14 +1050,13 @@ namespace Opc.Ua.RobotIntent.Server
                 return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
                     "This Server does not implement horizon updates.");
             }
-            if (!HoldsAuthority(sessionId))
-            {
-                return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
-                    "The calling Session does not hold command authority.");
-            }
-
             lock (m_lock)
             {
+                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
+                {
+                    return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
+                        "The calling Session does not hold command authority.");
+                }
                 if (!m_missions.TryGetValue(missionId ?? string.Empty, out MissionEntry? entry))
                 {
                     return new MissionUpdateOutcome(MissionUpdateResultEnum.UnknownMission,
@@ -1101,12 +1105,12 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            if (!HoldsAuthority(sessionId))
-            {
-                return false;
-            }
             lock (m_lock)
             {
+                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
+                {
+                    return false;
+                }
                 if (!m_missions.TryGetValue(missionId ?? string.Empty, out MissionEntry? entry) ||
                     IntentOutcome.IsTerminal(entry.State))
                 {
@@ -1385,7 +1389,72 @@ namespace Opc.Ua.RobotIntent.Server
             SetValue(node.ExecutionState, state);
             node.SetState(context, MapToProgramState(state));
             node.ClearChangeMasks(context, true);
+            if (IntentOutcome.IsTerminal(state))
+            {
+                PruneTerminalOperationsLocked();
+            }
         }
+
+        /// <summary>
+        /// Drops the oldest terminal operations once more than
+        /// <see cref="IntentControllerHostOptions.RetainedTerminalOperations"/> have
+        /// accrued, so a controller that runs for months does not accumulate an
+        /// operation node for every intent it has ever been given.
+        /// <para>
+        /// Only terminal operations are considered: one still queued, executing or
+        /// suspended is going to change again and a client watching it would lose the
+        /// rest of the story. Removal is best effort - a host that cannot remove the
+        /// node keeps the entry rather than leaving a dictionary that disagrees with
+        /// the address space.
+        /// </para>
+        /// </summary>
+        private void PruneTerminalOperationsLocked()
+        {
+            uint keep = m_options.RetainedTerminalOperations;
+            if (keep == 0 || m_removeNode is null)
+            {
+                return;
+            }
+            List<KeyValuePair<string, IntentEntry>> terminal = m_intents
+                .Where(kv => IntentOutcome.IsTerminal(kv.Value.State) &&
+                             !ReferenceEquals(kv.Value, m_current))
+                .OrderBy(kv => kv.Value.StartTime)
+                .ToList();
+            for (int i = 0; i < terminal.Count - (int)keep; i++)
+            {
+                KeyValuePair<string, IntentEntry> victim = terminal[i];
+                if (victim.Value.Node is { } stale)
+                {
+                    RemoveNode(stale);
+                }
+                m_intents.Remove(victim.Key);
+                victim.Value.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Retires a per-invocation node. Mirrors <see cref="AddNode"/>: the removal
+        /// usually completes synchronously, and when it does not the task is observed
+        /// so a failure surfaces rather than leaving a node nothing will ever clean up.
+        /// </summary>
+        private void RemoveNode(NodeState node)
+        {
+            ValueTask task = m_removeNode!(node, CancellationToken.None);
+            if (task.IsCompletedSuccessfully)
+            {
+                return;
+            }
+            _ = task.AsTask().ContinueWith(
+                t => NodeRemoveFailed?.Invoke(this, new IntentNodeAddFailure(node, t.Exception!)),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+
+        /// <summary>
+        /// Raised when a per-invocation node could not be retired.
+        /// </summary>
+        public event EventHandler<IntentNodeAddFailure>? NodeRemoveFailed;
 
         private void SetMissionStateLocked(
             ISystemContext context, MissionEntry entry, ExecutionStateEnum state)

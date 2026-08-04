@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -121,6 +121,26 @@ namespace Opc.Ua.RobotIntent.Server
         /// Longest lease a real-time channel is granted, in milliseconds.
         /// </summary>
         public double MaxChannelLeaseMs { get; set; } = 30000;
+
+        /// <summary>
+        /// How many terminal operations to keep browsable per controller, or zero to
+        /// keep every one of them.
+        /// <para>
+        /// An operation instance survives the work it describes, because a client has
+        /// to be able to read the result after the fact. Nothing then removes it, so a
+        /// controller that runs continuously accumulates operation nodes for as long as
+        /// it is up. Setting a bound lets the host drop the oldest terminal operations
+        /// once that many have accrued, using the <c>removeNode</c> callback the host
+        /// was constructed with.
+        /// </para>
+        /// <para>
+        /// The default of zero preserves every operation, which is the safe default: a
+        /// host that discards an operation a client had not yet read would turn a
+        /// retention policy into lost provenance. A host that sets a bound is stating
+        /// that its clients read results promptly.
+        /// </para>
+        /// </summary>
+        public uint RetainedTerminalOperations { get; set; }
 
         /// <summary>
         /// Whether this host can arbitrate between an intent and a held real-time
