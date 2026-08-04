@@ -242,6 +242,7 @@
     <Project Path="tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
     <Project Path="tests/Opc.Ua.OpenUsd.Tests/Opc.Ua.OpenUsd.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Generators.Tests/Opc.Ua.Generators.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Diagnostics.Tests/Opc.Ua.Core.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Bindings.Https.WebApi.Tests/Opc.Ua.Bindings.Https.WebApi.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
