@@ -75,6 +75,11 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Gets whether the owning server has started its ordered shutdown sequence.
+        /// </summary>
+        public bool IsShuttingDown => m_shuttingDown;
+
         internal long ShutdownCleanupProgress =>
             Interlocked.Read(ref m_shutdownCleanupProgress);
 

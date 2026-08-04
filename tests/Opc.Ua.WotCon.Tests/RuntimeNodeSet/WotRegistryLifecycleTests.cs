@@ -260,9 +260,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_coordinator = null!;
 
             Assert.That(
-                async () => await m_fixture.StopAsync().ConfigureAwait(false),
+                () => m_server.Dispose(),
                 Throws.Nothing,
-                "Server shutdown must still delete the WoT address space after coordinator disposal.");
+                "Server disposal must still delete the WoT address space after coordinator disposal.");
         }
 
         private async Task AssertRegistryProjectionAsync(IServerInternal server)

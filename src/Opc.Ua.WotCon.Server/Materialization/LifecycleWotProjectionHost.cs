@@ -162,6 +162,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotProjectionHandle handle,
             CancellationToken cancellationToken = default)
         {
+            if (m_lifecycle is NodeManagerLifecycle { IsShuttingDown: true })
+            {
+                return;
+            }
+
             if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
             {
                 await m_lifecycle
