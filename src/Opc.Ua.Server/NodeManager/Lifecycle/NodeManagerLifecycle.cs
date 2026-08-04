@@ -37,6 +37,17 @@ using Opc.Ua.Server.RuntimeNodeSet;
 namespace Opc.Ua.Server
 {
     /// <summary>
+    /// Factory opt-in for lifecycle operations initiated from OPC UA request callbacks.
+    /// </summary>
+    internal interface IRequestCallbackSafeNodeManagerFactory
+    {
+        /// <summary>
+        /// Gets whether request callbacks may enter lifecycle work without deadlocking request drains.
+        /// </summary>
+        bool AllowLifecycleFromRequestCallback { get; }
+    }
+
+    /// <summary>
     /// Default live NodeManager lifecycle provider owned by a <see cref="StandardServer"/>.
     /// </summary>
     public sealed class NodeManagerLifecycle : INodeManagerLifecycle, IDisposable
