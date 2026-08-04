@@ -105,7 +105,7 @@ namespace Opc.Ua.WotCon.Tests
                 documentConverter: m_converter);
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
             _ = await m_server.NodeManagerLifecycle
-                .AddAsync(factory)
+                .AddAsync(factory, callerContext: null)
                 .ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture(false, false, m_telemetry);
