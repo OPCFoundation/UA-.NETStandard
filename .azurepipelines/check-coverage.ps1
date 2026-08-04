@@ -40,6 +40,12 @@
  .PARAMETER SkipFetch
     Do not run 'git fetch' for the base ref. Used by the unit tests, which
     operate on a purpose-built local repository.
+
+ .PARAMETER SummaryPath
+    Optional path to write a markdown summary of the gate result to. Azure
+    Pipelines attaches it with '##vso[task.uploadsummary]' and GitHub Actions
+    appends it to $GITHUB_STEP_SUMMARY and to the pull request comment, so the
+    numbers are visible without opening the log.
 #>
 
 [CmdletBinding()]
@@ -49,7 +55,8 @@ Param(
     [string] $ThresholdsPath = '',
     [string] $BaseRef = '',
     [string] $RepoRoot = '',
-    [switch] $SkipFetch
+    [switch] $SkipFetch,
+    [string] $SummaryPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -68,10 +75,15 @@ if ([string]::IsNullOrWhiteSpace($ThresholdsPath)) {
 }
 
 $script:IsAzurePipeline = -not [string]::IsNullOrEmpty($env:TF_BUILD)
+$script:IsGitHubActions = $env:GITHUB_ACTIONS -eq 'true'
 
 function Write-GateError([string] $message) {
     if ($script:IsAzurePipeline) {
         Write-Host "##vso[task.logissue type=error]$message"
+    }
+    if ($script:IsGitHubActions) {
+        # Workflow command: surfaces the message as an annotation on the run.
+        Write-Host "::error title=Coverage gate::$message"
     }
     Write-Host "ERROR: $message"
 }
@@ -80,7 +92,50 @@ function Write-GateWarning([string] $message) {
     if ($script:IsAzurePipeline) {
         Write-Host "##vso[task.logissue type=warning]$message"
     }
+    if ($script:IsGitHubActions) {
+        Write-Host "::warning title=Coverage gate::$message"
+    }
     Write-Host "WARNING: $message"
+}
+
+# Markdown summary accumulated as the gate runs and written to -SummaryPath at
+# the end. Kept separate from the console output because the console log is a
+# flat transcript while this is rendered as a table in both CI UIs.
+$script:SummaryRows = [System.Collections.Generic.List[string]]::new()
+$script:SummaryNotes = [System.Collections.Generic.List[string]]::new()
+
+<#
+ .SYNOPSIS
+    Adds a row to the markdown summary table.
+
+ .PARAMETER check
+    Name of the check, for example 'Project line rate'.
+
+ .PARAMETER value
+    The measured value, already formatted.
+
+ .PARAMETER target
+    The threshold the value is compared against, or '-' when there is none.
+
+ .PARAMETER state
+    One of 'pass', 'fail', 'warn' or 'info'.
+#>
+function Add-SummaryRow([string] $check, [string] $value, [string] $target, [string] $state) {
+    $icon = switch ($state) {
+        'pass' { ':white_check_mark:' }
+        'fail' { ':x:' }
+        'warn' { ':warning:' }
+        default { ':information_source:' }
+    }
+    $script:SummaryRows.Add(('| {0} {1} | {2} | {3} |' -f $icon, $check, $value, $target))
+}
+
+<#
+ .SYNOPSIS
+    Adds a free-form markdown note below the summary table.
+#>
+function Add-SummaryNote([string] $note) {
+    $script:SummaryNotes.Add($note)
 }
 
 <#
@@ -427,19 +482,29 @@ $failures = @()
 $minLine = [double]$thresholds.project.minimumLineRate
 if ($null -eq $totals.LineRate) {
     $failures += 'No coverable lines were found in the report; the run did not produce usable coverage.'
+    Add-SummaryRow 'Project line rate' 'no data' ('>= {0:N2}%' -f $minLine) 'fail'
 }
 elseif ($totals.LineRate -lt $minLine) {
     $failures += ('Total line coverage {0:N2}% is below the required floor of {1:N2}%.' -f $totals.LineRate, $minLine)
+    Add-SummaryRow 'Project line rate' ('**{0:N2}%** ({1}/{2} lines)' -f $totals.LineRate, $totals.CoveredLines, $totals.TotalLines) ('>= {0:N2}%' -f $minLine) 'fail'
+}
+else {
+    Add-SummaryRow 'Project line rate' ('**{0:N2}%** ({1}/{2} lines)' -f $totals.LineRate, $totals.CoveredLines, $totals.TotalLines) ('>= {0:N2}%' -f $minLine) 'pass'
 }
 
 $minBranch = [double]$thresholds.project.minimumBranchRate
 if ($null -ne $totals.BranchRate -and $totals.BranchRate -lt $minBranch) {
     $failures += ('Total branch coverage {0:N2}% is below the required floor of {1:N2}%.' -f $totals.BranchRate, $minBranch)
+    Add-SummaryRow 'Project branch rate' ('**{0:N2}%**' -f $totals.BranchRate) ('>= {0:N2}%' -f $minBranch) 'fail'
+}
+elseif ($null -ne $totals.BranchRate) {
+    Add-SummaryRow 'Project branch rate' ('**{0:N2}%**' -f $totals.BranchRate) ('>= {0:N2}%' -f $minBranch) 'pass'
 }
 
 # 2. Patch coverage (blocking, pull requests only).
 if ([string]::IsNullOrWhiteSpace($BaseRef)) {
     Write-Host 'No base ref supplied; skipping the changed-lines (patch) gate.'
+    Add-SummaryRow 'Patch coverage' 'not a pull request' '-' 'info'
 }
 else {
     $changed = Get-ChangedLines -baseRef $BaseRef -repoRoot $RepoRoot -skipFetch:$SkipFetch.IsPresent
@@ -466,6 +531,7 @@ else {
     $patchFloor = [double]$thresholds.patch.target - [double]$thresholds.patch.threshold
     if ($coverableChanged -eq 0) {
         Write-Host 'No coverable changed lines were found; the patch gate passes vacuously.'
+        Add-SummaryRow 'Patch coverage' 'no coverable changed lines' ('>= {0:N2}%' -f $patchFloor) 'info'
     }
     else {
         $patchRate = 100.0 * $coveredChanged / $coverableChanged
@@ -477,6 +543,25 @@ else {
             foreach ($file in $uncoveredByFile.Keys) {
                 Write-Host ("  {0}: {1}" -f $file, ($uncoveredByFile[$file] -join ', '))
             }
+        }
+
+        $patchState = if ($patchRate -lt $patchFloor) { 'fail' } else { 'pass' }
+        Add-SummaryRow 'Patch coverage' `
+            ('**{0:N2}%** ({1}/{2} changed lines)' -f $patchRate, $coveredChanged, $coverableChanged) `
+            ('>= {0:N2}%' -f $patchFloor) $patchState
+
+        # List the uncovered changed lines in the summary too - that is the
+        # actionable part for the author, and it saves opening the raw log.
+        if ($uncoveredByFile.Count -gt 0) {
+            $detail = [System.Text.StringBuilder]::new()
+            $null = $detail.AppendLine('<details><summary>Uncovered changed lines</summary>')
+            $null = $detail.AppendLine('')
+            foreach ($file in $uncoveredByFile.Keys) {
+                $null = $detail.AppendLine(('- `{0}`: {1}' -f $file, ($uncoveredByFile[$file] -join ', ')))
+            }
+            $null = $detail.AppendLine('')
+            $null = $detail.Append('</details>')
+            Add-SummaryNote $detail.ToString()
         }
 
         if ($patchRate -lt $patchFloor) {
@@ -492,17 +577,68 @@ $tolerance = [double]$thresholds.project.advisoryDeltaTolerance
 if ($null -ne $totals.LineRate -and $baseline -gt 0) {
     $delta = $totals.LineRate - $baseline
     Write-Host ("Baseline:    {0:N2}% recorded, delta {1:+0.00;-0.00;0.00} percentage points" -f $baseline, $delta)
+    $deltaText = '{0:+0.00;-0.00;0.00} pp' -f $delta
     if ($delta -lt (-1 * $tolerance)) {
         Write-GateWarning ('Total line coverage dropped {0:N2} percentage points below the recorded master baseline of {1:N2}%. This is advisory and does not fail the build.' -f `
             [Math]::Abs($delta), $baseline)
+        Add-SummaryRow 'Baseline delta (advisory)' $deltaText ('{0:N2}% recorded' -f $baseline) 'warn'
     }
-    elseif ($delta -gt $tolerance) {
-        Write-Host 'Coverage is above the recorded baseline; consider ratcheting coverage-thresholds.json.'
+    else {
+        if ($delta -gt $tolerance) {
+            Write-Host 'Coverage is above the recorded baseline; consider ratcheting coverage-thresholds.json.'
+            Add-SummaryNote 'Coverage is above the recorded baseline - consider ratcheting `coverage-thresholds.json`.'
+        }
+        Add-SummaryRow 'Baseline delta (advisory)' $deltaText ('{0:N2}% recorded' -f $baseline) 'info'
     }
 }
 
 if ($failures.Count -gt 0) {
     foreach ($failure in $failures) { Write-GateError $failure }
+}
+
+if (-not [string]::IsNullOrWhiteSpace($SummaryPath)) {
+    $verdict = if ($failures.Count -gt 0) {
+        ':x: **Coverage gate failed.** This check is advisory and does not block the merge.'
+    }
+    else {
+        ':white_check_mark: **Coverage gate passed.**'
+    }
+
+    $summary = [System.Text.StringBuilder]::new()
+    $null = $summary.AppendLine('## Code coverage')
+    $null = $summary.AppendLine('')
+    $null = $summary.AppendLine($verdict)
+    $null = $summary.AppendLine('')
+    $null = $summary.AppendLine('| Check | Result | Threshold |')
+    $null = $summary.AppendLine('| --- | --- | --- |')
+    foreach ($row in $script:SummaryRows) {
+        $null = $summary.AppendLine($row)
+    }
+    if ($failures.Count -gt 0) {
+        $null = $summary.AppendLine('')
+        foreach ($failure in $failures) {
+            $null = $summary.AppendLine(('- :x: {0}' -f $failure))
+        }
+    }
+    foreach ($note in $script:SummaryNotes) {
+        $null = $summary.AppendLine('')
+        $null = $summary.AppendLine($note)
+    }
+    $null = $summary.AppendLine('')
+    $null = $summary.AppendLine(('<sub>Thresholds live in `coverage-thresholds.json`. Whole report before exclusions: line {0:N2}%, branch {1:N2}%.</sub>' -f `
+        $report.ReportLineRate, $report.ReportBranchRate))
+
+    $summaryDir = Split-Path -Parent $SummaryPath
+    if (-not [string]::IsNullOrWhiteSpace($summaryDir) -and -not (Test-Path $summaryDir)) {
+        $null = New-Item -ItemType Directory -Force -Path $summaryDir
+    }
+    # UTF8 without BOM: GitHub renders a leading BOM as a literal character at
+    # the top of the step summary.
+    [System.IO.File]::WriteAllText($SummaryPath, $summary.ToString(), [System.Text.UTF8Encoding]::new($false))
+    Write-Host "Wrote the markdown summary to $SummaryPath."
+}
+
+if ($failures.Count -gt 0) {
     Write-Host 'Coverage gate FAILED.'
     exit 1
 }

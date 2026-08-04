@@ -175,8 +175,6 @@ stages:
       jobnamesuffix: net48
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
@@ -193,14 +191,6 @@ stages:
       customtestarget: net10.0
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
-      # The reference leg: net10.0 Release is the configuration the thresholds in
-      # coverage-thresholds.json are calibrated against, so this is the only one
-      # whose coverage gate blocks, and the only one that publishes the merged
-      # report to the build summary and to Codacy.
-      enforceCoverage: true
-      publishCoverage: true
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
@@ -211,8 +201,6 @@ stages:
       hosted: true
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
       # macOS runs only on Schedule/Manual (nightly + on-demand), not on
       # PR or master push, to keep the PR gate fast and Windows-focused.
       # Passed bare: test.yml wraps it in succeeded() for the test jobs and in
@@ -246,8 +234,6 @@ stages:
       jobnamesuffix: net100debug
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
       agents: '@{ windows = "${{ variables.hostWindowsImage }}"; linux = "${{ variables.hostLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
@@ -258,8 +244,6 @@ stages:
       hosted: true
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnet90
   dependsOn: [build]
   displayName: 'Test .NET 9.0'
@@ -272,8 +256,6 @@ stages:
       jobnamesuffix: net90
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
       agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux = "${{ variables.mgdLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
@@ -284,8 +266,6 @@ stages:
       hosted: true
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnet80
   dependsOn: [build]
   displayName: 'Test .NET 8.0'
@@ -298,8 +278,6 @@ stages:
       jobnamesuffix: net80
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
       agents: '@{ windows = "${{ variables.hostWindowsImage }}"; linux = "${{ variables.hostLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
@@ -310,8 +288,6 @@ stages:
       hosted: true
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
@@ -326,8 +302,6 @@ stages:
       customtestarget: net472
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnetstandard20
   dependsOn: [build]
   displayName: 'Test .NETStandard 2.0'
@@ -342,8 +316,6 @@ stages:
       customtestarget: netstandard2.0
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnetstandard21
   dependsOn: [build]
   displayName: 'Test .NETStandard 2.1'
@@ -357,8 +329,6 @@ stages:
       customtestarget: netstandard2.1
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
       agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux = "${{ variables.mgdLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
@@ -370,8 +340,6 @@ stages:
       hosted: true
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-      coveragePoolName: ${{ variables.hostPoolName }}
-      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnightly
   dependsOn: [build]
   displayName: 'Test long-running tiers'
@@ -392,8 +360,9 @@ stages:
       customtestarget: net10.0
       testfilter: ''
       hangtimeout: '30m'
-      # A tier, not a (framework, configuration) leg: its numbers cannot be
-      # merged into the pull-request gate, so skip the coverage job here.
+      # A tier, not a mainline leg: it re-runs a subset of the same projects
+      # with the filter lifted, so folding its numbers into the merged report
+      # would double-count. Skip coverage collection here.
       coverage: false
       agents: '@{ linux = "${{ variables.hostLinuxImage }}" }'
       poolName: ${{ variables.hostPoolName }}
@@ -413,3 +382,71 @@ stages:
       agents: '@{ windows = "${{ variables.hostWindowsImage }}"; linux = "${{ variables.hostLinuxImage }}" }'
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
+
+# Terminal stages.  Both depend on this exact list of test stages, because
+# Azure Pipelines only exposes dependencies.<stage>.result for DIRECT
+# dependencies.
+#
+# Required check.  Rolls every test stage up into a single status so the GitHub
+# branch ruleset does not have to name matrix-generated jobs, whose names change
+# whenever a test project or an agent is added.
+- stage: gate
+  displayName: 'Tests passed'
+  dependsOn:
+  - build
+  - testfastpr
+  - testaot
+  - testdebug
+  - testnet90
+  - testnet80
+  - testnet472
+  - testnetstandard20
+  - testnetstandard21
+  - testnightly
+  # not(canceled()) rather than the default succeeded(): a stage skipped because
+  # a dependency failed reports to GitHub as 'skipped', and a required check
+  # that reports 'skipped' counts as SATISFIED - so with succeeded() a red build
+  # would sail straight through the ruleset.
+  condition: not(canceled())
+  jobs:
+  - template: .azurepipelines/gate.yml
+    parameters:
+      poolName: ${{ variables.hostPoolName }}
+      poolImage: ${{ variables.hostLinuxImage }}
+      stages:
+      - build
+      - testfastpr
+      - testaot
+      - testdebug
+      - testnet90
+      - testnet80
+      - testnet472
+      - testnetstandard20
+      - testnetstandard21
+      - testnightly
+# Advisory check.  Merges every Cobertura fragment the run produced and
+# evaluates coverage-thresholds.json once.  It reports a clean failure when the
+# thresholds are missed so the miss is visible, but it must NOT be added to the
+# GitHub branch ruleset - 'Tests passed' above is the required check.
+- stage: coverage
+  displayName: 'Code coverage'
+  dependsOn:
+  - build
+  - testfastpr
+  - testaot
+  - testdebug
+  - testnet90
+  - testnet80
+  - testnet472
+  - testnetstandard20
+  - testnetstandard21
+  - testnightly
+  # Evaluate whatever coverage the run did produce even when a test stage
+  # failed: a partial report is still worth publishing, and the gate stage
+  # already carries the failure signal.
+  condition: not(canceled())
+  jobs:
+  - template: .azurepipelines/coverage.yml
+    parameters:
+      poolName: ${{ variables.hostPoolName }}
+      poolImage: ${{ variables.hostLinuxImage }}

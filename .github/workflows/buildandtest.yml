@@ -253,6 +253,156 @@ jobs:
       # Use always() to always run this step to publish test results when there are test failures
       if: ${{ always() }}
 
+  # Advisory coverage check. Mirrors the Azure Pipelines 'Code coverage' stage:
+  # it merges the Cobertura fragments the matrix above already collects, runs the
+  # same check-coverage.ps1 against the same coverage-thresholds.json, and
+  # surfaces the numbers in the run summary and on the pull request.
+  #
+  # It reports a clean failure when the thresholds are missed so the miss is
+  # visible, but it is deliberately NOT in `build-and-test summary`'s `needs`,
+  # so it can never block the required check. Do not add it to the branch
+  # ruleset.
+  code-coverage:
+    name: code coverage
+    needs: [discover, build-and-test]
+    runs-on: ubuntu-latest
+    # always(): the coverage of a run whose tests failed is still worth
+    # reporting, and build-and-test is skipped wholesale when Azure Pipelines
+    # owns the matrix. The guards below then decide whether there is anything
+    # to do.
+    if: ${{ always() && needs.discover.outputs.gh_owns_build == 'true' && needs.discover.outputs.relevant_changes == 'true' }}
+    permissions:
+      contents: read
+      # Required to upsert the sticky coverage comment. Note that on a
+      # pull_request from a fork the token is read-only regardless of what this
+      # block says, which the comment step below handles.
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # Full history: the changed-lines (patch) gate diffs against the base
+        # branch, which a shallow clone cannot do.
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Download test results
+      uses: actions/download-artifact@v8
+      with:
+        pattern: dotnet-results-*
+        path: coverage-artifacts
+
+    - name: Detect coverage
+      id: probe
+      shell: pwsh
+      run: |
+        $reports = @(Get-ChildItem -Path coverage-artifacts -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue)
+        Write-Host "Found $($reports.Count) Cobertura report(s)."
+        "has_reports=$(($reports.Count -gt 0).ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        if ($reports.Count -eq 0) {
+            # Expected when every test job was skipped. The 'build-and-test
+            # summary' job owns the failure signal, so warn rather than
+            # manufacture a red coverage check with no data behind it.
+            Write-Host '::warning title=Code coverage::No Cobertura reports were produced by the test matrix; there is nothing to evaluate.'
+        }
+
+    - name: Merge coverage report
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        dotnet tool install --tool-path tools dotnet-reportgenerator-globaltool
+        ./tools/reportgenerator `
+            '-reports:coverage-artifacts/**/*.cobertura.xml' `
+            '-targetdir:CodeCoverage' `
+            '-reporttypes:Cobertura;HtmlSummary' `
+            '-title:UA .Net Standard Test Coverage' `
+            '-assemblyfilters:-*.Tests'
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error title=Code coverage::ReportGenerator failed with exit code $LASTEXITCODE."
+            exit $LASTEXITCODE
+        }
+
+    - name: Upload merged coverage report
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: coverage-report
+        path: CodeCoverage
+
+    # Writes the markdown summary even when the gate fails, so the numbers reach
+    # the summary and the pull request either way. The gate's exit code is
+    # captured here and replayed by the last step.
+    - name: Evaluate coverage
+      id: gate
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      shell: pwsh
+      env:
+        # Empty on push/schedule, in which case check-coverage.ps1 enforces the
+        # project floor only and skips the changed-lines gate.
+        BASE_REF: ${{ github.base_ref }}
+      run: |
+        ./.azurepipelines/check-coverage.ps1 `
+            -CoberturaPath CodeCoverage/Cobertura.xml `
+            -ThresholdsPath coverage-thresholds.json `
+            -RepoRoot . `
+            -BaseRef $env:BASE_REF `
+            -SummaryPath coverage-summary.md
+        "outcome=$LASTEXITCODE" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+        if (Test-Path coverage-summary.md) {
+            Get-Content coverage-summary.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+        }
+        exit 0
+
+    # Sticky comment: upsert a single comment keyed on an HTML marker rather
+    # than adding one per run. Uses actions/github-script rather than a
+    # community action to keep this workflow on first-party actions only.
+    - name: Comment coverage on the pull request
+      if: ${{ steps.probe.outputs.has_reports == 'true' && github.event_name == 'pull_request' }}
+      # A pull_request from a fork gets a read-only GITHUB_TOKEN no matter what
+      # `permissions:` says, so commenting fails there. The step summary still
+      # carries the numbers, so a failure here must not fail the job.
+      continue-on-error: true
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const fs = require('fs');
+          const marker = '<!-- ua-coverage-report -->';
+          if (!fs.existsSync('coverage-summary.md')) {
+            core.info('No coverage summary to post.');
+            return;
+          }
+          const body = marker + '\n' + fs.readFileSync('coverage-summary.md', 'utf8');
+          const { owner, repo } = context.repo;
+          const issue_number = context.issue.number;
+
+          const comments = await github.paginate(github.rest.issues.listComments, {
+            owner, repo, issue_number, per_page: 100,
+          });
+          const existing = comments.find(c => c.body && c.body.includes(marker));
+
+          if (existing) {
+            await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            core.info(`Updated coverage comment ${existing.id}.`);
+          } else {
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            core.info('Created the coverage comment.');
+          }
+
+    - name: Report coverage gate result
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      shell: pwsh
+      run: |
+        if ('${{ steps.gate.outputs.outcome }}' -ne '0') {
+            Write-Host '::error title=Code coverage::Coverage thresholds were not met. This check is advisory and does not block the merge - see the job summary for the numbers.'
+            exit 1
+        }
+        Write-Host 'Coverage gate passed.'
+
   aot-test:
     needs: discover
     name: aot-${{ matrix.os }}

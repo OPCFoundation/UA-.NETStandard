@@ -1,0 +1,102 @@
+#
+# Required "all tests passed" gate.
+#
+# This is the single status check to require in the GitHub branch ruleset. It
+# rolls the result of every test stage up into one job so the ruleset does not
+# have to name matrix-generated jobs, whose names change whenever a test project
+# or an agent is added.
+#
+# Two things make it safe as a required check:
+#
+#   * The stage runs on not(canceled()) rather than the default succeeded(). A
+#     stage that is skipped because its dependency failed reports to GitHub as
+#     'skipped', and a required check reporting 'skipped' is treated as
+#     SATISFIED - so with the default condition a broken build would merge.
+#   * Stages that are Schedule/Manual-only report 'Skipped' on a pull request.
+#     That is a legitimate outcome, so 'Skipped' passes while 'Failed' and
+#     'Canceled' do not.
+#
+parameters:
+# Names of the stages to roll up. Every one must also appear in the stage's
+# dependsOn - Azure Pipelines only exposes the results of DIRECT dependencies.
+- name: stages
+  type: object
+  default: []
+- name: jobnamesuffix
+  type: string
+  default: ''
+- name: poolName
+  type: string
+  default: ''
+- name: poolImage
+  type: string
+  default: 'ubuntu-24.04'
+jobs:
+- job: gate${{ parameters.jobnamesuffix }}
+  displayName: Tests passed
+  timeoutInMinutes: 10
+  pool:
+    ${{ if ne(parameters.poolName, '') }}:
+      name: ${{ parameters.poolName }}
+      demands:
+        - ImageOverride -equals ${{ parameters.poolImage }}
+    ${{ else }}:
+      vmImage: ${{ parameters.poolImage }}
+  variables:
+    DOTNET_CLI_TELEMETRY_OPTOUT: true
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+    # One variable per dependency holding that stage's rollup result.
+    # dependencies.<stage>.result is the whole stage's outcome, which avoids
+    # enumerating the generated testall* / buildall* job names.
+    ${{ each stage in parameters.stages }}:
+      stageresult_${{ stage }}: $[ dependencies.${{ stage }}.result ]
+  steps:
+  # Nothing is built or read from the tree; this job only inspects stage results.
+  - checkout: none
+  - task: PowerShell@2
+    displayName: 'Evaluate stage results'
+    inputs:
+      pwsh: true
+      targetType: inline
+      script: |
+        $ErrorActionPreference = 'Stop'
+
+        $names = @($env:STAGE_NAMES -split ',' |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { $_ })
+
+        if ($names.Count -eq 0) {
+            Write-Host "##vso[task.logissue type=error]No stage names were supplied; the gate cannot verify anything."
+            exit 1
+        }
+
+        # 'Skipped' is legitimate: the stage is Schedule/Manual-only and this is
+        # a pull request, or the CI backend switch stood it down. An empty value
+        # means the stage never reported at all, which is also a skip.
+        $acceptable = @('Succeeded', 'SucceededWithIssues', 'Skipped', '')
+        $bad = @()
+
+        Write-Host 'Stage results:'
+        foreach ($name in $names) {
+            # GetEnvironmentVariable is case-sensitive on Linux, so this has to
+            # match the RESULT_<stage> names the template emits exactly.
+            $result = [System.Environment]::GetEnvironmentVariable("RESULT_$name")
+            $shown = if ([string]::IsNullOrWhiteSpace($result)) { 'Skipped (did not report)' } else { $result }
+            Write-Host ("  {0,-22} {1}" -f $name, $shown)
+            if ($acceptable -notcontains $result) {
+                $bad += "$name ($result)"
+            }
+        }
+
+        if ($bad.Count -gt 0) {
+            Write-Host "##vso[task.logissue type=error]$($bad.Count) stage(s) did not succeed: $($bad -join ', ')."
+            Write-Host 'Tests did NOT pass.'
+            exit 1
+        }
+
+        Write-Host 'Every test stage either succeeded or was intentionally skipped.'
+        exit 0
+    env:
+      STAGE_NAMES: ${{ join(',', parameters.stages) }}
+      ${{ each stage in parameters.stages }}:
+        RESULT_${{ stage }}: $(stageresult_${{ stage }})
