@@ -266,7 +266,9 @@ namespace Opc.Ua.Client
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)
             {
-                await endpoint.UpdateFromServerAsync(messageContext.Telemetry, ct).ConfigureAwait(false);
+                await endpoint
+                    .UpdateFromServerAsync(configuration, messageContext.Telemetry, ct)
+                    .ConfigureAwait(false);
                 endpointDescription = endpoint.Description;
                 // UpdateFromServerAsync re-reads Configuration from the discovery response;
                 // it is set whenever the description was updated successfully.

@@ -144,7 +144,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             {
                 foreach (Scene.UsdAttribute attribute in prim.Attributes)
                 {
-                    attribute.Value = null;
+                    attribute.Value = Scene.UsdValue.Null;
                     attribute.Connections.Clear();
                 }
             }

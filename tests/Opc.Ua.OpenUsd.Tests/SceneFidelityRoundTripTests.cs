@@ -124,9 +124,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             // Time samples: the default and every sample survive the address-space round trip.
             UsdAttribute spin = prim.Attributes.Single(a => a.Name == "spin");
-            Assert.That(spin.Value, Is.EqualTo(5.0));
+            UsdTestHelpers.AssertDouble(spin.Value, 5.0);
             Assert.That(spin.TimeSamples.Keys, Is.EqualTo(new[] { 0.0, 24.0, 48.0 }));
-            Assert.That(spin.TimeSamples[48.0], Is.EqualTo(180.0));
+            UsdTestHelpers.AssertDouble(spin.TimeSamples[48.0], 180.0);
 
             // Variant branches: the selection and every authored branch (with body) survive.
             UsdVariantSet set = prim.VariantSets.Single();
@@ -135,10 +135,10 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(set.Variants.Select(v => v.Name), Is.EqualTo(new[] { "high", "low" }));
             Assert.That(
                 set.Variants[0].Attributes.Single(a => a.Name == "resolution").Value,
-                Is.EqualTo(1024L));
+                Is.EqualTo(UsdValue.From(1024L)));
             Assert.That(
                 set.Variants[1].Attributes.Single(a => a.Name == "resolution").Value,
-                Is.EqualTo(256L));
+                Is.EqualTo(UsdValue.From(256L)));
         }
 
         [Test]

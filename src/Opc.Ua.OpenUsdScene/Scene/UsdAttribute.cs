@@ -66,10 +66,10 @@ namespace Opc.Ua.OpenUsdScene.Scene
         public string TypeName { get; }
 
         /// <summary>
-        /// The resolved attribute value, or <c>null</c> when the attribute is declared but
-        /// carries no authored default.
+        /// The resolved attribute value. <see cref="UsdValue.Null"/> when the attribute is
+        /// declared but carries no authored default.
         /// </summary>
-        public object? Value { get; set; }
+        public UsdValue Value { get; set; }
 
         /// <summary>
         /// The authored USD time samples, an ordered map from time code to value kept separate
@@ -79,7 +79,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// live default and each sample as a HistoricalAccess entry (§9). A negative or fractional
         /// time code is permitted. When empty the attribute has no time samples.
         /// </summary>
-        public SortedList<double, object?> TimeSamples { get; } = new SortedList<double, object?>();
+        public SortedList<double, UsdValue> TimeSamples { get; } = new SortedList<double, UsdValue>();
 
         /// <summary>
         /// Whether the attribute may vary over time.

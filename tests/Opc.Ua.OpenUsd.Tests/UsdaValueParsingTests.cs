@@ -29,7 +29,9 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
+using Opc.Ua;
 using Opc.Ua.OpenUsdScene.Conversion;
+using Opc.Ua.OpenUsdScene.Scene;
 
 namespace Opc.Ua.OpenUsdScene.Tests
 {
@@ -42,7 +44,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [TestCase("0", 0L)]
         public void Integers_ParseAsLong(string raw, long expected)
         {
-            Assert.That(UsdaReader.ParseValue(raw), Is.EqualTo(expected));
+            UsdTestHelpers.AssertInteger(UsdaReader.ParseValue(raw), expected);
         }
 
         [TestCase("3.14", 3.14)]
@@ -53,82 +55,81 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [TestCase("6.02E2", 602.0)]
         public void Floats_ParseAsDouble(string raw, double expected)
         {
-            object? value = UsdaReader.ParseValue(raw);
-            Assert.That(value, Is.TypeOf<double>());
-            Assert.That((double)value!, Is.EqualTo(expected).Within(1e-12));
+            UsdValue value = UsdaReader.ParseValue(raw);
+            Assert.That(value.TryGetDouble(out double actual), Is.True);
+            Assert.That(actual, Is.EqualTo(expected).Within(1e-12));
         }
 
         [TestCase("true", true)]
         [TestCase("false", false)]
         public void Booleans_ParseAsBool(string raw, bool expected)
         {
-            Assert.That(UsdaReader.ParseValue(raw), Is.EqualTo(expected));
+            UsdTestHelpers.AssertBoolean(UsdaReader.ParseValue(raw), expected);
         }
 
         [Test]
         public void QuotedString_IsUnwrapped()
         {
-            Assert.That(UsdaReader.ParseValue("\"hello world\""), Is.EqualTo("hello world"));
+            UsdTestHelpers.AssertString(UsdaReader.ParseValue("\"hello world\""), "hello world");
         }
 
         [Test]
         public void QuotedString_WithSpecialCharacters()
         {
-            Assert.That(UsdaReader.ParseValue("\"a, (b) [c] </d>\""), Is.EqualTo("a, (b) [c] </d>"));
+            UsdTestHelpers.AssertString(UsdaReader.ParseValue("\"a, (b) [c] </d>\""), "a, (b) [c] </d>");
         }
 
         [Test]
         public void QuotedString_WithEscapedQuotes()
         {
-            Assert.That(UsdaReader.ParseValue("\"say \\\"hi\\\"\""), Is.EqualTo("say \"hi\""));
+            UsdTestHelpers.AssertString(UsdaReader.ParseValue("\"say \\\"hi\\\"\""), "say \"hi\"");
         }
 
         [Test]
         public void BareToken_IsReturnedAsString()
         {
-            Assert.That(UsdaReader.ParseValue("inherited"), Is.EqualTo("inherited"));
+            UsdTestHelpers.AssertToken(UsdaReader.ParseValue("inherited"), "inherited");
         }
 
         [TestCase("@pump.usda@", "pump.usda")]
         [TestCase("@./sub/robot.usda@", "./sub/robot.usda")]
         public void AssetPath_IsUnwrapped(string raw, string expected)
         {
-            Assert.That(UsdaReader.ParseValue(raw), Is.EqualTo(expected));
+            UsdTestHelpers.AssertAssetPath(UsdaReader.ParseValue(raw), expected);
         }
 
         [Test]
         public void PathReference_IsUnwrapped()
         {
-            Assert.That(UsdaReader.ParseValue("</Plant/Pumps/P101>"), Is.EqualTo("/Plant/Pumps/P101"));
+            UsdTestHelpers.AssertPathReference(
+                UsdaReader.ParseValue("</Plant/Pumps/P101>"),
+                "/Plant/Pumps/P101");
         }
 
         [Test]
         public void IntegerTuple_ParsesToObjectArray()
         {
-            Assert.That(UsdaReader.ParseValue("(0, 0, 0)"), Is.EqualTo(new object?[] { 0L, 0L, 0L }));
-            Assert.That(UsdaReader.ParseValue("(-45, 0, 35)"), Is.EqualTo(new object?[] { -45L, 0L, 35L }));
+            UsdTestHelpers.AssertIntegerItems(UsdaReader.ParseValue("(0, 0, 0)"), 0L, 0L, 0L);
+            UsdTestHelpers.AssertIntegerItems(UsdaReader.ParseValue("(-45, 0, 35)"), -45L, 0L, 35L);
         }
 
         [Test]
         public void FloatTuple_ParsesToObjectArray()
         {
-            Assert.That(UsdaReader.ParseValue("(0.1, 0.1, 0.1)"), Is.EqualTo(new object?[] { 0.1, 0.1, 0.1 }));
+            UsdTestHelpers.AssertDoubleItems(UsdaReader.ParseValue("(0.1, 0.1, 0.1)"), 0.1, 0.1, 0.1);
         }
 
         [Test]
         public void IntegerArray_ParsesToList()
         {
-            Assert.That(UsdaReader.ParseValue("[1, 2, 3]"), Is.EqualTo(new List<object?> { 1L, 2L, 3L }));
+            UsdTestHelpers.AssertIntegerItems(UsdaReader.ParseValue("[1, 2, 3]"), 1L, 2L, 3L);
         }
 
         [Test]
         public void NestedTupleArray_ParsesToListOfArray()
         {
-            object? value = UsdaReader.ParseValue("[(0, 0, 1)]");
-            var list = value as List<object?>;
-            Assert.That(list, Is.Not.Null);
-            Assert.That(list!, Has.Count.EqualTo(1));
-            Assert.That(list[0] as object?[], Is.EqualTo(new object?[] { 0L, 0L, 1L }));
+            UsdValue value = UsdaReader.ParseValue("[(0, 0, 1)]");
+            UsdTestHelpers.AssertNestedIntegerItems(value, new[] { 0L, 0L, 1L });
         }
 
         [Test]
@@ -136,32 +137,34 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             Assert.That(
                 UsdaReader.ParseValue("[\"xformOp:translate\", \"xformOp:rotateZ\"]"),
-                Is.EqualTo(new List<object?> { "xformOp:translate", "xformOp:rotateZ" }));
+                Is.EqualTo(UsdTestHelpers.StringArray("xformOp:translate", "xformOp:rotateZ")));
         }
 
         [Test]
         public void MixedFloatTuple_HandlesLeadingDotAndExponent()
         {
-            object? value = UsdaReader.ParseValue("(0.5, -1.5e2, .25)");
-            var tuple = value as object?[];
-            Assert.That(tuple, Is.Not.Null);
-            Assert.That(tuple!, Has.Length.EqualTo(3));
-            Assert.That((double)tuple[0]!, Is.EqualTo(0.5).Within(1e-12));
-            Assert.That((double)tuple[1]!, Is.EqualTo(-150.0).Within(1e-12));
-            Assert.That((double)tuple[2]!, Is.EqualTo(0.25).Within(1e-12));
+            UsdValue value = UsdaReader.ParseValue("(0.5, -1.5e2, .25)");
+            Assert.That(value.TryGetTuple(out ArrayOf<UsdValue> tuple), Is.True);
+            Assert.That(tuple, Has.Count.EqualTo(3));
+            Assert.That(tuple[0].TryGetDouble(out double first), Is.True);
+            Assert.That(tuple[1].TryGetDouble(out double second), Is.True);
+            Assert.That(tuple[2].TryGetDouble(out double third), Is.True);
+            Assert.That(first, Is.EqualTo(0.5).Within(1e-12));
+            Assert.That(second, Is.EqualTo(-150.0).Within(1e-12));
+            Assert.That(third, Is.EqualTo(0.25).Within(1e-12));
         }
 
         [TestCase("")]
         [TestCase("   ")]
         public void EmptyOrWhitespace_ParsesToNull(string raw)
         {
-            Assert.That(UsdaReader.ParseValue(raw), Is.Null);
+            Assert.That(UsdaReader.ParseValue(raw).IsNull, Is.True);
         }
 
         [Test]
         public void Null_ParsesToNull()
         {
-            Assert.That(UsdaReader.ParseValue(null), Is.Null);
+            Assert.That(UsdaReader.ParseValue(null).IsNull, Is.True);
         }
 
         [Test]

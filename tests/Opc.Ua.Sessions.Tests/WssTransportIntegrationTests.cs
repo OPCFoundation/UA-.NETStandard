@@ -179,6 +179,29 @@ namespace Opc.Ua.Sessions.Tests
 
             await session.CloseAsync().ConfigureAwait(false);
         }
+
+        [Test]
+        public async Task UpdateBeforeConnectUsesApplicationCertificateValidationAsync()
+        {
+            ConfiguredEndpoint endpoint = await m_clientFixture
+                .GetEndpointAsync(m_endpointUrl, SecurityPolicies.Basic256Sha256)
+                .ConfigureAwait(false);
+
+            using ISession session = await m_clientFixture.SessionFactory
+                .CreateAsync(
+                    m_clientFixture.Config,
+                    endpoint,
+                    updateBeforeConnect: true,
+                    checkDomain: false,
+                    nameof(UpdateBeforeConnectUsesApplicationCertificateValidationAsync),
+                    m_clientFixture.SessionTimeout,
+                    identity: null,
+                    preferredLocales: default)
+                .ConfigureAwait(false);
+
+            Assert.That(session.Connected, Is.True);
+            await session.CloseAsync().ConfigureAwait(false);
+        }
     }
 }
 
