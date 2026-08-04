@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit.Analyzers">
@@ -61,6 +62,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <Compile Remove="Generator\GeneratorDatasheetConformanceTests.cs" />
+    <Compile Remove="Generator\GeneratorOpenUsdE2eTests.cs" />
     <Compile Remove="Generator\GeneratorMethodTests.cs" />
     <Compile Remove="Generator\GeneratorProtectionAlarmNodeTests.cs" />
     <Compile Remove="Generator\GeneratorProtectionTests.cs" />
