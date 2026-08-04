@@ -68,6 +68,11 @@ namespace Generators
             ["EngineHoursReadout"] = new Guid("8f2a1c40-000e-4a3b-9c11-6d5e2f7a9b0e"),
             ["LoadReadout"] = new Guid("8f2a1c40-000f-4a3b-9c11-6d5e2f7a9b0f"),
             ["OperatingStateReadout"] = new Guid("8f2a1c40-0010-4a3b-9c11-6d5e2f7a9b10"),
+            ["ManifoldLeftHeat"] = new Guid("8f2a1c40-0011-4a3b-9c11-6d5e2f7a9b11"),
+            ["ManifoldRightHeat"] = new Guid("8f2a1c40-0012-4a3b-9c11-6d5e2f7a9b12"),
+            ["TurboLeftSpin"] = new Guid("8f2a1c40-0013-4a3b-9c11-6d5e2f7a9b13"),
+            ["TurboRightSpin"] = new Guid("8f2a1c40-0014-4a3b-9c11-6d5e2f7a9b14"),
+            ["AlternatorHeat"] = new Guid("8f2a1c40-0015-4a3b-9c11-6d5e2f7a9b15"),
         };
 
         /// <summary>
@@ -113,6 +118,37 @@ namespace Generators
             Bind(rep, ns, "RadiatorHeat", twin.RadiatorCelsius!.NodeId,
                 prim + "/Radiator/Core", "primvars:displayColor", "color3f[]",
                 OpenUsdRenderTargetKindEnum.DisplayColor, 1.0);
+
+            // The exhaust manifolds are the parts of a running engine that visibly
+            // glow, so the same exhaust temperature that drives the stack drives
+            // them too. One source, three targets: a client that wants to know why
+            // they are glowing reads the one Variable behind all of them.
+            Bind(rep, ns, "ManifoldLeftHeat", twin.ExhaustCelsius!.NodeId,
+                prim + "/Engine/ManifoldLeft/Log", "primvars:displayColor", "color3f[]",
+                OpenUsdRenderTargetKindEnum.DisplayColor, 1.0);
+
+            Bind(rep, ns, "ManifoldRightHeat", twin.ExhaustCelsius!.NodeId,
+                prim + "/Engine/ManifoldRight/Log", "primvars:displayColor", "color3f[]",
+                OpenUsdRenderTargetKindEnum.DisplayColor, 1.0);
+
+            // The alternator has no moving part a viewer can see, so without a heat
+            // band it is the one major assembly on the machine that never reacts to
+            // anything. Driven from load rather than a winding temperature, which
+            // this sample does not simulate.
+            Bind(rep, ns, "AlternatorHeat", alternator.LoadPercent!.NodeId,
+                prim + "/Alternator/HeatBand", "primvars:displayColor", "color3f[]",
+                OpenUsdRenderTargetKindEnum.DisplayColor, 1.0);
+
+            // Turbochargers turn with the engine. They share the fan's display
+            // angle: both are "is this machine turning?", and a second integrator
+            // would only drift away from the first.
+            Bind(rep, ns, "TurboLeftSpin", twin.FanAngle!.NodeId,
+                prim + "/Engine/TurboLeft", "xformOp:rotateX", "double",
+                OpenUsdRenderTargetKindEnum.Rotation, 1.0);
+
+            Bind(rep, ns, "TurboRightSpin", twin.FanAngle!.NodeId,
+                prim + "/Engine/TurboRight", "xformOp:rotateX", "double",
+                OpenUsdRenderTargetKindEnum.Rotation, 1.0);
 
             Bind(rep, ns, "FuelLevel", twin.FuelSurface!.NodeId,
                 prim + "/FuelTank/Surface", "xformOp:translate", "double3",

@@ -702,18 +702,34 @@ namespace Generators
                 1.0));
 
         /// <summary>
+        /// Degrees per second the fan is *shown* turning at rated speed.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately not the real rate. A fan on a 1500 rpm engine turns at
+        /// 9000 degrees per second; sampled at the tick interval that is several
+        /// revolutions per sample, so the published angle jumps by a near-arbitrary
+        /// amount each time and the blades either strobe or sit still. Neither
+        /// tells an operator the fan is running, which is the only thing this
+        /// signal exists to say. The display rate is chosen so the per-tick step
+        /// stays well under the blade pitch and the rotation reads as continuous.
+        /// </remarks>
+        private const double FanDisplayDegreesPerSecond = 52.0;
+
+        /// <summary>
         /// Integrates the cooling-fan angle from engine speed.
         /// </summary>
         /// <param name="seconds">Elapsed time since the previous tick.</param>
         /// <remarks>
-        /// The fan is belt driven at roughly engine speed; the angle is integrated
-        /// rather than sampled so the blades turn smoothly at the display rate
-        /// instead of jumping.
+        /// The angle is integrated rather than sampled so the blades turn smoothly
+        /// instead of jumping, and it is scaled to a rate a viewport can actually
+        /// resolve - see <see cref="FanDisplayDegreesPerSecond"/>.
         /// </remarks>
         public void AdvanceFan(double seconds)
         {
             double rpm = Simulation?.SpeedRpm ?? 0.0;
-            FanAngleDegrees = (FanAngleDegrees + (rpm * 6.0 * seconds)) % 360.0;
+            double fraction = rpm / GeneratorDatasheet.Engine.RatedSpeedRpm;
+            FanAngleDegrees =
+                (FanAngleDegrees + (fraction * FanDisplayDegreesPerSecond * seconds)) % 360.0;
         }
     }
 }

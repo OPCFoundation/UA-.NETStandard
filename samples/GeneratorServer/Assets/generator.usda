@@ -643,6 +643,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.000, 0.000, 0.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser1"
                 {
@@ -748,6 +749,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.000, 0.000, 0.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser1"
                 {
@@ -843,7 +845,8 @@ def Xform "Generator" (kind = "component")
             def Xform "TurboLeft"
             {
                 double3 xformOp:translate = (1.070, 0.330, 0.880)
-                uniform token[] xformOpOrder = ["xformOp:translate"]
+                double xformOp:rotateX = 0.000
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateX"]
 
                 def Cylinder "TurbineHousing"
                 {
@@ -885,7 +888,8 @@ def Xform "Generator" (kind = "component")
             def Xform "TurboRight"
             {
                 double3 xformOp:translate = (1.070, -0.330, 0.880)
-                uniform token[] xformOpOrder = ["xformOp:translate"]
+                double xformOp:rotateX = 0.000
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateX"]
 
                 def Cylinder "TurbineHousing"
                 {
@@ -1116,16 +1120,16 @@ def Xform "Generator" (kind = "component")
             }
             def Sphere "OverheatHalo"
             {
-                double radius = 0.300
-                double3 xformOp:translate = (0.000, 0.000, 0.180)
+                double radius = 0.340
+                double3 xformOp:translate = (0.000, 0.000, 1.380)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/HaloOrange>
                 token visibility = "invisible"
             }
             def Sphere "OilHalo"
             {
-                double radius = 0.220
-                double3 xformOp:translate = (-0.250, 0.000, -0.420)
+                double radius = 0.260
+                double3 xformOp:translate = (-0.100, -0.820, -0.280)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/HaloOrange>
                 token visibility = "invisible"
@@ -1249,6 +1253,16 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (0.620, 0.000, 0.000)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/GenGreenDark>
+        }
+        def Cylinder "HeatBand"
+        {
+            uniform token axis = "X"
+            double radius = 0.455
+            double height = 0.220
+            double3 xformOp:translate = (-0.180, 0.000, 0.000)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            rel material:binding = </Generator/Looks/GenGreenDark>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Cube "TerminalBox"
         {

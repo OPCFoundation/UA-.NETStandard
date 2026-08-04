@@ -225,6 +225,24 @@ needles, exhaust and radiator colour, fuel-tank surface, a red alarm ring, overh
 and low-oil halos at the subsystem each fault belongs to, a run lamp, and
 frequency / power / engine-hours / load / operating-state readouts.
 
+Five more make the machine visibly alive rather than merely correct: both exhaust
+manifolds glow with exhaust temperature — those are the parts of a running engine
+that actually glow — the alternator carries a heat band driven by load, and both
+turbochargers turn. The manifolds and the stack share **one** source Variable, so a
+client asking why they are glowing reads the single value behind all three.
+
+> **The fan is shown slower than it turns, deliberately.** A fan on a 1500 rpm
+> engine sweeps 9000°/s. Sampled at the tick interval that is several revolutions
+> per sample, so the published angle jumps by a near-arbitrary amount and the
+> blades either strobe or sit still — neither of which says "this machine is
+> running", which is the only thing the signal exists to say. The display rate is
+> scaled so the per-tick step stays well under the blade pitch.
+
+Fault indicators sit clear of the machine. Both halos were originally tucked into
+the engine centre, which was fine against a plain block and invisible once there
+was a crankcase, an aftercooler and a sump in the way — and an indicator you cannot
+see is worse than none, because it reads as *no fault*.
+
 The operating-state readout is what makes an idle machine legible: without it the
 3D view shows *that* a set is not turning but not *why* — `Cooldown` and
 `EmergencyStopped` look identical from the outside.

@@ -365,7 +365,7 @@ def build_generator() -> str:
             name,
             xform_attrs(translate=(0.000, 0.430 * sign, 0.560)),
             [
-                cylinder("Log", "X", 0.062, 1.500, (0.000, 0.000, 0.000), "ManifoldRust", 4),
+                cylinder("Log", "X", 0.062, 1.500, (0.000, 0.000, 0.000), "ManifoldRust", 4, display_color=(0.235, 0.088, 0.042)),
                 *(
                     cylinder(
                         f"Riser{index + 1}",
@@ -397,7 +397,7 @@ def build_generator() -> str:
         return prim(
             "Xform",
             name,
-            xform_attrs(translate=(1.070, 0.330 * sign, 0.880)),
+            xform_attrs(translate=(1.070, 0.330 * sign, 0.880), rotate_x=0.000),
             [
                 # Turbine housing (hot side) and compressor housing (cold side).
                 cylinder("TurbineHousing", "X", 0.135, 0.150, (-0.090, 0.000, 0.000), "PanelBlack", 4),
@@ -474,8 +474,13 @@ def build_generator() -> str:
             # Coolant hoses to the radiator.
             cylinder("HoseTop", "X", 0.070, 0.520, (-1.320, 0.240, 0.240), "HoseBlack", 3),
             cylinder("HoseBottom", "X", 0.070, 0.520, (-1.320, -0.240, -0.220), "HoseBlack", 3),
-            sphere("OverheatHalo", 0.300, (0.000, 0.000, 0.180), "HaloOrange", 3, visible=False),
-            sphere("OilHalo", 0.220, (-0.250, 0.000, -0.420), "HaloOrange", 3, visible=False),
+            # Fault indicators sit clear of the machine on purpose. Both used to be
+            # tucked into the engine centre, which was fine against a plain block
+            # but is invisible now that there is a crankcase, a vee full of
+            # aftercooler and a sump in the way - an indicator you cannot see is
+            # worse than none, because it reads as "no fault".
+            sphere("OverheatHalo", 0.340, (0.000, 0.000, 1.380), "HaloOrange", 3, visible=False),
+            sphere("OilHalo", 0.260, (-0.100, -0.820, -0.280), "HaloOrange", 3, visible=False),
         ],
         level=1,
     )
@@ -508,6 +513,19 @@ def build_generator() -> str:
             ),
             cylinder("DriveEndBell", "X", 0.400, 0.140, (-0.610, 0.000, 0.000), "GenGreenDark", 2),
             cylinder("NonDriveEndBell", "X", 0.360, 0.160, (0.620, 0.000, 0.000), "GenGreenDark", 2),
+            # A band around the barrel that carries winding heat. The alternator
+            # is the one major assembly with no moving part a viewer can see, so
+            # without this it is the only thing on the machine that never reacts.
+            cylinder(
+                "HeatBand",
+                "X",
+                0.455,
+                0.220,
+                (-0.180, 0.000, 0.000),
+                "GenGreenDark",
+                2,
+                display_color=(0.016, 0.210, 0.166),
+            ),
             cube("TerminalBox", (0.480, 0.420, 0.300), (0.100, 0.000, 0.520), "GenGreen", 2),
             cube("TerminalLid", (0.500, 0.440, 0.030), (0.100, 0.000, 0.685), "GenGreenDark", 2),
             cube("FootLeft", (0.700, 0.120, 0.220), (0.000, 0.400, -0.520), "GenGreen", 2),
