@@ -3115,12 +3115,11 @@ namespace Opc.Ua.Sample
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null)
+            MonitoredItemTransferOptions transferOptions)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IList<IMonitoredItem> transferredItems = [];
-            bool deferInitialValues = transferOptions?.DeferInitialValues
-                ?? MonitoredItemTransferExecution.DeferInitialValues;
+            bool deferInitialValues = transferOptions.DeferInitialValues;
             lock (Lock)
             {
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -3155,63 +3154,11 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
-        /// Rolls back side effects produced by a failed monitored-item transfer.
-        /// </summary>
-        /// <param name="context">The source context to restore.</param>
-        /// <param name="monitoredItems">The set of monitoring items to roll back.</param>
-        /// <param name="processedItems">The list of bool with items that were already processed.</param>
-        /// <param name="errors">Any errors.</param>
-        /// <param name="transferOptions">Options that describe the transfer execution.</param>
-        public virtual void RollbackMonitoredItemsTransfer(
-            OperationContext context,
-            IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems,
-            IList<ServiceResult> errors,
-            MonitoredItemTransferOptions? transferOptions = null)
-        {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
-            IList<IMonitoredItem> rolledBackItems = [];
-            lock (Lock)
-            {
-                for (int ii = 0; ii < monitoredItems.Count; ii++)
-                {
-                    if (processedItems[ii] || monitoredItems[ii] == null)
-                    {
-                        continue;
-                    }
-
-                    if (monitoredItems[ii].ManagerHandle is not MonitoredNode)
-                    {
-                        continue;
-                    }
-
-                    processedItems[ii] = true;
-                    rolledBackItems.Add(monitoredItems[ii]);
-                    errors[ii] = StatusCodes.Good;
-                }
-            }
-
-            OnMonitoredItemsTransferRolledBack(systemContext, rolledBackItems);
-        }
-
-        /// <summary>
         /// Called after transfer of MonitoredItems.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="monitoredItems">The transferred monitored items.</param>
         protected virtual void OnMonitoredItemsTransferred(
-            ServerSystemContext context,
-            IList<IMonitoredItem> monitoredItems)
-        {
-            // overridden by the sub-class.
-        }
-
-        /// <summary>
-        /// Called after rollback of a failed monitored-item transfer.
-        /// </summary>
-        /// <param name="context">The source context restored by rollback.</param>
-        /// <param name="monitoredItems">The monitored items rolled back.</param>
-        protected virtual void OnMonitoredItemsTransferRolledBack(
             ServerSystemContext context,
             IList<IMonitoredItem> monitoredItems)
         {
