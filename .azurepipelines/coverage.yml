@@ -48,7 +48,7 @@ stages:
     stageResults: $[ convertToJson(dependencies) ]
   jobs:
   - job: coverage
-    displayName: Code coverage
+    displayName: Merge and evaluate
     timeoutInMinutes: 30
     variables:
       DOTNET_CLI_TELEMETRY_OPTOUT: true

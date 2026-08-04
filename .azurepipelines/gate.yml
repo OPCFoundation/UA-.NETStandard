@@ -51,7 +51,7 @@ stages:
     stageResults: $[ convertToJson(dependencies) ]
   jobs:
   - job: gate
-    displayName: Tests passed
+    displayName: Verify stage results
     timeoutInMinutes: 10
     pool:
       ${{ if ne(parameters.poolName, '') }}:

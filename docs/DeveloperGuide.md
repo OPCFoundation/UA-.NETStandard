@@ -315,6 +315,8 @@ Two concerns are deliberately kept apart, and both CI systems expose the same pa
 | Every test passed | **`Tests passed`** stage | **`build-and-test summary`** job | **Yes — required** |
 | Coverage meets the thresholds | **`Code coverage`** stage | **`code coverage`** job | **No — advisory** |
 
+Azure Pipelines reports its checks to GitHub as `<pipeline> (<stage> <job>)`, so the two names to look for in the ruleset are `OPCFoundation.UA-.NETStandard (Tests passed Verify stage results)` and `OPCFoundation.UA-.NETStandard (Code coverage Merge and evaluate)`.
+
 The coverage check reports a clean failure when the thresholds are missed, so a miss is visible on the pull request, but it never blocks the merge. Do not add it to the ruleset — that would make a coverage dip unmergeable, which is not the intent.
 
 Both required checks are single rollup jobs on purpose. The jobs underneath them are matrix-generated, so their names change whenever a test project or an agent is added, and they are skipped wholesale by the CI backend switch or by the path filter. Requiring a generated job name would therefore break as soon as the matrix changed. Both rollups also run on `not(canceled())` / `always()` rather than on success, because a check that reports **skipped** is treated by GitHub as **satisfied** — a required check that skips when its dependency fails would wave a red build straight through.
