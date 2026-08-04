@@ -101,9 +101,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Geo") { DefaultPrim = "Anchor" };
             var anchor = new UsdPrim("Anchor", "CesiumGlobeAnchorAPI");
-            anchor.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = Latitude });
-            anchor.Attributes.Add(new UsdAttribute("cesium:anchor:longitude", "double") { Value = Longitude });
-            anchor.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = Height });
+            anchor.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = UsdValue.From(Latitude) });
+            anchor.Attributes.Add(new UsdAttribute("cesium:anchor:longitude", "double") { Value = UsdValue.From(Longitude) });
+            anchor.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = UsdValue.From(Height) });
             stage.AddRootPrim(anchor);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
@@ -125,8 +125,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
             var world = new UsdPrim("World", "CesiumGeoreferencePrim");
             // Longitude omitted — a partial anchor would place the prim at a wrong position, so
             // the portable anchor is withheld entirely (fail closed).
-            world.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = Latitude });
-            world.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = Height });
+            world.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = UsdValue.From(Latitude) });
+            world.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = UsdValue.From(Height) });
             stage.AddRootPrim(world);
 
             MaterializedScene ms = MaterializationHarness.Materialize(stage);
@@ -157,9 +157,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Geo") { DefaultPrim = "World", UpAxis = "Z", MetersPerUnit = 1.0 };
             var world = new UsdPrim("World", "CesiumGeoreferencePrim");
-            world.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = Latitude });
-            world.Attributes.Add(new UsdAttribute("cesium:anchor:longitude", "double") { Value = Longitude });
-            world.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = Height });
+            world.Attributes.Add(new UsdAttribute("cesium:anchor:latitude", "double") { Value = UsdValue.From(Latitude) });
+            world.Attributes.Add(new UsdAttribute("cesium:anchor:longitude", "double") { Value = UsdValue.From(Longitude) });
+            world.Attributes.Add(new UsdAttribute("cesium:anchor:height", "double") { Value = UsdValue.From(Height) });
             stage.AddRootPrim(world);
             return stage;
         }

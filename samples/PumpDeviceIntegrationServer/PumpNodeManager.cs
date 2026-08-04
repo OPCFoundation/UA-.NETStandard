@@ -259,11 +259,13 @@ namespace Pumps
                 firstPump ??= pump;
             }
 
-            // The OpenUSD twin follows the first pump.
-            if (firstPump != null)
-            {
-                OrganiseRepresentation(firstPump);
-            }
+            // Every pump is a twin in its own right, so every representation has to
+            // be discoverable — a connector finds them through this registry alone.
+            OrganiseRepresentations();
+
+            // Plant-level aggregation: composes one full-fidelity pump prim per
+            // configured pump, so the rendered scene scales with --pumps N.
+            await MaterialisePlantAggregationAsync(cancellationToken).ConfigureAwait(false);
 
             // Composition demo: a ProductionLine aggregating 1..n pumps (Many), with a
             // dynamically added/removed pump (model-change events) and a cross-server
@@ -323,7 +325,8 @@ namespace Pumps
             // mandatory children from the parent chain.
             PumpState pump = SystemContext
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
-            pump.DisplayName = new LocalizedText(GetPumpDisplayName(m_pumpStates.Count + 1));
+            int pumpNumber = m_pumpStates.Count + 1;
+            pump.DisplayName = new LocalizedText(GetPumpDisplayName(pumpNumber));
 
             pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
             deviceSet.AddChild(pump);
@@ -334,7 +337,7 @@ namespace Pumps
             // registration. Per-instance NodeIds are already assigned by the
             // generated CreateOrReplace/AddXxx helpers, so the binding source
             // NodeIds captured here are the instance ones.
-            AttachOpenUsdRepresentation(pump);
+            AttachOpenUsdRepresentation(pump, pumpNumber);
 
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
@@ -347,7 +350,7 @@ namespace Pumps
             // item never samples them unless they are registered in their own
             // right -- register them explicitly so the OpenUSD bindings that use
             // them are live.
-            await RegisterOpenUsdSignalsAsync(cancellationToken).ConfigureAwait(false);
+            await RegisterOpenUsdSignalsAsync(pump, cancellationToken).ConfigureAwait(false);
 
             TryAddToMachinesFolder(pump);
             m_pumpStates.Add(pump);
@@ -368,6 +371,8 @@ namespace Pumps
         private void MaterialisePumpOptionalChildren(
             PumpState pump)
         {
+            MaterialiseNameplate(pump.Identification!);
+
             pump.AddOperational(SystemContext);
             OperationalGroupState operational = pump.Operational!;
             operational.AddMeasurements(SystemContext);
@@ -455,6 +460,47 @@ namespace Pumps
                     PreserveHistoryRead(variable);
                 }
             }
+        }
+
+        /// <summary>
+        /// Materialises the optional nameplate properties that carry the
+        /// PumpX-2000 datasheet identification data. <c>Manufacturer</c>
+        /// and <c>SerialNumber</c> are mandatory on
+        /// <c>PumpIdentificationType</c> and are already created by the
+        /// generated factory; every other field is optional and is added
+        /// here through the generator-emitted <c>AddXxx(context)</c>
+        /// helpers so each property keeps the browse name, namespace and
+        /// DataType declared by the DI, Machinery and Pumps models. The
+        /// values themselves are assigned by the fluent
+        /// <c>WithProperty</c> wiring (Pump #1) and by the topology-element
+        /// builder (Pump #2).
+        /// </summary>
+        private void MaterialiseNameplate(PumpIdentificationState identification)
+        {
+            // OPC 10000-100 (DI) nameplate.
+            identification.AddManufacturerUri(SystemContext);
+            identification.AddModel(SystemContext);
+            identification.AddProductCode(SystemContext);
+            identification.AddDeviceClass(SystemContext);
+            identification.AddHardwareRevision(SystemContext);
+            identification.AddSoftwareRevision(SystemContext);
+            identification.AddProductInstanceUri(SystemContext);
+            identification.AddAssetId(SystemContext);
+            identification.AddComponentName(SystemContext);
+
+            // OPC 40001-1 (Machinery) nameplate.
+            identification.AddLocation(SystemContext);
+            identification.AddYearOfConstruction(SystemContext);
+            identification.AddMonthOfConstruction(SystemContext);
+
+            // OPC 40223 (Pumps) nameplate.
+            identification.AddDayOfConstruction(SystemContext);
+            identification.AddArticleNumber(SystemContext);
+            identification.AddOrderProductCode(SystemContext);
+            identification.AddTypeOfProduct(SystemContext);
+            identification.AddSupplier(SystemContext);
+            identification.AddCountryOfOrigin(SystemContext);
+            identification.AddFabricationNumber(SystemContext);
         }
 
         /// <summary>

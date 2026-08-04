@@ -165,29 +165,23 @@ namespace Opc.Ua
             base.GetChildren(context, children);
         }
 
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+        /// <inheritdoc/>
         protected override BaseInstanceState? FindChild(
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState? replacement)
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds = true)
         {
-            if (browseName.IsNull)
+            if (browseName.Name == BrowseNames.EnumStrings)
             {
-                return null;
+                return !createOrReplace
+                    ? EnumStrings
+                    : CreateOrReplaceEnumStrings(context, replacement, assignInstanceNodeIds);
             }
 
-            BaseInstanceState? instance = null;
-            switch (browseName.Name)
-            {
-                case BrowseNames.EnumStrings:
-                    instance = !createOrReplace ?
-                        EnumStrings : CreateOrReplaceEnumStrings(context, replacement);
-                    break;
-            }
-            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
+            return base.FindChild(
+                context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
         }
 
         /// <summary>
