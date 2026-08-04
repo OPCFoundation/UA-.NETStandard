@@ -75,6 +75,31 @@ namespace AiModelManagement.Bridge
         public const string SectionName = "InferenceBackend";
 
         /// <summary>
+        /// Configuration section the fallback backend binds from.
+        /// </summary>
+        /// <remarks>
+        /// A separate section rather than a nested one, because the fallback is a
+        /// backend in its own right: it has its own endpoint, its own credentials
+        /// and its own reachability, and sharing any of those with the primary would
+        /// defeat the purpose of having it.
+        /// </remarks>
+        public const string FallbackSectionName = "FallbackInferenceBackend";
+
+        /// <summary>
+        /// Whether this backend is configured at all.
+        /// </summary>
+        /// <remarks>
+        /// Meaningful for the fallback: a Server with nowhere to fall back to should
+        /// publish no fallback deployment rather than one that always fails.
+        /// </remarks>
+        public bool Enabled { get; set; } = true;
+
+        /// <summary>
+        /// Audience a workload-identity token is requested for.
+        /// </summary>
+        public string TokenAudience { get; set; } = string.Empty;
+
+        /// <summary>
         /// Where inference runs. Surfaced to clients as
         /// <c>DeploymentType.InferenceLocation</c>.
         /// </summary>

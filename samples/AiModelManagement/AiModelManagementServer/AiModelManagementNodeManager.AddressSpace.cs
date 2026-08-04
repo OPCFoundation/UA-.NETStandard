@@ -1,0 +1,339 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using AiModelManagement.Bridge;
+using Microsoft.Extensions.Logging;
+using Opc.Ua;
+using Opc.Ua.AiModelManagement;
+using AiRefs = Opc.Ua.AiModelManagement.ReferenceTypeIds;
+using BrowseNames = Opc.Ua.AiModelManagement.BrowseNames;
+using ObjectIds = Opc.Ua.ObjectIds;
+using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
+
+namespace AiModelManagement.Server
+{
+    public sealed partial class AiModelManagementNodeManager
+    {
+        /// <inheritdoc/>
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(externalReferences);
+
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+
+            lock (m_sync)
+            {
+                try
+                {
+                    CreateAiAddressSpace(externalReferences);
+                }
+                catch (Exception ex)
+                {
+                    // The Server reports a start-up failure as a bare status code, so
+                    // without this the one piece of information needed to fix it -
+                    // where it happened - is discarded before anyone sees it.
+                    m_logger.LogError(ex, "Failed to build the AI address space.");
+                    throw;
+                }
+            }
+        }
+
+        private void CreateAiAddressSpace(
+            IDictionary<NodeId, IList<IReference>> externalReferences)
+        {
+            {
+
+                m_root = new AiRootState(null);
+                m_root.Create(
+                    SystemContext,
+                    NodeId.Null,
+                    new QualifiedName("AiModelManagement", NamespaceIndex),
+                    new LocalizedText("AiModelManagement"),
+                    true);
+
+                Child<PropertyState<string>>(m_root, BrowseNames.SpecificationVersion)
+                    .Value = SpecificationVersion;
+
+                // The entry point hangs off the Server Object, so a client that has
+                // just connected finds it without being told the layout.
+                AddExternalReference(
+                    ObjectIds.Server,
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    m_root.NodeId,
+                    externalReferences);
+                m_root.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.Server);
+
+                BuildModels();
+                BuildDeployments();
+
+                if (m_options.EnableCatalogue)
+                {
+                    BuildCatalogue();
+                }
+
+                // One call: AddPredefinedNode walks the children, so the tree has to
+                // be finished before it is registered, not registered as it is built.
+                AddPredefinedNodeSynchronously(m_root);
+            }
+        }
+
+        /// <summary>
+        /// The release of the companion specification this Server implements.
+        /// </summary>
+        public const string SpecificationVersion = "0.2.0";
+
+        private static void AddExternalReference(
+            NodeId sourceId,
+            NodeId referenceType,
+            bool isInverse,
+            NodeId targetId,
+            IDictionary<NodeId, IList<IReference>> externalReferences)
+        {
+            if (!externalReferences.TryGetValue(sourceId, out IList<IReference>? references))
+            {
+                references = new List<IReference>();
+                externalReferences[sourceId] = references;
+            }
+
+            references.Add(new NodeStateReference(referenceType, isInverse, targetId));
+        }
+
+        /// <summary>
+        /// Publishes the models this Server can run.
+        /// </summary>
+        /// <remarks>
+        /// A model carries the identity and the digest at which a provenance walk
+        /// terminates. The nameplate answers which artefact this is; whether it
+        /// ought to be running here is a different question, asked by different
+        /// people, and answered by the card.
+        /// </remarks>
+        private void BuildModels()
+        {
+            IList<BackendModel> declared = m_backendOptions.Models;
+
+            BackendModel primary = declared.Count > 0 ? declared[0] : DefaultModel;
+            m_primaryModel = CreateModel(primary, "PrimaryModel");
+
+            if (!m_options.EnableFallback)
+            {
+                return;
+            }
+
+            BackendModel secondary = declared.Count > 1
+                ? declared[1]
+                : primary with { Name = primary.Name + "-compact" };
+
+            m_fallbackModel = CreateModel(secondary, "FallbackModel");
+        }
+
+        private static BackendModel DefaultModel { get; } = new()
+        {
+            Publisher = "sample",
+            Name = "primary-model",
+            Version = "1.0.0",
+            TaskKind = "chat",
+            Framework = "rest-chat-completions"
+        };
+
+        private ModelState CreateModel(BackendModel source, string browseName)
+        {
+            var model = new ModelState(m_root!.Models);
+            model.Create(
+                SystemContext,
+                NodeId.Null,
+                new QualifiedName(browseName, NamespaceIndex),
+                new LocalizedText(source.Name),
+                true);
+
+            Child<PropertyState<string>>(model, BrowseNames.ModelId).Value =
+                FormattableString.Invariant(
+                    $"{source.Publisher}/{source.Name}:{source.Version}");
+            Child<PropertyState<LocalizedText>>(model, BrowseNames.Name).Value =
+                new LocalizedText(source.Name);
+            Child<PropertyState<string>>(model, BrowseNames.Version).Value = source.Version;
+            Child<PropertyState<string>>(model, BrowseNames.Publisher).Value = source.Publisher;
+            Child<PropertyState<string>>(model, BrowseNames.Framework).Value = source.Framework;
+            Child<PropertyState<string>>(model, BrowseNames.TaskKind).Value = source.TaskKind;
+
+            // Digest and DigestAlgorithm are Mandatory because a provenance walk
+            // terminates at them. This sample never holds the artefact, so it
+            // publishes what the backend declares; where a backend declares nothing,
+            // an empty digest is the honest answer and a fabricated one is not.
+            Child<PropertyState<ByteString>>(model, BrowseNames.Digest).Value =
+                source.Digest.Length > 0
+                    ? new ByteString(source.Digest.ToArray())
+                    : ByteString.Empty;
+            Child<PropertyState<string>>(model, BrowseNames.DigestAlgorithm).Value =
+                source.DigestAlgorithm;
+
+            m_root.Models!.AddChild(model);
+            return model;
+        }
+
+        /// <summary>
+        /// Publishes the deployments that run those models.
+        /// </summary>
+        /// <remarks>
+        /// The primary runs wherever the backend is configured to reach. The
+        /// fallback runs on the Server, because a fallback that needed the same
+        /// network as the primary would not be one. What matters in the fallback
+        /// case is not that an answer arrives but that <c>ModelUsed</c> says which
+        /// model produced it.
+        /// </remarks>
+        private void BuildDeployments()
+        {
+            m_primary = CreateDeployment(
+                m_options.PrimaryDeploymentId,
+                "PrimaryDeployment",
+                m_primaryModel!,
+                MapSite(m_backendOptions.Site),
+                m_backendOptions.EgressPermitted,
+                m_backendOptions.RetainsInput);
+
+            if (!m_options.EnableFallback || m_fallbackModel is null)
+            {
+                return;
+            }
+
+            m_fallback = CreateDeployment(
+                m_options.FallbackDeploymentId,
+                "FallbackDeployment",
+                m_fallbackModel,
+                InferenceLocationEnum.OnServer,
+                egressPermitted: false,
+                retainsInput: false);
+
+            Child<PropertyState<FallbackPolicyEnum>>(m_primary, BrowseNames.FallbackPolicy)
+                .Value = FallbackPolicyEnum.FallBackTo;
+            m_primary.AddReference(
+                RefType(AiRefs.FallsBackTo), false, m_fallback.NodeId);
+            m_fallback.AddReference(
+                RefType(AiRefs.FallsBackTo), true, m_primary.NodeId);
+        }
+
+        /// <summary>
+        /// Resolves a reference type this model declares to a NodeId in this Server.
+        /// </summary>
+        /// <remarks>
+        /// The generated identifiers are ExpandedNodeIds carrying a namespace URI,
+        /// because a model does not know what index a Server will give it. The
+        /// translation has to happen against the Server's own namespace table.
+        /// </remarks>
+        private NodeId RefType(ExpandedNodeId referenceTypeId)
+        {
+            return ExpandedNodeId.ToNodeId(referenceTypeId, Server.NamespaceUris);
+        }
+
+        private DeploymentState CreateDeployment(
+            string deploymentId,
+            string browseName,
+            ModelState model,
+            InferenceLocationEnum site,
+            bool egressPermitted,
+            bool retainsInput)
+        {
+            var deployment = new DeploymentState(m_root!.Deployments);
+            deployment.Create(
+                SystemContext,
+                NodeId.Null,
+                new QualifiedName(browseName, NamespaceIndex),
+                new LocalizedText(deploymentId),
+                true);
+
+            Child<PropertyState<string>>(deployment, BrowseNames.DeploymentId).Value =
+                deploymentId;
+            Child<PropertyState<InferenceLocationEnum>>(
+                deployment, BrowseNames.InferenceLocation).Value = site;
+            Child<PropertyState<DeploymentStateEnum>>(deployment, BrowseNames.State).Value =
+                DeploymentStateEnum.Ready;
+            Child<PropertyState<VersionBindingEnum>>(
+                deployment, BrowseNames.VersionBinding).Value = VersionBindingEnum.Pinned;
+
+            // Fail is the safe default: a caller told that nothing happened can
+            // decide what to do, and deciding is frequently its job.
+            Child<PropertyState<FallbackPolicyEnum>>(
+                deployment, BrowseNames.FallbackPolicy).Value = FallbackPolicyEnum.Fail;
+
+            // Where the data goes. Egress is not made false by encryption, which
+            // answers who can read data in flight and not where the data went.
+            Child<PropertyState<string>>(deployment, BrowseNames.DataJurisdiction).Value =
+                m_backendOptions.DataJurisdiction;
+            Child<PropertyState<bool>>(deployment, BrowseNames.EgressPermitted).Value =
+                egressPermitted;
+            Child<PropertyState<bool>>(deployment, BrowseNames.RetainsInput).Value =
+                retainsInput;
+
+            // Published before a client calls rather than discovered from a
+            // rejection: the real bound is the smallest of several limits, and a
+            // client can see none of them.
+            Child<PropertyState<uint>>(deployment, BrowseNames.MaxInlinePayloadSize).Value =
+                m_backendOptions.MaxInlinePayloadSize;
+
+            Child<PropertyState<ReachabilityEnum>>(deployment, BrowseNames.Reachability)
+                .Value = ReachabilityEnum.Unknown;
+            Child<PropertyState<uint>>(deployment, BrowseNames.ConsecutiveFailures).Value = 0;
+
+            if (site != InferenceLocationEnum.OnServer &&
+                !string.IsNullOrEmpty(m_backendOptions.EndpointUri))
+            {
+                // The endpoint, never the credential. The address space says where
+                // the Server goes; what it presents on arrival stays out of it.
+                Child<PropertyState<string>>(deployment, BrowseNames.EndpointUri).Value =
+                    m_backendOptions.EndpointUri;
+            }
+
+            // Exactly one UsesModel reference: the only defined path from a running
+            // deployment to the artefact its answers depend on.
+            deployment.AddReference(RefType(AiRefs.UsesModel), false, model.NodeId);
+            model.AddReference(RefType(AiRefs.UsesModel), true, deployment.NodeId);
+
+            m_root.Deployments!.AddChild(deployment);
+            WireDeploymentMethods(deployment);
+            return deployment;
+        }
+
+        private static InferenceLocationEnum MapSite(InferenceSite site)
+        {
+            return site switch
+            {
+                InferenceSite.Cloud => InferenceLocationEnum.Cloud,
+                InferenceSite.EdgeOffServer => InferenceLocationEnum.EdgeOffServer,
+                _ => InferenceLocationEnum.OnServer
+            };
+        }
+    }
+}

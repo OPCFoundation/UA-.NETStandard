@@ -131,6 +131,23 @@ namespace AiModelManagement.Bridge
 
         /// <summary>Capability names the backend reports, for example <c>chat</c>.</summary>
         public IReadOnlyList<string> Capabilities { get; init; } = Array.Empty<string>();
+
+        /// <summary>
+        /// Digest of the artefact, where the backend can name one.
+        /// </summary>
+        /// <remarks>
+        /// Empty by default and deliberately so. A provenance walk terminates at
+        /// this value, which makes it the one field a sample must not invent: a
+        /// hosted endpoint that will not say which weights answered cannot be made
+        /// to say so by hashing its name, and a digest that looks like an artefact
+        /// digest but is not one is worse than none, because it will be compared.
+        /// </remarks>
+        public ReadOnlyMemory<byte> Digest { get; init; }
+
+        /// <summary>
+        /// Algorithm that produced <see cref="Digest"/>, empty when there is none.
+        /// </summary>
+        public string DigestAlgorithm { get; init; } = string.Empty;
     }
 
     /// <summary>

@@ -88,6 +88,9 @@ namespace AiModelManagement.Bridge
             m_directory = directory ?? throw new ArgumentNullException(nameof(directory));
         }
 
+        private static readonly System.Buffers.SearchValues<char> s_pathSeparators =
+            System.Buffers.SearchValues.Create("/\\");
+
         /// <inheritdoc/>
         public async ValueTask<string?> ResolveAsync(string reference, CancellationToken ct)
         {
@@ -100,7 +103,7 @@ namespace AiModelManagement.Bridge
             // mount is refused rather than sanitised: a reference is configuration this
             // Server controls, so one containing a separator is a mistake worth
             // surfacing rather than input worth repairing.
-            if (reference.IndexOfAny(new[] { '/', '\\' }) >= 0 ||
+            if (reference.AsSpan().IndexOfAny(s_pathSeparators) >= 0 ||
                 reference.Contains("..", StringComparison.Ordinal))
             {
                 throw new ArgumentException(
