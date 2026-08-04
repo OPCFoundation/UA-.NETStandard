@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
   <!-- Roslyn API versions the analyzers and source generators are built against.
        The central pins below track the newest of them so that the primary
        analyzer variants and the projects that test them resolve identically. -->
@@ -69,6 +69,14 @@
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="1.4.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.300" />
+    <!-- AI Model Management sample. Microsoft.Extensions.AI supplies the IChatClient
+         abstraction the sample's backend is written against; the OpenAI-compatible
+         client reaches both a hosted inference service and an on-device runtime,
+         which is the whole reason one abstraction covers both. Azure.Identity is
+         only for the workload-identity path, where no secret is stored at all. -->
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.8.3" />
+    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.8.3" />
+    <PackageVersion Include="Azure.Identity" Version="1.21.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
     <PackageVersion Include="System.CommandLine" Version="2.0.9" />
     <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />

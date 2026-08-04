@@ -1,11 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- OPC UA xRegistry abstract companion namespace. Draft NodeIds (final IDs assigned by the OPC Foundation). -->
 <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/xRegistry/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.1.0" PublicationDate="2026-07-16T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.3.0" PublicationDate="2026-07-31T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
     </Model>
   </Models>
