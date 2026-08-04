@@ -32,7 +32,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.SourceGeneration
 {
-    internal static class SourceGenerator
+    internal static partial class SourceGenerator
     {
         /// <summary>
         /// The namespace prefix for generated code
@@ -76,6 +76,27 @@ namespace Opc.Ua.SourceGeneration
                 "referenced assembly '{1}' under prefix '{2}'; skipping local generation"),
             category: Name,
             DiagnosticSeverity.Info,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor FluentAccessorsOnlyModelError = new(
+            id: "MODELGEN014",
+            title: "Fluent-accessors-only model cannot be generated",
+            messageFormat: (LocalizableString)("Cannot generate fluent accessors only for model " +
+                "URI '{0}', prefix '{1}', input '{2}': {3}"),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor FluentAccessorsOnlyOptionsError = new(
+            id: "MODELGEN015",
+            title: "Invalid fluent-accessors-only configuration",
+            messageFormat: (LocalizableString)"Invalid fluent-accessors-only configuration: {0}",
+            category: Name,
+            DiagnosticSeverity.Error,
             isEnabledByDefault: true,
             helpLinkUri: "www.opcfoundation.org",
             customTags: ["opcua"]);

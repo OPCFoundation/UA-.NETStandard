@@ -206,6 +206,38 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Output arguments (methods only).
         /// </summary>
         public IReadOnlyList<DependencyMethodArg> OutputArguments { get; set; } = [];
+
+        /// <summary>
+        /// Qualified method state identity used by the producing assembly.
+        /// Empty for legacy payloads and non-method children.
+        /// </summary>
+        public string MethodStateName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Namespace URI for <see cref="MethodStateName"/>.
+        /// </summary>
+        public string MethodStateNamespace { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Qualified method declaration identity used on the wire.
+        /// Empty for legacy payloads and non-method children.
+        /// </summary>
+        public string MethodDeclarationName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Namespace URI for <see cref="MethodDeclarationName"/>.
+        /// </summary>
+        public string MethodDeclarationNamespace { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Numeric NodeId identifier for the effective method declaration.
+        /// </summary>
+        public uint MethodDeclarationNumericId { get; set; }
+
+        /// <summary>
+        /// String NodeId identifier for the effective method declaration.
+        /// </summary>
+        public string? MethodDeclarationStringId { get; set; }
     }
 
     /// <summary>
@@ -297,10 +329,22 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// </summary>
         public const byte CompressionDeflate = 1;
 
+        private const byte kFluentAccessorsEmitted = 0x01;
+        private const byte kFluentAccessorsKnown = 0x40;
+        private const byte kMethodIdentityTrailer = 0x80;
+        private const byte kMethodIdentityTrailerVersion = 1;
+
         /// <summary>
         /// The model URI this dependency payload describes.
         /// </summary>
         public string ModelUri { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Whether the producing assembly emitted the per-ObjectType typed
+        /// fluent accessor extension classes. <c>null</c> means the payload
+        /// predates this capability and cannot prove whether accessors exist.
+        /// </summary>
+        public bool? FluentAccessorsEmitted { get; set; }
 
         /// <summary>
         /// Nodes in the dependency payload.
@@ -442,6 +486,28 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     }
                 }
             }
+            bool hasMethodIdentityTrailer = HasMethodIdentityTrailer();
+            if (FluentAccessorsEmitted.HasValue || hasMethodIdentityTrailer)
+            {
+                byte capabilities = 0;
+                if (FluentAccessorsEmitted.HasValue)
+                {
+                    capabilities |= kFluentAccessorsKnown;
+                    if (FluentAccessorsEmitted.Value)
+                    {
+                        capabilities |= kFluentAccessorsEmitted;
+                    }
+                }
+                if (hasMethodIdentityTrailer)
+                {
+                    capabilities |= kMethodIdentityTrailer;
+                }
+                writer.Write(capabilities);
+                if (hasMethodIdentityTrailer)
+                {
+                    WriteMethodIdentityTrailer(writer);
+                }
+            }
         }
 
         private void ReadUncompressed(Stream source)
@@ -556,6 +622,102 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     node.Children = children;
                 }
                 Nodes.Add(node);
+            }
+            if (reader.BaseStream.Position < reader.BaseStream.Length)
+            {
+                byte capabilities = reader.ReadByte();
+                bool hasMethodIdentityTrailer =
+                    (capabilities & kMethodIdentityTrailer) != 0;
+                if (hasMethodIdentityTrailer)
+                {
+                    FluentAccessorsEmitted =
+                        (capabilities & kFluentAccessorsKnown) != 0
+                            ? (capabilities & kFluentAccessorsEmitted) != 0
+                            : null;
+                }
+                else
+                {
+                    FluentAccessorsEmitted =
+                        (capabilities & kFluentAccessorsEmitted) != 0;
+                }
+                if (hasMethodIdentityTrailer &&
+                    reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    ReadMethodIdentityTrailer(reader);
+                }
+            }
+        }
+
+        private bool HasMethodIdentityTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                foreach (DependencyChild child in node.Children)
+                {
+                    if (!string.IsNullOrEmpty(child.MethodStateName) ||
+                        !string.IsNullOrEmpty(child.MethodDeclarationName) ||
+                        child.MethodDeclarationNumericId != 0 ||
+                        !string.IsNullOrEmpty(child.MethodDeclarationStringId))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private void WriteMethodIdentityTrailer(BinaryWriter writer)
+        {
+            writer.Write(kMethodIdentityTrailerVersion);
+            writer.Write(Nodes.Count);
+            foreach (DependencyNode node in Nodes)
+            {
+                writer.Write(node.Children.Count);
+                foreach (DependencyChild child in node.Children)
+                {
+                    WriteString(writer, child.MethodStateName);
+                    WriteString(writer, child.MethodStateNamespace);
+                    WriteString(writer, child.MethodDeclarationName);
+                    WriteString(writer, child.MethodDeclarationNamespace);
+                    writer.Write(child.MethodDeclarationNumericId);
+                    WriteNullableString(writer, child.MethodDeclarationStringId);
+                }
+            }
+        }
+
+        private void ReadMethodIdentityTrailer(BinaryReader reader)
+        {
+            byte trailerVersion = reader.ReadByte();
+            if (trailerVersion != kMethodIdentityTrailerVersion)
+            {
+                return;
+            }
+
+            int nodeCount = reader.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid method identity node count " + nodeCount);
+            }
+            for (int i = 0; i < nodeCount; i++)
+            {
+                DependencyNode node = Nodes[i];
+                int childCount = reader.ReadInt32();
+                if (childCount != node.Children.Count)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid method identity child count " + childCount);
+                }
+                for (int j = 0; j < childCount; j++)
+                {
+                    DependencyChild child = node.Children[j];
+                    child.MethodStateName = ReadString(reader);
+                    child.MethodStateNamespace = ReadString(reader);
+                    child.MethodDeclarationName = ReadString(reader);
+                    child.MethodDeclarationNamespace = ReadString(reader);
+                    child.MethodDeclarationNumericId = reader.ReadUInt32();
+                    child.MethodDeclarationStringId = ReadNullableString(reader);
+                }
             }
         }
 

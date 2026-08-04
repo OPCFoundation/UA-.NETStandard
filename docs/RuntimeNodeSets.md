@@ -10,7 +10,7 @@ Use `AddRuntimeNodeSet` when:
 - Your information model changes frequently enough that rebuilding the source-generated manager for every XML update would be disruptive.
 - You are prototyping or testing a new NodeSet2 design.
 
-Use the [source-generated path](SourceGeneratedNodeManagers.md) when you want compile-time safety, strong typing, and AOT-safe named constants for every node in your model. The runtime path gives you generic `NodeState` objects and untyped browse-path wiring.
+Use the [source-generated path](NodeManagers.md#source-generated-node-managers) when you want compile-time safety, strong typing, and AOT-safe named constants for every node in your model. The runtime path gives you generic `NodeState` objects and untyped browse-path wiring.
 
 ## Startup and live lifecycle semantics
 
@@ -30,6 +30,7 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
             {
                 Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
             },
+            callerContext: null,
             ct);
     }
 
@@ -41,19 +42,22 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
             {
                 Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
             },
+            callerContext: null,
             ct);
     }
 
     public ValueTask RemoveAsync(CancellationToken ct)
     {
-        return lifecycle.RemoveAsync(m_registration!, ct);
+        return lifecycle.RemoveAsync(m_registration!, callerContext: null, ct);
     }
 }
 ```
 
 Each add returns an immutable `NodeManagerRegistration`, and reload returns the next generation while invalidating the previous handle.
 
-The rules that apply to every NodeManager registered at runtime -- what happens to MonitoredItems, Browse continuation points, namespace indexes, DataTypes, and change notifications, and which NodeManagers may be reloaded at all -- are described once in [Registering NodeManagers](NodeManagerRegistration.md). Runtime NodeSets follow those rules, and the built-in runtime NodeSet manager already implements the `INodeManagerReloadParticipant` contract that reload requires.
+`AddRuntimeNodeSetAsync`, `ReloadRuntimeNodeSetAsync`, and `RemoveAsync` take the operation the caller is running under. Pass `context.GetOperationContext()` when calling from a NodeManager or Method callback: a lifecycle operation drains the requests that are in flight, so one started from inside a request would wait for itself and is rejected with an `InvalidOperationException`. A control-plane caller such as the `ModelLoader` above is not serving a request and passes `null`. See [Registering NodeManagers](NodeManagers.md#runtime-registration).
+
+The rules that apply to every NodeManager registered at runtime -- what happens to MonitoredItems, Browse continuation points, namespace indexes, DataTypes, and change notifications, and which NodeManagers may be reloaded at all -- are described once in [Registering NodeManagers](NodeManagers.md#registering-node-managers). Runtime NodeSets follow those rules, and the built-in runtime NodeSet manager already implements the `INodeManagerReloadParticipant` contract that reload requires.
 
 ## Quick-start examples
 
@@ -200,6 +204,6 @@ Source-generated managers are the recommended path for production code where typ
 
 ## Related documentation
 
-- [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md) — strongly typed alternative.
+- [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers) — strongly typed alternative.
 - [Dependency Injection](DependencyInjection.md) — `IOpcUaServerBuilder` and service registration.
 - [ComplexTypes.md](ComplexTypes.md) — server-side complex type loading and client-side decoding.

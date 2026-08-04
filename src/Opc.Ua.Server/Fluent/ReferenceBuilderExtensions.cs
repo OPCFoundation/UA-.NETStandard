@@ -55,13 +55,11 @@ namespace Opc.Ua.Server.Fluent
     /// </list>
     /// <para>
     /// Newly created child objects are attached to the parent via
-    /// <see cref="NodeState.AddChild"/>; their NodeIds are generated from
-    /// the parent's NodeId by appending the child browse name (matching
-    /// the pattern used by the generated state classes and the
-    /// PumpDeviceIntegrationServer NodeIdFactory). Direct NodeId lookup on a newly
-    /// created child requires the owning node manager to index the new
-    /// node via <c>AddPredefinedNodeAsync</c>; until then the child is
-    /// reachable through navigation from the parent.
+    /// <see cref="NodeState.AddChild"/> and registered with the owning
+    /// node manager. Their NodeIds are generated from the parent's
+    /// NodeId by appending the child browse name (matching the pattern
+    /// used by the generated state classes and the
+    /// PumpDeviceIntegrationServer NodeIdFactory).
     /// </para>
     /// </remarks>
     public static class ReferenceBuilderExtensions
@@ -200,6 +198,7 @@ namespace Opc.Ua.Server.Fluent
                 BrowseName = browseName,
                 DisplayName = new LocalizedText(symbolicName),
                 SymbolicName = symbolicName,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 TypeDefinitionId = typeDef
             };
 
@@ -212,6 +211,7 @@ namespace Opc.Ua.Server.Fluent
                 parent.Node.NodeId.NamespaceIndex);
 
             parent.Node.AddChild(child);
+            FluentNodeRegistration.RegisterCreatedNode(parent.Builder, child);
 
             // Return a typed builder pointing at the new child. Reuse the
             // existing NodeManagerBuilder.AsTyped path by going through a

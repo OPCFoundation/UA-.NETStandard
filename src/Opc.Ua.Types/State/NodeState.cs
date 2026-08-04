@@ -335,10 +335,16 @@ namespace Opc.Ua
             var children = new List<BaseInstanceState>();
             source.GetChildren(context, children);
 
+            // Every child created below is initialized from its source right
+            // afterwards, which overwrites the NodeId a factory would hand out
+            // here, so the copy must not consume identifiers for them.
             for (int ii = 0; ii < children.Count; ii++)
             {
                 BaseInstanceState sourceChild = children[ii];
-                BaseInstanceState? child = CreateChild(context, sourceChild.BrowseName);
+                BaseInstanceState? child = CreateChild(
+                    context,
+                    sourceChild.BrowseName,
+                    assignInstanceNodeIds: false);
 
                 if (child == null)
                 {
@@ -4680,19 +4686,32 @@ namespace Opc.Ua
         /// <summary>
         /// Finds or creates the child with the specified browse name.
         /// </summary>
+        /// <remarks>
+        /// A caller that overwrites the child's NodeId immediately afterwards -
+        /// a node copy is the canonical case - passes <c>false</c> for
+        /// <paramref name="assignInstanceNodeIds"/> so the
+        /// <see cref="ISystemContext.NodeIdFactory"/> is never asked for an
+        /// identifier that is about to be discarded.
+        /// </remarks>
         /// <param name="context">The context to use.</param>
         /// <param name="browseName">The browse name.</param>
+        /// <param name="assignInstanceNodeIds">
+        /// Whether a newly created child may be given a per-instance NodeId.
+        /// Defaults to <c>true</c>, which is what materialising a child onto a
+        /// live tree wants.
+        /// </param>
         /// <returns>The child if available. Null otherwise.</returns>
         public virtual BaseInstanceState? CreateChild(
             ISystemContext context,
-            QualifiedName browseName)
+            QualifiedName browseName,
+            bool assignInstanceNodeIds = true)
         {
             if (browseName.IsNull)
             {
                 return null;
             }
 
-            return FindChild(context, browseName, true, null);
+            return FindChild(context, browseName, true, null, assignInstanceNodeIds);
         }
 
         /// <summary>
@@ -5348,6 +5367,16 @@ namespace Opc.Ua
         /// <summary>
         /// Finds the child with the specified browse name.
         /// </summary>
+        /// <remarks>
+        /// A type that declares children overrides this method, resolves the
+        /// ones it declares, and forwards everything else to the base. It must
+        /// pass <paramref name="assignInstanceNodeIds"/> on to every
+        /// <c>CreateOrReplace&lt;Child&gt;</c> helper it calls: a caller that
+        /// overwrites the child's NodeId immediately afterwards - a node copy is
+        /// the canonical case - declines assignment so the
+        /// <see cref="ISystemContext.NodeIdFactory"/> is never asked for an
+        /// identifier that is about to be discarded.
+        /// </remarks>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="browseName">The browse name of the children to add.</param>
         /// <param name="createOrReplace">if set to <c>true</c> and the child does
@@ -5357,12 +5386,18 @@ namespace Opc.Ua
         /// true. If not of same type, the node state is used to initialize a new
         /// instance of the required type (for narrowing conversation to the type
         /// definition</param>
+        /// <param name="assignInstanceNodeIds">
+        /// Whether a newly created child may be given a per-instance NodeId.
+        /// Defaults to <c>true</c>, which is what materialising a child onto a
+        /// live tree wants.
+        /// </param>
         /// <returns>The child.</returns>
         protected virtual BaseInstanceState? FindChild(
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState? replacement)
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds = true)
         {
             if (browseName.IsNull)
             {

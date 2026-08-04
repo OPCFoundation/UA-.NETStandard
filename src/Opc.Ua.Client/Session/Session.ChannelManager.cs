@@ -310,7 +310,7 @@ namespace Opc.Ua.Client
             if (updateBeforeConnect)
             {
                 await endpoint
-                    .UpdateFromServerAsync(probeContext.Telemetry, ct)
+                    .UpdateFromServerAsync(configuration, probeContext.Telemetry, ct)
                     .ConfigureAwait(false);
             }
 

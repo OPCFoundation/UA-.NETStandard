@@ -1161,12 +1161,9 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.QualifiedName browseName,
                 bool createOrReplace,
-                global::Opc.Ua.BaseInstanceState? replacement)
+                global::Opc.Ua.BaseInstanceState? replacement,
+                bool assignInstanceNodeIds = true)
             {
-                if (browseName.IsNull)
-                {
-                    return null;
-                }
                 global::Opc.Ua.BaseInstanceState? instance = null;
 
                 switch (browseName.Name)
@@ -1175,13 +1172,11 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (instance != null)
-
                 {
-
                     return instance;
-
                 }
-                return base.FindChild(context, browseName, createOrReplace, replacement);
+                return base.FindChild(
+                    context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
             }
 
             /// <inheritdoc/>
@@ -1210,7 +1205,8 @@ namespace Opc.Ua.SourceGeneration
             case "{{Tokens.ChildBrowseNameLiteral}}":
             {
                 instance = !createOrReplace ?
-                    {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(context, replacement);
+                    {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(
+                        context, replacement, assignInstanceNodeIds);
                 break;
             }
 
@@ -1409,6 +1405,20 @@ namespace Opc.Ua.SourceGeneration
             // Add {{Tokens.SymbolicName}} predefined node
             {
                 global::Opc.Ua.NodeState state = Create{{Tokens.SymbolicId}}(context);
+                state.CreateAsPredefinedNode(context);
+                nodes.Add(state);
+            }
+            """);
+
+        /// <summary>
+        /// Template for a single method state creation call.
+        /// </summary>
+        public static readonly TemplateString AddMethod = TemplateString.Parse(
+            $$"""
+            // Add {{Tokens.SymbolicName}} predefined node
+            {
+                global::Opc.Ua.NodeState state =
+                    context.CreateInstanceOf{{Tokens.SymbolicId}}();
                 state.CreateAsPredefinedNode(context);
                 nodes.Add(state);
             }

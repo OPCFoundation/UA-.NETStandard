@@ -122,9 +122,12 @@ namespace Opc.Ua.Schema.Model
             if (instance is MethodDesign method)
             {
                 string className;
-                if (method.TypeDefinition != null)
+                XmlQualifiedName methodStateIdentity =
+                    MethodDesignArgumentResolver.ResolveMethodStateIdentity(method);
+                if (methodStateIdentity != null)
                 {
-                    className = method.TypeDefinition.AsFullyQualifiedTypeSymbol(namespaces);
+                    className =
+                        methodStateIdentity.AsFullyQualifiedTypeSymbol(namespaces);
 
                     if (className.EndsWith("MethodType", StringComparison.Ordinal))
                     {
@@ -138,14 +141,9 @@ namespace Opc.Ua.Schema.Model
                 else
                 {
                     className = method.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces);
-
-                    if (className.EndsWith("MethodType", StringComparison.Ordinal))
-                    {
-                        className = className[..^"MethodType".Length];
-                    }
                 }
 
-                if (method.HasArguments)
+                if (MethodDesignArgumentResolver.HasMethodArguments(method))
                 {
                     string typedClassName = CoreUtils.Format(
                         "{0}{1}MethodState",
@@ -2107,6 +2105,72 @@ namespace Opc.Ua.Schema.Model
                 AccessLevel.HistoryReadWrite => "global::Opc.Ua.AccessLevels.HistoryReadOrWrite",
                 _ => "global::Opc.Ua.AccessLevels.None"
             };
+        }
+
+        /// <summary>
+        /// Maps the AccessLevel of a variable onto code. NodeSet2-sourced
+        /// designs carry the verbatim bitmask, which is preferred because
+        /// the ModelDesign <see cref="AccessLevel"/> enumeration cannot
+        /// represent combinations such as <c>CurrentRead | HistoryRead</c>.
+        /// </summary>
+        public static string GetAccessLevelAsCode(this VariableDesign variable)
+        {
+            uint? rawAccessLevel = variable?.RawAccessLevel;
+            return rawAccessLevel != null
+                ? GetAccessLevelBitsAsCode(rawAccessLevel.Value)
+                : GetAccessLevelAsCode(variable?.AccessLevel ?? AccessLevel.None);
+        }
+
+        /// <summary>
+        /// Maps the UserAccessLevel of a variable onto code. Mirrors the
+        /// AccessLevel, matching the runtime NodeSet2 importer in
+        /// <c>UANodeSetHelpers</c>, which derives UserAccessLevel from
+        /// AccessLevel rather than from the (schema-defaulted)
+        /// UserAccessLevel attribute.
+        /// </summary>
+        public static string GetUserAccessLevelAsCode(this VariableDesign variable)
+        {
+            return GetAccessLevelAsCode(variable);
+        }
+
+        /// <summary>
+        /// Maps a verbatim OPC UA AccessLevel bitmask onto code, emitting
+        /// the named <c>AccessLevels</c> constants for every set bit.
+        /// </summary>
+        private static string GetAccessLevelBitsAsCode(uint accessLevel)
+        {
+            byte bits = (byte)accessLevel;
+            if (bits == 0)
+            {
+                return "global::Opc.Ua.AccessLevels.None";
+            }
+
+            var names = new List<string>();
+            AppendBit(names, bits, 0x1, "CurrentRead");
+            AppendBit(names, bits, 0x2, "CurrentWrite");
+            AppendBit(names, bits, 0x4, "HistoryRead");
+            AppendBit(names, bits, 0x8, "HistoryWrite");
+            AppendBit(names, bits, 0x10, "SemanticChange");
+            AppendBit(names, bits, 0x20, "StatusWrite");
+            AppendBit(names, bits, 0x40, "TimestampWrite");
+
+            if (names.Count == 0)
+            {
+                return CoreUtils.Format("(byte)0x{0:X2}", bits);
+            }
+            if (names.Count == 1)
+            {
+                return names[0];
+            }
+            return CoreUtils.Format("(byte)({0})", string.Join(" | ", names));
+        }
+
+        private static void AppendBit(List<string> names, byte bits, byte mask, string name)
+        {
+            if ((bits & mask) != 0)
+            {
+                names.Add("global::Opc.Ua.AccessLevels." + name);
+            }
         }
 
         public static string GetLocalizedTextAsCode(this string localizedText)
