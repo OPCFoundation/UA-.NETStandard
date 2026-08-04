@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -181,6 +182,113 @@ namespace AiModelManagement.Tests
 
             // A client that could overwrite a model's answer could forge one.
             Assert.That(ServiceResult.IsGood(opened), Is.False);
+        }
+
+        [Test]
+        public async Task ATransferAbortedMidInferenceDoesNotWriteIntoDisposedBuffersAsync()
+        {
+            var backend = new BlockingFakeBackend();
+
+            using AiModelManagementNodeManager nm = await AiServerTestHarness
+                .CreateAsync(
+                    new InferenceBackends(backend),
+                    new AiModelManagementOptions { EnableFallback = false },
+                    new InferenceBackendOptions { MaxInlinePayloadSize = InlineLimit })
+                .ConfigureAwait(false);
+
+            var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
+
+            BeginTransferMethodStateResult begun = await deployment.BeginTransfer!.OnCallAsync!(
+                nm.SystemContext,
+                deployment.BeginTransfer,
+                nm.PrimaryDeploymentId,
+                "application/json",
+                64,
+                CancellationToken.None).ConfigureAwait(false);
+
+            var transfer = nm.FindPredefinedNode<InferenceTransferState>(begun.Transfer);
+            WriteRequest(nm, transfer, "{}");
+
+            // Execute starts and blocks inside the backend.
+            Task<ExecuteMethodStateResult> executing = transfer.Execute!.OnCallAsync!(
+                nm.SystemContext,
+                transfer.Execute,
+                transfer.NodeId,
+                CancellationToken.None).AsTask();
+
+            await backend.Entered.ConfigureAwait(false);
+
+            // Abort while it is in flight. This removes the entry and disposes the
+            // buffers the completing call is about to write into.
+            transfer.Abort!.OnCallMethod2Async!(
+                nm.SystemContext,
+                transfer.Abort,
+                transfer.NodeId,
+                ArrayOf<Variant>.Empty,
+                [],
+                CancellationToken.None).AsTask().Wait(TimeSpan.FromSeconds(5));
+
+            backend.Release();
+
+            ExecuteMethodStateResult result = await executing.ConfigureAwait(false);
+
+            // The answer is dropped rather than written into a disposed buffer,
+            // which is what the caller that aborted was asking for. Before the
+            // liveness re-check this threw ObjectDisposedException out of a Method
+            // call, which no client can do anything sensible with.
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Accepted, Is.False);
+                Assert.That(
+                    (StatusCode)result.ServiceResult.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            });
+        }
+
+        /// <summary>
+        /// A backend that lets a test hold an inference open.
+        /// </summary>
+        private sealed class BlockingFakeBackend : IInferenceBackend
+        {
+            private readonly TaskCompletionSource m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public Task Entered => m_entered.Task;
+
+            public void Release()
+            {
+                m_release.TrySetResult();
+            }
+
+            public InferenceSite Site => InferenceSite.OnServer;
+
+            public ValueTask<IReadOnlyList<BackendModel>> ListModelsAsync(
+                string? filter, uint maxResults, CancellationToken ct)
+            {
+                return ValueTask.FromResult<IReadOnlyList<BackendModel>>([]);
+            }
+
+            public async ValueTask<InferenceResult> InvokeAsync(
+                InferenceRequest request, CancellationToken ct)
+            {
+                m_entered.TrySetResult();
+                await m_release.Task.ConfigureAwait(false);
+
+                return new InferenceResult
+                {
+                    Ok = true,
+                    Payload = Encoding.UTF8.GetBytes("{\"ok\":true}"),
+                    ContentType = "application/json"
+                };
+            }
+
+            public ValueTask<BackendProbe> ProbeAsync(CancellationToken ct)
+            {
+                return ValueTask.FromResult(new BackendProbe { Reachable = true });
+            }
         }
 
         private const uint InlineLimit = 512;

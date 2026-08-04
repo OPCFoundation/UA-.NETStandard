@@ -174,19 +174,15 @@ namespace AiModelManagement.Server
             Child<ExecuteMethodState>(entry.Node, BrowseNames.Execute).OnCallAsync =
                 (context, method, objectId, ct) => ExecuteTransferAsync(objectId, ct);
 
-            var abort = entry.Node.FindChild(
-                SystemContext,
-                new QualifiedName(BrowseNames.Abort, NamespaceIndex)) as MethodState;
-
-            if (abort is not null)
+            // Materialised rather than looked up. FindChild does not create, so an
+            // optional Method reached that way is silently absent: the sample would
+            // claim to support Abort and publish nothing.
+            Child<MethodState>(entry.Node, BrowseNames.Abort).OnCallMethod2Async = async (
+                context, method, objectId, inputs, outputs, ct) =>
             {
-                abort.OnCallMethod2Async = async (
-                    context, method, objectId, inputs, outputs, ct) =>
-                {
-                    await DiscardTransferAsync(objectId, ct).ConfigureAwait(false);
-                    return ServiceResult.Good;
-                };
-            }
+                await DiscardTransferAsync(objectId, ct).ConfigureAwait(false);
+                return ServiceResult.Good;
+            };
         }
 
         /// <summary>
@@ -204,6 +200,7 @@ namespace AiModelManagement.Server
         {
             TransferEntry? entry;
             DeploymentState? deployment;
+            byte[] payload;
 
             lock (m_sync)
             {
@@ -227,10 +224,13 @@ namespace AiModelManagement.Server
                     };
                 }
 
+                // Read under the lock. A client is free to keep writing to the
+                // request file while this runs, and an inference is entitled to a
+                // payload that does not change underneath it.
+                payload = entry.Request.ToArray();
+
                 SetTransferState(entry, TransferStateEnum.Executing);
             }
-
-            byte[] payload = entry.Request.ToArray();
 
             InferenceOutcome outcome = await RunWithFallbackAsync(
                 deployment,
@@ -241,6 +241,21 @@ namespace AiModelManagement.Server
 
             lock (m_sync)
             {
+                // The inference took a while, and Abort and expiry both remove the
+                // entry and dispose its buffers. Writing the result into a transfer
+                // that is no longer live would throw ObjectDisposedException out of
+                // a Method call - so the answer is dropped instead, which is what a
+                // caller that aborted was asking for.
+                if (!m_transfers.TryGetValue(objectId, out TransferEntry? live) ||
+                    !ReferenceEquals(live, entry))
+                {
+                    return new ExecuteMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadInvalidState,
+                        Accepted = false
+                    };
+                }
+
                 if (!outcome.Result.Ok)
                 {
                     Child<PropertyState<LocalizedText>>(entry.Node, BrowseNames.LastError)
