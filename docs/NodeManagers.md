@@ -1201,17 +1201,17 @@ child on demand (matching the runtime's `AddEngineeringUnits` /
 `AddEURange` helpers) and then set the Value attribute.
 
 ```csharp
-builder.Variable<double>("Pumps/Pump #1/Operational/Measurements/FluidTemperature")
+builder.Variable<double>("Pumps/Pump_1/Operational/Measurements/FluidTemperature")
        .OnRead(SimulateTemperature)
        .WithEngineeringUnits(
            new EUInformation("K", "Kelvin",
                "http://www.opcfoundation.org/UA/units/un/cefact"))
-       .WithEURange(min: 233.15, max: 473.15);
+       .WithEURange(min: 263.15, max: 393.15);
 
 // Convenience: set both at once.
-builder.Variable<double>("Pumps/Pump #1/Operational/Measurements/Pressure")
+builder.Variable<double>("Pumps/Pump_1/Operational/Measurements/DifferentialPressure")
        .OnRead(SimulatePressure)
-       .WithUnits(EUInformations.Pascal, min: 0, max: 1_000_000);
+       .WithUnits(EUInformations.Pascal, min: 0, max: 400_000);
 ```
 
 Fail-fast behaviour: calling these on a non-`BaseAnalogState` variable
@@ -1229,14 +1229,19 @@ Typed overloads exist for every built-in OPC UA scalar (`string`,
 hatch.
 
 ```csharp
-builder.Node("Pumps/Pump #1/Identification")
-       .WithProperty("Manufacturer", "SimPump Corp")
-       .WithProperty("Model", "PumpX-2000")
+builder.Node("Pumps/Pump_1/Identification")
+       .WithProperty("Manufacturer", new LocalizedText("SimPump Corp"))
+       .WithProperty("Model", new LocalizedText("PumpX-2000"))
        .WithProperty("SerialNumber", "SN-001")
        .WithProperty("DeviceClass", "Pump")
        .WithProperty("ProductInstanceUri",
            "urn:simdevice:SimPump:PumpX-2000:SN-001");
 ```
+
+Pass the CLR type the model declares for the property — `LocalizedText`
+for `Manufacturer` / `Model` / `ComponentName`, `ushort` for
+`YearOfConstruction`, `byte` for `MonthOfConstruction`, and so on. The
+typed overloads make the choice explicit at the call site.
 
 Reference resolution is by browse-name only (case-sensitive,
 namespace-agnostic), matching the AOT-safe constraint of the rest of
