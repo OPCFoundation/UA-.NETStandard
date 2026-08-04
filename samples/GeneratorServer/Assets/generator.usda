@@ -13,16 +13,29 @@ def Xform "Generator" (kind = "component")
 
     def Scope "Looks"
     {
-        def Material "GenBlue"
+        def Material "GenGreen"
         {
-            token outputs:surface.connect = </Generator/Looks/GenBlue/PreviewSurface.outputs:surface>
+            token outputs:surface.connect = </Generator/Looks/GenGreen/PreviewSurface.outputs:surface>
 
             def Shader "PreviewSurface"
             {
                 uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.020, 0.180, 0.420)
-                float inputs:roughness = 0.420
-                float inputs:metallic = 0.000
+                color3f inputs:diffuseColor = (0.016, 0.210, 0.166)
+                float inputs:roughness = 0.380
+                float inputs:metallic = 0.050
+                token outputs:surface
+            }
+        }
+        def Material "GenGreenDark"
+        {
+            token outputs:surface.connect = </Generator/Looks/GenGreenDark/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.010, 0.140, 0.112)
+                float inputs:roughness = 0.450
+                float inputs:metallic = 0.050
                 token outputs:surface
             }
         }
@@ -39,6 +52,19 @@ def Xform "Generator" (kind = "component")
                 token outputs:surface
             }
         }
+        def Material "SteelBright"
+        {
+            token outputs:surface.connect = </Generator/Looks/SteelBright/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.560, 0.575, 0.590)
+                float inputs:roughness = 0.220
+                float inputs:metallic = 0.850
+                token outputs:surface
+            }
+        }
         def Material "RadiatorDark"
         {
             token outputs:surface.connect = </Generator/Looks/RadiatorDark/PreviewSurface.outputs:surface>
@@ -49,6 +75,19 @@ def Xform "Generator" (kind = "component")
                 color3f inputs:diffuseColor = (0.030, 0.035, 0.040)
                 float inputs:roughness = 0.680
                 float inputs:metallic = 0.100
+                token outputs:surface
+            }
+        }
+        def Material "ManifoldRust"
+        {
+            token outputs:surface.connect = </Generator/Looks/ManifoldRust/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.235, 0.088, 0.042)
+                float inputs:roughness = 0.720
+                float inputs:metallic = 0.250
                 token outputs:surface
             }
         }
@@ -74,6 +113,71 @@ def Xform "Generator" (kind = "component")
                 uniform token info:id = "UsdPreviewSurface"
                 color3f inputs:diffuseColor = (0.005, 0.006, 0.008)
                 float inputs:roughness = 0.500
+                float inputs:metallic = 0.000
+                token outputs:surface
+            }
+        }
+        def Material "PanelFascia"
+        {
+            token outputs:surface.connect = </Generator/Looks/PanelFascia/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.190, 0.200, 0.208)
+                float inputs:roughness = 0.550
+                float inputs:metallic = 0.000
+                token outputs:surface
+            }
+        }
+        def Material "ScreenDark"
+        {
+            token outputs:surface.connect = </Generator/Looks/ScreenDark/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.020, 0.045, 0.038)
+                float inputs:roughness = 0.280
+                float inputs:metallic = 0.000
+                token outputs:surface
+            }
+        }
+        def Material "FilterCream"
+        {
+            token outputs:surface.connect = </Generator/Looks/FilterCream/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.760, 0.735, 0.660)
+                float inputs:roughness = 0.600
+                float inputs:metallic = 0.000
+                token outputs:surface
+            }
+        }
+        def Material "HoseBlack"
+        {
+            token outputs:surface.connect = </Generator/Looks/HoseBlack/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.028, 0.030, 0.032)
+                float inputs:roughness = 0.750
+                float inputs:metallic = 0.000
+                token outputs:surface
+            }
+        }
+        def Material "LabelYellow"
+        {
+            token outputs:surface.connect = </Generator/Looks/LabelYellow/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.780, 0.610, 0.040)
+                float inputs:roughness = 0.600
                 float inputs:metallic = 0.000
                 token outputs:surface
             }
@@ -131,102 +235,1255 @@ def Xform "Generator" (kind = "component")
             }
         }
     }
-    def Cube "Skid"
+    def Xform "Skid"
     {
-        double size = 1
-        double3 xformOp:translate = (0.000, 0.000, 0.100)
-        double3 xformOp:scale = (4.000, 1.500, 0.200)
-        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
-        rel material:binding = </Generator/Looks/MetalGrey>
-    }
-    def Xform "Engine"
-    {
-        double3 xformOp:translate = (-1.000, 0.000, 0.750)
+        double3 xformOp:translate = (0.000, 0.000, 0.140)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
-        def Cube "Block"
+        def Xform "RailLeft"
+        {
+            double3 xformOp:translate = (0.000, 0.660, 0.000)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "Web"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (4.000, 0.040, 0.240)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+            def Cube "FlangeTop"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.000, 0.122)
+                double3 xformOp:scale = (4.000, 0.150, 0.035)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+            def Cube "FlangeBottom"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.000, -0.122)
+                double3 xformOp:scale = (4.000, 0.150, 0.035)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+        }
+        def Xform "RailRight"
+        {
+            double3 xformOp:translate = (0.000, -0.660, 0.000)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "Web"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (4.000, 0.040, 0.240)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+            def Cube "FlangeTop"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.000, 0.122)
+                double3 xformOp:scale = (4.000, 0.150, 0.035)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+            def Cube "FlangeBottom"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.000, -0.122)
+                double3 xformOp:scale = (4.000, 0.150, 0.035)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+        }
+        def Cube "CrossMember1"
+        {
+            double size = 1
+            double3 xformOp:translate = (-1.860, 0.000, 0.000)
+            double3 xformOp:scale = (0.110, 1.320, 0.180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreen>
+        }
+        def Cube "CrossMember2"
+        {
+            double size = 1
+            double3 xformOp:translate = (-0.980, 0.000, 0.000)
+            double3 xformOp:scale = (0.110, 1.320, 0.180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreen>
+        }
+        def Cube "CrossMember3"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.180, 0.000, 0.000)
+            double3 xformOp:scale = (0.110, 1.320, 0.180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreen>
+        }
+        def Cube "CrossMember4"
+        {
+            double size = 1
+            double3 xformOp:translate = (1.180, 0.000, 0.000)
+            double3 xformOp:scale = (0.110, 1.320, 0.180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreen>
+        }
+        def Cube "CrossMember5"
+        {
+            double size = 1
+            double3 xformOp:translate = (1.880, 0.000, 0.000)
+            double3 xformOp:scale = (0.110, 1.320, 0.180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreen>
+        }
+        def Cube "LiftLug1"
+        {
+            double size = 1
+            double3 xformOp:translate = (-1.700, 0.660, 0.160)
+            double3 xformOp:scale = (0.120, 0.030, 0.130)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/LabelYellow>
+        }
+        def Cube "LiftLug2"
+        {
+            double size = 1
+            double3 xformOp:translate = (-1.700, -0.660, 0.160)
+            double3 xformOp:scale = (0.120, 0.030, 0.130)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/LabelYellow>
+        }
+        def Cube "LiftLug3"
+        {
+            double size = 1
+            double3 xformOp:translate = (1.700, 0.660, 0.160)
+            double3 xformOp:scale = (0.120, 0.030, 0.130)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/LabelYellow>
+        }
+        def Cube "LiftLug4"
+        {
+            double size = 1
+            double3 xformOp:translate = (1.700, -0.660, 0.160)
+            double3 xformOp:scale = (0.120, 0.030, 0.130)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/LabelYellow>
+        }
+    }
+    def Xform "FuelTank"
+    {
+        double3 xformOp:translate = (0.000, 0.000, 0.400)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Cube "Shell"
         {
             double size = 1
             double3 xformOp:translate = (0.000, 0.000, 0.000)
-            double3 xformOp:scale = (1.600, 0.850, 0.950)
+            double3 xformOp:scale = (3.700, 1.240, 0.430)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
-            rel material:binding = </Generator/Looks/GenBlue>
+            rel material:binding = </Generator/Looks/GenGreen>
         }
-        def Cylinder "Turbo"
+        def Cube "Strap1"
         {
-            uniform token axis = "Y"
-            double radius = 0.160
-            double height = 0.350
-            double3 xformOp:translate = (-0.450, 0.500, 0.330)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
-            rel material:binding = </Generator/Looks/MetalGrey>
+            double size = 1
+            double3 xformOp:translate = (-1.200, 0.000, 0.000)
+            double3 xformOp:scale = (0.070, 1.260, 0.450)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreenDark>
         }
-        def Sphere "OverheatHalo"
+        def Cube "Strap2"
         {
-            double radius = 0.300
-            double3 xformOp:translate = (0.000, 0.000, 0.180)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
-            rel material:binding = </Generator/Looks/HaloOrange>
-            token visibility = "invisible"
+            double size = 1
+            double3 xformOp:translate = (1.200, 0.000, 0.000)
+            double3 xformOp:scale = (0.070, 1.260, 0.450)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreenDark>
         }
-        def Sphere "OilHalo"
+        def Cylinder "FillerNeck"
         {
-            double radius = 0.220
-            double3 xformOp:translate = (-0.250, 0.000, -0.420)
+            uniform token axis = "Z"
+            double radius = 0.070
+            double height = 0.120
+            double3 xformOp:translate = (-1.650, -0.480, 0.250)
             uniform token[] xformOpOrder = ["xformOp:translate"]
-            rel material:binding = </Generator/Looks/HaloOrange>
-            token visibility = "invisible"
+            rel material:binding = </Generator/Looks/SteelBright>
         }
+        def Cube "Surface"
+        {
+            double size = 1
+            matrix4d xformOp:transform = ( (1.000, 0.000, 0.000, 0.000), (0.000, 1.000, 0.000, 0.000), (0.000, 0.000, 1.000, 0.000), (0.000, 0.000, 0.165, 1.000) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+            rel material:binding = </Generator/Looks/FluidAmber>
+        }
+    }
+    def Xform "Engine"
+    {
+        double3 xformOp:translate = (-0.480, 0.000, 0.780)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "Sump"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.000, -0.300)
+                double3 xformOp:scale = (1.720, 0.760, 0.240)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreenDark>
+            }
+            def Cube "Crankcase"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.000, -0.030)
+                double3 xformOp:scale = (1.780, 0.900, 0.400)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+            def Cube "GearCase"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.960, 0.000, 0.060)
+                double3 xformOp:scale = (0.180, 0.820, 0.560)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+            def Cube "Flywheel"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.980, 0.000, 0.030)
+                double3 xformOp:scale = (0.240, 0.780, 0.780)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+            def Xform "BankLeft"
+            {
+                double3 xformOp:translate = (0.000, 0.245, 0.190)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                def Cube "Head"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (0.000, 0.100, 0.120)
+                    double3 xformOp:rotateXYZ = (30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (1.560, 0.300, 0.360)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover1"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (-0.620, 0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover2"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (-0.440, 0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover3"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (-0.260, 0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover4"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (-0.080, 0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover5"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (0.100, 0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover6"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (0.280, 0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover7"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (0.460, 0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover8"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (0.640, 0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+            }
+            def Xform "BankRight"
+            {
+                double3 xformOp:translate = (0.000, -0.245, 0.190)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                def Cube "Head"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (0.000, -0.100, 0.120)
+                    double3 xformOp:rotateXYZ = (-30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (1.560, 0.300, 0.360)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover1"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (-0.620, -0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (-30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover2"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (-0.440, -0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (-30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover3"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (-0.260, -0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (-30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover4"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (-0.080, -0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (-30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover5"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (0.100, -0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (-30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover6"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (0.280, -0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (-30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover7"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (0.460, -0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (-30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cube "RockerCover8"
+                {
+                    double size = 1
+                    double3 xformOp:translate = (0.640, -0.150, 0.250)
+                    double3 xformOp:rotateXYZ = (-30.000, 0.000, 0.000)
+                    double3 xformOp:scale = (0.150, 0.230, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+            }
+            def Xform "ManifoldLeft"
+            {
+                double3 xformOp:translate = (0.000, 0.430, 0.560)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                def Cylinder "Log"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.062
+                    double height = 1.500
+                    double3 xformOp:translate = (0.000, 0.000, 0.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser1"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (-0.620, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser2"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (-0.440, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser3"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (-0.260, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser4"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (-0.080, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser5"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (0.100, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser6"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (0.280, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser7"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (0.460, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser8"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (0.640, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Elbow"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.072
+                    double height = 0.300
+                    double3 xformOp:translate = (0.820, 0.000, 0.180)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "ElbowBend"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.072
+                    double height = 0.240
+                    double3 xformOp:translate = (0.930, 0.000, 0.320)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+            }
+            def Xform "ManifoldRight"
+            {
+                double3 xformOp:translate = (0.000, -0.430, 0.560)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                def Cylinder "Log"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.062
+                    double height = 1.500
+                    double3 xformOp:translate = (0.000, 0.000, 0.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser1"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (-0.620, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser2"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (-0.440, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser3"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (-0.260, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser4"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (-0.080, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser5"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (0.100, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser6"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (0.280, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser7"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (0.460, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Riser8"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.038
+                    double height = 0.150
+                    double3 xformOp:translate = (0.640, 0.000, 0.090)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "Elbow"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.072
+                    double height = 0.300
+                    double3 xformOp:translate = (0.820, 0.000, 0.180)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+                def Cylinder "ElbowBend"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.072
+                    double height = 0.240
+                    double3 xformOp:translate = (0.930, 0.000, 0.320)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/ManifoldRust>
+                }
+            }
+            def Xform "TurboLeft"
+            {
+                double3 xformOp:translate = (1.070, 0.330, 0.880)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                def Cylinder "TurbineHousing"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.135
+                    double height = 0.150
+                    double3 xformOp:translate = (-0.090, 0.000, 0.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/PanelBlack>
+                }
+                def Cylinder "Cartridge"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.070
+                    double height = 0.130
+                    double3 xformOp:translate = (0.020, 0.000, 0.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/SteelBright>
+                }
+                def Cylinder "CompressorHousing"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.150
+                    double height = 0.160
+                    double3 xformOp:translate = (0.150, 0.000, 0.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/SteelBright>
+                }
+                def Cylinder "Inlet"
+                {
+                    uniform token axis = "Y"
+                    double radius = 0.105
+                    double height = 0.150
+                    double3 xformOp:translate = (0.150, 0.130, 0.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/SteelBright>
+                }
+            }
+            def Xform "TurboRight"
+            {
+                double3 xformOp:translate = (1.070, -0.330, 0.880)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                def Cylinder "TurbineHousing"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.135
+                    double height = 0.150
+                    double3 xformOp:translate = (-0.090, 0.000, 0.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/PanelBlack>
+                }
+                def Cylinder "Cartridge"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.070
+                    double height = 0.130
+                    double3 xformOp:translate = (0.020, 0.000, 0.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/SteelBright>
+                }
+                def Cylinder "CompressorHousing"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.150
+                    double height = 0.160
+                    double3 xformOp:translate = (0.150, 0.000, 0.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/SteelBright>
+                }
+                def Cylinder "Inlet"
+                {
+                    uniform token axis = "Y"
+                    double radius = 0.105
+                    double height = 0.150
+                    double3 xformOp:translate = (0.150, -0.130, 0.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/SteelBright>
+                }
+            }
+            def Xform "IntakeLeft"
+            {
+                double3 xformOp:translate = (0.000, 0.000, 0.000)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                def Cylinder "Riser"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.090
+                    double height = 0.360
+                    double3 xformOp:translate = (0.700, 0.560, 1.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cylinder "Crossover"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.090
+                    double height = 0.900
+                    double3 xformOp:translate = (0.220, 0.560, 1.170)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cylinder "Drop"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.085
+                    double height = 0.300
+                    double3 xformOp:translate = (-0.250, 0.560, 1.020)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+            }
+            def Xform "IntakeRight"
+            {
+                double3 xformOp:translate = (0.000, 0.000, 0.000)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                def Cylinder "Riser"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.090
+                    double height = 0.360
+                    double3 xformOp:translate = (0.700, -0.560, 1.000)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cylinder "Crossover"
+                {
+                    uniform token axis = "X"
+                    double radius = 0.090
+                    double height = 0.900
+                    double3 xformOp:translate = (0.220, -0.560, 1.170)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+                def Cylinder "Drop"
+                {
+                    uniform token axis = "Z"
+                    double radius = 0.085
+                    double height = 0.300
+                    double3 xformOp:translate = (-0.250, -0.560, 1.020)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    rel material:binding = </Generator/Looks/GenGreen>
+                }
+            }
+            def Cube "Aftercooler"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.150, 0.000, 0.620)
+                double3 xformOp:scale = (0.900, 0.420, 0.240)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+            def Cube "ValleyCover"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.350, 0.000, 0.480)
+                double3 xformOp:scale = (1.300, 0.300, 0.100)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+            def Cylinder "FuelFilter1"
+            {
+                uniform token axis = "Z"
+                double radius = 0.055
+                double height = 0.230
+                double3 xformOp:translate = (-0.250, -0.560, -0.120)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/FilterCream>
+            }
+            def Cylinder "FuelFilter2"
+            {
+                uniform token axis = "Z"
+                double radius = 0.055
+                double height = 0.230
+                double3 xformOp:translate = (-0.105, -0.560, -0.120)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/FilterCream>
+            }
+            def Cylinder "FuelFilter3"
+            {
+                uniform token axis = "Z"
+                double radius = 0.055
+                double height = 0.230
+                double3 xformOp:translate = (0.040, -0.560, -0.120)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/FilterCream>
+            }
+            def Cylinder "FuelFilter4"
+            {
+                uniform token axis = "Z"
+                double radius = 0.055
+                double height = 0.230
+                double3 xformOp:translate = (0.185, -0.560, -0.120)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/FilterCream>
+            }
+            def Cylinder "FuelFilter5"
+            {
+                uniform token axis = "Z"
+                double radius = 0.055
+                double height = 0.230
+                double3 xformOp:translate = (0.330, -0.560, -0.120)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/FilterCream>
+            }
+            def Cylinder "OilFilter1"
+            {
+                uniform token axis = "Z"
+                double radius = 0.075
+                double height = 0.300
+                double3 xformOp:translate = (0.480, -0.540, -0.100)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/FilterCream>
+            }
+            def Cylinder "OilFilter2"
+            {
+                uniform token axis = "Z"
+                double radius = 0.075
+                double height = 0.300
+                double3 xformOp:translate = (0.670, -0.540, -0.100)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/FilterCream>
+            }
+            def Cylinder "StarterMotor"
+            {
+                uniform token axis = "X"
+                double radius = 0.110
+                double height = 0.420
+                double3 xformOp:translate = (0.720, 0.470, -0.240)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/PanelBlack>
+            }
+            def Cylinder "ChargeAlternator"
+            {
+                uniform token axis = "X"
+                double radius = 0.090
+                double height = 0.260
+                double3 xformOp:translate = (-0.700, -0.470, 0.140)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/SteelBright>
+            }
+            def Cylinder "WaterPump"
+            {
+                uniform token axis = "X"
+                double radius = 0.130
+                double height = 0.200
+                double3 xformOp:translate = (-1.020, -0.300, -0.140)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/GenGreen>
+            }
+            def Cylinder "HoseTop"
+            {
+                uniform token axis = "X"
+                double radius = 0.070
+                double height = 0.520
+                double3 xformOp:translate = (-1.320, 0.240, 0.240)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/HoseBlack>
+            }
+            def Cylinder "HoseBottom"
+            {
+                uniform token axis = "X"
+                double radius = 0.070
+                double height = 0.520
+                double3 xformOp:translate = (-1.320, -0.240, -0.220)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/HoseBlack>
+            }
+            def Sphere "OverheatHalo"
+            {
+                double radius = 0.300
+                double3 xformOp:translate = (0.000, 0.000, 0.180)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/HaloOrange>
+                token visibility = "invisible"
+            }
+            def Sphere "OilHalo"
+            {
+                double radius = 0.220
+                double3 xformOp:translate = (-0.250, 0.000, -0.420)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/HaloOrange>
+                token visibility = "invisible"
+            }
     }
     def Xform "Alternator"
     {
-        double3 xformOp:translate = (0.950, 0.000, 0.800)
+        double3 xformOp:translate = (1.320, 0.000, 0.860)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
         def Cylinder "Housing"
         {
             uniform token axis = "X"
-            double radius = 0.420
-            double height = 1.200
+            double radius = 0.440
+            double height = 1.120
             double3 xformOp:translate = (0.000, 0.000, 0.000)
             uniform token[] xformOpOrder = ["xformOp:translate"]
-            rel material:binding = </Generator/Looks/MetalGrey>
+            rel material:binding = </Generator/Looks/GenGreen>
+        }
+        def Xform "VentBand"
+        {
+            double3 xformOp:translate = (0.000, 0.000, 0.430)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "Louvre1"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.360, 0.000, 0.000)
+                double3 xformOp:rotateXYZ = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (0.030, 0.120, 0.500)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreenDark>
+            }
+            def Cube "Louvre2"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.285, 0.000, 0.000)
+                double3 xformOp:rotateXYZ = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (0.030, 0.120, 0.500)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreenDark>
+            }
+            def Cube "Louvre3"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.210, 0.000, 0.000)
+                double3 xformOp:rotateXYZ = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (0.030, 0.120, 0.500)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreenDark>
+            }
+            def Cube "Louvre4"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.135, 0.000, 0.000)
+                double3 xformOp:rotateXYZ = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (0.030, 0.120, 0.500)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreenDark>
+            }
+            def Cube "Louvre5"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.060, 0.000, 0.000)
+                double3 xformOp:rotateXYZ = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (0.030, 0.120, 0.500)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreenDark>
+            }
+            def Cube "Louvre6"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.015, 0.000, 0.000)
+                double3 xformOp:rotateXYZ = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (0.030, 0.120, 0.500)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreenDark>
+            }
+            def Cube "Louvre7"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.090, 0.000, 0.000)
+                double3 xformOp:rotateXYZ = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (0.030, 0.120, 0.500)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreenDark>
+            }
+            def Cube "Louvre8"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.165, 0.000, 0.000)
+                double3 xformOp:rotateXYZ = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (0.030, 0.120, 0.500)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreenDark>
+            }
+            def Cube "Louvre9"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.240, 0.000, 0.000)
+                double3 xformOp:rotateXYZ = (0.000, 0.000, 0.000)
+                double3 xformOp:scale = (0.030, 0.120, 0.500)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/GenGreenDark>
+            }
+        }
+        def Cylinder "DriveEndBell"
+        {
+            uniform token axis = "X"
+            double radius = 0.400
+            double height = 0.140
+            double3 xformOp:translate = (-0.610, 0.000, 0.000)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            rel material:binding = </Generator/Looks/GenGreenDark>
+        }
+        def Cylinder "NonDriveEndBell"
+        {
+            uniform token axis = "X"
+            double radius = 0.360
+            double height = 0.160
+            double3 xformOp:translate = (0.620, 0.000, 0.000)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            rel material:binding = </Generator/Looks/GenGreenDark>
         }
         def Cube "TerminalBox"
         {
             double size = 1
-            double3 xformOp:translate = (0.050, -0.310, 0.370)
-            double3 xformOp:scale = (0.350, 0.300, 0.280)
+            double3 xformOp:translate = (0.100, 0.000, 0.520)
+            double3 xformOp:scale = (0.480, 0.420, 0.300)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
-            rel material:binding = </Generator/Looks/PanelBlack>
+            rel material:binding = </Generator/Looks/GenGreen>
+        }
+        def Cube "TerminalLid"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.100, 0.000, 0.685)
+            double3 xformOp:scale = (0.500, 0.440, 0.030)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreenDark>
+        }
+        def Cube "FootLeft"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.000, 0.400, -0.520)
+            double3 xformOp:scale = (0.700, 0.120, 0.220)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreen>
+        }
+        def Cube "FootRight"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.000, -0.400, -0.520)
+            double3 xformOp:scale = (0.700, 0.120, 0.220)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreen>
         }
     }
     def Cylinder "CouplingGuard"
     {
         uniform token axis = "X"
-        double radius = 0.300
-        double height = 0.350
-        double3 xformOp:translate = (0.000, 0.000, 0.780)
+        double radius = 0.330
+        double height = 0.420
+        double3 xformOp:translate = (0.660, 0.000, 0.830)
         uniform token[] xformOpOrder = ["xformOp:translate"]
-        rel material:binding = </Generator/Looks/MetalGrey>
+        rel material:binding = </Generator/Looks/GenGreenDark>
     }
     def Xform "Radiator"
     {
-        double3 xformOp:translate = (-2.050, 0.000, 1.000)
+        double3 xformOp:translate = (-2.020, 0.000, 1.020)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
         def Cube "Core"
         {
             double size = 1
             double3 xformOp:translate = (0.000, 0.000, 0.000)
-            double3 xformOp:scale = (0.180, 1.300, 1.300)
+            double3 xformOp:scale = (0.200, 1.280, 1.280)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/RadiatorDark>
             color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
         }
+        def Xform "FinPack"
+        {
+            double3 xformOp:translate = (0.000, 0.000, 0.000)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "Fin1"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.075, -0.620, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin2"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.075, -0.537, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin3"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.075, -0.454, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin4"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.075, -0.371, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin5"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.075, -0.288, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin6"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.075, -0.205, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin7"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.075, -0.122, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin8"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.075, -0.039, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin9"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.075, 0.044, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin10"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.075, 0.127, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin11"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.075, 0.210, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin12"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.075, 0.293, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin13"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.075, 0.376, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin14"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.075, 0.459, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+            def Cube "Fin15"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.075, 0.542, 0.000)
+                double3 xformOp:scale = (0.012, 1.180, 1.180)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/RadiatorDark>
+            }
+        }
+        def Cube "TopTank"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.000, 0.000, 0.700)
+            double3 xformOp:scale = (0.280, 1.360, 0.170)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/PanelBlack>
+        }
+        def Cube "BottomTank"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.000, 0.000, -0.700)
+            double3 xformOp:scale = (0.280, 1.360, 0.170)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/PanelBlack>
+        }
+        def Cube "GuardLeft"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.000, 0.680, 0.000)
+            double3 xformOp:scale = (0.300, 0.070, 1.560)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/PanelBlack>
+        }
+        def Cube "GuardRight"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.000, -0.680, 0.000)
+            double3 xformOp:scale = (0.300, 0.070, 1.560)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/PanelBlack>
+        }
+        def Cube "FillerCap"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.000, 0.480, 0.820)
+            double3 xformOp:scale = (0.140, 0.140, 0.090)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/SteelBright>
+        }
+        def Cylinder "FanShroud"
+        {
+            uniform token axis = "X"
+            double radius = 0.560
+            double height = 0.120
+            double3 xformOp:translate = (0.220, 0.000, 0.000)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            rel material:binding = </Generator/Looks/PanelBlack>
+        }
         def Xform "Fan"
         {
-            double3 xformOp:translate = (0.110, 0.000, 0.000)
+            double3 xformOp:translate = (0.180, 0.000, 0.000)
             double xformOp:rotateY = 90.000
             double xformOp:rotateZ = 0.000
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY", "xformOp:rotateZ"]
@@ -234,11 +1491,11 @@ def Xform "Generator" (kind = "component")
             def Cylinder "Hub"
             {
                 uniform token axis = "Z"
-                double radius = 0.080
-                double height = 0.100
+                double radius = 0.110
+                double height = 0.120
                 double3 xformOp:translate = (0.000, 0.000, 0.000)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
-                rel material:binding = </Generator/Looks/MetalGrey>
+                rel material:binding = </Generator/Looks/PanelBlack>
             }
             def Cube "Blade_1"
             {
@@ -253,7 +1510,7 @@ def Xform "Generator" (kind = "component")
             {
                 double size = 1
                 double3 xformOp:translate = (0.000, 0.260, 0.000)
-                double xformOp:rotateZ = 60.000
+                double xformOp:rotateZ = 40.000
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
@@ -262,7 +1519,7 @@ def Xform "Generator" (kind = "component")
             {
                 double size = 1
                 double3 xformOp:translate = (0.000, 0.260, 0.000)
-                double xformOp:rotateZ = 120.000
+                double xformOp:rotateZ = 80.000
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
@@ -271,7 +1528,7 @@ def Xform "Generator" (kind = "component")
             {
                 double size = 1
                 double3 xformOp:translate = (0.000, 0.260, 0.000)
-                double xformOp:rotateZ = 180.000
+                double xformOp:rotateZ = 120.000
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
@@ -280,7 +1537,7 @@ def Xform "Generator" (kind = "component")
             {
                 double size = 1
                 double3 xformOp:translate = (0.000, 0.260, 0.000)
-                double xformOp:rotateZ = 240.000
+                double xformOp:rotateZ = 160.000
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
@@ -289,7 +1546,34 @@ def Xform "Generator" (kind = "component")
             {
                 double size = 1
                 double3 xformOp:translate = (0.000, 0.260, 0.000)
-                double xformOp:rotateZ = 300.000
+                double xformOp:rotateZ = 200.000
+                double3 xformOp:scale = (0.070, 0.440, 0.025)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/MetalGrey>
+            }
+            def Cube "Blade_7"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.260, 0.000)
+                double xformOp:rotateZ = 240.000
+                double3 xformOp:scale = (0.070, 0.440, 0.025)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/MetalGrey>
+            }
+            def Cube "Blade_8"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.260, 0.000)
+                double xformOp:rotateZ = 280.000
+                double3 xformOp:scale = (0.070, 0.440, 0.025)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/MetalGrey>
+            }
+            def Cube "Blade_9"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.000, 0.260, 0.000)
+                double xformOp:rotateZ = 320.000
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
@@ -298,55 +1582,220 @@ def Xform "Generator" (kind = "component")
     }
     def Xform "Exhaust"
     {
-        double3 xformOp:translate = (-0.400, 0.450, 1.550)
+        double3 xformOp:translate = (-0.100, 0.430, 1.560)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
         def Cylinder "Silencer"
         {
             uniform token axis = "X"
-            double radius = 0.220
-            double height = 1.100
+            double radius = 0.230
+            double height = 1.150
             double3 xformOp:translate = (0.000, 0.000, 0.000)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/ExhaustSteel>
         }
+        def Cylinder "EndCapFront"
+        {
+            uniform token axis = "X"
+            double radius = 0.235
+            double height = 0.060
+            double3 xformOp:translate = (-0.600, 0.000, 0.000)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            rel material:binding = </Generator/Looks/ExhaustSteel>
+        }
+        def Cylinder "EndCapRear"
+        {
+            uniform token axis = "X"
+            double radius = 0.235
+            double height = 0.060
+            double3 xformOp:translate = (0.600, 0.000, 0.000)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            rel material:binding = </Generator/Looks/ExhaustSteel>
+        }
+        def Cylinder "Bellows"
+        {
+            uniform token axis = "Z"
+            double radius = 0.090
+            double height = 0.220
+            double3 xformOp:translate = (0.560, 0.000, -0.280)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            rel material:binding = </Generator/Looks/SteelBright>
+        }
         def Cylinder "Stack"
         {
             uniform token axis = "Z"
-            double radius = 0.110
-            double height = 1.200
-            double3 xformOp:translate = (-0.450, 0.000, 0.550)
+            double radius = 0.115
+            double height = 1.250
+            double3 xformOp:translate = (-0.450, 0.000, 0.600)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/ExhaustSteel>
             color3f[] primvars:displayColor = [(0.620, 0.600, 0.560)]
         }
+        def Cylinder "RainCap"
+        {
+            uniform token axis = "Z"
+            double radius = 0.140
+            double height = 0.060
+            double3 xformOp:translate = (-0.450, 0.000, 1.250)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            rel material:binding = </Generator/Looks/ExhaustSteel>
+        }
     }
     def Xform "ControlPanel"
     {
-        double3 xformOp:translate = (0.200, -0.800, 1.200)
+        double3 xformOp:translate = (1.180, -0.720, 1.500)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
         def Cube "Enclosure"
         {
             double size = 1
             double3 xformOp:translate = (0.000, 0.000, 0.000)
-            double3 xformOp:scale = (0.500, 0.120, 0.700)
+            double3 xformOp:scale = (0.640, 0.260, 0.760)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/GenGreen>
+        }
+        def Cube "Fascia"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.000, -0.135, 0.000)
+            double3 xformOp:scale = (0.560, 0.030, 0.640)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/PanelBlack>
         }
+        def Cube "Display"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.010, -0.155, 0.120)
+            double3 xformOp:scale = (0.230, 0.016, 0.180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/ScreenDark>
+        }
+        def Cube "MimicPlate"
+        {
+            double size = 1
+            double3 xformOp:translate = (-0.190, -0.152, 0.060)
+            double3 xformOp:scale = (0.150, 0.014, 0.300)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/PanelFascia>
+        }
+        def Xform "Keypad"
+        {
+            double3 xformOp:translate = (0.010, 0.000, 0.120)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "Key1"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.075, -0.072, -0.050)
+                double3 xformOp:scale = (0.036, 0.014, 0.026)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/PanelFascia>
+            }
+            def Cube "Key2"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.025, -0.072, -0.050)
+                double3 xformOp:scale = (0.036, 0.014, 0.026)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/PanelFascia>
+            }
+            def Cube "Key3"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.025, -0.072, -0.050)
+                double3 xformOp:scale = (0.036, 0.014, 0.026)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/PanelFascia>
+            }
+            def Cube "Key4"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.075, -0.072, -0.050)
+                double3 xformOp:scale = (0.036, 0.014, 0.026)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/PanelFascia>
+            }
+            def Cube "Key5"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.075, -0.072, -0.092)
+                double3 xformOp:scale = (0.036, 0.014, 0.026)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/PanelFascia>
+            }
+            def Cube "Key6"
+            {
+                double size = 1
+                double3 xformOp:translate = (-0.025, -0.072, -0.092)
+                double3 xformOp:scale = (0.036, 0.014, 0.026)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/PanelFascia>
+            }
+            def Cube "Key7"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.025, -0.072, -0.092)
+                double3 xformOp:scale = (0.036, 0.014, 0.026)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/PanelFascia>
+            }
+            def Cube "Key8"
+            {
+                double size = 1
+                double3 xformOp:translate = (0.075, -0.072, -0.092)
+                double3 xformOp:scale = (0.036, 0.014, 0.026)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                rel material:binding = </Generator/Looks/PanelFascia>
+            }
+        }
+        def Cylinder "EStopBase"
+        {
+            uniform token axis = "Y"
+            double radius = 0.055
+            double height = 0.030
+            double3 xformOp:translate = (0.190, -0.150, -0.230)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            rel material:binding = </Generator/Looks/LabelYellow>
+        }
+        def Cylinder "EStopButton"
+        {
+            uniform token axis = "Y"
+            double radius = 0.042
+            double height = 0.045
+            double3 xformOp:translate = (0.190, -0.175, -0.230)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            rel material:binding = </Generator/Looks/AlarmRed>
+        }
+        def Cube "LabelStrip"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.000, -0.150, -0.330)
+            double3 xformOp:scale = (0.520, 0.012, 0.070)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/LabelYellow>
+        }
         def Xform "LoadGauge"
         {
-            double3 xformOp:translate = (-0.120, -0.070, 0.120)
+            double3 xformOp:translate = (-0.150, -0.150, 0.250)
             uniform token[] xformOpOrder = ["xformOp:translate"]
 
             def Cylinder "Face"
             {
                 uniform token axis = "Y"
-                double radius = 0.110
+                double radius = 0.075
                 double height = 0.020
                 double3 xformOp:translate = (0.000, 0.000, 0.000)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+            }
+            def Cylinder "Bezel"
+            {
+                uniform token axis = "Y"
+                double radius = 0.085
+                double height = 0.012
+                double3 xformOp:translate = (0.000, 0.008, 0.000)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/PanelBlack>
             }
             def Xform "Needle"
             {
@@ -367,17 +1816,26 @@ def Xform "Generator" (kind = "component")
         }
         def Xform "TempGauge"
         {
-            double3 xformOp:translate = (0.120, -0.070, 0.120)
+            double3 xformOp:translate = (0.150, -0.150, 0.250)
             uniform token[] xformOpOrder = ["xformOp:translate"]
 
             def Cylinder "Face"
             {
                 uniform token axis = "Y"
-                double radius = 0.110
+                double radius = 0.075
                 double height = 0.020
                 double3 xformOp:translate = (0.000, 0.000, 0.000)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+            }
+            def Cylinder "Bezel"
+            {
+                uniform token axis = "Y"
+                double radius = 0.085
+                double height = 0.012
+                double3 xformOp:translate = (0.000, 0.008, 0.000)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+                rel material:binding = </Generator/Looks/PanelBlack>
             }
             def Xform "Needle"
             {
@@ -398,41 +1856,42 @@ def Xform "Generator" (kind = "component")
         }
         def Sphere "RunLamp"
         {
-            double radius = 0.050
-            double3 xformOp:translate = (0.000, -0.070, -0.180)
+            double radius = 0.030
+            double3 xformOp:translate = (-0.190, -0.160, -0.230)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/LampGreen>
             token visibility = "invisible"
         }
     }
-    def Xform "FuelTank"
+    def Xform "BatteryRack"
     {
-        double3 xformOp:translate = (0.000, 0.000, 0.405)
+        double3 xformOp:translate = (-1.560, -0.430, 0.420)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
-        def Cube "Shell"
+        def Cube "Tray"
         {
             double size = 1
-            double3 xformOp:translate = (0.000, 0.000, 0.000)
-            double3 xformOp:scale = (2.200, 1.100, 0.550)
+            double3 xformOp:translate = (0.000, 0.000, -0.140)
+            double3 xformOp:scale = (0.520, 0.340, 0.040)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
-            rel material:binding = </Generator/Looks/MetalGrey>
+            rel material:binding = </Generator/Looks/GenGreenDark>
         }
-        def Cube "Surface"
+        def Cube "BatteryA"
         {
             double size = 1
-            matrix4d xformOp:transform = ( (1.000, 0.000, 0.000, 0.000), (0.000, 1.000, 0.000, 0.000), (0.000, 0.000, 1.000, 0.000), (0.000, 0.000, 0.165, 1.000) )
-            uniform token[] xformOpOrder = ["xformOp:transform"]
-            rel material:binding = </Generator/Looks/FluidAmber>
+            double3 xformOp:translate = (-0.130, 0.000, 0.000)
+            double3 xformOp:scale = (0.230, 0.300, 0.240)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/PanelBlack>
         }
-    }
-    def Cube "Battery"
-    {
-        double size = 1
-        double3 xformOp:translate = (-1.550, -0.420, 0.350)
-        double3 xformOp:scale = (0.450, 0.300, 0.280)
-        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
-        rel material:binding = </Generator/Looks/PanelBlack>
+        def Cube "BatteryB"
+        {
+            double size = 1
+            double3 xformOp:translate = (0.130, 0.000, 0.000)
+            double3 xformOp:scale = (0.230, 0.300, 0.240)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            rel material:binding = </Generator/Looks/PanelBlack>
+        }
     }
     def Mesh "AlarmRing"
     {

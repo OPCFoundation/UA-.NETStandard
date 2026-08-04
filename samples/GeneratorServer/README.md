@@ -229,6 +229,33 @@ The operating-state readout is what makes an idle machine legible: without it th
 3D view shows *that* a set is not turning but not *why* — `Cooldown` and
 `EmergencyStopped` look identical from the outside.
 
+### The machine you see
+
+The geometry is an open-frame ~400 kW V16 genset, modelled to be recognisable
+rather than schematic:
+
+- **Skid** — channel-section side rails (web plus top and bottom flanges), five
+  cross members and lifting lugs, carrying the base fuel tank
+- **Engine** — 60° V16: crankcase, sump, gear case and flywheel housing, two
+  tilted heads with eight rocker covers each
+- **Exhaust side** — a manifold log per bank with eight risers and an elbow into
+  each turbocharger, in scaled copper-oxide brown
+- **Turbochargers** — turbine housing, cartridge, compressor housing and inlet
+- **Charge air** — riser / crossover / drop pipes arcing over each bank into the
+  aftercooler in the vee
+- **Service side** — a bank of spin-on fuel filters, oil filters, starter,
+  charging alternator, water pump and coolant hoses
+- **Alternator** — drum with a ventilation slot band, both end bells, terminal box
+  and mounting feet
+- **Radiator** — core plus a fin pack, bolted guard uprights, header tanks, filler
+  cap, fan shroud and a nine-blade fan
+- **Control panel** — cabinet with a dark instrument fascia, display, mimic plate,
+  keypad, emergency-stop mushroom and warning label strip
+
+Detail is worth the bytes here: a viewport is the only place some of this sample's
+behaviour is legible at all, and a machine that reads as a box makes a fan that
+turns and a radiator that changes colour hard to interpret.
+
 ### The authoring rule that matters
 
 A prim a connector positions **must** declare `xformOp:transform` in its
@@ -245,6 +272,12 @@ the set of machines is fixed at start-up.
 The geometry is generated — edit
 [`Assets/generate_generator_assets.py`](Assets/generate_generator_assets.py) and
 re-run it; never hand-edit `generator.usda` or `Powerhouse.usda`.
+
+Prim names in that script are load-bearing. `OpenUsdBindings.cs` drives
+`Radiator/Fan`, `Radiator/Core`, `Exhaust/Stack`, the two gauge needles,
+`ControlPanel/RunLamp`, `FuelTank/Surface`, `AlarmRing` and the two engine halos
+**by path**, so renaming any of them silently unbinds it —
+`GeneratorAssetContractTests` asserts every one still resolves.
 
 ## The model files
 

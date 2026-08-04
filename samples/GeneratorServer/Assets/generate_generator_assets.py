@@ -145,9 +145,10 @@ def cube(
     material_name: str,
     level: int,
     display_color: Sequence[float] | None = None,
+    rotate_xyz: Sequence[float] | None = None,
 ) -> str:
     attributes = ["double size = 1"]
-    attributes.extend(xform_attrs(translate=translate, scale=size))
+    attributes.extend(xform_attrs(translate=translate, rotate_xyz=rotate_xyz, scale=size))
     attributes.append(bind(material_name))
     if display_color is not None:
         # A prim a live binding recolours must declare primvars:displayColor
@@ -167,9 +168,10 @@ def cylinder(
     material_name: str,
     level: int,
     display_color: Sequence[float] | None = None,
+    rotate_xyz: Sequence[float] | None = None,
 ) -> str:
     attributes = [f'uniform token axis = "{axis}"', f"double radius = {f(radius)}", f"double height = {f(height)}"]
-    attributes.extend(xform_attrs(translate=translate))
+    attributes.extend(xform_attrs(translate=translate, rotate_xyz=rotate_xyz))
     attributes.append(bind(material_name))
     if display_color is not None:
         attributes.append(f"color3f[] primvars:displayColor = [({f(display_color[0])}, {f(display_color[1])}, {f(display_color[2])})]")
@@ -242,15 +244,38 @@ def floor_mesh() -> str:
 
 
 def build_generator() -> str:
+    """Builds the reusable generator-set component.
+
+    Modelled on an open-frame ~400 kW V16 diesel genset: channel-steel skid with
+    an integral base fuel tank, radiator and guarded fan pack at one end, the
+    engine amidships with its exhaust manifolds and turbochargers on top, the
+    alternator drum at the other end, and the control panel on the front face.
+
+    Prim names are load-bearing. OpenUsdBindings.cs drives Radiator/Fan,
+    Radiator/Core, Exhaust/Stack, ControlPanel/LoadGauge/Needle,
+    ControlPanel/TempGauge/Needle, ControlPanel/RunLamp, FuelTank/Surface,
+    AlarmRing, Engine/OverheatHalo and Engine/OilHalo by path, so those names
+    cannot be changed here without changing the bindings with them.
+    """
     looks = prim(
         "Scope",
         "Looks",
         children=[
-            material("GenBlue", (0.020, 0.180, 0.420), 0.42, 0.0, level=2),
+            # The body colour of the machine: engine, alternator and skid.
+            material("GenGreen", (0.016, 0.210, 0.166), 0.38, 0.05, level=2),
+            material("GenGreenDark", (0.010, 0.140, 0.112), 0.45, 0.05, level=2),
             material("MetalGrey", (0.450, 0.470, 0.480), 0.36, 0.45, level=2),
+            material("SteelBright", (0.560, 0.575, 0.590), 0.22, 0.85, level=2),
             material("RadiatorDark", (0.030, 0.035, 0.040), 0.68, 0.1, level=2),
+            # Exhaust manifolds run hot and scale over: a dry copper-oxide brown.
+            material("ManifoldRust", (0.235, 0.088, 0.042), 0.72, 0.25, level=2),
             material("ExhaustSteel", (0.620, 0.600, 0.560), 0.31, 0.65, level=2),
             material("PanelBlack", (0.005, 0.006, 0.008), 0.5, 0.0, level=2),
+            material("PanelFascia", (0.190, 0.200, 0.208), 0.55, 0.0, level=2),
+            material("ScreenDark", (0.020, 0.045, 0.038), 0.28, 0.0, level=2),
+            material("FilterCream", (0.760, 0.735, 0.660), 0.6, 0.0, level=2),
+            material("HoseBlack", (0.028, 0.030, 0.032), 0.75, 0.0, level=2),
+            material("LabelYellow", (0.780, 0.610, 0.040), 0.6, 0.0, level=2),
             material("FluidAmber", (0.950, 0.530, 0.080), 0.22, 0.0, level=2),
             material("AlarmRed", (1.000, 0.030, 0.020), 0.25, 0.0, level=2),
             material("HaloOrange", (1.000, 0.360, 0.020), 0.18, 0.0, level=2),
@@ -259,59 +284,312 @@ def build_generator() -> str:
         level=1,
     )
 
+    # --- Skid -------------------------------------------------------------
+    # Channel-section side rails with cross members, rather than a slab: the
+    # rails are what a real set is craned and forklifted by, and they read as
+    # the machine's outline from any angle.
+    def rail(name: str, y: float) -> str:
+        return prim(
+            "Xform",
+            name,
+            xform_attrs(translate=(0.000, y, 0.000)),
+            [
+                cube("Web", (4.000, 0.040, 0.240), (0.000, 0.000, 0.000), "GenGreen", 3),
+                cube("FlangeTop", (4.000, 0.150, 0.035), (0.000, 0.000, 0.122), "GenGreen", 3),
+                cube("FlangeBottom", (4.000, 0.150, 0.035), (0.000, 0.000, -0.122), "GenGreen", 3),
+            ],
+            level=2,
+        )
+
+    skid = prim(
+        "Xform",
+        "Skid",
+        xform_attrs(translate=(0.000, 0.000, 0.140)),
+        [
+            rail("RailLeft", 0.660),
+            rail("RailRight", -0.660),
+            *(
+                cube(f"CrossMember{index + 1}", (0.110, 1.320, 0.180), (x, 0.000, 0.000), "GenGreen", 2)
+                for index, x in enumerate((-1.860, -0.980, 0.180, 1.180, 1.880))
+            ),
+            # Lifting points, as on the rails of a skid-mounted set.
+            *(
+                cube(f"LiftLug{index + 1}", (0.120, 0.030, 0.130), (x, y, 0.160), "LabelYellow", 2)
+                for index, (x, y) in enumerate(
+                    ((-1.700, 0.660), (-1.700, -0.660), (1.700, 0.660), (1.700, -0.660))
+                )
+            ),
+        ],
+        level=1,
+    )
+
+    # --- Engine -----------------------------------------------------------
+    # A 60-degree V16: two banks of eight, each carrying its own rocker covers,
+    # exhaust manifold and turbocharger.
+    bank_tilt = 30.000
+
+    def bank(name: str, sign: float) -> str:
+        y = 0.245 * sign
+        covers = [
+            cube(
+                f"RockerCover{index + 1}",
+                (0.150, 0.230, 0.090),
+                (-0.620 + index * 0.180, 0.150 * sign, 0.250),
+                "GenGreen",
+                4,
+                rotate_xyz=(bank_tilt * sign, 0.000, 0.000),
+            )
+            for index in range(8)
+        ]
+        return prim(
+            "Xform",
+            name,
+            xform_attrs(translate=(0.000, y, 0.190)),
+            [
+                cube(
+                    "Head",
+                    (1.560, 0.300, 0.360),
+                    (0.000, 0.100 * sign, 0.120),
+                    "GenGreen",
+                    4,
+                    rotate_xyz=(bank_tilt * sign, 0.000, 0.000),
+                ),
+                *covers,
+            ],
+            level=3,
+        )
+
+    def manifold(name: str, sign: float) -> str:
+        return prim(
+            "Xform",
+            name,
+            xform_attrs(translate=(0.000, 0.430 * sign, 0.560)),
+            [
+                cylinder("Log", "X", 0.062, 1.500, (0.000, 0.000, 0.000), "ManifoldRust", 4),
+                *(
+                    cylinder(
+                        f"Riser{index + 1}",
+                        "Z",
+                        0.038,
+                        0.150,
+                        (-0.620 + index * 0.180, 0.000, 0.090),
+                        "ManifoldRust",
+                        4,
+                    )
+                    for index in range(8)
+                ),
+                # The elbow that carries the bank into its turbocharger.
+                cylinder("Elbow", "Z", 0.072, 0.300, (0.820, 0.000, 0.180), "ManifoldRust", 4),
+                cylinder(
+                    "ElbowBend",
+                    "X",
+                    0.072,
+                    0.240,
+                    (0.930, 0.000, 0.320),
+                    "ManifoldRust",
+                    4,
+                ),
+            ],
+            level=3,
+        )
+
+    def turbo(name: str, sign: float) -> str:
+        return prim(
+            "Xform",
+            name,
+            xform_attrs(translate=(1.070, 0.330 * sign, 0.880)),
+            [
+                # Turbine housing (hot side) and compressor housing (cold side).
+                cylinder("TurbineHousing", "X", 0.135, 0.150, (-0.090, 0.000, 0.000), "PanelBlack", 4),
+                cylinder("Cartridge", "X", 0.070, 0.130, (0.020, 0.000, 0.000), "SteelBright", 4),
+                cylinder("CompressorHousing", "X", 0.150, 0.160, (0.150, 0.000, 0.000), "SteelBright", 4),
+                cylinder("Inlet", "Y", 0.105, 0.150, (0.150, 0.130 * sign, 0.000), "SteelBright", 4),
+            ],
+            level=3,
+        )
+
+    def intake(name: str, sign: float) -> str:
+        # Charge-air pipe arcing from the aftercooler down into the bank.
+        return prim(
+            "Xform",
+            name,
+            xform_attrs(translate=(0.000, 0.000, 0.000)),
+            [
+                cylinder("Riser", "Z", 0.090, 0.360, (0.700, 0.560 * sign, 1.000), "GenGreen", 4),
+                cylinder("Crossover", "X", 0.090, 0.900, (0.220, 0.560 * sign, 1.170), "GenGreen", 4),
+                cylinder("Drop", "Z", 0.085, 0.300, (-0.250, 0.560 * sign, 1.020), "GenGreen", 4),
+            ],
+            level=3,
+        )
+
     engine = prim(
         "Xform",
         "Engine",
-        xform_attrs(translate=(-1.000, 0.000, 0.750)),
+        xform_attrs(translate=(-0.480, 0.000, 0.780)),
         [
-            cube("Block", (1.600, 0.850, 0.950), (0.000, 0.000, 0.000), "GenBlue", 2),
-            cylinder("Turbo", "Y", 0.160, 0.350, (-0.450, 0.500, 0.330), "MetalGrey", 2),
-            sphere("OverheatHalo", 0.300, (0.000, 0.000, 0.180), "HaloOrange", 2, visible=False),
-            sphere("OilHalo", 0.220, (-0.250, 0.000, -0.420), "HaloOrange", 2, visible=False),
+            # Oil pan, crankcase and the front gear case.
+            cube("Sump", (1.720, 0.760, 0.240), (0.000, 0.000, -0.300), "GenGreenDark", 3),
+            cube("Crankcase", (1.780, 0.900, 0.400), (0.000, 0.000, -0.030), "GenGreen", 3),
+            cube("GearCase", (0.180, 0.820, 0.560), (-0.960, 0.000, 0.060), "GenGreen", 3),
+            cube("Flywheel", (0.240, 0.780, 0.780), (0.980, 0.000, 0.030), "GenGreen", 3),
+            bank("BankLeft", 1.0),
+            bank("BankRight", -1.0),
+            manifold("ManifoldLeft", 1.0),
+            manifold("ManifoldRight", -1.0),
+            turbo("TurboLeft", 1.0),
+            turbo("TurboRight", -1.0),
+            intake("IntakeLeft", 1.0),
+            intake("IntakeRight", -1.0),
+            # Aftercooler sits in the vee, between the banks.
+            cube("Aftercooler", (0.900, 0.420, 0.240), (0.150, 0.000, 0.620), "GenGreen", 3),
+            cube("ValleyCover", (1.300, 0.300, 0.100), (-0.350, 0.000, 0.480), "GenGreen", 3),
+            # Spin-on filter bank on the service side, as on the photographs.
+            *(
+                cylinder(
+                    f"FuelFilter{index + 1}",
+                    "Z",
+                    0.055,
+                    0.230,
+                    (-0.250 + index * 0.145, -0.560, -0.120),
+                    "FilterCream",
+                    3,
+                )
+                for index in range(5)
+            ),
+            *(
+                cylinder(
+                    f"OilFilter{index + 1}",
+                    "Z",
+                    0.075,
+                    0.300,
+                    (0.480 + index * 0.190, -0.540, -0.100),
+                    "FilterCream",
+                    3,
+                )
+                for index in range(2)
+            ),
+            cylinder("StarterMotor", "X", 0.110, 0.420, (0.720, 0.470, -0.240), "PanelBlack", 3),
+            cylinder("ChargeAlternator", "X", 0.090, 0.260, (-0.700, -0.470, 0.140), "SteelBright", 3),
+            cylinder("WaterPump", "X", 0.130, 0.200, (-1.020, -0.300, -0.140), "GenGreen", 3),
+            # Coolant hoses to the radiator.
+            cylinder("HoseTop", "X", 0.070, 0.520, (-1.320, 0.240, 0.240), "HoseBlack", 3),
+            cylinder("HoseBottom", "X", 0.070, 0.520, (-1.320, -0.240, -0.220), "HoseBlack", 3),
+            sphere("OverheatHalo", 0.300, (0.000, 0.000, 0.180), "HaloOrange", 3, visible=False),
+            sphere("OilHalo", 0.220, (-0.250, 0.000, -0.420), "HaloOrange", 3, visible=False),
         ],
         level=1,
     )
 
+    # --- Alternator -------------------------------------------------------
+    louvres = [
+        cube(
+            f"Louvre{index + 1}",
+            (0.030, 0.120, 0.500),
+            (-0.360 + index * 0.075, 0.000, 0.000),
+            "GenGreenDark",
+            3,
+            rotate_xyz=(0.000, 0.000, 0.000),
+        )
+        for index in range(9)
+    ]
     alternator = prim(
         "Xform",
         "Alternator",
-        xform_attrs(translate=(0.950, 0.000, 0.800)),
+        xform_attrs(translate=(1.320, 0.000, 0.860)),
         [
-            cylinder("Housing", "X", 0.420, 1.200, (0.000, 0.000, 0.000), "MetalGrey", 2),
-            cube("TerminalBox", (0.350, 0.300, 0.280), (0.050, -0.310, 0.370), "PanelBlack", 2),
+            cylinder("Housing", "X", 0.440, 1.120, (0.000, 0.000, 0.000), "GenGreen", 2),
+            # Ventilation slots around the barrel.
+            prim(
+                "Xform",
+                "VentBand",
+                xform_attrs(translate=(0.000, 0.000, 0.430)),
+                louvres,
+                level=2,
+            ),
+            cylinder("DriveEndBell", "X", 0.400, 0.140, (-0.610, 0.000, 0.000), "GenGreenDark", 2),
+            cylinder("NonDriveEndBell", "X", 0.360, 0.160, (0.620, 0.000, 0.000), "GenGreenDark", 2),
+            cube("TerminalBox", (0.480, 0.420, 0.300), (0.100, 0.000, 0.520), "GenGreen", 2),
+            cube("TerminalLid", (0.500, 0.440, 0.030), (0.100, 0.000, 0.685), "GenGreenDark", 2),
+            cube("FootLeft", (0.700, 0.120, 0.220), (0.000, 0.400, -0.520), "GenGreen", 2),
+            cube("FootRight", (0.700, 0.120, 0.220), (0.000, -0.400, -0.520), "GenGreen", 2),
         ],
         level=1,
     )
 
+    # --- Radiator ---------------------------------------------------------
     fan = prim(
         "Xform",
         "Fan",
-        xform_attrs(translate=(0.110, 0.000, 0.000), rotate_y=90.000, rotate_z=0.000),
+        xform_attrs(translate=(0.180, 0.000, 0.000), rotate_y=90.000, rotate_z=0.000),
         [
-            cylinder("Hub", "Z", 0.080, 0.100, (0.000, 0.000, 0.000), "MetalGrey", 3),
-            *(blade(index, (index - 1) * 60.0) for index in range(1, 7)),
+            cylinder("Hub", "Z", 0.110, 0.120, (0.000, 0.000, 0.000), "PanelBlack", 3),
+            *(blade(index, (index - 1) * 40.0) for index in range(1, 10)),
         ],
         level=2,
     )
+    # Vertical fin pack: what actually reads as a radiator at a distance.
+    fins = [
+        cube(
+            f"Fin{index + 1}",
+            (0.012, 1.180, 1.180),
+            (-0.075 + (index % 2) * 0.150, -0.620 + index * 0.083, 0.000),
+            "RadiatorDark",
+            3,
+        )
+        for index in range(15)
+    ]
     radiator = prim(
         "Xform",
         "Radiator",
-        xform_attrs(translate=(-2.050, 0.000, 1.000)),
-        [cube("Core", (0.180, 1.300, 1.300), (0.000, 0.000, 0.000), "RadiatorDark", 2, display_color=(0.030, 0.035, 0.040)), fan],
-        level=1,
-    )
-
-    exhaust = prim(
-        "Xform",
-        "Exhaust",
-        xform_attrs(translate=(-0.400, 0.450, 1.550)),
+        xform_attrs(translate=(-2.020, 0.000, 1.020)),
         [
-            cylinder("Silencer", "X", 0.220, 1.100, (0.000, 0.000, 0.000), "ExhaustSteel", 2),
-            cylinder("Stack", "Z", 0.110, 1.200, (-0.450, 0.000, 0.550), "ExhaustSteel", 2, display_color=(0.620, 0.600, 0.560)),
+            cube(
+                "Core",
+                (0.200, 1.280, 1.280),
+                (0.000, 0.000, 0.000),
+                "RadiatorDark",
+                2,
+                display_color=(0.030, 0.035, 0.040),
+            ),
+            prim("Xform", "FinPack", xform_attrs(translate=(0.000, 0.000, 0.000)), fins, level=2),
+            # Bolted guard frame and header tanks.
+            cube("TopTank", (0.280, 1.360, 0.170), (0.000, 0.000, 0.700), "PanelBlack", 2),
+            cube("BottomTank", (0.280, 1.360, 0.170), (0.000, 0.000, -0.700), "PanelBlack", 2),
+            cube("GuardLeft", (0.300, 0.070, 1.560), (0.000, 0.680, 0.000), "PanelBlack", 2),
+            cube("GuardRight", (0.300, 0.070, 1.560), (0.000, -0.680, 0.000), "PanelBlack", 2),
+            cube("FillerCap", (0.140, 0.140, 0.090), (0.000, 0.480, 0.820), "SteelBright", 2),
+            cylinder("FanShroud", "X", 0.560, 0.120, (0.220, 0.000, 0.000), "PanelBlack", 2),
+            fan,
         ],
         level=1,
     )
 
+    # --- Exhaust ----------------------------------------------------------
+    exhaust = prim(
+        "Xform",
+        "Exhaust",
+        xform_attrs(translate=(-0.100, 0.430, 1.560)),
+        [
+            cylinder("Silencer", "X", 0.230, 1.150, (0.000, 0.000, 0.000), "ExhaustSteel", 2),
+            cylinder("EndCapFront", "X", 0.235, 0.060, (-0.600, 0.000, 0.000), "ExhaustSteel", 2),
+            cylinder("EndCapRear", "X", 0.235, 0.060, (0.600, 0.000, 0.000), "ExhaustSteel", 2),
+            cylinder("Bellows", "Z", 0.090, 0.220, (0.560, 0.000, -0.280), "SteelBright", 2),
+            cylinder(
+                "Stack",
+                "Z",
+                0.115,
+                1.250,
+                (-0.450, 0.000, 0.600),
+                "ExhaustSteel",
+                2,
+                display_color=(0.620, 0.600, 0.560),
+            ),
+            cylinder("RainCap", "Z", 0.140, 0.060, (-0.450, 0.000, 1.250), "ExhaustSteel", 2),
+        ],
+        level=1,
+    )
+
+    # --- Control panel ----------------------------------------------------
     def gauge(name: str, translate: Sequence[float]) -> str:
         needle = prim(
             "Xform",
@@ -325,31 +603,58 @@ def build_generator() -> str:
             name,
             xform_attrs(translate=translate),
             [
-                cylinder("Face", "Y", 0.110, 0.020, (0.000, 0.000, 0.000), "MetalGrey", 3),
+                cylinder("Face", "Y", 0.075, 0.020, (0.000, 0.000, 0.000), "MetalGrey", 3),
+                cylinder("Bezel", "Y", 0.085, 0.012, (0.000, 0.008, 0.000), "PanelBlack", 3),
                 needle,
             ],
             level=2,
         )
 
+    keypad = [
+        cube(
+            f"Key{index + 1}",
+            (0.036, 0.014, 0.026),
+            (-0.075 + (index % 4) * 0.050, -0.072, -0.050 - (index // 4) * 0.042),
+            "PanelFascia",
+            3,
+        )
+        for index in range(8)
+    ]
+
     control_panel = prim(
         "Xform",
         "ControlPanel",
-        xform_attrs(translate=(0.200, -0.800, 1.200)),
+        xform_attrs(translate=(1.180, -0.720, 1.500)),
         [
-            cube("Enclosure", (0.500, 0.120, 0.700), (0.000, 0.000, 0.000), "PanelBlack", 2),
-            gauge("LoadGauge", (-0.120, -0.070, 0.120)),
-            gauge("TempGauge", (0.120, -0.070, 0.120)),
-            sphere("RunLamp", 0.050, (0.000, -0.070, -0.180), "LampGreen", 2, visible=False),
+            # Sheet-metal cabinet in body colour, with a dark instrument fascia
+            # recessed into its front - the arrangement in the close-up photo.
+            cube("Enclosure", (0.640, 0.260, 0.760), (0.000, 0.000, 0.000), "GenGreen", 2),
+            cube("Fascia", (0.560, 0.030, 0.640), (0.000, -0.135, 0.000), "PanelBlack", 2),
+            cube("Display", (0.230, 0.016, 0.180), (0.010, -0.155, 0.120), "ScreenDark", 2),
+            cube("MimicPlate", (0.150, 0.014, 0.300), (-0.190, -0.152, 0.060), "PanelFascia", 2),
+            prim("Xform", "Keypad", xform_attrs(translate=(0.010, 0.000, 0.120)), keypad, level=2),
+            # Emergency stop: the red mushroom every panel carries.
+            cylinder("EStopBase", "Y", 0.055, 0.030, (0.190, -0.150, -0.230), "LabelYellow", 2),
+            cylinder("EStopButton", "Y", 0.042, 0.045, (0.190, -0.175, -0.230), "AlarmRed", 2),
+            cube("LabelStrip", (0.520, 0.012, 0.070), (0.000, -0.150, -0.330), "LabelYellow", 2),
+            gauge("LoadGauge", (-0.150, -0.150, 0.250)),
+            gauge("TempGauge", (0.150, -0.150, 0.250)),
+            sphere("RunLamp", 0.030, (-0.190, -0.160, -0.230), "LampGreen", 2, visible=False),
         ],
         level=1,
     )
 
+    # --- Base fuel tank ---------------------------------------------------
+    # The set carries its fuel in the skid, which is why the rails are so deep.
     fuel_tank = prim(
         "Xform",
         "FuelTank",
-        xform_attrs(translate=(0.000, 0.000, 0.405)),
+        xform_attrs(translate=(0.000, 0.000, 0.400)),
         [
-            cube("Shell", (2.200, 1.100, 0.550), (0.000, 0.000, 0.000), "MetalGrey", 2),
+            cube("Shell", (3.700, 1.240, 0.430), (0.000, 0.000, 0.000), "GenGreen", 2),
+            cube("Strap1", (0.070, 1.260, 0.450), (-1.200, 0.000, 0.000), "GenGreenDark", 2),
+            cube("Strap2", (0.070, 1.260, 0.450), (1.200, 0.000, 0.000), "GenGreenDark", 2),
+            cylinder("FillerNeck", "Z", 0.070, 0.120, (-1.650, -0.480, 0.250), "SteelBright", 2),
             prim(
                 "Cube",
                 "Surface",
@@ -365,6 +670,18 @@ def build_generator() -> str:
         level=1,
     )
 
+    battery = prim(
+        "Xform",
+        "BatteryRack",
+        xform_attrs(translate=(-1.560, -0.430, 0.420)),
+        [
+            cube("Tray", (0.520, 0.340, 0.040), (0.000, 0.000, -0.140), "GenGreenDark", 2),
+            cube("BatteryA", (0.230, 0.300, 0.240), (-0.130, 0.000, 0.000), "PanelBlack", 2),
+            cube("BatteryB", (0.230, 0.300, 0.240), (0.130, 0.000, 0.000), "PanelBlack", 2),
+        ],
+        level=1,
+    )
+
     root = prim(
         "Xform",
         "Generator",
@@ -374,15 +691,15 @@ def build_generator() -> str:
         ],
         [
             looks,
-            cube("Skid", (4.000, 1.500, 0.200), (0.000, 0.000, 0.100), "MetalGrey", 1),
+            skid,
+            fuel_tank,
             engine,
             alternator,
-            cylinder("CouplingGuard", "X", 0.300, 0.350, (0.000, 0.000, 0.780), "MetalGrey", 1),
+            cylinder("CouplingGuard", "X", 0.330, 0.420, (0.660, 0.000, 0.830), "GenGreenDark", 1),
             radiator,
             exhaust,
             control_panel,
-            fuel_tank,
-            cube("Battery", (0.450, 0.300, 0.280), (-1.550, -0.420, 0.350), "PanelBlack", 1),
+            battery,
             annulus_mesh("AlarmRing", 2.250, 2.450, 0.020, 48, "AlarmRed"),
         ],
         metadata='kind = "component"',
