@@ -75,6 +75,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <inheritdoc/>
+        public bool IsShuttingDown => m_shuttingDown;
+
         internal long ShutdownCleanupProgress =>
             Interlocked.Read(ref m_shutdownCleanupProgress);
 
