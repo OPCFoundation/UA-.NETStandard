@@ -53,6 +53,12 @@ namespace Opc.Ua.OpenUsd.Client
             Message = "Federated cross-server component to {EndpointUrl}.")]
         public static partial void CrossServerFederated(this ILogger logger, string endpointUrl);
 
+        [LoggerMessage(EventId = OpenUsdEventIds.Connector + 6, Level = LogLevel.Warning,
+            Message = "Could not federate the cross-server component hosted at {EndpointUrl}. " +
+                "That server's machines are absent from the stage; the rest of the scene is unaffected.")]
+        public static partial void CrossServerFederationFailed(
+            this ILogger logger, string endpointUrl, Exception exception);
+
         [LoggerMessage(EventId = OpenUsdEventIds.Connector + 4, Level = LogLevel.Warning,
             Message = "Closing connector-owned remote session failed.")]
         public static partial void RemoteSessionCloseFailed(this ILogger logger, Exception exception);

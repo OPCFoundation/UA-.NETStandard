@@ -1,0 +1,81 @@
+#usda 1.0
+(
+    doc = """Site shell for the OPC UA cross-server composition sample.
+
+    This layer carries only what the site itself owns: ground, the two building
+    volumes, lighting and the operator camera. It contains no pump and no
+    generator geometry on purpose - those machines belong to the subordinate
+    servers, and a connector composes them in at runtime from the component
+    bindings this server publishes.
+
+    Machines land under /Site/PumpHall and /Site/Powerhouse."""
+    defaultPrim = "Site"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Site"
+{
+    def Mesh "Ground"
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-20, -12, 0), (34, -12, 0), (34, 34, 0), (-20, 34, 0)]
+        color3f[] primvars:displayColor = [(0.24, 0.25, 0.26)]
+    }
+
+    def Mesh "PumpHallSlab"
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-5, -4, 0.02), (5, -4, 0.02), (5, 16, 0.02), (-5, 16, 0.02)]
+        color3f[] primvars:displayColor = [(0.38, 0.39, 0.40)]
+    }
+
+    def Mesh "PowerhouseSlab"
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(14, -4, 0.02), (28, -4, 0.02), (28, 26, 0.02), (14, 26, 0.02)]
+        color3f[] primvars:displayColor = [(0.36, 0.37, 0.39)]
+    }
+
+    # Composition targets. A connector fills these scopes from the component
+    # bindings this server publishes, each of which names the subordinate server
+    # that owns the machines.
+    def Scope "PumpHall"
+    {
+    }
+
+    def Scope "Powerhouse"
+    {
+    }
+
+    def DistantLight "KeyLight"
+    {
+        float inputs:angle = 1
+        float inputs:intensity = 2800
+        double3 xformOp:translate = (0, 0, 24)
+        double3 xformOp:rotateXYZ = (52, 0, 28)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+    }
+
+    def DomeLight "SkyLight"
+    {
+        float inputs:intensity = 620
+    }
+
+    # Supervisory viewpoint: high and back, looking down the length of the site so
+    # both the pump hall and the powerhouse are in one frame. A control-room view
+    # of a plant is not an operator standing at a machine, which is what the
+    # per-server stages already provide.
+    def Camera "SiteCamera"
+    {
+        float focalLength = 22
+        float horizontalAperture = 24
+        float verticalAperture = 13.5
+        double3 xformOp:translate = (-14, -9, 17)
+        double3 xformOp:rotateXYZ = (66, 0, -46)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+    }
+}

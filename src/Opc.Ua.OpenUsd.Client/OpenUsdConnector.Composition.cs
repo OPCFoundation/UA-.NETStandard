@@ -158,12 +158,32 @@ namespace Opc.Ua.OpenUsd.Client
             }
             if (m_remoteSessionFactory != null && !string.IsNullOrEmpty(c.ComponentEndpointUrl))
             {
-                ISession remote = await m_remoteSessionFactory(c.ComponentEndpointUrl!, ct)
-                    .ConfigureAwait(false);
-                var remoteConn = new OpenUsdConnector(remote, m_sink, m_options, m_telemetry, ownsSession: true);
-                m_remoteConnectors.Add(remoteConn);
-                await remoteConn.StartAsync(ct).ConfigureAwait(false);
-                m_logger.CrossServerFederated(c.ComponentEndpointUrl!);
+                // A subordinate server is an independent process that can be down,
+                // unreachable or refuse the session. Federation is best-effort per
+                // component: the placeholder prim is already composed, so the rest of
+                // the scene still renders and only that server's machines are missing.
+                // Letting one unreachable subordinate abort StartAsync would take the
+                // whole stage down with it.
+                try
+                {
+                    ISession remote = await m_remoteSessionFactory(c.ComponentEndpointUrl!, ct)
+                        .ConfigureAwait(false);
+                    var remoteConn = new OpenUsdConnector(
+                        remote, m_sink, m_options, m_telemetry, ownsSession: true);
+                    m_remoteConnectors.Add(remoteConn);
+                    await remoteConn.StartAsync(ct).ConfigureAwait(false);
+                    m_logger.CrossServerFederated(c.ComponentEndpointUrl!);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+#pragma warning disable CA1031 // One unreachable subordinate must not fail the stage.
+                catch (Exception ex)
+#pragma warning restore CA1031
+                {
+                    m_logger.CrossServerFederationFailed(c.ComponentEndpointUrl!, ex);
+                }
             }
         }
 

@@ -13,6 +13,7 @@
     <Project Path="samples/MinimalClient/MinimalClient.csproj" />
     <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
     <Project Path="samples/GeneratorDeviceIntegrationServer/GeneratorDeviceIntegrationServer.csproj" />
+    <Project Path="samples/SiteCompositionServer/SiteCompositionServer.csproj" />
     <Project Path="samples/MinimalRobotServer/MinimalRobotServer.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
