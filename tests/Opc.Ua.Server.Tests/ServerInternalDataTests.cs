@@ -30,6 +30,7 @@
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -542,6 +543,177 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerInternalData data = CreateServerInternalData();
             Assert.DoesNotThrow(() => data.ReportAuditEvent(data.DefaultSystemContext, null));
+        }
+
+        [Test]
+        public async Task DisposeAsyncCompletesAsync()
+        {
+            ServerInternalData data = CreateServerInternalData();
+
+            await data.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(data.RequestManager, Is.Null);
+        }
+
+        [Test]
+        public void DisposeReleasesManagedResourcesOnce()
+        {
+            ServerInternalData data = CreateServerInternalData();
+            DisposalCounts counts = ConfigureCountingDisposableState(data);
+
+            data.Dispose();
+
+            Assert.That(CaptureDisposedState(data), Is.All.True);
+            Assert.That(counts.Total, Is.EqualTo(5));
+            Assert.That(counts.SubscriptionAsync, Is.EqualTo(1));
+            Assert.That(counts.SubscriptionSync, Is.Zero);
+        }
+
+        [Test]
+        public async Task DisposeAndDisposeAsyncLeaveSameObservableStateAsync()
+        {
+            ServerInternalData syncData = CreateServerInternalData();
+            ServerInternalData asyncData = CreateServerInternalData();
+            ConfigureDisposableState(syncData);
+            ConfigureDisposableState(asyncData);
+
+            syncData.Dispose();
+            await asyncData.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(CaptureDisposedState(asyncData), Is.EqualTo(CaptureDisposedState(syncData)));
+        }
+
+        [Test]
+        public async Task DisposeAsyncIsIdempotentAsync()
+        {
+            ServerInternalData data = CreateServerInternalData();
+
+            await data.DisposeAsync().ConfigureAwait(false);
+
+            Assert.DoesNotThrowAsync(async () => await data.DisposeAsync().ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task DisposeAfterDisposeAsyncDoesNotDisposeTwiceAsync()
+        {
+            ServerInternalData data = CreateServerInternalData();
+            DisposalCounts counts = ConfigureCountingDisposableState(data);
+
+            await data.DisposeAsync().ConfigureAwait(false);
+
+            // The synchronous path shares the disposed guard with the asynchronous one, so a
+            // Dispose that follows DisposeAsync must be a no-op rather than releasing a second time.
+            Assert.DoesNotThrow(data.Dispose);
+            Assert.That(counts.Total, Is.EqualTo(5));
+            Assert.That(counts.SubscriptionAsync, Is.EqualTo(1));
+            Assert.That(counts.SubscriptionSync, Is.Zero);
+        }
+
+        [Test]
+        public async Task DisposeAsyncAfterDisposeDoesNotDisposeTwiceAsync()
+        {
+            ServerInternalData data = CreateServerInternalData();
+            DisposalCounts counts = ConfigureCountingDisposableState(data);
+
+            data.Dispose();
+
+            Assert.DoesNotThrowAsync(async () => await data.DisposeAsync().ConfigureAwait(false));
+            Assert.That(counts.Total, Is.EqualTo(5));
+            Assert.That(counts.SubscriptionAsync, Is.EqualTo(1));
+            Assert.That(counts.SubscriptionSync, Is.Zero);
+        }
+
+        private static void ConfigureDisposableState(ServerInternalData data)
+        {
+            var mockNodeManager = new Mock<IMasterNodeManager>();
+            mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
+            mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
+            mockNodeManager.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null);
+            data.SetNodeManager(mockNodeManager.Object);
+
+            var mockSessionManager = new Mock<ISessionManager>();
+            var mockSubscriptionManager = new Mock<ISubscriptionManager>();
+            mockSubscriptionManager
+                .As<IAsyncDisposable>()
+                .Setup(manager => manager.DisposeAsync())
+                .Returns(default(ValueTask));
+            data.SetSessionManager(mockSessionManager.Object, mockSubscriptionManager.Object);
+
+            data.SetMonitoredItemQueueFactory(new Mock<IMonitoredItemQueueFactory>().Object);
+            data.SetRoleManager(new Mock<IRoleManager>().Object);
+        }
+
+        private static DisposalCounts ConfigureCountingDisposableState(ServerInternalData data)
+        {
+            var counts = new DisposalCounts();
+
+            var mockNodeManager = new Mock<IMasterNodeManager>();
+            mockNodeManager.Setup(manager => manager.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
+            mockNodeManager.Setup(manager => manager.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
+            mockNodeManager.Setup(manager => manager.CoreNodeManager).Returns((ICoreNodeManager)null);
+            mockNodeManager.As<IDisposable>().Setup(manager => manager.Dispose()).Callback(() => counts.NodeManager++);
+            data.SetNodeManager(mockNodeManager.Object);
+
+            var mockSessionManager = new Mock<ISessionManager>();
+            mockSessionManager.Setup(manager => manager.Dispose()).Callback(() => counts.SessionManager++);
+
+            var mockSubscriptionManager = new Mock<ISubscriptionManager>();
+            mockSubscriptionManager.Setup(manager => manager.Dispose()).Callback(() => counts.SubscriptionSync++);
+            mockSubscriptionManager
+                .As<IAsyncDisposable>()
+                .Setup(manager => manager.DisposeAsync())
+                .Callback(() => counts.SubscriptionAsync++)
+                .Returns(default(ValueTask));
+            data.SetSessionManager(mockSessionManager.Object, mockSubscriptionManager.Object);
+
+            var mockQueueFactory = new Mock<IMonitoredItemQueueFactory>();
+            mockQueueFactory.Setup(factory => factory.Dispose()).Callback(() => counts.MonitoredItemQueueFactory++);
+            data.SetMonitoredItemQueueFactory(mockQueueFactory.Object);
+
+            var mockRoleManager = new Mock<IRoleManager>();
+            mockRoleManager.As<IDisposable>().Setup(manager => manager.Dispose()).Callback(() => counts.RoleManager++);
+            data.SetRoleManager(mockRoleManager.Object);
+
+            return counts;
+        }
+
+        private static bool[] CaptureDisposedState(ServerInternalData data)
+        {
+            return
+            [
+                data.RoleManager == null,
+                data.NodeManager == null,
+                data.DiagnosticsNodeManager == null,
+                data.ConfigurationNodeManager == null,
+                data.CoreNodeManager == null,
+                data.SessionManager == null,
+                data.SubscriptionManager == null,
+                data.MonitoredItemQueueFactory == null,
+                data.RequestManager == null
+            ];
+        }
+
+        private sealed class DisposalCounts
+        {
+            public int Total =>
+                RoleManager +
+                NodeManager +
+                SessionManager +
+                SubscriptionSync +
+                SubscriptionAsync +
+                MonitoredItemQueueFactory;
+
+            public int RoleManager { get; set; }
+
+            public int NodeManager { get; set; }
+
+            public int SessionManager { get; set; }
+
+            public int SubscriptionSync { get; set; }
+
+            public int SubscriptionAsync { get; set; }
+
+            public int MonitoredItemQueueFactory { get; set; }
         }
     }
 }

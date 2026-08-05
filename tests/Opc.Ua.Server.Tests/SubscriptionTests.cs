@@ -933,6 +933,46 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo((uint)expectedLimit));
         }
 
+        [Test]
+        public void RestoreTransferClaimRemovesCurrentClaimWhenRestoreEntryAlreadyExists()
+        {
+            using Subscription subscription = CreateSubscription();
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                maxPublishRequests: 10);
+            queue.Add(subscription);
+
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subscription,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                Is.True);
+            Assert.That(claim, Is.Not.Null);
+
+            var collidingSubscription = new Mock<ISubscription>();
+            collidingSubscription.SetupGet(sub => sub.Id).Returns(subscription.Id);
+            queue.Add(collidingSubscription.Object);
+
+            Assert.That(queue.RestoreTransferClaim(claim!), Is.False);
+
+            subscription.AbortTransfer(m_sessionMock.Object);
+            queue.Remove(collidingSubscription.Object, removeQueuedRequests: false);
+            queue.Add(subscription);
+
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subscription,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim retryClaim),
+                Is.True,
+                "The failed restore must not leave a stale claim that blocks future transfers.");
+            Assert.That(retryClaim, Is.Not.Null);
+            queue.CompleteTransferClaim(retryClaim!);
+            subscription.AbortTransfer(m_sessionMock.Object);
+        }
+
         [TestCase(0, 0L, 0L)]
         [TestCase(0, 25L, 25L)]
         [TestCase(10, 0L, 10L)]
@@ -1086,6 +1126,401 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(abandonedSubscriptions, Is.Empty);
             });
             Assert.DoesNotThrow(() => subscription.ResendData(destinationContext));
+        }
+
+        [Test]
+        public async Task TransferClaimsSourceBeforeCallbacksAndBlocksStalePublishAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            SetPrivateField(subscription, "m_waitingForPublish", false);
+            SetPrivateField(subscription, "m_lifetimeCounter", 0u);
+            SetExpiryTime(
+                subscription,
+                TimeProvider.System.GetTimestampMilliseconds() - 100);
+            m_sessionMock
+                .Setup(session => session.IsSecureChannelValid("source-channel"))
+                .Returns(true);
+            IReadOnlyList<SessionPublishQueue.QueuedSubscription> staleSnapshot =
+                sourceQueue.CapturePublishTimerSnapshot();
+            using var publishCancellation = new CancellationTokenSource();
+            Task<ISubscription> sourcePublish = sourceQueue.PublishAsync(
+                "source-channel",
+                DateTime.MaxValue,
+                requeue: false,
+                parkSink: null,
+                publishCancellation.Token);
+            var transferEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseTransfer = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => transferEntered.TrySetResult(true))
+                .Returns(() => new ValueTask(releaseTransfer.Task));
+
+            Task<TransferSubscriptionsResponse> transferTask = manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: true)
+                .AsTask();
+            Task entered = await Task.WhenAny(
+                transferEntered.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            if (!ReferenceEquals(entered, transferEntered.Task))
+            {
+                releaseTransfer.TrySetResult(true);
+                Assert.Fail("Transfer did not reach the monitored-item callback barrier.");
+            }
+
+            try
+            {
+                sourceQueue.PublishTimerExpired(staleSnapshot);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        sourceQueue.CapturePublishTimerSnapshot(),
+                        Is.Empty,
+                        "The source entry must be claimed before callbacks run.");
+                    Assert.That(
+                        sourcePublish.IsCompleted,
+                        Is.False,
+                        "A stale source timer must not assign the claimed subscription.");
+                    ServiceResultException error = Assert.Throws<ServiceResultException>(
+                        () => subscription.Publish(
+                            fixture.SourceContext,
+                            out _,
+                            out _));
+                    Assert.That(
+                        error.StatusCode,
+                        Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+                });
+            }
+            finally
+            {
+                releaseTransfer.TrySetResult(true);
+            }
+
+            TransferSubscriptionsResponse transferred = await transferTask.ConfigureAwait(false);
+            publishCancellation.Cancel();
+            try
+            {
+                await sourcePublish.ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // The old session's parked Publish is cancelled or completed by
+                // the transferred-status notification, never with the subscription.
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transferred.Results, Has.Count.EqualTo(1));
+                Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    subscription.Session,
+                    Is.SameAs(fixture.DestinationSession.Object));
+            });
+            Assert.DoesNotThrow(
+                () => subscription.ResendData(fixture.DestinationContext));
+        }
+
+        [Test]
+        public async Task TransferInitialValueIsPublishedOnlyByDestinationAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
+            m_serverMock.Setup(server => server.MonitoredItemQueueFactory).Returns(queueFactory);
+            var itemOwner = new Mock<IAsyncNodeManager>();
+            using var monitoredItem = new MonitoredItem(
+                m_serverMock.Object,
+                itemOwner.Object,
+                new object(),
+                subscription.Id,
+                id: 10,
+                new ReadValueId
+                {
+                    NodeId = new NodeId("TransferValue", 2),
+                    AttributeId = Attributes.Value
+                },
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                clientHandle: 11,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 1000,
+                queueSize: 1,
+                discardOldest: true,
+                sourceSamplingInterval: 1000);
+            await RegisterMonitoredItemsAsync(subscription, monitoredItem).ConfigureAwait(false);
+            monitoredItem.QueueValue(new DataValue(new Variant(1234)), null);
+            var initialNotifications = new Queue<MonitoredItemNotification>();
+            monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                initialNotifications,
+                new Queue<DiagnosticInfo>(),
+                1,
+                m_telemetry.CreateLogger<SubscriptionTests>());
+            Assert.That(initialNotifications, Has.Count.EqualTo(1));
+
+            var transferEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseTransfer = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            itemOwner
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<bool>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<
+                    OperationContext,
+                    bool,
+                    IList<IMonitoredItem>,
+                    IList<bool>,
+                    IList<ServiceResult>,
+                    MonitoredItemTransferOptions,
+                    CancellationToken>(async (_, sendInitialValues, monitoredItems, processedItems, errors, transferOptions, cancellationToken) =>
+                    {
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            if (processedItems[ii])
+                            {
+                                continue;
+                            }
+
+                            processedItems[ii] = true;
+                            errors[ii] = ServiceResult.Good;
+                            if (sendInitialValues && !transferOptions.DeferInitialValues)
+                            {
+                                monitoredItems[ii].SetupResendDataTrigger();
+                            }
+                        }
+                        transferEntered.TrySetResult(true);
+                        await releaseTransfer.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    });
+            var configurationNodeManager = new Mock<IConfigurationNodeManager>();
+            configurationNodeManager
+                .SetupGet(nodeManager => nodeManager.NamespaceUris)
+                .Returns(System.Array.Empty<string>());
+            var coreNodeManager = new Mock<ICoreNodeManager>();
+            coreNodeManager
+                .SetupGet(nodeManager => nodeManager.NamespaceUris)
+                .Returns(System.Array.Empty<string>());
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory
+                .Setup(nodeManagerFactory => nodeManagerFactory.CreateConfigurationNodeManager())
+                .Returns(configurationNodeManager.Object);
+            factory
+                .Setup(nodeManagerFactory => nodeManagerFactory.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(coreNodeManager.Object);
+            m_serverMock.Setup(server => server.MainNodeManagerFactory).Returns(factory.Object);
+            using var masterNodeManager = new MasterNodeManager(
+                m_serverMock.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                null,
+                itemOwner.Object);
+            m_serverMock.Setup(server => server.NodeManager).Returns(masterNodeManager);
+
+            Task<TransferSubscriptionsResponse> transferTask = manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: true)
+                .AsTask();
+            Task entered = await Task.WhenAny(
+                transferEntered.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            if (!ReferenceEquals(entered, transferEntered.Task))
+            {
+                releaseTransfer.TrySetResult(true);
+                Assert.Fail("Transfer did not reach the monitored-item callback barrier.");
+            }
+
+            try
+            {
+                itemOwner.Verify(
+                    nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                        It.IsAny<OperationContext>(),
+                        true,
+                        It.IsAny<IList<IMonitoredItem>>(),
+                        It.IsAny<IList<bool>>(),
+                        It.IsAny<IList<ServiceResult>>(),
+                        It.Is<MonitoredItemTransferOptions>(options => options.DeferInitialValues),
+                        It.IsAny<CancellationToken>()),
+                    Times.Once);
+                Assert.That(monitoredItem.IsResendData, Is.False);
+                ServiceResultException error = Assert.Throws<ServiceResultException>(
+                    () => subscription.Publish(
+                        fixture.SourceContext,
+                        out _,
+                        out _));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+            }
+            finally
+            {
+                releaseTransfer.TrySetResult(true);
+            }
+
+            TransferSubscriptionsResponse transferred = await transferTask.ConfigureAwait(false);
+            Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(monitoredItem.IsResendData, Is.True);
+
+            SessionPublishQueue destinationQueue = GetPublishQueue(
+                manager,
+                fixture.DestinationContext.SessionId);
+            SetPrivateField(subscription, "m_waitingForPublish", false);
+            SetPrivateField(subscription, "m_lifetimeCounter", 0u);
+            SetExpiryTime(
+                subscription,
+                TimeProvider.System.GetTimestampMilliseconds() - 100);
+            destinationQueue.PublishTimerExpired(
+                destinationQueue.CapturePublishTimerSnapshot());
+            ISubscription readySubscription = await destinationQueue.PublishAsync(
+                "destination-channel",
+                DateTime.MaxValue,
+                requeue: false,
+                parkSink: null,
+                CancellationToken.None).ConfigureAwait(false);
+            NotificationMessage message = readySubscription.Publish(
+                fixture.DestinationContext,
+                out _,
+                out _);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(readySubscription, Is.SameAs(subscription));
+                Assert.That(message, Is.Not.Null);
+                Assert.That(message.NotificationData, Is.Not.Empty);
+                Assert.That(monitoredItem.IsResendData, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task TransferFallbackAppliesInitialValueExactlyOnceAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
+            m_serverMock.Setup(server => server.MonitoredItemQueueFactory).Returns(queueFactory);
+            var itemOwner = new Mock<IAsyncNodeManager>();
+            using var monitoredItem = new MonitoredItem(
+                m_serverMock.Object,
+                itemOwner.Object,
+                new object(),
+                subscription.Id,
+                id: 11,
+                new ReadValueId
+                {
+                    NodeId = new NodeId("FallbackTransferValue", 2),
+                    AttributeId = Attributes.Value
+                },
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                clientHandle: 12,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 1000,
+                queueSize: 1,
+                discardOldest: true,
+                sourceSamplingInterval: 1000);
+            await RegisterMonitoredItemsAsync(subscription, monitoredItem).ConfigureAwait(false);
+            monitoredItem.QueueValue(new DataValue(new Variant(5678)), null);
+            var initialNotifications = new Queue<MonitoredItemNotification>();
+            monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                initialNotifications,
+                new Queue<DiagnosticInfo>(),
+                1,
+                m_telemetry.CreateLogger<SubscriptionTests>());
+            Assert.That(initialNotifications, Has.Count.EqualTo(1));
+            int setupResendCalls = 0;
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    true,
+                    It.Is<IList<IMonitoredItem>>(items => items.Contains(monitoredItem)),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.Is<MonitoredItemTransferOptions>(options => !options.DeferInitialValues),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, bool, IList<IMonitoredItem>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
+                    (_, sendInitialValues, monitoredItems, errors, transferOptions, _) =>
+                    {
+                        Assert.That(transferOptions.DeferInitialValues, Is.False);
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            errors[ii] = ServiceResult.Good;
+                            if (sendInitialValues)
+                            {
+                                setupResendCalls++;
+                                monitoredItems[ii].SetupResendDataTrigger();
+                            }
+                        }
+                    })
+                .Returns(default(ValueTask));
+
+            TransferSubscriptionsResponse transferred = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: true)
+                .ConfigureAwait(false);
+
+            Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(setupResendCalls, Is.EqualTo(1));
+            SessionPublishQueue destinationQueue = GetPublishQueue(
+                manager,
+                fixture.DestinationContext.SessionId);
+            SetPrivateField(subscription, "m_waitingForPublish", false);
+            SetPrivateField(subscription, "m_lifetimeCounter", 0u);
+            SetExpiryTime(
+                subscription,
+                TimeProvider.System.GetTimestampMilliseconds() - 100);
+            destinationQueue.PublishTimerExpired(
+                destinationQueue.CapturePublishTimerSnapshot());
+            ISubscription readySubscription = await destinationQueue.PublishAsync(
+                "destination-channel",
+                DateTime.MaxValue,
+                requeue: false,
+                parkSink: null,
+                CancellationToken.None).ConfigureAwait(false);
+            NotificationMessage firstMessage = readySubscription.Publish(
+                fixture.DestinationContext,
+                out _,
+                out _);
+            NotificationMessage secondMessage = readySubscription.Publish(
+                fixture.DestinationContext,
+                out _,
+                out _);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstMessage.NotificationData, Is.Not.Empty);
+                Assert.That(secondMessage?.NotificationData ?? [], Is.Empty);
+                Assert.That(monitoredItem.IsResendData, Is.False);
+            });
         }
 
         [Test]
@@ -1373,6 +1808,559 @@ namespace Opc.Ua.Server.Tests
             Assert.That(retried.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.DoesNotThrow(
                 () => subscription.ResendData(fixture.DestinationContext));
+        }
+
+        [Test]
+        public async Task FailedTransferPreservesDestinationQueuedPublishRequestsAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            fixture.DestinationSession
+                .Setup(session => session.IsSecureChannelValid("destination-channel"))
+                .Returns(true);
+            CreateSubscriptionResponse destinationCreated = await manager
+                .CreateSubscriptionAsync(
+                    fixture.DestinationContext,
+                    requestedPublishingInterval: 1000,
+                    requestedLifetimeCount: 30,
+                    requestedMaxKeepAliveCount: 10,
+                    maxNotificationsPerPublish: 0,
+                    publishingEnabled: true,
+                    priority: 0)
+                .ConfigureAwait(false);
+            Assert.That(
+                manager.TryGetSubscription(
+                    destinationCreated.SubscriptionId,
+                    out ISubscription destinationSubscription),
+                Is.True);
+            Assert.That(destinationSubscription, Is.Not.Null);
+            SessionPublishQueue destinationQueue = GetPublishQueue(
+                manager,
+                fixture.DestinationContext.SessionId);
+            Task<ISubscription> destinationPublish = destinationQueue.PublishAsync(
+                "destination-channel",
+                DateTime.MaxValue,
+                requeue: false,
+                parkSink: null,
+                CancellationToken.None);
+            Assert.That(destinationPublish.IsCompleted, Is.False);
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(Task.FromException(
+                    new ServiceResultException(StatusCodes.BadUnexpectedError))));
+
+            TransferSubscriptionsResponse failed = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.Results, Has.Count.EqualTo(1));
+                Assert.That(ServiceResult.IsBad(failed.Results[0].StatusCode), Is.True);
+                Assert.That(destinationPublish.IsCompleted, Is.False);
+            });
+
+            destinationQueue.PublishCompleted(destinationSubscription!, moreNotifications: true);
+
+            ISubscription publishedSubscription = await destinationPublish.ConfigureAwait(false);
+            Assert.That(publishedSubscription, Is.SameAs(destinationSubscription!));
+        }
+
+        [Test]
+        public void TryClaimForTransferFailsWhenTheClaimingSessionIsNotTheOwner()
+        {
+            using Subscription subscription = CreateSubscription();
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                maxPublishRequests: 10);
+            queue.Add(subscription);
+            var staleSession = new Mock<ISession>();
+            staleSession.Setup(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
+
+            bool claimed = queue.TryClaimForTransfer(
+                subscription,
+                staleSession.Object,
+                out SessionPublishQueue.SubscriptionTransferClaim claim);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(claimed, Is.False);
+                Assert.That(claim, Is.Null);
+                Assert.That(
+                    queue.ContainsSubscription(subscription),
+                    Is.True,
+                    "A refused claim must leave the subscription publishable by its owner.");
+            });
+
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subscription,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim ownerClaim),
+                Is.True,
+                "The refused claim must not block the real owner from starting a transfer.");
+            queue.CompleteTransferClaim(ownerClaim!);
+            subscription.AbortTransfer(m_sessionMock.Object);
+        }
+
+        [Test]
+        public void RestoreTransferClaimFailsWhenTheClaimWasAlreadyRestored()
+        {
+            using Subscription subscription = CreateSubscription();
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                maxPublishRequests: 10);
+            queue.Add(subscription);
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subscription,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                Is.True);
+
+            Assert.That(queue.RestoreTransferClaim(claim!), Is.True);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    queue.RestoreTransferClaim(claim!),
+                    Is.False,
+                    "A claim may only be restored once, otherwise a later queue entry is overwritten.");
+                Assert.That(queue.ContainsSubscription(subscription), Is.True);
+            });
+            subscription.AbortTransfer(m_sessionMock.Object);
+        }
+
+        [Test]
+        public void TryRemoveForTransferRemovesOnlyTheExactQueuedEntry()
+        {
+            using Subscription subscription = CreateSubscription();
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                maxPublishRequests: 10);
+            queue.Add(subscription);
+            var impostor = new Mock<ISubscription>();
+            impostor.Setup(candidate => candidate.Id).Returns(subscription.Id);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    queue.TryRemoveForTransfer(impostor.Object),
+                    Is.False,
+                    "A different subscription instance with the same id must not remove the entry.");
+                Assert.That(queue.ContainsSubscription(subscription), Is.True);
+            });
+
+            Assert.That(queue.TryRemoveForTransfer(subscription), Is.True);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(queue.ContainsSubscription(subscription), Is.False);
+                Assert.That(
+                    queue.TryRemoveForTransfer(subscription),
+                    Is.False,
+                    "A subscription that is no longer queued cannot be removed a second time.");
+            });
+        }
+
+        [Test]
+        public async Task PublishCompletedKeepsNotificationsOfAClaimedSubscriptionAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                maxPublishRequests: 10);
+            queue.Add(subscription);
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subscription,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                Is.True);
+
+            queue.PublishCompleted(subscription, moreNotifications: true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(claim!.Entry.Publishing, Is.False);
+                Assert.That(
+                    claim.Entry.ReadyToPublish,
+                    Is.True,
+                    "A notification raised while the entry is claimed must survive an abandoned transfer.");
+            });
+
+            Assert.That(queue.RestoreTransferClaim(claim!), Is.True);
+            Task<ISubscription> publish = queue.PublishAsync(
+                "channel1",
+                DateTime.MaxValue,
+                requeue: false,
+                parkSink: null,
+                CancellationToken.None);
+
+            Assert.That(publish.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(await publish.ConfigureAwait(false), Is.SameAs(subscription));
+            subscription.AbortTransfer(m_sessionMock.Object);
+        }
+
+        [Test]
+        public void TryBeginTransferFailsWhileATransferIsAlreadyInProgress()
+        {
+            using Subscription subscription = CreateSubscription();
+
+            Assert.That(subscription.TryBeginTransfer(m_sessionMock.Object), Is.True);
+
+            Assert.That(
+                subscription.TryBeginTransfer(m_sessionMock.Object),
+                Is.False,
+                "Only one transfer may reserve a subscription at a time.");
+
+            subscription.AbortTransfer(m_sessionMock.Object);
+            Assert.That(
+                subscription.TryBeginTransfer(m_sessionMock.Object),
+                Is.True,
+                "An aborted transfer must release the reservation.");
+            subscription.AbortTransfer(m_sessionMock.Object);
+        }
+
+        [Test]
+        public void PublishTimerIsIdleWhileATransferIsInProgress()
+        {
+            using Subscription subscription = CreateSubscription();
+            ExpireOnNextPublishTimer(subscription);
+            Assert.That(subscription.TryBeginTransfer(m_sessionMock.Object), Is.True);
+
+            PublishingState state = subscription.PublishTimerExpired();
+
+            Assert.That(
+                state,
+                Is.EqualTo(PublishingState.Idle),
+                "A reserved subscription must not expire on the source session timer.");
+            subscription.AbortTransfer(m_sessionMock.Object);
+        }
+
+        [Test]
+        public void PrepareSessionTransferAsyncRejectsAnUnreservedSubscription()
+        {
+            using Subscription subscription = CreateSubscription();
+            var context = new OperationContext(
+                m_sessionMock.Object,
+                DiagnosticsMasks.None);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                {
+                    await subscription
+                        .PrepareSessionTransferAsync(
+                            context,
+                            m_sessionMock.Object,
+                            sendInitialValues: false,
+                            CancellationToken.None)
+                        .ConfigureAwait(false);
+                });
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+        }
+
+        [Test]
+        public void CompleteTransferRejectsAnUnexpectedOwner()
+        {
+            using Subscription subscription = CreateSubscription();
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => subscription.CompleteTransfer(m_sessionMock.Object));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+        }
+
+        [Test]
+        public async Task TransferSessionAsyncMovesOwnershipToTheDestinationAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            var destinationSession = new Mock<ISession>();
+            destinationSession.Setup(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
+            SetSessionIdentity(
+                destinationSession,
+                new UserNameIdentityTokenHandler("transfer-user", [1, 2, 3]));
+            var context = new OperationContext(
+                destinationSession.Object,
+                DiagnosticsMasks.None);
+
+            await subscription
+                .TransferSessionAsync(context, sendInitialValues: true, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(subscription.Session, Is.SameAs(destinationSession.Object));
+            m_nodeManagerMock.Verify(
+                nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    context,
+                    true,
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task TransferFailsWhenTheSourceQueueEntryIsAlreadyClaimedAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            Assert.That(
+                sourceQueue.TryClaimForTransfer(
+                    subscription,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                Is.True);
+            var diagnosticsContext = new OperationContext(
+                fixture.DestinationSession.Object,
+                DiagnosticsMasks.OperationAll);
+
+            TransferSubscriptionsResponse failed = await manager
+                .TransferSubscriptionsAsync(
+                    diagnosticsContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.Results, Has.Count.EqualTo(1));
+                Assert.That(
+                    failed.Results[0].StatusCode,
+                    Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+                Assert.That(failed.DiagnosticInfos, Has.Count.EqualTo(1));
+                Assert.That(
+                    subscription.Session,
+                    Is.SameAs(m_sessionMock.Object),
+                    "A refused claim must leave ownership with the source session.");
+            });
+
+            Assert.That(sourceQueue.RestoreTransferClaim(claim!), Is.True);
+            subscription.AbortTransfer(m_sessionMock.Object);
+            TransferSubscriptionsResponse retried = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.That(retried.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public async Task TransferFailsWhenTheAbandonedSubscriptionIsAlreadyReservedAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
+            await manager.SessionClosingAsync(
+                    fixture.SourceContext,
+                    fixture.SourceContext.SessionId,
+                    deleteSubscriptions: false,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(subscription.Session, Is.Null);
+            Assert.That(subscription.TryBeginTransfer(null), Is.True);
+            var diagnosticsContext = new OperationContext(
+                fixture.DestinationSession.Object,
+                DiagnosticsMasks.OperationAll);
+
+            TransferSubscriptionsResponse failed = await manager
+                .TransferSubscriptionsAsync(
+                    diagnosticsContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    manager,
+                    "m_abandonedSubscriptions");
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.Results, Has.Count.EqualTo(1));
+                Assert.That(
+                    failed.Results[0].StatusCode,
+                    Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+                Assert.That(failed.DiagnosticInfos, Has.Count.EqualTo(1));
+                Assert.That(
+                    abandonedSubscriptions.TryGetValue(
+                        subscription.Id,
+                        out ISubscription retainedSubscription),
+                    Is.True,
+                    "A refused reservation must leave the subscription abandoned, not lost.");
+                Assert.That(retainedSubscription, Is.SameAs(subscription));
+            });
+
+            subscription.AbortTransfer(null);
+            TransferSubscriptionsResponse retried = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.That(retried.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public async Task FailedOwnershipCommitRollsBackThePreparedTransferAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            int transferCalls = 0;
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() =>
+                {
+                    // Drop the reservation while the monitored items are handed over so the
+                    // ownership commit that follows preparation has to fail and roll back.
+                    if (Interlocked.Increment(ref transferCalls) == 1)
+                    {
+                        subscription.AbortTransfer(m_sessionMock.Object);
+                    }
+                })
+                .Returns(default(ValueTask));
+
+            TransferSubscriptionsResponse failed = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            IReadOnlyList<SessionPublishQueue.QueuedSubscription> restoredSource =
+                sourceQueue.CapturePublishTimerSnapshot();
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.Results, Has.Count.EqualTo(1));
+                Assert.That(ServiceResult.IsBad(failed.Results[0].StatusCode), Is.True);
+                Assert.That(
+                    subscription.Session,
+                    Is.SameAs(m_sessionMock.Object),
+                    "A failed ownership commit must leave the source session as the owner.");
+                Assert.That(restoredSource, Has.Count.EqualTo(1));
+                Assert.That(restoredSource[0].Subscription, Is.SameAs(subscription));
+            });
+
+            TransferSubscriptionsResponse retried = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(retried.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    subscription.Session,
+                    Is.SameAs(fixture.DestinationSession.Object));
+            });
+        }
+
+        [Test]
+        public async Task FailedSourceQueueRestoreAggregatesTheTransferErrorAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            var collidingSubscription = new Mock<ISubscription>();
+            collidingSubscription.Setup(candidate => candidate.Id).Returns(subscription.Id);
+            int transferCalls = 0;
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (Interlocked.Increment(ref transferCalls) != 1)
+                    {
+                        return default;
+                    }
+
+                    // Occupy the claimed slot so restoring the source queue entry has to
+                    // fail, which is the only way the rollback itself can report an error.
+                    sourceQueue.Add(collidingSubscription.Object);
+                    return new ValueTask(
+                        Task.FromException(
+                            new ServiceResultException(StatusCodes.BadUnexpectedError)));
+                });
+
+            TransferSubscriptionsResponse failed = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.Results, Has.Count.EqualTo(1));
+                Assert.That(ServiceResult.IsBad(failed.Results[0].StatusCode), Is.True);
+                Assert.That(
+                    subscription.Session,
+                    Is.SameAs(m_sessionMock.Object),
+                    "A rollback that cannot restore the queue must still keep source ownership.");
+                Assert.That(
+                    sourceQueue.ContainsSubscription(subscription),
+                    Is.False);
+            });
+
+            sourceQueue.Remove(collidingSubscription.Object, removeQueuedRequests: false);
+            sourceQueue.Add(subscription);
+            TransferSubscriptionsResponse retried = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                retried.Results[0].StatusCode,
+                Is.EqualTo(StatusCodes.Good),
+                "A reported rollback failure must not leave a stale claim behind.");
         }
 
         private async Task RegisterMonitoredItemsAsync(
