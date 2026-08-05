@@ -85,6 +85,46 @@ provider through the server-wide historian registry, or override
 [Server address-space metadata](NodeManagers.md#server-address-space-metadata) and
 [Historical Access](HistoricalAccess.md).
 
+## Migrating custom ISessionManager implementations to ShutdownAsync
+
+`ISessionManager` gained `ShutdownAsync(CancellationToken)`, and the
+synchronous `Shutdown()` is `[Obsolete]`. `SessionManager` previously
+started its session monitor loop with a discarded
+`Task.Factory.StartNew(...)`, so `Shutdown()` only *signalled* the loop
+and returned: the server could finish tearing down while the monitor was
+still closing expired sessions and raising keep-alive events against
+half-disposed state. `ShutdownAsync` cancels the loop and awaits it
+before disposing the sessions, which matches
+`ISubscriptionManager.ShutdownAsync`.
+
+**Callers** need no change beyond preferring the async overload —
+`Shutdown()` still signals and closes the sessions, it just does not wait
+for the loop:
+
+```csharp
+// before
+server.SessionManager.Shutdown();
+
+// after
+await server.SessionManager.ShutdownAsync(cancellationToken)
+    .ConfigureAwait(false);
+```
+
+**Implementers** of `ISessionManager` (for example a manager registered
+through `services.AddSessionManager<T>()`) must add `ShutdownAsync`. If
+your implementation has no background work, delegate:
+
+```csharp
+public ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
+{
+    CloseAllSessions();
+    return default;
+}
+```
+
+Deriving from `SessionManager` requires no change: both members are
+`virtual` and the base implementations already cooperate.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

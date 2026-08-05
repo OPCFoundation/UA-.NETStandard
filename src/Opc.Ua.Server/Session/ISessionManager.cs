@@ -88,8 +88,17 @@ namespace Opc.Ua.Server
         ValueTask StartupAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Stops the session manager and closes all sessions, waiting for the session
+        /// monitor loop to exit before returning.
+        /// </summary>
+        ValueTask ShutdownAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Stops the session manager and closes all sessions.
         /// </summary>
+        [Obsolete("Use ShutdownAsync so the session monitor loop is awaited before the " +
+            "manager is torn down. This overload signals the loop but returns without " +
+            "waiting for it to exit.")]
         void Shutdown();
 
         /// <summary>
