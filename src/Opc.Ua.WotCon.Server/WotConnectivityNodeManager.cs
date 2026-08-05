@@ -446,8 +446,9 @@ namespace Opc.Ua.WotCon.Server
                 child.ValueRank = ValueRanks.Scalar;
                 child.AccessLevel = kv.Value.Writable ? AccessLevels.CurrentReadOrWrite : AccessLevels.CurrentRead;
                 child.UserAccessLevel = child.AccessLevel;
-                child.Value = kv.Value.InitialValue
-                    ?? TypeInfo.GetDefaultVariantValue(kv.Value.DataType, ValueRanks.Scalar);
+                child.Value = kv.Value.HasInitialValue
+                    ? kv.Value.InitialValue
+                    : TypeInfo.GetDefaultVariantValue(kv.Value.DataType, ValueRanks.Scalar);
                 if (!string.IsNullOrEmpty(kv.Value.Description))
                 {
                     child.Description = new LocalizedText(kv.Value.Description);

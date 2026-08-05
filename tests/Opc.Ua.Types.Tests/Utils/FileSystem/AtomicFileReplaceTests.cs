@@ -81,6 +81,23 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
         }
 
         [Test]
+        public void LocalFileSystemReplaceCreatesTheDestinationDirectory()
+        {
+            var fileSystem = new LocalFileSystem();
+            string sourcePath = GetLocalPath("staged.bin");
+            string destinationDirectory = Path.Combine(m_testDirectory, "published", "nested");
+            string destinationPath = Path.Combine(destinationDirectory, "published.bin");
+            byte[] sourceContent = "content for a directory that does not exist yet"u8.ToArray();
+            File.WriteAllBytes(sourcePath, sourceContent);
+
+            fileSystem.Replace(sourcePath, destinationPath);
+
+            Assert.That(Directory.Exists(destinationDirectory), Is.True);
+            Assert.That(File.Exists(sourcePath), Is.False);
+            Assert.That(File.ReadAllBytes(destinationPath), Is.EqualTo(sourceContent));
+        }
+
+        [Test]
         public void LocalFileSystemReplaceOverwritesExistingDestinationWithCompleteSource()
         {
             var fileSystem = new LocalFileSystem();
