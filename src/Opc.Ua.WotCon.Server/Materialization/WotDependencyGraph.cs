@@ -194,6 +194,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 CollectLinks(root, references);
                 CollectExtends(root, references);
+                CollectProjects(root, references);
                 CollectTmRefs(root, references, 0, maxJsonDepth);
             }
             catch (JsonException)
@@ -463,7 +464,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     relElement.ValueKind == JsonValueKind.String
                     ? relElement.GetString() ?? string.Empty
                     : string.Empty;
-                if (rel is "tm:extends" or "type" or "tm:submodel" or "collection" or "item")
+                if (rel is "tm:extends" or "type" or "tm:submodel" or "collection" or "item" or
+                    "ua:Organizes")
                 {
                     references.Add((hrefElement.GetString() ?? string.Empty, rel));
                 }
@@ -497,6 +499,28 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                     }
                     break;
+            }
+        }
+
+        private static void CollectProjects(
+            JsonElement root, List<(string, string)> references)
+        {
+            // A projection document depends on every document its uav:projects
+            // manifest names, so the closure includes the sources and a cyclic
+            // projection graph is rejected during dependency resolution.
+            if (!root.TryGetProperty("uav:projects", out JsonElement projects) ||
+                projects.ValueKind != JsonValueKind.Array)
+            {
+                return;
+            }
+            foreach (JsonElement entry in projects.EnumerateArray())
+            {
+                if (entry.ValueKind == JsonValueKind.Object &&
+                    entry.TryGetProperty("href", out JsonElement href) &&
+                    href.ValueKind == JsonValueKind.String)
+                {
+                    references.Add((href.GetString() ?? string.Empty, "uav:projects"));
+                }
             }
         }
 
