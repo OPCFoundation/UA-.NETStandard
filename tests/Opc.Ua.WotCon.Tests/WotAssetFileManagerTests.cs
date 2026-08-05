@@ -336,6 +336,28 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
+        public void CloseAndUpdateWithWellFormedJsonThatIsNotAThingDescriptionMaterializesNothing()
+        {
+            // WOTC-Legacy requires an uploaded document to be format validated
+            // before any node is materialized, and one that fails to materialize
+            // nothing and return Bad_DecodingError. Deserializing into the Thing
+            // Description shape alone would accept this: it is well-formed JSON
+            // and every Thing Description member is simply absent.
+            using var harness = new Harness();
+            uint handle = 0;
+            harness.Open(ModeWriteErase, ref handle);
+            harness.Write(
+                handle,
+                ByteString.From(Encoding.UTF8.GetBytes("[1, 2, 3]")));
+            ServiceResult result = harness.CloseAndUpdate(handle);
+
+            Assert.That(result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+            Assert.That(harness.MaterialiseCallCount, Is.Zero);
+            Assert.That(harness.File.Size!.Value, Is.Zero);
+        }
+
+        [Test]
         public void CloseAndUpdateOnReadHandleReturnsBadInvalidState()
         {
             using var harness = new Harness();

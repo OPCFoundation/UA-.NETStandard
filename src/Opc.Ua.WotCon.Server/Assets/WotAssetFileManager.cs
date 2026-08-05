@@ -34,6 +34,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 
 namespace Opc.Ua.WotCon.Server.Assets
@@ -351,6 +352,24 @@ namespace Opc.Ua.WotCon.Server.Assets
             try
             {
                 byte[] content = ((MemoryStream)handle.Stream).ToArray();
+
+                // WOTC-Legacy requires an uploaded document to be format
+                // validated before any node is materialized from it, and a
+                // document that fails to materialize nothing. Parsing it as a
+                // WoT document is that check: deserializing into the Thing
+                // Description shape alone accepts JSON that is well formed but
+                // is not a WoT document at all.
+                try
+                {
+                    using WotDocument probe = WotDocument.Parse(content);
+                }
+                catch (Exception ex) when (ex is FormatException or JsonException)
+                {
+                    m_logger.ThingDescriptionFailedFormatValidation(ex);
+                    return ServiceResult.Create(ex, StatusCodes.BadDecodingError,
+                        "The uploaded document is not a valid Thing Description.");
+                }
+
                 ThingDescription? td;
                 try
                 {
@@ -487,5 +506,9 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 0, Level = LogLevel.Warning,
             Message = "Thing description JSON could not be parsed")]
         public static partial void ThingDescriptionJsonCouldNotBeParsed(this ILogger logger, JsonException ex);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 1, Level = LogLevel.Warning,
+            Message = "Uploaded document failed format validation and materialized nothing")]
+        public static partial void ThingDescriptionFailedFormatValidation(this ILogger logger, Exception ex);
     }
 }

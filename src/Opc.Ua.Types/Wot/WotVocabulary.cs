@@ -47,7 +47,6 @@ namespace Opc.Ua.Wot
         public const string NodeSetContentType = "application/opcua-nodeset+xml";
         public const string Base64Encoding = "base64";
         public const string EnvelopeType = "uav:nodeSet";
-        public const string EnvelopePreservationType = "uav:NodeSet2Preservation";
         public const string ProfileVersion = "1.0";
         public const string ThingModelType = "tm:ThingModel";
         public const string WotContext = "https://www.w3.org/2022/wot/td/v1.1";

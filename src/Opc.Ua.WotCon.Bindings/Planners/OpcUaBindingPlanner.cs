@@ -131,6 +131,14 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             ImmutableDictionary<string, string> metadata = ImmutableDictionary<string, string>.Empty
                 .Add("nodeId", nodeId!);
             metadata = AddIfPresent(form, "uav:componentOf", "componentOf", metadata);
+
+            // uav:eventFields is a non-standard extension of this implementation
+            // rather than release 1.1 vocabulary: Section 8 carries an event's
+            // fields in the event data schema and its delivery configuration in
+            // uav:eventConfiguration, and defines no eventFields term. It is
+            // still read so that a form already authored against this
+            // implementation keeps working, but a portable document should not
+            // rely on it.
             if (form.Kind == WotAffordanceKind.Event &&
                 form.TryGetStringArray("uav:eventFields", out ImmutableArray<string> eventFields))
             {
