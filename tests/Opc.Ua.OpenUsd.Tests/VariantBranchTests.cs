@@ -181,7 +181,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 branchIds.Add(branch.NodeId);
             }
 
-            // Regression guard: AddxVariant_ leaves the type's placeholder NodeId, so without the
+            // Regression guard: AddVariant_Placeholder leaves the type's placeholder NodeId, so without the
             // explicit per-instance NodeId assignment both branches would collide on one id.
             Assert.That(branchIds[0], Is.Not.EqualTo(branchIds[1]));
         }

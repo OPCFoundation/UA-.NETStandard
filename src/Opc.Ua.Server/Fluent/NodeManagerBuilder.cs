@@ -84,6 +84,13 @@ namespace Opc.Ua.Server.Fluent
         /// <c>TypeDefinitionId</c> matches the supplied <see cref="NodeId"/>.
         /// Typically a generated walk over the manager's predefined nodes.
         /// </param>
+        /// <param name="dataTypeIdResolver">
+        /// Delegate that returns every <see cref="BaseVariableState"/> whose
+        /// <c>DataType</c> matches the supplied <see cref="NodeId"/>.
+        /// Typically a generated walk over the manager's predefined nodes.
+        /// When <c>null</c>, DataType lookups always resolve to no
+        /// candidates (as if no variable declared that DataType).
+        /// </param>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/>, <paramref name="nodeManager"/>,
         /// <paramref name="rootResolver"/>, <paramref name="nodeIdResolver"/>,
@@ -95,7 +102,8 @@ namespace Opc.Ua.Server.Fluent
             ushort defaultNamespaceIndex,
             Func<QualifiedName, NodeState> rootResolver,
             Func<NodeId, NodeState> nodeIdResolver,
-            Func<NodeId, IReadOnlyList<NodeState>> typeIdResolver)
+            Func<NodeId, IReadOnlyList<NodeState>> typeIdResolver,
+            Func<NodeId, ArrayOf<NodeState>>? dataTypeIdResolver = null)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
@@ -103,6 +111,7 @@ namespace Opc.Ua.Server.Fluent
             m_rootResolver = rootResolver ?? throw new ArgumentNullException(nameof(rootResolver));
             m_nodeIdResolver = nodeIdResolver ?? throw new ArgumentNullException(nameof(nodeIdResolver));
             m_typeIdResolver = typeIdResolver ?? throw new ArgumentNullException(nameof(typeIdResolver));
+            m_dataTypeIdResolver = dataTypeIdResolver ?? (static _ => []);
         }
 
         /// <inheritdoc/>
@@ -281,6 +290,27 @@ namespace Opc.Ua.Server.Fluent
                 CoreUtils.Format(
                     "{0} (browse name '{1}')",
                     FormatNodeId(typeDefinitionId),
+                    browseName));
+        }
+
+        /// <inheritdoc/>
+        public IVariableBuilder<TValue> VariableFromDataTypeId<TValue>(NodeId dataTypeId)
+        {
+            ThrowIfSealed();
+            NodeState node = ResolveByDataType(dataTypeId, (QualifiedName)null!);
+            return ToVariableBuilder<TValue>(node, FormatNodeId(dataTypeId));
+        }
+
+        /// <inheritdoc/>
+        public IVariableBuilder<TValue> VariableFromDataTypeId<TValue>(NodeId dataTypeId, QualifiedName browseName)
+        {
+            ThrowIfSealed();
+            NodeState node = ResolveByDataType(dataTypeId, browseName);
+            return ToVariableBuilder<TValue>(
+                node,
+                CoreUtils.Format(
+                    "{0} (browse name '{1}')",
+                    FormatNodeId(dataTypeId),
                     browseName));
         }
 
@@ -590,6 +620,68 @@ namespace Opc.Ua.Server.Fluent
             return match;
         }
 
+        private NodeState ResolveByDataType(NodeId dataTypeId, QualifiedName browseName)
+        {
+            if (dataTypeId.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "DataTypeId is null or empty.");
+            }
+
+            ArrayOf<NodeState> candidates = m_dataTypeIdResolver(dataTypeId);
+
+            if (candidates.Count == 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdUnknown,
+                    "No predefined variable has DataType '{0}'.",
+                    dataTypeId);
+            }
+
+            if (browseName.IsNull)
+            {
+                if (candidates.Count > 1)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadBrowseNameDuplicated,
+                        "DataType '{0}' is ambiguous: {1} matching variables found. " +
+                        "Pass a QualifiedName disambiguator to VariableFromDataTypeId.",
+                        dataTypeId,
+                        candidates.Count);
+                }
+                return candidates[0];
+            }
+
+            NodeState? match = null;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (candidates[i].BrowseName == browseName)
+                {
+                    if (match != null)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadBrowseNameDuplicated,
+                            "DataType '{0}' has multiple variables with browse name '{1}'.",
+                            dataTypeId,
+                            browseName);
+                    }
+                    match = candidates[i];
+                }
+            }
+
+            if (match == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdUnknown,
+                    "DataType '{0}' has no variable with browse name '{1}'.",
+                    dataTypeId,
+                    browseName);
+            }
+
+            return match;
+        }
+
         private void ThrowIfSealed()
         {
             if (m_sealed)
@@ -621,6 +713,7 @@ namespace Opc.Ua.Server.Fluent
         private readonly Func<QualifiedName, NodeState> m_rootResolver;
         private readonly Func<NodeId, NodeState> m_nodeIdResolver;
         private readonly Func<NodeId, IReadOnlyList<NodeState>> m_typeIdResolver;
+        private readonly Func<NodeId, ArrayOf<NodeState>> m_dataTypeIdResolver;
         private bool m_sealed;
         private readonly Dictionary<NodeId, HistoryReadHandler> m_historyRead = [];
         private readonly Dictionary<NodeId, HistoryUpdateHandler> m_historyUpdate = [];

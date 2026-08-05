@@ -5747,6 +5747,7 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItems">The set of monitoring items to update.</param>
         /// <param name="processedItems">The list of bool with items that were already processed.</param>
         /// <param name="errors">Any errors.</param>
+        [Obsolete("Use TransferMonitoredItems with MonitoredItemTransferOptions.")]
         public virtual void TransferMonitoredItems(
             OperationContext context,
             bool sendInitialValues,
@@ -5754,8 +5755,35 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
+            TransferMonitoredItems(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                processedItems,
+                errors,
+                new MonitoredItemTransferOptions());
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
+        /// <param name="monitoredItems">The set of monitoring items to update.</param>
+        /// <param name="processedItems">The list of bool with items that were already processed.</param>
+        /// <param name="errors">Any errors.</param>
+        /// <param name="transferOptions">Options that describe the transfer execution.</param>
+        public virtual void TransferMonitoredItems(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions)
+        {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             var transferredItems = new List<IMonitoredItem>();
+            bool deferInitialValues = transferOptions.DeferInitialValues;
             lock (Lock)
             {
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -5776,7 +5804,8 @@ namespace Opc.Ua.Server
                     // owned by this node manager.
                     processedItems[ii] = true;
                     transferredItems.Add(monitoredItems[ii]);
-                    if (sendInitialValues)
+                    if (sendInitialValues &&
+                        !deferInitialValues)
                     {
                         monitoredItems[ii].SetupResendDataTrigger();
                     }

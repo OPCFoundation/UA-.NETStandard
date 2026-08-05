@@ -993,6 +993,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 var reconnecting = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
+                var ready = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
                 ch.StateChanged += (_, change) =>
                 {
                     if (change.NewState == ChannelState.Faulted)
@@ -1002,6 +1004,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     else if (change.NewState == ChannelState.TransportReconnecting)
                     {
                         reconnecting.TrySetResult(true);
+                    }
+                    else if (change.NewState == ChannelState.Ready)
+                    {
+                        ready.TrySetResult(true);
                     }
                 };
 
@@ -1028,6 +1034,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 timeProvider.Advance(TimeSpan.FromMilliseconds(100));
 
                 await reconnectTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await ready.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                 object freshEntry = GetLeaseEntry(ch);
                 ManagedChannelDiagnostic diagnostic = sut.GetChannelDiagnostics()
