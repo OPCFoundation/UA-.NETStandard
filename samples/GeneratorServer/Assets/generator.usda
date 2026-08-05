@@ -252,6 +252,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (4.000, 0.040, 0.240)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
             def Cube "FlangeTop"
             {
@@ -260,6 +261,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (4.000, 0.150, 0.035)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
             def Cube "FlangeBottom"
             {
@@ -268,6 +270,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (4.000, 0.150, 0.035)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
         }
         def Xform "RailRight"
@@ -282,6 +285,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (4.000, 0.040, 0.240)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
             def Cube "FlangeTop"
             {
@@ -290,6 +294,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (4.000, 0.150, 0.035)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
             def Cube "FlangeBottom"
             {
@@ -298,6 +303,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (4.000, 0.150, 0.035)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
         }
         def Cube "CrossMember1"
@@ -307,6 +313,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.110, 1.320, 0.180)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Cube "CrossMember2"
         {
@@ -315,6 +322,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.110, 1.320, 0.180)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Cube "CrossMember3"
         {
@@ -323,6 +331,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.110, 1.320, 0.180)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Cube "CrossMember4"
         {
@@ -331,6 +340,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.110, 1.320, 0.180)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Cube "CrossMember5"
         {
@@ -339,6 +349,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.110, 1.320, 0.180)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Cube "LiftLug1"
         {
@@ -347,6 +358,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.120, 0.030, 0.130)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/LabelYellow>
+            color3f[] primvars:displayColor = [(0.780, 0.610, 0.040)]
         }
         def Cube "LiftLug2"
         {
@@ -355,6 +367,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.120, 0.030, 0.130)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/LabelYellow>
+            color3f[] primvars:displayColor = [(0.780, 0.610, 0.040)]
         }
         def Cube "LiftLug3"
         {
@@ -363,6 +376,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.120, 0.030, 0.130)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/LabelYellow>
+            color3f[] primvars:displayColor = [(0.780, 0.610, 0.040)]
         }
         def Cube "LiftLug4"
         {
@@ -371,6 +385,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.120, 0.030, 0.130)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/LabelYellow>
+            color3f[] primvars:displayColor = [(0.780, 0.610, 0.040)]
         }
     }
     def Xform "FuelTank"
@@ -385,6 +400,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (3.700, 1.240, 0.430)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Cube "Strap1"
         {
@@ -393,6 +409,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.070, 1.260, 0.450)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreenDark>
+            color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
         }
         def Cube "Strap2"
         {
@@ -401,6 +418,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.070, 1.260, 0.450)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreenDark>
+            color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
         }
         def Cylinder "FillerNeck"
         {
@@ -410,6 +428,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (-1.650, -0.480, 0.250)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/SteelBright>
+            color3f[] primvars:displayColor = [(0.560, 0.575, 0.590)]
         }
         def Cube "Surface"
         {
@@ -431,6 +450,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (1.720, 0.760, 0.240)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreenDark>
+                color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
             }
             def Cube "Crankcase"
             {
@@ -439,6 +459,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (1.780, 0.900, 0.400)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
             def Cube "GearCase"
             {
@@ -447,6 +468,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.180, 0.820, 0.560)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
             def Cube "Flywheel"
             {
@@ -455,6 +477,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.240, 0.780, 0.780)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
             def Xform "BankLeft"
             {
@@ -469,6 +492,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (1.560, 0.300, 0.360)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover1"
                 {
@@ -478,6 +502,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover2"
                 {
@@ -487,6 +512,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover3"
                 {
@@ -496,6 +522,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover4"
                 {
@@ -505,6 +532,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover5"
                 {
@@ -514,6 +542,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover6"
                 {
@@ -523,6 +552,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover7"
                 {
@@ -532,6 +562,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover8"
                 {
@@ -541,6 +572,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
             }
             def Xform "BankRight"
@@ -556,6 +588,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (1.560, 0.300, 0.360)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover1"
                 {
@@ -565,6 +598,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover2"
                 {
@@ -574,6 +608,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover3"
                 {
@@ -583,6 +618,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover4"
                 {
@@ -592,6 +628,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover5"
                 {
@@ -601,6 +638,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover6"
                 {
@@ -610,6 +648,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover7"
                 {
@@ -619,6 +658,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cube "RockerCover8"
                 {
@@ -628,6 +668,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.150, 0.230, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
             }
             def Xform "ManifoldLeft"
@@ -653,6 +694,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.620, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser2"
                 {
@@ -662,6 +704,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.440, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser3"
                 {
@@ -671,6 +714,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.260, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser4"
                 {
@@ -680,6 +724,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.080, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser5"
                 {
@@ -689,6 +734,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.100, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser6"
                 {
@@ -698,6 +744,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.280, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser7"
                 {
@@ -707,6 +754,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.460, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser8"
                 {
@@ -716,6 +764,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.640, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Elbow"
                 {
@@ -725,6 +774,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.820, 0.000, 0.180)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "ElbowBend"
                 {
@@ -734,6 +784,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.930, 0.000, 0.320)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
             }
             def Xform "ManifoldRight"
@@ -759,6 +810,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.620, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser2"
                 {
@@ -768,6 +820,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.440, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser3"
                 {
@@ -777,6 +830,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.260, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser4"
                 {
@@ -786,6 +840,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.080, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser5"
                 {
@@ -795,6 +850,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.100, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser6"
                 {
@@ -804,6 +860,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.280, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser7"
                 {
@@ -813,6 +870,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.460, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Riser8"
                 {
@@ -822,6 +880,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.640, 0.000, 0.090)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "Elbow"
                 {
@@ -831,6 +890,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.820, 0.000, 0.180)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
                 def Cylinder "ElbowBend"
                 {
@@ -840,6 +900,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.930, 0.000, 0.320)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/ManifoldRust>
+                    color3f[] primvars:displayColor = [(0.235, 0.088, 0.042)]
                 }
             }
             def Xform "TurboLeft"
@@ -856,6 +917,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.090, 0.000, 0.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/PanelBlack>
+                    color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
                 }
                 def Cylinder "Cartridge"
                 {
@@ -865,6 +927,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.020, 0.000, 0.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/SteelBright>
+                    color3f[] primvars:displayColor = [(0.560, 0.575, 0.590)]
                 }
                 def Cylinder "CompressorHousing"
                 {
@@ -874,6 +937,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.150, 0.000, 0.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/SteelBright>
+                    color3f[] primvars:displayColor = [(0.560, 0.575, 0.590)]
                 }
                 def Cylinder "Inlet"
                 {
@@ -883,6 +947,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.150, 0.130, 0.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/SteelBright>
+                    color3f[] primvars:displayColor = [(0.560, 0.575, 0.590)]
                 }
             }
             def Xform "TurboRight"
@@ -899,6 +964,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.090, 0.000, 0.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/PanelBlack>
+                    color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
                 }
                 def Cylinder "Cartridge"
                 {
@@ -908,6 +974,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.020, 0.000, 0.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/SteelBright>
+                    color3f[] primvars:displayColor = [(0.560, 0.575, 0.590)]
                 }
                 def Cylinder "CompressorHousing"
                 {
@@ -917,6 +984,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.150, 0.000, 0.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/SteelBright>
+                    color3f[] primvars:displayColor = [(0.560, 0.575, 0.590)]
                 }
                 def Cylinder "Inlet"
                 {
@@ -926,6 +994,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.150, -0.130, 0.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/SteelBright>
+                    color3f[] primvars:displayColor = [(0.560, 0.575, 0.590)]
                 }
             }
             def Xform "IntakeLeft"
@@ -941,6 +1010,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.700, 0.560, 1.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cylinder "Crossover"
                 {
@@ -950,6 +1020,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.220, 0.560, 1.170)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cylinder "Drop"
                 {
@@ -959,6 +1030,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.250, 0.560, 1.020)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
             }
             def Xform "IntakeRight"
@@ -974,6 +1046,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.700, -0.560, 1.000)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cylinder "Crossover"
                 {
@@ -983,6 +1056,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (0.220, -0.560, 1.170)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
                 def Cylinder "Drop"
                 {
@@ -992,6 +1066,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:translate = (-0.250, -0.560, 1.020)
                     uniform token[] xformOpOrder = ["xformOp:translate"]
                     rel material:binding = </Generator/Looks/GenGreen>
+                    color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
                 }
             }
             def Cube "Aftercooler"
@@ -1001,6 +1076,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.900, 0.420, 0.240)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
             def Cube "ValleyCover"
             {
@@ -1009,6 +1085,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (1.300, 0.300, 0.100)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
             def Cylinder "FuelFilter1"
             {
@@ -1018,6 +1095,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (-0.250, -0.560, -0.120)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/FilterCream>
+                color3f[] primvars:displayColor = [(0.760, 0.735, 0.660)]
             }
             def Cylinder "FuelFilter2"
             {
@@ -1027,6 +1105,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (-0.105, -0.560, -0.120)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/FilterCream>
+                color3f[] primvars:displayColor = [(0.760, 0.735, 0.660)]
             }
             def Cylinder "FuelFilter3"
             {
@@ -1036,6 +1115,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.040, -0.560, -0.120)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/FilterCream>
+                color3f[] primvars:displayColor = [(0.760, 0.735, 0.660)]
             }
             def Cylinder "FuelFilter4"
             {
@@ -1045,6 +1125,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.185, -0.560, -0.120)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/FilterCream>
+                color3f[] primvars:displayColor = [(0.760, 0.735, 0.660)]
             }
             def Cylinder "FuelFilter5"
             {
@@ -1054,6 +1135,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.330, -0.560, -0.120)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/FilterCream>
+                color3f[] primvars:displayColor = [(0.760, 0.735, 0.660)]
             }
             def Cylinder "OilFilter1"
             {
@@ -1063,6 +1145,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.480, -0.540, -0.100)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/FilterCream>
+                color3f[] primvars:displayColor = [(0.760, 0.735, 0.660)]
             }
             def Cylinder "OilFilter2"
             {
@@ -1072,6 +1155,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.670, -0.540, -0.100)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/FilterCream>
+                color3f[] primvars:displayColor = [(0.760, 0.735, 0.660)]
             }
             def Cylinder "StarterMotor"
             {
@@ -1081,6 +1165,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.720, 0.470, -0.240)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/PanelBlack>
+                color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
             }
             def Cylinder "ChargeAlternator"
             {
@@ -1090,6 +1175,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (-0.700, -0.470, 0.140)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/SteelBright>
+                color3f[] primvars:displayColor = [(0.560, 0.575, 0.590)]
             }
             def Cylinder "WaterPump"
             {
@@ -1099,6 +1185,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (-1.020, -0.300, -0.140)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/GenGreen>
+                color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
             }
             def Cylinder "HoseTop"
             {
@@ -1108,6 +1195,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (-1.320, 0.240, 0.240)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/HoseBlack>
+                color3f[] primvars:displayColor = [(0.028, 0.030, 0.032)]
             }
             def Cylinder "HoseBottom"
             {
@@ -1117,6 +1205,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (-1.320, -0.240, -0.220)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/HoseBlack>
+                color3f[] primvars:displayColor = [(0.028, 0.030, 0.032)]
             }
             def Sphere "OverheatHalo"
             {
@@ -1124,6 +1213,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.000, 0.000, 1.380)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/HaloOrange>
+                color3f[] primvars:displayColor = [(1.000, 0.360, 0.020)]
                 token visibility = "invisible"
             }
             def Sphere "OilHalo"
@@ -1132,6 +1222,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (-0.100, -0.820, -0.280)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/HaloOrange>
+                color3f[] primvars:displayColor = [(1.000, 0.360, 0.020)]
                 token visibility = "invisible"
             }
     }
@@ -1148,6 +1239,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (0.000, 0.000, 0.000)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Xform "VentBand"
         {
@@ -1162,6 +1254,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.030, 0.120, 0.500)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreenDark>
+                color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
             }
             def Cube "Louvre2"
             {
@@ -1171,6 +1264,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.030, 0.120, 0.500)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreenDark>
+                color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
             }
             def Cube "Louvre3"
             {
@@ -1180,6 +1274,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.030, 0.120, 0.500)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreenDark>
+                color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
             }
             def Cube "Louvre4"
             {
@@ -1189,6 +1284,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.030, 0.120, 0.500)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreenDark>
+                color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
             }
             def Cube "Louvre5"
             {
@@ -1198,6 +1294,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.030, 0.120, 0.500)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreenDark>
+                color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
             }
             def Cube "Louvre6"
             {
@@ -1207,6 +1304,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.030, 0.120, 0.500)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreenDark>
+                color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
             }
             def Cube "Louvre7"
             {
@@ -1216,6 +1314,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.030, 0.120, 0.500)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreenDark>
+                color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
             }
             def Cube "Louvre8"
             {
@@ -1225,6 +1324,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.030, 0.120, 0.500)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreenDark>
+                color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
             }
             def Cube "Louvre9"
             {
@@ -1234,6 +1334,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.030, 0.120, 0.500)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/GenGreenDark>
+                color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
             }
         }
         def Cylinder "DriveEndBell"
@@ -1244,6 +1345,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (-0.610, 0.000, 0.000)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/GenGreenDark>
+            color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
         }
         def Cylinder "NonDriveEndBell"
         {
@@ -1253,6 +1355,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (0.620, 0.000, 0.000)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/GenGreenDark>
+            color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
         }
         def Cylinder "HeatBand"
         {
@@ -1271,6 +1374,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.480, 0.420, 0.300)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Cube "TerminalLid"
         {
@@ -1279,6 +1383,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.500, 0.440, 0.030)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreenDark>
+            color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
         }
         def Cube "FootLeft"
         {
@@ -1287,6 +1392,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.700, 0.120, 0.220)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Cube "FootRight"
         {
@@ -1295,6 +1401,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.700, 0.120, 0.220)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
     }
     def Cylinder "CouplingGuard"
@@ -1305,6 +1412,7 @@ def Xform "Generator" (kind = "component")
         double3 xformOp:translate = (0.660, 0.000, 0.830)
         uniform token[] xformOpOrder = ["xformOp:translate"]
         rel material:binding = </Generator/Looks/GenGreenDark>
+        color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
     }
     def Xform "Radiator"
     {
@@ -1332,6 +1440,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin2"
             {
@@ -1340,6 +1449,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin3"
             {
@@ -1348,6 +1458,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin4"
             {
@@ -1356,6 +1467,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin5"
             {
@@ -1364,6 +1476,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin6"
             {
@@ -1372,6 +1485,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin7"
             {
@@ -1380,6 +1494,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin8"
             {
@@ -1388,6 +1503,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin9"
             {
@@ -1396,6 +1512,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin10"
             {
@@ -1404,6 +1521,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin11"
             {
@@ -1412,6 +1530,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin12"
             {
@@ -1420,6 +1539,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin13"
             {
@@ -1428,6 +1548,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin14"
             {
@@ -1436,6 +1557,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
             def Cube "Fin15"
             {
@@ -1444,6 +1566,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.012, 1.180, 1.180)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/RadiatorDark>
+                color3f[] primvars:displayColor = [(0.030, 0.035, 0.040)]
             }
         }
         def Cube "TopTank"
@@ -1453,6 +1576,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.280, 1.360, 0.170)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/PanelBlack>
+            color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
         }
         def Cube "BottomTank"
         {
@@ -1461,6 +1585,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.280, 1.360, 0.170)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/PanelBlack>
+            color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
         }
         def Cube "GuardLeft"
         {
@@ -1469,6 +1594,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.300, 0.070, 1.560)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/PanelBlack>
+            color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
         }
         def Cube "GuardRight"
         {
@@ -1477,6 +1603,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.300, 0.070, 1.560)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/PanelBlack>
+            color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
         }
         def Cube "FillerCap"
         {
@@ -1485,6 +1612,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.140, 0.140, 0.090)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/SteelBright>
+            color3f[] primvars:displayColor = [(0.560, 0.575, 0.590)]
         }
         def Cylinder "FanShroud"
         {
@@ -1494,6 +1622,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (0.220, 0.000, 0.000)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/PanelBlack>
+            color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
         }
         def Xform "Fan"
         {
@@ -1510,6 +1639,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.000, 0.000, 0.000)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/PanelBlack>
+                color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
             }
             def Cube "Blade_1"
             {
@@ -1519,6 +1649,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
             def Cube "Blade_2"
             {
@@ -1528,6 +1659,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
             def Cube "Blade_3"
             {
@@ -1537,6 +1669,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
             def Cube "Blade_4"
             {
@@ -1546,6 +1679,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
             def Cube "Blade_5"
             {
@@ -1555,6 +1689,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
             def Cube "Blade_6"
             {
@@ -1564,6 +1699,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
             def Cube "Blade_7"
             {
@@ -1573,6 +1709,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
             def Cube "Blade_8"
             {
@@ -1582,6 +1719,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
             def Cube "Blade_9"
             {
@@ -1591,6 +1729,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.070, 0.440, 0.025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
         }
     }
@@ -1607,6 +1746,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (0.000, 0.000, 0.000)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/ExhaustSteel>
+            color3f[] primvars:displayColor = [(0.620, 0.600, 0.560)]
         }
         def Cylinder "EndCapFront"
         {
@@ -1616,6 +1756,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (-0.600, 0.000, 0.000)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/ExhaustSteel>
+            color3f[] primvars:displayColor = [(0.620, 0.600, 0.560)]
         }
         def Cylinder "EndCapRear"
         {
@@ -1625,6 +1766,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (0.600, 0.000, 0.000)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/ExhaustSteel>
+            color3f[] primvars:displayColor = [(0.620, 0.600, 0.560)]
         }
         def Cylinder "Bellows"
         {
@@ -1634,6 +1776,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (0.560, 0.000, -0.280)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/SteelBright>
+            color3f[] primvars:displayColor = [(0.560, 0.575, 0.590)]
         }
         def Cylinder "Stack"
         {
@@ -1653,6 +1796,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (-0.450, 0.000, 1.250)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/ExhaustSteel>
+            color3f[] primvars:displayColor = [(0.620, 0.600, 0.560)]
         }
     }
     def Xform "ControlPanel"
@@ -1667,6 +1811,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.640, 0.260, 0.760)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreen>
+            color3f[] primvars:displayColor = [(0.016, 0.210, 0.166)]
         }
         def Cube "Fascia"
         {
@@ -1675,6 +1820,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.560, 0.030, 0.640)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/PanelBlack>
+            color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
         }
         def Cube "Display"
         {
@@ -1683,6 +1829,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.230, 0.016, 0.180)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/ScreenDark>
+            color3f[] primvars:displayColor = [(0.020, 0.045, 0.038)]
         }
         def Cube "MimicPlate"
         {
@@ -1691,6 +1838,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.150, 0.014, 0.300)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/PanelFascia>
+            color3f[] primvars:displayColor = [(0.190, 0.200, 0.208)]
         }
         def Xform "Keypad"
         {
@@ -1704,6 +1852,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.036, 0.014, 0.026)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/PanelFascia>
+                color3f[] primvars:displayColor = [(0.190, 0.200, 0.208)]
             }
             def Cube "Key2"
             {
@@ -1712,6 +1861,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.036, 0.014, 0.026)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/PanelFascia>
+                color3f[] primvars:displayColor = [(0.190, 0.200, 0.208)]
             }
             def Cube "Key3"
             {
@@ -1720,6 +1870,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.036, 0.014, 0.026)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/PanelFascia>
+                color3f[] primvars:displayColor = [(0.190, 0.200, 0.208)]
             }
             def Cube "Key4"
             {
@@ -1728,6 +1879,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.036, 0.014, 0.026)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/PanelFascia>
+                color3f[] primvars:displayColor = [(0.190, 0.200, 0.208)]
             }
             def Cube "Key5"
             {
@@ -1736,6 +1888,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.036, 0.014, 0.026)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/PanelFascia>
+                color3f[] primvars:displayColor = [(0.190, 0.200, 0.208)]
             }
             def Cube "Key6"
             {
@@ -1744,6 +1897,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.036, 0.014, 0.026)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/PanelFascia>
+                color3f[] primvars:displayColor = [(0.190, 0.200, 0.208)]
             }
             def Cube "Key7"
             {
@@ -1752,6 +1906,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.036, 0.014, 0.026)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/PanelFascia>
+                color3f[] primvars:displayColor = [(0.190, 0.200, 0.208)]
             }
             def Cube "Key8"
             {
@@ -1760,6 +1915,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:scale = (0.036, 0.014, 0.026)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                 rel material:binding = </Generator/Looks/PanelFascia>
+                color3f[] primvars:displayColor = [(0.190, 0.200, 0.208)]
             }
         }
         def Cylinder "EStopBase"
@@ -1770,6 +1926,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (0.190, -0.150, -0.230)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/LabelYellow>
+            color3f[] primvars:displayColor = [(0.780, 0.610, 0.040)]
         }
         def Cylinder "EStopButton"
         {
@@ -1779,6 +1936,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (0.190, -0.175, -0.230)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/AlarmRed>
+            color3f[] primvars:displayColor = [(1.000, 0.030, 0.020)]
         }
         def Cube "LabelStrip"
         {
@@ -1787,6 +1945,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.520, 0.012, 0.070)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/LabelYellow>
+            color3f[] primvars:displayColor = [(0.780, 0.610, 0.040)]
         }
         def Xform "LoadGauge"
         {
@@ -1801,6 +1960,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.000, 0.000, 0.000)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
             def Cylinder "Bezel"
             {
@@ -1810,6 +1970,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.000, 0.008, 0.000)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/PanelBlack>
+                color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
             }
             def Xform "Needle"
             {
@@ -1825,6 +1986,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.012, 0.075, 0.006)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/AlarmRed>
+                    color3f[] primvars:displayColor = [(1.000, 0.030, 0.020)]
                 }
             }
         }
@@ -1841,6 +2003,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.000, 0.000, 0.000)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/MetalGrey>
+                color3f[] primvars:displayColor = [(0.450, 0.470, 0.480)]
             }
             def Cylinder "Bezel"
             {
@@ -1850,6 +2013,7 @@ def Xform "Generator" (kind = "component")
                 double3 xformOp:translate = (0.000, 0.008, 0.000)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
                 rel material:binding = </Generator/Looks/PanelBlack>
+                color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
             }
             def Xform "Needle"
             {
@@ -1865,6 +2029,7 @@ def Xform "Generator" (kind = "component")
                     double3 xformOp:scale = (0.012, 0.075, 0.006)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
                     rel material:binding = </Generator/Looks/AlarmRed>
+                    color3f[] primvars:displayColor = [(1.000, 0.030, 0.020)]
                 }
             }
         }
@@ -1874,6 +2039,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:translate = (-0.190, -0.160, -0.230)
             uniform token[] xformOpOrder = ["xformOp:translate"]
             rel material:binding = </Generator/Looks/LampGreen>
+            color3f[] primvars:displayColor = [(0.050, 0.950, 0.250)]
             token visibility = "invisible"
         }
     }
@@ -1889,6 +2055,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.520, 0.340, 0.040)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/GenGreenDark>
+            color3f[] primvars:displayColor = [(0.010, 0.140, 0.112)]
         }
         def Cube "BatteryA"
         {
@@ -1897,6 +2064,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.230, 0.300, 0.240)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/PanelBlack>
+            color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
         }
         def Cube "BatteryB"
         {
@@ -1905,6 +2073,7 @@ def Xform "Generator" (kind = "component")
             double3 xformOp:scale = (0.230, 0.300, 0.240)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
             rel material:binding = </Generator/Looks/PanelBlack>
+            color3f[] primvars:displayColor = [(0.005, 0.006, 0.008)]
         }
     }
     def Mesh "AlarmRing"

@@ -68,12 +68,12 @@ def prim(
     return "\n".join(lines)
 
 
-def material(
+def _material_prim(
     name: str,
     color: Sequence[float],
-    roughness: float = 0.55,
-    metallic: float = 0.0,
-    level: int = 1,
+    roughness: float,
+    metallic: float,
+    level: int,
 ) -> str:
     shader = prim(
         "Shader",
@@ -96,8 +96,41 @@ def material(
     )
 
 
+# Every material's diffuse colour, keyed by name. Bound geometry also carries
+# this as primvars:displayColor: a UsdPreviewSurface network is only honoured by
+# renderers that evaluate material networks, and those that do not fall back to
+# displayColor - without it the whole machine renders default grey and none of
+# the colour work here is visible at all.
+MATERIAL_COLORS: dict[str, Sequence[float]] = {}
+
+
+def material(
+    name: str,
+    color: Sequence[float],
+    roughness: float = 0.55,
+    metallic: float = 0.0,
+    level: int = 1,
+) -> str:
+    MATERIAL_COLORS[name] = color
+    return _material_prim(name, color, roughness, metallic, level)
+
+
 def bind(material_name: str) -> str:
     return f"rel material:binding = </Generator/Looks/{material_name}>"
+
+
+def display_color_attr(
+    material_name: str,
+    explicit: Sequence[float] | None,
+) -> list[str]:
+    """Returns the displayColor attribute for a bound prim, if any is known."""
+    color = explicit if explicit is not None else MATERIAL_COLORS.get(material_name)
+    if color is None:
+        return []
+    return [
+        f"color3f[] primvars:displayColor = "
+        f"[({f(color[0])}, {f(color[1])}, {f(color[2])})]"
+    ]
 
 
 def xform_attrs(
@@ -150,12 +183,11 @@ def cube(
     attributes = ["double size = 1"]
     attributes.extend(xform_attrs(translate=translate, rotate_xyz=rotate_xyz, scale=size))
     attributes.append(bind(material_name))
-    if display_color is not None:
-        # A prim a live binding recolours must declare primvars:displayColor
-        # itself. Writing the attribute from the override layer alone puts the
-        # colour in the file but leaves the renderer with nothing to update, so
-        # the value never animates in a viewport.
-        attributes.append(f"color3f[] primvars:displayColor = [({f(display_color[0])}, {f(display_color[1])}, {f(display_color[2])})]")
+    # A prim a live binding recolours must declare primvars:displayColor itself;
+    # every other prim gets its material's colour there so renderers that do not
+    # evaluate material networks still show the machine in colour rather than
+    # default grey.
+    attributes.extend(display_color_attr(material_name, display_color))
     return prim("Cube", name, attributes, level=level)
 
 
@@ -173,8 +205,7 @@ def cylinder(
     attributes = [f'uniform token axis = "{axis}"', f"double radius = {f(radius)}", f"double height = {f(height)}"]
     attributes.extend(xform_attrs(translate=translate, rotate_xyz=rotate_xyz))
     attributes.append(bind(material_name))
-    if display_color is not None:
-        attributes.append(f"color3f[] primvars:displayColor = [({f(display_color[0])}, {f(display_color[1])}, {f(display_color[2])})]")
+    attributes.extend(display_color_attr(material_name, display_color))
     return prim("Cylinder", name, attributes, level=level)
 
 
@@ -189,6 +220,7 @@ def sphere(
     attributes = [f"double radius = {f(radius)}"]
     attributes.extend(xform_attrs(translate=translate))
     attributes.append(bind(material_name))
+    attributes.extend(display_color_attr(material_name, None))
     if not visible:
         attributes.append('token visibility = "invisible"')
     return prim("Sphere", name, attributes, level=level)
@@ -199,6 +231,7 @@ def blade(index: int, angle: float) -> str:
     attributes = ["double size = 1"]
     attributes.extend(xform_attrs(translate=(0.000, 0.260, 0.000), rotate_z=angle, scale=(0.070, 0.440, 0.025)))
     attributes.append(bind("MetalGrey"))
+    attributes.extend(display_color_attr("MetalGrey", None))
     return prim("Cube", f"Blade_{index}", attributes, level=3)
 
 
