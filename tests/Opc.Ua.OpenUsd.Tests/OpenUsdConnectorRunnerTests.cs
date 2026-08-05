@@ -134,25 +134,17 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         public async Task PrintPickedPrimWritesFormattedLineAndHonorsCancellation()
         {
             using var output = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
-            TextWriter originalOutput = Console.Out;
-            try
-            {
-                Console.SetOut(output);
-
-                await OpenUsdConnectorRunner.PrintPickedPrimAsync(
-                    "/World/RobotTargets/TargetA", CancellationToken.None);
-            }
-            finally
-            {
-                Console.SetOut(originalOutput);
-            }
+            await OpenUsdConnectorRunner.PrintPickedPrimAsync(
+                "/World/RobotTargets/TargetA", output, CancellationToken.None);
 
             using var canceled = new CancellationTokenSource();
             await canceled.CancelAsync();
 
             Assert.That(output.ToString(), Is.EqualTo("Picked prim: /World/RobotTargets/TargetA" + Environment.NewLine));
-            Assert.Throws<OperationCanceledException>(
-                () => OpenUsdConnectorRunner.PrintPickedPrimAsync("/World/RobotTargets/TargetB", canceled.Token));
+            Assert.That(
+                async () => await OpenUsdConnectorRunner.PrintPickedPrimAsync(
+                    "/World/RobotTargets/TargetB", output, canceled.Token).ConfigureAwait(false),
+                Throws.TypeOf<OperationCanceledException>());
         }
 
         [Test]
@@ -199,17 +191,27 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public void GetPrivateStateRootCreatesPerUserConnectorDirectory()
+        public void GetPrivateStateRootCreatesConnectorDirectoryUnderOwnedRoot()
         {
-            string root = OpenUsdConnectorRunner.GetPrivateStateRoot();
-            string fallbackRoot = OpenUsdConnectorRunner.GetPrivateStateRoot(string.Empty);
+            string baseDirectory = Path.Combine(
+                Environment.CurrentDirectory,
+                "TestResults",
+                "OpenUsdConnectorRunnerTests",
+                Guid.NewGuid().ToString("N"));
+            try
+            {
+                string root = OpenUsdConnectorRunner.GetPrivateStateRoot(baseDirectory);
 
-            Assert.That(root, Does.EndWith("Opc.Ua.OpenUsd.Connector"));
-            Assert.That(Directory.Exists(root), Is.True);
-            Assert.That(root, Does.Not.StartWith(Path.GetTempPath()).IgnoreCase);
-            Assert.That(fallbackRoot, Does.StartWith(AppContext.BaseDirectory));
-            Assert.That(Directory.Exists(fallbackRoot), Is.True);
-            Directory.Delete(fallbackRoot, recursive: true);
+                Assert.That(root, Is.EqualTo(Path.Combine(baseDirectory, "Opc.Ua.OpenUsd.Connector")));
+                Assert.That(Directory.Exists(root), Is.True);
+            }
+            finally
+            {
+                if (Directory.Exists(baseDirectory))
+                {
+                    Directory.Delete(baseDirectory, recursive: true);
+                }
+            }
         }
 
         [Test]

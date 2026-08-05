@@ -391,6 +391,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             return RobotIntentFacetCalculator.Compute(State);
         }
 
+
         internal async ValueTask RegisterAsync(CancellationToken cancellationToken)
         {
             EnsureMutable();
@@ -402,6 +403,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             EnsureMethodArguments();
             WireNotStartedMethodGuards();
             EnsureControllerBrowseNameIsUnique();
+            PublishSupportedFacets();
             m_context.Root.Controllers!.AddChild(State);
             await m_context.Manager.AddPredefinedNodeAsync(State, cancellationToken).ConfigureAwait(false);
             if (m_safetySource != null)
@@ -865,6 +867,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             InitializeSafety(State.SafetyState!);
             SetValue(State.OperationalMode!, OperationalModeEnum.AutomaticExternal);
             SetValue(State.Ready!, true);
+            SetValue(State.MaxQueueDepth!, m_hostOptions.MaxQueueDepth);
             SetValue(State.ControlOwner!, NodeId.Null);
             SetValue(State.ActiveIntent!, NodeId.Null);
             MarkReadOnly(State.OperationalMode!);
@@ -959,6 +962,12 @@ namespace Opc.Ua.Robotics.Server.Builders
                     State.BrowseName,
                     string.Join(" ", errors));
             }
+        }
+
+        private void PublishSupportedFacets()
+        {
+            State.Capabilities!.CreateOrReplaceSupportedFacets(m_context.Context, null);
+            State.Capabilities.SupportedFacets!.Value = RobotIntentFacetCalculator.Compute(State);
         }
 
         private void EnsureControllerBrowseNameIsUnique()

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -125,7 +126,13 @@ namespace Opc.Ua.Robotics.Client.Tests
                 new NodeId(10));
             IntentCommandOutcome outcome = await handle.CancelAsync(StopModeEnum.QuickStop);
 
-            Assert.That(outcome.Accepted, Is.False);
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.Accepted, Is.False);
+                Assert.That(transport.CancelIntentCount, Is.EqualTo(1));
+                Assert.That(transport.LastCancelIntentId, Is.EqualTo("i1"));
+                Assert.That(transport.LastCancelStopMode, Is.EqualTo(StopModeEnum.QuickStop));
+            });
         }
 
         [Test]
@@ -163,6 +170,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 Assert.That(transport.PauseCount, Is.EqualTo(1));
                 Assert.That(transport.ResumeCount, Is.EqualTo(1));
                 Assert.That(transport.RetryCount, Is.EqualTo(1));
+                Assert.That(transport.LastRetryIntentId, Is.EqualTo("i1"));
             });
         }
 
@@ -268,15 +276,19 @@ namespace Opc.Ua.Robotics.Client.Tests
             RobotIntentControllerClient controller = new(transport);
             IntentOperationHandle handle = await controller.TrackOperationAsync("i1", new NodeId(10));
             var callbackEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var allowCallbackToExit = new ManualResetEventSlim(false);
             handle.Changed += _ =>
             {
                 callbackEntered.TrySetResult(true);
-                Thread.Sleep(100);
+                Assert.That(allowCallbackToExit.Wait(TimeSpan.FromSeconds(1)), Is.True);
             };
 
             transport.PublishChange(Variant.From((int)ExecutionStateEnum.Succeeded));
             await AwaitWithTimeoutAsync(callbackEntered.Task, TimeSpan.FromSeconds(1));
-            Assert.DoesNotThrowAsync(async () => await handle.DisposeAsync());
+            Task dispose = handle.DisposeAsync().AsTask();
+            allowCallbackToExit.Set();
+
+            Assert.DoesNotThrowAsync(async () => await dispose);
             Assert.DoesNotThrowAsync(async () => await handle.DisposeAsync());
         }
 
@@ -342,7 +354,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             await using RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
             await lease.OpenAsync();
-            await Task.Delay(180);
+            await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), TimeSpan.FromSeconds(1));
 
             Assert.That(transport.OpenChannelCount, Is.GreaterThan(1));
             Assert.That(lease.EndpointUrl, Is.EqualTo("opc.tcp://rt"));
@@ -405,7 +417,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             var lease = new RealTimeChannelLease(transport, "rt1", TimeSpan.FromMilliseconds(30));
             await lease.OpenAsync();
-            await Task.Delay(150);
+            await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), TimeSpan.FromSeconds(1));
 
             Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync());
             Assert.That(transport.CloseChannelCount, Is.EqualTo(1));
@@ -488,13 +500,21 @@ namespace Opc.Ua.Robotics.Client.Tests
             };
             RobotIntentControllerClient controller = new(transport);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await controller.SubmitIntentAsync(RobotIntentBuilder.Wait(1).Build()));
-            IntentSubmissionResult result = await controller.TrySubmitIntentAsync(RobotIntentBuilder.Wait(1).Build());
+            IntentDataType throwingIntent = RobotIntentBuilder.Wait(1).Build();
+            IntentDataType refusalAwareIntent = RobotIntentBuilder.Wait(2).Build();
 
-            Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
-            Assert.That(result.Accepted, Is.False);
-            Assert.That(result.Failure, Is.EqualTo(IntentFailureEnum.QueueFull));
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await controller.SubmitIntentAsync(throwingIntent));
+            IntentSubmissionResult result = await controller.TrySubmitIntentAsync(refusalAwareIntent);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+                Assert.That(result.Accepted, Is.False);
+                Assert.That(result.Failure, Is.EqualTo(IntentFailureEnum.QueueFull));
+                Assert.That(transport.SubmitIntentCount, Is.EqualTo(2));
+                Assert.That(transport.LastSubmittedIntent, Is.SameAs(refusalAwareIntent));
+            });
         }
 
         [Test]
@@ -519,7 +539,15 @@ namespace Opc.Ua.Robotics.Client.Tests
                 Assert.That(submit.Accepted, Is.True);
                 Assert.That(update.Result, Is.EqualTo(MissionUpdateResultEnum.Accepted));
                 Assert.That(cancel.Accepted, Is.False);
+                Assert.That(transport.SubmitMissionCount, Is.EqualTo(1));
+                Assert.That(transport.LastSubmittedMission, Is.SameAs(mission));
+                Assert.That(transport.UpdateMissionCount, Is.EqualTo(1));
+                Assert.That(transport.LastUpdateMissionId, Is.EqualTo("m1"));
+                Assert.That(transport.LastMissionUpdateId, Is.EqualTo(5));
+                Assert.That(transport.LastUpdateSteps.Count, Is.Zero);
                 Assert.That(transport.CancelMissionCount, Is.EqualTo(1));
+                Assert.That(transport.LastCancelMissionId, Is.EqualTo("m1"));
+                Assert.That(transport.LastCancelMissionStopMode, Is.EqualTo(StopModeEnum.QuickStop));
             });
         }
 
@@ -560,9 +588,14 @@ namespace Opc.Ua.Robotics.Client.Tests
                 "rt1",
                 TimeSpan.FromSeconds(1));
 
-            Assert.That(lease.Granted, Is.True);
-            Assert.That(lease.EndpointUrl, Is.EqualTo("opc.tcp://rt"));
-            Assert.That(transport.OpenChannelCount, Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(lease.Granted, Is.True);
+                Assert.That(lease.EndpointUrl, Is.EqualTo("opc.tcp://rt"));
+                Assert.That(transport.OpenChannelCount, Is.EqualTo(1));
+                Assert.That(transport.LastOpenChannelId, Is.EqualTo("rt1"));
+                Assert.That(transport.LastRequestedLease, Is.EqualTo(1000.0).Within(1e-9));
+            });
         }
 
         [Test]
@@ -676,6 +709,13 @@ namespace Opc.Ua.Robotics.Client.Tests
             return (TimeSpan)method!.Invoke(lease, [])!;
         }
 
+        private static async Task AwaitWithTimeoutAsync(Task task, TimeSpan timeout)
+        {
+            Task completed = await Task.WhenAny(task, Task.Delay(timeout)).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(task));
+            await task.ConfigureAwait(false);
+        }
+
         private static async Task<T> AwaitWithTimeoutAsync<T>(Task<T> task, TimeSpan timeout)
         {
             Task completed = await Task.WhenAny(task, Task.Delay(timeout)).ConfigureAwait(false);
@@ -766,7 +806,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             public IServiceCollection Services { get; } = services;
         }
 
-        private sealed class FakeRobotIntentTransport : IRobotIntentTransport
+        private sealed class FakeRobotIntentTransport : IRobotIntentTransport, IDisposable
         {
             public event RobotIntentReconnectHandler? Reconnected;
 
@@ -827,13 +867,60 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public int CancelAllCount { get; private set; }
 
+            public int SubmitIntentCount { get; private set; }
+
+            public int CancelIntentCount { get; private set; }
+
+            public int SubmitMissionCount { get; private set; }
+
+            public IntentDataType? LastSubmittedIntent { get; private set; }
+
+            public string? LastCancelIntentId { get; private set; }
+
+            public StopModeEnum LastCancelStopMode { get; private set; }
+
+            public string? LastRetryIntentId { get; private set; }
+
+            public MissionDataType? LastSubmittedMission { get; private set; }
+
+            public string? LastUpdateMissionId { get; private set; }
+
+            public uint LastMissionUpdateId { get; private set; }
+
+            public ArrayOf<MissionStepDataType> LastUpdateSteps { get; private set; } = [];
+
+            public string? LastCancelMissionId { get; private set; }
+
+            public StopModeEnum LastCancelMissionStopMode { get; private set; }
+
+            public string? LastOpenChannelId { get; private set; }
+
+            public double LastRequestedLease { get; private set; }
+
+            public string? LastCloseChannelId { get; private set; }
+
             public Queue<Func<RealTimeChannelOpenResult>> ChannelResponses { get; } = new();
 
             public Exception? ReleaseException { get; set; }
 
             public Exception? CloseException { get; set; }
 
-            private List<Variant> ChangeNotifications { get; } = [];
+            private ConcurrentQueue<Variant> ChangeNotifications { get; } = new();
+
+            public Task WaitForOpenChannelCountAsync(int count)
+            {
+                lock (m_stateLock)
+                {
+                    if (OpenChannelCount >= count)
+                    {
+                        return Task.CompletedTask;
+                    }
+                    m_openChannelCountTarget = count;
+                    m_openChannelCountReached = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    return m_openChannelCountReached.Task;
+                }
+            }
 
             public void EnqueueChannelResult(RealTimeChannelOpenResult result)
             {
@@ -847,17 +934,24 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public void PublishOwner(NodeId owner)
             {
-                m_ownerNotifications.Add(owner);
+                m_ownerNotifications.Enqueue(owner);
+                m_notificationAvailable.Release();
             }
 
             public void PublishChange(Variant value)
             {
-                ChangeNotifications.Add(value);
+                ChangeNotifications.Enqueue(value);
+                m_notificationAvailable.Release();
             }
 
             public void PublishReconnect()
             {
                 Reconnected?.Invoke();
+            }
+
+            public void Dispose()
+            {
+                m_notificationAvailable.Dispose();
             }
 
             public ValueTask<ArrayOf<RobotIntentNodeLookupEntry>> BrowseControllersAsync(CancellationToken ct = default)
@@ -874,6 +968,8 @@ namespace Opc.Ua.Robotics.Client.Tests
                 IntentDataType intent,
                 CancellationToken ct = default)
             {
+                SubmitIntentCount++;
+                LastSubmittedIntent = intent;
                 return new ValueTask<IntentSubmissionResult>(SubmitResult);
             }
 
@@ -882,6 +978,9 @@ namespace Opc.Ua.Robotics.Client.Tests
                 StopModeEnum stopMode,
                 CancellationToken ct = default)
             {
+                CancelIntentCount++;
+                LastCancelIntentId = intentId;
+                LastCancelStopMode = stopMode;
                 return new ValueTask<IntentCommandOutcome>(CancelOutcome);
             }
 
@@ -906,6 +1005,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             public ValueTask<IntentSubmissionResult> RetryAsync(string intentId, CancellationToken ct = default)
             {
                 RetryCount++;
+                LastRetryIntentId = intentId;
                 return new ValueTask<IntentSubmissionResult>(RetryResult);
             }
 
@@ -913,6 +1013,8 @@ namespace Opc.Ua.Robotics.Client.Tests
                 MissionDataType mission,
                 CancellationToken ct = default)
             {
+                SubmitMissionCount++;
+                LastSubmittedMission = mission;
                 return new ValueTask<MissionSubmissionResult>(new MissionSubmissionResult
                 {
                     Accepted = true,
@@ -928,6 +1030,9 @@ namespace Opc.Ua.Robotics.Client.Tests
                 CancellationToken ct = default)
             {
                 UpdateMissionCount++;
+                LastUpdateMissionId = missionId;
+                LastMissionUpdateId = missionUpdateId;
+                LastUpdateSteps = steps;
                 return new ValueTask<MissionUpdateOutcome>(new MissionUpdateOutcome(
                     MissionUpdateResultEnum.Accepted,
                     LocalizedText.Null));
@@ -939,6 +1044,8 @@ namespace Opc.Ua.Robotics.Client.Tests
                 CancellationToken ct = default)
             {
                 CancelMissionCount++;
+                LastCancelMissionId = missionId;
+                LastCancelMissionStopMode = stopMode;
                 return new ValueTask<IntentCommandOutcome>(CancelMissionOutcome);
             }
 
@@ -962,7 +1069,16 @@ namespace Opc.Ua.Robotics.Client.Tests
                 double requestedLease,
                 CancellationToken ct = default)
             {
-                OpenChannelCount++;
+                lock (m_stateLock)
+                {
+                    OpenChannelCount++;
+                    LastOpenChannelId = channelId;
+                    LastRequestedLease = requestedLease;
+                    if (OpenChannelCount >= m_openChannelCountTarget)
+                    {
+                        m_openChannelCountReached?.TrySetResult(true);
+                    }
+                }
                 if (ChannelResponses.Count > 0)
                 {
                     return new ValueTask<RealTimeChannelOpenResult>(ChannelResponses.Dequeue()());
@@ -973,6 +1089,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             public ValueTask<bool> CloseRealTimeChannelAsync(string channelId, CancellationToken ct = default)
             {
                 CloseChannelCount++;
+                LastCloseChannelId = channelId;
                 if (CloseException != null)
                 {
                     throw CloseException;
@@ -1006,23 +1123,23 @@ namespace Opc.Ua.Robotics.Client.Tests
                 SubscribeCount++;
                 while (!ct.IsCancellationRequested)
                 {
-                    if (ChangeNotifications.Count > 0)
+                    await m_notificationAvailable.WaitAsync(ct).ConfigureAwait(false);
+                    if (ChangeNotifications.TryDequeue(out Variant value))
                     {
-                        Variant value = ChangeNotifications[0];
-                        ChangeNotifications.RemoveAt(0);
                         yield return new RobotIntentDataChange(new NodeId(1), value);
                     }
-                    if (m_ownerNotifications.Count > 0)
+                    else if (m_ownerNotifications.TryDequeue(out NodeId owner))
                     {
-                        NodeId owner = m_ownerNotifications[0];
-                        m_ownerNotifications.RemoveAt(0);
                         yield return new RobotIntentDataChange(new NodeId(1), Variant.From(owner));
                     }
-                    await Task.Delay(5, ct);
                 }
             }
 
-            private readonly List<NodeId> m_ownerNotifications = [];
+            private readonly ConcurrentQueue<NodeId> m_ownerNotifications = new();
+            private readonly SemaphoreSlim m_notificationAvailable = new(0);
+            private readonly System.Threading.Lock m_stateLock = new();
+            private TaskCompletionSource<bool>? m_openChannelCountReached;
+            private int m_openChannelCountTarget = int.MaxValue;
         }
     }
 }

@@ -81,12 +81,12 @@ namespace Opc.Ua.RobotIntent.Integration
         public async Task DiscoveryAndCapabilityHonestyAreObservableOverSession()
         {
             await using ClientContext context = await m_fixture.ConnectAsync("discovery").ConfigureAwait(false);
-            RobotIntentControllerClient controller = await context.GetControllerAsync(MainControllerName)
+            RobotIntentControllerClient controller = await context.GetControllerAsync(NoPauseControllerName)
                 .ConfigureAwait(false);
             await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
                 .ConfigureAwait(false);
 
-            RobotIntentControllerInfo info = await ReadControllerSafeAsync(controller).ConfigureAwait(false);
+            RobotIntentControllerInfo info = await controller.ReadAsync().ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(info.SupportedIntents, Has.Count.EqualTo(5));
@@ -133,6 +133,42 @@ namespace Opc.Ua.RobotIntent.Integration
         }
 
         [Test]
+        public async Task PublishedSupportedFacetsAreObservableAndNotRecomputedFromProjection()
+        {
+            await using ClientContext context = await m_fixture.ConnectAsync("supported-facets").ConfigureAwait(false);
+            RobotIntentControllerClient controller = await context.GetControllerAsync(NoPauseControllerName)
+                .ConfigureAwait(false);
+            await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
+                .ConfigureAwait(false);
+
+            RobotIntentControllerInfo info = await controller.ReadAsync().ConfigureAwait(false);
+            string[] supportedFacets = info.SupportedFacets.ToArray()!;
+
+            // The local projection can only see individual capability flags. The published SupportedFacets claim is
+            // authoritative for facets with additional structural or behavioural requirements, so this test only
+            // compares a facet whose answer is visible to both sides.
+            Assert.Multiple(() =>
+            {
+                Assert.That(supportedFacets, Is.Not.Empty);
+                Assert.That(supportedFacets, Does.Contain("RI-Base"));
+                Assert.That(supportedFacets, Does.Contain("RI-Motion-Linear"));
+                Assert.That(supportedFacets, Does.Contain("RI-Output"));
+                Assert.That(supportedFacets, Does.Contain("RI-Program"));
+                Assert.That(supportedFacets, Does.Contain("RI-Wait"));
+                Assert.That(supportedFacets, Does.Contain("RI-Safety"));
+                Assert.That(supportedFacets, Does.Contain("RI-RealTimeChannel"));
+                Assert.That(supportedFacets, Does.Contain("RI-Queue"));
+                Assert.That(supportedFacets, Does.Contain("RI-Mission"));
+                Assert.That(supportedFacets, Does.Contain("RI-Mission-Horizon"));
+                Assert.That(supportedFacets, Does.Contain("RI-Mission-Branching"));
+                Assert.That(supportedFacets, Does.Not.Contain("RI-Pause"));
+                Assert.That(
+                    supportedFacets.Contains("RI-RealTimeChannel"),
+                    Is.EqualTo(info.Facets.RealTimeChannels));
+            });
+        }
+
+        [Test]
         public async Task SubmitTrackCompleteAndPartTenResultSurviveTheChannel()
         {
             await using ClientContext context = await m_fixture.ConnectAsync("track").ConfigureAwait(false);
@@ -140,18 +176,30 @@ namespace Opc.Ua.RobotIntent.Integration
                 .ConfigureAwait(false);
             CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
                 .ConfigureAwait(false);
-            var observed = new List<IntentOperationSnapshot>();
 
+            m_fixture.Executor.HoldCompletion("tracked");
             await using IntentOperationHandle handle = await controller.SubmitIntentAsync(LinearIntent("tracked"))
                 .ConfigureAwait(false);
-            handle.Changed += observed.Add;
-            IntentResultDataType result = await AwaitAsync(handle.Completion, "linear intent completion")
-                .ConfigureAwait(false);
-            IntentOperationSnapshot final = await WaitForSnapshotAsync(
-                controller,
-                handle.Operation,
-                snapshot => snapshot.Result.State == ExecutionStateEnum.Succeeded,
-                "linear intent result update").ConfigureAwait(false);
+            IntentOperationSnapshot executing;
+            IntentOperationSnapshot final;
+            try
+            {
+                executing = await WaitForSnapshotAsync(
+                    controller,
+                    handle.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Executing,
+                    "tracked intent executing").ConfigureAwait(false);
+                m_fixture.Executor.ReleaseCompletion("tracked");
+                final = await WaitForSnapshotAsync(
+                    controller,
+                    handle.Operation,
+                    snapshot => snapshot.Result.State == ExecutionStateEnum.Succeeded,
+                    "linear intent result update").ConfigureAwait(false);
+            }
+            finally
+            {
+                m_fixture.Executor.ReleaseCompletion("tracked");
+            }
             IntentResultDataType partTen = await ReadFinalResultAsync(
                 context.Session,
                 controller.Transport,
@@ -160,11 +208,9 @@ namespace Opc.Ua.RobotIntent.Integration
 
             Assert.Multiple(() =>
             {
-                Assert.That(
-                    observed.Any(snapshot => snapshot.ExecutionState == ExecutionStateEnum.Executing),
-                    Is.True);
-                Assert.That(observed.Any(snapshot => snapshot.Progress > 0.0), Is.True);
-                Assert.That(observed.Any(snapshot => !snapshot.CurrentPose.Position.IsNull), Is.True);
+                Assert.That(executing.ExecutionState, Is.EqualTo(ExecutionStateEnum.Executing));
+                Assert.That(executing.Progress, Is.GreaterThan(0.0));
+                Assert.That(executing.CurrentPose.Position.IsNull, Is.False);
                 Assert.That(final.ExecutionState, Is.EqualTo(ExecutionStateEnum.Succeeded));
                 Assert.That(final.Result.IntentId, Is.EqualTo(handle.IntentId));
                 Assert.That(partTen.IntentId, Is.EqualTo(final.Result.IntentId));
@@ -187,7 +233,7 @@ namespace Opc.Ua.RobotIntent.Integration
 
             IntentSubmissionResult secondResult = await secondController.TrySubmitIntentAsync(LinearIntent("second"))
                 .ConfigureAwait(false);
-            RobotIntentControllerInfo readWhileRefused = await ReadControllerSafeAsync(secondController)
+            RobotIntentControllerInfo readWhileRefused = await secondController.ReadAsync()
                 .ConfigureAwait(false);
             await first.Session.CloseAsync(1000, true).ConfigureAwait(false);
             await using CommandAuthorityLease secondAuthority = await WaitForAuthorityAsync(secondController)
@@ -221,10 +267,137 @@ namespace Opc.Ua.RobotIntent.Integration
         }
 
         [Test]
-        public async Task CancellationQueueingAndRealtimeLeaseUseObservableState()
+        public async Task CancellingIsObservableAndNotTerminalUntilExecutorCompletes()
         {
-            await using ClientContext first = await m_fixture.ConnectAsync("queue-a").ConfigureAwait(false);
-            await using ClientContext second = await m_fixture.ConnectAsync("queue-b").ConfigureAwait(false);
+            await using ClientContext context = await m_fixture.ConnectAsync("cancel-live").ConfigureAwait(false);
+            RobotIntentControllerClient controller = await context.GetControllerAsync(MainControllerName)
+                .ConfigureAwait(false);
+            await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
+                .ConfigureAwait(false);
+
+            m_fixture.Executor.HoldCompletion("cancel");
+            m_fixture.Executor.HoldCancellationCompletion("cancel");
+            await using IntentOperationHandle running = await controller.SubmitIntentAsync(WaitIntent("cancel", 800))
+                .ConfigureAwait(false);
+            IntentCommandOutcome cancel;
+            bool cancellingWasTerminal;
+            IntentResultDataType cancelled;
+            try
+            {
+                await WaitForStateAsync(running, ExecutionStateEnum.Executing).ConfigureAwait(false);
+                cancel = await running.CancelAsync(StopModeEnum.QuickStop).ConfigureAwait(false);
+                await WaitForStateAsync(running, ExecutionStateEnum.Cancelling).ConfigureAwait(false);
+                cancellingWasTerminal = running.Completion.IsCompleted;
+                m_fixture.Executor.ReleaseCancellationCompletion("cancel");
+                cancelled = await WaitForTerminalAsync(controller, running.IntentId, running.Operation)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_fixture.Executor.ReleaseCancellationCompletion("cancel");
+                m_fixture.Executor.ReleaseCompletion("cancel");
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(cancel.Accepted, Is.True);
+                Assert.That(cancellingWasTerminal, Is.False);
+                Assert.That(cancelled.State, Is.EqualTo(ExecutionStateEnum.Cancelled));
+            });
+        }
+
+        [Test]
+        public async Task NonCancelableIntentRefusesCancel()
+        {
+            await using ClientContext context = await m_fixture.ConnectAsync("cancel-refused").ConfigureAwait(false);
+            RobotIntentControllerClient controller = await context.GetControllerAsync(MainControllerName)
+                .ConfigureAwait(false);
+            await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
+                .ConfigureAwait(false);
+
+            RobotIntentControllerInfo info = await controller.ReadAsync().ConfigureAwait(false);
+            m_fixture.Executor.HoldCompletion("no-cancel");
+            IntentSubmissionResult nonCancelable = await controller
+                .TrySubmitIntentAsync(CallProgramIntent("no-cancel", info.Lookups.Programs[0].NodeId))
+                .ConfigureAwait(false);
+            IntentCommandOutcome refusedCancel;
+            try
+            {
+                await WaitForSnapshotAsync(
+                    controller,
+                    nonCancelable.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Executing,
+                    "non-cancelable intent executing").ConfigureAwait(false);
+                refusedCancel = await controller.Transport
+                    .CancelIntentAsync(nonCancelable.IntentId, StopModeEnum.QuickStop)
+                    .ConfigureAwait(false);
+                m_fixture.Executor.ReleaseCompletion("no-cancel");
+                await WaitForTerminalAsync(controller, nonCancelable.IntentId, nonCancelable.Operation)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_fixture.Executor.ReleaseCompletion("no-cancel");
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(nonCancelable.Accepted, Is.True);
+                Assert.That(refusedCancel.Accepted, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task QueueingAndQueueFullAreObservable()
+        {
+            await using ClientContext context = await m_fixture.ConnectAsync("queue-live").ConfigureAwait(false);
+            RobotIntentControllerClient controller = await context.GetControllerAsync(MainControllerName)
+                .ConfigureAwait(false);
+            await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
+                .ConfigureAwait(false);
+
+            m_fixture.Executor.HoldCompletion("head");
+            await using IntentOperationHandle queueHead = await controller.SubmitIntentAsync(WaitIntent("head", 900))
+                .ConfigureAwait(false);
+            IntentSubmissionResult queued;
+            IntentOperationSnapshot queuedSnapshot;
+            IntentSubmissionResult queuedAgain;
+            IntentSubmissionResult queueFull;
+            try
+            {
+                await WaitForStateAsync(queueHead, ExecutionStateEnum.Executing).ConfigureAwait(false);
+                queued = await controller.TrySubmitIntentAsync(WaitIntent("queued", 100, BufferModeEnum.Buffered))
+                    .ConfigureAwait(false);
+                queuedSnapshot = await WaitForSnapshotAsync(
+                    controller,
+                    queued.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Queued,
+                    "queued intent state").ConfigureAwait(false);
+                queuedAgain = await controller.TrySubmitIntentAsync(
+                    WaitIntent("queued-again", 100, BufferModeEnum.Buffered)).ConfigureAwait(false);
+                queueFull = await controller.TrySubmitIntentAsync(
+                    WaitIntent("queue-full", 100, BufferModeEnum.Buffered)).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_fixture.Executor.ReleaseCompletion("head");
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(queued.Accepted, Is.True);
+                Assert.That(queuedAgain.Accepted, Is.True);
+                Assert.That(queuedSnapshot.ExecutionState, Is.EqualTo(ExecutionStateEnum.Queued));
+                Assert.That(queueFull.Accepted, Is.False);
+                Assert.That(queueFull.Failure, Is.EqualTo(IntentFailureEnum.QueueFull));
+            });
+        }
+
+        [Test]
+        public async Task RealTimeChannelLeaseExcludesOtherSessionUntilClosed()
+        {
+            await using ClientContext first = await m_fixture.ConnectAsync("lease-a").ConfigureAwait(false);
+            await using ClientContext second = await m_fixture.ConnectAsync("lease-b").ConfigureAwait(false);
             RobotIntentControllerClient controller = await first.GetControllerAsync(MainControllerName)
                 .ConfigureAwait(false);
             RobotIntentControllerClient secondController = await second.GetControllerAsync(MainControllerName)
@@ -232,68 +405,164 @@ namespace Opc.Ua.RobotIntent.Integration
             await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
                 .ConfigureAwait(false);
 
-            await using IntentOperationHandle running = await controller.SubmitIntentAsync(WaitIntent("cancel", 800))
-                .ConfigureAwait(false);
-            await WaitForStateAsync(running, ExecutionStateEnum.Executing).ConfigureAwait(false);
-            IntentCommandOutcome cancel = await running.CancelAsync(StopModeEnum.QuickStop).ConfigureAwait(false);
-            await WaitForStateAsync(running, ExecutionStateEnum.Cancelling).ConfigureAwait(false);
-            bool cancellingWasTerminal = running.Completion.IsCompleted;
-            IntentResultDataType cancelled = await AwaitAsync(running.Completion, "cancelled intent")
-                .ConfigureAwait(false);
-
-            RobotIntentControllerInfo info = await ReadControllerSafeAsync(controller).ConfigureAwait(false);
-            IntentSubmissionResult nonCancelable = await controller
-                .TrySubmitIntentAsync(CallProgramIntent("no-cancel", info.Lookups.Programs[0].NodeId))
-                .ConfigureAwait(false);
-            IntentCommandOutcome refusedCancel = await controller.Transport
-                .CancelIntentAsync(nonCancelable.IntentId, StopModeEnum.QuickStop)
-                .ConfigureAwait(false);
-            await WaitForTerminalAsync(controller, nonCancelable.IntentId, nonCancelable.Operation)
-                .ConfigureAwait(false);
-
-            await using IntentOperationHandle queueHead = await controller.SubmitIntentAsync(WaitIntent("head", 900))
-                .ConfigureAwait(false);
-            await WaitForStateAsync(queueHead, ExecutionStateEnum.Executing).ConfigureAwait(false);
-            IntentSubmissionResult queued = await controller.TrySubmitIntentAsync(
-                WaitIntent("queued", 100, BufferModeEnum.Buffered)).ConfigureAwait(false);
-            IntentOperationSnapshot queuedSnapshot = await WaitForSnapshotAsync(
-                controller,
-                queued.Operation,
-                snapshot => snapshot.ExecutionState == ExecutionStateEnum.Queued,
-                "queued intent state").ConfigureAwait(false);
-            IntentSubmissionResult queuedAgain = await controller.TrySubmitIntentAsync(
-                WaitIntent("queued-again", 100, BufferModeEnum.Buffered)).ConfigureAwait(false);
-            IntentSubmissionResult queueFull = await controller.TrySubmitIntentAsync(
-                WaitIntent("queue-full", 100, BufferModeEnum.Buffered)).ConfigureAwait(false);
-
             RealTimeChannelOpenResult lease = await controller.Transport
-                .OpenRealTimeChannelAsync(ChannelId, 200.0)
+                .OpenRealTimeChannelAsync(ChannelId, 30000.0)
                 .ConfigureAwait(false);
             RealTimeChannelOpenResult secondLease = await secondController.Transport
-                .OpenRealTimeChannelAsync(ChannelId, 200.0)
+                .OpenRealTimeChannelAsync(ChannelId, 30000.0)
                 .ConfigureAwait(false);
-            await Task.Delay(350).ConfigureAwait(false);
+            bool closed = await controller.Transport.CloseRealTimeChannelAsync(ChannelId).ConfigureAwait(false);
             await authority.DisposeAsync().ConfigureAwait(false);
             await using CommandAuthorityLease secondAuthority = await WaitForAuthorityAsync(secondController)
                 .ConfigureAwait(false);
-            RealTimeChannelOpenResult afterExpiry = await secondController.Transport
-                .OpenRealTimeChannelAsync(ChannelId, 200.0)
+            RealTimeChannelOpenResult afterClose = await secondController.Transport
+                .OpenRealTimeChannelAsync(ChannelId, 30000.0)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
-                Assert.That(cancel.Accepted, Is.True);
-                Assert.That(cancellingWasTerminal, Is.False);
-                Assert.That(cancelled.State, Is.EqualTo(ExecutionStateEnum.Cancelled));
-                Assert.That(refusedCancel.Accepted, Is.False);
-                Assert.That(queued.Accepted, Is.True);
-                Assert.That(queuedAgain.Accepted, Is.True);
-                Assert.That(queuedSnapshot.ExecutionState, Is.EqualTo(ExecutionStateEnum.Queued));
-                Assert.That(queueFull.Accepted, Is.False);
-                Assert.That(queueFull.Failure, Is.EqualTo(IntentFailureEnum.QueueFull));
                 Assert.That(lease.Granted, Is.True);
                 Assert.That(secondLease.Granted, Is.False);
-                Assert.That(afterExpiry.Granted, Is.True);
+                Assert.That(closed, Is.True);
+                Assert.That(afterClose.Granted, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task LiveOperationStateMatchesPartTenCurrentStateAcrossLifecycle()
+        {
+            await using ClientContext context = await m_fixture.ConnectAsync("part-ten-lifecycle").ConfigureAwait(false);
+            RobotIntentControllerClient controller = await context.GetControllerAsync(MainControllerName)
+                .ConfigureAwait(false);
+            await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
+                .ConfigureAwait(false);
+
+            m_fixture.Executor.HoldCompletion("part-ten");
+            m_fixture.Executor.HoldCancellationCompletion("part-ten");
+            await using IntentOperationHandle handle = await controller.SubmitIntentAsync(WaitIntent("part-ten", 800))
+                .ConfigureAwait(false);
+            IntentOperationSnapshot executing;
+            NodeId executingPartTen;
+            IntentCommandOutcome cancel;
+            IntentOperationSnapshot cancelling;
+            NodeId cancellingPartTen;
+            IntentResultDataType terminal;
+            NodeId terminalPartTen;
+            try
+            {
+                executing = await WaitForSnapshotAsync(
+                    controller,
+                    handle.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Executing,
+                    "part-ten intent executing").ConfigureAwait(false);
+                executingPartTen = await ReadProgramCurrentStateIdAsync(context.Session, handle.Operation)
+                    .ConfigureAwait(false);
+                cancel = await handle.CancelAsync(StopModeEnum.QuickStop).ConfigureAwait(false);
+                cancelling = await WaitForSnapshotAsync(
+                    controller,
+                    handle.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Cancelling,
+                    "part-ten intent cancelling").ConfigureAwait(false);
+                cancellingPartTen = await ReadProgramCurrentStateIdAsync(context.Session, handle.Operation)
+                    .ConfigureAwait(false);
+                m_fixture.Executor.ReleaseCancellationCompletion("part-ten");
+                terminal = await WaitForTerminalAsync(controller, handle.IntentId, handle.Operation)
+                    .ConfigureAwait(false);
+                terminalPartTen = await ReadProgramCurrentStateIdAsync(context.Session, handle.Operation)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_fixture.Executor.ReleaseCancellationCompletion("part-ten");
+                m_fixture.Executor.ReleaseCompletion("part-ten");
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(executing.ExecutionState, Is.EqualTo(ExecutionStateEnum.Executing));
+                Assert.That(
+                    executingPartTen,
+                    Is.EqualTo(StandardNode(global::Opc.Ua.Objects.ProgramStateMachineType_Running)));
+                Assert.That(cancel.Accepted, Is.True);
+                Assert.That(cancelling.ExecutionState, Is.EqualTo(ExecutionStateEnum.Cancelling));
+                Assert.That(
+                    cancellingPartTen,
+                    Is.EqualTo(StandardNode(global::Opc.Ua.Objects.ProgramStateMachineType_Running)));
+                Assert.That(terminal.State, Is.EqualTo(ExecutionStateEnum.Cancelled));
+                Assert.That(
+                    terminalPartTen,
+                    Is.EqualTo(StandardNode(global::Opc.Ua.Objects.ProgramStateMachineType_Halted)));
+            });
+        }
+
+        [Test]
+        public async Task PauseResumeAndRetriableAreObservableOverSession()
+        {
+            await using ClientContext context = await m_fixture.ConnectAsync("pause-retry").ConfigureAwait(false);
+            RobotIntentControllerClient controller = await context.GetControllerAsync(MainControllerName)
+                .ConfigureAwait(false);
+            await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
+                .ConfigureAwait(false);
+
+            m_fixture.Executor.HoldCompletion("pause-live");
+            await using IntentOperationHandle pausing = await controller.SubmitIntentAsync(WaitIntent("pause-live", 600))
+                .ConfigureAwait(false);
+            IntentCommandOutcome pause;
+            IntentOperationSnapshot suspended;
+            IntentCommandOutcome resume;
+            IntentOperationSnapshot resumed;
+            IntentResultDataType pauseResult;
+            try
+            {
+                await WaitForStateAsync(pausing, ExecutionStateEnum.Executing).ConfigureAwait(false);
+                pause = await controller.Transport.PauseAsync().ConfigureAwait(false);
+                suspended = await WaitForSnapshotAsync(
+                    controller,
+                    pausing.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Suspended,
+                    "pause-live suspended").ConfigureAwait(false);
+                resume = await controller.Transport.ResumeAsync().ConfigureAwait(false);
+                resumed = await WaitForSnapshotAsync(
+                    controller,
+                    pausing.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Executing,
+                    "pause-live resumed").ConfigureAwait(false);
+                m_fixture.Executor.ReleaseCompletion("pause-live");
+                pauseResult = await WaitForTerminalAsync(controller, pausing.IntentId, pausing.Operation)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_fixture.Executor.ReleaseCompletion("pause-live");
+            }
+
+            IntentSubmissionResult retriable = await controller
+                .TrySubmitIntentAsync(WaitIntent("retriable-live", 50))
+                .ConfigureAwait(false);
+            IntentResultDataType retriableResult = await WaitForTerminalAsync(
+                controller,
+                retriable.IntentId,
+                retriable.Operation).ConfigureAwait(false);
+            IntentSubmissionResult retry = await controller.Transport.RetryAsync(retriable.IntentId)
+                .ConfigureAwait(false);
+            IntentResultDataType retryResult = await WaitForTerminalAsync(
+                controller,
+                retry.IntentId,
+                retry.Operation).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(pause.Accepted, Is.True);
+                Assert.That(suspended.ExecutionState, Is.EqualTo(ExecutionStateEnum.Suspended));
+                Assert.That(resume.Accepted, Is.True);
+                Assert.That(resumed.ExecutionState, Is.EqualTo(ExecutionStateEnum.Executing));
+                Assert.That(pauseResult.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(retriable.Accepted, Is.True);
+                Assert.That(retriableResult.State, Is.EqualTo(ExecutionStateEnum.Retriable));
+                Assert.That(retry.Accepted, Is.True);
+                Assert.That(retry.Operation.IsNull, Is.False);
+                Assert.That(retry.Operation, Is.Not.EqualTo(retriable.Operation));
+                Assert.That(retryResult.State, Is.EqualTo(ExecutionStateEnum.Retriable));
             });
         }
 
@@ -308,14 +577,33 @@ namespace Opc.Ua.RobotIntent.Integration
             MissionDataType mission = CreateMission("mission-retention");
 
             MissionSubmissionResult submission = await controller.SubmitMissionAsync(mission).ConfigureAwait(false);
+            MissionDataType beforeRejected = await ReadMissionAsync(context.Session, submission.Operation)
+                .ConfigureAwait(false);
             MissionUpdateOutcome outdated = await controller.Transport
                 .UpdateMissionAsync(submission.MissionId, 0, mission.Steps)
                 .ConfigureAwait(false);
             MissionUpdateOutcome baseConflict = await controller.Transport
                 .UpdateMissionAsync(submission.MissionId, 1, CreateBaseConflictSteps())
                 .ConfigureAwait(false);
+            MissionDataType afterBaseConflict = await ReadMissionAsync(context.Session, submission.Operation)
+                .ConfigureAwait(false);
             MissionUpdateOutcome accepted = await controller.Transport
                 .UpdateMissionAsync(submission.MissionId, 1, CreateAcceptedUpdateSteps())
+                .ConfigureAwait(false);
+            uint advancedUpdateId = await ReadUInt32ChildAsync(
+                context.Session,
+                controller.Transport,
+                submission.Operation,
+                "MissionUpdateId").ConfigureAwait(false);
+            MissionUpdateOutcome replayAcceptedId = await controller.Transport
+                .UpdateMissionAsync(submission.MissionId, 1, CreateAcceptedUpdateSteps())
+                .ConfigureAwait(false);
+            MissionDataType beforeInvalid = await ReadMissionAsync(context.Session, submission.Operation)
+                .ConfigureAwait(false);
+            MissionUpdateOutcome invalid = await controller.Transport
+                .UpdateMissionAsync(submission.MissionId, 2, CreateRejectedUpdateSteps())
+                .ConfigureAwait(false);
+            MissionDataType afterInvalid = await ReadMissionAsync(context.Session, submission.Operation)
                 .ConfigureAwait(false);
 
             IntentSubmissionResult disconnecting = await controller.TrySubmitIntentAsync(WaitIntent("disconnect", 300))
@@ -323,24 +611,72 @@ namespace Opc.Ua.RobotIntent.Integration
             NodeId operation = disconnecting.Operation;
             await authority.DisposeAsync().ConfigureAwait(false);
             await context.Session.CloseAsync(1000, true).ConfigureAwait(false);
-            await Task.Delay(600).ConfigureAwait(false);
             await using ClientContext reconnected = await m_fixture.ConnectAsync("mission-reconnected")
                 .ConfigureAwait(false);
             RobotIntentControllerClient reconnectedController = await reconnected.GetControllerAsync(MainControllerName)
                 .ConfigureAwait(false);
-            IntentOperationSnapshot retained = await reconnectedController.Transport
-                .ReadOperationSnapshotAsync(operation)
-                .ConfigureAwait(false);
+            IntentOperationSnapshot retained = await WaitForSnapshotAsync(
+                reconnectedController,
+                operation,
+                snapshot => snapshot.Result.State == ExecutionStateEnum.Succeeded,
+                "disconnected operation result retention").ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(submission.Accepted, Is.True);
                 Assert.That(outdated.Result, Is.EqualTo(MissionUpdateResultEnum.Outdated));
                 Assert.That(baseConflict.Result, Is.EqualTo(MissionUpdateResultEnum.BaseConflict));
+                Assert.That(MissionSignature(afterBaseConflict), Is.EqualTo(MissionSignature(beforeRejected)));
                 Assert.That(accepted.Result, Is.EqualTo(MissionUpdateResultEnum.Accepted));
+                Assert.That(advancedUpdateId, Is.EqualTo(1));
+                Assert.That(replayAcceptedId.Result, Is.EqualTo(MissionUpdateResultEnum.Outdated));
+                Assert.That(invalid.Result, Is.EqualTo(MissionUpdateResultEnum.Rejected));
+                Assert.That(MissionSignature(afterInvalid), Is.EqualTo(MissionSignature(beforeInvalid)));
                 Assert.That(disconnecting.Accepted, Is.True);
                 Assert.That(retained.Result.IntentId, Is.EqualTo(disconnecting.IntentId));
                 Assert.That(retained.Result.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+            });
+        }
+
+        [Test]
+        public async Task TerminalResultsAreImmutableAcrossLateCommands()
+        {
+            await using ClientContext context = await m_fixture.ConnectAsync("terminal-immutability").ConfigureAwait(false);
+            RobotIntentControllerClient controller = await context.GetControllerAsync(MainControllerName)
+                .ConfigureAwait(false);
+            await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
+                .ConfigureAwait(false);
+
+            IntentSubmissionResult submission = await controller.TrySubmitIntentAsync(WaitIntent("immutable", 50))
+                .ConfigureAwait(false);
+            IntentResultDataType completion = await WaitForTerminalAsync(
+                controller,
+                submission.IntentId,
+                submission.Operation).ConfigureAwait(false);
+            IntentResultDataType firstRead = (await controller.Transport
+                .ReadOperationSnapshotAsync(submission.Operation)
+                .ConfigureAwait(false)).Result;
+            IntentCommandOutcome lateCancel = await controller.Transport
+                .CancelIntentAsync(submission.IntentId, StopModeEnum.QuickStop)
+                .ConfigureAwait(false);
+            IntentResultDataType afterCancel = (await controller.Transport
+                .ReadOperationSnapshotAsync(submission.Operation)
+                .ConfigureAwait(false)).Result;
+            IntentSubmissionResult lateRetry = await controller.Transport.RetryAsync(submission.IntentId)
+                .ConfigureAwait(false);
+            IntentResultDataType afterRetry = (await controller.Transport
+                .ReadOperationSnapshotAsync(submission.Operation)
+                .ConfigureAwait(false)).Result;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(submission.Accepted, Is.True);
+                Assert.That(completion.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(ResultSignature(firstRead), Is.EqualTo(ResultSignature(completion)));
+                Assert.That(lateCancel.Accepted, Is.False);
+                Assert.That(ResultSignature(afterCancel), Is.EqualTo(ResultSignature(firstRead)));
+                Assert.That(lateRetry.Accepted, Is.False);
+                Assert.That(ResultSignature(afterRetry), Is.EqualTo(ResultSignature(firstRead)));
             });
         }
 
@@ -352,7 +688,7 @@ namespace Opc.Ua.RobotIntent.Integration
                 .ConfigureAwait(false);
             await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
                 .ConfigureAwait(false);
-            RobotIntentControllerInfo info = await ReadControllerSafeAsync(controller).ConfigureAwait(false);
+            RobotIntentControllerInfo info = await controller.ReadAsync().ConfigureAwait(false);
 
             await AssertMethodExistsAsync(controller.Transport, "RequestControl").ConfigureAwait(false);
             await AssertMethodExistsAsync(controller.Transport, "ReleaseControl").ConfigureAwait(false);
@@ -376,7 +712,7 @@ namespace Opc.Ua.RobotIntent.Integration
                 MissionDataType mission = CreateMission("method-mission");
                 MissionSubmissionResult submission = await controller.SubmitMissionAsync(mission)
                     .ConfigureAwait(false);
-                Assert.Multiple(() => Assert.That(submission.Accepted, Is.True));
+                Assert.That(submission.Accepted, Is.True);
             }
             if (info.MissionHorizonSupported)
             {
@@ -444,6 +780,68 @@ namespace Opc.Ua.RobotIntent.Integration
         }
 
         [Test]
+        public async Task ProtectiveStopDuringExecutionIsPublishedAndPreventsNewWork()
+        {
+            await using ClientContext context = await m_fixture.ConnectAsync("safety-executing").ConfigureAwait(false);
+            RobotIntentControllerClient controller = await context.GetControllerAsync(MainControllerName)
+                .ConfigureAwait(false);
+            await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
+                .ConfigureAwait(false);
+
+            m_fixture.Executor.HoldCompletion("safety-running");
+            IntentSubmissionResult running = await controller.TrySubmitIntentAsync(WaitIntent("safety-running", 700))
+                .ConfigureAwait(false);
+            IntentOperationSnapshot executing;
+            bool protectiveStop;
+            bool ready;
+            IntentSubmissionResult refused;
+            IntentOperationSnapshot whileStopped;
+            IntentResultDataType final;
+            try
+            {
+                executing = await WaitForSnapshotAsync(
+                    controller,
+                    running.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Executing,
+                    "safety-running executing").ConfigureAwait(false);
+                m_fixture.ApplySafety(new RiServer.SafetyStatus { ProtectiveStopActive = true });
+                protectiveStop = await ReadBooleanPathAsync(
+                    context.Session,
+                    controller.Transport.ControllerId,
+                    "SafetyState",
+                    "ProtectiveStopActive").ConfigureAwait(false);
+                ready = await ReadBooleanPathAsync(context.Session, controller.Transport.ControllerId, "Ready")
+                    .ConfigureAwait(false);
+                refused = await controller.TrySubmitIntentAsync(LinearIntent("blocked-by-stop"))
+                    .ConfigureAwait(false);
+                whileStopped = await controller.Transport
+                    .ReadOperationSnapshotAsync(running.Operation)
+                    .ConfigureAwait(false);
+                m_fixture.ResetSafety();
+                m_fixture.Executor.ReleaseCompletion("safety-running");
+                final = await WaitForTerminalAsync(controller, running.IntentId, running.Operation)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_fixture.ResetSafety();
+                m_fixture.Executor.ReleaseCompletion("safety-running");
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(running.Accepted, Is.True);
+                Assert.That(executing.ExecutionState, Is.EqualTo(ExecutionStateEnum.Executing));
+                Assert.That(protectiveStop, Is.True);
+                Assert.That(ready, Is.False);
+                Assert.That(refused.Accepted, Is.False);
+                Assert.That(refused.Failure, Is.EqualTo(IntentFailureEnum.NotPermittedInMode));
+                Assert.That(whileStopped.ExecutionState, Is.EqualTo(ExecutionStateEnum.Executing));
+                Assert.That(final.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+            });
+        }
+
+        [Test]
         public async Task OpcUaCancelServiceDoesNotStopRunningIntent()
         {
             await using ClientContext context = await m_fixture.ConnectAsync("service-cancel").ConfigureAwait(false);
@@ -451,23 +849,34 @@ namespace Opc.Ua.RobotIntent.Integration
                 .ConfigureAwait(false);
             await using CommandAuthorityLease authority = await WaitForAuthorityAsync(controller)
                 .ConfigureAwait(false);
+            m_fixture.Executor.HoldCompletion("service");
             await using IntentOperationHandle running = await controller.SubmitIntentAsync(WaitIntent("service", 700))
                 .ConfigureAwait(false);
-            await WaitForStateAsync(running, ExecutionStateEnum.Executing).ConfigureAwait(false);
+            CancelResponse response;
+            IntentOperationSnapshot stillExecuting;
+            IntentOperationSnapshot final;
+            try
+            {
+                await WaitForStateAsync(running, ExecutionStateEnum.Executing).ConfigureAwait(false);
 
-            CancelResponse response = await context.Session.CancelAsync(
-                requestHeader: null,
-                requestHandle: 0,
-                ct: CancellationToken.None).ConfigureAwait(false);
-            IntentOperationSnapshot stillExecuting = await controller.Transport
-                .ReadOperationSnapshotAsync(running.Operation)
-                .ConfigureAwait(false);
-            await AwaitAsync(running.Completion, "service-cancel intent completion").ConfigureAwait(false);
-            IntentOperationSnapshot final = await WaitForSnapshotAsync(
-                controller,
-                running.Operation,
-                snapshot => snapshot.Result.State == ExecutionStateEnum.Succeeded,
-                "service-cancel final result").ConfigureAwait(false);
+                response = await context.Session.CancelAsync(
+                    requestHeader: null,
+                    requestHandle: 0,
+                    ct: CancellationToken.None).ConfigureAwait(false);
+                stillExecuting = await controller.Transport
+                    .ReadOperationSnapshotAsync(running.Operation)
+                    .ConfigureAwait(false);
+                m_fixture.Executor.ReleaseCompletion("service");
+                final = await WaitForSnapshotAsync(
+                    controller,
+                    running.Operation,
+                    snapshot => snapshot.Result.State == ExecutionStateEnum.Succeeded,
+                    "service-cancel final result").ConfigureAwait(false);
+            }
+            finally
+            {
+                m_fixture.Executor.ReleaseCompletion("service");
+            }
 
             Assert.Multiple(() =>
             {
@@ -525,7 +934,6 @@ namespace Opc.Ua.RobotIntent.Integration
                 hard.Operation,
                 "QueuePosition")
                 .ConfigureAwait(false);
-            await Task.Delay(250).ConfigureAwait(false);
             IntentOperationSnapshot hardBlockedSnapshot = await controller.Transport
                 .ReadOperationSnapshotAsync(hard.Operation)
                 .ConfigureAwait(false);
@@ -628,6 +1036,35 @@ namespace Opc.Ua.RobotIntent.Integration
             });
         }
 
+        [Test]
+        public async Task ScopedNodeIdsFromAnotherControllerAreRejected()
+        {
+            await using var twoControllerFixture = new TestServerFixture(includePeerController: true);
+            await twoControllerFixture.StartAsync().ConfigureAwait(false);
+            await using ClientContext context = await twoControllerFixture.ConnectAsync("scoped-nodeids").ConfigureAwait(false);
+            RobotIntentControllerClient source = await context.GetControllerAsync(MainControllerName)
+                .ConfigureAwait(false);
+            RobotIntentControllerClient target = await context.GetControllerAsync(PeerControllerName)
+                .ConfigureAwait(false);
+            await using CommandAuthorityLease authority = await WaitForAuthorityAsync(target)
+                .ConfigureAwait(false);
+            RobotIntentControllerInfo sourceInfo = await source.ReadAsync().ConfigureAwait(false);
+
+            IntentSubmissionResult result = await target.TrySubmitIntentAsync(new RiRobotIntent.SetOutputIntentDataType
+            {
+                IntentId = "foreign-output",
+                Output = sourceInfo.Lookups.Outputs[0].NodeId,
+                Value = new Variant(true)
+            }).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Accepted, Is.False);
+                Assert.That(result.Failure, Is.EqualTo(IntentFailureEnum.ParameterInvalid));
+                Assert.That(result.Message.Text, Does.Contain("under this controller"));
+            });
+        }
+
         private static RiRobotIntent.LinearMoveIntentDataType LinearIntent(string id)
         {
             return new RiRobotIntent.LinearMoveIntentDataType
@@ -719,6 +1156,11 @@ namespace Opc.Ua.RobotIntent.Integration
             return nodeId.TryGetValue(out uint actual) && actual == identifier;
         }
 
+        private static NodeId StandardNode(uint identifier)
+        {
+            return new NodeId(identifier, 0);
+        }
+
         private static MissionDataType CreateMission(string id)
         {
             return new MissionDataType
@@ -781,6 +1223,29 @@ namespace Opc.Ua.RobotIntent.Integration
                     SequenceId = 2,
                     Released = false,
                     Intent = WaitIntent("replacement", 50),
+                    ErrorPolicy = ErrorPolicyEnum.Abort
+                }
+            ];
+        }
+
+        private static ArrayOf<MissionStepDataType> CreateRejectedUpdateSteps()
+        {
+            return
+            [
+                new MissionStepDataType
+                {
+                    StepId = "base",
+                    SequenceId = 1,
+                    Released = true,
+                    Intent = WaitIntent("base", 500),
+                    ErrorPolicy = ErrorPolicyEnum.Abort
+                },
+                new MissionStepDataType
+                {
+                    StepId = "base",
+                    SequenceId = 2,
+                    Released = false,
+                    Intent = WaitIntent("duplicate-base", 50),
                     ErrorPolicy = ErrorPolicyEnum.Abort
                 }
             ];
@@ -886,6 +1351,80 @@ namespace Opc.Ua.RobotIntent.Integration
             Assert.That(method.IsNull, Is.False, $"{browseName} must exist when the capability surface requires it.");
         }
 
+        private static async ValueTask<NodeId> ReadProgramCurrentStateIdAsync(ISession session, NodeId operation)
+        {
+            NodeId currentState = await BrowseChildByNameAsync(session, operation, "CurrentState")
+                .ConfigureAwait(false);
+            Assert.That(currentState.IsNull, Is.False, "Operation CurrentState must be browsable.");
+            NodeId id = await BrowseChildByNameAsync(session, currentState, "Id").ConfigureAwait(false);
+            Assert.That(id.IsNull, Is.False, "Operation CurrentState/Id must be browsable.");
+            DataValue value = await session.ReadValueAsync(id).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(value.StatusCode), Is.True, "CurrentState/Id must be readable.");
+            Assert.That(value.WrappedValue.TryGetValue(out NodeId stateId), Is.True);
+            return stateId;
+        }
+
+        private static async ValueTask<MissionDataType> ReadMissionAsync(ISession session, NodeId missionOperation)
+        {
+            NodeId missionNode = await BrowseChildByNameAsync(session, missionOperation, "Mission")
+                .ConfigureAwait(false);
+            Assert.That(missionNode.IsNull, Is.False, "Mission must be browsable from the mission operation.");
+            DataValue value = await session.ReadValueAsync(missionNode).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(value.StatusCode), Is.True, "Mission must be readable.");
+            Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
+            Assert.That(extension.TryGetValue(out IEncodeable? encodeable), Is.True);
+            return (MissionDataType)encodeable!;
+        }
+
+        private static async ValueTask<bool> ReadBooleanPathAsync(
+            ISession session,
+            NodeId root,
+            params string[] browseNames)
+        {
+            NodeId nodeId = root;
+            foreach (string browseName in browseNames)
+            {
+                nodeId = await BrowseChildByNameAsync(session, nodeId, browseName).ConfigureAwait(false);
+                Assert.That(nodeId.IsNull, Is.False, $"{browseName} must be browsable.");
+            }
+            DataValue value = await session.ReadValueAsync(nodeId).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(value.StatusCode), Is.True, $"{browseNames[^1]} must be readable.");
+            Assert.That(value.WrappedValue.TryGetValue(out bool result), Is.True);
+            return result;
+        }
+
+        private static string MissionSignature(MissionDataType mission)
+        {
+            var stepSignatures = new List<string>();
+            for (int ii = 0; ii < mission.Steps.Count; ii++)
+            {
+                MissionStepDataType step = mission.Steps[ii];
+                stepSignatures.Add(string.Join(
+                    ":",
+                    step.StepId,
+                    step.SequenceId,
+                    step.Released,
+                    step.Intent?.IntentId,
+                    step.ErrorPolicy,
+                    step.FallbackStepId));
+            }
+            return string.Join("|", stepSignatures) + FormattableString.Invariant($":{mission.MissionUpdateId}");
+        }
+
+        private static string ResultSignature(IntentResultDataType result)
+        {
+            return string.Join(
+                "|",
+                result.IntentId,
+                result.State,
+                result.Failure,
+                result.Message.Text,
+                result.HasAchievedPose,
+                result.StartTime,
+                result.EndTime,
+                result.Outputs.Count);
+        }
+
         private static async ValueTask<StatusCode> WriteValueAsync(ISession session, NodeId nodeId, int value)
         {
             WriteResponse response = await session.WriteAsync(
@@ -963,111 +1502,6 @@ namespace Opc.Ua.RobotIntent.Integration
                 : ExpandedNodeId.ToNodeId(target.NodeId, session.NamespaceUris);
         }
 
-        private static async ValueTask<RobotIntentControllerInfo> ReadControllerSafeAsync(
-            RobotIntentControllerClient controller)
-        {
-            try
-            {
-                return await controller.ReadAsync().ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadTypeMismatch)
-            {
-                IRobotIntentTransport transport = controller.Transport;
-                RobotIntentLookups lookups = await BuildKnownLookupsAsync(transport).ConfigureAwait(false);
-                return new RobotIntentControllerInfo
-                {
-                    NodeId = transport.ControllerId,
-                    SupportedIntents =
-                    [
-                        Capability(RiRobotIntent.DataTypes.LinearMoveIntentDataType),
-                        Capability(RiRobotIntent.DataTypes.WaitIntentDataType),
-                        Capability(RiRobotIntent.DataTypes.SetOutputIntentDataType),
-                        Capability(RiRobotIntent.DataTypes.CallProgramIntentDataType, cancelSupported: false),
-                        Capability(RiRobotIntent.DataTypes.GraspIntentDataType)
-                    ],
-                    AxisCount = 6,
-                    MaxQueueDepth = 2,
-                    MissionsSupported = true,
-                    MissionHorizonSupported = true,
-                    MissionBranchingSupported = true,
-                    RealTimeChannelsSupported = true,
-                    Lookups = lookups,
-                    Facets = new RobotIntentFacets
-                    {
-                        Base = true,
-                        QueuedIntents = true,
-                        Missions = true,
-                        MissionHorizon = true,
-                        MissionBranching = true,
-                        RealTimeChannels = true,
-                        EveryCapabilitySupportsAborting = true
-                    }
-                };
-            }
-        }
-
-        private static IntentCapabilityDataType Capability(uint dataTypeId, bool cancelSupported = true)
-        {
-            return new IntentCapabilityDataType
-            {
-                IntentType = new NodeId(dataTypeId, 2),
-                CancelSupported = cancelSupported,
-                SupportedBufferModes = [BufferModeEnum.Aborting, BufferModeEnum.Buffered],
-                SupportedBlockingModes = [BlockingModeEnum.None, BlockingModeEnum.Hard]
-            };
-        }
-
-        private static async ValueTask<RobotIntentLookups> BuildKnownLookupsAsync(IRobotIntentTransport transport)
-        {
-            static RobotIntentNodeLookupEntry Entry(string name, NodeId nodeId)
-                => new(nodeId, new QualifiedName(name, nodeId.NamespaceIndex), name);
-
-            var axes = new List<RobotIntentNodeLookupEntry>();
-            NodeId axesFolder = await transport.ResolveChildAsync(transport.ControllerId, "Axes").ConfigureAwait(false);
-            for (int ii = 1; ii <= 6; ii++)
-            {
-                string name = FormattableString.Invariant($"J{ii}");
-                NodeId axis = await transport.ResolveChildAsync(axesFolder, name).ConfigureAwait(false);
-                axes.Add(Entry(name, axis));
-            }
-
-            NodeId framesFolder = await transport.ResolveChildAsync(transport.ControllerId, "Frames")
-                .ConfigureAwait(false);
-            NodeId toolsFolder = await transport.ResolveChildAsync(transport.ControllerId, "Tools")
-                .ConfigureAwait(false);
-            NodeId locationsFolder = await transport.ResolveChildAsync(transport.ControllerId, "Locations")
-                .ConfigureAwait(false);
-            NodeId outputsFolder = await transport.ResolveChildAsync(transport.ControllerId, "Outputs")
-                .ConfigureAwait(false);
-            NodeId programsFolder = await transport.ResolveChildAsync(transport.ControllerId, "Programs")
-                .ConfigureAwait(false);
-
-            return new RobotIntentLookups
-            {
-                Frames =
-                [
-                    Entry("World", await transport.ResolveChildAsync(framesFolder, "World").ConfigureAwait(false)),
-                    Entry(
-                        "ToolFrame",
-                        await transport.ResolveChildAsync(framesFolder, "ToolFrame").ConfigureAwait(false))
-                ],
-                Tools = [Entry("Tool", await transport.ResolveChildAsync(toolsFolder, "Tool").ConfigureAwait(false))],
-                Locations =
-                [
-                    Entry("Bin", await transport.ResolveChildAsync(locationsFolder, "Bin").ConfigureAwait(false))
-                ],
-                Axes = axes.ToArray().ToArrayOf(),
-                Outputs =
-                [
-                    Entry("Output", await transport.ResolveChildAsync(outputsFolder, "Output").ConfigureAwait(false))
-                ],
-                Programs =
-                [
-                    Entry("Program", await transport.ResolveChildAsync(programsFolder, "Program").ConfigureAwait(false))
-                ]
-            };
-        }
-
         private static async ValueTask<IntentResultDataType> ReadFinalResultAsync(
             ISession session,
             IRobotIntentTransport transport,
@@ -1123,9 +1557,12 @@ namespace Opc.Ua.RobotIntent.Integration
             string intentId,
             NodeId operation)
         {
-            await using IntentOperationHandle handle = await controller.TrackOperationAsync(intentId, operation)
-                .ConfigureAwait(false);
-            return await AwaitAsync(handle.Completion, $"operation {intentId} terminal state").ConfigureAwait(false);
+            IntentOperationSnapshot snapshot = await WaitForSnapshotAsync(
+                controller,
+                operation,
+                candidate => RobotIntentRules.IsTerminal(candidate.Result.State),
+                $"operation {intentId} terminal result").ConfigureAwait(false);
+            return snapshot.Result;
         }
 
         private static async ValueTask WaitForStateAsync(
@@ -1166,13 +1603,6 @@ namespace Opc.Ua.RobotIntent.Integration
                 return lease.Granted;
             }, "command authority after Session close").ConfigureAwait(false);
             return lease!;
-        }
-
-        private static async ValueTask<T> AwaitAsync<T>(Task<T> task, string description)
-        {
-            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
-            Assert.That(completed, Is.SameAs(task), $"Timed out waiting for {description}.");
-            return await task.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1227,15 +1657,18 @@ namespace Opc.Ua.RobotIntent.Integration
 
         private const string MainControllerName = "CellController";
         private const string ManualControllerName = "ManualController";
+        private const string PeerControllerName = "PeerController";
+        private const string NoPauseControllerName = "NoPauseController";
         private const string ChannelId = "deterministic-channel";
 
         private TestServerFixture m_fixture = null!;
 
         private sealed class TestServerFixture : IAsyncDisposable
         {
-            public TestServerFixture(bool includeRoboticsInterop = false)
+            public TestServerFixture(bool includeRoboticsInterop = false, bool includePeerController = false)
             {
                 m_includeRoboticsInterop = includeRoboticsInterop;
+                m_includePeerController = includePeerController;
             }
 
             public string ServerUrl { get; private set; } = string.Empty;
@@ -1351,7 +1784,7 @@ namespace Opc.Ua.RobotIntent.Integration
             {
                 if (m_host != null)
                 {
-                    using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                     try
                     {
                         await m_host.StopAsync(stopCts.Token).ConfigureAwait(false);
@@ -1378,6 +1811,20 @@ namespace Opc.Ua.RobotIntent.Integration
                         ManualControllerName,
                         OperationalModeEnum.ManualReducedSpeed,
                         cancellationToken).ConfigureAwait(false);
+                    await AddControllerAsync(
+                        context,
+                        NoPauseControllerName,
+                        OperationalModeEnum.AutomaticExternal,
+                        cancellationToken,
+                        pauseSupported: false).ConfigureAwait(false);
+                    if (m_includePeerController)
+                    {
+                        await AddControllerAsync(
+                            context,
+                            PeerControllerName,
+                            OperationalModeEnum.AutomaticExternal,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1390,11 +1837,12 @@ namespace Opc.Ua.RobotIntent.Integration
                 IRobotIntentBuildContext context,
                 string browseName,
                 OperationalModeEnum mode,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                bool pauseSupported = true)
             {
                 IIntentControllerBuilder builder = await context.AddIntentControllerAsync(
                     browseName,
-                    controller => ConfigureController(controller, mode),
+                    controller => ConfigureController(controller, mode, pauseSupported),
                     cancellationToken).ConfigureAwait(false);
                 m_hosts.Add((builder.Host, context.Context));
                 if (browseName == MainControllerName)
@@ -1458,17 +1906,25 @@ namespace Opc.Ua.RobotIntent.Integration
                 }
             }
 
-            private static void ConfigureController(IIntentControllerBuilder controller, OperationalModeEnum mode)
+            private static void ConfigureController(
+                IIntentControllerBuilder controller,
+                OperationalModeEnum mode,
+                bool pauseSupported)
             {
                 controller
                     .WithOperationalMode(mode)
                     .WithReady(true)
                     .WithMaxQueueDepth(2)
-                    .Accepts<RiRobotIntent.LinearMoveIntentDataType>()
-                    .Accepts<RiRobotIntent.WaitIntentDataType>()
-                    .Accepts<RiRobotIntent.SetOutputIntentDataType>()
-                    .Accepts<RiRobotIntent.CallProgramIntentDataType>(cancelSupported: false)
-                    .Accepts<RiRobotIntent.GraspIntentDataType>();
+                    .WithSafetyState()
+                    .Accepts<RiRobotIntent.LinearMoveIntentDataType>(pauseSupported: pauseSupported)
+                    .Accepts<RiRobotIntent.WaitIntentDataType>(
+                        pauseSupported: pauseSupported,
+                        retrySupported: true)
+                    .Accepts<RiRobotIntent.SetOutputIntentDataType>(pauseSupported: pauseSupported)
+                    .Accepts<RiRobotIntent.CallProgramIntentDataType>(
+                        cancelSupported: false,
+                        pauseSupported: pauseSupported)
+                    .Accepts<RiRobotIntent.GraspIntentDataType>(pauseSupported: pauseSupported);
                 IIntentFrameBuilder world = controller.AddFrame("World", "world", FrameRoleEnum.World, Pose(0, 0, 0));
                 IIntentFrameBuilder toolFrame = controller.AddFrame(
                     "ToolFrame",
@@ -1578,6 +2034,7 @@ namespace Opc.Ua.RobotIntent.Integration
             }
 
             private readonly bool m_includeRoboticsInterop;
+            private readonly bool m_includePeerController;
             private readonly List<(RiServer.IntentControllerHost Host, ISystemContext Context)> m_hosts = [];
             private readonly DeterministicExecutor m_executor = new();
 
@@ -1625,12 +2082,12 @@ namespace Opc.Ua.RobotIntent.Integration
             {
                 if (Session.Connected)
                 {
-                    await WithTimeoutAsync(Session.CloseAsync(1000, true), TimeSpan.FromSeconds(5))
+                    await WithTimeoutAsync(Session.CloseAsync(1000, true), TimeSpan.FromSeconds(30))
                         .ConfigureAwait(false);
                 }
                 try
                 {
-                    await WithTimeoutAsync(m_streaming.DisposeAsync().AsTask(), TimeSpan.FromSeconds(5))
+                    await WithTimeoutAsync(m_streaming.DisposeAsync().AsTask(), TimeSpan.FromSeconds(30))
                         .ConfigureAwait(false);
                 }
                 catch (TimeoutException)
@@ -1673,6 +2130,15 @@ namespace Opc.Ua.RobotIntent.Integration
                 }
             }
 
+            public void HoldCancellationCompletion(string intentId)
+            {
+                lock (m_lock)
+                {
+                    m_cancellationGates[intentId] = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+            }
+
             public void ReleaseCompletion(string intentId)
             {
                 TaskCompletionSource<bool>? gate = null;
@@ -1681,6 +2147,19 @@ namespace Opc.Ua.RobotIntent.Integration
                     if (m_completionGates.TryGetValue(intentId, out gate))
                     {
                         m_completionGates.Remove(intentId);
+                    }
+                }
+                gate?.TrySetResult(true);
+            }
+
+            public void ReleaseCancellationCompletion(string intentId)
+            {
+                TaskCompletionSource<bool>? gate = null;
+                lock (m_lock)
+                {
+                    if (m_cancellationGates.TryGetValue(intentId, out gate))
+                    {
+                        m_cancellationGates.Remove(intentId);
                     }
                 }
                 gate?.TrySetResult(true);
@@ -1695,37 +2174,32 @@ namespace Opc.Ua.RobotIntent.Integration
                 IntentExecution execution,
                 CancellationToken cancellationToken)
             {
-                double duration = execution.Intent is RiRobotIntent.WaitIntentDataType wait
-                    ? Math.Min(Math.Max(wait.Duration, 50.0), 1000.0)
-                    : execution.Intent is RiRobotIntent.CallProgramIntentDataType
-                        ? 600.0
-                        : 500.0;
                 const int steps = 5;
                 for (int ii = 1; ii <= steps; ii++)
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
-                        await Task.Delay(250, CancellationToken.None).ConfigureAwait(false);
+                        await WaitForCancellationGateAsync(
+                            execution.Intent.IntentId ?? string.Empty,
+                            CancellationToken.None).ConfigureAwait(false);
                         AddCompleted(execution.Intent.IntentId ?? string.Empty);
                         return IntentOutcome.Success;
                     }
                     execution.Progress.ReportProgress((double)ii / steps);
                     execution.Progress.ReportPose(Pose(ii * 0.01, ii * 0.02, ii * 0.03));
-                    try
-                    {
-                        await Task.Delay(TimeSpan.FromMilliseconds(duration / steps), cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        await Task.Delay(250, CancellationToken.None).ConfigureAwait(false);
-                        AddCompleted(execution.Intent.IntentId ?? string.Empty);
-                        return IntentOutcome.Success;
-                    }
                 }
                 string intentId = execution.Intent.IntentId ?? string.Empty;
-                await WaitForCompletionGateAsync(intentId, cancellationToken).ConfigureAwait(false);
+                if (await WaitForCompletionOrCancellationAsync(intentId, cancellationToken).ConfigureAwait(false))
+                {
+                    await WaitForCancellationGateAsync(intentId, CancellationToken.None).ConfigureAwait(false);
+                    AddCompleted(intentId);
+                    return IntentOutcome.Success;
+                }
                 AddCompleted(intentId);
+                if (intentId.StartsWith("retriable-", StringComparison.Ordinal))
+                {
+                    return IntentOutcome.Retriable(IntentFailureEnum.Other, "Deterministic retriable outcome.");
+                }
                 if (intentId.EndsWith("-fail", StringComparison.Ordinal))
                 {
                     return IntentOutcome.Fail(IntentFailureEnum.Other, "Deterministic failure.");
@@ -1741,12 +2215,14 @@ namespace Opc.Ua.RobotIntent.Integration
                 }
             }
 
-            private async ValueTask WaitForCompletionGateAsync(string intentId, CancellationToken cancellationToken)
+            private async ValueTask WaitForCancellationGateAsync(
+                string intentId,
+                CancellationToken cancellationToken)
             {
                 TaskCompletionSource<bool>? gate;
                 lock (m_lock)
                 {
-                    m_completionGates.TryGetValue(intentId, out gate);
+                    m_cancellationGates.TryGetValue(intentId, out gate);
                 }
                 if (gate != null)
                 {
@@ -1754,9 +2230,34 @@ namespace Opc.Ua.RobotIntent.Integration
                 }
             }
 
+            private async ValueTask<bool> WaitForCompletionOrCancellationAsync(
+                string intentId,
+                CancellationToken cancellationToken)
+            {
+                TaskCompletionSource<bool>? gate;
+                lock (m_lock)
+                {
+                    m_completionGates.TryGetValue(intentId, out gate);
+                }
+                if (gate == null)
+                {
+                    return false;
+                }
+
+                var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using (cancellationToken.Register(
+                    static state => ((TaskCompletionSource<bool>)state!).TrySetResult(true),
+                    cancelled))
+                {
+                    Task completed = await Task.WhenAny(gate.Task, cancelled.Task).ConfigureAwait(false);
+                    return completed != gate.Task;
+                }
+            }
+
             private readonly System.Threading.Lock m_lock = new();
             private readonly List<string> m_completedIntentIds = [];
             private readonly Dictionary<string, TaskCompletionSource<bool>> m_completionGates = [];
+            private readonly Dictionary<string, TaskCompletionSource<bool>> m_cancellationGates = [];
         }
     }
 }

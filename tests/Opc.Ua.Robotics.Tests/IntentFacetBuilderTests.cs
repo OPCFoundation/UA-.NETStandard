@@ -27,9 +27,19 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Robotics.Server;
 using Opc.Ua.Robotics.Server.Builders;
+using Opc.Ua.Robotics.Server.Hosting;
 using Opc.Ua.RobotIntent;
+using Opc.Ua.RobotIntent.Server;
+using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using RiAxisState = Opc.Ua.RobotIntent.AxisState;
 using RiDataTypes = Opc.Ua.RobotIntent.DataTypes;
@@ -100,12 +110,15 @@ namespace Opc.Ua.Robotics.Tests
         [Test]
         public void ComputeFacetsClaimsOnlySatisfiedProcessFacets()
         {
-            AddTool("Tool0");
-            AddTool("Tool1");
+            AddAxis("Axis0", 0);
+            AddAxis("Axis1", 1);
+            m_controller.Capabilities!.AxisCount!.Value = 2;
+            AddCompleteDescription("Axis0", "Axis1");
+            AddTool("Tool0", true);
+            AddTool("Tool1", true);
             AddLocation("Location0");
             m_controller.AddOutputs(m_context);
             m_controller.AddPrograms(m_context);
-            m_controller.AddDescription(m_context);
             m_controller.AddRealTimeChannels(m_context);
             m_controller.Capabilities!.RealTimeChannelsSupported!.Value = true;
             m_controller.Capabilities.SupportedIntents!.Value = new[]
@@ -137,7 +150,7 @@ namespace Opc.Ua.Robotics.Tests
         [Test]
         public void ComputeFacetsRequiresEveryIntentNamedByFacet()
         {
-            AddTool("Tool0");
+            AddTool("Tool0", true);
             AddLocation("Location0");
             m_controller.Capabilities!.SupportedIntents!.Value = new[]
             {
@@ -152,6 +165,259 @@ namespace Opc.Ua.Robotics.Tests
                 Assert.That(facets, Does.Not.Contain("RI-Grasp"));
                 Assert.That(facets, Does.Not.Contain("RI-PickPlace"));
             });
+        }
+
+        [Test]
+        public void ComputeFacetsClaimsQueueBlendingAndMissionHorizonOnlyWhenRequirementsAreSatisfied()
+        {
+            m_controller.MaxQueueDepth!.Value = 4;
+            m_controller.Capabilities!.MissionsSupported!.Value = true;
+            m_controller.Capabilities.MissionHorizonSupported!.Value = true;
+            m_controller.Capabilities.BlendingSupported!.Value = true;
+            m_controller.AddSubmitMission(m_context);
+            m_controller.AddCancelMission(m_context);
+            m_controller.AddUpdateMission(m_context);
+            m_controller.Capabilities.SupportedIntents!.Value = new[]
+            {
+                Capability(
+                    RiDataTypes.LinearMoveIntentDataType,
+                    [
+                        BufferModeEnum.Aborting,
+                        BufferModeEnum.Buffered,
+                        BufferModeEnum.BlendingLow,
+                        BufferModeEnum.BlendingPrevious,
+                        BufferModeEnum.BlendingNext,
+                        BufferModeEnum.BlendingHigh
+                    ])
+            }.ToArrayOf();
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(facets, Does.Contain("RI-Queue"));
+                Assert.That(facets, Does.Contain("RI-Blending"));
+                Assert.That(facets, Does.Contain("RI-Mission"));
+                Assert.That(facets, Does.Contain("RI-Mission-Horizon"));
+            });
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsQueueWithoutBufferedMode()
+        {
+            m_controller.MaxQueueDepth!.Value = 4;
+            m_controller.Capabilities!.SupportedIntents!.Value = new[]
+            {
+                Capability(RiDataTypes.WaitIntentDataType)
+            }.ToArrayOf();
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Queue"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsBlendingWithoutAllBlendingModes()
+        {
+            m_controller.Capabilities!.BlendingSupported!.Value = true;
+            m_controller.Capabilities.SupportedIntents!.Value = new[]
+            {
+                Capability(
+                    RiDataTypes.LinearMoveIntentDataType,
+                    [
+                        BufferModeEnum.Aborting,
+                        BufferModeEnum.BlendingLow,
+                        BufferModeEnum.BlendingPrevious,
+                        BufferModeEnum.BlendingNext
+                    ])
+            }.ToArrayOf();
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Blending"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsMissionHorizonWithoutUpdateMission()
+        {
+            m_controller.Capabilities!.MissionsSupported!.Value = true;
+            m_controller.Capabilities.MissionHorizonSupported!.Value = true;
+            m_controller.AddSubmitMission(m_context);
+            m_controller.AddCancelMission(m_context);
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(facets, Does.Contain("RI-Mission"));
+                Assert.That(facets, Does.Not.Contain("RI-Mission-Horizon"));
+            });
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsGraspWithoutToolTcpFrame()
+        {
+            AddTool("Tool0");
+            m_controller.Capabilities!.SupportedIntents!.Value = new[]
+            {
+                Capability(RiDataTypes.GraspIntentDataType),
+                Capability(RiDataTypes.ReleaseIntentDataType)
+            }.ToArrayOf();
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Grasp"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsGraspWhenTcpFrameIsNotToolRole()
+        {
+            AddTool("Tool0", true, FrameRoleEnum.Base);
+            m_controller.Capabilities!.SupportedIntents!.Value = new[]
+            {
+                Capability(RiDataTypes.GraspIntentDataType),
+                Capability(RiDataTypes.ReleaseIntentDataType)
+            }.ToArrayOf();
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Grasp"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsDescriptionWithoutKinematicChainCoveringEveryAxis()
+        {
+            AddAxis("Axis0", 0);
+            AddAxis("Axis1", 1);
+            m_controller.Capabilities!.AxisCount!.Value = 2;
+            AddCompleteDescription("Axis0");
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Description"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsDescriptionWithoutKinematicChainNode()
+        {
+            AddAxis("Axis0", 0);
+            m_controller.Capabilities!.AxisCount!.Value = 1;
+            AddCompleteDescription("Axis0");
+            m_controller.Description!.KinematicChain = null;
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Description"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsDescriptionWithoutReachRadiusNode()
+        {
+            AddAxis("Axis0", 0);
+            m_controller.Capabilities!.AxisCount!.Value = 1;
+            AddCompleteDescription("Axis0");
+            m_controller.Description!.ReachRadius = null;
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Description"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsDescriptionWithoutPayloadLimitNode()
+        {
+            AddAxis("Axis0", 0);
+            m_controller.Capabilities!.AxisCount!.Value = 1;
+            AddCompleteDescription("Axis0");
+            m_controller.Description!.PayloadLimit = null;
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Description"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsDescriptionWithoutMaxCartesianSpeedNode()
+        {
+            AddAxis("Axis0", 0);
+            m_controller.Capabilities!.AxisCount!.Value = 1;
+            AddCompleteDescription("Axis0");
+            m_controller.Description!.MaxCartesianSpeed = null;
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Description"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsSafetyWithoutSafetyState()
+        {
+            m_controller.SafetyState = null;
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Safety"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsToolChangeWithSingleTool()
+        {
+            AddTool("Tool0", true);
+            m_controller.Capabilities!.SupportedIntents!.Value = new[]
+            {
+                Capability(RiDataTypes.ToolChangeIntentDataType)
+            }.ToArrayOf();
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-ToolChange"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsSurfaceFinishWithoutForceFacet()
+        {
+            m_controller.Capabilities!.SupportedIntents!.Value = new[]
+            {
+                Capability(RiDataTypes.SurfaceFinishIntentDataType),
+                Capability(RiDataTypes.ForceIntentDataType)
+            }.ToArrayOf();
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Process-SurfaceFinish"));
+        }
+
+        [TestCase(RiDataTypes.ArcWeldIntentDataType, "RI-Process-ArcWeld")]
+        [TestCase(RiDataTypes.SpotWeldIntentDataType, "RI-Process-SpotWeld")]
+        [TestCase(RiDataTypes.DispenseIntentDataType, "RI-Process-Dispense")]
+        [TestCase(RiDataTypes.FastenIntentDataType, "RI-Process-Fasten")]
+        public void ComputeFacetsClaimsProcessFacetOnlyForDeclaredProcessIntent(uint dataType, string facet)
+        {
+            m_controller.Capabilities!.SupportedIntents!.Value = new[]
+            {
+                Capability(dataType)
+            }.ToArrayOf();
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(facets, Does.Contain(facet));
+                Assert.That(facets, Does.Not.Contain("RI-Process-Palletise"));
+            });
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsPalletiseWithoutLocationPattern()
+        {
+            m_controller.Capabilities!.SupportedIntents!.Value = new[]
+            {
+                Capability(RiDataTypes.PalletiseIntentDataType)
+            }.ToArrayOf();
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Process-Palletise"));
         }
 
         [Test]
@@ -177,24 +443,168 @@ namespace Opc.Ua.Robotics.Tests
             });
         }
 
+        [Test]
+        public async Task RegisteredControllerPublishesComputedSupportedFacets()
+        {
+            await using var fixture = new IntentFacetServerFixture();
+            var runner = new DelegateSetupRunner(async (context, cancellationToken) =>
+            {
+                IIntentControllerBuilder builder = await context.AddIntentControllerAsync(
+                    "Published",
+                    controller => controller.Accepts<WaitIntentDataType>(),
+                    cancellationToken).ConfigureAwait(false);
+                return [builder.State];
+            });
+            await fixture.StartAsync(runner).ConfigureAwait(false);
+            var controller = (IntentControllerState)runner.Results![0];
+
+            string[] published = [.. controller.Capabilities!.SupportedFacets!.Value];
+            string[] computed = [.. RobotIntentFacetCalculator.Compute(controller)];
+
+            Assert.That(published, Is.EqualTo(computed));
+        }
+
+        [Test]
+        public async Task RegisteredControllersAlwaysPublishBaseFacet()
+        {
+            await using var fixture = new IntentFacetServerFixture();
+            var runner = new DelegateSetupRunner(async (context, cancellationToken) =>
+            {
+                IIntentControllerBuilder minimal = await context.AddIntentControllerAsync(
+                    "Minimal",
+                    controller => controller.Accepts<WaitIntentDataType>(),
+                    cancellationToken).ConfigureAwait(false);
+                IIntentControllerBuilder motion = await context.AddIntentControllerAsync(
+                    "Motion",
+                    controller =>
+                    {
+                        controller.AddAxis("Axis0", 0, AxisKindEnum.Revolute);
+                        controller.Accepts<JointMoveIntentDataType>();
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                IIntentControllerBuilder process = await context.AddIntentControllerAsync(
+                    "Process",
+                    controller =>
+                    {
+                        IIntentFrameBuilder frame = controller.AddFrame(
+                            "ToolFrame",
+                            "tool",
+                            FrameRoleEnum.Tool,
+                            Pose());
+                        controller.AddTool("Tool0", frame);
+                        controller.Accepts<ToolChangeIntentDataType>();
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                return [minimal.State, motion.State, process.State];
+            });
+            await fixture.StartAsync(runner).ConfigureAwait(false);
+
+            foreach (IntentControllerState controller in runner.Results!)
+            {
+                string[] facets = [.. controller.Capabilities!.SupportedFacets!.Value];
+
+                Assert.That(facets, Does.Contain("RI-Base"));
+            }
+        }
+
+        [Test]
+        public async Task RegisteredControllerDoesNotPublishUnsatisfiedFacet()
+        {
+            await using var fixture = new IntentFacetServerFixture();
+            var runner = new DelegateSetupRunner(async (context, cancellationToken) =>
+            {
+                IIntentControllerBuilder builder = await context.AddIntentControllerAsync(
+                    "SingleTool",
+                    controller =>
+                    {
+                        IIntentFrameBuilder frame = controller.AddFrame(
+                            "ToolFrame",
+                            "tool",
+                            FrameRoleEnum.Tool,
+                            Pose());
+                        controller.AddTool("Tool0", frame);
+                        controller.Accepts<ToolChangeIntentDataType>();
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                return [builder.State];
+            });
+            await fixture.StartAsync(runner).ConfigureAwait(false);
+            var controller = (IntentControllerState)runner.Results![0];
+
+            string[] facets = [.. controller.Capabilities!.SupportedFacets!.Value];
+
+            Assert.That(facets, Does.Not.Contain("RI-ToolChange"));
+        }
+
+        [Test]
+        public async Task RegisteredControllerPublishesSupportedFacetsNodeShape()
+        {
+            await using var fixture = new IntentFacetServerFixture();
+            var runner = new DelegateSetupRunner(async (context, cancellationToken) =>
+            {
+                IIntentControllerBuilder builder = await context.AddIntentControllerAsync(
+                    "Shape",
+                    controller => controller.Accepts<WaitIntentDataType>(),
+                    cancellationToken).ConfigureAwait(false);
+                return [builder.State];
+            });
+            await fixture.StartAsync(runner).ConfigureAwait(false);
+            var controller = (IntentControllerState)runner.Results![0];
+            PropertyState<ArrayOf<string>> supportedFacets = controller.Capabilities!.SupportedFacets!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(supportedFacets, Is.Not.Null);
+                Assert.That(supportedFacets.DataType, Is.EqualTo(global::Opc.Ua.DataTypeIds.String));
+                Assert.That(supportedFacets.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
+            });
+        }
+
         private void AddAxis(string browseName, uint index)
         {
             RiAxisState axis = OpcUaRobotIntentExtensions.CreateInstanceOfAxisType(
                 m_context,
                 m_controller.Axes!,
                 new QualifiedName(browseName, 1));
+            axis.CreateOrReplaceAxisId(m_context, null);
+            axis.AxisId!.Value = browseName;
             axis.Index!.Value = index;
             axis.Kind!.Value = AxisKindEnum.Revolute;
             m_controller.Axes!.AddChild(axis);
         }
 
-        private void AddTool(string browseName)
+        private void AddTool(
+            string browseName,
+            bool withTcpFrame = false,
+            FrameRoleEnum tcpFrameRole = FrameRoleEnum.Tool)
         {
             ToolState tool = OpcUaRobotIntentExtensions.CreateInstanceOfToolType(
                 m_context,
                 m_controller.Tools!,
                 new QualifiedName(browseName, 1));
+            if (withTcpFrame)
+            {
+                CoordinateFrameState tcpFrame = AddFrame($"{browseName}Tcp", tcpFrameRole);
+                tool.CreateOrReplaceTcpFrame(m_context, null);
+                tool.TcpFrame!.Value = tcpFrame.NodeId;
+            }
             m_controller.Tools!.AddChild(tool);
+        }
+
+        private CoordinateFrameState AddFrame(string browseName, FrameRoleEnum role)
+        {
+            CoordinateFrameState frame = OpcUaRobotIntentExtensions.CreateInstanceOfCoordinateFrameType(
+                m_context,
+                m_controller.Frames!,
+                new QualifiedName(browseName, 1));
+            frame.CreateOrReplaceFrameId(m_context, null);
+            frame.CreateOrReplaceRole(m_context, null);
+            frame.CreateOrReplaceTransform(m_context, null);
+            frame.FrameId!.Value = browseName;
+            frame.Role!.Value = role;
+            frame.Transform!.Value = Pose();
+            m_controller.Frames!.AddChild(frame);
+            return frame;
         }
 
         private void AddLocation(string browseName)
@@ -206,13 +616,119 @@ namespace Opc.Ua.Robotics.Tests
             m_controller.Locations!.AddChild(location);
         }
 
-        private IntentCapabilityDataType Capability(uint dataType)
+        private void AddCompleteDescription(params string[] axisIds)
+        {
+            m_controller.AddDescription(m_context);
+            m_controller.Description!.CreateOrReplaceKinematicChain(m_context, null);
+            m_controller.Description.CreateOrReplaceReachRadius(m_context, null);
+            m_controller.Description.CreateOrReplacePayloadLimit(m_context, null);
+            m_controller.Description.CreateOrReplaceMaxCartesianSpeed(m_context, null);
+            var chain = new KinematicJointDataType[axisIds.Length];
+            for (int ii = 0; ii < axisIds.Length; ii++)
+            {
+                chain[ii] = new KinematicJointDataType
+                {
+                    AxisId = axisIds[ii],
+                    Kind = AxisKindEnum.Revolute,
+                    OriginTransform = Pose(),
+                    AxisVector = new[] { 0.0, 0.0, 1.0 }.ToArrayOf()
+                };
+            }
+            m_controller.Description.KinematicChain!.Value = chain.ToArrayOf();
+            m_controller.Description.ReachRadius!.Value = 1.0;
+            m_controller.Description.PayloadLimit!.Value = 1.0;
+            m_controller.Description.MaxCartesianSpeed!.Value = 1.0;
+        }
+
+        private IntentCapabilityDataType Capability(uint dataType, BufferModeEnum[]? supportedBufferModes = null)
         {
             return new IntentCapabilityDataType
             {
                 IntentType = NodeId.Create(dataType, RiNamespaces.RobotIntent, m_context.NamespaceUris),
-                SupportedBufferModes = new[] { BufferModeEnum.Aborting }.ToArrayOf()
+                SupportedBufferModes = (supportedBufferModes ?? [BufferModeEnum.Aborting]).ToArrayOf()
             };
+        }
+
+        private static Pose3DDataType Pose()
+        {
+            return new Pose3DDataType
+            {
+                FrameId = "world",
+                Position = new[] { 0.0, 0.0, 0.0 }.ToArrayOf(),
+                Orientation = new[] { 0.0, 0.0, 0.0, 1.0 }.ToArrayOf()
+            };
+        }
+
+        private sealed class IntentFacetServerFixture : IAsyncDisposable
+        {
+            public async Task StartAsync(ControllerSetupRunner runner)
+            {
+                m_fixture = new ServerFixture<StandardServer>(
+                    telemetry => new StandardServer(telemetry))
+                {
+                    AutoAccept = true,
+                    SecurityNone = true
+                };
+                StandardServer server = await m_fixture.StartAsync().ConfigureAwait(false);
+                m_manager = new RobotIntentNodeManager(
+                    server.CurrentInstance,
+                    m_fixture.Config,
+                    new IRobotIntentModelProvider[] { new RobotIntentModelProvider() },
+                    new RobotIntentServerOptions(),
+                    runner);
+                var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+                await m_manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                if (m_manager != null)
+                {
+                    await m_manager.DisposeAsync().ConfigureAwait(false);
+                }
+                if (m_fixture != null)
+                {
+                    await m_fixture.StopAsync().ConfigureAwait(false);
+                }
+            }
+
+            private ServerFixture<StandardServer>? m_fixture;
+            private RobotIntentNodeManager? m_manager;
+        }
+
+        private class ControllerSetupRunner : IRobotIntentPostSetupRunner
+        {
+            public virtual ValueTask RunAsync(
+                AsyncCustomNodeManager manager,
+                RobotIntentRootState root,
+                RobotIntentServerOptions options,
+                CancellationToken cancellationToken)
+            {
+                return new ValueTask();
+            }
+        }
+
+        private sealed class DelegateSetupRunner : ControllerSetupRunner
+        {
+            public DelegateSetupRunner(Func<IRobotIntentBuildContext, CancellationToken, ValueTask<object[]>> configure)
+            {
+                m_configure = configure;
+            }
+
+            public object[]? Results { get; private set; }
+
+            public override async ValueTask RunAsync(
+                AsyncCustomNodeManager manager,
+                RobotIntentRootState root,
+                RobotIntentServerOptions options,
+                CancellationToken cancellationToken)
+            {
+                var robotIntentManager = (RobotIntentNodeManager)manager;
+                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(cancellationToken);
+                Results = await m_configure(context, cancellationToken).ConfigureAwait(false);
+            }
+
+            private readonly Func<IRobotIntentBuildContext, CancellationToken, ValueTask<object[]>> m_configure;
         }
 
         private SystemContext m_context = null!;

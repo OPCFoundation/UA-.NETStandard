@@ -159,6 +159,106 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
+        public async Task RendererPickDispatchCreatesRequestBeforeHopAndRaisesHit()
+        {
+            int callerThread = Environment.CurrentManagedThreadId;
+            var backend = new SequencePickBackend(static request => Hit(request, "/World/RobotTargets/TargetA"));
+            bool createdOnCallerThread = false;
+            string? picked = null;
+            int reports = 0;
+            int fallbackStarts = 0;
+            var fallback = new RendererPickFallbackController(
+                UsdViewPickMode.Auto,
+                hasCallback: true,
+                _ => reports++,
+                () => fallbackStarts++);
+
+            RendererPickFailureFallback outcome = await RendererPickDispatch.PickFromPointerAsync(
+                () =>
+                {
+                    createdOnCallerThread = Environment.CurrentManagedThreadId == callerThread;
+                    if (!createdOnCallerThread)
+                    {
+                        throw new InvalidOperationException("UI-affine state was read off the caller thread.");
+                    }
+                    return MakeRequest();
+                },
+                (request, cancellationToken) => RendererPickLogic.PickAsync(
+                    backend,
+                    request,
+                    (primPath, _) =>
+                    {
+                        picked = primPath;
+                        return Task.CompletedTask;
+                    },
+                    cancellationToken),
+                fallback,
+                CancellationToken.None);
+
+            Assert.That(outcome, Is.EqualTo(RendererPickFailureFallback.None));
+            Assert.That(createdOnCallerThread, Is.True);
+            Assert.That(picked, Is.EqualTo("/World/RobotTargets/TargetA"));
+            Assert.That(backend.Requests, Has.Count.EqualTo(1));
+            Assert.That(backend.Requests[0].X, Is.EqualTo(1));
+            Assert.That(reports, Is.Zero);
+            Assert.That(fallbackStarts, Is.Zero);
+        }
+
+        [Test]
+        public async Task RendererPickFailureInAutoReportsOnceAndStartsCommandFallback()
+        {
+            int reports = 0;
+            int fallbackStarts = 0;
+            var fallback = new RendererPickFallbackController(
+                UsdViewPickMode.Auto,
+                hasCallback: true,
+                exception =>
+                {
+                    Assert.That(exception, Is.TypeOf<InvalidOperationException>());
+                    reports++;
+                },
+                () => fallbackStarts++);
+
+            RendererPickFailureFallback first = await RendererPickDispatch.PickFromPointerAsync(
+                MakeRequest,
+                static (_, _) => throw new InvalidOperationException("Renderer pick failed."),
+                fallback,
+                CancellationToken.None);
+            RendererPickFailureFallback second = await RendererPickDispatch.PickFromPointerAsync(
+                MakeRequest,
+                static (_, _) => throw new InvalidOperationException("Renderer pick failed again."),
+                fallback,
+                CancellationToken.None);
+
+            Assert.That(first, Is.EqualTo(RendererPickFailureFallback.CommandPrim));
+            Assert.That(second, Is.EqualTo(RendererPickFailureFallback.None));
+            Assert.That(reports, Is.EqualTo(1));
+            Assert.That(fallbackStarts, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task RendererPickFailureInRendererModeDoesNotStartCommandFallback()
+        {
+            int reports = 0;
+            int fallbackStarts = 0;
+            var fallback = new RendererPickFallbackController(
+                UsdViewPickMode.Renderer,
+                hasCallback: true,
+                _ => reports++,
+                () => fallbackStarts++);
+
+            RendererPickFailureFallback outcome = await RendererPickDispatch.PickFromPointerAsync(
+                MakeRequest,
+                static (_, _) => throw new InvalidOperationException("Renderer pick failed."),
+                fallback,
+                CancellationToken.None);
+
+            Assert.That(outcome, Is.EqualTo(RendererPickFailureFallback.None));
+            Assert.That(reports, Is.EqualTo(1));
+            Assert.That(fallbackStarts, Is.Zero);
+        }
+
+        [Test]
         public void PickModeSelectionMatchesFallbackContract()
         {
             Assert.That(PickModeSelection.Select(UsdViewPickMode.Auto, hasCallback: false, rendererStarted: false),
@@ -171,6 +271,23 @@ namespace Opc.Ua.OpenUsd.Client.Tests
                 Is.EqualTo(new PickModeDecision(true, false)));
             Assert.That(PickModeSelection.Select(UsdViewPickMode.CommandPrim, hasCallback: true, rendererStarted: false),
                 Is.EqualTo(new PickModeDecision(false, true)));
+
+            var decision = new PickModeDecision(ProbeRenderer: true, WatchCommandPrim: false);
+            Assert.That(decision.ProbeRenderer, Is.True);
+            Assert.That(decision.WatchCommandPrim, Is.False);
+        }
+
+        [Test]
+        public void ReferenceIdentityComparerUsesObjectIdentity()
+        {
+            object first = new();
+            object second = new();
+            object alias = first;
+
+            Assert.That(ReferenceIdentityComparer.Instance.Equals(first, alias), Is.True);
+            Assert.That(ReferenceIdentityComparer.Instance.Equals(first, second), Is.False);
+            Assert.That(ReferenceIdentityComparer.Instance.GetHashCode(first),
+                Is.EqualTo(ReferenceIdentityComparer.Instance.GetHashCode(alias)));
         }
 
         [Test]
@@ -195,6 +312,18 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             Assert.That(backend, Is.Not.Null);
             RenderPickResult result = await backend!.PickAsync(MakeRequest(), CancellationToken.None);
             Assert.That(result.PrimPath, Is.EqualTo("/World/Property"));
+        }
+
+        [Test]
+        public async Task BackendDiscoveryAdaptsDirectRenderPickingBackend()
+        {
+            var root = new global::OpenUsd.TestDoubles.DirectPickBackend();
+
+            IOpenUsdPickBackend? backend = RendererPickBackendDiscovery.TryFindPickBackend(root);
+
+            Assert.That(backend, Is.Not.Null);
+            RenderPickResult result = await backend!.PickAsync(MakeRequest(), CancellationToken.None);
+            Assert.That(result.PrimPath, Is.EqualTo("/World/Direct"));
         }
 
         [Test]
@@ -279,6 +408,27 @@ namespace OpenUsd.TestDoubles
                 null,
                 null,
                 null);
+        }
+    }
+
+    internal sealed class DirectPickBackend : IRenderPickingBackend
+    {
+        public ValueTask<RenderPickResult> PickAsync(
+            RenderPickRequest request,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var item = new SelectionItem("/World/Direct", null!, null, null);
+            return ValueTask.FromResult(RenderPickResult.Hit(
+                in request,
+                request.RequestedStateRevision,
+                request.RequestedSceneRevision,
+                in item,
+                null,
+                null,
+                null,
+                null,
+                null));
         }
     }
 

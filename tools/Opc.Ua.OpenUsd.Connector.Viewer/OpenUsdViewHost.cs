@@ -40,6 +40,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.VisualTree;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.OpenUsd.Client;
 using OpenUsd;
 using OpenUsd.Rendering;
@@ -64,6 +65,12 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
     {
         Completed,
         Fallback
+    }
+
+    internal enum RendererPickFailureFallback
+    {
+        None,
+        CommandPrim
     }
 
     internal readonly record struct PickModeDecision(
@@ -166,6 +173,103 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
 
             return RendererPickOutcome.Completed;
         }
+    }
+
+    internal static class RendererPickDispatch
+    {
+        public static async Task<RendererPickFailureFallback> PickFromPointerAsync(
+            Func<RenderPickRequest> createRequest,
+            Func<RenderPickRequest, CancellationToken, ValueTask<RendererPickOutcome>> pickAsync,
+            RendererPickFallbackController fallbackController,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                RenderPickRequest request = createRequest();
+                RendererPickOutcome outcome = await Task.Run(
+                    () => pickAsync(request, cancellationToken).AsTask(),
+                    cancellationToken).ConfigureAwait(false);
+                if (outcome == RendererPickOutcome.Fallback)
+                {
+                    return fallbackController.DisableRenderer(null);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // The viewport closed or the caller cancelled.
+            }
+#pragma warning disable CA1031 // Picking is best-effort and must not affect the render loop.
+            catch (Exception exception)
+#pragma warning restore CA1031
+            {
+                return fallbackController.DisableRenderer(exception);
+            }
+
+            return RendererPickFailureFallback.None;
+        }
+    }
+
+    internal sealed class RendererPickFallbackController
+    {
+        public RendererPickFallbackController(
+            UsdViewPickMode mode,
+            bool hasCallback,
+            Action<Exception?> reportRendererFailure,
+            Action startCommandPrimWatcher)
+        {
+            m_mode = mode;
+            m_hasCallback = hasCallback;
+            m_reportRendererFailure = reportRendererFailure;
+            m_startCommandPrimWatcher = startCommandPrimWatcher;
+        }
+
+        public void MarkCommandPrimWatcherStarted()
+        {
+            using (m_lock.EnterScope())
+            {
+                m_commandPrimWatcherStarted = true;
+            }
+        }
+
+        public RendererPickFailureFallback DisableRenderer(Exception? exception)
+        {
+            Action? startCommandPrimWatcher = null;
+            bool reportFailure = false;
+            using (m_lock.EnterScope())
+            {
+                if (!m_rendererFailureReported)
+                {
+                    m_rendererFailureReported = true;
+                    reportFailure = true;
+                }
+
+                if (m_mode == UsdViewPickMode.Auto &&
+                    m_hasCallback &&
+                    !m_commandPrimWatcherStarted)
+                {
+                    m_commandPrimWatcherStarted = true;
+                    startCommandPrimWatcher = m_startCommandPrimWatcher;
+                }
+            }
+
+            if (reportFailure)
+            {
+                m_reportRendererFailure(exception);
+            }
+
+            startCommandPrimWatcher?.Invoke();
+            return startCommandPrimWatcher is null
+                ? RendererPickFailureFallback.None
+                : RendererPickFailureFallback.CommandPrim;
+        }
+
+        private readonly System.Threading.Lock m_lock = new();
+        private readonly UsdViewPickMode m_mode;
+        private readonly bool m_hasCallback;
+        private readonly Action<Exception?> m_reportRendererFailure;
+        private readonly Action m_startCommandPrimWatcher;
+        private bool m_rendererFailureReported;
+        private bool m_commandPrimWatcherStarted;
     }
 
     internal static class RendererPickBackendDiscovery
@@ -340,11 +444,15 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
     /// <see cref="IUsdViewHost"/> and never references the rendering stack, so the
     /// connector package stays free of Avalonia and the native OpenUSD payload.
     /// </remarks>
-    // Excluded because this shell opens Avalonia windows and loads the native OpenUSD renderer; pure pick seams are tested.
-    [ExcludeFromCodeCoverage]
+    [ExcludeFromCodeCoverage(
+        Justification = "Shell only: opens Avalonia windows and binds native OpenUSD payloads; " +
+            "renderer pick dispatch and fallback decisions live in tested seams outside this class.")]
     public sealed class OpenUsdViewHost : IUsdViewHost
     {
         /// <inheritdoc/>
+        [ExcludeFromCodeCoverage(
+            Justification = "This shell opens Avalonia windows and loads the native OpenUSD renderer; " +
+                "renderer pick dispatch and fallback decisions are covered by unit tests.")]
         public void RunViewport(
             UsdViewOptions options,
             Func<IUsdSink, CancellationToken, Task> sessionAsync,
@@ -369,6 +477,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             Task? session = null;
             Task? pickWatcher = null;
             var rendererPick = new RendererPickAttachmentHolder();
+            ILogger logger = options.Telemetry.CreateLogger<OpenUsdViewHost>();
 
             var hostOptions = new ViewerHostOptions
             {
@@ -381,27 +490,49 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 StageReadyAsync = (stageSession, stageToken) =>
                 {
                     sink = new UsdStageSink(stageSession.Scheduler, ReportSinkFailure);
+                    var pickWatcherLock = new System.Threading.Lock();
+                    RendererPickFallbackController? fallbackController = null;
+                    void StartCommandPrimWatcher()
+                    {
+                        using (pickWatcherLock.EnterScope())
+                        {
+                            if (pickWatcher is not null)
+                            {
+                                return;
+                            }
+
+                            pickWatcher = Task.Run(
+                                () => WatchCommandPrimAsync(
+                                    stageSession.Scheduler,
+                                    options.CommandPrimPath,
+                                    options.PrimPicked!,
+                                    logger,
+                                    lifetime.Token,
+                                    stageToken),
+                                CancellationToken.None);
+                        }
+                    }
+
+                    fallbackController = new RendererPickFallbackController(
+                        options.PickMode,
+                        options.PrimPicked is not null,
+                        exception => ReportRendererPickFailure(logger, exception),
+                        StartCommandPrimWatcher);
                     bool rendererPickStarted = false;
                     PickModeDecision pickDecision = PickModeSelection.Select(
                         options.PickMode, options.PrimPicked is not null, rendererStarted: false);
                     if (pickDecision.ProbeRenderer && options.PrimPicked is not null)
                     {
                         rendererPick.Attachment = TryAttachRendererPick(
-                            options.PrimPicked, lifetime.Token, stageToken);
+                            options.PrimPicked, fallbackController, logger, lifetime.Token, stageToken);
                         rendererPickStarted = rendererPick.Attachment is not null;
                     }
                     pickDecision = PickModeSelection.Select(
                         options.PickMode, options.PrimPicked is not null, rendererPickStarted);
                     if (pickDecision.WatchCommandPrim && options.PrimPicked is not null)
                     {
-                        pickWatcher = Task.Run(
-                            () => WatchCommandPrimAsync(
-                                stageSession.Scheduler,
-                                options.CommandPrimPath,
-                                options.PrimPicked,
-                                lifetime.Token,
-                                stageToken),
-                            CancellationToken.None);
+                        fallbackController.MarkCommandPrimWatcherStarted();
+                        StartCommandPrimWatcher();
                     }
                     // The viewport owns the UI thread, so the OPC UA pipeline runs on the
                     // thread pool. The stage token fires when the document closes, which
@@ -427,8 +558,13 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
         }
 
+        [ExcludeFromCodeCoverage(
+            Justification = "Walks Avalonia desktop lifetime and visual tree on the UI thread; " +
+                "backend discovery and fallback decisions are covered by unit tests.")]
         private static RendererPickAttachment? TryAttachRendererPick(
             Func<string, CancellationToken, Task> primPicked,
+            RendererPickFallbackController fallbackController,
+            ILogger logger,
             CancellationToken hostToken,
             CancellationToken stageToken)
         {
@@ -452,14 +588,16 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     return null;
                 }
 
-                var context = new RendererPickContext(viewport, backend, primPicked, hostToken, stageToken);
+                var context = new RendererPickContext(
+                    viewport, backend, primPicked, fallbackController, hostToken, stageToken);
                 viewport.PointerPressed += context.OnPointerPressed;
                 return new RendererPickAttachment(viewport, context);
             }
 #pragma warning disable CA1031 // Renderer pick discovery is opportunistic; command prim fallback handles failure.
-            catch (Exception)
+            catch (Exception exception)
 #pragma warning restore CA1031
             {
+                logger.RendererPickAttachFailed(exception);
                 return null;
             }
         }
@@ -481,6 +619,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             UsdStageScheduler scheduler,
             string commandPrimPath,
             Func<string, CancellationToken, Task> primPicked,
+            ILogger logger,
             CancellationToken hostToken,
             CancellationToken stageToken)
         {
@@ -509,7 +648,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             catch (Exception exception)
 #pragma warning restore CA1031
             {
-                Console.Error.WriteLine($"The viewport pick watcher ended with an error: {exception.Message}");
+                logger.CommandPrimPickWatcherFailed(exception);
             }
         }
 
@@ -586,18 +725,22 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             public string? LastTarget;
         }
 
+        [ExcludeFromCodeCoverage(
+            Justification = "Binds Avalonia pointer events to the tested renderer pick dispatch seam.")]
         private sealed class RendererPickContext
         {
             public RendererPickContext(
                 StormViewportControl viewport,
                 IOpenUsdPickBackend backend,
                 Func<string, CancellationToken, Task> primPicked,
+                RendererPickFallbackController fallbackController,
                 CancellationToken hostToken,
                 CancellationToken stageToken)
             {
                 m_viewport = viewport;
                 m_backend = backend;
                 m_primPicked = primPicked;
+                m_fallbackController = fallbackController;
                 m_hostToken = hostToken;
                 m_stageToken = stageToken;
             }
@@ -611,23 +754,22 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                         return;
                     }
 
-                    await Task.Run(
-                        () => RendererPickLogic.PickAsync(
-                            m_backend, CreatePickRequest(e), m_primPicked, m_hostToken).AsTask(),
+                    await RendererPickDispatch.PickFromPointerAsync(
+                        () => CreatePickRequest(e),
+                        (request, cancellationToken) => RendererPickLogic.PickAsync(
+                            m_backend, request, m_primPicked, cancellationToken),
+                        m_fallbackController,
                         m_hostToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
                     // The viewport closed or the caller cancelled.
                 }
-#pragma warning disable CA1031 // Picking is best-effort and must not affect the render loop.
-                catch (Exception exception)
-#pragma warning restore CA1031
-                {
-                    Console.Error.WriteLine($"A viewport pick failed: {exception.Message}");
-                }
             }
 
+            [ExcludeFromCodeCoverage(
+                Justification = "Reads Avalonia UI-thread-affine pointer and viewport properties; " +
+                    "the pure request construction logic is covered separately.")]
             private RenderPickRequest CreatePickRequest(PointerPressedEventArgs e)
             {
                 Point position = e.GetPosition(m_viewport);
@@ -671,6 +813,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             private readonly StormViewportControl m_viewport;
             private readonly IOpenUsdPickBackend m_backend;
             private readonly Func<string, CancellationToken, Task> m_primPicked;
+            private readonly RendererPickFallbackController m_fallbackController;
             private readonly CancellationToken m_hostToken;
             private readonly CancellationToken m_stageToken;
         }
@@ -764,6 +907,17 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             Console.Error.WriteLine($"A stage update failed: {exception.Message}");
         }
 
+        private static void ReportRendererPickFailure(ILogger logger, Exception? exception)
+        {
+            if (exception is null)
+            {
+                logger.RendererPickUnsupported();
+                return;
+            }
+
+            logger.RendererPickFailed(exception);
+        }
+
         /// <summary>
         /// Locates the staged USD plugin tree next to the running application, which is
         /// how both the viewer staging script and the runtime packages lay it out.
@@ -773,5 +927,31 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             string candidate = Path.Combine(AppContext.BaseDirectory, "plugin", "usd");
             return Directory.Exists(candidate) ? candidate : null;
         }
+    }
+
+    internal static partial class OpenUsdViewHostLog
+    {
+        [LoggerMessage(EventId = OpenUsdViewerEventIds.ViewHost + 0, Level = LogLevel.Warning,
+            Message = "Renderer viewport pick failed; CommandPrim fallback will be enabled " +
+                "when Auto pick mode allows it.")]
+        public static partial void RendererPickFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = OpenUsdViewerEventIds.ViewHost + 1, Level = LogLevel.Warning,
+            Message = "Renderer viewport pick is unsupported; CommandPrim fallback will be enabled " +
+                "when Auto pick mode allows it.")]
+        public static partial void RendererPickUnsupported(this ILogger logger);
+
+        [LoggerMessage(EventId = OpenUsdViewerEventIds.ViewHost + 2, Level = LogLevel.Warning,
+            Message = "Renderer pick attachment failed; CommandPrim fallback will be used when pick mode allows it.")]
+        public static partial void RendererPickAttachFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = OpenUsdViewerEventIds.ViewHost + 3, Level = LogLevel.Warning,
+            Message = "The viewport CommandPrim pick watcher ended with an error.")]
+        public static partial void CommandPrimPickWatcherFailed(this ILogger logger, Exception exception);
+    }
+
+    internal static class OpenUsdViewerEventIds
+    {
+        public const int ViewHost = 0;
     }
 }

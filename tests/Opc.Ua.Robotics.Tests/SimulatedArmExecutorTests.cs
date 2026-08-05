@@ -123,10 +123,12 @@ namespace Opc.Ua.Robotics.Tests
         {
             var clock = new ManualSimulatedArmClock();
             var executor = new SimulatedArmExecutor(new SimulatedArmKinematics(), clock);
+            const double ignoredGraspForce = 999.0;
+
             IntentOutcome outcome = await ExecuteAsync(
                 executor,
                 "grasp",
-                new GraspIntentDataType { Force = 999.0, Width = 0.02 },
+                new GraspIntentDataType { Force = ignoredGraspForce, Width = 0.02 },
                 clock).ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -256,13 +258,16 @@ namespace Opc.Ua.Robotics.Tests
         public async Task SnapshotJointAnglesAndToolPoseRemainConsistentDuringMove()
         {
             var clock = new ManualSimulatedArmClock();
-            var kinematics = new SimulatedArmKinematics();
-            var executor = new SimulatedArmExecutor(kinematics, clock);
-            var mismatches = new List<double>();
+            var executor = new SimulatedArmExecutor(new SimulatedArmKinematics(), clock);
+            var positionMismatches = new List<double>();
+            var orientationMismatches = new List<double>();
             executor.SnapshotChanged += (_, snapshot) =>
             {
-                Pose3DDataType expected = kinematics.Forward(snapshot.JointAngles).ToolPose;
-                mismatches.Add(Distance(expected, snapshot.ToolPose));
+                Pose3DDataType expected = ManualForward(snapshot.JointAngles.Span);
+                positionMismatches.Add(Distance(expected, snapshot.ToolPose));
+                orientationMismatches.Add(QuaternionDistance(
+                    expected.Orientation.Span,
+                    snapshot.ToolPose.Orientation.Span));
             };
 
             Task<IntentOutcome> move = ExecuteAsync(
@@ -276,7 +281,11 @@ namespace Opc.Ua.Robotics.Tests
                 clock);
             await move.ConfigureAwait(false);
 
-            Assert.That(mismatches, Has.All.LessThan(1e-10));
+            Assert.Multiple(() =>
+            {
+                Assert.That(positionMismatches, Has.All.LessThan(1e-10));
+                Assert.That(orientationMismatches, Has.All.LessThan(1e-10));
+            });
         }
 
         private static async Task<IntentOutcome> ExecuteAsync(
@@ -362,12 +371,146 @@ namespace Opc.Ua.Robotics.Tests
             };
         }
 
+
+        private static Pose3DDataType ManualForward(ReadOnlySpan<double> jointAngles)
+        {
+            double[,] transform = Identity();
+            transform = Multiply(Multiply(transform, RotateZ(jointAngles[0])), Translate(0.0, 0.0, D1));
+            transform = Multiply(transform, RotateY(jointAngles[1]));
+            transform = Multiply(Multiply(transform, Translate(A2, 0.0, 0.0)), RotateY(jointAngles[2]));
+            transform = Multiply(Multiply(transform, Translate(A3, 0.0, D4)), RotateY(jointAngles[3]));
+            transform = Multiply(Multiply(transform, Translate(0.0, 0.0, D5)), RotateZ(jointAngles[4]));
+            transform = Multiply(Multiply(transform, Translate(0.0, 0.0, D6)), RotateY(jointAngles[5]));
+            transform = Multiply(transform, Translate(FlangeToTcp, 0.0, 0.0));
+
+            return new Pose3DDataType
+            {
+                FrameId = "base",
+                Position = ArrayOf.Create([transform[0, 3], transform[1, 3], transform[2, 3]]),
+                Orientation = MatrixToQuaternion(transform)
+            };
+        }
+
+        private static double[,] Identity()
+        {
+            return new double[,]
+            {
+                { 1.0, 0.0, 0.0, 0.0 },
+                { 0.0, 1.0, 0.0, 0.0 },
+                { 0.0, 0.0, 1.0, 0.0 },
+                { 0.0, 0.0, 0.0, 1.0 }
+            };
+        }
+
+        private static double[,] Translate(double x, double y, double z)
+        {
+            return new double[,]
+            {
+                { 1.0, 0.0, 0.0, x },
+                { 0.0, 1.0, 0.0, y },
+                { 0.0, 0.0, 1.0, z },
+                { 0.0, 0.0, 0.0, 1.0 }
+            };
+        }
+
+        private static double[,] RotateY(double angle)
+        {
+            double c = Math.Cos(angle);
+            double s = Math.Sin(angle);
+            return new double[,]
+            {
+                { c, 0.0, s, 0.0 },
+                { 0.0, 1.0, 0.0, 0.0 },
+                { -s, 0.0, c, 0.0 },
+                { 0.0, 0.0, 0.0, 1.0 }
+            };
+        }
+
+        private static double[,] RotateZ(double angle)
+        {
+            double c = Math.Cos(angle);
+            double s = Math.Sin(angle);
+            return new double[,]
+            {
+                { c, -s, 0.0, 0.0 },
+                { s, c, 0.0, 0.0 },
+                { 0.0, 0.0, 1.0, 0.0 },
+                { 0.0, 0.0, 0.0, 1.0 }
+            };
+        }
+
+        private static double[,] Multiply(double[,] left, double[,] right)
+        {
+            var result = new double[4, 4];
+            for (int row = 0; row < 4; row++)
+            {
+                for (int column = 0; column < 4; column++)
+                {
+                    for (int index = 0; index < 4; index++)
+                    {
+                        result[row, column] += left[row, index] * right[index, column];
+                    }
+                }
+            }
+            return result;
+        }
+
+        private static ArrayOf<double> MatrixToQuaternion(double[,] matrix)
+        {
+            double trace = matrix[0, 0] + matrix[1, 1] + matrix[2, 2];
+            if (trace > 0.0)
+            {
+                double s = Math.Sqrt(trace + 1.0) * 2.0;
+                return PoseMath.Normalize([
+                    (matrix[2, 1] - matrix[1, 2]) / s,
+                    (matrix[0, 2] - matrix[2, 0]) / s,
+                    (matrix[1, 0] - matrix[0, 1]) / s,
+                    0.25 * s
+                ]);
+            }
+            if (matrix[0, 0] > matrix[1, 1] && matrix[0, 0] > matrix[2, 2])
+            {
+                double s = Math.Sqrt(1.0 + matrix[0, 0] - matrix[1, 1] - matrix[2, 2]) * 2.0;
+                return PoseMath.Normalize([
+                    0.25 * s,
+                    (matrix[0, 1] + matrix[1, 0]) / s,
+                    (matrix[0, 2] + matrix[2, 0]) / s,
+                    (matrix[2, 1] - matrix[1, 2]) / s
+                ]);
+            }
+            if (matrix[1, 1] > matrix[2, 2])
+            {
+                double s = Math.Sqrt(1.0 + matrix[1, 1] - matrix[0, 0] - matrix[2, 2]) * 2.0;
+                return PoseMath.Normalize([
+                    (matrix[0, 1] + matrix[1, 0]) / s,
+                    0.25 * s,
+                    (matrix[1, 2] + matrix[2, 1]) / s,
+                    (matrix[0, 2] - matrix[2, 0]) / s
+                ]);
+            }
+            double sz = Math.Sqrt(1.0 + matrix[2, 2] - matrix[0, 0] - matrix[1, 1]) * 2.0;
+            return PoseMath.Normalize([
+                (matrix[0, 2] + matrix[2, 0]) / sz,
+                (matrix[1, 2] + matrix[2, 1]) / sz,
+                0.25 * sz,
+                (matrix[1, 0] - matrix[0, 1]) / sz
+            ]);
+        }
+
         private static double Distance(Pose3DDataType a, Pose3DDataType b)
         {
             double dx = a.Position[0] - b.Position[0];
             double dy = a.Position[1] - b.Position[1];
             double dz = a.Position[2] - b.Position[2];
             return Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+        }
+
+
+        private static double QuaternionDistance(ReadOnlySpan<double> left, ReadOnlySpan<double> right)
+        {
+            double dot = Math.Abs(
+                (left[0] * right[0]) + (left[1] * right[1]) + (left[2] * right[2]) + (left[3] * right[3]));
+            return 1.0 - Math.Min(1.0, dot);
         }
 
         private readonly record struct CancelledMotion(
@@ -397,6 +540,15 @@ namespace Opc.Ua.Robotics.Tests
             {
             }
         }
+
+
+        private const double D1 = 0.1625;
+        private const double A2 = -0.425;
+        private const double A3 = -0.3922;
+        private const double D4 = 0.1333;
+        private const double D5 = 0.0997;
+        private const double D6 = 0.0996;
+        private const double FlangeToTcp = 0.165;
 
         private sealed class ManualSimulatedArmClock : ISimulatedArmClock, IDisposable
         {

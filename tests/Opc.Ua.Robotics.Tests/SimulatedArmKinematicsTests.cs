@@ -55,6 +55,39 @@ namespace Opc.Ua.Robotics.Tests
             }
         }
 
+
+        [Test]
+        public void ForwardMatchesHandComputedLinkLengthOracles()
+        {
+            var kinematics = new SimulatedArmKinematics();
+            double half = Math.Sqrt(0.5);
+
+            SimulatedArmForwardPose home = kinematics.Forward(ArrayOf.Create([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+            SimulatedArmForwardPose shoulderYaw90 = kinematics.Forward(
+                ArrayOf.Create([Math.PI / 2.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+            SimulatedArmForwardPose shoulderPitch90 = kinematics.Forward(
+                ArrayOf.Create([0.0, Math.PI / 2.0, 0.0, 0.0, 0.0, 0.0]));
+
+            Assert.Multiple(() =>
+            {
+                // Home: all rotations are identity, so x=A2+A3+TCP=-0.6522 and
+                // z=D1+D4+D5+D6=0.4951.
+                AssertPose(home.ToolPose, [-0.6522, 0.0, 0.4951], [0.0, 0.0, 0.0, 1.0], 1e-12);
+
+                // Joint 0 is a +90 degree Z rotation, carrying home x into +Y while leaving z unchanged.
+                AssertPose(shoulderYaw90.ToolPose, [0.0, -0.6522, 0.4951], [0.0, 0.0, half, half], 1e-12);
+
+                // Joint 1 is a +90 degree Y rotation after D1. The remaining local vector is
+                // (A2+A3+TCP, 0, D4+D5+D6), so world x is D4+D5+D6 and world z is
+                // D1-(A2+A3+TCP).
+                AssertPose(
+                    shoulderPitch90.ToolPose,
+                    [0.3326, 0.0, 0.8147],
+                    [0.0, half, 0.0, half],
+                    1e-12);
+            });
+        }
+
         [Test]
         public void GeneralReachablePoseReturnsExpectedSolutionsAndEverySolutionMatchesThePose()
         {
@@ -207,6 +240,20 @@ namespace Opc.Ua.Robotics.Tests
                 kinematics.InterpolateJoints(startJoints.Span, endJoints.Span, 0.5)).ToolPose;
 
             Assert.That(PositionDistance(cartesianMidpoint, jointMidpoint), Is.GreaterThan(0.01));
+        }
+
+
+        private static void AssertPose(
+            Pose3DDataType actual,
+            double[] expectedPosition,
+            double[] expectedOrientation,
+            double tolerance)
+        {
+            for (int i = 0; i < expectedPosition.Length; i++)
+            {
+                Assert.That(actual.Position[i], Is.EqualTo(expectedPosition[i]).Within(tolerance));
+            }
+            Assert.That(QuaternionDistance(actual.Orientation.Span, expectedOrientation), Is.LessThan(tolerance));
         }
 
         private static void AssertProfile(double distance, double speed, double acceleration)

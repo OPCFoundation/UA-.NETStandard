@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -150,7 +151,7 @@ namespace Opc.Ua.Robotics.Tests
             var second = new NodeId("s2", 1);
 
             Assert.That(host.RequestControl(m_context, first, out _), Is.True);
-            Assert.That(host.RequestControl(m_context, second, out NodeId? owner), Is.False);
+            Assert.That(host.RequestControl(m_context, second, out var owner), Is.False);
             Assert.That(owner, Is.EqualTo(first));
 
             host.OnSessionClosed(m_context, first);
@@ -230,6 +231,103 @@ namespace Opc.Ua.Robotics.Tests
             IntentAdmission admission = host.SubmitIntent(m_context, new NodeId("s1", 1), bad);
 
             Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.ControlNotOwned));
+        }
+
+        [Test]
+        public void ModeIsCheckedBeforeSafetyStop()
+        {
+            using IntentControllerHost host = NewHost(Options(OperationalModeEnum.ManualReducedSpeed));
+            host.UpdateSafetyState(m_context, new SafetyStatus { ProtectiveStopActive = true });
+
+            IntentAdmission admission = host.SubmitIntent(m_context, null, Move());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.NotPermittedInMode));
+                Assert.That(admission.Message, Does.Contain("Automatic"));
+            });
+        }
+
+        [Test]
+        public void SafetyStopIsCheckedBeforeCapabilities()
+        {
+            IntentControllerHostOptions options = Options();
+            using IntentControllerHost host = NewHost(options);
+            host.UpdateSafetyState(m_context, new SafetyStatus { ProtectiveStopActive = true });
+
+            IntentAdmission admission = host.SubmitIntent(m_context, null, new WaitIntentDataType { Duration = 1 });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.NotPermittedInMode));
+                Assert.That(admission.Message, Does.Contain("stop"));
+            });
+        }
+
+        [Test]
+        public void ModeIsCheckedBeforeCapabilities()
+        {
+            using IntentControllerHost host = NewHost(Options(OperationalModeEnum.ManualReducedSpeed));
+
+            IntentAdmission admission = host.SubmitIntent(m_context, null, new WaitIntentDataType { Duration = 1 });
+
+            Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.NotPermittedInMode));
+        }
+
+        [Test]
+        public void CapabilityIsCheckedBeforeParameters()
+        {
+            IntentAdmission admission = m_host.SubmitIntent(m_context, null, new WaitIntentDataType { Duration = 0 });
+
+            Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.CapabilityNotSupported));
+        }
+
+        [Test]
+        public async Task ParametersAreCheckedBeforeQueueCapacity()
+        {
+            m_executor.Gate = new SemaphoreSlim(0);
+            IntentControllerHostOptions options = Options();
+            options.MaxQueueDepth = 1;
+            using IntentControllerHost host = NewHost(options);
+
+            host.SubmitIntent(m_context, null, Move("running"));
+            host.SubmitIntent(m_context, null, Move("queued", BufferModeEnum.Buffered));
+            await WaitAsync(() => m_executor.Started.Contains("running")).ConfigureAwait(false);
+
+            IntentAdmission admission = host.SubmitIntent(
+                m_context,
+                null,
+                new LinearMoveIntentDataType
+                {
+                    IntentId = "bad",
+                    BufferMode = BufferModeEnum.Buffered
+                });
+
+            Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.ParameterInvalid));
+            m_executor.Gate.Release(2);
+        }
+
+        [Test]
+        public async Task ProtectiveStopDuringExecutionIsPublishedAndRefusesNewWork()
+        {
+            m_executor.Gate = new SemaphoreSlim(0);
+            m_host.SubmitIntent(m_context, null, Move("running"));
+            await WaitAsync(() => m_executor.Started.Contains("running")).ConfigureAwait(false);
+
+            m_host.UpdateSafetyState(m_context, new SafetyStatus
+            {
+                ProtectiveStopActive = true,
+                LastStopReason = "guard open"
+            });
+            IntentAdmission admission = m_host.SubmitIntent(m_context, null, Move("blocked", BufferModeEnum.Buffered));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_controller.SafetyState!.ProtectiveStopActive!.Value, Is.True);
+                Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.NotPermittedInMode));
+                Assert.That(FindOperation("running")!.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Executing));
+            });
+            m_executor.Gate.Release();
         }
 
         [Test]
@@ -316,15 +414,33 @@ namespace Opc.Ua.Robotics.Tests
         {
             Assert.Multiple(() =>
             {
-                Assert.That(IntentControllerHost.MapToProgramState(ExecutionStateEnum.Accepted), Is.EqualTo(1u));
-                Assert.That(IntentControllerHost.MapToProgramState(ExecutionStateEnum.Queued), Is.EqualTo(1u));
-                Assert.That(IntentControllerHost.MapToProgramState(ExecutionStateEnum.Executing), Is.EqualTo(2u));
-                Assert.That(IntentControllerHost.MapToProgramState(ExecutionStateEnum.Cancelling), Is.EqualTo(2u));
-                Assert.That(IntentControllerHost.MapToProgramState(ExecutionStateEnum.Suspended), Is.EqualTo(3u));
-                Assert.That(IntentControllerHost.MapToProgramState(ExecutionStateEnum.Succeeded), Is.EqualTo(4u));
-                Assert.That(IntentControllerHost.MapToProgramState(ExecutionStateEnum.Failed), Is.EqualTo(4u));
-                Assert.That(IntentControllerHost.MapToProgramState(ExecutionStateEnum.Cancelled), Is.EqualTo(4u));
-                Assert.That(IntentControllerHost.MapToProgramState(ExecutionStateEnum.Retriable), Is.EqualTo(4u));
+                Assert.That(
+                    IntentControllerHost.MapToProgramState(ExecutionStateEnum.Accepted),
+                    Is.EqualTo(PartTenStateReady));
+                Assert.That(
+                    IntentControllerHost.MapToProgramState(ExecutionStateEnum.Queued),
+                    Is.EqualTo(PartTenStateReady));
+                Assert.That(
+                    IntentControllerHost.MapToProgramState(ExecutionStateEnum.Executing),
+                    Is.EqualTo(PartTenStateRunning));
+                Assert.That(
+                    IntentControllerHost.MapToProgramState(ExecutionStateEnum.Cancelling),
+                    Is.EqualTo(PartTenStateRunning));
+                Assert.That(
+                    IntentControllerHost.MapToProgramState(ExecutionStateEnum.Suspended),
+                    Is.EqualTo(PartTenStateSuspended));
+                Assert.That(
+                    IntentControllerHost.MapToProgramState(ExecutionStateEnum.Succeeded),
+                    Is.EqualTo(PartTenStateHalted));
+                Assert.That(
+                    IntentControllerHost.MapToProgramState(ExecutionStateEnum.Failed),
+                    Is.EqualTo(PartTenStateHalted));
+                Assert.That(
+                    IntentControllerHost.MapToProgramState(ExecutionStateEnum.Cancelled),
+                    Is.EqualTo(PartTenStateHalted));
+                Assert.That(
+                    IntentControllerHost.MapToProgramState(ExecutionStateEnum.Retriable),
+                    Is.EqualTo(PartTenStateHalted));
             });
         }
 
@@ -456,8 +572,11 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(FindOperation("c")!.QueuePosition!.Value, Is.LessThanOrEqualTo(1));
         }
 
-        [Test]
-        public async Task BlendingCompletesThePredecessorAtTheReportedPose()
+        [TestCase(BufferModeEnum.BlendingLow)]
+        [TestCase(BufferModeEnum.BlendingPrevious)]
+        [TestCase(BufferModeEnum.BlendingNext)]
+        [TestCase(BufferModeEnum.BlendingHigh)]
+        public async Task BlendingCompletesThePredecessorAtTheReportedPose(BufferModeEnum blendingMode)
         {
             m_executor.Gate = new SemaphoreSlim(0);
             using var blendGate = new SemaphoreSlim(0);
@@ -471,7 +590,7 @@ namespace Opc.Ua.Robotics.Tests
                 {
                     BufferModeEnum.Aborting,
                     BufferModeEnum.Buffered,
-                    BufferModeEnum.BlendingNext
+                    blendingMode
                 }
             });
             using IntentControllerHost host = NewHost(options);
@@ -490,13 +609,14 @@ namespace Opc.Ua.Robotics.Tests
 
             host.SubmitIntent(m_context, null, Move("a"));
             await WaitAsync(() => m_executor.Started.Contains("a")).ConfigureAwait(false);
-            host.SubmitIntent(m_context, null, Move("b", BufferModeEnum.BlendingNext));
+            IntentAdmission second = host.SubmitIntent(m_context, null, Move("b", blendingMode));
             Assert.That(FindOperation("a")!.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Executing));
 
             blendGate.Release();
             IntentOperationState first = await WaitForTerminalAsync("a").ConfigureAwait(false);
             Assert.Multiple(() =>
             {
+                Assert.That(second.Accepted, Is.True);
                 Assert.That(first.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
                 Assert.That(first.Result!.Value!.HasAchievedPose, Is.True);
                 Assert.That(first.Result.Value.AchievedPose.Position[0], Is.EqualTo(2));
@@ -594,6 +714,37 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
+        public async Task CancelBeforeExecutorEntryPublishesQuickStop()
+        {
+            using var beforeExecuteGate = new SemaphoreSlim(0);
+            var beforeExecuteReached = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_executor.HonourCancellation = true;
+            m_host.BeforeExecuteAsync = async (intentId, _) =>
+            {
+                if (intentId == "a")
+                {
+                    beforeExecuteReached.TrySetResult(true);
+                    await beforeExecuteGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            };
+
+            m_host.SubmitIntent(m_context, null, Move("a"));
+            await WaitAsync(() => beforeExecuteReached.Task.IsCompleted).ConfigureAwait(false);
+
+            Assert.That(m_host.CancelIntent(m_context, null, "a", StopModeEnum.QuickStop), Is.True);
+
+            beforeExecuteGate.Release();
+            IntentOperationState node = await WaitForTerminalAsync("a").ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Cancelled));
+                Assert.That(m_executor.Started, Does.Contain("a"));
+                Assert.That(m_executor.LastStopMode, Is.EqualTo(StopModeEnum.QuickStop));
+            });
+        }
+
+        [Test]
         public async Task CancelAllReturnsTheNumberOfCancelledOperations()
         {
             m_executor.Gate = new SemaphoreSlim(0);
@@ -654,6 +805,27 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
+        public async Task TerminalResultDoesNotChangeWhenCancelIsRequestedAgain()
+        {
+            IntentAdmission admission = m_host.SubmitIntent(m_context, null, Move("a"));
+            IntentOperationState node = await WaitForTerminalAsync(admission.IntentId).ConfigureAwait(false);
+            IntentResultDataType before = node.Result!.Value!;
+
+            bool cancelled = m_host.CancelIntent(m_context, null, admission.IntentId, StopModeEnum.QuickStop);
+            IntentResultDataType after = node.Result.Value!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(cancelled, Is.False);
+                Assert.That(after.State, Is.EqualTo(before.State));
+                Assert.That(after.Failure, Is.EqualTo(before.Failure));
+                Assert.That(after.IntentId, Is.EqualTo(before.IntentId));
+                Assert.That(after.StartTime, Is.EqualTo(before.StartTime));
+                Assert.That(after.EndTime, Is.EqualTo(before.EndTime));
+            });
+        }
+
+        [Test]
         public async Task ProgramDiagnosticRecordsSubmissionAndTransitions()
         {
             var session = new NodeId("session", 1);
@@ -700,6 +872,10 @@ namespace Opc.Ua.Robotics.Tests
                     }
                 },
                 "transition event to be reported").ConfigureAwait(false);
+            lock (events)
+            {
+                Assert.That(events.OfType<TransitionEventState>().Any(), Is.True);
+            }
         }
 
         [Test]
@@ -707,23 +883,44 @@ namespace Opc.Ua.Robotics.Tests
         {
             var removed = new List<NodeState>();
             IntentControllerHostOptions options = Options();
-            options.RetainedTerminalOperations = 1;
+            options.RetainedTerminalOperations = 2;
             using IntentControllerHost host = NewHost(options, removed);
 
             host.SubmitIntent(m_context, null, Move("a"));
             await WaitForTerminalAsync("a").ConfigureAwait(false);
             host.SubmitIntent(m_context, null, Move("b"));
             await WaitForTerminalAsync("b").ConfigureAwait(false);
+            host.SubmitIntent(m_context, null, Move("c"));
+            await WaitForTerminalAsync("c").ConfigureAwait(false);
 
+            Assert.That(RemovedIntentIds(removed), Does.Contain("a"));
+
+            host.BeforeExecuteAsync = (intentId, _) =>
+            {
+                if (intentId == "d")
+                {
+                    ForceEqualStartTimes(host);
+                }
+                return default;
+            };
+            host.SubmitIntent(m_context, null, Move("d"));
+            await WaitForTerminalAsync("d").ConfigureAwait(false);
             await WaitAsync(
                 () =>
                 {
                     lock (removed)
                     {
-                        return removed.OfType<IntentOperationState>().Count() == 1;
+                        return removed.OfType<IntentOperationState>().Count() == 2;
                     }
                 },
-                "one retained terminal operation to be pruned").ConfigureAwait(false);
+                "two retained terminal operations to be pruned").ConfigureAwait(false);
+
+            string[] removedIds = RemovedIntentIds(removed);
+            Assert.Multiple(() =>
+            {
+                Assert.That(removedIds, Does.Contain("b"));
+                Assert.That(removedIds, Does.Not.Contain("d"));
+            });
         }
 
         [Test]
@@ -731,12 +928,12 @@ namespace Opc.Ua.Robotics.Tests
         {
             using IntentControllerHost host = NewHost(Options(requireAuthority: true));
 
-            bool granted = host.RequestControl(m_context, null, out NodeId? owner);
+            bool granted = host.RequestControl(m_context, null, out var owner);
 
             Assert.Multiple(() =>
             {
                 Assert.That(granted, Is.False);
-                Assert.That(owner, Is.Null);
+                Assert.That((owner ?? NodeId.Null).IsNull, Is.True);
             });
         }
 
@@ -756,12 +953,51 @@ namespace Opc.Ua.Robotics.Tests
         {
             m_executor.HonourCancellation = true;
             IntentControllerHost host = NewHost(Options());
-            host.SubmitIntent(m_context, null, Move("running"));
+            IntentAdmission admission = host.SubmitIntent(m_context, null, Move("running"));
             await WaitAsync(() => m_executor.Started.Contains("running")).ConfigureAwait(false);
 
             await host.DisposeAsync().ConfigureAwait(false);
 
-            Assert.That(host.SubmitIntent(m_context, null, Move()).Accepted, Is.False);
+            IntentOperationState node = FindOperation(admission.IntentId)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_executor.CancellationObservedCount, Is.EqualTo(1));
+                Assert.That(node.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Cancelled));
+                Assert.That(host.ResourcesDisposed, Is.True);
+                Assert.That(host.IsShutdownDeferred, Is.False);
+                Assert.That(host.SubmitIntent(m_context, null, Move()).Accepted, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task DisposeAsyncToleratesEntryDisposedAfterSnapshot()
+        {
+            IntentControllerHostOptions options = Options();
+            options.ExecutorShutdownTimeoutMs = 50;
+            IntentControllerHost host = NewHost(options);
+            await WaitForTerminalAsync(host.SubmitIntent(m_context, null, Move("retained")).IntentId)
+                .ConfigureAwait(false);
+            m_executor.Gate = new SemaphoreSlim(0);
+            host.SubmitIntent(m_context, null, Move("running"));
+            await WaitAsync(() => m_executor.Started.Contains("running")).ConfigureAwait(false);
+            host.BeforeDisposeCancelAsync = intentId =>
+            {
+                if (intentId == "retained")
+                {
+                    DisposeRetainedEntry(host, intentId);
+                }
+                return default;
+            };
+
+            try
+            {
+                Assert.DoesNotThrowAsync(async () => await host.DisposeAsync().ConfigureAwait(false));
+            }
+            finally
+            {
+                m_executor.Gate.Release();
+            }
+            await WaitAsync(() => host.ResourcesDisposed, "deferred resources to be disposed").ConfigureAwait(false);
         }
 
         [Test]
@@ -780,11 +1016,17 @@ namespace Opc.Ua.Robotics.Tests
                 Task completed = await Task.WhenAny(dispose, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
 
                 Assert.That(completed, Is.SameAs(dispose));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(host.IsShutdownDeferred, Is.True);
+                    Assert.That(host.ResourcesDisposed, Is.False);
+                });
             }
             finally
             {
                 m_executor.Gate.Release();
             }
+            await WaitAsync(() => host.ResourcesDisposed, "deferred resources to be disposed").ConfigureAwait(false);
         }
 
         [Test]
@@ -799,6 +1041,7 @@ namespace Opc.Ua.Robotics.Tests
             await WaitAsync(() => m_executor.Started.Contains("s1")).ConfigureAwait(false);
 
             Assert.That(m_host.Pause(m_context, null), Is.True);
+            string firstIntentId = FindOnlyIntentId();
             m_executor.Gate.Release();
             string queuedIntentId = string.Empty;
             await WaitAsync(() =>
@@ -808,7 +1051,7 @@ namespace Opc.Ua.Robotics.Tests
                 {
                     queued = m_added
                         .OfType<IntentOperationState>()
-                        .FirstOrDefault(n => n.IntentId?.Value is { } id && id != "intent-1");
+                        .FirstOrDefault(n => n.IntentId?.Value is { } id && id != firstIntentId);
                 }
                 queuedIntentId = queued?.IntentId?.Value ?? string.Empty;
                 return queuedIntentId.Length > 0;
@@ -826,6 +1069,12 @@ namespace Opc.Ua.Robotics.Tests
                             n.ExecutionState?.Value == ExecutionStateEnum.Cancelled);
                 }
             }).ConfigureAwait(false);
+            MissionObjectState missionNode = FindOperationByNodeId<MissionObjectState>(mission.Operation)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(missionNode.CurrentStepId!.Value, Is.Empty);
+                Assert.That(missionNode.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Cancelled));
+            });
         }
 
         [Test]
@@ -843,7 +1092,7 @@ namespace Opc.Ua.Robotics.Tests
 
             Assert.That(admission.Accepted, Is.True);
             await WaitAsync(() => m_executor.Started.Length >= 2).ConfigureAwait(false);
-            Assert.That(m_executor.Started, Has.Length.EqualTo(2));
+            Assert.That(m_executor.Started, Is.EqualTo(["s1", "s2"]));
         }
 
         [Test]
@@ -1009,6 +1258,49 @@ namespace Opc.Ua.Robotics.Tests
             };
         }
 
+        private static string[] RemovedIntentIds(List<NodeState> removed)
+        {
+            lock (removed)
+            {
+                return [.. removed.OfType<IntentOperationState>().Select(n => n.IntentId?.Value ?? string.Empty)];
+            }
+        }
+
+        private static void ForceEqualStartTimes(IntentControllerHost host)
+        {
+            DateTime shared = DateTime.UtcNow;
+            foreach (object entry in RetainedEntries(host))
+            {
+                FieldInfo field = entry.GetType().GetField(
+                    "<StartTime>k__BackingField",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!;
+                field.SetValue(entry, shared);
+            }
+        }
+
+        private static void DisposeRetainedEntry(IntentControllerHost host, string intentId)
+        {
+            foreach (object entry in RetainedEntries(host))
+            {
+                PropertyInfo property = entry.GetType().GetProperty(nameof(IntentOperationState.IntentId))!;
+                if ((string)property.GetValue(entry)! == intentId)
+                {
+                    ((IDisposable)entry).Dispose();
+                    return;
+                }
+            }
+            Assert.Fail($"retained entry '{intentId}' was not found");
+        }
+
+        private static object[] RetainedEntries(IntentControllerHost host)
+        {
+            FieldInfo field = typeof(IntentControllerHost).GetField(
+                "m_intents",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var intents = (System.Collections.IDictionary)field.GetValue(host)!;
+            return [.. intents.Values.Cast<object>()];
+        }
+
         private IntentControllerHost NewHost(
             IntentControllerHostOptions options,
             List<NodeState>? removed = null)
@@ -1067,6 +1359,27 @@ namespace Opc.Ua.Robotics.Tests
             }
         }
 
+        private T? FindOperationByNodeId<T>(NodeId nodeId)
+            where T : NodeState
+        {
+            lock (m_addedLock)
+            {
+                return m_added.OfType<T>().FirstOrDefault(n => n.NodeId == nodeId);
+            }
+        }
+
+        private string FindOnlyIntentId()
+        {
+            lock (m_addedLock)
+            {
+                return m_added
+                    .OfType<IntentOperationState>()
+                    .Single()
+                    .IntentId!
+                    .Value;
+            }
+        }
+
         private IntentResultDataType ReadFinalResult(IntentOperationState node)
         {
             BaseDataVariableState result = (BaseDataVariableState)node.FinalResultData!.FindChild(
@@ -1106,6 +1419,10 @@ namespace Opc.Ua.Robotics.Tests
         private IntentControllerHost m_host = null!;
         private readonly Lock m_addedLock = new();
         private readonly List<NodeState> m_added = [];
+        private const uint PartTenStateReady = 1;
+        private const uint PartTenStateRunning = 2;
+        private const uint PartTenStateSuspended = 3;
+        private const uint PartTenStateHalted = 4;
 
         /// <summary>
         /// A stand-in for the robot. It records what it was asked to do, can be held
@@ -1121,6 +1438,7 @@ namespace Opc.Ua.Robotics.Tests
             public IntentOutcome Outcome { get; set; } = IntentOutcome.Success;
             public Action<IntentExecution>? OnExecute { get; set; }
             public StopModeEnum LastStopMode { get; private set; }
+            public int CancellationObservedCount => Volatile.Read(ref m_cancellationObservedCount);
 
             public async ValueTask<IntentOutcome> ExecuteAsync(
                 IntentExecution execution, CancellationToken cancellationToken)
@@ -1139,6 +1457,7 @@ namespace Opc.Ua.Robotics.Tests
                     }
                     catch (OperationCanceledException)
                     {
+                        Interlocked.Increment(ref m_cancellationObservedCount);
                         LastStopMode = execution.StopMode;
                         return new IntentOutcome { State = ExecutionStateEnum.Cancelled };
                     }
@@ -1151,6 +1470,7 @@ namespace Opc.Ua.Robotics.Tests
                     }
                     catch (OperationCanceledException)
                     {
+                        Interlocked.Increment(ref m_cancellationObservedCount);
                         LastStopMode = execution.StopMode;
                         return new IntentOutcome { State = ExecutionStateEnum.Cancelled };
                     }
@@ -1164,6 +1484,8 @@ namespace Opc.Ua.Robotics.Tests
             {
                 return !RefuseCancel;
             }
+
+            private int m_cancellationObservedCount;
         }
     }
 }

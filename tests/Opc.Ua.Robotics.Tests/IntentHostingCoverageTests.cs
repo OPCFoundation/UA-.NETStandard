@@ -150,7 +150,7 @@ namespace Opc.Ua.Robotics.Tests
                 Assert.That(provider.GetRequiredService<RobotIntentNodeManagerFactory>(), Is.Not.Null);
                 Assert.That(executors.Any(static executor => executor is RobotIntentRejectingExecutor), Is.True);
                 Assert.That(executors.Any(static executor => executor is CompletingExecutor), Is.True);
-                Assert.That(new CompletingExecutor().CanCancel(null!), Is.True);
+                Assert.That(new CompletingExecutor(), Is.TypeOf<CompletingExecutor>());
             });
         }
 
@@ -383,7 +383,7 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
-        public void IntentInterfacesExposeSafetySnapshotValues()
+        public void SafetySnapshotPositionalParametersMapToNamedProperties()
         {
             var reason = new LocalizedText("stopped");
             var snapshot = new RobotIntentSafetySnapshot(

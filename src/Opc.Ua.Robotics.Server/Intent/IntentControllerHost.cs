@@ -112,6 +112,14 @@ namespace Opc.Ua.RobotIntent.Server
         /// </summary>
         public event EventHandler<IntentNodeAddFailure>? NodeAddFailed;
 
+        internal bool IsShutdownDeferred => Volatile.Read(ref m_shutdownDeferred) != 0;
+
+        internal bool ResourcesDisposed => Volatile.Read(ref m_resourcesDisposed) != 0;
+
+        internal Func<string, CancellationToken, ValueTask>? BeforeExecuteAsync { get; set; }
+
+        internal Func<string, ValueTask>? BeforeDisposeCancelAsync { get; set; }
+
         /// <summary>
         /// Starts the execution pump and wires the controller's Methods.
         /// </summary>
@@ -800,14 +808,17 @@ namespace Opc.Ua.RobotIntent.Server
             m_disposed = true;
             UnhookSessionManager();
             m_shutdown.Cancel();
-            foreach (IntentEntry entry in m_intents.Values)
+            IntentEntry[] entries = SnapshotIntents();
+            foreach (IntentEntry entry in entries)
             {
                 entry.RequestCancel(IntentFailureEnum.Other, StopModeEnum.QuickStop);
             }
             if (m_pumpTask == null || m_pumpTask.IsCompleted)
             {
                 DisposeResources();
+                return;
             }
+            DeferDisposeResources(m_pumpTask);
         }
 
         /// <inheritdoc/>
@@ -958,7 +969,11 @@ namespace Opc.Ua.RobotIntent.Server
                         "The queue is at MaxQueueDepth.");
                 }
 
-                var entry = new IntentEntry(id, intent, missionId)
+                var entry = new IntentEntry(
+                    id,
+                    intent,
+                    missionId,
+                    Interlocked.Increment(ref m_nextAdmissionSequence))
                 {
                     CreateSessionId = sessionId ?? NodeId.Null,
                     CreateClientName = clientName,
@@ -1333,6 +1348,15 @@ namespace Opc.Ua.RobotIntent.Server
                         }
                         next = m_queue.First.Value;
                         m_queue.RemoveFirst();
+                        var progress = new ProgressSink(this, context, next);
+                        next.Execution = new IntentExecution(next.IntentId, next.Intent, progress)
+                        {
+                            MissionId = next.MissionId
+                        };
+                        if (next.CancelRequested)
+                        {
+                            next.Execution.AcceptCancellation(next.AcceptedStopMode);
+                        }
                         m_current = next;
                         SetExecutionStateLocked(context, next, ExecutionStateEnum.Executing);
                         RenumberQueueLocked(context);
@@ -1345,17 +1369,15 @@ namespace Opc.Ua.RobotIntent.Server
 
         private async Task RunOneAsync(ISystemContext context, IntentEntry entry)
         {
-            var progress = new ProgressSink(this, context, entry);
-            entry.Execution = new IntentExecution(entry.IntentId, entry.Intent, progress)
-            {
-                MissionId = entry.MissionId
-            };
-
             IntentOutcome outcome;
             try
             {
+                if (BeforeExecuteAsync != null)
+                {
+                    await BeforeExecuteAsync(entry.IntentId, entry.CancellationToken).ConfigureAwait(false);
+                }
                 outcome = await m_executor
-                    .ExecuteAsync(entry.Execution, entry.CancellationToken)
+                    .ExecuteAsync(entry.Execution!, entry.CancellationToken)
                     .ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -1946,7 +1968,7 @@ namespace Opc.Ua.RobotIntent.Server
                 .Where(kv => IntentOutcome.IsTerminal(kv.Value.State) &&
                     !ReferenceEquals(kv.Value, m_current) &&
                     (kv.Value.Execution == null || kv.Value.ExecutionCompleted))
-                .OrderBy(kv => kv.Value.StartTime)
+                .OrderBy(kv => kv.Value.AdmissionSequence)
                 .ToList();
             for (int i = 0; i < terminal.Count - (int)keep; i++)
             {
@@ -2598,10 +2620,16 @@ namespace Opc.Ua.RobotIntent.Server
 
         private void DisposeResources()
         {
+            if (Interlocked.Exchange(ref m_resourcesDisposed, 1) != 0)
+            {
+                return;
+            }
+            Volatile.Write(ref m_shutdownDeferred, 0);
             m_shutdown.Cancel();
             m_shutdown.Dispose();
             m_pump.Dispose();
-            foreach (IntentEntry entry in m_intents.Values)
+            IntentEntry[] entries = SnapshotIntents();
+            foreach (IntentEntry entry in entries)
             {
                 entry.Dispose();
             }
@@ -2617,16 +2645,15 @@ namespace Opc.Ua.RobotIntent.Server
             UnhookSessionManager();
             Task? pumpTask = m_pumpTask;
             m_shutdown.Cancel();
-            foreach (IntentEntry entry in m_intents.Values)
-            {
-                entry.RequestCancel(IntentFailureEnum.Other, StopModeEnum.QuickStop);
-            }
+            IntentEntry[] entries = SnapshotIntents();
+            await CancelEntriesForDisposeAsync(entries).ConfigureAwait(false);
             if (pumpTask != null)
             {
                 try
                 {
                     if (!await WaitForPumpShutdownAsync(pumpTask).ConfigureAwait(false))
                     {
+                        DeferDisposeResources(pumpTask);
                         return;
                     }
                 }
@@ -2635,6 +2662,37 @@ namespace Opc.Ua.RobotIntent.Server
                 }
             }
             DisposeResources();
+        }
+
+        private async ValueTask CancelEntriesForDisposeAsync(IntentEntry[] entries)
+        {
+            foreach (IntentEntry entry in entries)
+            {
+                if (BeforeDisposeCancelAsync != null)
+                {
+                    await BeforeDisposeCancelAsync(entry.IntentId).ConfigureAwait(false);
+                }
+                entry.RequestCancel(IntentFailureEnum.Other, StopModeEnum.QuickStop);
+            }
+        }
+
+        private IntentEntry[] SnapshotIntents()
+        {
+            lock (m_lock)
+            {
+                return [.. m_intents.Values];
+            }
+        }
+
+        private void DeferDisposeResources(Task pumpTask)
+        {
+            Volatile.Write(ref m_shutdownDeferred, 1);
+            _ = pumpTask.ContinueWith(
+                static (_, state) => ((IntentControllerHost)state!).DisposeResources(),
+                this,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
 
         private async Task<bool> WaitForPumpShutdownAsync(Task pumpTask)
@@ -2692,10 +2750,13 @@ namespace Opc.Ua.RobotIntent.Server
         private IntentEntry? m_current;
         private Task? m_pumpTask;
         private long m_nextId;
+        private long m_nextAdmissionSequence;
         private bool m_paused;
         private global::Opc.Ua.Server.ISessionManager? m_sessionManager;
         private global::Opc.Ua.Server.SessionEventHandler? m_sessionClosingHandler;
         private bool m_disposed;
+        private int m_shutdownDeferred;
+        private int m_resourcesDisposed;
 
         private sealed class ProgressSink(
             IntentControllerHost host,
@@ -2744,13 +2805,18 @@ namespace Opc.Ua.RobotIntent.Server
             }
         }
 
-        private sealed class IntentEntry(string intentId, IntentDataType intent, string missionId)
+        private sealed class IntentEntry(
+            string intentId,
+            IntentDataType intent,
+            string missionId,
+            long admissionSequence)
             : IDisposable
         {
             public string IntentId { get; } = intentId;
             public string OperationNodeName { get; } = $"{intentId}-{Guid.NewGuid():N}";
             public IntentDataType Intent { get; } = intent;
             public string MissionId { get; } = missionId;
+            public long AdmissionSequence { get; } = admissionSequence;
             public IntentOperationState? Node { get; set; }
             public IntentExecution? Execution { get; set; }
             public ExecutionStateEnum State { get; set; } = ExecutionStateEnum.Accepted;
@@ -2773,9 +2839,15 @@ namespace Opc.Ua.RobotIntent.Server
                 CancelReason = reason;
                 AcceptedStopMode = stopMode;
                 Execution?.AcceptCancellation(stopMode);
-                if (!m_cts.IsCancellationRequested)
+                try
                 {
-                    m_cts.Cancel();
+                    if (!m_cts.IsCancellationRequested)
+                    {
+                        m_cts.Cancel();
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
                 }
             }
 

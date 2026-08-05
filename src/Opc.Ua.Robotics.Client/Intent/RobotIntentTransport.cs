@@ -314,6 +314,11 @@ namespace Opc.Ua.Robotics.Client.Intent
                     ["Capabilities", "MaxTrajectoryPoints"],
                     0u,
                     ct).ConfigureAwait(false),
+                SupportedFacets = await ReadChildValueOrDefaultAsync<ArrayOf<string>>(
+                    ControllerId,
+                    ["Capabilities", "SupportedFacets"],
+                    [],
+                    ct).ConfigureAwait(false),
                 Lookups = lookups
             };
             return info with { Facets = RobotIntentRules.DeriveFacets(info) };

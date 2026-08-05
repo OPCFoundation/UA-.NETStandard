@@ -212,7 +212,8 @@ namespace IntentViewerClient
                     string unavailable = string.Empty;
                     if (options.View && UsdViewHostLoader.TryLoad(out IUsdViewHost? viewHost, out unavailable))
                     {
-                        await RunViewportAsync(options, sample.Session, outPath, viewHost!, processor, lifetime.Token)
+                        await RunViewportAsync(
+                            options, sample.Session, outPath, viewHost!, processor, telemetry, lifetime.Token)
                             .ConfigureAwait(false);
                     }
                     else
@@ -372,6 +373,7 @@ namespace IntentViewerClient
             string liveLayerPath,
             IUsdViewHost viewHost,
             PickProcessor processor,
+            ITelemetryContext telemetry,
             CancellationToken cancellationToken)
         {
             string cacheDir = options.FetchAssetsDirectory
@@ -390,6 +392,7 @@ namespace IntentViewerClient
                 Renderer = options.Renderer,
                 CameraPath = "/World/Camera",
                 Title = "OPC UA Robot Intent Viewer",
+                Telemetry = telemetry,
                 PickMode = options.PickMode,
                 CommandPrimPath = options.CommandPrimPath,
                 PrimPicked = processor.ProcessPickAsync

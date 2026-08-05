@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Opc.Ua.OpenUsd.Client.Tests
@@ -51,31 +48,10 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             Assert.That(options.Renderer, Is.Null);
             Assert.That(options.Title, Is.Null);
             Assert.That(options.CameraPath, Is.Null);
+            Assert.That(options.Telemetry, Is.Null);
             Assert.That(options.PrimPicked, Is.Null);
             Assert.That(options.CommandPrimPath, Is.EqualTo("/World/IntentCommand"));
             Assert.That(options.PickMode, Is.EqualTo(UsdViewPickMode.Auto));
-        }
-
-        [Test]
-        public async Task StubHostCanInvokePrimPickedCallback()
-        {
-            var host = new StubViewHost("/World/RobotTargets/TargetA");
-            string? picked = null;
-            var options = new UsdViewOptions
-            {
-                StagePath = "stage.usda",
-                PrimPicked = (primPath, cancellationToken) =>
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    picked = primPath;
-                    return Task.CompletedTask;
-                }
-            };
-
-            host.RunViewport(options, static (_, _) => Task.CompletedTask, CancellationToken.None);
-            await Task.Yield();
-
-            Assert.That(picked, Is.EqualTo("/World/RobotTargets/TargetA"));
         }
 
         [Test]
@@ -141,25 +117,6 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             Assert.That(relativePick, Is.Empty);
             Assert.That(trimmed, Is.True);
             Assert.That(trimmedPick, Is.EqualTo("/World/RobotTargets/TargetC"));
-        }
-
-        private sealed class StubViewHost : IUsdViewHost
-        {
-            private readonly string m_pickPrimPath;
-
-            public StubViewHost(string pickPrimPath)
-            {
-                m_pickPrimPath = pickPrimPath;
-            }
-
-            public void RunViewport(
-                UsdViewOptions options,
-                Func<IUsdSink, CancellationToken, Task> sessionAsync,
-                CancellationToken cancellationToken)
-            {
-                Assert.That(sessionAsync, Is.Not.Null);
-                options.PrimPicked?.Invoke(m_pickPrimPath, cancellationToken);
-            }
         }
     }
 }

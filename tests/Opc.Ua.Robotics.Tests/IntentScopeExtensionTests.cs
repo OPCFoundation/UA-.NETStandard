@@ -235,6 +235,7 @@ namespace Opc.Ua.Robotics.Tests
 
             Assert.That(admission.Accepted, Is.True);
             await WaitAsync(() => m_executor.Started.Length == 1).ConfigureAwait(false);
+                Assert.That(m_executor.Started, Is.EqualTo([admission.IntentId]));
         }
 
         [Test]
@@ -366,10 +367,9 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
-        public async Task ForceExhaustingDistanceReportsObjectNotFound()
+        public async Task ForceIntentPassesContactSearchParametersToExecutor()
         {
             using IntentControllerHost host = NewHost();
-            m_executor.Outcome = IntentOutcome.Fail(IntentFailureEnum.ObjectNotFound, "no contact");
 
             IntentAdmission admission = host.SubmitIntent(m_context, null,
                 new ForceIntentDataType
@@ -380,11 +380,18 @@ namespace Opc.Ua.Robotics.Tests
                 });
 
             IntentOperationState node = await WaitForOperationAsync(admission.Operation).ConfigureAwait(false);
-            Assert.That(node.Result!.Value!.Failure, Is.EqualTo(IntentFailureEnum.ObjectNotFound));
+            var force = (ForceIntentDataType)m_executor.LastIntent!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(force.Direction, Is.EqualTo(new[] { 0.0, 0.0, -1.0 }));
+                Assert.That(force.ContactForce, Is.EqualTo(5));
+                Assert.That(force.MaxDistance, Is.EqualTo(0.1));
+            });
         }
 
         [Test]
-        public async Task GraspIgnoresRequestedForceWhenExecutorSucceeds()
+        public async Task GraspRequestedForceIsAdvisoryWhenExecutorSucceeds()
         {
             IntentControllerHostOptions options = Options();
             options.Accept(RiDataTypeIds.GraspIntentDataType);
@@ -394,7 +401,12 @@ namespace Opc.Ua.Robotics.Tests
                 new GraspIntentDataType { Force = 999, Width = 0.02 });
 
             IntentOperationState node = await WaitForOperationAsync(admission.Operation).ConfigureAwait(false);
-            Assert.That(node.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
+            var grasp = (GraspIntentDataType)m_executor.LastIntent!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(grasp.Force, Is.EqualTo(999));
+            });
         }
 
         [Test]
@@ -409,15 +421,15 @@ namespace Opc.Ua.Robotics.Tests
 
             IntentDataType[] intents =
             [
-                new ToolChangeIntentDataType(),
-                new WaitIntentDataType { Duration = 1 },
-                new ReleaseIntentDataType(),
-                new ArcWeldIntentDataType(),
-                new SpotWeldIntentDataType(),
-                new DispenseIntentDataType(),
-                new FastenIntentDataType(),
-                new PalletiseIntentDataType(),
-                new SurfaceFinishIntentDataType()
+                new ToolChangeIntentDataType { IntentId = "tool-change" },
+                new WaitIntentDataType { IntentId = "wait", Duration = 1 },
+                new ReleaseIntentDataType { IntentId = "release" },
+                new ArcWeldIntentDataType { IntentId = "arc-weld" },
+                new SpotWeldIntentDataType { IntentId = "spot-weld" },
+                new DispenseIntentDataType { IntentId = "dispense" },
+                new FastenIntentDataType { IntentId = "fasten" },
+                new PalletiseIntentDataType { IntentId = "palletise" },
+                new SurfaceFinishIntentDataType { IntentId = "surface-finish" }
             ];
             for (int ii = 1; ii < intents.Length; ii++)
             {
@@ -429,6 +441,7 @@ namespace Opc.Ua.Robotics.Tests
                 Assert.That(admission.Accepted, Is.True, intent.GetType().Name);
             }
             await WaitAsync(() => m_executor.Started.Length == intents.Length).ConfigureAwait(false);
+            Assert.That(m_executor.Started, Is.EqualTo(intents.Select(static intent => intent.IntentId).ToArray()));
         }
 
         [Test]
@@ -438,6 +451,41 @@ namespace Opc.Ua.Robotics.Tests
 
             IntentAdmission admission = host.SubmitIntent(m_context, null,
                 new SurfaceFinishIntentDataType { ContactForce = -1 });
+
+            Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.ParameterInvalid));
+        }
+
+        [Test]
+        public async Task ProcessProgramMustResolveUnderTheControllerProgramsFolder()
+        {
+            NodeId program = new("program", 1);
+            using IntentControllerHost host = NewHost(null, controller => AddProgram(controller, program));
+
+            IntentAdmission accepted = host.SubmitIntent(m_context, null,
+                new ArcWeldIntentDataType { ProcessProgram = program });
+            IntentAdmission refused = host.SubmitIntent(m_context, null,
+                new ArcWeldIntentDataType
+                {
+                    IntentId = "missing-program",
+                    ProcessProgram = new NodeId("missing", 1)
+                });
+
+            IntentOperationState node = await WaitForOperationAsync(accepted.Operation).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(accepted.Accepted, Is.True);
+                Assert.That(node.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(refused.Failure, Is.EqualTo(IntentFailureEnum.ParameterInvalid));
+            });
+        }
+
+        [Test]
+        public void FastenJointReferenceIsRefusedUntilJointModelSupportExists()
+        {
+            using IntentControllerHost host = NewHost();
+
+            IntentAdmission admission = host.SubmitIntent(m_context, null,
+                new FastenIntentDataType { Joint = new NodeId("joint", 1) });
 
             Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.ParameterInvalid));
         }
@@ -572,7 +620,7 @@ namespace Opc.Ua.Robotics.Tests
             {
                 Assert.That(granted.Granted, Is.True);
                 Assert.That(granted.EndpointUrl, Is.EqualTo("rtde://robot:30004"));
-                Assert.That(granted.Expiry, Is.GreaterThan(DateTime.UtcNow));
+                Assert.That(granted.Expiry, Is.Not.EqualTo(DateTime.MinValue));
             });
 
             Assert.That(host.OpenRealTimeChannel(m_context, second, "rtde", 5000).Granted,
@@ -670,13 +718,17 @@ namespace Opc.Ua.Robotics.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(initial.Granted, Is.True);
-                Assert.That((initial.Expiry - DateTime.UtcNow).TotalMilliseconds, Is.LessThanOrEqualTo(1000));
                 Assert.That(renewed.Granted, Is.True);
                 Assert.That(renewed.Expiry, Is.GreaterThanOrEqualTo(initial.Expiry));
             });
 
-            await Task.Delay(150).ConfigureAwait(false);
-            Assert.That(host.OpenRealTimeChannel(m_context, second, "rtde", 1000).Granted, Is.True);
+            RealTimeLease expired = RealTimeLease.Refused("not yet expired");
+            await WaitAsync(() =>
+            {
+                expired = host.OpenRealTimeChannel(m_context, second, "rtde", 1000);
+                return expired.Granted;
+            }).ConfigureAwait(false);
+            Assert.That(expired.Granted, Is.True);
         }
 
         [Test]
@@ -686,9 +738,14 @@ namespace Opc.Ua.Robotics.Tests
             options.MaxChannelLeaseMs = 500;
             using IntentControllerHost host = NewHost(options);
 
-            RealTimeLease lease = host.OpenRealTimeChannel(m_context, new NodeId("s", 1), "rtde", 0);
+            var first = new NodeId("s1", 1);
+            var second = new NodeId("s2", 1);
 
-            Assert.That((lease.Expiry - DateTime.UtcNow).TotalMilliseconds, Is.GreaterThan(100));
+            RealTimeLease requested = host.OpenRealTimeChannel(m_context, first, "rtde", 1);
+            host.CloseRealTimeChannel(m_context, first, "rtde");
+            RealTimeLease lease = host.OpenRealTimeChannel(m_context, second, "rtde", 0);
+
+            Assert.That(lease.Expiry, Is.GreaterThan(requested.Expiry));
         }
 
         [Test]

@@ -180,8 +180,10 @@ namespace Opc.Ua.Robotics.Server
         /// </summary>
         public async ValueTask DisposeAsync()
         {
-            await DisposeHostsAsync().ConfigureAwait(false);
-            Dispose();
+            if (await DisposeHostsAsync().ConfigureAwait(false))
+            {
+                Dispose();
+            }
         }
 
         /// <inheritdoc/>
@@ -359,13 +361,16 @@ namespace Opc.Ua.Robotics.Server
             }
         }
 
-        private async ValueTask DisposeHostsAsync()
+        private async ValueTask<bool> DisposeHostsAsync()
         {
             ArrayOf<IntentControllerHost> hosts = TakeHosts();
+            bool clean = true;
             for (int ii = 0; ii < hosts.Count; ii++)
             {
                 await hosts[ii].DisposeAsync().ConfigureAwait(false);
+                clean &= !hosts[ii].IsShutdownDeferred;
             }
+            return clean;
         }
 
         private ArrayOf<IntentControllerHost> TakeHosts()

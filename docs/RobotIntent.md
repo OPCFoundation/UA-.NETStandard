@@ -596,18 +596,20 @@ if (!submission.Accepted)
 
 ## Facets in code
 
-On the server, compute the facet strings from the materialised controller:
+A controller publishes the facets it claims in `Capabilities.SupportedFacets`, so a client reads the
+claim rather than reconstructing it. The server computes the list once, when the controller is
+registered:
 
 ```csharp
 ArrayOf<string> facets = controller.ComputeFacets();
-ArrayOf<string> sameFacets = RobotIntentFacetCalculator.Compute(controller.State);
+ArrayOf<string> published = RobotIntentFacetCalculator.Compute(controller.State);
 ```
 
-On the client, `ReadAsync` derives the booleans a client can rely on from the capability variables:
+On the client, `ReadAsync` returns what the server published:
 
 ```csharp
 RobotIntentControllerInfo info = await controller.ReadAsync(ct);
-if (info.Facets.Missions && info.Facets.MissionHorizon)
+if (info.SupportedFacets.Contains("RI-Mission-Horizon"))
 {
     Console.WriteLine("The controller accepts missions with horizon updates.");
 }
@@ -617,8 +619,16 @@ if (!info.Facets.EveryCapabilitySupportsAborting)
 }
 ```
 
-The facet result is not a second conformance model. It is a compact projection of the same address
-space the server publishes and the same `IntentControllerHost` rules the server enforces.
+`info.Facets` remains available as a convenience projection of the individual capability variables,
+and against a server that predates `SupportedFacets` it is all there is. Prefer `SupportedFacets`
+where the server publishes it: the projection can only see the flags, so it necessarily disagrees with
+the server about any facet whose requirements go beyond a single flag.
+
+That disagreement is the reason `SupportedFacets` exists. A facet is not a restatement of the
+declaration a client has already read. Some of what the table below requires — that blending modes are
+honoured, that the refusal rules are followed, that a mission base is immutable — cannot be settled by
+reading the address space at all, so a client deriving facets locally is guessing at precisely the
+rows that matter most.
 
 ## Limitations
 
@@ -947,29 +957,38 @@ why `ToolType.TcpFrame` supplies the concept and has nothing in OPC 40010 to con
 
 Only **RI-Base** is mandatory. A server implements the facets it can honour and declares the rest false;
 a facet other than RI-Base is claimed only where every intent type it names appears in
-`SupportedIntents`.
+`SupportedIntents`. Each controller lists what it claims in `Capabilities.SupportedFacets`, which
+RI-Base requires — a conformance claim that cannot be read is not a claim.
+
+Requirements below are of two kinds, and the difference decides what a tool can check. **Structural**
+requirements are settled by reading the address space and the capability declaration; the facet
+calculator checks every one of them, and a server shall not list a facet whose structural requirements
+are unmet. **Attested** requirements — accepting, honouring, maintaining or observing a rule — cannot
+be settled by reading, only by exercising the server, and are the server's own statement under the
+honesty rules. Listing **RI-Blending** while treating the blending modes as `Buffered` is a false
+statement in exactly the sense the honesty rules forbid, whatever `BlendingSupported` says.
 
 | Facet | Requires |
 |---|---|
-| **RI-Base** (mandatory) | `RobotIntentRootType`; at least one `IntentControllerType` with `Capabilities`, `Frames`, `Tools`, `Locations`, `Axes` and `Intents`; `SubmitIntent`, `CancelIntent`, `CancelAll`, `RequestControl`, `ReleaseControl`; `IntentOperationType` instances with the state model above; the refusal rules |
+| **RI-Base** (mandatory) | `RobotIntentRootType`; at least one `IntentControllerType` with `Capabilities`, `Frames`, `Tools`, `Locations`, `Axes` and `Intents`; `SupportedFacets`; `SubmitIntent`, `CancelIntent`, `CancelAll`, `RequestControl`, `ReleaseControl`; `IntentOperationType` instances with the state model above; the refusal rules *(attested)* |
 | **RI-Motion-Joint** / **-Linear** / **-Circular** | the corresponding move intent; joint additionally needs `AxisType` instances covering `0`..`AxisCount − 1` |
-| **RI-Trajectory** | `TrajectoryIntentDataType`, `TrajectorySupported` true, and the tolerance rules |
+| **RI-Trajectory** | `TrajectoryIntentDataType`, `TrajectorySupported` true, and the tolerance rules *(attested)* |
 | **RI-Path** | `CartesianPathIntentDataType` and `TrajectorySupported` true |
-| **RI-Force** | `ForceIntentDataType` and `ForceControlSupported` true — the robot genuinely regulates force |
-| **RI-RealTimeChannel** | `RealTimeChannelsSupported` true, the `RealTimeChannels` folder, and the lease rules |
-| **RI-Safety** | `SafetyState` populated from the safety system, and the safety refusals |
+| **RI-Force** | `ForceIntentDataType` and `ForceControlSupported` true — the robot genuinely regulates force *(attested)* |
+| **RI-RealTimeChannel** | `RealTimeChannelsSupported` true, the `RealTimeChannels` folder, and the lease rules *(attested)* |
+| **RI-Safety** | `SafetyState` present; populated from the safety system, and the safety refusals *(attested)* |
 | **RI-Description** | `Description` with a `KinematicChain` covering every axis, `ReachRadius`, `PayloadLimit`, `MaxCartesianSpeed` |
 | **RI-Process-ArcWeld / -SpotWeld / -Dispense / -Fasten / -Palletise / -SurfaceFinish** | the corresponding process intent; palletise also needs a `LocationType` pattern, surface finish also needs **RI-Force** |
 | **RI-Grasp** | `GraspIntentDataType`, `ReleaseIntentDataType`, and a `ToolType` with a `TcpFrame` |
 | **RI-PickPlace** | `PickIntentDataType`, `PlaceIntentDataType`, and a `LocationType` |
 | **RI-ToolChange** | `ToolChangeIntentDataType` and more than one `ToolType` |
 | **RI-Output** / **RI-Program** / **RI-Wait** | `SetOutputIntentDataType` + `Outputs`; `CallProgramIntentDataType` + `Programs`; `WaitIntentDataType` |
-| **RI-Queue** | `MaxQueueDepth` greater than zero, `Buffered` accepted, `QueuePosition` maintained |
-| **RI-Blending** | `BlendingSupported` true, the four blending modes honoured, `Result.AchievedPose` at the blend point |
+| **RI-Queue** | `MaxQueueDepth` greater than zero and `Buffered` accepted; `QueuePosition` maintained *(attested)* |
+| **RI-Blending** | `BlendingSupported` true and the four blending modes accepted; the modes honoured and `Result.AchievedPose` at the blend point *(attested)* |
 | **RI-Pause** / **RI-Retry** | `Pause` and `Resume`; `Retry` with `Retriable` reachable |
 | **RI-Mission** | `MissionsSupported` true, `SubmitMission`, `CancelMission`, `MissionType` instances |
-| **RI-Mission-Horizon** | RI-Mission plus `MissionHorizonSupported`, `UpdateMission`, and base immutability |
-| **RI-Mission-Branching** | RI-Mission plus `MissionBranchingSupported`, transitions evaluated, error policies honoured |
+| **RI-Mission-Horizon** | RI-Mission plus `MissionHorizonSupported` and `UpdateMission`; base immutability *(attested)* |
+| **RI-Mission-Branching** | RI-Mission plus `MissionBranchingSupported`; transitions evaluated and error policies honoured *(attested)* |
 | **RI-Interop-40010** | the OPC 40010 interop profile above |
 
 ## See also

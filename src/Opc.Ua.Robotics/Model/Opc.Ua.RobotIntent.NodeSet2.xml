@@ -1263,6 +1263,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=6134</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6135</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6136</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6139</Reference>
     </References>
   </UAObjectType>
   <UAVariable NodeId="ns=1;i=6060" BrowseName="1:SupportedIntents" ParentNodeId="ns=1;i=1005" DataType="ns=1;i=3069" ValueRank="1">
@@ -2488,6 +2489,15 @@
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=15383</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6139" BrowseName="1:SupportedFacets" ParentNodeId="ns=1;i=1005" DataType="String" ValueRank="1">
+    <DisplayName>SupportedFacets</DisplayName>
+    <Description>The facets of Table 12.2 this controller claims, by the names given there. A client reads this instead of re-deriving conformance from the address space. Clause 12.2 binds the claim: a facet whose structural requirements are unmet shall not appear, and the behavioural requirements are subject to the honesty rules of clause 9.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
     </References>
   </UAVariable>
 </UANodeSet>

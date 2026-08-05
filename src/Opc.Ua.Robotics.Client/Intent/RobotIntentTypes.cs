@@ -215,8 +215,26 @@ namespace Opc.Ua.Robotics.Client.Intent
         public RobotIntentLookups Lookups { get; init; } = RobotIntentLookups.Empty;
 
         /// <summary>
-        /// Gets the derived facet snapshot.
+        /// Gets the facets the controller claims, as published in
+        /// <c>Capabilities.SupportedFacets</c>.
         /// </summary>
+        /// <remarks>
+        /// This is the controller's own conformance claim and is what a client should consult. It is
+        /// empty against a server that predates the member, in which case <see cref="Facets"/> is the
+        /// only information available.
+        /// </remarks>
+        public ArrayOf<string> SupportedFacets { get; init; }
+
+        /// <summary>
+        /// Gets a facet snapshot projected from the individual capability variables.
+        /// </summary>
+        /// <remarks>
+        /// This is a convenience projection, not a conformance model. It can only see the capability
+        /// flags, so for any facet whose requirements go beyond a single flag it will disagree with
+        /// <see cref="SupportedFacets"/> — and the requirements it cannot see are the ones that matter
+        /// most, because several of them are behavioural and settle nothing by being read. Prefer
+        /// <see cref="SupportedFacets"/> wherever the server publishes it.
+        /// </remarks>
         public RobotIntentFacets Facets { get; init; } = new();
     }
 

@@ -316,7 +316,7 @@ namespace Opc.Ua.OpenUsd.Connector
                 ? await RunViewportAsync(
                     viewHost!, stagePath, renderer, pluginPath, cameraPath, session, fileSink,
                     enableCommands, commandValueOpt, printPickCommands, commandPrimPath, options.PickMode,
-                    seconds, outPath)
+                    seconds, outPath, telemetry)
                     .ConfigureAwait(false)
                 : await RunHeadlessAsync(
                     session, fileSink, enableCommands, commandValueOpt, seconds, outPath)
@@ -331,8 +331,16 @@ namespace Opc.Ua.OpenUsd.Connector
             string primPath,
             CancellationToken cancellationToken)
         {
+            return PrintPickedPrimAsync(primPath, Console.Out, cancellationToken);
+        }
+
+        internal static Task PrintPickedPrimAsync(
+            string primPath,
+            TextWriter output,
+            CancellationToken cancellationToken)
+        {
             cancellationToken.ThrowIfCancellationRequested();
-            Console.WriteLine($"Picked prim: {primPath}");
+            output.WriteLine($"Picked prim: {primPath}");
             return Task.CompletedTask;
         }
 
@@ -343,7 +351,9 @@ namespace Opc.Ua.OpenUsd.Connector
             string? cameraPath,
             bool printPickCommands,
             string? commandPrimPath,
-            UsdViewPickMode pickMode)
+            UsdViewPickMode pickMode,
+            ITelemetryContext? telemetry = null,
+            TextWriter? pickOutput = null)
         {
             var options = new UsdViewOptions
             {
@@ -352,7 +362,11 @@ namespace Opc.Ua.OpenUsd.Connector
                 Renderer = renderer,
                 CameraPath = cameraPath,
                 Title = $"OPC UA - OpenUSD Connector - {Path.GetFileName(stagePath)}",
-                PrimPicked = printPickCommands ? PrintPickedPrimAsync : null,
+                Telemetry = telemetry,
+                PrimPicked = printPickCommands
+                    ? (primPath, cancellationToken) => PrintPickedPrimAsync(
+                        primPath, pickOutput ?? Console.Out, cancellationToken)
+                    : null,
                 PickMode = pickMode
             };
             if (!string.IsNullOrWhiteSpace(commandPrimPath))
@@ -529,7 +543,8 @@ namespace Opc.Ua.OpenUsd.Connector
             string? commandPrimPath,
             UsdViewPickMode pickMode,
             int seconds,
-            string outPath)
+            string outPath,
+            ITelemetryContext telemetry)
         {
             if (string.IsNullOrEmpty(stagePath) || !File.Exists(stagePath))
             {
@@ -540,7 +555,7 @@ namespace Opc.Ua.OpenUsd.Connector
             }
 
             UsdViewOptions options = CreateViewOptions(
-                stagePath!, renderer, pluginPath, cameraPath, printPickCommands, commandPrimPath, pickMode);
+                stagePath!, renderer, pluginPath, cameraPath, printPickCommands, commandPrimPath, pickMode, telemetry);
 
             var completion = new TaskCompletionSource<int>(
                 TaskCreationOptions.RunContinuationsAsynchronously);

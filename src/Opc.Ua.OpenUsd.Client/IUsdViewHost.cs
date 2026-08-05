@@ -69,6 +69,12 @@ namespace Opc.Ua.OpenUsd.Client
         public string? CameraPath { get; set; }
 
         /// <summary>
+        /// Telemetry used by the optional viewport host to report degraded renderer
+        /// picking and other best-effort viewport failures.
+        /// </summary>
+        public ITelemetryContext? Telemetry { get; set; }
+
+        /// <summary>
         /// Optional callback invoked when the viewport host resolves an operator pick to a
         /// USD prim path.
         /// </summary>
