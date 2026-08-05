@@ -33,12 +33,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.WotCon.Bindings.Http;
+using Opc.Ua.WotCon.Bindings.Modbus;
+using Opc.Ua.WotCon.Bindings.Mqtt;
+using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Bindings.Planners;
 
 namespace Opc.Ua.WotCon.Bindings.Tests
 {
     /// <summary>
-    /// Unit tests for the protocol-agnostic WoT binding DI builder extension methods.
+    /// Unit tests for the WoT binding DI builder extension methods.
     /// </summary>
     [TestFixture]
     public sealed class OpcUaWotBindingBuilderExtensionsTests
@@ -223,6 +227,160 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             IWotCredentialProvider? resolved = sp.GetService<IWotCredentialProvider>();
 
             Assert.That(resolved, Is.Not.Null);
+        }
+
+        [Test]
+        public void AddHttpWotBindingNullBuilderThrowsArgumentNullException()
+        {
+            Assert.That(
+                () => OpcUaHttpWotBindingBuilderExtensions.AddHttpWotBinding(null!),
+                Throws.InstanceOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void AddHttpWotBindingRegistersBindersAndHttpExecutor()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = new TestBuilder(services);
+            builder.AddHttpWotBinding();
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            WotProtocolBinderRegistry registry = sp.GetRequiredService<WotProtocolBinderRegistry>();
+            System.Collections.Generic.IEnumerable<IWotBindingExecutor> executors =
+                sp.GetServices<IWotBindingExecutor>();
+
+            Assert.That(registry.Binders, Is.Not.Empty);
+            Assert.That(executors.Any(e => e is HttpWotBindingExecutor), Is.True);
+        }
+
+        [Test]
+        public void AddHttpWotBindingWithConfigureDelegateCallsDelegate()
+        {
+            IOpcUaBuilder builder = NewBuilder();
+            bool called = false;
+
+            builder.AddHttpWotBinding(opts => called = true);
+
+            Assert.That(called, Is.True);
+        }
+
+        [Test]
+        public void AddModbusWotBindingNullBuilderThrowsArgumentNullException()
+        {
+            Assert.That(
+                () => OpcUaModbusWotBindingBuilderExtensions.AddModbusWotBinding(null!),
+                Throws.InstanceOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void AddModbusWotBindingRegistersBindersAndModbusExecutor()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = new TestBuilder(services);
+            builder.AddModbusWotBinding();
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            WotProtocolBinderRegistry registry = sp.GetRequiredService<WotProtocolBinderRegistry>();
+            System.Collections.Generic.IEnumerable<IWotBindingExecutor> executors =
+                sp.GetServices<IWotBindingExecutor>();
+
+            Assert.That(registry.Binders, Is.Not.Empty);
+            Assert.That(executors.Any(e => e is ModbusWotBindingExecutor), Is.True);
+        }
+
+        [Test]
+        public void AddModbusWotBindingWithConfigureDelegateCallsDelegate()
+        {
+            IOpcUaBuilder builder = NewBuilder();
+            bool called = false;
+
+            builder.AddModbusWotBinding(opts => called = true);
+
+            Assert.That(called, Is.True);
+        }
+
+        [Test]
+        public void AddOpcUaWotBindingNullBuilderThrowsArgumentNullException()
+        {
+            Assert.That(
+                () => OpcUaTargetWotBindingBuilderExtensions.AddOpcUaWotBinding(null!, _ => { }),
+                Throws.InstanceOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void AddOpcUaWotBindingNullConfigureThrowsArgumentNullException()
+        {
+            IOpcUaBuilder builder = NewBuilder();
+
+            Assert.That(
+                () => builder.AddOpcUaWotBinding(null!),
+                Throws.InstanceOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void AddOpcUaWotBindingWithConfigureDelegateCallsDelegate()
+        {
+            IOpcUaBuilder builder = NewBuilder();
+            bool called = false;
+
+            builder.AddOpcUaWotBinding(opts =>
+            {
+                called = true;
+                opts.DisposeSession = false;
+            });
+
+            Assert.That(called, Is.True);
+        }
+
+        [Test]
+        public void AddOpcUaWotBindingRegistersBindersAndOpcUaExecutor()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = new TestBuilder(services);
+            builder.AddOpcUaWotBinding(opts => opts.DisposeSession = false);
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            WotProtocolBinderRegistry registry = sp.GetRequiredService<WotProtocolBinderRegistry>();
+            System.Collections.Generic.IEnumerable<IWotBindingExecutor> executors =
+                sp.GetServices<IWotBindingExecutor>();
+
+            Assert.That(registry.Binders, Is.Not.Empty);
+            Assert.That(executors.Any(e => e is OpcUaWotBindingExecutor), Is.True);
+        }
+
+        [Test]
+        public void AddMqttWotBindingNullBuilderThrowsArgumentNullException()
+        {
+            Assert.That(
+                () => OpcUaMqttWotBindingBuilderExtensions.AddMqttWotBinding(null!),
+                Throws.InstanceOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void AddMqttWotBindingRegistersBindersAndMqttExecutor()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = new TestBuilder(services);
+            builder.AddMqttWotBinding();
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            WotProtocolBinderRegistry registry = sp.GetRequiredService<WotProtocolBinderRegistry>();
+            System.Collections.Generic.IEnumerable<IWotBindingExecutor> executors =
+                sp.GetServices<IWotBindingExecutor>();
+
+            Assert.That(registry.Binders, Is.Not.Empty);
+            Assert.That(executors.Any(e => e is MqttWotBindingExecutor), Is.True);
+        }
+
+        [Test]
+        public void AddMqttWotBindingWithConfigureDelegateCallsDelegate()
+        {
+            IOpcUaBuilder builder = NewBuilder();
+            bool called = false;
+
+            builder.AddMqttWotBinding(opts => called = true);
+
+            Assert.That(called, Is.True);
         }
 
         [Test]

@@ -5,24 +5,34 @@
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.WotCon.Server</PackageId>
     <RootNamespace>Opc.Ua.WotCon.Server</RootNamespace>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Nullable>enable</Nullable>
-    <Description>OPC UA WoT Connectivity (OPC 10100-1) server class library</Description>
+    <Description>OPC UA WoT Connectivity 1.1 server class library — hosts the deprecated OPC 10100-1 v1.02 asset-management surface and the registry-first materialization runtime.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <!--
-      SYSLIB1100/1101: the configuration binding source generator emits informational
-      diagnostics for properties whose type is an interface or non-default-constructible
-      class (e.g. IWotAssetDiscoveryProvider, IList<IWotAssetProviderFactory>). Those
-      properties are runtime-only and never bound from IConfiguration; the binder
-      silently skips them, which is the desired behavior.
-      IL2026/IL3050: WotConfigurationParameter.InitialValue is typed as Variant?, and
+      SYSLIB1100/1101/IL2026/IL3050 are reported by the configuration binding source
+      generator against generated code (obj/**/BindingExtensions.g.cs), not against
+      our own source lines, so #pragma warning disable at the call site cannot
+      suppress them (see https://github.com/dotnet/runtime/issues/100785 — the
+      generator's own diagnostics only honor the project-level NoWarn/build_property,
+      not in-source pragmas). Project-level suppression is therefore the only
+      available mechanism for these four ids; CA1850 does NOT share that limitation
+      and is fixed with targeted #pragma warning disable/restore at each call site
+      instead (WotRegistryModel.cs, WotMaterializationCoordinator.cs).
+      SYSLIB1100/1101: the generator emits informational diagnostics for properties
+      whose type is an interface or non-default-constructible class (e.g.
+      IWotAssetDiscoveryProvider, IList<IWotAssetProviderFactory>). Those properties
+      are runtime-only and never bound from IConfiguration; the binder silently
+      skips them, which is the desired behavior.
+      IL2026/IL3050: WotConfigurationParameter.InitialValue is typed as Variant, and
       the binder generator emits 'new Variant((object)value)' whose ctor has
       RequiresUnreferencedCode/RequiresDynamicCode. The InitialValue path is
       runtime-only and not bound from appsettings; suppress at project level.
+      TODO: revisit once the configuration binding source generator supports
+      in-source suppression of its own diagnostics (dotnet/runtime#100785).
     -->
     <NoWarn>$(NoWarn);SYSLIB1100;SYSLIB1101;IL2026;IL3050</NoWarn>
   </PropertyGroup>
@@ -36,6 +46,8 @@
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
     <ProjectReference Include="..\Opc.Ua.WotCon\Opc.Ua.WotCon.csproj" />
+    <ProjectReference Include="..\Opc.Ua.WotCon.Bindings\Opc.Ua.WotCon.Bindings.csproj" />
+    <ProjectReference Include="..\Opc.Ua.XRegistry.Server\Opc.Ua.XRegistry.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

@@ -1,18 +1,20 @@
 # OPC UA WoT Connectivity (OPC 10100-1)
 
-This repository implements the OPC UA **WoT Connectivity** companion
-specification (OPC 10100-1, "WoT Connectivity for OPC UA") through three
-class libraries plus an integration test project:
+This repository implements the OPC UA **WoT Connectivity** companion specification (OPC 10100-1, "WoT Connectivity for OPC UA") through the model, client, server, and protocol-binding libraries plus integration tests and runnable aggregation samples:
 
 | Project                          | Purpose                                                       |
 |----------------------------------|---------------------------------------------------------------|
-| `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) compiled from the official `WotConnection.xml` design + `WotConnection.csv` |
+| `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) generated once from the combined **WoT Connectivity 1.1** NodeSet2 (incorporating the OPC 10100-1 v1.02 model plus additive registry nodes in one namespace) and the draft **xRegistry** base NodeSet2 (see §11) |
 | `Opc.Ua.WotCon.Server`           | Server-side node manager (`WotConnectivityNodeManager` → `AsyncCustomNodeManager`) and the extensible provider model |
-| `Opc.Ua.WotCon.Client`           | Client wrappers + extension methods that compose the generated proxies without inheritance |
+| `Opc.Ua.WotCon.Client`           | Client wrappers + extension methods that compose the generated proxies without inheritance, covering both the OPC 10100-1 v1.02 asset-connection surface (`WotConnectivityClient`) and the WoT Connectivity 1.1 registry surface (`WotRegistryClient`, see §11.8) |
+| `Opc.Ua.WotCon.Bindings`         | Protocol-binding abstractions, planners, codecs, credential references, HTTP/Modbus/OPC UA executors on net8+, and the generic target-mapping channel factory |
+| `Opc.Ua.WotCon.Bindings.Mqtt`    | Optional MQTT executor package |
 | `Opc.Ua.WotCon.Tests`            | NUnit tests covering the TD parser, mappers, simulated provider, discovery facade |
 
 The model namespace URI is `http://opcfoundation.org/UA/WoT-Con/`,
 target version `1.02.0`, publication 2025-12-05.
+
+For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotCon/README.md).
 
 ---
 
@@ -69,6 +71,36 @@ Optional flow when `DiscoverAssets` / `CreateAssetForEndpoint` /
 3. `CreateAssetForEndpoint(name, endpoint)` synthesises a TD via
    `IWotAssetDiscoveryProvider.CreateThingDescriptionAsync` and runs
    the same materialisation path — no client upload needed.
+
+### Mirroring assets into the WoT xRegistry
+
+WoT Connectivity can mirror each successfully materialised asset Thing
+Description into the WoT xRegistry. The bridge is default-off: when
+`WotConnectivityServerOptions.RegistryBridge` is `null`, asset create,
+update, and delete do not call the registry. This keeps existing
+deployments unchanged.
+
+Enable the bridge by assigning an `IWotRegistryService` directly, or by
+using the DI builder helper when the registry service is registered in the
+same service collection:
+
+```csharp
+builder.AddServer(serverOptions)
+    .AddWotConServer(wotOptions =>
+    {
+        wotOptions.ThingDescriptionStorageFolder = "wot-assets";
+    })
+    .AddWotRegistryBridge();
+```
+
+`AddWotRegistryBridge()` resolves `IWotRegistryService` from DI and mirrors
+TDs into the `thingdescriptions` group by default. Pass a custom group id
+to override it. Mirroring is independent of legacy TD file persistence:
+the registry is itself a durable store, so `RebuildAsync(...,
+persistOnSuccess: false, ...)` still mirrors the live TD when the bridge is
+enabled. Mirroring is best-effort: registry rejection or I/O failure is
+logged and the asset lifecycle still succeeds, matching the existing
+secondary persistence policy for TD files.
 
 ---
 
@@ -382,11 +414,12 @@ services.AddOpcUa()
     });
 ```
 
-To loosen the policy (for example a closed lab deployment where the
-client cannot present a non-anonymous identity), set
-`AllowAnonymous = true` and grant the anonymous identity the chosen
-role via your role-mapping layer; do not weaken `MinimumSecurityMode`
-in production.
+To loosen identity policy in a closed lab, set `AllowAnonymous = true`
+and grant the anonymous identity the chosen role via your role-mapping
+layer. A conformant registry mutation surface still requires
+`MinimumSecurityMode = MessageSecurityMode.SignAndEncrypt`; lowering it
+is suitable only for isolated test harnesses. Read-only registry access
+may be exposed over `MessageSecurityMode.None` by deployment policy.
 
 ---
 
@@ -413,3 +446,328 @@ in production.
 * OPC 10100-1, *WoT Connectivity for OPC UA*: https://reference.opcfoundation.org/specs/OPC-10100-1/full
 * W3C Web of Things Thing Description 1.1: https://www.w3.org/TR/wot-thing-description11/
 * W3C WoT Binding Templates: https://w3c.github.io/wot-binding-templates/
+
+---
+
+## 11. WoT Connectivity 1.1 registry and materialization (preview)
+
+The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.1** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, marked deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry** base model the registry types build on:
+
+| Model | Namespace | Emitted C# namespace |
+|-------|-----------|----------------------|
+| xRegistry (abstract registry base) | `http://opcfoundation.org/UA/xRegistry/` | `Opc.Ua.XRegistry` |
+| WoT Connectivity 1.1 (combined) | `http://opcfoundation.org/UA/WoT-Con/` | `Opc.Ua.WotCon` |
+
+Both NodeSet2 models are *pinned* from the OPC UA drafts authoring repository into `src/Opc.Ua.WotCon/Design` (as `*.NodeSet2.xml` + `*.NodeSet2.csv`) and added as `AdditionalFiles`. The legacy 1.02 `WotConnection.xml` / `WotConnection.csv` sources are retained under `Design/` for reference only — they are incorporated into the combined NodeSet and are **not** source-generated a second time, so the preserved 1.02 constants and the additive registry constants coexist in one `Opc.Ua.WotCon` namespace under their exact NodeIds. The tooling that refreshes the pinned copies from the draft repository lives in that authoring repository, not here.
+
+### 11.1 Architecture
+
+The 1.1 runtime separates a **stable registry** from **ephemeral projections**:
+
+* `WotRegistryNodeManager` (stable) exposes the well-known `WoTRegistry`
+  object, its Thing Description / Thing Model groups, the `Refresh`
+  Method, registry settings and the registry event types. It never re-creates
+  itself. Every service group and document resource is additionally
+  materialized as a browseable `ThingDescriptionGroupType` /
+  `ThingModelGroupType` and `ThingDescriptionFileType` /
+  `ThingModelFileType` node beneath `WoTRegistry`, kept in sync with the
+  registry snapshot (see §11.7). It never re-creates itself.
+* Registry documents are projected into the AddressSpace as **separate
+  runtime NodeManagers** through the public `INodeManagerLifecycle`
+  (`AddRuntimeNodeSetAsync` for first activation,
+  `ShadowReloadRuntimeNodeSetAsync` or
+  `ImmediateReloadRuntimeNodeSetAsync` for updates). Graceful retirement
+  keeps the previous generation serving existing monitored items until
+  they drain. Immediate retirement reports `BadNodeIdUnknown` for affected
+  monitored items and disposes the previous generation without waiting
+  for drain.
+
+Register it on an OPC UA server host:
+
+```csharp
+builder
+    .AddServer(server => { /* ... */ })
+    .AddWotRegistryServer(options =>
+    {
+        options.StorageFolder = Path.Combine(AppContext.BaseDirectory, "wot-registry");
+        options.AutoRefresh = true;      // re-project after every content mutation
+        options.StrictBindings = false;  // materialize degraded nodes for unsupported forms
+        options.RetirementPolicy = WotProjectionRetirementPolicy.Graceful;
+    });
+```
+
+### 11.2 Registry service and persistence
+
+#### Materialization extension points
+
+Two optional seams let a protocol driver supply what a Thing Description alone cannot express. Both are resolved from DI; registering neither leaves materialization exactly as it was.
+
+* **`IWotNodeSetContributor`** — runs once per resource *after* the Thing Description has been converted to a NodeSet and *before* any variable is created, and may add nodes to that NodeSet. This is the hook for custom `StructureType` DataTypes that have no NodeSet to import because they belong to one controller program — Rockwell/Studio 5000 UDTs, TIA Portal PLC data types, TwinCAT structured types — generated from the controller's own symbol table at onboarding time. It runs at that point precisely because a `uav:mapByFieldPath` mapping can only resolve once its structured DataType is registered. A document that *can* express its types declaratively does not need this seam: the native projection (`uav:NodeModel`) already carries `DataType` nodes with their `DataTypeDefinition`.
+* **`IWotDocumentConverter`** — replaces the Thing Description → NodeSet conversion wholesale, and is now resolvable from DI as well as by direct construction.
+
+#### Resolving referenced companion-specification NodeSets
+
+Thing Descriptions are uploaded at run time through the standard `WoTAssetFileType` upload, so the namespaces a server will be asked to serve are not known at start-up and static pre-loading is not sufficient. `IWotNodeSetResolver` closes that gap: for every namespace a converted document requires but neither declares itself nor finds on the server, the resolver is asked for a NodeSet2. Resolution is recursive over the resolved model's own dependencies, resolved models are projected *before* the document that requires them, and a namespace that stays unresolved is reported rather than silently dropped, so an operator can see exactly what is missing.
+
+```csharp
+public interface IWotNodeSetResolver
+{
+    ValueTask<Stream?> TryResolveAsync(string namespaceUri, CancellationToken ct = default);
+}
+```
+
+Returning `null` is the contract's way of declining and is not an error. **No implementation ships with the library** — resolving a namespace means reaching out to a catalogue (a UA Cloud Library instance, a corporate model repository, a folder on disk), which is a deployment decision, so the library takes no dependency on any of them. A document that carries its own model needs no resolver at all: the `uav:nodeSet` envelope embeds the NodeSet2 in the Thing Description itself.
+
+`IWotRegistryService` owns an immutable `WotRegistrySnapshot`. Every mutation produces a new snapshot with a strictly greater `Generation` (epoch); readers hold a snapshot and never observe a partial change. A resource carries its versions (raw source bytes + SHA-256 content digest), desired/active version pointers, `WoTLoadStateEnum`, `WoTValidationOutcomeDataType` and diagnostics.
+
+Two persistence back-ends are provided:
+
+* `InMemoryWotRegistryStore` — volatile; the registry starts empty.
+* `FileWotRegistryStore` — durable; metadata is written with a **bounded atomic replace** (write-to-temp then `File.Replace`), one blob per version, content-addressed directories. Invalid documents are stored with their failure state so a restart restores exactly the last observed contents.
+
+#### Keeping the document bytes in a shared store
+
+`WotRegistryServerOptions.ResourceStore` moves the document bytes behind the shared, injectable [`IXRegistryResourceStore`](XRegistry.md#resource-storage) — which is what lets a registry run in a high-availability or distributed deployment, because the documents then live somewhere every node can reach rather than in one server's registry folder. A store registered in DI wins over one set on the options, matching the xRegistry server's precedence:
+
+```csharp
+options.StorageFolder = "/var/lib/myapp/wot-registry";   // manifest
+options.ResourceStore = new WotBlobResourceStore("/mnt/shared/wot-documents");
+```
+
+`WotBlobResourceStore` is the default WoT implementation. It keeps one file per document named after the document's SHA-256 digest — deliberately the `{root}/{digest}.bin` layout `FileWotRegistryStore` has always written, so adopting the interface needs **no on-disk migration** and existing registry folders keep working. It is validated against the shared `XRegistryResourceStoreContractTests`, so any other implementation (an object store, a database) can be substituted.
+
+The registry still writes and switches its own manifest atomically; only the bytes move. That split is required because `IXRegistryResourceStore` has no staging, flush or bulk-delete concept, whereas the file store fsyncs its blob directory before the manifest switch and deletes it wholesale when rolling back a pristine commit. It is safe because documents are content-addressed and therefore immutable: a document is always written *before* the manifest that references it, so an interrupted commit can leave an orphaned document but never a dangling reference. A supplied store owns the durability of the bytes it holds.
+
+Resource bounds (`WotRegistryPersistenceBounds`) cap document size, versions per resource, resources per group, and group count.
+
+### 11.3 Materialization coordinator
+
+`WotMaterializationCoordinator.RefreshAsync` drives projection:
+
+1. Parses/validates each registry document with `Opc.Ua.Wot`.
+2. Builds the TD/TM dependency graph from `links` (`rel = tm:extends /
+   type / tm:submodel`), a top-level `tm:extends`, and `tm:ref` pointers,
+   resolving references against the registry by Thing id / xid / resource
+   id. It never follows an arbitrary external URL; an unresolved absolute
+   URL remains a missing dependency unless a configured xRegistry
+   federation layer has registered it.
+3. Partitions the graph into **dependency closures** (weakly-connected
+   components) with Thing Models topologically ordered before the Thing
+   Descriptions that extend them; a shared model lands in a single
+   closure. Cycles and missing dependencies produce deterministic
+   diagnostics.
+4. Converts each closure to one or more NodeSet2 documents and projects
+   the closure as one runtime NodeManager (Add, or graceful/immediate
+   reload on update according to `RetirementPolicy`).
+
+Behaviours:
+
+* Independent closures commit independently; a failed or invalid closure
+  **retains its previous active generation**.
+* An **unchanged** closure (same content digest, options and binder
+  version) returns `WoTOutcomeEnum.Unchanged` and emits no model change.
+* `WotProjectionRetirementPolicy.Graceful` preserves existing monitored
+  items on the previous generation until drain.
+  `WotProjectionRetirementPolicy.Immediate` invalidates affected items
+  with `BadNodeIdUnknown` and disposes the previous generation. The proof
+  rejects immediate retirement when the old generation owns a durable
+  monitored item; configure `Graceful` for that closure.
+* `Refresh` returns a detailed `WoTRefreshSummaryDataType` plus a
+  per-resource `WoTResourceLoadResultDataType[]` and the new generation,
+  matching the generated Method signature.
+* The coordinator's events are re-emitted by the NodeManager as the
+  generated `WoTResourceEventType` / `WoTValidationFailureEventType` /
+  `WoTLoadFailureEventType` / `WoTBindingFailureEventType` /
+  `WoTRefreshCompletedEventType`.
+
+### 11.4 Binder integration seam
+
+`IWotBinderRegistry` is the runtime-neutral seam the coordinator uses during Prepare/Activate/Deactivate. `WotProtocolBinderRegistry` implements that seam and `IWotBindingChannelFactory`, compiling immutable plans from the registered binders and opening channels through independently registered executors. The base `Opc.Ua.WotCon.Bindings` package ships all eight planners and bundles HTTP, Modbus TCP, and OPC UA executors on `net8.0`, `net9.0`, and `net10.0`; MQTT remains in `Opc.Ua.WotCon.Bindings.Mqtt`. The base package retains the full `net472;net48;netstandard2.1;net8.0;net9.0;net10.0` matrix, where planner-only validation remains available even when concrete executor namespaces are not compiled.
+
+The generic projection runtime is implemented in `Opc.Ua.WotCon.Server.Materialization`. It resolves affordance-level OPC 10101 target mappings against freshly imported runtime NodeSets, wires async read/write handlers, opens one lazy channel per compiled form per generation, lets local monitored items sample the same read handler, supports reflection-free structured field mapping, and disposes channels with their owning generation. Updates use shadow reload, so existing monitored items keep the retired generation alive until they drain while new reads and monitored items use the replacement generation.
+
+The default `NullWotBinderRegistry` remains the no-binding baseline. With it, affordance forms either **fail a strict closure** (`StrictBindings = true`) or **materialize as degraded nodes** (`BadConfigurationError`) when non-strict. Protocol support is opt-in: `AddWotProtocolBinders()` registers all eight planners, while `AddHttpWotBinding()`, `AddMqttWotBinding()`, `AddModbusWotBinding()`, and `AddOpcUaWotBinding()` add their concrete executors. The core server registers none of these by default; see [WoT protocol bindings](WotBindings.md).
+
+### 11.5 Legacy 1.02 compatibility
+
+The legacy `WotConnectivityNodeManager`, its generated 1.02 namespace/NodeIds/method signatures and the client APIs are unchanged. When both features are hosted, legacy-created assets are additionally registered as Thing Description resources in a configured legacy group (`WotRegistryServerOptions.LegacyGroupId`) so they participate in registry materialization, without making the flat legacy asset list canonical for the registry.
+
+### 11.6 Protocol and projection scope
+
+The implemented data plane covers executable HTTP, Modbus TCP, MQTT, and OPC UA binding forms according to the operation coverage documented in [WoT protocol bindings](WotBindings.md). CoAP, BACnet, PROFINET, and LoRaWAN currently ship as planner-only binders: their forms are validated and represented in plans, but a non-strict closure is degraded until an executor is registered.
+
+OPC 10101 target mapping is authored on property affordances, not forms. `uav:mapByFieldPath` requires `uav:mapToType`, portable `nsu=` NodeIds are resolved against the runtime generation's namespace table, and the mapping is protocol-neutral as illustrated by [OPC 10101 §8.2](https://reference.opcfoundation.org/specs/OPC-10101/8.2). See [OPC 10101 §6.5.4](https://reference.opcfoundation.org/specs/OPC-10101/6.5.4) and the [binding-authoring guide](WotBindings.md#adding-your-own-binding) for the exact validation and runtime semantics.
+
+### 11.7 Browseable registry projection and management Methods
+
+The stable `WoTRegistryNodeManager` materializes the registry snapshot as a browseable object tree and wires the inherited xRegistry / registry Methods:
+
+* For every service group a `ThingDescriptionGroupType` or
+  `ThingModelGroupType` object is created beneath `WoTRegistry`, and for
+  every resource its `ThingDescriptionFileType` / `ThingModelFileType`
+  document node is created beneath the group. NodeIds are stable and
+  deterministic, derived from the registry Xid (for example
+  `WoTRegistry/groups/{groupId}/resources/{resourceId}`). The projection is
+  reconciled on every registry `Changed` event — including projection-only
+  callbacks, which never re-trigger materialization — and removes group and
+  resource nodes as they disappear from the snapshot.
+* Each node carries its xRegistry and registry metadata (ids/Xid/epoch/name/
+  description/timestamps/format/content type, desired/default/active
+  version, enabled/load state, validation outcome, content digest,
+  materialized-node count, the materialized `RootNodeId`, and selected
+  bindings). `HasNotifier` references chain `WoTRegistry` → group → resource
+  → `Server`, and resource lifecycle failure events are sourced at the
+  specific resource node (the registry object remains the source for the
+  refresh-completed summary event).
+* The xRegistry `CreateGroup` / `GetOrCreateGroup` (on `WoTRegistry`),
+  `CreateResource` / `GetOrCreateResource` / `Delete` (on a group) and the
+  document `Delete`, `Validate`, `SetEnabled` and `SetDefaultVersion` (on a
+  resource) Methods are wired to the registry service, enforcing
+  `ExpectedEpoch` optimistic concurrency and the management access policy.
+  Registry mutations require a `SignAndEncrypt` SecureChannel; deployments
+  may separately permit read-only registry access over `SecurityMode.None`.
+* The inherited FileType (`Open` / `Read` / `Write` / `Close` /
+  `GetPosition` / `SetPosition`) transfers the document body with
+  per-session handles, a single exclusive writer and bounds. Closing a
+  write handle commits the buffer as a new version; a document that fails
+  validation is still stored as an invalid version so the bytes are never
+  lost and the previous active projection is retained.
+* Every browseable registry/group/resource node also carries the inherited
+  optional `Labels` (`AttributesType`) container. Each label is persisted as
+  an ordinally-ordered key/value pair on the owning `WotRegistrySnapshot` /
+  `WotResourceGroup` / `WotResource` model and materializes as its own
+  `PropertyType` child with a deterministic NodeId (for example
+  `WoTRegistry/groups/{groupId}/labels/{key}`) and a safe, collision-checked
+  BrowseName. The container's `AddAttribute(Key, Value, ExpectedEpoch)` and
+  `RemoveAttribute(Key, ExpectedEpoch)` Methods enforce the management access
+  policy, optimistic-concurrency `ExpectedEpoch` (the group/resource's own
+  epoch; the registry singleton has no separate epoch so its Labels compare
+  against the snapshot `Generation`), the configured
+  `WotRegistryPersistenceBounds` (`MaxLabelsPerEntity`,
+  `MaxLabelKeyLength`, `MaxLabelValueLength`) and reject invalid/control/BIDI/
+  path characters or a key colliding with the container's own fixed
+  `AddAttribute`/`RemoveAttribute` member names, using the shared
+  `WotChildNameValidator`. `IWotRegistryService` exposes matching
+  `Add`/`RemoveRegistryLabelAsync`, `Add`/`RemoveGroupLabelAsync` and
+  `Add`/`RemoveResourceLabelAsync` service APIs; label mutations raise a
+  projection-only registry change so they update the browseable Labels
+  container without re-triggering materialization. Labels survive a registry
+  restart and file-store reload (persisted alongside their owning
+  group/resource, and — for the registry-level set — in a small
+  `registry.json`) and remain visible after every projection reconciliation.
+  Version-level labels are stored on the immutable `WotResourceVersion`
+  model for API completeness but are not materialized as a separate
+  AddressSpace node, since the xRegistry model does not define a
+  `VersionType.Labels` container (only Registry/Group/Resource expose one).
+
+### 11.8 Binding-vocabulary alignment (NodeSet2 ↔ WoT)
+
+`Opc.Ua.Wot.WotNodeSetConverter` maps a NodeSet2 model to a WoT Thing
+Model / Thing Description and back. The deterministic, versioned
+`uav:nodes` projection covers the complete UANodeSet schema and is emitted
+only when the semantic/readable mapping cannot reproduce all source facts;
+`uav:nodeSet` is emitted only for explicit byte archival or a demonstrated
+final fallback. Unmapped WoT JSON members are stored
+individually by RFC 6901 pointer in a `WoTJsonResidue` NodeSet Extension,
+not by copying the source document. The readable surface tracks the current
+[OPC UA WoT Binding](https://reference.opcfoundation.org/) revision:
+
+* **Semantic conversion is the default.** `WotNodeSetPreservationMode`
+  selects `WhenRequired` (default), `Always` (explicit byte archive), or
+  `Never` (conformance/completeness tests). The converter first reconstructs
+  the readable document and omits `uav:nodes` when it is equivalent; it then
+  validates the structured projection when fallback is required. Tests that
+  prove completeness use `Never` and assert that no opaque envelope exists.
+  `NodeSetRoundtripReport.NativeProjectionPreserved` and
+  `UsedPreservationEnvelope` distinguish the two paths.
+
+* **Unknown members survive as residue, not an envelope.** During
+  TD/TM-to-NodeSet synthesis, only unrecognized or unmapped JSON values are
+  stored in the root `Extensions` collection as digest-protected
+  `WoTJsonResidue/Member` entries. Reverse conversion regenerates mapped
+  facts from OPC UA and applies the pointer-addressed values. A collision
+  with a regenerated model fact is reported as
+  `WotDiagnosticCode.ResidueConflict`.
+
+* **Event affordances carry `uav:eventType`.** An OPC UA EventType (a
+  `BaseEventType` subtype) projects to an event affordance annotated
+  `@type: uav:eventType` alongside `uav:isEvent: true`; a NodeSet whose
+  root is an EventType is annotated the same way. The two forms are the
+  `@type` annotation and the boolean anchor of the same fact, so a
+  document that pairs `@type: uav:eventType` with `uav:isEvent: false`
+  is rejected (`WotDiagnosticCode.EventAnnotationConflict`). Reverse
+  conversion recreates a `BaseEventType` subtype from either form.
+
+* **Identity terms are portable ExpandedNodeIds.** Every persisted
+  identity term — `uav:id`, each `uav:hasComponent` / `uav:componentOf`
+  entry, `uav:mapToNodeId` / `uav:mapToType`, a NodeId-valued
+  `uav:refId`, and a generated `?id=` href — is emitted as an
+  OPC 10000-6 `nsu=<NamespaceUri>;...` ExpandedNodeId, resolved through
+  the source NodeSet's `NamespaceUris` table so the value survives a
+  namespace-table reordering; namespace 0 keeps its canonical `i=` form
+  and the session-local `ns=<index>` form is never emitted. On input the
+  converter diagnoses an `ns=<index>` in any of these terms
+  (`WotDiagnosticCode.NonPortableIdentity`). The `uav:nodeSet` envelope
+  and NodeSet-local fields inside `uav:nodes` keep their own namespace
+  tables and are excluded from this readable-identity rule.
+
+* **BrowseNames are portable QualifiedNames.** Generated readable
+  `uav:browseName` values use OPC 10000-6 `nsu=<NamespaceUri>;<Name>` for
+  non-base namespaces and the bare Name for namespace 0. Numeric
+  `namespaceIndex:name` is retained only inside `uav:nodes`, which carries
+  its own `namespaceUris` table.
+
+* **Model concepts carry NamespaceUri-qualified names.** Generated
+  contexts bind `ua` to the base OPC UA namespace and deterministic
+  `ns1`, `ns2`, … prefixes to companion NamespaceUris. A typed link emits
+  the ReferenceType model name directly in `rel` (for example
+  `ua:HasOrderedComponent`) beside its definitive `uav:refId`
+  ExpandedNodeId. Authored
+  `uav:mapToTypeName` / `uav:congruentTypeName` hints are validated and
+  preserved beside their definitive identifiers. Compact model names are
+  never used for arbitrary instance targets.
+
+* **`observable` advertises binding support.** A generated
+  `observable: true` / `observeproperty` form states that the TD exposes
+  observation through this binding. It is not a claim that other OPC UA
+  Variables are technically unmonitorable; any Variable can be a
+  MonitoredItem when the Server grants access.
+
+* **HasComponent subtypes are pinned by a typed link.**
+  `uav:hasComponent` / `uav:componentOf` expose parent-child ownership
+  for discovery across `HasComponent` and its subtypes. When the source
+  ReferenceType is a subtype (for example `HasOrderedComponent`, `i=49`),
+  the converter additionally emits a link whose `rel` is
+  `ua:HasOrderedComponent`, whose `uav:refId` is `i=49`, and
+  whose `uav:refName` names the reference.
+  Reverse conversion resolves the name, verifies the identifier when both
+  are present, recreates the exact subtype, and otherwise falls back to
+  plain `HasComponent`.
+
+### 11.9 Registry client
+
+`Opc.Ua.WotCon.Client` ships a registry client surface alongside the existing `WotConnectivityClient`. `WotRegistryClient` **derives from the shared xRegistry `XRegistryClient`** — the WoT registry model subtypes the xRegistry base model, so it is a *domain client* in the sense of [xRegistry — Extending for a domain registry](XRegistry.md#extending-for-a-domain-registry) and inherits the base group/resource lifecycle, `Session` and `RegistryNodeId`. The registry root is not the provisional well-known `65000`: the browse-resolved `WoTRegistry` NodeId is passed to the base constructor. The generated `WoTRegistryTypeClient` / xRegistry `GroupTypeClient` / `ResourceTypeClient` proxies are still *composed* rather than inherited, so a typed proxy is reused directly instead of being re-resolved per call:
+
+* `WotRegistryClient.ForServerAsync(session, telemetry, ct)` resolves the well-known `WoTRegistry` object (a `HasComponent` child of the `Server` object) via `TranslateBrowsePaths`, exactly like `WotConnectivityClient.ForServerAsync` resolves `WoTAssetConnectionManagement`. Both now share the same internal `TranslateBrowsePaths` helper. The resolved NodeId is surfaced as the inherited `RegistryNodeId`.
+* `CreateThingDescriptionGroupAsync` / `CreateThingModelGroupAsync` and their `GetOrCreate…` counterparts call the inherited xRegistry `CreateGroup`/`GetOrCreateGroup` Methods. The wire protocol has no "kind" argument, so the returned `WotRegistryGroupClient` discovers whether the server materialised a `ThingDescriptionGroupType` or a `ThingModelGroupType` from the created group's reported `TypeDefinition` — this works against any conformant server regardless of its own group-naming convention. `ThingModelsGroupId`/`ThingDescriptionsGroupId` expose the two well-known reserved group ids.
+* `WotRegistryGroupClient.CreateResourceAsync` / `GetOrCreateResourceAsync` call the group's `CreateResource` / `GetOrCreateResource` Methods and return a `WotRegistryResourceClient` plus the server-assigned version id.
+* `WotRegistryResourceClient.UploadNewVersionAsync(ByteString | Stream, …)` uploads a new document version through the inherited `FileType` `Open(Write|EraseExisting)` → `Write` → `Close` primitives (the same `FileTypeClientExtensions` used elsewhere in this package); closing the write handle commits the buffer as a new resource version. `DownloadAsync` reads the active/default version back through the shared xRegistry `ResourceTypeClientExtensions.ReadDocumentAsync` helper — a WoT document resource *is* an xRegistry `ResourceType`, so the shared helper applies directly to the generated proxy — and `DownloadToAsync` streams it into a caller-owned `Stream`. `ValidateAsync`, `SetEnabledAsync`, `SetDefaultVersionAsync` and `DeleteAsync` call the matching document Methods.
+* `WotRegistryClient.RefreshAsync` / `RefreshAllAsync` call the generated `Refresh` Method and return a typed `WotRegistryRefreshResult` (`Summary`, `Results`, `NewGeneration`, `HasFailures`, `EnsureSuccess()`).
+* `WotRegistryClient.LoadDocumentsAsync` loads a caller-supplied `ArrayOf<WotRegistryDocument>` (an immutable `Kind`/`GroupId`/`ResourceId`/`Content` (`ByteString`)/`VersionId` descriptor), get-or-creating each target group/resource and uploading its content, then optionally calls `RefreshAllAsync` — one workflow. Thing Models are always processed before Thing Descriptions (preserving the caller's relative order within each kind) so referenced models are materialised before the descriptions that depend on them. A mutation failure or a group/document kind mismatch aborts immediately (`ServiceResultException`); a refresh failure is *not* thrown — it is surfaced on the returned `WotRegistryBulkLoadResult.Refresh` for the caller to inspect, since a partial refresh outcome is legitimate application data.
+
+```csharp
+WotRegistryClient registry = await WotRegistryClient.ForServerAsync(
+    session, session.MessageContext.Telemetry, ct);
+
+WotRegistryGroupClient group = await registry.CreateThingDescriptionGroupAsync(ct);
+(WotRegistryResourceClient resource, string versionId, bool created) =
+    await group.GetOrCreateResourceAsync("sensor01", ct: ct);
+
+await resource.UploadNewVersionAsync(
+    ByteString.From(File.ReadAllBytes("sensor01.td.json")), ct: ct);
+
+WotRegistryRefreshResult refresh = await registry.RefreshAllAsync(ct: ct);
+refresh.EnsureSuccess();
+```
+
+Register the registry client with DI alongside `AddWotConClient` via `AddWotRegistryClient` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`, bindable from `IConfiguration`/`IConfigurationSection`, default section `OpcUa:WotCon:RegistryClient`). It follows the same lazy `ManagedSession`-backed factory pattern: resolve `Func<CancellationToken, Task<WotRegistryClient>>` for the lazily connected form, or `Func<ManagedSession, CancellationToken, Task<WotRegistryClient>>` to wrap an already-connected session.
