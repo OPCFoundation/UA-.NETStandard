@@ -475,18 +475,19 @@ namespace Opc.Ua.SourceGeneration
             MethodDesign effectiveMethod = method.IsOverridden()
                 ? (MethodDesign)method.GetMergedInstance()
                 : method;
+            (Parameter[] inputs, Parameter[] outputs) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(effectiveMethod);
             m_methodWrappers[key] = new MethodWrapper
             {
                 Key = key,
                 ClassName = className,
                 LeafName = leafName,
                 ParentKey = parentKey,
-                Inputs = MethodDesignArgumentResolver.ResolveMethodInputs(effectiveMethod),
-                Outputs = MethodDesignArgumentResolver.ResolveMethodOutputs(effectiveMethod)
+                Inputs = inputs,
+                Outputs = outputs
             };
         }
 
-        // Validation
         /// <summary>
         /// Wires each wrapper to its direct child object/method wrappers
         /// so the recursive emitter can walk the tree depth-first. Sorts
@@ -678,6 +679,15 @@ namespace Opc.Ua.SourceGeneration
                 "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "VariableFromTypeId",
                 "global::Opc.Ua.NodeId typeDefinitionId, global::Opc.Ua.QualifiedName browseName",
                 "typeDefinitionId, browseName",
+                typeArg: "TValue", noConstraint: true);
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "VariableFromDataTypeId",
+                "global::Opc.Ua.NodeId dataTypeId", "dataTypeId",
+                typeArg: "TValue", noConstraint: true);
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "VariableFromDataTypeId",
+                "global::Opc.Ua.NodeId dataTypeId, global::Opc.Ua.QualifiedName browseName",
+                "dataTypeId, browseName",
                 typeArg: "TValue", noConstraint: true);
 
             // Typed top-level accessors.
@@ -1956,7 +1966,9 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             public string WrapperClassName;
 
-            /// <summary>Key into <c>m_wrappers</c> for object children.</summary>
+            /// <summary>
+            /// Key into <c>m_wrappers</c> for object children.
+            /// </summary>
             public string ChildKey;
 
             /// <summary>

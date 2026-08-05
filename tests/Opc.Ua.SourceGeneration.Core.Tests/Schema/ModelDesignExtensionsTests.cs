@@ -29,6 +29,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.Serialization;
+using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 using Moq;
 using NUnit.Framework;
@@ -46,6 +52,279 @@ namespace Opc.Ua.Schema.Model.Tests
     [Parallelizable]
     public class ModelDesignExtensionsTests
     {
+        [Test]
+        public void AssignMethodArgumentCodeNamesAllocatesInputsBeforeOutputs()
+        {
+            var method = new MethodDesign
+            {
+                InputArguments =
+                [
+                    new Parameter { Name = "Foo" },
+                    new Parameter { Name = "foo" },
+                    new Parameter { Name = "Class" },
+                    new Parameter { Name = "VersionId" }
+                ],
+                OutputArguments =
+                [
+                    new Parameter { Name = "VersionId" },
+                    new Parameter { Name = "class" },
+                    new Parameter { Name = "Changed" }
+                ]
+            };
+
+            method.AssignMethodArgumentCodeNames();
+            string[] firstInputs =
+                [.. method.InputArguments.Select(p => p.GetGeneratedCodeIdentifier())];
+            string[] firstOutputs =
+                [.. method.OutputArguments.Select(p => p.GetGeneratedCodeIdentifier())];
+            string[] expectedInputs = ["foo", "foo2", "@class", "versionId"];
+            string[] expectedOutputs = ["versionIdOut", "classOut", "changed"];
+
+            method.AssignMethodArgumentCodeNames();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstInputs, Is.EqualTo(expectedInputs));
+                Assert.That(firstOutputs, Is.EqualTo(expectedOutputs));
+                Assert.That(
+                    method.InputArguments.Select(p => p.GetGeneratedCodeIdentifier()),
+                    Is.EqualTo(firstInputs));
+                Assert.That(
+                    method.OutputArguments.Select(p => p.GetGeneratedCodeIdentifier()),
+                    Is.EqualTo(firstOutputs));
+            });
+        }
+
+        [Test]
+        public void AssignMethodArgumentCodeNamesUsesIndependentReservedScopes()
+        {
+            Parameter[] inputs =
+            [
+                new Parameter { Name = "Await" },
+                new Parameter { Name = "Ct" },
+                new Parameter { Name = "cT" },
+                new Parameter { Name = "CancellationToken" }
+            ];
+            Parameter[] outputs =
+            [
+                new Parameter { Name = "OutputArguments" },
+                new Parameter { Name = "ServiceResult" }
+            ];
+            var nodeStateScope = new MethodArgumentCodeNameScope(
+                "await",
+                "cancellationToken",
+                "outputArguments",
+                "serviceResult");
+            var proxyScope = new MethodArgumentCodeNameScope(
+                "await",
+                "ct",
+                "outputArguments");
+
+            ModelDesignExtensions.AssignMethodArgumentCodeNames(
+                inputs,
+                outputs,
+                nodeStateScope);
+            string[] nodeStateInputs =
+                [.. inputs.Select(p => p.GetGeneratedCodeIdentifier(scope: nodeStateScope))];
+            string[] nodeStateOutputs =
+                [.. outputs.Select(p => p.GetGeneratedCodeIdentifier(scope: nodeStateScope))];
+            string[] expectedNodeStateInputs =
+                ["await2", "ct", "cT2", "cancellationToken2"];
+            string[] expectedNodeStateOutputs =
+                ["outputArgumentsOut", "serviceResultOut"];
+            string[] expectedProxyInputs =
+                ["await2", "ct2", "cT3", "cancellationToken"];
+            string[] expectedProxyOutputs =
+                ["outputArgumentsOut", "serviceResult"];
+
+            ModelDesignExtensions.AssignMethodArgumentCodeNames(
+                inputs,
+                outputs,
+                proxyScope);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    nodeStateInputs,
+                    Is.EqualTo(expectedNodeStateInputs));
+                Assert.That(
+                    nodeStateOutputs,
+                    Is.EqualTo(expectedNodeStateOutputs));
+                Assert.That(
+                    inputs.Select(p => p.GetGeneratedCodeIdentifier(scope: proxyScope)),
+                    Is.EqualTo(expectedProxyInputs));
+                Assert.That(
+                    outputs.Select(p => p.GetGeneratedCodeIdentifier(scope: proxyScope)),
+                    Is.EqualTo(expectedProxyOutputs));
+                Assert.That(
+                    inputs.Select(p => p.GetGeneratedCodeIdentifier(scope: nodeStateScope)),
+                    Is.EqualTo(nodeStateInputs));
+                Assert.That(
+                    outputs.Select(p => p.GetGeneratedCodeIdentifier(scope: nodeStateScope)),
+                    Is.EqualTo(nodeStateOutputs));
+            });
+        }
+
+        [Test]
+        public void AssignMethodArgumentCodeNamesIsSafeForConcurrentScopes()
+        {
+            Parameter[] inputs =
+            [
+                new Parameter { Name = "Await" },
+                new Parameter { Name = "Ct" },
+                new Parameter { Name = "cT" },
+                new Parameter { Name = "CancellationToken" }
+            ];
+            Parameter[] outputs =
+            [
+                new Parameter { Name = "OutputArguments" },
+                new Parameter { Name = "ServiceResult" }
+            ];
+            var nodeStateScope = new MethodArgumentCodeNameScope(
+                "await",
+                "cancellationToken",
+                "outputArguments",
+                "serviceResult");
+            var proxyScope = new MethodArgumentCodeNameScope(
+                "await",
+                "ct",
+                "outputArguments");
+            string[] expectedNodeStateInputs =
+                ["await2", "ct", "cT2", "cancellationToken2"];
+            string[] expectedNodeStateOutputs =
+                ["outputArgumentsOut", "serviceResultOut"];
+            string[] expectedProxyInputs =
+                ["await2", "ct2", "cT3", "cancellationToken"];
+            string[] expectedProxyOutputs =
+                ["outputArgumentsOut", "serviceResult"];
+
+            Parallel.For(0, 10_000, index =>
+            {
+                if (index % 2 == 0)
+                {
+                    ModelDesignExtensions.AssignMethodArgumentCodeNames(
+                        inputs,
+                        outputs,
+                        nodeStateScope);
+
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(
+                            inputs.Select(p => p.GetGeneratedCodeIdentifier(scope: nodeStateScope)),
+                            Is.EqualTo(expectedNodeStateInputs));
+                        Assert.That(
+                            outputs.Select(p => p.GetGeneratedCodeIdentifier(scope: nodeStateScope)),
+                            Is.EqualTo(expectedNodeStateOutputs));
+                    });
+                }
+                else
+                {
+                    ModelDesignExtensions.AssignMethodArgumentCodeNames(
+                        inputs,
+                        outputs,
+                        proxyScope);
+
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(
+                            inputs.Select(p => p.GetGeneratedCodeIdentifier(scope: proxyScope)),
+                            Is.EqualTo(expectedProxyInputs));
+                        Assert.That(
+                            outputs.Select(p => p.GetGeneratedCodeIdentifier(scope: proxyScope)),
+                            Is.EqualTo(expectedProxyOutputs));
+                    });
+                }
+            });
+        }
+
+        [Test]
+        public void AssignMethodArgumentCodeNamesReservesEmittedAliasesAndAdditionalNames()
+        {
+            Parameter[] inputs =
+            [
+                new Parameter { Name = "_result" },
+                new Parameter { Name = "_foo" },
+                new Parameter { Name = "_" },
+                new Parameter { Name = "Nameof" }
+            ];
+            Parameter[] outputs =
+            [
+                new Parameter { Name = "Foo" },
+                new Parameter { Name = "RoundTripMethodStateResult" }
+            ];
+            var scope = new MethodArgumentCodeNameScope(
+                (identifier, output) => output ?
+                    new[] { identifier, "_" + identifier.TrimStart('@') } :
+                    new[] { identifier },
+                "_",
+                "_result",
+                "nameof");
+            string[] expectedInputs = ["_result2", "_foo", "_2", "nameof2"];
+            string[] expectedOutputs = ["fooOut", "roundTripMethodStateResultOut"];
+
+            ModelDesignExtensions.AssignMethodArgumentCodeNames(
+                inputs,
+                outputs,
+                scope,
+                "RoundTripMethodStateResult");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    inputs.Select(p => p.GetGeneratedCodeIdentifier(scope: scope)),
+                    Is.EqualTo(expectedInputs));
+                Assert.That(
+                    outputs.Select(p => p.GetGeneratedCodeIdentifier(scope: scope)),
+                    Is.EqualTo(expectedOutputs));
+            });
+        }
+
+        [Test]
+        public void GeneratedMethodArgumentNamesAreExternalToSerialization()
+        {
+            var method = new MethodDesign
+            {
+                InputArguments =
+                [
+                    new Parameter { Name = "Foo" },
+                    new Parameter { Name = "foo" }
+                ]
+            };
+            method.AssignMethodArgumentCodeNames();
+            Parameter parameter = method.InputArguments[1];
+            Assert.That(parameter.GetGeneratedCodeIdentifier(), Is.EqualTo("foo2"));
+
+            MemberInfo[] serializableMembers;
+#pragma warning disable SYSLIB0050 // Validate the BinaryFormatter member contract without serializing.
+            serializableMembers = FormatterServices.GetSerializableMembers(typeof(Parameter));
+#pragma warning restore SYSLIB0050
+
+            var serializer = new DataContractSerializer(typeof(Parameter));
+            using var stream = new MemoryStream();
+            serializer.WriteObject(stream, parameter);
+            string serialized = Encoding.UTF8.GetString(stream.ToArray());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    typeof(Parameter).GetMember(
+                        "GeneratedCodeName",
+                        BindingFlags.Instance |
+                        BindingFlags.Public |
+                        BindingFlags.NonPublic),
+                    Is.Empty);
+                Assert.That(
+                    serializableMembers.Any(
+                        member => member.Name.Contains(
+                            "GeneratedCode",
+                            StringComparison.Ordinal)),
+                    Is.False);
+                Assert.That(serialized, Does.Not.Contain("GeneratedCode"));
+                Assert.That(serialized, Does.Contain("foo"));
+                Assert.That(serialized, Does.Not.Contain("foo2"));
+            });
+        }
+
         /// <summary>
         /// Tests that DetermineBasicDataType returns BaseDataType when dataType is null.
         /// </summary>

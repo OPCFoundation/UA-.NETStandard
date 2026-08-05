@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.NodeManager;
 using ConformanceUnitNames = Opc.Ua.Di.Server.ConformanceUnits;
 using ServerProfileUris = Opc.Ua.Di.Server.ServerProfiles;
 
@@ -825,7 +826,8 @@ namespace Opc.Ua.Di.Server
                         }
                     }
                     return results;
-                });
+                },
+                dataTypeId => PredefinedNodes.Values.FindByDataType(dataTypeId));
 
             AttachToBuilder(m_builder);
             return m_builder;

@@ -90,10 +90,18 @@ namespace Opc.Ua.Server
                 List<RequestDrain>? requestDrains;
                 lock (m_requestsLock)
                 {
+                    if (m_disposed)
+                    {
+                        return;
+                    }
+
+                    m_disposed = true;
                     operations = [.. m_requests.Values];
                     m_requests.Clear();
                     requestDrains = [.. m_requestDrains];
                     m_requestDrains.Clear();
+                    m_activeValidationScopes.Clear();
+                    m_lifecycleExtension?.DisposeLocked();
                 }
 
                 foreach (OperationContext operation in operations)
@@ -138,6 +146,10 @@ namespace Opc.Ua.Server
         /// <exception cref="InvalidOperationException">
         /// A different request with the same request id is already active.
         /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// A registered request lifecycle extension closed request admission because the server
+        /// is shutting down.
+        /// </exception>
         public void RequestReceived(OperationContext context)
         {
             if (context == null)
@@ -153,12 +165,20 @@ namespace Opc.Ua.Server
                 {
                     if (ReferenceEquals(existingContext, context))
                     {
+                        m_currentServiceDispatchScope.Value?
+                            .RegisterRequest(context.RequestId);
                         return;
                     }
                     throw new InvalidOperationException(
                         $"A different request with id {context.RequestId} is already active.");
                 }
+                RequestValidationScope? validationScope =
+                    m_currentValidationScope.Value;
+                m_lifecycleExtension?.ValidateRequestAdmissionLocked(
+                    validationScope?.ValidationId,
+                    m_activeValidationScopes);
                 m_requests.Add(context.RequestId, context);
+                m_currentServiceDispatchScope.Value?.RegisterRequest(context.RequestId);
 
                 if (context.OperationDeadline < DateTime.MaxValue && m_requestTimer == null)
                 {
@@ -266,6 +286,43 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets the optional request lifecycle extension registered for server shutdown and
+        /// NodeManager lifecycle coordination.
+        /// </summary>
+        internal RequestManagerLifecycleExtension? LifecycleExtension
+        {
+            get
+            {
+                lock (m_requestsLock)
+                {
+                    return m_lifecycleExtension;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Registers the optional request lifecycle extension. Calling this method more than once
+        /// returns the extension that is already registered.
+        /// </summary>
+        /// <returns>The registered request lifecycle extension.</returns>
+        /// <exception cref="ObjectDisposedException">
+        /// The request manager has already been disposed.
+        /// </exception>
+        internal RequestManagerLifecycleExtension RegisterLifecycleExtension()
+        {
+            lock (m_requestsLock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(RequestManager));
+                }
+
+                m_lifecycleExtension ??= new RequestManagerLifecycleExtension(this);
+                return m_lifecycleExtension;
+            }
+        }
+
+        /// <summary>
         /// Enters a validation scope, which covers the window in which a request is being
         /// validated but is not yet tracked as an executing request.
         /// <para>
@@ -282,16 +339,26 @@ namespace Opc.Ua.Server
         /// </para>
         /// </summary>
         /// <returns>The scope to dispose once validation has finished.</returns>
+        /// <exception cref="ServiceResultException">
+        /// Request admission has been closed because the server is shutting down.
+        /// </exception>
         internal IDisposable EnterValidationScope()
         {
             long validationId = Interlocked.Increment(
                 ref m_lastValidationScopeId);
             lock (m_requestsLock)
             {
+                m_lifecycleExtension?.ValidateValidationAdmissionLocked();
                 m_activeValidationScopes.Add(validationId);
             }
 
-            return new RequestValidationScope(this, validationId);
+            RequestValidationScope? previousScope = m_currentValidationScope.Value;
+            var scope = new RequestValidationScope(
+                this,
+                validationId,
+                previousScope);
+            m_currentValidationScope.Value = scope;
+            return scope;
         }
 
         /// <summary>
@@ -310,17 +377,44 @@ namespace Opc.Ua.Server
             }
 
             RequestReceived(context);
-            return new RequestExecutionScope(this, context);
+            uint? previousRequestId = m_currentRequestId.Value;
+            m_currentRequestId.Value = context.RequestId;
+            return new RequestExecutionScope(this, context, previousRequestId);
         }
 
+        /// <summary>
+        /// Enters a service dispatch scope for the current request-processing flow. The scope is
+        /// opened at the top of request dispatch, before validation assigns a request id, and
+        /// carries that id forward once <see cref="RequestReceived"/> registers the request. A
+        /// NodeManager lifecycle operation started from inside a request callback reads the id
+        /// through <see cref="GetCurrentRequestIdForLifecycleExtension"/> so it can exclude its own
+        /// request from the drain it performs and avoid waiting on itself.
+        /// <para>
+        /// The scope is needed because the request id is assigned by validation, which runs in a
+        /// deeper asynchronous flow whose ambient value never propagates back to the dispatch flow.
+        /// The scope is a reference captured in the dispatch flow, so the id that validation stamps
+        /// onto it is observed by the callback that runs the lifecycle operation.
+        /// </para>
+        /// </summary>
+        /// <returns>The scope to dispose once the request has been dispatched.</returns>
+        internal IDisposable EnterServiceDispatchScope()
+        {
+            ServiceDispatchScope? previousScope = m_currentServiceDispatchScope.Value;
+            var scope = new ServiceDispatchScope(this, previousScope);
+            m_currentServiceDispatchScope.Value = scope;
+            return scope;
+        }
 
         /// <summary>
         /// Waits until every request that is currently executing or being validated has finished.
         /// A lifecycle operation calls this before it retires a NodeManager, so that no request
         /// can still be dispatching to it once it is torn down.
         /// <para>
-        /// Only the requests present when the call starts are awaited. Requests that arrive later
-        /// already observe the new routing table, so they never reach the retired NodeManager.
+        /// For a lifecycle drain, only the requests present when the call starts are awaited.
+        /// Requests that arrive later already observe the new routing table, so they never reach
+        /// the retired NodeManager. Once shutdown closes request admission, the drain repeats its
+        /// snapshot until every request admitted before closure has transitioned out of validation
+        /// and completed.
         /// </para>
         /// </summary>
         /// <param name="ct">The token used to stop waiting.</param>
@@ -331,53 +425,135 @@ namespace Opc.Ua.Server
         internal async ValueTask WaitForCurrentRequestsAsync(
             CancellationToken ct = default)
         {
-            RequestDrain requestDrain;
+            bool repeatUntilIdle;
+            RequestDrain? requestDrain;
             TimeSpan budget;
             lock (m_requestsLock)
             {
-                if (m_requests.Count == 0 &&
-                    m_activeValidationScopes.Count == 0)
+                repeatUntilIdle = m_lifecycleExtension?.MustRepeatDrainUntilIdleLocked == true;
+                requestDrain = CreateRequestDrainLocked(out budget);
+            }
+
+            while (requestDrain is not null)
+            {
+                using CancellationTokenRegistration registration = ct.Register(
+                    static state => ((RequestDrain)state!).Cancel(),
+                    requestDrain);
+                try
+                {
+                    Task completion = requestDrain.Completion;
+                    Task expiry = m_timeProvider.Delay(budget, ct);
+                    if (await Task.WhenAny(completion, expiry).ConfigureAwait(false) != completion)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        throw new TimeoutException(
+                            $"Timed out after {budget} waiting for the requests that were in flight to " +
+                            "complete. A request that never completes blocks every NodeManager " +
+                            "lifecycle operation, so the operation was abandoned instead of waiting " +
+                            "indefinitely.");
+                    }
+
+                    await completion.ConfigureAwait(false);
+                }
+                finally
+                {
+                    lock (m_requestsLock)
+                    {
+                        m_requestDrains.Remove(requestDrain);
+                    }
+                }
+
+                if (!repeatUntilIdle)
                 {
                     return;
                 }
 
-                List<uint> awaited = CollectRequestsToAwait(out budget);
-                if (awaited.Count == 0 && m_activeValidationScopes.Count == 0)
-                {
-                    return;
-                }
-
-                requestDrain = new RequestDrain(
-                    awaited,
-                    m_activeValidationScopes);
-                m_requestDrains.Add(requestDrain);
-            }
-
-            using CancellationTokenRegistration registration = ct.Register(
-                static state => ((RequestDrain)state!).Cancel(),
-                requestDrain);
-            try
-            {
-                Task completion = requestDrain.Completion;
-                Task expiry = m_timeProvider.Delay(budget, ct);
-                if (await Task.WhenAny(completion, expiry).ConfigureAwait(false) != completion)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    throw new TimeoutException(
-                        $"Timed out after {budget} waiting for the requests that were in flight to " +
-                        "complete. A request that never completes blocks every NodeManager " +
-                        "lifecycle operation, so the operation was abandoned instead of waiting " +
-                        "indefinitely.");
-                }
-
-                await completion.ConfigureAwait(false);
-            }
-            finally
-            {
                 lock (m_requestsLock)
                 {
-                    m_requestDrains.Remove(requestDrain);
+                    requestDrain = CreateRequestDrainLocked(out budget);
                 }
+            }
+        }
+
+        private RequestDrain? CreateRequestDrainLocked(out TimeSpan budget)
+        {
+            List<uint> requestIds = CollectRequestsToAwait(out budget);
+
+            if (requestIds.Count == 0 &&
+                m_activeValidationScopes.Count == 0)
+            {
+                return null;
+            }
+
+            var requestDrain = new RequestDrain(
+                requestIds,
+                m_activeValidationScopes);
+            m_requestDrains.Add(requestDrain);
+            return requestDrain;
+        }
+
+        internal uint? GetCurrentRequestIdForLifecycleExtension()
+        {
+            return m_currentServiceDispatchScope.Value?.RequestId ??
+                m_currentRequestId.Value;
+        }
+
+        internal void EnterLifecycleWaiter(
+            RequestManagerLifecycleExtension extension,
+            uint requestId)
+        {
+            lock (m_requestsLock)
+            {
+                EnsureLifecycleExtensionRegisteredLocked(extension);
+                extension.EnterWaiterLocked(requestId, m_requests);
+            }
+        }
+
+        internal void CloseAdmission(RequestManagerLifecycleExtension extension)
+        {
+            lock (m_requestsLock)
+            {
+                EnsureLifecycleExtensionRegisteredLocked(extension);
+                extension.CloseAdmissionLocked();
+            }
+        }
+
+        internal void MarkLifecycleWaiterWaiting(
+            RequestManagerLifecycleExtension extension,
+            uint requestId)
+        {
+            lock (m_requestsLock)
+            {
+                EnsureLifecycleExtensionRegisteredLocked(extension);
+                extension.MarkWaiterWaitingLocked(requestId, m_requestDrains);
+            }
+        }
+
+        internal void ExitLifecycleWaiter(
+            RequestManagerLifecycleExtension extension,
+            uint requestId,
+            bool waiting)
+        {
+            lock (m_requestsLock)
+            {
+                if (ReferenceEquals(m_lifecycleExtension, extension))
+                {
+                    extension.ExitWaiterLocked(requestId, waiting);
+                }
+            }
+        }
+
+        private void EnsureLifecycleExtensionRegisteredLocked(
+            RequestManagerLifecycleExtension extension)
+        {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(RequestManager));
+            }
+            if (!ReferenceEquals(m_lifecycleExtension, extension))
+            {
+                throw new InvalidOperationException(
+                    "The request lifecycle extension is not registered with this request manager.");
             }
         }
 
@@ -406,6 +582,11 @@ namespace Opc.Ua.Server
 
             foreach (OperationContext request in m_requests.Values)
             {
+                if (m_lifecycleExtension?.ShouldExcludeRequestLocked(request.RequestId) == true)
+                {
+                    continue;
+                }
+
                 if (request.OperationDeadline < DateTime.MaxValue)
                 {
                     if (request.OperationDeadline < abandoned)
@@ -539,21 +720,24 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
-
-
+        private readonly AsyncLocal<uint?> m_currentRequestId = new();
+        private readonly AsyncLocal<ServiceDispatchScope?> m_currentServiceDispatchScope = new();
+        private readonly AsyncLocal<RequestValidationScope?> m_currentValidationScope = new();
         private readonly Dictionary<uint, OperationContext> m_requests;
         private readonly List<RequestDrain> m_requestDrains = [];
         private readonly Lock m_requestsLock = new();
         private readonly HashSet<long> m_activeValidationScopes = [];
         private long m_lastValidationScopeId;
+        private RequestManagerLifecycleExtension? m_lifecycleExtension;
         private ITimer? m_requestTimer;
+        private bool m_disposed;
         private event RequestCancelledEventHandler? m_RequestCancelled;
 
         /// <summary>
         /// Waits for a fixed set of executing requests and validation scopes to finish. The set is
         /// captured when the drain is created, so requests that start afterwards do not extend it.
         /// </summary>
-        private sealed class RequestDrain
+        internal sealed class RequestDrain
         {
             /// <summary>
             /// Initializes a new instance of the <see cref="RequestDrain"/> class.
@@ -579,6 +763,17 @@ namespace Opc.Ua.Server
             /// <param name="requestId">The request that finished.</param>
             /// <returns><c>true</c> when nothing is left to wait for.</returns>
             public bool Complete(uint requestId)
+            {
+                m_requestIds.Remove(requestId);
+                return TryComplete();
+            }
+
+            /// <summary>
+            /// Stops waiting for a request after its lifecycle semaphore wait was queued.
+            /// </summary>
+            /// <param name="requestId">The lifecycle-waiting request.</param>
+            /// <returns><c>true</c> when nothing is left to wait for.</returns>
+            public bool Exclude(uint requestId)
             {
                 m_requestIds.Remove(requestId);
                 return TryComplete();
@@ -634,12 +829,15 @@ namespace Opc.Ua.Server
             /// </summary>
             /// <param name="requestManager">The owning request manager.</param>
             /// <param name="context">The context of the request being executed.</param>
+            /// <param name="previousRequestId">The direct request id to restore on dispose.</param>
             public RequestExecutionScope(
                 RequestManager requestManager,
-                OperationContext context)
+                OperationContext context,
+                uint? previousRequestId)
             {
                 m_requestManager = requestManager;
                 m_context = context;
+                m_previousRequestId = previousRequestId;
             }
 
             /// <summary>
@@ -651,11 +849,51 @@ namespace Opc.Ua.Server
                 {
                     m_disposed = true;
                     m_requestManager.CompleteRequest(m_context);
+                    m_requestManager.m_currentRequestId.Value = m_previousRequestId;
                 }
             }
 
             private readonly RequestManager m_requestManager;
             private readonly OperationContext m_context;
+            private readonly uint? m_previousRequestId;
+            private bool m_disposed;
+        }
+
+        /// <summary>
+        /// Carries the executing request id into the service dispatch flow. It is opened at the top
+        /// of request processing, before a request id exists, and stamped with the id once
+        /// validation registers the request. It is held as a reference from the dispatch flow, so
+        /// the stamped id is observed by a NodeManager lifecycle operation that runs inside a
+        /// request callback beneath the dispatch.
+        /// </summary>
+        private sealed class ServiceDispatchScope : IDisposable
+        {
+            public ServiceDispatchScope(
+                RequestManager requestManager,
+                ServiceDispatchScope? previousScope)
+            {
+                m_requestManager = requestManager;
+                m_previousScope = previousScope;
+            }
+
+            public uint? RequestId { get; private set; }
+
+            public void RegisterRequest(uint requestId)
+            {
+                RequestId ??= requestId;
+            }
+
+            public void Dispose()
+            {
+                if (!m_disposed)
+                {
+                    m_disposed = true;
+                    m_requestManager.m_currentServiceDispatchScope.Value = m_previousScope;
+                }
+            }
+
+            private readonly RequestManager m_requestManager;
+            private readonly ServiceDispatchScope? m_previousScope;
             private bool m_disposed;
         }
 
@@ -677,13 +915,18 @@ namespace Opc.Ua.Server
             /// </summary>
             /// <param name="requestManager">The owning request manager.</param>
             /// <param name="validationId">The id the drain waits for.</param>
+            /// <param name="previousScope">The validation scope to restore on dispose.</param>
             public RequestValidationScope(
                 RequestManager requestManager,
-                long validationId)
+                long validationId,
+                RequestValidationScope? previousScope)
             {
                 m_requestManager = requestManager;
                 m_validationId = validationId;
+                m_previousScope = previousScope;
             }
+
+            public long ValidationId => m_validationId;
 
             /// <summary>
             /// Releases the drain that waits for this scope.
@@ -709,11 +952,13 @@ namespace Opc.Ua.Server
                             }
                         }
                     }
+                    m_requestManager.m_currentValidationScope.Value = m_previousScope;
                 }
             }
 
             private readonly RequestManager m_requestManager;
             private readonly long m_validationId;
+            private readonly RequestValidationScope? m_previousScope;
             private bool m_disposed;
         }
     }
@@ -735,5 +980,4 @@ namespace Opc.Ua.Server
             Message = "Unexpected error reporting RequestCancelled event.")]
         public static partial void UnexpectedErrorReportingRequestCancelledEvent(this ILogger logger, Exception ex);
     }
-
 }
