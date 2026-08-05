@@ -451,6 +451,11 @@ may be exposed over `MessageSecurityMode.None` by deployment policy.
 
 ## 11. WoT Connectivity 1.1 registry and materialization (preview)
 
+> **Specification revision.** The information model in this repository tracks
+> **WoT Connectivity 1.1-draft2** (published 2026-07-31) and **WoT Binding
+> 1.1-draft2** (published 2026-07-29). Section 12 records what the draft2
+> revision changed and how much of it this implementation covers.
+
 The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.1** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, marked deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry** base model the registry types build on:
 
 | Model | Namespace | Emitted C# namespace |
@@ -771,3 +776,133 @@ refresh.EnsureSuccess();
 ```
 
 Register the registry client with DI alongside `AddWotConClient` via `AddWotRegistryClient` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`, bindable from `IConfiguration`/`IConfigurationSection`, default section `OpcUa:WotCon:RegistryClient`). It follows the same lazy `ManagedSession`-backed factory pattern: resolve `Func<CancellationToken, Task<WotRegistryClient>>` for the lazily connected form, or `Func<ManagedSession, CancellationToken, Task<WotRegistryClient>>` to wrap an already-connected session.
+
+## 12. Alignment with the 1.1-draft2 revision
+
+Both specifications moved to `1.1-draft2` after the initial implementation
+landed. This clause records what changed and what the stack does about it.
+
+### 12.1 Model metadata
+
+| | previous | draft2 |
+|---|---|---|
+| WoT Connectivity `Version` | `1.1.0` | `1.1` |
+| WoT Connectivity `PublicationDate` | `2026-07-22` | `2026-07-31` |
+| xRegistry `RequiredModel` | `0.1.0` / `2026-07-16` | `0.3.0` / `2026-07-31` |
+
+Both NodeSets are now the artifacts the drafts publish, adopted verbatim rather
+than maintained by hand. The xRegistry node graph is unchanged across the
+version bump - the same 66 nodes with the same identifiers, method signatures
+and modelling rules - so the bump costs no code. What did change is behavioural:
+xRegistry 0.3.0 adds a reverse-authority construction algorithm for `GroupId`
+and `ResourceId`, and requires `SignAndEncrypt` on every mutating operation.
+
+### 12.2 Members added
+
+Three members were added, all at the end of the identifier block so that no
+existing member is renumbered:
+
+| NodeId | BrowseName | Declared on | ModellingRule |
+|---|---|---|---|
+| `64606` | `CatalogUri` | `ThingDescriptionGroupType` | Mandatory |
+| `64607` | `CatalogUri` | `ThingModelGroupType` | Mandatory |
+| `64608` | `ModelId` | `ThingModelFileType` | Mandatory |
+
+Three existing members became Mandatory rather than Optional:
+`GroupType.Name`, `ResourceType.Name` and `ThingDescriptionFileType.ThingId`.
+A Mandatory member is materialized by the type itself, so the source generator
+no longer emits an optional-add helper for it and the projection code sets the
+value directly.
+
+### 12.3 The group vocabulary is gone
+
+`uav:propertyGroups`, `uav:eventGroups`, `uav:actionGroups` and `uav:memberOf`
+were removed from the WoT Binding vocabulary. They were a third way to state
+something the binding could already state twice, because a grouping is an
+Object and `Organizes` is a ReferenceType. They were WoT JSON-LD terms and never
+had a corresponding OPC UA ObjectType, and this implementation never used them,
+so nothing had to be removed here.
+
+A grouping is now authored as an ordinary document whose members are reached by
+`ua:Organizes` links. Across documents it is a projection document.
+
+### 12.4 Portable identifiers are now enforced
+
+Two forms that OPC 10101 v1.00 permitted are errors in release 1.1, because a
+document carrying either binds to the wrong namespace as soon as the namespace
+table is reordered:
+
+* the session-local `ns=<index>` form in any NodeId-valued term - `uav:id`,
+  `uav:hasComponent`, `uav:componentOf`, `uav:mapToNodeId`, `uav:mapToType`,
+  `uav:refId` and form `href`s;
+* a numeric namespace prefix in `uav:browseName` or `uav:browsePath`, such as
+  `3:PaintingRobot_1`.
+
+Authors use `nsu=<NamespaceUri>;<idtype>=<id>` and either a context-bound
+non-numeric prefix or `nsu=<NamespaceUri>;<Name>` instead.
+
+A document authored against v1.00 still has to be readable while it is being
+migrated, so `WotNodeSetConverterOptions.AllowNonPortableIdentifiers` downgrades
+both errors to warnings. It defaults to `false`, which matches the release 1.1
+validator. The occurrences stay visible as warnings rather than being
+suppressed, and the values are then interpreted exactly as v1.00 defined them.
+
+```csharp
+// Spec-conformant: a v1.00 document fails to convert.
+UANodeSet strict = WotNodeSetConverter.ToNodeSet(legacyDocument);
+
+// Migrating: the same document converts, and every non-portable
+// identifier it carries is reported as a warning.
+WotConversionResult<UANodeSet> lenient = WotNodeSetConverter.ToNodeSetResult(
+    legacyDocument,
+    new WotNodeSetConverterOptions { AllowNonPortableIdentifiers = true });
+
+foreach (WotDiagnostic diagnostic in lenient.Diagnostics)
+{
+    Console.WriteLine($"{diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
+}
+```
+
+### 12.5 Projection documents and the View NodeClass
+
+A **projection document** is a Thing Description or Thing Model that declares,
+rather than defines, its affordances. It names source documents and states which
+of their affordances a view is assembled from, so it carries references and
+annotations only and has nothing that can drift from its sources.
+
+This completes the NodeClass binding. Seven OPC UA NodeClasses bind to a WoT
+construct that defines something; `View` is the eighth and the only one whose
+purpose is to select rather than define. A View owns no Node - it organizes
+Nodes that already exist so a client can browse a subset shaped for one task -
+and a projection document is that construct in WoT.
+
+A projection is marked by `uav:projection` in its `@type` and shall declare:
+
+| Term | Meaning |
+|---|---|
+| `uav:scenario` | absolute IRI naming the purpose the view serves |
+| `uav:projects` | non-empty manifest of the documents it projects |
+| `uav:sourceName` | alias for a source, unique in the manifest |
+| `uav:routing` | `source` (default) or `projection` |
+| `uav:sourceDigest` | `sha-256:<hex>` pinning a source revision |
+| `uav:namePrefix` | prefix applied to bulk-selected names |
+
+Selection has three forms. An enumerated `tm:ref` names one affordance and is
+the only form that can annotate it; `uav:selectAll` takes every affordance of a
+source; and `uav:select` filters on affordance kind, semantic identifier and
+type tokens. The predicate set is closed - a filter carrying any other key is
+rejected rather than ignored - so a filter stays decidable by inspection.
+
+Every member of `properties`, `actions` and `events` shall carry `tm:ref`. A
+member without one is defining an affordance, which is the one thing a
+projection document must not do.
+
+Materialization produces a `View` Node that `Organizes` the Nodes already
+materialized from the sources. The View creates **no** affordance Node, so
+`MaterializedNodeCount` counts only the View and any organizational Objects, not
+the Nodes it organizes. `RootNodeId` is the View, and the document resource
+points at it through `HasWoTProjection`, navigable back through
+`WoTProjectionOf`. A source that is not in the address space is omitted from the
+View and reported in `WoTResourceLoadResultDataType.Message`; the resource still
+reaches `LoadState = Active`, because an omission is a reported detail rather
+than a failure.

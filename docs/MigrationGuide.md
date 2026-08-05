@@ -43,8 +43,43 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
-## Migrating node types that override FindChild or CreateChild
+## Migrating WoT documents to the 1.1-draft2 identifier rules
 
+`Opc.Ua.Wot.WotNodeSetConverter` now rejects two identifier forms that OPC
+10101 v1.00 permitted. Both are session-local: a document carrying either
+binds to the wrong namespace as soon as the namespace table is reordered,
+which is exactly what a persisted document must not do.
+
+| Forbidden in release 1.1 | Was permitted in v1.00 | Use instead |
+| --- | --- | --- |
+| `ns=<index>` in a NodeId-valued term | v1.00 § 6.2 | `nsu=<NamespaceUri>;<idtype>=<id>` |
+| numeric namespace prefix in `uav:browseName` / `uav:browsePath` | v1.00 § 6.5.3 | a context-bound non-numeric prefix, or `nsu=<NamespaceUri>;<Name>` |
+
+The NodeId rule applies to every NodeId-valued term: `uav:id`,
+`uav:hasComponent`, `uav:componentOf`, `uav:mapToNodeId`, `uav:mapToType`,
+`uav:refId` and form `href`s.
+
+A document that carries either form now fails to convert, reporting
+`NonPortableIdentity` or `NonPortableQualifiedName` as an error. Rewriting the
+document is the fix. While that is in progress, set
+`AllowNonPortableIdentifiers` to keep reading it: the two errors become
+warnings, so the non-portable values stay visible instead of being suppressed,
+and each is interpreted exactly as v1.00 defined it.
+
+```csharp
+var options = new WotNodeSetConverterOptions
+{
+    AllowNonPortableIdentifiers = true
+};
+
+WotConversionResult<UANodeSet> result =
+    WotNodeSetConverter.ToNodeSetResult(document, options);
+```
+
+The option defaults to `false`, which matches the release 1.1 validator. Leave
+it at the default once the documents are migrated.
+
+## Migrating node types that override FindChild or CreateChild
 `NodeState.FindChild` and `NodeState.CreateChild` take
 `assignInstanceNodeIds` as their last parameter, and the four argument
 `FindChild` / two argument `CreateChild` virtuals are gone. The parameter
