@@ -47,3 +47,51 @@ them.
 | Reference link points to another Thing by URI and no resolver is supplied or the resolver cannot find `uav:id` | **Default** | The reference is omitted and a warning diagnostic is emitted; no placeholder NodeId is generated. |
 | Invalid namespace-qualified `uav:id` / `uav:browseName` syntax or unbound compact-name prefix | **Fails** | An error diagnostic is emitted; `ToNodeSet` throws even though synthesis continues far enough to collect diagnostics. |
 | Event affordance says `@type: uav:eventType` and `uav:isEvent: false` | **Fails** | `EventAnnotationConflict` error; the two terms must not contradict each other. |
+| `uav:isComposite` (Section 6.1) | **Default** / **Fails** | Absent: the type is treated as atomic and no `HasComponent` walk is forced. Malformed (non-boolean): `InvalidModelVocabularyValue` error and `ToNodeSet` throws. Present and valid: the flag has no distinct readable NodeSet structure, so it is carried verbatim through the `uav:nodes` residue and restored on the reverse conversion. |
+| `uav:contains` (Section 6.3) | **Default** / **Fails** | Absent: sub-components come from links only. Malformed (not an array, or an entry that does not match a link `uav:refName` declared on the same type): `InvalidContainment` error. Present and valid: preserved via residue. |
+| `uav:containedIn` (Section 6.3) | **Default** / **Fails** | Absent: no parent is recorded. Malformed (not a non-empty string, or naming the type itself, which is a cycle): `InvalidContainment` error. The reciprocal "the named composite exists" check is cross-document and out of scope for the single-document converter, which validates range and self-cycle only. Present and valid: preserved via residue. |
+| `uav:unitProperty` (Section 6.5) | **Default** / **Fails** | Absent: the value is treated as already in engineering units and no `EngineeringUnits` pointer is recorded. Malformed (not a non-empty RFC 6901 JSON Pointer resolving, within the same document, to a string property): `InvalidUnitPointer` error. Present and valid: preserved via residue. |
+| `uav:scaleFactor` (Section 6.5) | **Default** / **Fails** | Absent: identity scaling (factor `1`). Malformed (not a non-zero number): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
+| `uav:decimalPlaces` (Section 6.5) | **Default** / **Fails** | Absent: no rounding is recorded. Malformed (not an integer greater than or equal to zero; `2.0` is rejected as a non-integer literal): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
+| `uav:semanticId` (Section 6.7) | **Default** / **Fails** | Absent: no semantic reference is recorded. Malformed (not an absolute IRI with a scheme): `NonAbsoluteIri` error. Present and valid: preserved via residue. |
+| `uav:metadata` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque; carried verbatim through residue, never validated and never a reason to reject the document (Section 6.7). |
+| `uav:propertyConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
+| `uav:actionConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
+| `uav:eventConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
+| `uav:includeInherited` (Section 6.8) | **Default** / **Fails** | Absent: no inheritance-span flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
+| `uav:additionalProperties` (Section 6.8) | **Default** / **Fails** | Absent: no open-content flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
+| `uav:nameNamespace` (Section 6.4) | **Default** / **Fails** | Absent: local names resolve against the model's own target namespace and nothing extra is recorded. Malformed (not an absolute IRI with a scheme): `NonAbsoluteIri` error. Present and valid: preserved via residue. |
+| `uav:browsePathAnchor` (Section 5.1.4) | **Default** / **Fails** | Absent: a relative `uav:browsePath` resolves against the nearest enclosing `uav:id`. Malformed (not an ExpandedNodeId): `ValidationError` error; the session-local `ns=<index>` form is reported `NonPortableIdentity` (an error unless `AllowNonPortableIdentifiers` is set). Present and valid: preserved via residue. |
+
+## Model and platform vocabulary (Section 6)
+
+The WoT Binding Section 6 model- and platform-vocabulary terms
+(composition, containment, naming, units and scaling, semantics,
+inheritance) and the anchored browse-path term of Section 5.1.4 are
+**readable annotations**: they record OPC UA model facts but have no
+distinct structure that this converter materializes into the readable
+NodeSet (it does not model, for example, `AnalogUnitType`,
+`EngineeringUnits`, or `HasDictionaryEntry` structures). The converter
+therefore handles them in one direction with full round-trip fidelity:
+
+- **WoT to NodeSet.** Each term is validated during synthesis against
+  the per-term domain and range table of Section 7. A malformed value is
+  an error (Section 7 requires a consumer to treat the document as
+  invalid rather than repair it), so `ToNodeSet` throws and
+  `ToNodeSetResult` reports the diagnostic. A well-formed value is
+  carried unchanged through the generic `uav:nodes` residue mechanism.
+- **NodeSet to WoT (reverse).** These readable terms are not synthesized
+  from a plain NodeSet. When a NodeSet carries a structure that the
+  readable vocabulary cannot yet express, the complete `uav:nodes`
+  native projection preserves it losslessly, and any residue previously
+  captured for a term is re-applied by JSON Pointer.
+- **Round-trip.** A document carrying these terms survives
+  WoT &rarr; NodeSet &rarr; WoT unchanged. Affordance-level terms
+  (`uav:scaleFactor`, `uav:decimalPlaces`, `uav:unitProperty`,
+  `uav:semanticId`) are preserved under the affordance's projected local
+  name, so an affordance that also carries `uav:browseName` round-trips
+  under that browse name's local part rather than its original map key.
+
+The opaque terms `uav:metadata`, `uav:propertyConfiguration`,
+`uav:actionConfiguration` and `uav:eventConfiguration` are never
+validated and never cause rejection; they are carried verbatim.

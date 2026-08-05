@@ -396,6 +396,7 @@ namespace Opc.Ua.Wot
             ValidatePortableIdentity(document, diagnostics);
             ValidateEventAnnotations(document, diagnostics);
             ValidateModelConceptNames(document, diagnostics);
+            ValidateModelVocabulary(document, diagnostics);
 
             string modelUri = DeriveModelUri(document);
             string rootLocal = LocalName(GetUavString(document, "browseName")) ??
@@ -1554,7 +1555,8 @@ namespace Opc.Ua.Wot
         /// Portable identity validation (WoT Binding Section 5.1.1): every
         /// NodeId-valued term (<c>uav:id</c>, each <c>uav:hasComponent</c> /
         /// <c>uav:componentOf</c> entry, <c>uav:mapToNodeId</c>,
-        /// <c>uav:mapToType</c>, <c>uav:refId</c>, and a
+        /// <c>uav:mapToType</c>, <c>uav:refId</c>, the
+        /// <c>uav:browsePathAnchor</c> (Section 5.1.4), and a
         /// <c>?id=</c> href) shall be a portable ExpandedNodeId, never the
         /// session-local <c>ns=&lt;index&gt;</c> form. The exact <c>uav:nodeSet</c>
         /// envelope and <c>uav:nodes</c> projection subtrees are skipped so their
@@ -1606,6 +1608,7 @@ namespace Opc.Ua.Wot
                 case "uav:id":
                 case "uav:mapToNodeId":
                 case "uav:mapToType":
+                case "uav:browsePathAnchor":
                     if (value.ValueKind == JsonValueKind.String)
                     {
                         CheckPortableValue(name, value.GetString(), diagnostics);
