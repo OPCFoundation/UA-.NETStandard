@@ -10,7 +10,6 @@
     <AssemblyName>Opc.Ua.OpenUsd.Connector.Viewer</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer</PackageId>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Optional viewport for the OPC UA - OpenUSD connector. Renders the composed stage with the OpenUSD Avalonia viewer and exposes it as an IUsdSink, so the connector's --view option streams live OPC UA values into the picture on screen. Install alongside Opc.Ua.OpenUsd.Connector; the connector loads it on demand and works without it.</Description>
     <RootNamespace>Opc.Ua.OpenUsd.Connector.Viewer</RootNamespace>
     <Nullable>enable</Nullable>
