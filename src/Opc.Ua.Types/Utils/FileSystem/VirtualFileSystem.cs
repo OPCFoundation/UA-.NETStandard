@@ -34,6 +34,7 @@ using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -172,23 +173,18 @@ namespace Opc.Ua
                     sourcePath);
             }
 
-            while (true)
-            {
-                if (!m_files.TryGetValue(destinationPath, out VirtualFile? existing))
+            // Re-keying the whole entry publishes the file in one step, so a reader sees
+            // either the previous content or the new content and never a partial write.
+            VirtualFile? replaced = null;
+            m_files.AddOrUpdate(
+                destinationPath,
+                staged,
+                (_, existing) =>
                 {
-                    if (m_files.TryAdd(destinationPath, staged))
-                    {
-                        return;
-                    }
-                    continue;
-                }
-
-                if (m_files.TryUpdate(destinationPath, staged, existing))
-                {
-                    existing.Dispose();
-                    return;
-                }
-            }
+                    replaced = existing;
+                    return staged;
+                });
+            replaced?.Dispose();
         }
 
         /// <inheritdoc/>

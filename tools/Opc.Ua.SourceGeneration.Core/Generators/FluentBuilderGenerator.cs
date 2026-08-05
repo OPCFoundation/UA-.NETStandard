@@ -488,7 +488,6 @@ namespace Opc.Ua.SourceGeneration
             };
         }
 
-        // Validation
         /// <summary>
         /// Wires each wrapper to its direct child object/method wrappers
         /// so the recursive emitter can walk the tree depth-first. Sorts
