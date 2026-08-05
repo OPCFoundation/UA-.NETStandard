@@ -164,6 +164,13 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetRequiredService<INodeManagerLifecycle>(),
                     sp.GetRequiredService<IWotProjectionBindingRuntimeFactory>()));
 
+            // The live view host publishes projection Views into the running address space
+            // via the NodeManager lifecycle; a coordinator built without DI falls back to
+            // the in-memory host, which is also the seam's test double.
+            services.TryAddSingleton<IWotViewProjectionHost>(sp =>
+                new LifecycleWotViewProjectionHost(
+                    sp.GetRequiredService<INodeManagerLifecycle>()));
+
             services.TryAddSingleton(sp =>
             {
                 WotRegistryServerOptions options =
@@ -185,7 +192,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     // to the converted NodeSet before it is materialized.
                     sp.GetService<IWotDocumentConverter>(),
                     sp.GetServices<IWotNodeSetContributor>(),
-                    sp.GetService<IWotNodeSetResolver>());
+                    sp.GetService<IWotNodeSetResolver>(),
+                    sp.GetService<IWotViewProjectionHost>());
             });
 
             services.TryAddSingleton(sp =>
