@@ -617,6 +617,32 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
         }
 
+        private static NodeManagerBuilder CreateBuilderWithDataTypeIndex(
+            Dictionary<NodeId, ArrayOf<NodeState>> byDataType)
+        {
+            return new NodeManagerBuilder(
+                CreateContext(),
+                Mock.Of<IAsyncNodeManager>(),
+                kNs,
+                _ => null,
+                _ => null,
+                _ => [],
+                dataTypeId => byDataType.TryGetValue(dataTypeId, out ArrayOf<NodeState> list)
+                    ? list
+                    : []);
+        }
+
+        private static BaseDataVariableState MakeVariable(string name, NodeId dataTypeId)
+        {
+            return new BaseDataVariableState(parent: null)
+            {
+                NodeId = new NodeId(name, kNs),
+                BrowseName = new QualifiedName(name, kNs),
+                DataType = dataTypeId,
+                ValueRank = ValueRanks.Scalar
+            };
+        }
+
         [Test]
         public void NodeFromTypeIdResolvesSingleton()
         {
@@ -863,6 +889,116 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.Node(root.NodeId).Variable<int>(m.BrowseName));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void VariableFromDataTypeIdResolvesUniqueVariable()
+        {
+            NodeId dataTypeId = DataTypeIds.Int32;
+            BaseDataVariableState only = MakeVariable("ByDataType", dataTypeId);
+            NodeManagerBuilder b = CreateBuilderWithDataTypeIndex(
+                new Dictionary<NodeId, ArrayOf<NodeState>> { [dataTypeId] = [only] });
+
+            IVariableBuilder<int> byDataType = b.VariableFromDataTypeId<int>(dataTypeId);
+
+            Assert.That(byDataType.Node, Is.SameAs(only));
+        }
+
+        [Test]
+        public void VariableFromDataTypeIdNullThrowsBadNodeIdInvalid()
+        {
+            NodeManagerBuilder b = CreateBuilderWithDataTypeIndex([]);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.VariableFromDataTypeId<int>(NodeId.Null));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void VariableFromDataTypeIdMissingThrowsBadNodeIdUnknown()
+        {
+            NodeManagerBuilder b = CreateBuilderWithDataTypeIndex([]);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.VariableFromDataTypeId<int>(DataTypeIds.Int32));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void VariableFromDataTypeIdAmbiguousThrowsBadBrowseNameDuplicated()
+        {
+            NodeId dataTypeId = DataTypeIds.Int32;
+            BaseDataVariableState a = MakeVariable("Temp1", dataTypeId);
+            BaseDataVariableState bn = MakeVariable("Temp2", dataTypeId);
+            NodeManagerBuilder b = CreateBuilderWithDataTypeIndex(
+                new Dictionary<NodeId, ArrayOf<NodeState>> { [dataTypeId] = [a, bn] });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.VariableFromDataTypeId<int>(dataTypeId));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameDuplicated));
+        }
+
+        [Test]
+        public void VariableFromDataTypeIdWithBrowseNameDisambiguates()
+        {
+            NodeId dataTypeId = DataTypeIds.Int32;
+            BaseDataVariableState a = MakeVariable("Temp1", dataTypeId);
+            BaseDataVariableState bn = MakeVariable("Temp2", dataTypeId);
+            NodeManagerBuilder b = CreateBuilderWithDataTypeIndex(
+                new Dictionary<NodeId, ArrayOf<NodeState>> { [dataTypeId] = [a, bn] });
+
+            IVariableBuilder<int> byName = b.VariableFromDataTypeId<int>(dataTypeId, bn.BrowseName);
+
+            Assert.That(byName.Node, Is.SameAs(bn));
+        }
+
+        [Test]
+        public void VariableFromDataTypeIdWithBrowseNameMissThrowsBadNodeIdUnknown()
+        {
+            NodeId dataTypeId = DataTypeIds.Int32;
+            BaseDataVariableState a = MakeVariable("Temp1", dataTypeId);
+            NodeManagerBuilder b = CreateBuilderWithDataTypeIndex(
+                new Dictionary<NodeId, ArrayOf<NodeState>> { [dataTypeId] = [a] });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.VariableFromDataTypeId<int>(dataTypeId, new QualifiedName("Nope", kNs)));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void VariableFromDataTypeIdWithDuplicateBrowseNameThrowsBadBrowseNameDuplicated()
+        {
+            NodeId dataTypeId = DataTypeIds.Int32;
+            BaseDataVariableState first = MakeVariable("Duplicate", dataTypeId);
+            BaseDataVariableState second = MakeVariable("Duplicate", dataTypeId);
+            NodeManagerBuilder b = CreateBuilderWithDataTypeIndex(
+                new Dictionary<NodeId, ArrayOf<NodeState>> { [dataTypeId] = [first, second] });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.VariableFromDataTypeId<int>(dataTypeId, first.BrowseName));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameDuplicated));
+        }
+
+        /// <summary>
+        /// Mirrors <see cref="VariableFromTypeIdThrowsBadTypeMismatchForObject"/>:
+        /// the DataType resolver contract only guarantees the candidates it is
+        /// handed are <see cref="BaseVariableState"/> instances at the
+        /// production resolver level; if a custom resolver (as injected here)
+        /// returns a non-variable node, <see cref="NodeManagerBuilder.VariableFromDataTypeId{TValue}(NodeId)"/>
+        /// must still surface a clear <see cref="StatusCodes.BadTypeMismatch"/>
+        /// rather than an unhandled cast failure.
+        /// </summary>
+        [Test]
+        public void VariableFromDataTypeIdThrowsBadTypeMismatchForNonVariable()
+        {
+            NodeId dataTypeId = DataTypeIds.Int32;
+            BaseObjectState only = MakeObject("NotAVariable", ObjectTypeIds.BaseObjectType);
+            NodeManagerBuilder b = CreateBuilderWithDataTypeIndex(
+                new Dictionary<NodeId, ArrayOf<NodeState>> { [dataTypeId] = [only] });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.VariableFromDataTypeId<int>(dataTypeId));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
         }
     }

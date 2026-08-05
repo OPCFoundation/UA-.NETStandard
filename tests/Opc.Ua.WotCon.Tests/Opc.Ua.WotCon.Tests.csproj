@@ -34,7 +34,11 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon\Opc.Ua.WotCon.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Bindings\Opc.Ua.WotCon.Bindings.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Client\Opc.Ua.WotCon.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>

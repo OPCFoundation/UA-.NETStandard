@@ -51,7 +51,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void AnAnchorAuthoredInMixedNumericTypesIsCoercedToDouble()
         {
             UsdPrim world = TypedGeoreference(
-                latitude: 47.0f, longitude: -122L, height: 56);
+                latitude: UsdValue.From(47.0),
+                longitude: UsdValue.From(-122L),
+                height: UsdValue.From(56L));
 
             List<UsdGeoreferenceApiState> portable = PortableGeoreference(world);
 
@@ -65,7 +67,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void AnAnchorAuthoredAsInvariantTextIsParsed()
         {
             UsdPrim world = TypedGeoreference(
-                latitude: "47.6062", longitude: "-122.3321", height: "56.0");
+                latitude: UsdValue.FromString("47.6062"),
+                longitude: UsdValue.FromString("-122.3321"),
+                height: UsdValue.FromString("56.0"));
 
             List<UsdGeoreferenceApiState> portable = PortableGeoreference(world);
 
@@ -78,7 +82,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void AnAnchorWithAnUnparsableComponentPublishesNoPortableAnchor()
         {
             UsdPrim world = TypedGeoreference(
-                latitude: "north", longitude: Longitude, height: 56.0);
+                latitude: UsdValue.FromString("north"),
+                longitude: UsdValue.From(Longitude),
+                height: UsdValue.From(56.0));
 
             Assert.That(PortableGeoreference(world), Is.Empty);
         }
@@ -88,9 +94,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var anchor = new UsdPrim("Anchor", "CesiumGlobeAnchorAPI");
             anchor.Attributes.Add(
-                new UsdAttribute("cesium:anchor:latitude", "double") { Value = Latitude });
+                new UsdAttribute("cesium:anchor:latitude", "double") { Value = UsdValue.From(Latitude) });
             anchor.Attributes.Add(
-                new UsdAttribute("cesium:anchor:longitude", "double") { Value = Longitude });
+                new UsdAttribute("cesium:anchor:longitude", "double") { Value = UsdValue.From(Longitude) });
 
             var stage = new UsdStage("Test");
             stage.AddRootPrim(anchor);
@@ -104,11 +110,11 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var anchor = new UsdPrim("Anchor", "CesiumGlobeAnchorAPI");
             anchor.Attributes.Add(
-                new UsdAttribute("cesium:anchor:latitude", "double") { Value = Latitude });
+                new UsdAttribute("cesium:anchor:latitude", "double") { Value = UsdValue.From(Latitude) });
             anchor.Attributes.Add(
-                new UsdAttribute("cesium:anchor:longitude", "double") { Value = Longitude });
+                new UsdAttribute("cesium:anchor:longitude", "double") { Value = UsdValue.From(Longitude) });
             anchor.Attributes.Add(
-                new UsdAttribute("cesium:anchor:height", "double") { Value = 56.0 });
+                new UsdAttribute("cesium:anchor:height", "double") { Value = UsdValue.From(56.0) });
 
             var stage = new UsdStage("Test");
             stage.AddRootPrim(anchor);
@@ -120,7 +126,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             Assert.That(portable[0].Height!.Value, Is.EqualTo(56.0).Within(1e-12));
         }
 
-        private static UsdPrim TypedGeoreference(object latitude, object longitude, object height)
+        private static UsdPrim TypedGeoreference(UsdValue latitude, UsdValue longitude, UsdValue height)
         {
             var world = new UsdPrim("World", "CesiumGeoreferencePrim");
             world.Attributes.Add(

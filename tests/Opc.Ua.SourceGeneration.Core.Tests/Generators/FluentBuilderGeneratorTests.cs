@@ -334,12 +334,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void DeclarationBackedNodeSetFixtureCarriesDeclarationInputArgument()
         {
             Dictionary<string, string> files = GenerateForDeclarationBackedNodeSet();
-            string values = files.Single(kv => kv.Key.EndsWith(".NodeStates.i.g.cs", StringComparison.Ordinal)).Value;
+            string values = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
 
             Assert.Multiple(() =>
             {
                 Assert.That(values, Does.Contain("AdjustDeclaration_InputArguments"));
-                Assert.That(values, Does.Contain("<uax:Name>setpoint</uax:Name>"));
+                Assert.That(values, Does.Contain("Name = \"setpoint\""));
             });
         }
 
@@ -459,10 +460,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             return files.Single(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal)).Value;
         }
 
-        // ============================================================
         // FB-3 phase 3: per-ObjectType IComponentAccessor/IPropertyAccessor
         // extensions emitted into the same FluentBuilders file.
-        // ============================================================
 
         [Test]
         public void EmittedFluentBuilders_HasPerObjectTypeComponentAccessorClass()
@@ -595,12 +594,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string path = Path.Combine(resources, nodeSetFile);
 
             var nodesets = new NodesetFileCollection(
-                [(path, new NodesetFileOptions
+                [
+                    (path, new NodesetFileOptions
                     {
                         ModelUri = namespaceUri,
                         Name = "DeclarationBackedMethod",
                         Prefix = "DeclarationBackedMethod"
-                    })],
+                    })
+                ],
                 [],
                 fileSystem,
                 telemetry);

@@ -743,14 +743,69 @@ namespace Opc.Ua
                 entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
             }
 
-            Task<bool> reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            Task<bool> reconnectTask;
+            try
+            {
+                reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            }
+            catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, budget, sre, ct))
+            {
+                entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            }
+
             if (throwOnReconnectFailure)
             {
-                await AwaitReconnectResultAsync(reconnectTask).ConfigureAwait(false);
+                try
+                {
+                    await AwaitReconnectResultAsync(reconnectTask).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, budget, sre, ct))
+                {
+                    entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                    await AwaitReconnectResultAsync(entry.RequestReconnectAsync(budget, ct))
+                        .ConfigureAwait(false);
+                }
                 return;
             }
 
-            _ = await reconnectTask.ConfigureAwait(false);
+            try
+            {
+                _ = await reconnectTask.ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, budget, sre, ct))
+            {
+                entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                _ = await entry.RequestReconnectAsync(budget, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Whether a terminal reconnect failure is a lost race against a
+        /// concurrent close, in which case retrying on a freshly swapped entry
+        /// recovers transparently.
+        /// </summary>
+        /// <remarks>
+        /// The retry has to stay inside <paramref name="budget"/>. An exhausted
+        /// budget means the reconnect cycle stopped because the caller's
+        /// deadline ran out, not because it raced a close - swapping the entry
+        /// and starting a second cycle there would ignore the deadline the
+        /// caller asked to be bound by, and the swap back-off would be waited
+        /// out on top of it. The parameterless
+        /// <see cref="ReconnectAsync(IManagedTransportChannel, CancellationToken)"/>
+        /// overload passes an unlimited budget, so it keeps recovering from the
+        /// race exactly as before.
+        /// </remarks>
+        private static bool IsTerminalReconnectRace(
+            ChannelEntry entry,
+            IRetryBudget budget,
+            ServiceResultException sre,
+            CancellationToken ct)
+        {
+            return !ct.IsCancellationRequested &&
+                !budget.IsExhausted &&
+                sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                entry.State is ChannelState.Closed or ChannelState.Faulted;
         }
 
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(

@@ -7263,7 +7263,8 @@ namespace Opc.Ua.Server
         /// <param name="processedItems">The list of bool with items that were already processed.</param>
         /// <param name="errors">Any errors.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public virtual async ValueTask TransferMonitoredItemsAsync(
+        [Obsolete("Use TransferMonitoredItemsAsync with MonitoredItemTransferOptions.")]
+        public virtual ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
@@ -7271,8 +7272,38 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
+            return TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                processedItems,
+                errors,
+                new MonitoredItemTransferOptions(),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
+        /// <param name="monitoredItems">The set of monitoring items to update.</param>
+        /// <param name="processedItems">The list of bool with items that were already processed.</param>
+        /// <param name="errors">Any errors.</param>
+        /// <param name="transferOptions">Options that describe the transfer execution.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public virtual async ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions,
+            CancellationToken cancellationToken = default)
+        {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             var transferredItems = new List<IMonitoredItem>();
+            bool deferInitialValues = transferOptions.DeferInitialValues;
 
             await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -7295,7 +7326,8 @@ namespace Opc.Ua.Server
                     // owned by this node manager.
                     processedItems[ii] = true;
                     transferredItems.Add(monitoredItems[ii]);
-                    if (sendInitialValues)
+                    if (sendInitialValues &&
+                        !deferInitialValues)
                     {
                         monitoredItems[ii].SetupResendDataTrigger();
                     }

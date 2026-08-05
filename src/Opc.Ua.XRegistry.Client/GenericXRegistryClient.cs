@@ -57,6 +57,29 @@ namespace Opc.Ua.XRegistry.Client
         }
 
         /// <summary>
+        /// Initializes a generic registry client rooted at an explicit registry Object.
+        /// <para>
+        /// A domain registry declares its own root rather than reusing the provisional well-known
+        /// identifier, and a caller typically discovers it by Browse. This overload drives such a
+        /// registry through the base-model proxies without deriving a domain client.
+        /// </para>
+        /// </summary>
+        /// <param name="session">The connected session whose server hosts the registry.</param>
+        /// <param name="registryNamespaceUri">The registry companion namespace URI.</param>
+        /// <param name="registryNodeId">
+        /// The registry root Object. Pass a null NodeId to use the well-known root.
+        /// </param>
+        /// <param name="telemetry">Telemetry context used by the generated proxies.</param>
+        public GenericXRegistryClient(
+            ISession session,
+            string registryNamespaceUri,
+            NodeId registryNodeId,
+            ITelemetryContext telemetry)
+            : base(session, registryNamespaceUri, registryNodeId, telemetry)
+        {
+        }
+
+        /// <summary>
         /// Initializes a generic client bound to the abstract xRegistry base namespace.
         /// </summary>
         /// <param name="session">The connected session whose server hosts the registry.</param>

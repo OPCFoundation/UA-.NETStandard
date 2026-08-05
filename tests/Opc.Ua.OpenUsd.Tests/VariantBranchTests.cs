@@ -120,7 +120,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void BranchBody_MaterializesAttributes()
         {
             var high = new UsdPrim("high");
-            high.Attributes.Add(new UsdAttribute("resolution", "int") { Value = 1024L });
+            high.Attributes.Add(new UsdAttribute("resolution", "int") { Value = UsdValue.From(1024L) });
             var set = new UsdVariantSet("lod", "high");
             set.Variants.Add(high);
             (MaterializedScene ms, UsdVariantSetState node) = MaterializeSet(set);
@@ -181,7 +181,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 branchIds.Add(branch.NodeId);
             }
 
-            // Regression guard: AddxVariant_ leaves the type's placeholder NodeId, so without the
+            // Regression guard: AddVariant_Placeholder leaves the type's placeholder NodeId, so without the
             // explicit per-instance NodeId assignment both branches would collide on one id.
             Assert.That(branchIds[0], Is.Not.EqualTo(branchIds[1]));
         }
@@ -208,7 +208,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         public void Branches_RoundTripThroughMaterializeAndExport()
         {
             var high = new UsdPrim("high");
-            high.Attributes.Add(new UsdAttribute("resolution", "int") { Value = 1024L });
+            high.Attributes.Add(new UsdAttribute("resolution", "int") { Value = UsdValue.From(1024L) });
             var set = new UsdVariantSet("lod", "high");
             set.Variants.Add(high);
             set.Variants.Add(new UsdPrim("low"));

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using NUnit.Framework;
+using Opc.Ua.OpenUsdScene.Scene;
 using Opc.Ua.OpenUsdScene.Server;
 
 namespace Opc.Ua.OpenUsdScene.Tests
@@ -44,8 +45,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void SamplesWithTheSameTimeCodeAndValueAreEqual()
         {
-            var left = new UsdTimeSample(1.5, 42.0);
-            var right = new UsdTimeSample(1.5, 42.0);
+            var left = new UsdTimeSample(1.5, UsdValue.From(42.0));
+            var right = new UsdTimeSample(1.5, UsdValue.From(42.0));
             bool viaOperator = left == right;
             bool viaInequality = left != right;
 
@@ -58,8 +59,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void SamplesWithADifferentTimeCodeAreNotEqual()
         {
-            var left = new UsdTimeSample(1.5, 42.0);
-            var right = new UsdTimeSample(2.5, 42.0);
+            var left = new UsdTimeSample(1.5, UsdValue.From(42.0));
+            var right = new UsdTimeSample(2.5, UsdValue.From(42.0));
             bool viaOperator = left == right;
             bool viaInequality = left != right;
 
@@ -71,8 +72,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void SamplesWithADifferentValueAreNotEqual()
         {
-            var left = new UsdTimeSample(1.5, 42.0);
-            var right = new UsdTimeSample(1.5, "42");
+            var left = new UsdTimeSample(1.5, UsdValue.From(42.0));
+            var right = new UsdTimeSample(1.5, UsdValue.FromString("42"));
             bool viaEquatable = left.Equals(right);
 
             Assert.That(viaEquatable, Is.False);
@@ -82,8 +83,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void ASampleWithoutAValueEqualsAnotherWithoutAValue()
         {
-            var left = new UsdTimeSample(-3.25, null);
-            var right = new UsdTimeSample(-3.25, null);
+            var left = new UsdTimeSample(-3.25, UsdValue.Null);
+            var right = new UsdTimeSample(-3.25, UsdValue.Null);
             bool viaEquatable = left.Equals(right);
 
             Assert.That(viaEquatable, Is.True);
@@ -93,8 +94,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void ASampleEqualsABoxedSampleWithTheSameContent()
         {
-            var sample = new UsdTimeSample(0.5, 7);
-            object boxed = new UsdTimeSample(0.5, 7);
+            var sample = new UsdTimeSample(0.5, UsdValue.From(7L));
+            object boxed = new UsdTimeSample(0.5, UsdValue.From(7L));
             bool equal = sample.Equals(boxed);
 
             Assert.That(equal, Is.True);
@@ -103,7 +104,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void ASampleDoesNotEqualAnObjectOfAnotherType()
         {
-            var sample = new UsdTimeSample(0.5, 7);
+            var sample = new UsdTimeSample(0.5, UsdValue.From(7L));
             bool equalsText = sample.Equals("0.5");
             bool equalsNothing = sample.Equals(null);
 

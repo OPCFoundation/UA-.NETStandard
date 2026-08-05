@@ -270,11 +270,78 @@ namespace Opc.Ua.PubSub.Tests.Application
                 "Disposed publisher must remove the per-dataset metadata subscription.");
         }
 
+        [Test]
+        public async Task EveryWriterSharingADataSetIsAnnouncedAsync()
+        {
+            //
+            // Several writers may publish the same PublishedDataSet - the same
+            // DataSetName referenced from different writers, groups or
+            // connections - and each announces to its own destination. A
+            // subscription taken per dataset rather than per writer would
+            // watch only the first of them, and the rest would never
+            // re-announce.
+            //
+            const ushort secondWriterId = 43;
+            DataSetMetaDataType currentMetaData = NewMeta();
+            var source = new Mock<IPublishedDataSetSource>();
+            source
+                .Setup(s => s.BuildMetaData())
+                .Returns(() => currentMetaData);
+            Mock<IMetaDataChangeNotifier> notifier = source.As<IMetaDataChangeNotifier>();
+            var messages = new ConcurrentQueue<JsonMetaDataMessage>();
+            var encoder = new Mock<INetworkMessageEncoder>();
+            encoder
+                .SetupGet(e => e.TransportProfileUri)
+                .Returns(JsonMqttProfile);
+            encoder
+                .Setup(e => e.EncodeAsync(
+                    It.IsAny<PubSubNetworkMessage>(),
+                    It.IsAny<PubSubNetworkMessageContext>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    PubSubNetworkMessage message,
+                    PubSubNetworkMessageContext _,
+                    CancellationToken _) =>
+                {
+                    if (message is JsonMetaDataMessage metaDataMessage)
+                    {
+                        messages.Enqueue(metaDataMessage);
+                    }
+                    return new ValueTask<ReadOnlyMemory<byte>>(new byte[] { 1 });
+                });
+            var factory = new RecordingTransportFactory(JsonMqttProfile, supportsTopics: true);
+            await using IPubSubApplication app = BuildApp(
+                JsonMqttProfile,
+                factory,
+                source.Object,
+                encoder.Object,
+                secondWriterId);
+
+            await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            await WaitUntilAsync(
+                () => messages.Count >= 2,
+                TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            messages.Clear();
+
+            currentMetaData = NewMeta(majorVersion: 2);
+            notifier.Raise(n => n.MetaDataChanged += null, EventArgs.Empty);
+
+            await WaitUntilAsync(
+                () => messages.Count >= 2,
+                TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+
+            Assert.That(
+                messages.Select(m => m.DataSetWriterId).Distinct(),
+                Is.EquivalentTo(new[] { DataSetWriterIdValue, secondWriterId }),
+                "Both writers of a shared data set must re-announce.");
+        }
+
         private static IPubSubApplication BuildApp(
             string transportProfileUri,
             RecordingTransportFactory factory,
             IPublishedDataSetSource? source = null,
-            INetworkMessageEncoder? encoder = null)
+            INetworkMessageEncoder? encoder = null,
+            ushort? secondWriterId = null)
         {
             string addressUrl = transportProfileUri == JsonMqttProfile
                 ? "mqtt://localhost:1883"
@@ -296,15 +363,32 @@ namespace Opc.Ua.PubSub.Tests.Application
                         Name = "wg-1",
                         WriterGroupId = WriterGroupIdValue,
                         PublishingInterval = 600_000,
-                        DataSetWriters = new ArrayOf<DataSetWriterDataType>(new[]
-                        {
-                            new DataSetWriterDataType
+                        DataSetWriters = new ArrayOf<DataSetWriterDataType>(
+                            secondWriterId is null
+                            ? new[]
                             {
-                                Name = "writer-1",
-                                DataSetWriterId = DataSetWriterIdValue,
-                                DataSetName = "pds-1"
+                                new DataSetWriterDataType
+                                {
+                                    Name = "writer-1",
+                                    DataSetWriterId = DataSetWriterIdValue,
+                                    DataSetName = "pds-1"
+                                }
                             }
-                        })
+                            : new[]
+                            {
+                                new DataSetWriterDataType
+                                {
+                                    Name = "writer-1",
+                                    DataSetWriterId = DataSetWriterIdValue,
+                                    DataSetName = "pds-1"
+                                },
+                                new DataSetWriterDataType
+                                {
+                                    Name = "writer-2",
+                                    DataSetWriterId = secondWriterId.Value,
+                                    DataSetName = "pds-1"
+                                }
+                            })
                     }
                 })
             };

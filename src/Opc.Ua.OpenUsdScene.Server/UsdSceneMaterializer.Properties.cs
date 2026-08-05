@@ -67,7 +67,7 @@ namespace Opc.Ua.OpenUsdScene.Server
             ushort ns,
             UsdMaterializationOptions options)
         {
-            UsdAttributeState node = primNode.AddxUsdAttribute_(
+            UsdAttributeState node = primNode.AddUsdAttribute_Placeholder(
                 context, new QualifiedName(attribute.Name, ns));
 
             UsdValueTypeMapping mapping = UsdValueTypeMap.Map(
@@ -140,7 +140,7 @@ namespace Opc.Ua.OpenUsdScene.Server
             UsdRelationship relationship,
             ushort ns)
         {
-            UsdRelationshipState node = primNode.AddxUsdRelationship_(
+            UsdRelationshipState node = primNode.AddUsdRelationship_Placeholder(
                 context, new QualifiedName(relationship.Name, ns));
 
             var paths = new string[relationship.Targets.Count];
@@ -295,9 +295,9 @@ namespace Opc.Ua.OpenUsdScene.Server
                 // (fail closed); its selection is still carried by the Selection property above.
                 foreach (UsdPrim branch in variantSet.Variants)
                 {
-                    UsdPrimState branchNode = node.AddxVariant_(
+                    UsdPrimState branchNode = node.AddVariant_Placeholder(
                         context, new QualifiedName(branch.Name, ns));
-                    // AddxVariant_ leaves the type's placeholder NodeId (i=6055); force a fresh
+                    // AddVariant_Placeholder leaves the type's placeholder NodeId (i=6055); force a fresh
                     // per-instance NodeId so branches on different sets never collide, matching
                     // how the CreateInstanceOf* factories mint instance ids.
                     context.AssignInstanceNodeId(branchNode);
@@ -345,18 +345,18 @@ namespace Opc.Ua.OpenUsdScene.Server
         private static void MaterializeMetadataEntries(
             ISystemContext context,
             NodeState folder,
-            IEnumerable<KeyValuePair<string, object?>> entries,
+            IEnumerable<KeyValuePair<string, UsdValue>> entries,
             ushort ns)
         {
-            foreach (KeyValuePair<string, object?> entry in entries)
+            foreach (KeyValuePair<string, UsdValue> entry in entries)
             {
                 if (string.IsNullOrEmpty(entry.Key))
                 {
                     continue;
                 }
 
-                if (TryAsNestedDictionary(
-                    entry.Value, out IEnumerable<KeyValuePair<string, object?>> nested))
+                if (entry.Value.TryGetDictionary(
+                    out IReadOnlyDictionary<string, UsdValue> nested))
                 {
                     var subFolder = new FolderState(folder)
                     {
@@ -380,13 +380,13 @@ namespace Opc.Ua.OpenUsdScene.Server
                     DataType = Opc.Ua.DataTypeIds.BaseDataType,
                     ValueRank = ValueRanks.Scalar
                 };
-                if (entry.Value != null)
+                if (!entry.Value.IsNull)
                 {
                     if (TryCoerceMetadataValue(
                         entry.Value, out Variant variant, out NodeId dataType, out int valueRank))
                     {
                         // A recognised value keeps its type through the round trip, so the
-                        // exporter recovers the authored object rather than an opaque string (§6.3).
+                        // exporter recovers the authored value rather than an opaque string (§6.3).
                         property.Value = variant;
                         property.DataType = dataType;
                         property.ValueRank = valueRank;
@@ -395,10 +395,7 @@ namespace Opc.Ua.OpenUsdScene.Server
                     {
                         // A value of no representable type is carried as its invariant textual
                         // form rather than dropped — the §6.3 last resort, not a typed guess.
-                        property.Value = Variant.From(
-                            entry.Value as string ??
-                            Convert.ToString(entry.Value, CultureInfo.InvariantCulture) ??
-                            string.Empty);
+                        property.Value = Variant.From(entry.Value.ToString());
                         property.DataType = Opc.Ua.DataTypeIds.String;
                     }
                 }
@@ -408,52 +405,45 @@ namespace Opc.Ua.OpenUsdScene.Server
         }
 
         /// <summary>
-        /// Whether a metadata value is a nested dictionary (structured <c>customData</c>), and if so
-        /// its entries. Only string-keyed dictionaries qualify; anything else is a leaf value.
-        /// </summary>
-        private static bool TryAsNestedDictionary(
-            object? value, out IEnumerable<KeyValuePair<string, object?>> entries)
-        {
-            switch (value)
-            {
-                case IReadOnlyDictionary<string, object?> readOnly:
-                    entries = readOnly;
-                    return true;
-                case IDictionary<string, object?> readWrite:
-                    entries = readWrite;
-                    return true;
-                default:
-                    entries = Array.Empty<KeyValuePair<string, object?>>();
-                    return false;
-            }
-        }
-
-        /// <summary>
-        /// Chooses a Variant, DataType and ValueRank for a leaf metadata value from its CLR type,
+        /// Chooses a Variant, DataType and ValueRank for a leaf metadata value from its kind,
         /// so a scalar keeps its exact type and an array keeps its (inferred) element type through
-        /// the materialize→export round trip (§6.3). Returns <c>false</c> for a scalar whose type is
+        /// the materialize→export round trip (§6.3). Returns <c>false</c> for a value whose kind is
         /// not representable, so the caller carries its textual form instead of guessing.
         /// </summary>
         private static bool TryCoerceMetadataValue(
-            object value, out Variant variant, out NodeId dataType, out int valueRank)
+            UsdValue value, out Variant variant, out NodeId dataType, out int valueRank)
         {
             valueRank = ValueRanks.Scalar;
-            switch (value)
+            switch (value.Kind)
             {
-                case bool v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.Boolean; return true;
-                case sbyte v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.SByte; return true;
-                case byte v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.Byte; return true;
-                case short v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.Int16; return true;
-                case ushort v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.UInt16; return true;
-                case int v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.Int32; return true;
-                case uint v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.UInt32; return true;
-                case long v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.Int64; return true;
-                case ulong v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.UInt64; return true;
-                case float v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.Float; return true;
-                case double v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.Double; return true;
-                case string v: variant = Variant.From(v); dataType = Opc.Ua.DataTypeIds.String; return true;
-                case System.Collections.IEnumerable sequence:
-                    return TryCoerceMetadataArray(sequence, out variant, out dataType, out valueRank);
+                case UsdValueKind.Boolean:
+                    value.TryGetBoolean(out bool b);
+                    variant = Variant.From(b);
+                    dataType = Opc.Ua.DataTypeIds.Boolean;
+                    return true;
+                case UsdValueKind.Integer:
+                    value.TryGetInteger(out long l);
+                    variant = Variant.From(l);
+                    dataType = Opc.Ua.DataTypeIds.Int64;
+                    return true;
+                case UsdValueKind.Double:
+                    value.TryGetDouble(out double d);
+                    variant = Variant.From(d);
+                    dataType = Opc.Ua.DataTypeIds.Double;
+                    return true;
+                case UsdValueKind.String:
+                case UsdValueKind.Token:
+                case UsdValueKind.AssetPath:
+                case UsdValueKind.PathReference:
+                    value.TryGetText(out string s);
+                    variant = Variant.From(s);
+                    dataType = Opc.Ua.DataTypeIds.String;
+                    return true;
+                case UsdValueKind.Tuple:
+                case UsdValueKind.Array:
+                case UsdValueKind.Matrix:
+                    value.TryGetItems(out ArrayOf<UsdValue> items);
+                    return TryCoerceMetadataArray(items, out variant, out dataType, out valueRank);
                 default:
                     variant = default;
                     dataType = Opc.Ua.DataTypeIds.String;
@@ -462,57 +452,52 @@ namespace Opc.Ua.OpenUsdScene.Server
         }
 
         /// <summary>
-        /// Coerces a metadata array or list into a typed 1-D Variant, inferring the element type
-        /// from the first non-null element. A homogeneous numeric or boolean array keeps its
+        /// Coerces a metadata array or tuple into a typed 1-D Variant, inferring the element type
+        /// from the first non-absent element. A homogeneous numeric or boolean sequence keeps its
         /// element type; an empty or mixed sequence is carried as a string array so it round-trips
         /// as a sequence rather than being dropped (§6.3, fail closed — no numeric guess).
         /// </summary>
         private static bool TryCoerceMetadataArray(
-            System.Collections.IEnumerable sequence,
+            ArrayOf<UsdValue> sequence,
             out Variant variant,
             out NodeId dataType,
             out int valueRank)
         {
             valueRank = ValueRanks.OneDimension;
-            var items = new List<object?>();
-            foreach (object? item in sequence)
+            UsdValue[] items = sequence.ToArray() ?? [];
+            UsdValueKind first = UsdValueKind.Null;
+            for (int ii = 0; ii < items.Length; ii++)
             {
-                items.Add(item);
-            }
-            object? first = null;
-            foreach (object? item in items)
-            {
-                if (item != null)
+                if (!items[ii].IsNull)
                 {
-                    first = item;
+                    first = items[ii].Kind;
                     break;
                 }
             }
             switch (first)
             {
-                case bool _ when TryFillArray(items, v => Convert.ToBoolean(v, CultureInfo.InvariantCulture), out bool[] values):
-                    variant = Variant.From((ArrayOf<bool>)values);
+                case UsdValueKind.Boolean
+                    when TryFillArray(items, static (UsdValue v, out bool r) => v.TryGetBoolean(out r), out bool[] bools):
+                    variant = Variant.From((ArrayOf<bool>)bools);
                     dataType = Opc.Ua.DataTypeIds.Boolean;
                     return true;
-                case sbyte _ or short _ or int _ when TryFillArray(items, v => Convert.ToInt32(v, CultureInfo.InvariantCulture), out int[] values):
-                    variant = Variant.From((ArrayOf<int>)values);
-                    dataType = Opc.Ua.DataTypeIds.Int32;
-                    return true;
-                case long _ or uint _ when TryFillArray(items, v => Convert.ToInt64(v, CultureInfo.InvariantCulture), out long[] values):
-                    variant = Variant.From((ArrayOf<long>)values);
+                case UsdValueKind.Integer
+                    when TryFillArray(items, static (UsdValue v, out long r) => v.TryGetInteger(out r), out long[] longs):
+                    variant = Variant.From((ArrayOf<long>)longs);
                     dataType = Opc.Ua.DataTypeIds.Int64;
                     return true;
-                case float _ or double _ when TryFillArray(items, v => Convert.ToDouble(v, CultureInfo.InvariantCulture), out double[] values):
-                    variant = Variant.From((ArrayOf<double>)values);
+                case UsdValueKind.Double
+                    when TryFillArray(items, static (UsdValue v, out double r) => v.TryGetNumber(out r), out double[] doubles):
+                    variant = Variant.From((ArrayOf<double>)doubles);
                     dataType = Opc.Ua.DataTypeIds.Double;
                     return true;
                 default:
-                    var strings = new string[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    var strings = new string[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
-                        strings[i] = items[i] as string ??
-                            Convert.ToString(items[i], CultureInfo.InvariantCulture) ??
-                            string.Empty;
+                        strings[i] = items[i].TryGetText(out string text)
+                            ? text
+                            : items[i].ToString();
                     }
                     variant = Variant.From((ArrayOf<string>)strings);
                     dataType = Opc.Ua.DataTypeIds.String;
@@ -520,33 +505,25 @@ namespace Opc.Ua.OpenUsdScene.Server
             }
         }
 
+        private delegate bool UsdValueReader<T>(UsdValue value, out T result);
+
         /// <summary>
-        /// Fills a typed array by converting every element with <paramref name="convert"/>, failing
-        /// closed if any element cannot be converted so a heterogeneous array falls back to text.
+        /// Fills a typed array by reading every element with <paramref name="read"/>, failing
+        /// closed if any element cannot be read so a heterogeneous array falls back to text.
         /// </summary>
         /// <typeparam name="T">The element type of the array being filled.</typeparam>
         private static bool TryFillArray<T>(
-            List<object?> items, Func<object, T> convert, out T[] result)
+            UsdValue[] items, UsdValueReader<T> read, out T[] result)
         {
-            var array = new T[items.Count];
-            for (int i = 0; i < items.Count; i++)
+            var array = new T[items.Length];
+            for (int i = 0; i < items.Length; i++)
             {
-                object? item = items[i];
-                if (item == null)
+                if (!read(items[i], out T converted))
                 {
                     result = Array.Empty<T>();
                     return false;
                 }
-                try
-                {
-                    array[i] = convert(item);
-                }
-                catch (Exception exception) when (
-                    exception is InvalidCastException or FormatException or OverflowException)
-                {
-                    result = Array.Empty<T>();
-                    return false;
-                }
+                array[i] = converted;
             }
             result = array;
             return true;
@@ -700,30 +677,20 @@ namespace Opc.Ua.OpenUsdScene.Server
             return haveLatitude && haveLongitude && haveHeight;
         }
 
-        private static bool TryToDouble(object? value, out double result)
+        private static bool TryToDouble(UsdValue value, out double result)
         {
-            switch (value)
+            if (value.TryGetNumber(out result))
             {
-                case double d:
-                    result = d;
-                    return true;
-                case float f:
-                    result = f;
-                    return true;
-                case long l:
-                    result = l;
-                    return true;
-                case int i:
-                    result = i;
-                    return true;
-                case string s when double.TryParse(
-                    s, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed):
-                    result = parsed;
-                    return true;
-                default:
-                    result = 0.0;
-                    return false;
+                return true;
             }
+            if (value.TryGetText(out string text) && double.TryParse(
+                text, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed))
+            {
+                result = parsed;
+                return true;
+            }
+            result = 0.0;
+            return false;
         }
 
         private static void Attach(
@@ -788,7 +755,7 @@ namespace Opc.Ua.OpenUsdScene.Server
         public void Record(UsdAttributeState node, UsdAttribute attribute)
         {
             var samples = new List<UsdTimeSample>(attribute.TimeSamples.Count);
-            foreach (KeyValuePair<double, object?> sample in attribute.TimeSamples)
+            foreach (KeyValuePair<double, UsdValue> sample in attribute.TimeSamples)
             {
                 samples.Add(new UsdTimeSample(sample.Key, sample.Value));
             }
