@@ -946,6 +946,17 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 // an unbounded wait would deadlock the whole test host if the
                 // reconnect ever schedules a timer before failing.
                 Task exhaustedReconnect = sut.ReconnectAsync(ch, budget, default).AsTask();
+
+                // See ReconnectAsyncSwapsFaultedLeaseEntryAsync: the loop can
+                // register a fake-clock timer before it notices the budget is
+                // spent, so drain the back-off instead of waiting on a clock
+                // nobody advances.
+                for (int i = 0; i < 10 && !exhaustedReconnect.IsCompleted; i++)
+                {
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+                    await Task.Delay(10).ConfigureAwait(false);
+                }
+
                 ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
                     async () => await exhaustedReconnect
                         .WaitAsync(TimeSpan.FromSeconds(5))
@@ -1025,6 +1036,17 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     .ReconnectAsync(ch, exhaustedBudget, default)
                     .AsTask();
                 await faulted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                // An exhausted budget should fault without sleeping, but the
+                // loop consults the budget only after computing a back-off, so
+                // it can still register a fake-clock timer first. Drain it
+                // rather than blocking forever on a clock nobody advances.
+                for (int i = 0; i < 10 && !faultedReconnect.IsCompleted; i++)
+                {
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+                    await Task.Delay(10).ConfigureAwait(false);
+                }
+
                 Assert.ThrowsAsync<ServiceResultException>(
                     async () => await faultedReconnect
                         .WaitAsync(TimeSpan.FromSeconds(5))
@@ -1107,7 +1129,18 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
                 Assert.That(reconnectTask.IsCompleted, Is.False);
 
-                timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+                // Drain the back-off. The reconnect loop can schedule more than
+                // one timer before it gives up, and how many rounds it gets
+                // through before this thread looks is scheduling-dependent - on
+                // a busy Linux agent a single Advance leaves a pending timer, the
+                // task never completes, and the test blocks on the fake clock.
+                // The sibling Opc.Ua.Client.Tests copy of this fixture already
+                // drains in a loop for the same reason.
+                for (int i = 0; i < 10 && !reconnectTask.IsCompleted; i++)
+                {
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+                    await Task.Delay(10).ConfigureAwait(false);
+                }
 
                 ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await reconnectTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
