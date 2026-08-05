@@ -123,11 +123,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         /// <summary>
         /// Gets the deterministic membership version copied to the View's
-        /// standard <c>ViewVersion</c> attribute. It is a stable hash over the
-        /// ordered resolved membership (the organized Node set plus every
-        /// group's <c>uav:refName</c> and members, depth-first), so it is
-        /// unchanged across a refresh that resolves the same membership and
-        /// changes whenever the membership changes.
+        /// standard <c>ViewVersion</c> attribute. Per <i>OPC UA — WoT Binding</i>
+        /// §12.6 it is a deterministic function of the resolved membership
+        /// alone, taken in a canonical order (the organized Node set plus every
+        /// group's <c>uav:refName</c> and members, depth-first, each ordinally
+        /// sorted), so two servers that resolved the same membership report the
+        /// same value and a refresh that resolves the same membership leaves it
+        /// untouched. It records what the View contains rather than how it is
+        /// arranged, so reordering alone does not change it, and it is not
+        /// monotonic: compare it for inequality only.
         /// </summary>
         public uint ViewVersion { get; }
 

@@ -206,6 +206,36 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A changed resolved membership must change the ViewVersion.");
         }
 
+        /// <summary>
+        /// <i>OPC UA — WoT Binding</i> §12.6 makes ViewVersion a function of the
+        /// resolved membership alone, taken in a canonical order, so it records
+        /// what a View contains rather than how it is arranged. Selecting the
+        /// same members through a source that declares them in the opposite
+        /// order must therefore leave it untouched.
+        /// </summary>
+        [Test]
+        public async Task ViewVersionIsUnchangedWhenOnlyTheOrderOfTheMembershipChanges()
+        {
+            var full = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                ["urn:sourceA#alpha"] = s_alphaNode,
+                ["urn:sourceA#beta"] = s_betaNode
+            });
+
+            WotViewProjectionResult inOrder =
+                await Build(Builder(full, ("urn:sourceA", SourceA)), SimpleProjection);
+            WotViewProjectionResult reordered =
+                await Build(Builder(full, ("urn:sourceA", SourceAReordered)), SimpleProjection);
+
+            Assert.That(inOrder.Success, Is.True);
+            Assert.That(reordered.Success, Is.True);
+            Assert.That(reordered.Plan!.OrganizedNodeIds, Has.Count.EqualTo(
+                inOrder.Plan!.OrganizedNodeIds.Count),
+                "Both builds must select the same number of members.");
+            Assert.That(reordered.Plan!.ViewVersion, Is.EqualTo(inOrder.Plan!.ViewVersion),
+                "Reordering the membership alone must not change the ViewVersion.");
+        }
+
         [Test]
         public async Task NonProjectionDocumentDoesNotMaterializeAView()
         {
@@ -330,6 +360,42 @@ namespace Opc.Ua.WotCon.Tests.Materialization
               "uav:browseName": "s:Beta",
               "type": "number",
               "forms": [{ "href": "/?id=nsu=urn:sourceA;s=Beta", "op": ["readproperty"] }]
+            }
+          }
+        }
+        """;
+
+        /// <summary>
+        /// <see cref="SourceA"/> with its two affordances declared in the opposite
+        /// order. The resolved membership is the same set, reached in a different
+        /// order, which is what the ViewVersion canonicalization has to absorb.
+        /// </summary>
+        private const string SourceAReordered = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+          ],
+          "@type": "uav:object",
+          "id": "urn:sourceA",
+          "title": "Source A",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "base": "opc.tcp://demo:4840",
+          "properties": {
+            "beta": {
+              "@type": "uav:variable",
+              "title": "Beta",
+              "uav:browseName": "s:Beta",
+              "type": "number",
+              "forms": [{ "href": "/?id=nsu=urn:sourceA;s=Beta", "op": ["readproperty"] }]
+            },
+            "alpha": {
+              "@type": "uav:variable",
+              "title": "Alpha",
+              "uav:browseName": "s:Alpha",
+              "type": "number",
+              "forms": [{ "href": "/?id=nsu=urn:sourceA;s=Alpha", "op": ["readproperty"] }]
             }
           }
         }
