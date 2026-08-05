@@ -269,7 +269,9 @@ namespace Opc.Ua.Client
                     Utils.IncrementIdentifier(ref PublishCounter)
             };
 
-            m_eventLogger.ClientEventPublishStart((int)requestHeader.RequestHandle);
+            m_eventLogger.ClientEventPublishStart(
+                (int)requestHeader.RequestHandle,
+                m_context.SessionId);
 
             try
             {
@@ -318,7 +320,9 @@ namespace Opc.Ua.Client
                 requestHeader.RequestHandle,
                 DataTypes.PublishRequest);
 
-            m_eventLogger.ClientEventPublishStop((int)requestHeader.RequestHandle);
+            m_eventLogger.ClientEventPublishStop(
+                (int)requestHeader.RequestHandle,
+                sessionId);
 
             // Bail out early if the session has been disposed.
             if (m_context.Disposed)
@@ -1063,8 +1067,11 @@ namespace Opc.Ua.Client
             EventId = ClientEventIds.LegacyPublishStartId,
             EventName = "PublishStart",
             Level = LogLevel.Trace,
-            Message = "PUBLISH #{RequestHandle} SENT")]
-        public static partial void ClientEventPublishStart(this ILogger logger, int requestHandle);
+            Message = "PUBLISH #{RequestHandle} SENT, SessionId={SessionId}")]
+        public static partial void ClientEventPublishStart(
+            this ILogger logger,
+            int requestHandle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 5, Level = LogLevel.Error,
             Message = "Unexpected error sending publish request.")]
@@ -1074,8 +1081,11 @@ namespace Opc.Ua.Client
             EventId = ClientEventIds.LegacyPublishStopId,
             EventName = "PublishStop",
             Level = LogLevel.Trace,
-            Message = "PUBLISH #{RequestHandle} RECEIVED")]
-        public static partial void ClientEventPublishStop(this ILogger logger, int requestHandle);
+            Message = "PUBLISH #{RequestHandle} RECEIVED, SessionId={SessionId}")]
+        public static partial void ClientEventPublishStop(
+            this ILogger logger,
+            int requestHandle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 7, Level = LogLevel.Warning,
             Message = "Publish response discarded because session id changed: Old {PreviousSessionId} != New" +

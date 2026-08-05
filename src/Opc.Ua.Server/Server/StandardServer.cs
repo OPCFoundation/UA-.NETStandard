@@ -3230,7 +3230,10 @@ namespace Opc.Ua.Server
                    typeof(RequestType),
 #endif
                    context.RequestType);
-                m_eventLogger.CompatibilityServerCall(requestTypeString!, context.RequestId);
+                m_eventLogger.CompatibilityServerCall(
+                    requestTypeString!,
+                    context.RequestId,
+                    context.SessionId);
             }
 
             // Hand the validated request over to its execution scope. The context owns the scope
@@ -5472,11 +5475,12 @@ namespace Opc.Ua.Server
             EventId = ServerCompatibilityEventIds.ServerCall,
             EventName = "ServerCall",
             Level = LogLevel.Information,
-            Message = "Server Call={RequestType}, Id={RequestId}")]
+            Message = "Server Call={RequestType}, Id={RequestId}, SessionId={SessionId}")]
         public static partial void CompatibilityServerCall(
             this ILogger logger,
             string requestType,
-            uint requestId);
+            uint requestId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 13, Level = LogLevel.Error,
             Message = "Could not load updated configuration file from: {FilePath}")]

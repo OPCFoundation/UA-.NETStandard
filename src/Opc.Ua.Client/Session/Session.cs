@@ -4280,7 +4280,8 @@ namespace Opc.Ua.Client
                             error,
                             Endpoint?.EndpointUrl,
                             GoodPublishRequestCount,
-                            OutstandingRequestCount);
+                            OutstandingRequestCount,
+                            SessionId);
                         throw new ServiceResultException(error);
                     }
 
@@ -6045,13 +6046,14 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.Session + 54, Level = LogLevel.Error,
             Message = "Keep alive read failed: {ServiceResult}, EndpointUrl={EndpointUrl}," +
-                " RequestCount={Good}/{Outstanding}")]
+                " RequestCount={Good}/{Outstanding}, SessionId={SessionId}")]
         public static partial void KeepAliveReadFailedServiceResultEndpointUrl(
             this ILogger logger,
             ServiceResult serviceResult,
             string? endpointUrl,
             int good,
-            int outstanding);
+            int outstanding,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 55, Level = LogLevel.Error,
             Message = "Could not send keep alive request: {RequestType} {Message}, SessionId={SessionId}")]
