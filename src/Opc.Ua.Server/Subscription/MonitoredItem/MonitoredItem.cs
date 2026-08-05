@@ -43,6 +43,7 @@ namespace Opc.Ua.Server
         ISampledDataChangeMonitoredItem,
         ITriggeredMonitoredItem,
         IDetachableMonitoredItem,
+        IRetirableMonitoredItem,
         IMonitoredItemTransferState
     {
         /// <summary>
@@ -503,7 +504,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (MonitoringMode == MonitoringMode.Reporting &&
+                if (!m_isDetached &&
+                    MonitoringMode == MonitoringMode.Reporting &&
                     (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                 {
                     m_resendData = true;
@@ -623,10 +625,21 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                NodeManager = owner;
-                ManagerHandle = DetachedHandle;
-                m_isDetached = true;
+                ParkOnDetachedOwner(owner);
             }
+        }
+
+        /// <summary>
+        /// Parks the item on the supplied long lived owner so that ownership-sensitive services route to the
+        /// shared detached-item handling instead of the retired NodeManager generation. The caller must hold
+        /// <see cref="m_lock"/>.
+        /// </summary>
+        /// <param name="owner">The long lived NodeManager to park the item on.</param>
+        private void ParkOnDetachedOwner(IAsyncNodeManager owner)
+        {
+            NodeManager = owner;
+            ManagerHandle = DetachedHandle;
+            m_isDetached = true;
         }
 
         /// <summary>
@@ -1094,6 +1107,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                if (m_isDetached)
+                {
+                    return;
+                }
+
                 // this method should only be called for variables.
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
@@ -1202,6 +1220,50 @@ namespace Opc.Ua.Server
                 overflow);
         }
 
+        void IRetirableMonitoredItem.Retire()
+        {
+            ISubscription? subscription = null;
+            lock (m_lock)
+            {
+                if (m_isDetached)
+                {
+                    return;
+                }
+
+                // Retirement reuses the detached-item path: park the item on the long lived
+                // CoreNodeManager and mark it deleted so ownership-sensitive services route through
+                // the shared detached-item handling and terminate with Bad_NodeIdUnknown, exactly
+                // like a monitored Node that was deleted (OPC UA Part 4 §5.8.4.1).
+                ParkOnDetachedOwner(GetDetachedOwner(m_server));
+                m_isDeleted = true;
+
+                if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
+                {
+                    m_calculator = null;
+                    m_dataChangeQueueHandler?.Dispose();
+                    m_dataChangeQueueHandler = null;
+                    if (!m_lastValue.IsNull)
+                    {
+                        m_readyToTrigger = true;
+                    }
+                    m_lastValue = CreateNodeIdUnknownValue();
+                    m_lastError = new ServiceResult(StatusCodes.BadNodeIdUnknown);
+                    m_readyToPublish = true;
+                    subscription = m_subscription;
+                }
+                else if ((MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
+                {
+                    m_eventQueueHandler?.Dispose();
+                    m_eventQueueHandler = null;
+                    m_readyToPublish = false;
+                    m_readyToTrigger = false;
+                    m_triggered = false;
+                }
+            }
+
+            subscription?.ItemReadyToPublish(this);
+        }
+
         /// <summary>
         /// Whether the item is monitoring all events produced by the server.
         /// </summary>
@@ -1274,6 +1336,11 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                if (m_isDetached)
+                {
+                    return;
+                }
+
                 // this method should only be called for objects or views.
                 if ((MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
@@ -1330,6 +1397,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                if (m_isDetached)
+                {
+                    return;
+                }
+
                 m_eventQueueHandler!.QueueEvent(fields);
                 m_readyToPublish = true;
                 m_readyToTrigger = true;

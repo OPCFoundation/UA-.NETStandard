@@ -42,7 +42,8 @@ namespace Opc.Ua.Server
     /// </summary>
     public class Subscription :
         ISubscription,
-        ISubscriptionMonitoredItemLifecycle
+        ISubscriptionMonitoredItemLifecycle,
+        INodeManagerMonitoredItemRetirementTracker
     {
         /// <summary>
         /// Initializes the object.
@@ -544,6 +545,68 @@ namespace Opc.Ua.Server
                         (lifecycle.IsDetached || lifecycle.IsDeleted) &&
                         requestedNodeIds.Contains(monitoredItem.NodeId))
                 ];
+            }
+        }
+
+        /// <inheritdoc/>
+        bool INodeManagerMonitoredItemRetirementTracker.CanRetireMonitoredItems(
+            IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            lock (m_lock)
+            {
+                if (IsDurable)
+                {
+                    return false;
+                }
+                return m_monitoredItems.Values
+                    .Where(monitoredItem => IsOwnedBy(monitoredItem.Value, nodeManager))
+                    .All(monitoredItem =>
+                        !monitoredItem.Value.IsDurable &&
+                        monitoredItem.Value is IRetirableMonitoredItem);
+            }
+        }
+
+        /// <inheritdoc/>
+        void INodeManagerMonitoredItemRetirementTracker.RetireMonitoredItems(
+            IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            IRetirableMonitoredItem[] ownedItems;
+            lock (m_lock)
+            {
+                if (IsDurable)
+                {
+                    throw new NotSupportedException(
+                        "Durable subscriptions cannot be retired immediately.");
+                }
+                IMonitoredItem[] candidates =
+                [
+                    .. m_monitoredItems.Values
+                        .Select(monitoredItem => monitoredItem.Value)
+                        .Where(monitoredItem => IsOwnedBy(monitoredItem, nodeManager))
+                ];
+                if (candidates.Any(monitoredItem =>
+                    monitoredItem.IsDurable ||
+                    monitoredItem is not IRetirableMonitoredItem))
+                {
+                    throw new NotSupportedException(
+                        "Durable or unsupported monitored items cannot be retired immediately.");
+                }
+                ownedItems = [.. candidates.Cast<IRetirableMonitoredItem>()];
+            }
+
+            foreach (IRetirableMonitoredItem monitoredItem in ownedItems)
+            {
+                monitoredItem.Retire();
             }
         }
 
