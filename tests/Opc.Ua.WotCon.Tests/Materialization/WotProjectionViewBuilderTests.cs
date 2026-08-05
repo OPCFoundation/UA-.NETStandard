@@ -236,6 +236,79 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "Reordering the membership alone must not change the ViewVersion.");
         }
 
+        /// <summary>
+        /// A NodeId string identifier is authored input and may contain the
+        /// delimiters the ViewVersion canonicalization uses. Appending members
+        /// raw would make the encoding non-injective, so a single member whose
+        /// identifier embeds a <c>;</c> separator would hash identically to the
+        /// two members it imitates, and a client would never see the change.
+        /// </summary>
+        [Test]
+        public async Task ViewVersionDoesNotCollideWhenAMemberIdentifierEmbedsTheSeparator()
+        {
+            var twoMembers = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                ["urn:sourceA#alpha"] = s_alphaNode,
+                ["urn:sourceA#beta"] = s_betaNode
+            });
+            // Serializes to "ns=5;s=SourceA/Alpha;ns=5;s=SourceA/Beta" - exactly
+            // what the two members above concatenate to.
+            var collidingNode = new NodeId("SourceA/Alpha;ns=5;s=SourceA/Beta", 5);
+            var oneMember = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                ["urn:sourceA#alpha"] = collidingNode
+            });
+
+            WotViewProjectionResult two =
+                await Build(Builder(twoMembers, ("urn:sourceA", SourceA)), SimpleProjection);
+            WotViewProjectionResult one =
+                await Build(Builder(oneMember, ("urn:sourceA", SourceA)), SimpleProjection);
+
+            Assert.That(two.Success, Is.True);
+            Assert.That(one.Success, Is.True);
+            Assert.That(two.Plan!.OrganizedNodeIds, Has.Count.EqualTo(2));
+            Assert.That(one.Plan!.OrganizedNodeIds, Has.Count.EqualTo(1));
+            Assert.That(one.Plan!.ViewVersion, Is.Not.EqualTo(two.Plan!.ViewVersion),
+                "Two different memberships must not share a ViewVersion.");
+        }
+
+        /// <summary>
+        /// Two groups that carry no <c>uav:refName</c> tie on it, and
+        /// <c>List&lt;T&gt;.Sort</c> is not stable, so ordering on the name
+        /// alone would let the authoring order of the links leak into the
+        /// ViewVersion. The same two groups authored either way are the same
+        /// membership.
+        /// </summary>
+        [Test]
+        public async Task ViewVersionIsUnchangedWhenOnlyTheOrderOfTwoUnnamedGroupsChanges()
+        {
+            var index = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                ["urn:sourceA#alpha"] = s_alphaNode,
+                ["urn:sourceB#gamma"] = new NodeId("SourceB/Gamma", 5),
+                ["urn:sourceC#delta"] = new NodeId("SourceC/Delta", 5)
+            });
+            (string, string)[] documents =
+            [
+                ("urn:sourceA", SourceA),
+                ("urn:sourceB", SourceB),
+                ("urn:sourceC", SourceC),
+                ("urn:view:inner", InnerGroupProjection),
+                ("urn:view:inner2", SecondInnerGroupProjection)
+            ];
+
+            WotViewProjectionResult first = await Build(
+                Builder(index, documents), TwoUnnamedGroupsProjection);
+            WotViewProjectionResult swapped = await Build(
+                Builder(index, documents), TwoUnnamedGroupsReorderedProjection);
+
+            Assert.That(first.Success, Is.True);
+            Assert.That(swapped.Success, Is.True);
+            Assert.That(first.Plan!.Groups, Has.Count.EqualTo(2));
+            Assert.That(swapped.Plan!.ViewVersion, Is.EqualTo(first.Plan!.ViewVersion),
+                "Two groups tying on an absent uav:refName must be ordered deterministically.");
+        }
+
         [Test]
         public async Task NonProjectionDocumentDoesNotMaterializeAView()
         {
@@ -548,6 +621,34 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
         """;
 
+        /// <summary>
+        /// A second group document, so a projection can organize two groups that
+        /// carry no uav:refName and therefore tie on it.
+        /// </summary>
+        private const string SecondInnerGroupProjection = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:view:inner2",
+          "title": "Second inner view",
+          "uav:scenario": "http://example.com/scenario/Inner2",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "uav:projects": [
+            {
+              "uav:sourceName": "b",
+              "href": "urn:sourceB",
+              "type": "application/td+json",
+              "uav:routing": "source",
+              "uav:selectAll": true
+            }
+          ]
+        }
+        """;
+
         private const string NestedGroupProjection = """
         {
           "@context": [
@@ -571,6 +672,69 @@ namespace Opc.Ua.WotCon.Tests.Materialization
           ],
           "links": [
             { "rel": "ua:Organizes", "uav:refName": "outer", "href": "urn:view:outer", "type": "application/td+json" }
+          ]
+        }
+        """;
+
+        /// <summary>
+        /// A projection organizing two groups, neither carrying uav:refName.
+        /// </summary>
+        private const string TwoUnnamedGroupsProjection = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:view:two",
+          "title": "Two group view",
+          "uav:scenario": "http://example.com/scenario/Two",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "uav:projects": [
+            {
+              "uav:sourceName": "a",
+              "href": "urn:sourceA",
+              "type": "application/td+json",
+              "uav:routing": "source",
+              "uav:selectAll": true
+            }
+          ],
+          "links": [
+            { "rel": "ua:Organizes", "href": "urn:view:inner", "type": "application/td+json" },
+            { "rel": "ua:Organizes", "href": "urn:view:inner2", "type": "application/td+json" }
+          ]
+        }
+        """;
+
+        /// <summary>
+        /// <see cref="TwoUnnamedGroupsProjection"/> with the two organizing
+        /// links authored in the opposite order.
+        /// </summary>
+        private const string TwoUnnamedGroupsReorderedProjection = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:view:two",
+          "title": "Two group view",
+          "uav:scenario": "http://example.com/scenario/Two",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "uav:projects": [
+            {
+              "uav:sourceName": "a",
+              "href": "urn:sourceA",
+              "type": "application/td+json",
+              "uav:routing": "source",
+              "uav:selectAll": true
+            }
+          ],
+          "links": [
+            { "rel": "ua:Organizes", "href": "urn:view:inner2", "type": "application/td+json" },
+            { "rel": "ua:Organizes", "href": "urn:view:inner", "type": "application/td+json" }
           ]
         }
         """;

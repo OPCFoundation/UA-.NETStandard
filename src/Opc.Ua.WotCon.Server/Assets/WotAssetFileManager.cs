@@ -135,6 +135,18 @@ namespace Opc.Ua.WotCon.Server.Assets
                 return ServiceResult.Create(StatusCodes.BadNotSupported,
                     "WoTAssetFileType only supports modes Read (1) and Write+EraseExisting (6).");
             }
+            if (mode == writeEraseMode)
+            {
+                // Opening for write is the start of a mutation, and it takes the
+                // single writer slot below. Gating only Write and CloseAndUpdate
+                // would let an unauthorized caller hold that slot and lock out
+                // every legitimate writer without ever calling a gated Method.
+                ServiceResult access = EnforceAccess(context, "Open");
+                if (ServiceResult.IsBad(access))
+                {
+                    return access;
+                }
+            }
             NodeId? sessionId = SessionIdOf(context);
             lock (m_handles)
             {

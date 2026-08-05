@@ -207,7 +207,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (!affordance.AuthoredId.IsNull)
             {
                 NodeId byId = ExpandedNodeId.ToNodeId(affordance.AuthoredId, m_serverNamespaceUris);
-                if (!byId.IsNull)
+                // uav:id is authored input and a projection may carry its own,
+                // so an unchecked value would let a View Organizes any Node in
+                // the address space. A projection only ever reaches Nodes that
+                // were materialized from the source it names.
+                if (!byId.IsNull && IsUnderSourceRoot(byId, sourceRoot))
                 {
                     return byId;
                 }
@@ -223,6 +227,33 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
             }
             return NodeId.Null;
+        }
+
+        /// <summary>
+        /// Tests that a Node is the source root or sits beneath it. Membership
+        /// is decided on the namespace and the <c>/</c>-delimited identifier
+        /// prefix, which is the shape <see cref="Locate"/> itself derives.
+        /// </summary>
+        private static bool IsUnderSourceRoot(NodeId candidate, NodeId sourceRoot)
+        {
+            if (candidate.NamespaceIndex != sourceRoot.NamespaceIndex)
+            {
+                return false;
+            }
+            if (candidate == sourceRoot)
+            {
+                return true;
+            }
+            if (candidate.IdType != IdType.String || sourceRoot.IdType != IdType.String)
+            {
+                return false;
+            }
+            string root = sourceRoot.IdentifierAsString;
+            string local = candidate.IdentifierAsString;
+            return root.Length != 0 &&
+                local.Length > root.Length &&
+                local[root.Length] == '/' &&
+                local.StartsWith(root, StringComparison.Ordinal);
         }
 
         private readonly WotRegistrySnapshot m_snapshot;

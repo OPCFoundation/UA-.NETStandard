@@ -122,8 +122,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             WotResolutionContext context = resolutionContext ?? new WotResolutionContext();
             var visited = new HashSet<string>(StringComparer.Ordinal);
+            var resolvedGroups = new Dictionary<string, Membership>(StringComparer.Ordinal);
             Membership root = await BuildNodeAsync(
-                projectionDocument, visited, diagnostics, context, cancellationToken)
+                projectionDocument, visited, resolvedGroups, diagnostics, context, cancellationToken)
                 .ConfigureAwait(false);
             if (HasErrors(diagnostics))
             {
@@ -144,12 +145,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private async ValueTask<Membership> BuildNodeAsync(
             WotDocument document,
             HashSet<string> visited,
+            Dictionary<string, Membership> resolvedGroups,
             List<WotDiagnostic> diagnostics,
             WotResolutionContext context,
             CancellationToken cancellationToken)
         {
             WotConversionResult<WotDocument> resolved = await m_resolver
-                .ResolveAsync(document, null, cancellationToken)
+                .ResolveAsync(document, context, cancellationToken)
                 .ConfigureAwait(false);
             for (int i = 0; i < resolved.Diagnostics.Count; i++)
             {
@@ -177,7 +179,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     WotOrganizingLink link = projection.OrganizingLinks[i];
                     await BuildGroupAsync(
-                        link, visited, groups, omissions, diagnostics, context, cancellationToken)
+                        link, visited, resolvedGroups, groups, omissions, diagnostics, context,
+                        cancellationToken)
                         .ConfigureAwait(false);
                 }
             }
@@ -188,12 +191,25 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private async ValueTask BuildGroupAsync(
             WotOrganizingLink link,
             HashSet<string> visited,
+            Dictionary<string, Membership> resolvedGroups,
             List<WotOrganizationalGroup> groups,
             List<string> omissions,
             List<WotDiagnostic> diagnostics,
             WotResolutionContext context,
             CancellationToken cancellationToken)
         {
+            // A document already built on another path is a DAG re-visit, not a
+            // cycle. Reusing it keeps a diamond graph linear; expanding it again
+            // per path is exponential in the depth of the ua:Organizes graph.
+            if (resolvedGroups.TryGetValue(link.Href, out Membership cached))
+            {
+                groups.Add(new WotOrganizationalGroup(link.RefName, cached.Members, cached.Groups));
+                for (int j = 0; j < cached.Omissions.Count; j++)
+                {
+                    omissions.Add(cached.Omissions[j]);
+                }
+                return;
+            }
             // Defensive cycle guard. WotProjectionResolver.ResolveAsync already
             // validates the whole ua:Organizes graph is acyclic (Section 12.7),
             // so a re-visit here indicates a graph that was not validated.
@@ -220,8 +236,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 using (organized)
                 {
                     Membership child = await BuildNodeAsync(
-                        organized, visited, diagnostics, context, cancellationToken)
+                        organized, visited, resolvedGroups, diagnostics, context, cancellationToken)
                         .ConfigureAwait(false);
+                    resolvedGroups[link.Href] = child;
                     groups.Add(new WotOrganizationalGroup(
                         link.RefName, child.Members, child.Groups));
                     for (int j = 0; j < child.Omissions.Count; j++)
@@ -408,7 +425,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ordered.Sort(StringComparer.Ordinal);
             foreach (string id in ordered)
             {
-                builder.Append(id).Append(';');
+                AppendToken(builder, id);
             }
             builder.Append('#');
             var groups = new List<WotOrganizationalGroup>(membership.Groups.Count);
@@ -416,14 +433,49 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 groups.Add(membership.Groups[i]);
             }
-            groups.Sort(static (a, b) => string.CompareOrdinal(a.RefName, b.RefName));
+            groups.Sort(CompareGroups);
             foreach (WotOrganizationalGroup group in groups)
             {
-                builder.Append(group.RefName).Append('{');
+                AppendToken(builder, group.RefName);
+                builder.Append('{');
                 AppendMembership(
                     builder, new Membership(group.OrganizedNodeIds, group.Groups, ArrayOf<string>.Empty));
                 builder.Append('}');
             }
+        }
+
+        /// <summary>
+        /// Appends a length-prefixed token. A NodeId string identifier and a
+        /// <c>uav:refName</c> are both authored input and may contain any of the
+        /// delimiters used here, so appending them raw would not be injective:
+        /// the members <c>ns=2;s=A</c> and <c>ns=2;s=B</c> would serialize the
+        /// same as the single member whose identifier is <c>A;ns=2;s=B</c>, and
+        /// the two memberships would share a ViewVersion.
+        /// </summary>
+        private static void AppendToken(StringBuilder builder, string value)
+        {
+            builder.Append(value.Length).Append(':').Append(value).Append(';');
+        }
+
+        /// <summary>
+        /// Orders groups by <c>uav:refName</c> and then by their own canonical
+        /// serialization. <c>uav:refName</c> is optional and defaults to the
+        /// empty string, so it is not unique on its own, and
+        /// <c>List&lt;T&gt;.Sort</c> is not stable - ordering on it alone would
+        /// let two authorings of the same membership hash differently.
+        /// </summary>
+        private static int CompareGroups(WotOrganizationalGroup a, WotOrganizationalGroup b)
+        {
+            int byName = string.CompareOrdinal(a.RefName, b.RefName);
+            if (byName != 0)
+            {
+                return byName;
+            }
+            var left = new StringBuilder();
+            AppendMembership(left, new Membership(a.OrganizedNodeIds, a.Groups, ArrayOf<string>.Empty));
+            var right = new StringBuilder();
+            AppendMembership(right, new Membership(b.OrganizedNodeIds, b.Groups, ArrayOf<string>.Empty));
+            return string.CompareOrdinal(left.ToString(), right.ToString());
         }
 
         private static uint Fnv1A(string value)

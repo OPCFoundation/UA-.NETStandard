@@ -208,6 +208,28 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public void ACollidingSiblingOnALongIdentityStaysWithinMaxLength()
+        {
+            // An identity whose identifier already sits close to MaxLength: the
+            // disambiguator has to displace part of the head rather than extend
+            // past the documented cap.
+            string identity = "http://contoso.org/" +
+                string.Join("/", Enumerable.Range(0, 40).Select(i => $"segment{i}"));
+            string plain = XRegistryIdentifier.FromSourceIdentity(identity);
+
+            string disambiguated = XRegistryIdentifier.FromSourceIdentity(identity, [plain]);
+
+            Assert.That(
+                disambiguated,
+                Has.Length.LessThanOrEqualTo(XRegistryIdentifier.MaxLength),
+                "The disambiguated identifier must honour MaxLength; it is used as a " +
+                "NodeId component and as a file name.");
+            Assert.That(
+                disambiguated,
+                Does.EndWith("." + XRegistryIdentifier.Disambiguator(identity)));
+        }
+
+        [Test]
         public void ANonCollidingSiblingLeavesTheIdentifierAlone()
         {
             const string identity = "http://contoso.org/UA/Pumps/";

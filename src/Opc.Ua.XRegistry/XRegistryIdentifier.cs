@@ -141,7 +141,12 @@ namespace Opc.Ua.XRegistry
             {
                 if (string.Equals(sibling, identifier, StringComparison.OrdinalIgnoreCase))
                 {
-                    return Disambiguate(identifier, sourceIdentity);
+                    // Disambiguate appends "." plus the fixed-width disambiguator,
+                    // so the head has to be shortened first or the result would
+                    // exceed MaxLength - which Truncate already reserves room for.
+                    return identifier.Length > TruncatedLength
+                        ? Truncate(identifier, sourceIdentity)
+                        : Disambiguate(identifier, sourceIdentity);
                 }
             }
             return identifier;
