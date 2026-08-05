@@ -34,6 +34,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Robotics.Client;
+using Opc.Ua.Robotics.Client.Intent;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -56,23 +57,54 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.ThrowIfNull(nameof(builder));
 
             builder.AddOpcUaDi();
+            builder.AddRobotIntentClient();
             builder.Services.TryAddSingleton<RoboticsClientFactory>(sp =>
             {
-               Func<CancellationToken, Task<ManagedSession>> sessionFactory =
-                   sp.GetService<Func<CancellationToken, Task<ManagedSession>>>() ??
-                   throw new InvalidOperationException(
-                       "AddRoboticsClient requires AddClient to be called first.");
-               ITelemetryContext telemetry =
-                   sp.GetRequiredService<ITelemetryContext>();
-               return new RoboticsClientFactory(sessionFactory, telemetry);
+                Func<CancellationToken, Task<ManagedSession>> sessionFactory =
+                    sp.GetService<Func<CancellationToken, Task<ManagedSession>>>() ??
+                    throw new InvalidOperationException(
+                        "AddRoboticsClient requires AddClient to be called first.");
+                ITelemetryContext telemetry =
+                    sp.GetRequiredService<ITelemetryContext>();
+                return new RoboticsClientFactory(sessionFactory, telemetry);
             });
 
             builder.Services.TryAddSingleton<
                Func<CancellationToken, Task<RoboticsClient>>>(sp =>
             {
-               RoboticsClientFactory factory =
-                   sp.GetRequiredService<RoboticsClientFactory>();
-               return factory.CreateAsync;
+                RoboticsClientFactory factory =
+                    sp.GetRequiredService<RoboticsClientFactory>();
+                return factory.CreateAsync;
+            });
+
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a <see cref="RobotIntentClient"/> factory over the managed session.
+        /// </summary>
+        /// <param name="builder">
+        /// The client builder returned by <c>AddClient</c>.
+        /// </param>
+        public static IOpcUaClientBuilder AddRobotIntentClient(
+            this IOpcUaClientBuilder builder)
+        {
+            builder.ThrowIfNull(nameof(builder));
+
+            builder.Services.TryAddSingleton<
+                Func<CancellationToken, Task<RobotIntentClient>>>(sp =>
+            {
+                Func<CancellationToken, Task<ManagedSession>> sessionFactory =
+                    sp.GetService<Func<CancellationToken, Task<ManagedSession>>>() ??
+                    throw new InvalidOperationException(
+                        "AddRobotIntentClient requires AddClient to be called first.");
+                ITelemetryContext telemetry =
+                    sp.GetRequiredService<ITelemetryContext>();
+                return async ct =>
+                {
+                    ManagedSession session = await sessionFactory(ct).ConfigureAwait(false);
+                    return new RobotIntentClient(session, telemetry);
+                };
             });
 
             return builder;

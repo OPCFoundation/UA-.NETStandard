@@ -87,7 +87,11 @@ namespace Robotics
             ("R2", "/Cell/Robots/R2", false, 3.0)
         ];
 
+        // TODO: Use a collection expression once net48 is dropped. ConditionalWeakTable is not
+        // constructible from a collection expression on net48, so IDE0028 cannot be satisfied here.
+#pragma warning disable IDE0028 // Simplify collection initialization
         private static readonly ConditionalWeakTable<AsyncCustomNodeManager, RobotCell> s_cells = new();
+#pragma warning restore IDE0028 // Simplify collection initialization
 
         private readonly ILogger<RobotCell> m_logger;
         private readonly List<AxisRuntime> m_axes = [];
@@ -111,8 +115,9 @@ namespace Robotics
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        private DiNodeManager Manager => m_manager ?? throw new InvalidOperationException(
-            "RobotCell has not been attached to a Robotics build context.");
+        private DiNodeManager Manager => m_manager ??
+            throw new InvalidOperationException(
+                "RobotCell has not been attached to a Robotics build context.");
 
         private IServerInternal Server => Manager.Server;
 
@@ -136,7 +141,6 @@ namespace Robotics
             Configure(context.Nodes);
             m_logger.RoboticsAddressSpaceReady(m_axes.Count + m_robots.Count + 1);
         }
-
 
         internal static RobotCell GetForManager(AsyncCustomNodeManager manager)
         {
@@ -287,12 +291,9 @@ namespace Robotics
             safety.WithComponentName("Safety")
                 .WithEmergencyStop(false)
                 .AddEmergencyStop("EmergencyStop", "EmergencyStop", stop => stop.WithActive(false));
-            safety.Configure((state, ctx) =>
-            {
-                m_estopVar = FindRequiredChild<BaseDataVariableState>(
-                    state.ParameterSet!,
-                    "EmergencyStop");
-            });
+            safety.Configure((state, ctx) => m_estopVar = FindRequiredChild<BaseDataVariableState>(
+                state.ParameterSet!,
+                "EmergencyStop"));
         }
 
         private void BuildRobot(

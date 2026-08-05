@@ -151,11 +151,14 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
 
 ## Samples
 
-* [`MinimalRobotServer`](../samples/MinimalRobotServer) — a self-contained server exposing an OPC 40010
+* [`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) — a self-contained server exposing an OPC 40010
   MotionDeviceSystem with two independently mobile robots. OPC 10000-210 RSL
   frames drive live `double3` translation/rotation, and OPC 10000-211 GPOS
   locations drive geospatial metadata; a generic connector renders the cell
   live. See [Positioning](Positioning.md).
+* The Robotics samples also include a Robot Intent flow where an OpenUSD viewport prim pick becomes a robot command
+  through `UsdViewOptions.PrimPicked`. See [Robot Intent](RobotIntent.md) and the
+  [Robotics samples](../samples/Robotics/README.md).
 * [`PumpDeviceIntegrationServer`](../samples/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition, cross-server components, and served-asset delivery.
 
@@ -184,6 +187,7 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
 | `--renderer <Auto\|Storm\|D3D12\|Vulkan>` | Renderer preference for `--view`. |
 | `--stage <stage.usda>` | Render an existing local stage instead of a fetched one. |
 | `--plugins <dir>` | Directory holding the staged USD plugin tree, when it is not beside the connector. |
+| `--pick-command [<prim path>]` | With `--view`, print picked target prim paths. |
 
 ### Rendering the twin live
 
@@ -208,6 +212,13 @@ keeps working.
 Internally the viewport supplies a sink that authors into the scheduler-owned stage the renderer already owns — the
 connector never opens the stage a second time. `CompositeUsdSink` fans values out to that sink and to `UsdFileSink`,
 so the on-disk artefact and the picture never diverge.
+
+The connector client API also exposes `UsdViewOptions.PrimPicked`, a callback that receives picked USD prim paths.
+`UsdViewOptions.PickMode` defaults to `Auto`: the optional viewer first tries renderer-backed pointer picking and
+falls back to a command prim if the live renderer cannot be reached. Set it to `Renderer` to require mouse picking or
+`CommandPrim` to use only the fallback. For the fallback, set a `targetPrim` relationship, string attribute, or token
+attribute on `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`) and the callback fires when that target
+changes.
 
 > The viewport requires .NET 10 on `win-x64` and the OpenUSD packages
 > (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging.win-x64`), which are published on nuget.org, so a plain

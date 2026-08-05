@@ -50,8 +50,10 @@ namespace Opc.Ua.RobotIntent
         /// <remarks>
         /// The cancellation token is signalled when a cancel has been ACCEPTED, which
         /// is the point at which the operation enters Cancelling. An implementation
-        /// brings motion to a controlled end and then returns; it need not return
-        /// Cancelled, because the host records the cancellation itself.
+        /// reads <see cref="IntentExecution.StopMode"/> to choose the requested
+        /// application stop urgency, brings motion to a controlled end and then
+        /// returns; it need not return Cancelled, because the host records the
+        /// cancellation itself.
         /// </remarks>
         ValueTask<IntentOutcome> ExecuteAsync(
             IntentExecution execution,

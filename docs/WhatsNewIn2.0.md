@@ -193,6 +193,11 @@ server- and client-side implementations:
   device systems, controllers, motion devices, axes, power trains, motors,
   gears, drives, safety states, and task controls with the correct
   companion-spec references. See [Robotics](Robotics.md).
+- **OPC UA — Robot Intent (draft)**: a provisional model for task-level
+  robot commands, implemented as a Part 10 program lifecycle with server
+  hosting, executor contracts, typed client submission, command authority,
+  missions, cancellation, real-time channel brokerage, pose maths, and facet
+  discovery. See [Robot Intent](RobotIntent.md).
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a

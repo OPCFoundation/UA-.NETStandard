@@ -102,9 +102,16 @@ Each sample has its own `README.md` with build and run instructions.
 - [Pump Device Integration Server](samples/PumpDeviceIntegrationServer/README.md) —
   minimal Device Integration (Part 100) server using
   `Opc.Ua.Di.Server`'s fluent builder.
-- [Minimal Robot Server](samples/MinimalRobotServer/README.md) — OPC 40010
+- [Minimal Robot Server](samples/Robotics/MinimalRobotServer/README.md) — OPC 40010
   Robotics with independently configurable RSL/GPOS motion and live OpenUSD
   transforms.
+- [Minimal Intent Robot Server](samples/Robotics/MinimalIntentRobotServer/README.md) —
+  one collaborative arm exposing the draft Robot Intent command surface: task-level
+  motion verbs tracked on a Part 10 program lifecycle, with missions, command
+  authority and safety-aware refusal.
+- [Intent Viewer Client](samples/Robotics/IntentViewerClient/README.md) — click a
+  target in an OpenUSD viewport and watch the arm execute the resulting intent;
+  also runs headless.
 - [Minimal ISA-95 Server](samples/MinimalIsa95Server/README.md) —
   minimal server hosting the OPC-10030 ISA-95 Common Model together
   with OPC-10031-4 Job Control V1 and V2, using the typed common-model

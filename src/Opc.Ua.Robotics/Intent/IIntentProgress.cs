@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,10 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Opc.Ua.RobotIntent
 {
     /// <summary>
@@ -54,5 +50,49 @@ namespace Opc.Ua.RobotIntent
         /// Reports where the driven tool centre point is now.
         /// </summary>
         void ReportPose(Pose3DDataType pose);
+
+        /// <summary>
+        /// Reports observed trajectory deviation so the host can enforce clause 6.8 tolerances.
+        /// </summary>
+        /// <param name="pathPositionDeviation">The current path position deviation in metres.</param>
+        /// <param name="goalPositionDeviation">The current goal position deviation in metres.</param>
+        /// <param name="elapsedMilliseconds">Elapsed trajectory execution time in milliseconds.</param>
+        /// <param name="final">Whether this is the final trajectory report.</param>
+        void ReportTrajectoryDeviation(
+            double pathPositionDeviation,
+            double goalPositionDeviation,
+            double elapsedMilliseconds,
+            bool final);
+    }
+
+    /// <summary>
+    /// Optional progress surface for executors that can report blend entry.
+    /// </summary>
+    public interface IIntentBlendProgress
+    {
+        /// <summary>
+        /// Reports that execution reached the blend point for the current intent.
+        /// </summary>
+        /// <param name="pose">The tool centre point pose at the blend point.</param>
+        void ReportBlendBegin(Pose3DDataType pose);
+    }
+
+    /// <summary>
+    /// Optional progress helpers.
+    /// </summary>
+    public static class IntentProgressExtensions
+    {
+        /// <summary>
+        /// Reports blend entry when the host supports blend-progress callbacks.
+        /// </summary>
+        /// <param name="progress">The progress sink.</param>
+        /// <param name="pose">The tool centre point pose at the blend point.</param>
+        public static void ReportBlendBegin(this IIntentProgress progress, Pose3DDataType pose)
+        {
+            if (progress is IIntentBlendProgress blendProgress)
+            {
+                blendProgress.ReportBlendBegin(pose);
+            }
+        }
     }
 }

@@ -36,7 +36,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.OpenUsd;
 using Opc.Ua.OpenUsd.Server;
-using Opc.Ua.Server;
 
 namespace Robotics
 {

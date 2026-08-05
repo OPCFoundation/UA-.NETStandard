@@ -387,7 +387,7 @@ model, and the configured instance namespace before returning. The manager's
 must be thread-safe, must reserve unique NodeIds for unregistered nodes, and must
 allocate Robotics instances in the configured instance namespace.
 
-[`MinimalRobotServer`](../samples/MinimalRobotServer) is the worked example of
+[`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) is the worked example of
 the custom-manager route: it composes Robotics, IA, DI, the draft OpenUSD
 binding, and RSL/GPOS in one `DiNodeManager` subclass.
 
@@ -651,7 +651,7 @@ TaskControl route is preferred and is what the SDK documents first.
 
 ## Sample
 
-[`MinimalRobotServer`](../samples/MinimalRobotServer) exposes a
+[`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) exposes a
 `MotionDeviceSystem` with two independently mobile 6-axis robots, a cell
 emergency stop, a speed-override command, and a runtime-mounted gripper. It
 combines Robotics with OPC 10000-210 RSL frames and OPC 10000-211 GPOS locations
@@ -690,6 +690,10 @@ mapping file is required.
 
 ## See also
 
+* [Robot Intent](RobotIntent.md) — the task-level motion verbs this model leaves
+  undefined. OPC 40010 describes the robot; Robot Intent commands it, and the two
+  are joined by a single `HasIntentController` reference rather than by either
+  model depending on the other.
 * [Device Integration (DI) developer guide](DeviceIntegration.md) — the base
   model, fluent device builders, and the companion-spec packaging pattern.
 * [Relative Spatial Location and Global Positioning](Positioning.md) — the RSL

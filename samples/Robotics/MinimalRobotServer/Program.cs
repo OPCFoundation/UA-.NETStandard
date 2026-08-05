@@ -31,7 +31,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Positioning.Server.Hosting;
-using Opc.Ua.Robotics.Server;
 using Robotics;
 
 // Self-contained OPC UA server exposing an OPC 40010 Robotics MotionDeviceSystem

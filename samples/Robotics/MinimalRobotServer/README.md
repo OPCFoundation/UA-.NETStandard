@@ -121,7 +121,7 @@ instead of by subclassing a custom node manager.
 ## Run it
 
 ```
-dotnet run --project samples/MinimalRobotServer -- --host localhost --port 62830
+dotnet run --project samples/Robotics/MinimalRobotServer -- --host localhost --port 62830
 ```
 
 Then drive it with the **same** generic connector used for pumps

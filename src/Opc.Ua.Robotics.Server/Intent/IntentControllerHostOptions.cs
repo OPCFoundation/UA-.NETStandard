@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 
 namespace Opc.Ua.RobotIntent.Server
 {
@@ -56,6 +55,26 @@ namespace Opc.Ua.RobotIntent.Server
         /// Aborting submissions.
         /// </summary>
         public uint MaxQueueDepth { get; set; } = 8;
+
+        /// <summary>
+        /// Maximum accepted SpeedFraction; values above are clamped. Zero means no host ceiling.
+        /// </summary>
+        public double MaxSpeedFraction { get; set; } = 1.0;
+
+        /// <summary>
+        /// Maximum accepted Cartesian speed in metres per second; values above are clamped.
+        /// </summary>
+        public double MaxCartesianSpeed { get; set; }
+
+        /// <summary>
+        /// Maximum accepted Cartesian acceleration in metres per second squared; values above are clamped.
+        /// </summary>
+        public double MaxCartesianAcceleration { get; set; }
+
+        /// <summary>
+        /// Maximum accepted jerk; values above are clamped.
+        /// </summary>
+        public double MaxJerk { get; set; }
 
         /// <summary>
         /// Whether a caller must hold command authority to submit. Defaults to true;
@@ -123,6 +142,21 @@ namespace Opc.Ua.RobotIntent.Server
         public double MaxChannelLeaseMs { get; set; } = 30000;
 
         /// <summary>
+        /// Path tolerance used when a trajectory asks the Server to choose one, in metres.
+        /// </summary>
+        public double DefaultPathTolerance { get; set; } = 0.001;
+
+        /// <summary>
+        /// Goal tolerance used when a trajectory asks the Server to choose one, in metres.
+        /// </summary>
+        public double DefaultGoalTolerance { get; set; } = 0.001;
+
+        /// <summary>
+        /// Goal-time tolerance used when a trajectory asks the Server to choose one, in milliseconds.
+        /// </summary>
+        public double DefaultGoalTimeTolerance { get; set; } = 100;
+
+        /// <summary>
         /// How many terminal operations to keep browsable per controller, or zero to
         /// keep every one of them.
         /// <para>
@@ -130,17 +164,28 @@ namespace Opc.Ua.RobotIntent.Server
         /// to be able to read the result after the fact. Nothing then removes it, so a
         /// controller that runs continuously accumulates operation nodes for as long as
         /// it is up. Setting a bound lets the host drop the oldest terminal operations
-        /// once that many have accrued, using the <c>removeNode</c> callback the host
-        /// was constructed with.
+        /// once that many have accrued. When no <c>removeNode</c> callback was supplied,
+        /// the host still drops its retained bookkeeping and cancellation resources.
         /// </para>
         /// <para>
-        /// The default of zero preserves every operation, which is the safe default: a
-        /// host that discards an operation a client had not yet read would turn a
-        /// retention policy into lost provenance. A host that sets a bound is stating
-        /// that its clients read results promptly.
+        /// The default keeps the latest 128 terminal operations, which gives reconnecting
+        /// clients a result window without letting a continuously running controller retain
+        /// every operation forever. Set zero only when the embedding server supplies a
+        /// separate retention policy.
         /// </para>
         /// </summary>
-        public uint RetainedTerminalOperations { get; set; }
+        public uint RetainedTerminalOperations { get; set; } = 128;
+
+        /// <summary>
+        /// How long asynchronous disposal waits for an executing intent to observe
+        /// shutdown cancellation and let the pump drain, in milliseconds.
+        /// </summary>
+        /// <remarks>
+        /// A well-behaved executor should return promptly when its cancellation token
+        /// is signalled. This bound prevents server shutdown from hanging forever if
+        /// application executor code fails to do so. Zero or less skips the wait.
+        /// </remarks>
+        public double ExecutorShutdownTimeoutMs { get; set; } = 30000;
 
         /// <summary>
         /// Whether this host can arbitrate between an intent and a held real-time
@@ -166,6 +211,17 @@ namespace Opc.Ua.RobotIntent.Server
         public Func<ContentFilter, bool>? ConditionEvaluator { get; set; }
 
         /// <summary>
+        /// One entry per intent type this host accepts.
+        /// </summary>
+        /// <remarks>
+        /// The intent type is held as an <see cref="ExpandedNodeId"/> and resolved
+        /// against the Server's namespace table when the host starts. Resolving it at
+        /// declaration time would bind it to whatever table happened to exist then,
+        /// which is how a capability list silently stops matching anything.
+        /// </remarks>
+        public IList<DeclaredCapability> Capabilities { get; } = [];
+
+        /// <summary>
         /// The evaluator actually used, defaulted as described above.
         /// </summary>
         public bool EvaluateCondition(ContentFilter? condition)
@@ -180,17 +236,6 @@ namespace Opc.Ua.RobotIntent.Server
             }
             return ConditionEvaluator?.Invoke(condition) ?? false;
         }
-
-        /// <summary>
-        /// One entry per intent type this host accepts.
-        /// </summary>
-        /// <remarks>
-        /// The intent type is held as an <see cref="ExpandedNodeId"/> and resolved
-        /// against the Server's namespace table when the host starts. Resolving it at
-        /// declaration time would bind it to whatever table happened to exist then,
-        /// which is how a capability list silently stops matching anything.
-        /// </remarks>
-        public IList<DeclaredCapability> Capabilities { get; } = [];
 
         /// <summary>
         /// Declares support for an intent type.
@@ -219,29 +264,43 @@ namespace Opc.Ua.RobotIntent.Server
     /// </summary>
     public sealed record DeclaredCapability
     {
-        /// <summary>The intent DataType this host accepts.</summary>
+        /// <summary>
+        /// The intent DataType this host accepts.
+        /// </summary>
         public ExpandedNodeId IntentType { get; init; } = ExpandedNodeId.Null;
 
-        /// <summary>What this host does with it.</summary>
+        /// <summary>
+        /// What this host does with it.
+        /// </summary>
         public string? Description { get; init; }
 
-        /// <summary>Whether Cancel is honoured for it.</summary>
+        /// <summary>
+        /// Whether Cancel is honoured for it.
+        /// </summary>
         public bool CancelSupported { get; init; } = true;
 
-        /// <summary>Whether Pause and Resume are honoured for it.</summary>
+        /// <summary>
+        /// Whether Pause and Resume are honoured for it.
+        /// </summary>
         public bool PauseSupported { get; init; } = true;
 
-        /// <summary>Whether it can terminate Retriable.</summary>
+        /// <summary>
+        /// Whether it can terminate Retriable.
+        /// </summary>
         public bool RetrySupported { get; init; }
 
-        /// <summary>Buffer modes accepted for it. Aborting is always accepted.</summary>
+        /// <summary>
+        /// Buffer modes accepted for it. Aborting is always accepted.
+        /// </summary>
         public ArrayOf<BufferModeEnum> SupportedBufferModes { get; init; } = new[]
         {
             BufferModeEnum.Aborting,
             BufferModeEnum.Buffered
         };
 
-        /// <summary>Blocking modes accepted for it.</summary>
+        /// <summary>
+        /// Blocking modes accepted for it.
+        /// </summary>
         public ArrayOf<BlockingModeEnum> SupportedBlockingModes { get; init; } = new[]
         {
             BlockingModeEnum.None,
@@ -278,25 +337,39 @@ namespace Opc.Ua.RobotIntent.Server
     /// </remarks>
     public sealed record DeclaredChannel
     {
-        /// <summary>Identifier unique within the controller.</summary>
+        /// <summary>
+        /// Identifier unique within the controller.
+        /// </summary>
         public string ChannelId { get; init; } = string.Empty;
 
-        /// <summary>The transport this channel speaks.</summary>
+        /// <summary>
+        /// The transport this channel speaks.
+        /// </summary>
         public RealTimeTransportEnum Transport { get; init; }
 
-        /// <summary>Where the channel is reached.</summary>
+        /// <summary>
+        /// Where the channel is reached.
+        /// </summary>
         public string EndpointUrl { get; init; } = string.Empty;
 
-        /// <summary>Which end opens the connection.</summary>
+        /// <summary>
+        /// Which end opens the connection.
+        /// </summary>
         public ChannelInitiatorEnum Initiator { get; init; }
 
-        /// <summary>The rate the channel runs at, in hertz.</summary>
+        /// <summary>
+        /// The rate the channel runs at, in hertz.
+        /// </summary>
         public double NominalRate { get; init; }
 
-        /// <summary>The transport's own recipe or signal list.</summary>
+        /// <summary>
+        /// The transport's own recipe or signal list.
+        /// </summary>
         public string PayloadDescriptor { get; init; } = string.Empty;
 
-        /// <summary>The operational mode required before it will carry motion.</summary>
+        /// <summary>
+        /// The operational mode required before it will carry motion.
+        /// </summary>
         public OperationalModeEnum RequiredMode { get; init; } = OperationalModeEnum.AutomaticExternal;
     }
 
@@ -305,22 +378,34 @@ namespace Opc.Ua.RobotIntent.Server
     /// </summary>
     public sealed record RealTimeLease
     {
-        /// <summary>Whether the lease was taken.</summary>
+        /// <summary>
+        /// Whether the lease was taken.
+        /// </summary>
         public bool Granted { get; init; }
 
-        /// <summary>Where to connect.</summary>
+        /// <summary>
+        /// Where to connect.
+        /// </summary>
         public string EndpointUrl { get; init; } = string.Empty;
 
-        /// <summary>The transport's own configuration.</summary>
+        /// <summary>
+        /// The transport's own configuration.
+        /// </summary>
         public string PayloadDescriptor { get; init; } = string.Empty;
 
-        /// <summary>When the lease lapses.</summary>
+        /// <summary>
+        /// When the lease lapses.
+        /// </summary>
         public DateTime Expiry { get; init; }
 
-        /// <summary>Why it was refused.</summary>
+        /// <summary>
+        /// Why it was refused.
+        /// </summary>
         public string? Message { get; init; }
 
-        /// <summary>Creates a refusal.</summary>
+        /// <summary>
+        /// Creates a refusal.
+        /// </summary>
         public static RealTimeLease Refused(string message)
         {
             return new RealTimeLease { Message = message };
@@ -338,28 +423,44 @@ namespace Opc.Ua.RobotIntent.Server
     /// </remarks>
     public sealed record SafetyStatus
     {
-        /// <summary>The safe motion function currently enforced.</summary>
+        /// <summary>
+        /// The safe motion function currently enforced.
+        /// </summary>
         public SafeMotionFunctionEnum ActiveFunction { get; init; } = SafeMotionFunctionEnum.None;
 
-        /// <summary>True while an emergency stop is asserted.</summary>
+        /// <summary>
+        /// True while an emergency stop is asserted.
+        /// </summary>
         public bool EmergencyStopActive { get; init; }
 
-        /// <summary>True while a protective stop is asserted.</summary>
+        /// <summary>
+        /// True while a protective stop is asserted.
+        /// </summary>
         public bool ProtectiveStopActive { get; init; }
 
-        /// <summary>True while a safely limited speed is being enforced.</summary>
+        /// <summary>
+        /// True while a safely limited speed is being enforced.
+        /// </summary>
         public bool SafeSpeedLimitActive { get; init; }
 
-        /// <summary>The enforced tool centre point speed limit, in metres per second.</summary>
+        /// <summary>
+        /// The enforced tool centre point speed limit, in metres per second.
+        /// </summary>
         public double SafeSpeedLimit { get; init; }
 
-        /// <summary>False when the safety system reports its own fault.</summary>
+        /// <summary>
+        /// False when the safety system reports its own fault.
+        /// </summary>
         public bool SafetyControllerOk { get; init; } = true;
 
-        /// <summary>Why the last stop occurred, for a human.</summary>
+        /// <summary>
+        /// Why the last stop occurred, for a human.
+        /// </summary>
         public string? LastStopReason { get; init; }
 
-        /// <summary>Nothing asserted and the safety controller healthy.</summary>
+        /// <summary>
+        /// Nothing asserted and the safety controller healthy.
+        /// </summary>
         public static SafetyStatus Nominal { get; } = new();
 
         /// <summary>
@@ -374,22 +475,34 @@ namespace Opc.Ua.RobotIntent.Server
     /// </summary>
     public sealed record IntentAdmission
     {
-        /// <summary>Whether the intent was admitted.</summary>
+        /// <summary>
+        /// Whether the intent was admitted.
+        /// </summary>
         public bool Accepted { get; init; }
 
-        /// <summary>The identifier it was admitted under.</summary>
+        /// <summary>
+        /// The identifier it was admitted under.
+        /// </summary>
         public string IntentId { get; init; } = string.Empty;
 
-        /// <summary>The IntentOperation that tracks it.</summary>
+        /// <summary>
+        /// The IntentOperation that tracks it.
+        /// </summary>
         public NodeId Operation { get; init; } = NodeId.Null;
 
-        /// <summary>Why it was refused.</summary>
+        /// <summary>
+        /// Why it was refused.
+        /// </summary>
         public IntentFailureEnum Failure { get; init; } = IntentFailureEnum.None;
 
-        /// <summary>Human-readable detail on a refusal.</summary>
+        /// <summary>
+        /// Human-readable detail on a refusal.
+        /// </summary>
         public string? Message { get; init; }
 
-        /// <summary>Creates an accepted admission.</summary>
+        /// <summary>
+        /// Creates an accepted admission.
+        /// </summary>
         public static IntentAdmission Admitted(string intentId, NodeId operation)
         {
             return new IntentAdmission
@@ -400,7 +513,9 @@ namespace Opc.Ua.RobotIntent.Server
             };
         }
 
-        /// <summary>Creates a refusal.</summary>
+        /// <summary>
+        /// Creates a refusal.
+        /// </summary>
         public static IntentAdmission Refused(IntentFailureEnum failure, string message)
         {
             return new IntentAdmission { Failure = failure, Message = message };
@@ -412,22 +527,39 @@ namespace Opc.Ua.RobotIntent.Server
     /// </summary>
     public sealed record MissionAdmission
     {
-        /// <summary>Whether the mission was admitted.</summary>
+        /// <summary>
+        /// Whether the mission was admitted.
+        /// </summary>
         public bool Accepted { get; init; }
 
-        /// <summary>The identifier it was admitted under.</summary>
+        /// <summary>
+        /// The identifier it was admitted under.
+        /// </summary>
         public string MissionId { get; init; } = string.Empty;
 
-        /// <summary>The Mission that tracks it.</summary>
+        /// <summary>
+        /// The Mission that tracks it.
+        /// </summary>
         public NodeId Operation { get; init; } = NodeId.Null;
 
-        /// <summary>Why it was refused.</summary>
+        /// <summary>
+        /// Why it was refused.
+        /// </summary>
         public MissionUpdateResultEnum Result { get; init; } = MissionUpdateResultEnum.Accepted;
 
-        /// <summary>Human-readable detail on a refusal.</summary>
+        /// <summary>
+        /// Why the mission was refused.
+        /// </summary>
+        public IntentFailureEnum Failure { get; init; } = IntentFailureEnum.None;
+
+        /// <summary>
+        /// Human-readable detail on a refusal.
+        /// </summary>
         public string? Message { get; init; }
 
-        /// <summary>Creates an accepted admission.</summary>
+        /// <summary>
+        /// Creates an accepted admission.
+        /// </summary>
         public static MissionAdmission Admitted(string missionId, NodeId operation)
         {
             return new MissionAdmission
@@ -438,10 +570,32 @@ namespace Opc.Ua.RobotIntent.Server
             };
         }
 
-        /// <summary>Creates a refusal.</summary>
+        /// <summary>
+        /// Creates a refusal.
+        /// </summary>
         public static MissionAdmission Refused(MissionUpdateResultEnum result, string message)
         {
-            return new MissionAdmission { Result = result, Message = message };
+            return new MissionAdmission
+            {
+                Result = result,
+                Failure = result == MissionUpdateResultEnum.Accepted
+                    ? IntentFailureEnum.None
+                    : IntentFailureEnum.ParameterInvalid,
+                Message = message
+            };
+        }
+
+        /// <summary>
+        /// Creates a refusal.
+        /// </summary>
+        public static MissionAdmission Refused(IntentFailureEnum failure, string message)
+        {
+            return new MissionAdmission
+            {
+                Result = MissionUpdateResultEnum.Rejected,
+                Failure = failure,
+                Message = message
+            };
         }
     }
 
@@ -460,10 +614,14 @@ namespace Opc.Ua.RobotIntent.Server
     /// <param name="Message">Why it did not.</param>
     internal readonly record struct Check(bool Ok, string? Message)
     {
-        /// <summary>A rule that passed.</summary>
+        /// <summary>
+        /// A rule that passed.
+        /// </summary>
         public static Check Pass { get; } = new(true, null);
 
-        /// <summary>A rule that failed.</summary>
+        /// <summary>
+        /// A rule that failed.
+        /// </summary>
         public static Check Fail(string message)
         {
             return new Check(false, message);
@@ -475,11 +633,6 @@ namespace Opc.Ua.RobotIntent.Server
     /// </summary>
     internal static class IntentValidation
     {
-        /// <summary>
-        /// A quaternion whose norm differs from 1 by more than this is not a rotation.
-        /// </summary>
-        private const double OrientationTolerance = 1e-6;
-
         public static Check Validate(IntentDataType intent, IntentControllerHostOptions options)
         {
             switch (intent)
@@ -562,8 +715,63 @@ namespace Opc.Ua.RobotIntent.Server
                     return force.MaxDistance <= 0
                         ? Bad("ForceIntent.MaxDistance must be greater than zero.")
                         : Check.Pass;
-                default:
-                    break;
+                case ProcessIntentDataType process:
+                    return ValidateProcess(process);
+            }
+            return Check.Pass;
+        }
+
+        private static Check ValidateProcess(ProcessIntentDataType process)
+        {
+            if (process.Attributes.IsNull)
+            {
+                return Bad("ProcessIntent.Attributes must not be null.");
+            }
+            return process switch
+            {
+                ArcWeldIntentDataType arcWeld => NonNegative(
+                    (arcWeld.Voltage, nameof(arcWeld.Voltage)),
+                    (arcWeld.WireFeedSpeed, nameof(arcWeld.WireFeedSpeed)),
+                    (arcWeld.TravelSpeed, nameof(arcWeld.TravelSpeed)),
+                    (arcWeld.GasPreflowTime, nameof(arcWeld.GasPreflowTime)),
+                    (arcWeld.GasPostflowTime, nameof(arcWeld.GasPostflowTime)),
+                    (arcWeld.ArcStartDelay, nameof(arcWeld.ArcStartDelay)),
+                    (arcWeld.CraterFillTime, nameof(arcWeld.CraterFillTime)),
+                    (arcWeld.WeaveAmplitude, nameof(arcWeld.WeaveAmplitude)),
+                    (arcWeld.WeaveFrequency, nameof(arcWeld.WeaveFrequency))),
+                SpotWeldIntentDataType spotWeld => NonNegative(
+                    (spotWeld.GunForce, nameof(spotWeld.GunForce)),
+                    (spotWeld.ApproachDistance, nameof(spotWeld.ApproachDistance)),
+                    (spotWeld.RetractDistance, nameof(spotWeld.RetractDistance)),
+                    (spotWeld.MaterialThickness, nameof(spotWeld.MaterialThickness))),
+                DispenseIntentDataType dispense => NonNegative(
+                    (dispense.FlowRate, nameof(dispense.FlowRate)),
+                    (dispense.TriggerOnDistance, nameof(dispense.TriggerOnDistance)),
+                    (dispense.TriggerOffDistance, nameof(dispense.TriggerOffDistance)),
+                    (dispense.BeadWidth, nameof(dispense.BeadWidth)),
+                    (dispense.MaterialTemperature, nameof(dispense.MaterialTemperature))),
+                FastenIntentDataType fasten => NonNegative(
+                    (fasten.TargetTorque, nameof(fasten.TargetTorque)),
+                    (fasten.TargetAngle, nameof(fasten.TargetAngle)),
+                    (fasten.SnugTorque, nameof(fasten.SnugTorque))),
+                PalletiseIntentDataType => Check.Pass,
+                SurfaceFinishIntentDataType surfaceFinish => NonNegative(
+                    (surfaceFinish.ContactForce, nameof(surfaceFinish.ContactForce)),
+                    (surfaceFinish.FeedRate, nameof(surfaceFinish.FeedRate)),
+                    (surfaceFinish.ToolSpeed, nameof(surfaceFinish.ToolSpeed)),
+                    (surfaceFinish.StepOver, nameof(surfaceFinish.StepOver))),
+                _ => Check.Pass
+            };
+        }
+
+        private static Check NonNegative(params (double Value, string Name)[] values)
+        {
+            foreach ((double value, string name) in values)
+            {
+                if (value < 0)
+                {
+                    return Bad($"{name} must not be negative.");
+                }
             }
             return Check.Pass;
         }
@@ -642,6 +850,11 @@ namespace Opc.Ua.RobotIntent.Server
         {
             return Check.Fail(message);
         }
+
+        /// <summary>
+        /// A quaternion whose norm differs from 1 by more than this is not a rotation.
+        /// </summary>
+        private const double OrientationTolerance = 1e-6;
     }
 
     /// <summary>
@@ -711,7 +924,10 @@ namespace Opc.Ua.RobotIntent.Server
                 if (now == null ||
                     !string.Equals(was.StepId, now.StepId, StringComparison.Ordinal) ||
                     was.SequenceId != now.SequenceId ||
-                    !now.Released)
+                    !now.Released ||
+                    was.ErrorPolicy != now.ErrorPolicy ||
+                    !string.Equals(was.FallbackStepId, now.FallbackStepId, StringComparison.Ordinal) ||
+                    !IntentEqual(was.Intent, now.Intent))
                 {
                     return Check.Fail($"The update would alter released step '{was.StepId}'.");
                 }
@@ -773,8 +989,8 @@ namespace Opc.Ua.RobotIntent.Server
                 if (needsFallback && !ids.Contains(step.FallbackStepId ?? string.Empty))
                 {
                     return Check.Fail(
-                        $"Step '{step.StepId}' declares {step.ErrorPolicy} but its "
-                        + "FallbackStepId names no step of this mission.");
+                        $"Step '{step.StepId}' declares {step.ErrorPolicy} but its " +
+                        "FallbackStepId names no step of this mission.");
                 }
             }
 
@@ -794,14 +1010,14 @@ namespace Opc.Ua.RobotIntent.Server
                 if (!ids.Contains(edge.FromStepId ?? string.Empty))
                 {
                     return Check.Fail(
-                        $"Transitions[{ii}].FromStepId '{edge.FromStepId}' names no step "
-                        + "of this mission.");
+                        $"Transitions[{ii}].FromStepId '{edge.FromStepId}' names no step " +
+                        "of this mission.");
                 }
                 if (!ids.Contains(edge.ToStepId ?? string.Empty))
                 {
                     return Check.Fail(
-                        $"Transitions[{ii}].ToStepId '{edge.ToStepId}' names no step "
-                        + "of this mission.");
+                        $"Transitions[{ii}].ToStepId '{edge.ToStepId}' names no step " +
+                        "of this mission.");
                 }
                 string from = edge.FromStepId ?? string.Empty;
                 if (divergence.TryGetValue(from, out DivergenceKindEnum seen))
@@ -809,8 +1025,8 @@ namespace Opc.Ua.RobotIntent.Server
                     if (seen != edge.DivergenceKind)
                     {
                         return Check.Fail(
-                            $"Step '{from}' mixes {seen} and {edge.DivergenceKind} "
-                            + "divergence on its outgoing transitions.");
+                            $"Step '{from}' mixes {seen} and {edge.DivergenceKind} " +
+                            "divergence on its outgoing transitions.");
                     }
                 }
                 else
@@ -906,6 +1122,15 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 step.Operation = operation.Value;
             }
+        }
+
+        private static bool IntentEqual(IntentDataType? left, IntentDataType? right)
+        {
+            if (left == null || right == null)
+            {
+                return left == right;
+            }
+            return left.IsEqual(right);
         }
     }
 }

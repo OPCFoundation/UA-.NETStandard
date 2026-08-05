@@ -14,16 +14,16 @@
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Positioning\Opc.Ua.Positioning.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Positioning\Opc.Ua.Positioning.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Di.Tests" />

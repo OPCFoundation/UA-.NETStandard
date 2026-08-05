@@ -25,12 +25,22 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="OpenUsd.Rendering" VersionOverride="0.1.0-alpha"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsdScene\Opc.Ua.OpenUsdScene.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsdScene.Server\Opc.Ua.OpenUsdScene.Server.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.OpenUsd.Connector\Opc.Ua.OpenUsd.Connector.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.OpenUsd.Connector.Viewer\Opc.Ua.OpenUsd.Connector.Viewer.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+    <Compile Remove="OpenUsdConnectorRunnerTests.cs" />
+    <Compile Remove="OpenUsdViewHostTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\*.usda">
@@ -42,7 +52,7 @@
        in separately so RobotAssetContractTests can assert the live OPC UA binding
        contract against the files the server actually serves. -->
   <ItemGroup>
-    <None Include="..\..\samples\MinimalRobotServer\Assets\*.usda"
+    <None Include="..\..\samples\Robotics\MinimalRobotServer\Assets\*.usda"
           Link="Assets\Sample\%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -68,5 +68,30 @@ namespace Opc.Ua.RobotIntent
         /// submitted on its own.
         /// </summary>
         public string MissionId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// The stop mode from the accepted cancellation request.
+        /// </summary>
+        /// <remarks>
+        /// The cancellation token passed to the executor is signalled after this value
+        /// is set. A superseded executing intent uses <see cref="StopModeEnum.QuickStop"/>,
+        /// because an aborting replacement is not client-chosen and should release the
+        /// controller for the replacing intent promptly. This is an application stop
+        /// urgency only and does not select or imply an IEC 60204-1 stop category.
+        /// </remarks>
+        public StopModeEnum StopMode => (StopModeEnum)Volatile.Read(ref m_stopMode);
+
+        /// <summary>
+        /// Records the stop mode at the moment cancellation is accepted.
+        /// </summary>
+        /// <param name="stopMode">
+        /// The accepted application stop urgency.
+        /// </param>
+        public void AcceptCancellation(StopModeEnum stopMode)
+        {
+            Volatile.Write(ref m_stopMode, (int)stopMode);
+        }
+
+        private int m_stopMode = (int)StopModeEnum.OnPath;
     }
 }

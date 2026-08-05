@@ -28,14 +28,308 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
+using Avalonia.VisualTree;
 using Opc.Ua.OpenUsd.Client;
+using OpenUsd;
+using OpenUsd.Rendering;
 using OpenUsd.Viewer;
 
 namespace Opc.Ua.OpenUsd.Connector.Viewer
 {
+    internal readonly record struct RendererPickPixel(
+        int X,
+        int Y,
+        int Width,
+        int Height);
+
+    internal interface IOpenUsdPickBackend
+    {
+        ValueTask<RenderPickResult> PickAsync(
+            RenderPickRequest request,
+            CancellationToken cancellationToken);
+    }
+
+    internal enum RendererPickOutcome
+    {
+        Completed,
+        Fallback
+    }
+
+    internal readonly record struct PickModeDecision(
+        bool ProbeRenderer,
+        bool WatchCommandPrim);
+
+    internal sealed class ReferenceIdentityComparer : IEqualityComparer<object>
+    {
+        public new bool Equals(object? x, object? y)
+        {
+            return ReferenceEquals(x, y);
+        }
+
+        public int GetHashCode(object obj)
+        {
+            return RuntimeHelpers.GetHashCode(obj);
+        }
+
+        public static readonly ReferenceIdentityComparer Instance = new();
+    }
+
+    internal static class PickModeSelection
+    {
+        public static PickModeDecision Select(
+            UsdViewPickMode mode,
+            bool hasCallback,
+            bool rendererStarted)
+        {
+            if (!hasCallback)
+            {
+                return new PickModeDecision(false, false);
+            }
+
+            bool probeRenderer = mode != UsdViewPickMode.CommandPrim;
+            bool watchCommandPrim = mode != UsdViewPickMode.Renderer && !rendererStarted;
+            return new PickModeDecision(probeRenderer, watchCommandPrim);
+        }
+    }
+
+    internal static class RendererPickLogic
+    {
+        public static RendererPickPixel ToPhysicalPixel(
+            double positionX,
+            double positionY,
+            double boundsWidth,
+            double boundsHeight,
+            double renderScaling)
+        {
+            double scale = renderScaling > 0 ? renderScaling : 1.0;
+            int width = Math.Max(1, (int)Math.Round(boundsWidth * scale));
+            int height = Math.Max(1, (int)Math.Round(boundsHeight * scale));
+            int x = Math.Clamp((int)Math.Round(positionX * scale), 0, width - 1);
+            int y = Math.Clamp((int)Math.Round(positionY * scale), 0, height - 1);
+            return new RendererPickPixel(x, y, width, height);
+        }
+
+        public static RenderPickRequest CreateRequest(RendererPickPixel pixel, ulong stateRevision)
+        {
+            return new RenderPickRequest(
+                pixel.X,
+                pixel.Y,
+                new ViewportDimensions(pixel.Width, pixel.Height),
+                stateRevision,
+                null,
+                RenderPickTarget.Primitive,
+                RenderPickOptions.None);
+        }
+
+        public static async ValueTask<RendererPickOutcome> PickAsync(
+            IOpenUsdPickBackend backend,
+            RenderPickRequest request,
+            Func<string, CancellationToken, Task> primPicked,
+            CancellationToken cancellationToken)
+        {
+            RenderPickResult result = await backend.PickAsync(request, cancellationToken)
+                .ConfigureAwait(false);
+            if (result.Status == RenderPickStatus.Stale)
+            {
+                request = new RenderPickRequest(
+                    request.X,
+                    request.Y,
+                    request.Viewport,
+                    result.StateRevision,
+                    result.SceneRevision,
+                    RenderPickTarget.Primitive,
+                    RenderPickOptions.None);
+                result = await backend.PickAsync(request, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (result.Status == RenderPickStatus.Unsupported)
+            {
+                return RendererPickOutcome.Fallback;
+            }
+
+            if (result.Status == RenderPickStatus.Hit &&
+                !string.IsNullOrWhiteSpace(result.PrimPath))
+            {
+                await primPicked(result.PrimPath, cancellationToken).ConfigureAwait(false);
+            }
+
+            return RendererPickOutcome.Completed;
+        }
+    }
+
+    internal static class RendererPickBackendDiscovery
+    {
+        public static IOpenUsdPickBackend? TryFindPickBackend(object root)
+        {
+            try
+            {
+                return TryFindPickBackend(root, includeProperties: false) ??
+                    TryFindPickBackend(root, includeProperties: true);
+            }
+#pragma warning disable CA1031 // Reflection probes must never affect the render loop.
+            catch (Exception)
+#pragma warning restore CA1031
+            {
+                return null;
+            }
+        }
+
+        internal sealed class RenderPickingBackendAdapter : IOpenUsdPickBackend
+        {
+            public RenderPickingBackendAdapter(IRenderPickingBackend backend)
+            {
+                m_backend = backend;
+            }
+
+            public ValueTask<RenderPickResult> PickAsync(
+                RenderPickRequest request,
+                CancellationToken cancellationToken)
+            {
+                return m_backend.PickAsync(request, cancellationToken);
+            }
+
+            private readonly IRenderPickingBackend m_backend;
+        }
+
+        internal sealed class ReflectedPickBackend : IOpenUsdPickBackend
+        {
+            public ReflectedPickBackend(object backend, MethodInfo pickMethod)
+            {
+                m_backend = backend;
+                m_pickMethod = pickMethod;
+            }
+
+            public ValueTask<RenderPickResult> PickAsync(
+                RenderPickRequest request,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (m_pickMethod.Invoke(m_backend, [request]) is RenderPickResult result)
+                {
+                    return ValueTask.FromResult(result);
+                }
+                return ValueTask.FromResult(RenderPickResult.Unsupported(
+                    in request, request.RequestedStateRevision, request.RequestedSceneRevision));
+            }
+
+            private readonly object m_backend;
+            private readonly MethodInfo m_pickMethod;
+        }
+
+        private static IOpenUsdPickBackend? TryFindPickBackend(object root, bool includeProperties)
+        {
+            const int maxVisited = 32;
+            var visited = new HashSet<object>(ReferenceIdentityComparer.Instance);
+            var queue = new Queue<object>();
+            queue.Enqueue(root);
+            while (queue.Count > 0 && visited.Count < maxVisited)
+            {
+                object current = queue.Dequeue();
+                if (!visited.Add(current))
+                {
+                    continue;
+                }
+
+                if (current is IRenderPickingBackend pickingBackend)
+                {
+                    return new RenderPickingBackendAdapter(pickingBackend);
+                }
+
+                Type currentType = current.GetType();
+                MethodInfo? pickMethod = currentType.GetMethod(
+                    "Pick",
+                    BindingFlags.Public | BindingFlags.Instance,
+                    binder: null,
+                    [typeof(RenderPickRequest)],
+                    modifiers: null);
+                if (pickMethod is not null &&
+                    pickMethod.ReturnType == typeof(RenderPickResult))
+                {
+                    return new ReflectedPickBackend(current, pickMethod);
+                }
+
+                if (!ReferenceEquals(current, root) && !IsOpenUsdType(currentType))
+                {
+                    continue;
+                }
+
+                EnqueueMembers(current, currentType, visited, queue, includeProperties);
+            }
+            return null;
+        }
+
+        private static void EnqueueMembers(
+            object current,
+            Type currentType,
+            HashSet<object> visited,
+            Queue<object> queue,
+            bool includeProperties)
+        {
+            const BindingFlags flags = BindingFlags.Public |
+                BindingFlags.NonPublic |
+                BindingFlags.Instance;
+            foreach (FieldInfo field in currentType.GetFields(flags))
+            {
+                EnqueueValue(TryGetValue(() => field.GetValue(current)), visited, queue);
+            }
+            if (!includeProperties)
+            {
+                return;
+            }
+
+            foreach (PropertyInfo property in currentType.GetProperties(flags))
+            {
+                if (property.GetIndexParameters().Length == 0)
+                {
+                    EnqueueValue(TryGetValue(() => property.GetValue(current)), visited, queue);
+                }
+            }
+        }
+
+        private static object? TryGetValue(Func<object?> getValue)
+        {
+            try
+            {
+                return getValue();
+            }
+#pragma warning disable CA1031 // Reflection probes ignore inaccessible or throwing members.
+            catch (Exception)
+#pragma warning restore CA1031
+            {
+                return null;
+            }
+        }
+
+        private static void EnqueueValue(
+            object? value,
+            HashSet<object> visited,
+            Queue<object> queue)
+        {
+            if (value is null || visited.Contains(value) || !IsOpenUsdType(value.GetType()))
+            {
+                return;
+            }
+            queue.Enqueue(value);
+        }
+
+        private static bool IsOpenUsdType(Type type)
+        {
+            string? ns = type.Namespace;
+            return ns is not null && ns.StartsWith("OpenUsd", StringComparison.Ordinal);
+        }
+    }
+
     /// <summary>
     /// Renders the connector's composed stage with the OpenUSD Avalonia viewer and hands
     /// the connector a sink that authors into that very stage, so subscribed OPC UA values
@@ -46,6 +340,8 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
     /// <see cref="IUsdViewHost"/> and never references the rendering stack, so the
     /// connector package stays free of Avalonia and the native OpenUSD payload.
     /// </remarks>
+    // Excluded because this shell opens Avalonia windows and loads the native OpenUSD renderer; pure pick seams are tested.
+    [ExcludeFromCodeCoverage]
     public sealed class OpenUsdViewHost : IUsdViewHost
     {
         /// <inheritdoc/>
@@ -71,6 +367,8 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             UsdStageSink? sink = null;
             Task? session = null;
+            Task? pickWatcher = null;
+            var rendererPick = new RendererPickAttachmentHolder();
 
             var hostOptions = new ViewerHostOptions
             {
@@ -83,6 +381,28 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 StageReadyAsync = (stageSession, stageToken) =>
                 {
                     sink = new UsdStageSink(stageSession.Scheduler, ReportSinkFailure);
+                    bool rendererPickStarted = false;
+                    PickModeDecision pickDecision = PickModeSelection.Select(
+                        options.PickMode, options.PrimPicked is not null, rendererStarted: false);
+                    if (pickDecision.ProbeRenderer && options.PrimPicked is not null)
+                    {
+                        rendererPick.Attachment = TryAttachRendererPick(
+                            options.PrimPicked, lifetime.Token, stageToken);
+                        rendererPickStarted = rendererPick.Attachment is not null;
+                    }
+                    pickDecision = PickModeSelection.Select(
+                        options.PickMode, options.PrimPicked is not null, rendererPickStarted);
+                    if (pickDecision.WatchCommandPrim && options.PrimPicked is not null)
+                    {
+                        pickWatcher = Task.Run(
+                            () => WatchCommandPrimAsync(
+                                stageSession.Scheduler,
+                                options.CommandPrimPath,
+                                options.PrimPicked,
+                                lifetime.Token,
+                                stageToken),
+                            CancellationToken.None);
+                    }
                     // The viewport owns the UI thread, so the OPC UA pipeline runs on the
                     // thread pool. The stage token fires when the document closes, which
                     // is what stops the session.
@@ -100,9 +420,283 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             finally
             {
                 lifetime.Cancel();
+                rendererPick.Attachment?.Dispose();
                 DrainSession(session);
+                ObservePickWatcher(pickWatcher);
                 DisposeSink(sink);
             }
+        }
+
+        private static RendererPickAttachment? TryAttachRendererPick(
+            Func<string, CancellationToken, Task> primPicked,
+            CancellationToken hostToken,
+            CancellationToken stageToken)
+        {
+            try
+            {
+                if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop ||
+                    desktop.MainWindow is not { } window)
+                {
+                    return null;
+                }
+
+                StormViewportControl? viewport = FindVisualDescendant<StormViewportControl>(window);
+                if (viewport is null)
+                {
+                    return null;
+                }
+
+                IOpenUsdPickBackend? backend = RendererPickBackendDiscovery.TryFindPickBackend(viewport);
+                if (backend is null)
+                {
+                    return null;
+                }
+
+                var context = new RendererPickContext(viewport, backend, primPicked, hostToken, stageToken);
+                viewport.PointerPressed += context.OnPointerPressed;
+                return new RendererPickAttachment(viewport, context);
+            }
+#pragma warning disable CA1031 // Renderer pick discovery is opportunistic; command prim fallback handles failure.
+            catch (Exception)
+#pragma warning restore CA1031
+            {
+                return null;
+            }
+        }
+
+        private static T? FindVisualDescendant<T>(Visual root)
+            where T : Visual
+        {
+            foreach (Visual visual in root.GetVisualDescendants())
+            {
+                if (visual is T match)
+                {
+                    return match;
+                }
+            }
+            return null;
+        }
+
+        private static async Task WatchCommandPrimAsync(
+            UsdStageScheduler scheduler,
+            string commandPrimPath,
+            Func<string, CancellationToken, Task> primPicked,
+            CancellationToken hostToken,
+            CancellationToken stageToken)
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                hostToken, stageToken);
+            try
+            {
+                var state = new CommandPickState();
+                await ReadAndRaiseCommandPrimAsync(
+                    scheduler, commandPrimPath, primPicked, state, emitInitialTarget: false,
+                    linked.Token).ConfigureAwait(false);
+
+                using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
+                while (await timer.WaitForNextTickAsync(linked.Token).ConfigureAwait(false))
+                {
+                    await ReadAndRaiseCommandPrimAsync(
+                        scheduler, commandPrimPath, primPicked, state, emitInitialTarget: true,
+                        linked.Token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // The viewport closed or the caller cancelled.
+            }
+#pragma warning disable CA1031 // Pick callbacks are best-effort and must not tear the viewport down.
+            catch (Exception exception)
+#pragma warning restore CA1031
+            {
+                Console.Error.WriteLine($"The viewport pick watcher ended with an error: {exception.Message}");
+            }
+        }
+
+        private static async Task ReadAndRaiseCommandPrimAsync(
+            UsdStageScheduler scheduler,
+            string commandPrimPath,
+            Func<string, CancellationToken, Task> primPicked,
+            CommandPickState state,
+            bool emitInitialTarget,
+            CancellationToken cancellationToken)
+        {
+            string? target = await scheduler.InvokeAsync(
+                stage => ReadCommandTarget(stage, commandPrimPath),
+                cancellationToken).ConfigureAwait(false);
+            if (!UsdViewPickCommand.TryUpdatePickedPrim(
+                target, ref state.LastTarget, emitInitialTarget, out string pickedPrimPath))
+            {
+                return;
+            }
+
+            await primPicked(pickedPrimPath, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static string? ReadCommandTarget(UsdStage stage, string commandPrimPath)
+        {
+            if (string.IsNullOrWhiteSpace(commandPrimPath) ||
+                commandPrimPath[0] != '/')
+            {
+                return null;
+            }
+
+            UsdPrim prim = stage.GetPrim(commandPrimPath);
+            if (!prim.Exists())
+            {
+                return null;
+            }
+
+            string[] targets = prim.GetRelationshipTargets("targetPrim");
+            if (targets.Length > 0)
+            {
+                return targets[0];
+            }
+
+            return TryReadTargetAttribute(prim, readString: true) ??
+                TryReadTargetAttribute(prim, readString: false);
+        }
+
+        private static string? TryReadTargetAttribute(UsdPrim prim, bool readString)
+        {
+            try
+            {
+                return readString ? prim.GetString("targetPrim") : prim.GetToken("targetPrim");
+            }
+#pragma warning disable CA1031 // Missing or differently-typed fallback attributes are ignored.
+            catch (Exception)
+#pragma warning restore CA1031
+            {
+                return null;
+            }
+        }
+
+        private static void ObservePickWatcher(Task? pickWatcher)
+        {
+            if (pickWatcher is null || !pickWatcher.IsCompleted)
+            {
+                return;
+            }
+
+            _ = pickWatcher.Exception;
+        }
+
+        private sealed class CommandPickState
+        {
+            public string? LastTarget;
+        }
+
+        private sealed class RendererPickContext
+        {
+            public RendererPickContext(
+                StormViewportControl viewport,
+                IOpenUsdPickBackend backend,
+                Func<string, CancellationToken, Task> primPicked,
+                CancellationToken hostToken,
+                CancellationToken stageToken)
+            {
+                m_viewport = viewport;
+                m_backend = backend;
+                m_primPicked = primPicked;
+                m_hostToken = hostToken;
+                m_stageToken = stageToken;
+            }
+
+            public async void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+            {
+                try
+                {
+                    if (m_hostToken.IsCancellationRequested || m_stageToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    await Task.Run(
+                        () => RendererPickLogic.PickAsync(
+                            m_backend, CreatePickRequest(e), m_primPicked, m_hostToken).AsTask(),
+                        m_hostToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // The viewport closed or the caller cancelled.
+                }
+#pragma warning disable CA1031 // Picking is best-effort and must not affect the render loop.
+                catch (Exception exception)
+#pragma warning restore CA1031
+                {
+                    Console.Error.WriteLine($"A viewport pick failed: {exception.Message}");
+                }
+            }
+
+            private RenderPickRequest CreatePickRequest(PointerPressedEventArgs e)
+            {
+                Point position = e.GetPosition(m_viewport);
+                double scale = TopLevel.GetTopLevel(m_viewport)?.RenderScaling ?? 1.0;
+                RendererPickPixel pixel = RendererPickLogic.ToPhysicalPixel(
+                    position.X, position.Y, m_viewport.Bounds.Width, m_viewport.Bounds.Height, scale);
+                ulong stateRevision = TryGetCurrentRenderState(m_viewport, out StageRenderState state)
+                    ? state.Revision
+                    : 0;
+                return RendererPickLogic.CreateRequest(pixel, stateRevision);
+            }
+
+            private static bool TryGetCurrentRenderState(
+                StormViewportControl viewport,
+                out StageRenderState state)
+            {
+                try
+                {
+                    PropertyInfo? property = viewport.GetType().GetProperty(
+                        "CurrentRenderState",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (property?.GetValue(viewport) is StageRenderState renderState)
+                    {
+                        state = renderState;
+                        return true;
+                    }
+                }
+#pragma warning disable CA1031 // A missing state only makes the pick more likely to return stale.
+                catch (Exception)
+#pragma warning restore CA1031
+                {
+                    // The viewport does not expose a render state; fall back to the default.
+                    state = StageRenderState.Default;
+                    return false;
+                }
+
+                state = StageRenderState.Default;
+                return false;
+            }
+
+            private readonly StormViewportControl m_viewport;
+            private readonly IOpenUsdPickBackend m_backend;
+            private readonly Func<string, CancellationToken, Task> m_primPicked;
+            private readonly CancellationToken m_hostToken;
+            private readonly CancellationToken m_stageToken;
+        }
+
+        private sealed class RendererPickAttachment : IDisposable
+        {
+            public RendererPickAttachment(
+                StormViewportControl viewport,
+                RendererPickContext context)
+            {
+                m_viewport = viewport;
+                m_context = context;
+            }
+
+            public void Dispose()
+            {
+                m_viewport.PointerPressed -= m_context.OnPointerPressed;
+            }
+
+            private readonly StormViewportControl m_viewport;
+            private readonly RendererPickContext m_context;
+        }
+
+        private sealed class RendererPickAttachmentHolder
+        {
+            public RendererPickAttachment? Attachment;
         }
 
         private static async Task RunSessionAsync(
@@ -165,8 +759,10 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
         }
 
-        private static void ReportSinkFailure(Exception exception) =>
+        private static void ReportSinkFailure(Exception exception)
+        {
             Console.Error.WriteLine($"A stage update failed: {exception.Message}");
+        }
 
         /// <summary>
         /// Locates the staged USD plugin tree next to the running application, which is

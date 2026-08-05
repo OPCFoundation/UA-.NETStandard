@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.RobotIntent.Server
 {
@@ -54,37 +54,8 @@ namespace Opc.Ua.RobotIntent.Server
     /// is conformant. Parallelism would be an optimisation, not a correction.
     /// </para>
     /// </remarks>
-    public sealed class IntentControllerHost : IDisposable
+    public sealed class IntentControllerHost : IDisposable, IAsyncDisposable
     {
-        private const uint StateReady = 1;
-        private const uint StateRunning = 2;
-        private const uint StateSuspended = 3;
-        private const uint StateHalted = 4;
-
-        private readonly Lock m_lock = new();
-        private readonly IntentControllerState m_controller;
-        private readonly IIntentExecutor m_executor;
-        private readonly IntentControllerHostOptions m_options;
-        private readonly Func<NodeState, CancellationToken, ValueTask> m_addNode;
-        private readonly Func<NodeState, CancellationToken, ValueTask>? m_removeNode;
-        private readonly Dictionary<string, IntentEntry> m_intents = [];
-        private readonly Dictionary<string, MissionEntry> m_missions = [];
-        private readonly LinkedList<IntentEntry> m_queue = new();
-        private readonly Dictionary<NodeId, IntentCapabilityDataType> m_capabilities = [];
-        private NamespaceTable m_namespaceUris = new();
-        private readonly Dictionary<string, ChannelEntry> m_channels = [];
-        private SafetyStatus m_safety = SafetyStatus.Nominal;
-        private FolderState? m_intentsFolder;
-        private FolderState? m_missionsFolder;
-        private readonly SemaphoreSlim m_pump = new(0);
-        private readonly CancellationTokenSource m_shutdown = new();
-
-        private IntentEntry? m_current;
-        private Task? m_pumpTask;
-        private long m_nextId;
-        private bool m_paused;
-        private bool m_disposed;
-
         /// <summary>
         /// Creates a host over an already-materialised controller node.
         /// </summary>
@@ -118,6 +89,30 @@ namespace Opc.Ua.RobotIntent.Server
         public NodeId? ControlOwner { get; private set; }
 
         /// <summary>
+        /// The safety state the host is refusing against.
+        /// </summary>
+        public SafetyStatus SafetyState
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_safety;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Raised when a per-invocation node could not be retired.
+        /// </summary>
+        public event EventHandler<IntentNodeAddFailure>? NodeRemoveFailed;
+
+        /// <summary>
+        /// Raised when a per-invocation node could not be published.
+        /// </summary>
+        public event EventHandler<IntentNodeAddFailure>? NodeAddFailed;
+
+        /// <summary>
         /// Starts the execution pump and wires the controller's Methods.
         /// </summary>
         public void Start(ISystemContext context)
@@ -126,6 +121,16 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            if (m_pumpTask != null)
+            {
+                if (context is global::Opc.Ua.Server.ServerSystemContext startedContext &&
+                    startedContext.Server.SessionManager is { } startedSessionManager)
+                {
+                    AttachSessionManager(context, startedSessionManager);
+                }
+                return;
+            }
+            m_logger = context.Telemetry.CreateLogger<IntentControllerHost>();
             m_namespaceUris = context.NamespaceUris;
             m_intentsFolder = EnsureFolder(context, m_controller.Intents, BrowseNames.Intents);
             if (m_options.MissionsSupported)
@@ -133,17 +138,21 @@ namespace Opc.Ua.RobotIntent.Server
                 m_missionsFolder = EnsureFolder(context, m_controller.Missions, BrowseNames.Missions);
             }
             ResolveCapabilities(context);
+            BuildReferenceIndexes(context);
             if (m_options.RealTimeChannelsSupported)
             {
                 CreateChannels(context);
             }
             PublishSafetyLocked(context);
             WireMethods(context);
+            if (context is global::Opc.Ua.Server.ServerSystemContext serverContext &&
+                serverContext.Server.SessionManager is { } sessionManager)
+            {
+                AttachSessionManager(context, sessionManager);
+            }
             PublishControllerState(context);
             m_pumpTask = Task.Run(() => PumpAsync(context, m_shutdown.Token));
         }
-
-        // ---------------------------------------------------------------- admission
 
         /// <summary>
         /// Admits one intent, per OPC UA - Robot Intent clause 6.2.
@@ -160,12 +169,680 @@ namespace Opc.Ua.RobotIntent.Server
             IntentDataType? intent,
             string missionId = "")
         {
-            return SubmitCore(context, sessionId, intent, missionId, forceNewId: false);
+            return SubmitCore(
+                context, sessionId, ClientNameOf(context), intent, missionId, forceNewId: false);
+        }
+
+        /// <summary>
+        /// Asks the Server to end an intent early.
+        /// </summary>
+        /// <remarks>
+        /// This is NOT the OPC UA Cancel Service, which discards a pending service
+        /// response and leaves the robot moving. The Server may refuse: some motions
+        /// cannot be abandoned part-way without leaving the cell in a worse state than
+        /// completing them.
+        /// </remarks>
+        public bool CancelIntent(
+            ISystemContext context,
+            NodeId? sessionId,
+            string intentId,
+            StopModeEnum stopMode = StopModeEnum.OnPath)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return false;
+            }
+            lock (m_lock)
+            {
+                if (m_options.RequireControlAuthority && !HasAuthority(sessionId))
+                {
+                    return false;
+                }
+                if (!m_intents.TryGetValue(intentId ?? string.Empty, out IntentEntry? entry) ||
+                    IntentOutcome.IsTerminal(entry.State))
+                {
+                    return false;
+                }
+                return CancelLocked(context, entry, IntentFailureEnum.None, stopMode);
+            }
+        }
+
+        /// <summary>
+        /// Asks the Server to end every outstanding intent and mission.
+        /// </summary>
+        public uint CancelAll(
+            ISystemContext context,
+            NodeId? sessionId,
+            StopModeEnum stopMode = StopModeEnum.OnPath)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return 0;
+            }
+            lock (m_lock)
+            {
+                if (m_options.RequireControlAuthority && !HasAuthority(sessionId))
+                {
+                    return 0;
+                }
+                uint count = 0;
+                foreach (MissionEntry mission in m_missions.Values.ToList())
+                {
+                    if (!IntentOutcome.IsTerminal(mission.State))
+                    {
+                        FinishMissionLocked(context, mission, ExecutionStateEnum.Cancelled);
+                    }
+                }
+                foreach (IntentEntry entry in m_intents.Values.ToList())
+                {
+                    if (!IntentOutcome.IsTerminal(entry.State) &&
+                        CancelLocked(context, entry, IntentFailureEnum.None, stopMode))
+                    {
+                        count++;
+                    }
+                }
+                return count;
+            }
+        }
+
+        /// <summary>
+        /// Suspends execution, retaining position.
+        /// </summary>
+        public bool Pause(ISystemContext context, NodeId? sessionId)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return false;
+            }
+            lock (m_lock)
+            {
+                if (m_options.RequireControlAuthority && !HasAuthority(sessionId))
+                {
+                    return false;
+                }
+                if (m_paused)
+                {
+                    return true;
+                }
+                if (m_current == null)
+                {
+                    return false;
+                }
+                m_paused = true;
+                if (m_current is { } cur && cur.State == ExecutionStateEnum.Executing)
+                {
+                    SetExecutionStateLocked(context, cur, ExecutionStateEnum.Suspended);
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Continues execution suspended by <see cref="Pause"/>.
+        /// </summary>
+        public bool Resume(ISystemContext context, NodeId? sessionId)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return false;
+            }
+            lock (m_lock)
+            {
+                if (m_options.RequireControlAuthority && !HasAuthority(sessionId))
+                {
+                    return false;
+                }
+                if (!m_paused)
+                {
+                    return false;
+                }
+                m_paused = false;
+                if (m_current is { } cur && cur.State == ExecutionStateEnum.Suspended)
+                {
+                    SetExecutionStateLocked(context, cur, ExecutionStateEnum.Executing);
+                }
+                m_pump.Release();
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Re-attempts an intent that terminated Retriable.
+        /// </summary>
+        /// <remarks>
+        /// The new attempt is a NEW operation instance. The original stays where it is,
+        /// terminal, with its own result, so the history of what was tried survives.
+        /// </remarks>
+        public IntentAdmission Retry(ISystemContext context, NodeId? sessionId, string intentId)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return IntentAdmission.Refused(IntentFailureEnum.NotPermittedInMode,
+                    "The intent controller host is shutting down.");
+            }
+            IntentDataType? intent;
+            string missionId;
+            lock (m_lock)
+            {
+                if (!m_intents.TryGetValue(intentId ?? string.Empty, out IntentEntry? entry) ||
+                    entry.State != ExecutionStateEnum.Retriable)
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.ParameterInvalid,
+                        "No intent with that identifier terminated Retriable.");
+                }
+                intent = entry.Intent;
+                missionId = entry.MissionId;
+            }
+
+            return SubmitCore(context, sessionId, ClientNameOf(context), intent!, missionId, forceNewId: true);
+        }
+
+        /// <summary>
+        /// Takes command authority.
+        /// </summary>
+        /// <remarks>
+        /// This arbitrates between OPC UA clients so two of them cannot interleave
+        /// motion. It is NOT the single point of control that ISO 10218-2 requires,
+        /// which concerns remote command against local manual control and is enforced
+        /// by safety-rated means outside this interface.
+        /// </remarks>
+        public bool RequestControl(ISystemContext context, NodeId? sessionId, out NodeId? owner)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (sessionId is not { IsNull: false } || m_disposed)
+            {
+                owner = ControlOwner;
+                return false;
+            }
+            lock (m_lock)
+            {
+                if (ControlOwner == null || ControlOwner == sessionId)
+                {
+                    ControlOwner = sessionId;
+                    m_logger?.AuthorityGranted(sessionId ?? NodeId.Null);
+                    PublishControllerState(context);
+                    owner = ControlOwner;
+                    return true;
+                }
+                owner = ControlOwner;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gives up command authority. Outstanding intents are unaffected.
+        /// </summary>
+        public void ReleaseControl(ISystemContext context, NodeId? sessionId)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return;
+            }
+            lock (m_lock)
+            {
+                if (HasAuthority(sessionId))
+                {
+                    ControlOwner = null;
+                    m_logger?.AuthorityReleased(sessionId ?? NodeId.Null);
+                    PublishControllerState(context);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reports what the safety system is enforcing, and publishes it.
+        /// </summary>
+        /// <remarks>
+        /// The application calls this; the host does not infer safety state. Admission
+        /// then refuses on the same values a client can read, so the refusal is
+        /// explainable from the address space rather than from Server-internal state.
+        /// </remarks>
+        public void UpdateSafetyState(ISystemContext context, SafetyStatus status)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (status == null)
+            {
+                throw new ArgumentNullException(nameof(status));
+            }
+            if (m_disposed)
+            {
+                return;
+            }
+            lock (m_lock)
+            {
+                m_safety = status;
+                PublishSafetyLocked(context);
+                PublishControllerState(context);
+            }
+        }
+
+        /// <summary>
+        /// Releases authority held by a Session that has closed.
+        /// </summary>
+        /// <remarks>
+        /// Without this a crashed client locks the robot for good.
+        /// </remarks>
+        public void OnSessionClosed(ISystemContext context, NodeId sessionId)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return;
+            }
+            lock (m_lock)
+            {
+                if (HasAuthority(sessionId))
+                {
+                    ControlOwner = null;
+                }
+                ReleaseChannelsLocked(context, sessionId);
+                PublishControllerState(context);
+            }
+        }
+
+        /// <summary>
+        /// Subscribes this host to the Server session lifetime notifications.
+        /// </summary>
+        public void AttachSessionManager(
+            ISystemContext context, global::Opc.Ua.Server.ISessionManager sessionManager)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (sessionManager == null)
+            {
+                throw new ArgumentNullException(nameof(sessionManager));
+            }
+            if (m_disposed)
+            {
+                return;
+            }
+            if (m_sessionManager != null)
+            {
+                m_sessionManager.SessionClosing -= m_sessionClosingHandler;
+            }
+            m_sessionClosingHandler = (session, reason) => OnSessionClosed(context, session.Id);
+            m_sessionManager = sessionManager;
+            sessionManager.SessionClosing += m_sessionClosingHandler;
+        }
+
+        /// <summary>
+        /// Takes a lease on a brokered real-time channel.
+        /// </summary>
+        /// <remarks>
+        /// This hands over what a client needs in order to connect and nothing else.
+        /// The samples travel on that channel; clause 4.3 explains why they cannot
+        /// travel here. A lease that is not renewed lapses, so a client that dies does
+        /// not hold the channel for good - the same reasoning as command authority.
+        /// </remarks>
+        public RealTimeLease OpenRealTimeChannel(
+            ISystemContext context, NodeId? sessionId, string channelId, double requestedLeaseMs)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed || !m_options.RealTimeChannelsSupported)
+            {
+                return RealTimeLease.Refused("This Server brokers no real-time channels.");
+            }
+            if (sessionId is not { IsNull: false })
+            {
+                return RealTimeLease.Refused("A Session is required to hold a real-time channel lease.");
+            }
+            lock (m_lock)
+            {
+                ReapExpiredChannelsLocked(context);
+                if (m_options.RequireControlAuthority && !HasAuthority(sessionId))
+                {
+                    return RealTimeLease.Refused(
+                        "The calling Session does not hold command authority.");
+                }
+                if (!m_channels.TryGetValue(channelId ?? string.Empty, out ChannelEntry? channel))
+                {
+                    return RealTimeLease.Refused("No channel with that identifier is offered.");
+                }
+                if (!channel.Available)
+                {
+                    return RealTimeLease.Refused("The channel is not available.");
+                }
+                if (channel.RequiredMode != m_options.OperationalMode)
+                {
+                    return RealTimeLease.Refused(
+                        $"The channel requires {channel.RequiredMode} mode.");
+                }
+                bool held = channel.Leased && channel.Expiry > DateTime.UtcNow;
+                if (held && channel.Holder != sessionId)
+                {
+                    return RealTimeLease.Refused("Another Session holds the lease.");
+                }
+
+                double lease = requestedLeaseMs > 0
+                    ? Math.Min(requestedLeaseMs, m_options.MaxChannelLeaseMs)
+                    : m_options.MaxChannelLeaseMs;
+                channel.Holder = sessionId;
+                channel.Leased = true;
+                channel.Expiry = DateTime.UtcNow.AddMilliseconds(lease);
+                PublishChannelLocked(context, channel);
+                m_logger?.RealTimeLeaseGranted(channel.ChannelId, sessionId ?? NodeId.Null, channel.Expiry);
+                return new RealTimeLease
+                {
+                    Granted = true,
+                    EndpointUrl = channel.EndpointUrl,
+                    PayloadDescriptor = channel.PayloadDescriptor,
+                    Expiry = channel.Expiry
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gives up a lease on a brokered channel.
+        /// </summary>
+        public bool CloseRealTimeChannel(ISystemContext context, NodeId? sessionId, string channelId)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return false;
+            }
+            lock (m_lock)
+            {
+                ReapExpiredChannelsLocked(context);
+                if (!m_channels.TryGetValue(channelId ?? string.Empty, out ChannelEntry? channel) ||
+                    !channel.Leased ||
+                    channel.Holder != sessionId)
+                {
+                    return false;
+                }
+                channel.Holder = null;
+                channel.Leased = false;
+                channel.Expiry = DateTime.MinValue;
+                PublishChannelLocked(context, channel);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Submits an ordered sequence of intents tracked as one unit.
+        /// </summary>
+        public MissionAdmission SubmitMission(
+            ISystemContext context,
+            NodeId? sessionId,
+            MissionDataType? mission)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                    "The intent controller host is shutting down.");
+            }
+            if (!m_options.MissionsSupported)
+            {
+                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                    "This Server does not implement missions.");
+            }
+            if (mission == null || mission.Steps.IsNull || mission.Steps.IsEmpty)
+            {
+                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                    "A mission must carry at least one step.");
+            }
+
+            Check ordering = MissionRules.ValidateSteps(mission.Steps);
+            if (!ordering.Ok)
+            {
+                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                    ordering.Message ?? "The mission steps are not valid.");
+            }
+            Check graph = MissionRules.ValidateTransitions(mission.Steps, mission.Transitions);
+            if (!graph.Ok)
+            {
+                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                    graph.Message ?? "The mission graph is not valid.");
+            }
+
+            // Decided under the same acquisition that acts on it, for the reason given
+            // in SubmitCore: authority and mode can both change between a check that
+            // released the lock and the admission that follows it.
+            lock (m_lock)
+            {
+                if (m_options.RequireControlAuthority && !HasAuthority(sessionId))
+                {
+                    return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                        "The calling Session does not hold command authority.");
+                }
+                if (!IsSubmissionPermittedInMode())
+                {
+                    return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                        "Missions are accepted only in Automatic or AutomaticExternal mode.");
+                }
+
+                string id = mission.MissionId ?? string.Empty;
+                if (string.IsNullOrEmpty(id))
+                {
+                    id = FormattableString.Invariant(
+                        $"mission-{Interlocked.Increment(ref m_nextId)}");
+                }
+                else if (m_missions.TryGetValue(id, out MissionEntry? existing) &&
+                    !IntentOutcome.IsTerminal(existing.State))
+                {
+                    return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
+                        $"MissionId '{id}' is already outstanding.");
+                }
+
+                var entry = new MissionEntry(id, mission);
+                m_missions[id] = entry;
+                CreateMissionNode(context, entry);
+                SetMissionStateLocked(context, entry, ExecutionStateEnum.Executing);
+                StartNextStepLocked(context, entry, sessionId);
+                return MissionAdmission.Admitted(id, entry.Node!.NodeId);
+            }
+        }
+
+        /// <summary>
+        /// Replaces the horizon of a mission already submitted.
+        /// </summary>
+        /// <remarks>
+        /// The base is untouchable. It has been committed and may already have
+        /// executed, so an update that would alter a released step is refused rather
+        /// than partly applied, and the whole update is applied atomically.
+        /// </remarks>
+        public MissionUpdateOutcome UpdateMission(
+            ISystemContext context,
+            NodeId? sessionId,
+            string missionId,
+            uint missionUpdateId,
+            ArrayOf<MissionStepDataType> steps)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
+                    "The intent controller host is shutting down.");
+            }
+            if (!m_options.MissionHorizonSupported)
+            {
+                return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
+                    "This Server does not implement horizon updates.");
+            }
+            lock (m_lock)
+            {
+                if (m_options.RequireControlAuthority && !HasAuthority(sessionId))
+                {
+                    return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
+                        "The calling Session does not hold command authority.");
+                }
+                if (!m_missions.TryGetValue(missionId ?? string.Empty, out MissionEntry? entry))
+                {
+                    return new MissionUpdateOutcome(MissionUpdateResultEnum.UnknownMission,
+                        "No mission with that identifier is held.");
+                }
+                if (missionUpdateId <= entry.Mission.MissionUpdateId)
+                {
+                    // Two updates that crossed in flight: the later one wins and the
+                    // earlier is rejected rather than applied out of order.
+                    return new MissionUpdateOutcome(MissionUpdateResultEnum.Outdated,
+                        "MissionUpdateId must be greater than the mission's current value.");
+                }
+
+                Check conflict = MissionRules.ValidateBasePreserved(entry.Mission.Steps, steps);
+                if (!conflict.Ok)
+                {
+                    return new MissionUpdateOutcome(MissionUpdateResultEnum.BaseConflict,
+                        conflict.Message ?? "The update would alter a released step.");
+                }
+                Check ordering = MissionRules.ValidateSteps(steps);
+                if (!ordering.Ok)
+                {
+                    return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
+                        ordering.Message ?? "The replacement steps are not valid.");
+                }
+                Check graph = MissionRules.ValidateTransitions(steps, entry.Mission.Transitions);
+                if (!graph.Ok)
+                {
+                    return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
+                        graph.Message ?? "The mission graph is not valid.");
+                }
+
+                entry.Mission.Steps = steps;
+                entry.Mission.MissionUpdateId = missionUpdateId;
+                PublishMissionLocked(context, entry);
+                return new MissionUpdateOutcome(MissionUpdateResultEnum.Accepted, null);
+            }
+        }
+
+        /// <summary>
+        /// Ends a mission and every intent belonging to it.
+        /// </summary>
+        public bool CancelMission(ISystemContext context, NodeId? sessionId, string missionId)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (m_disposed)
+            {
+                return false;
+            }
+            lock (m_lock)
+            {
+                if (m_options.RequireControlAuthority && !HasAuthority(sessionId))
+                {
+                    return false;
+                }
+                if (!m_missions.TryGetValue(missionId ?? string.Empty, out MissionEntry? entry) ||
+                    IntentOutcome.IsTerminal(entry.State))
+                {
+                    return false;
+                }
+                foreach (IntentEntry intent in m_intents.Values.ToList())
+                {
+                    if (intent.MissionId == entry.MissionId &&
+                        !IntentOutcome.IsTerminal(intent.State))
+                    {
+                        CancelLocked(context, intent, IntentFailureEnum.None, StopModeEnum.OnPath);
+                    }
+                }
+                FinishMissionLocked(context, entry, ExecutionStateEnum.Cancelled);
+                return true;
+            }
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+            m_disposed = true;
+            UnhookSessionManager();
+            m_shutdown.Cancel();
+            foreach (IntentEntry entry in m_intents.Values)
+            {
+                entry.RequestCancel(IntentFailureEnum.Other, StopModeEnum.QuickStop);
+            }
+            if (m_pumpTask == null || m_pumpTask.IsCompleted)
+            {
+                DisposeResources();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// The clause 6.3 table, in code. A pairing not listed there is not legal, so
+        /// this mapping is total and has no default arm that guesses.
+        /// </summary>
+        internal static uint MapToProgramState(ExecutionStateEnum state)
+        {
+            return state switch
+            {
+                ExecutionStateEnum.Accepted => StateReady,
+                ExecutionStateEnum.Queued => StateReady,
+                ExecutionStateEnum.Executing => StateRunning,
+                ExecutionStateEnum.Cancelling => StateRunning,
+                ExecutionStateEnum.Suspended => StateSuspended,
+                ExecutionStateEnum.Succeeded => StateHalted,
+                ExecutionStateEnum.Failed => StateHalted,
+                ExecutionStateEnum.Cancelled => StateHalted,
+                ExecutionStateEnum.Retriable => StateHalted,
+                _ => throw new ArgumentOutOfRangeException(nameof(state), state,
+                    "ExecutionStateEnum has no clause 6.3 pairing.")
+            };
         }
 
         private IntentAdmission SubmitCore(
             ISystemContext context,
             NodeId? sessionId,
+            string clientName,
             IntentDataType? intent,
             string missionId,
             bool forceNewId)
@@ -177,8 +854,15 @@ namespace Opc.Ua.RobotIntent.Server
 
             if (intent == null)
             {
-                return IntentAdmission.Refused(IntentFailureEnum.ParameterInvalid,
-                    "No intent was supplied.");
+                var refused = IntentAdmission.Refused(
+                    IntentFailureEnum.ParameterInvalid, "No intent was supplied.");
+                m_logger?.IntentAdmissionRefused(string.Empty, refused.Failure, refused.Message ?? string.Empty);
+                return refused;
+            }
+            if (m_disposed)
+            {
+                return IntentAdmission.Refused(IntentFailureEnum.NotPermittedInMode,
+                    "The intent controller host is shutting down.");
             }
 
             // Everything below depends on state another thread can change: the safety
@@ -189,7 +873,7 @@ namespace Opc.Ua.RobotIntent.Server
             // the Server had already been told to refuse.
             lock (m_lock)
             {
-                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
+                if (m_options.RequireControlAuthority && !HasAuthority(sessionId))
                 {
                     return IntentAdmission.Refused(IntentFailureEnum.ControlNotOwned,
                         "The calling Session does not hold command authority.");
@@ -206,12 +890,13 @@ namespace Opc.Ua.RobotIntent.Server
                             ? "A stop is asserted."
                             : "The safety controller reports a fault.");
                 }
-                if (intent is MotionIntentDataType && AnyChannelHeldLocked() &&
+                if (intent is MotionIntentDataType &&
+                    AnyChannelHeldLocked(context) &&
                     !m_options.ArbitratesWithRealTimeChannel)
                 {
                     return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
-                        "A real-time channel lease is held and this Server does not "
-                        + "arbitrate between the two command sources.");
+                        "A real-time channel lease is held and this Server does not " +
+                        "arbitrate between the two command sources.");
                 }
                 if (ExceedsSafeSpeedLocked(intent))
                 {
@@ -219,6 +904,8 @@ namespace Opc.Ua.RobotIntent.Server
                         FormattableString.Invariant(
                             $"The requested speed exceeds the enforced safe limit of {m_safety.SafeSpeedLimit} m/s."));
                 }
+
+                ClampMotionConstraints(intent);
 
                 IntentCapabilityDataType? capability = FindCapabilityLocked(intent);
                 if (capability == null)
@@ -245,6 +932,12 @@ namespace Opc.Ua.RobotIntent.Server
                     return IntentAdmission.Refused(IntentFailureEnum.ParameterInvalid,
                         validation.Message ?? "The intent is not valid.");
                 }
+                Check scope = ValidateScopedReferencesLocked(intent);
+                if (!scope.Ok)
+                {
+                    return IntentAdmission.Refused(IntentFailureEnum.ParameterInvalid,
+                        scope.Message ?? "The intent references an invalid node.");
+                }
 
                 string id = forceNewId ? string.Empty : intent.IntentId ?? string.Empty;
                 if (string.IsNullOrEmpty(id))
@@ -252,11 +945,10 @@ namespace Opc.Ua.RobotIntent.Server
                     id = FormattableString.Invariant(
                         $"intent-{Interlocked.Increment(ref m_nextId)}");
                 }
-                else if (m_intents.TryGetValue(id, out IntentEntry? existing) &&
-                         !IntentOutcome.IsTerminal(existing.State))
+                else if (m_intents.ContainsKey(id))
                 {
                     return IntentAdmission.Refused(IntentFailureEnum.ParameterInvalid,
-                        $"IntentId '{id}' is already outstanding.");
+                        $"IntentId '{id}' is already retained by another operation.");
                 }
 
                 if (intent.BufferMode != BufferModeEnum.Aborting &&
@@ -266,20 +958,31 @@ namespace Opc.Ua.RobotIntent.Server
                         "The queue is at MaxQueueDepth.");
                 }
 
-                var entry = new IntentEntry(id, intent, missionId);
+                var entry = new IntentEntry(id, intent, missionId)
+                {
+                    CreateSessionId = sessionId ?? NodeId.Null,
+                    CreateClientName = clientName,
+                    InvocationCreationTime = DateTime.UtcNow
+                };
                 m_intents[id] = entry;
                 CreateOperationNode(context, entry);
+                InitializeProgramDiagnostic(context, entry, "SubmitIntent", sessionId);
+                m_logger?.IntentAdmitted(id, intent.GetType().Name);
 
                 if (intent.BufferMode == BufferModeEnum.Aborting)
                 {
-                    // Everything already queued is superseded, and whatever is
-                    // executing is asked to stop. The aborted work terminates as
-                    // Cancelled with Superseded, which is what tells a client the
-                    // difference between "you cancelled it" and "you replaced it".
-                    SupersedeQueuedLocked(context);
-                    m_current?.RequestCancel(IntentFailureEnum.Superseded);
+                    SupersedeQueuedLocked(context, SupersededStopMode);
+                    if (m_current is { } current)
+                    {
+                        current.RequestCancel(IntentFailureEnum.Superseded, SupersededStopMode);
+                        PublishTerminalResultLocked(context, current, new IntentOutcome
+                        {
+                            State = ExecutionStateEnum.Cancelled,
+                            Failure = IntentFailureEnum.Superseded,
+                            Message = "Replaced by an Aborting submission."
+                        });
+                    }
                 }
-
                 m_queue.AddLast(entry);
                 SetExecutionStateLocked(context, entry, ExecutionStateEnum.Accepted);
                 RenumberQueueLocked(context);
@@ -288,74 +991,11 @@ namespace Opc.Ua.RobotIntent.Server
             }
         }
 
-        // ------------------------------------------------------------- cancellation
-
-        /// <summary>
-        /// Asks the Server to end an intent early.
-        /// </summary>
-        /// <remarks>
-        /// This is NOT the OPC UA Cancel Service, which discards a pending service
-        /// response and leaves the robot moving. The Server may refuse: some motions
-        /// cannot be abandoned part-way without leaving the cell in a worse state than
-        /// completing them.
-        /// </remarks>
-        public bool CancelIntent(ISystemContext context, NodeId? sessionId, string intentId)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            lock (m_lock)
-            {
-                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
-                {
-                    return false;
-                }
-                if (!m_intents.TryGetValue(intentId ?? string.Empty, out IntentEntry? entry) ||
-                    IntentOutcome.IsTerminal(entry.State))
-                {
-                    return false;
-                }
-                return CancelLocked(context, entry, IntentFailureEnum.None);
-            }
-        }
-
-        /// <summary>
-        /// Asks the Server to end every outstanding intent and mission.
-        /// </summary>
-        public uint CancelAll(ISystemContext context, NodeId? sessionId)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            lock (m_lock)
-            {
-                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
-                {
-                    return 0;
-                }
-                uint count = 0;
-                foreach (MissionEntry mission in m_missions.Values.ToList())
-                {
-                    if (!IntentOutcome.IsTerminal(mission.State))
-                    {
-                        FinishMissionLocked(context, mission, ExecutionStateEnum.Cancelled);
-                    }
-                }
-                foreach (IntentEntry entry in m_intents.Values.ToList())
-                {
-                    if (!IntentOutcome.IsTerminal(entry.State) &&
-                        CancelLocked(context, entry, IntentFailureEnum.None))
-                    {
-                        count++;
-                    }
-                }
-                return count;
-            }
-        }
-
-        private bool CancelLocked(ISystemContext context, IntentEntry entry, IntentFailureEnum reason)
+        private bool CancelLocked(
+            ISystemContext context,
+            IntentEntry entry,
+            IntentFailureEnum reason,
+            StopModeEnum stopMode)
         {
             if (entry == m_current)
             {
@@ -364,7 +1004,12 @@ namespace Opc.Ua.RobotIntent.Server
                     return false;
                 }
                 SetExecutionStateLocked(context, entry, ExecutionStateEnum.Cancelling);
-                entry.RequestCancel(reason);
+                entry.RequestCancel(reason, stopMode);
+                PublishTerminalResultLocked(context, entry, new IntentOutcome
+                {
+                    State = ExecutionStateEnum.Cancelled,
+                    Failure = reason
+                });
                 return true;
             }
 
@@ -380,10 +1025,11 @@ namespace Opc.Ua.RobotIntent.Server
             return true;
         }
 
-        private void SupersedeQueuedLocked(ISystemContext context)
+        private void SupersedeQueuedLocked(ISystemContext context, StopModeEnum stopMode)
         {
             while (m_queue.First is { } node)
             {
+                node.Value.AcceptedStopMode = stopMode;
                 m_queue.RemoveFirst();
                 CompleteLocked(context, node.Value, new IntentOutcome
                 {
@@ -394,194 +1040,11 @@ namespace Opc.Ua.RobotIntent.Server
             }
         }
 
-        // -------------------------------------------------------- pause and resume
-
-        /// <summary>
-        /// Suspends execution, retaining position.
-        /// </summary>
-        public bool Pause(ISystemContext context, NodeId? sessionId)
+        private bool HasAuthority(NodeId? sessionId)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            lock (m_lock)
-            {
-                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
-                {
-                    return false;
-                }
-                if (m_paused)
-                {
-                    return true;
-                }
-                m_paused = true;
-                if (m_current is { } cur && cur.State == ExecutionStateEnum.Executing)
-                {
-                    SetExecutionStateLocked(context, cur, ExecutionStateEnum.Suspended);
-                }
-                return true;
-            }
-        }
-
-        /// <summary>
-        /// Continues execution suspended by <see cref="Pause"/>.
-        /// </summary>
-        public bool Resume(ISystemContext context, NodeId? sessionId)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            lock (m_lock)
-            {
-                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
-                {
-                    return false;
-                }
-                if (!m_paused)
-                {
-                    return true;
-                }
-                m_paused = false;
-                if (m_current is { } cur && cur.State == ExecutionStateEnum.Suspended)
-                {
-                    SetExecutionStateLocked(context, cur, ExecutionStateEnum.Executing);
-                }
-                m_pump.Release();
-                return true;
-            }
-        }
-
-        /// <summary>
-        /// Re-attempts an intent that terminated Retriable.
-        /// </summary>
-        /// <remarks>
-        /// The new attempt is a NEW operation instance. The original stays where it is,
-        /// terminal, with its own result, so the history of what was tried survives.
-        /// </remarks>
-        public IntentAdmission Retry(ISystemContext context, NodeId? sessionId, string intentId)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            IntentDataType? intent;
-            string missionId;
-            lock (m_lock)
-            {
-                if (!m_intents.TryGetValue(intentId ?? string.Empty, out IntentEntry? entry) ||
-                    entry.State != ExecutionStateEnum.Retriable)
-                {
-                    return IntentAdmission.Refused(IntentFailureEnum.ParameterInvalid,
-                        "No intent with that identifier terminated Retriable.");
-                }
-                intent = entry.Intent;
-                missionId = entry.MissionId;
-            }
-
-            return SubmitCore(context, sessionId, intent!, missionId, forceNewId: true);
-        }
-
-        // ------------------------------------------------------------------ authority
-
-        /// <summary>
-        /// Takes command authority.
-        /// </summary>
-        /// <remarks>
-        /// This arbitrates between OPC UA clients so two of them cannot interleave
-        /// motion. It is NOT the single point of control that ISO 10218-2 requires,
-        /// which concerns remote command against local manual control and is enforced
-        /// by safety-rated means outside this interface.
-        /// </remarks>
-        public bool RequestControl(ISystemContext context, NodeId? sessionId, out NodeId? owner)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            lock (m_lock)
-            {
-                if (ControlOwner == null || ControlOwner == sessionId)
-                {
-                    ControlOwner = sessionId;
-                    PublishControllerState(context);
-                    owner = ControlOwner;
-                    return true;
-                }
-                owner = ControlOwner;
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Gives up command authority. Outstanding intents are unaffected.
-        /// </summary>
-        public void ReleaseControl(ISystemContext context, NodeId? sessionId)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            lock (m_lock)
-            {
-                if (ControlOwner == sessionId)
-                {
-                    ControlOwner = null;
-                    PublishControllerState(context);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Reports what the safety system is enforcing, and publishes it.
-        /// </summary>
-        /// <remarks>
-        /// The application calls this; the host does not infer safety state. Admission
-        /// then refuses on the same values a client can read, so the refusal is
-        /// explainable from the address space rather than from Server-internal state.
-        /// </remarks>
-        public void UpdateSafetyState(ISystemContext context, SafetyStatus status)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            if (status == null)
-            {
-                throw new ArgumentNullException(nameof(status));
-            }
-            lock (m_lock)
-            {
-                m_safety = status;
-                PublishSafetyLocked(context);
-                PublishControllerState(context);
-            }
-        }
-
-        /// <summary>
-        /// The safety state the host is refusing against.
-        /// </summary>
-        public SafetyStatus SafetyState
-        {
-            get
-            {
-                lock (m_lock)
-                {
-                    return m_safety;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Releases authority held by a Session that has closed.
-        /// </summary>
-        /// <remarks>
-        /// Without this a crashed client locks the robot for good.
-        /// </remarks>
-        public void OnSessionClosed(ISystemContext context, NodeId sessionId)
-        {
-            ReleaseControl(context, sessionId);
+            return ControlOwner != null &&
+                sessionId is { IsNull: false } &&
+                ControlOwner == sessionId;
         }
 
         /// <summary>
@@ -691,7 +1154,158 @@ namespace Opc.Ua.RobotIntent.Server
             return false;
         }
 
-        // ----------------------------------------------------------------- the pump
+        private void ClampMotionConstraints(IntentDataType intent)
+        {
+            if (intent is not MotionIntentDataType motion || motion.Constraints == null)
+            {
+                return;
+            }
+            MotionConstraintsDataType constraints = motion.Constraints;
+            constraints.SpeedFraction = ClampCeiling(constraints.SpeedFraction, m_options.MaxSpeedFraction);
+            constraints.CartesianSpeed = ClampCeiling(constraints.CartesianSpeed, m_options.MaxCartesianSpeed);
+            constraints.CartesianAcceleration = ClampCeiling(
+                constraints.CartesianAcceleration, m_options.MaxCartesianAcceleration);
+            constraints.Jerk = ClampCeiling(constraints.Jerk, m_options.MaxJerk);
+        }
+
+        private static double ClampCeiling(double value, double ceiling)
+        {
+            return ceiling > 0 && value > ceiling ? ceiling : value;
+        }
+
+        private Check ValidateScopedReferencesLocked(IntentDataType intent)
+        {
+            if (intent is MotionIntentDataType motion)
+            {
+                Check toolFrame = RequireNode(motion.ToolFrame, m_toolFrames, false, "ToolFrame");
+                if (!toolFrame.Ok)
+                {
+                    return toolFrame;
+                }
+                if (motion is ForceIntentDataType force)
+                {
+                    Check frameId = RequireFrameId(force.FrameId, nameof(force.FrameId));
+                    if (!frameId.Ok)
+                    {
+                        return frameId;
+                    }
+                }
+            }
+
+            if (intent is ProcessIntentDataType process)
+            {
+                Check processProgram = RequireNode(
+                    process.ProcessProgram, m_programs, false, nameof(process.ProcessProgram));
+                if (!processProgram.Ok)
+                {
+                    return processProgram;
+                }
+            }
+
+            return intent switch
+            {
+                PickIntentDataType pick => RequireNode(
+                    pick.Source, m_locations, true, nameof(pick.Source)),
+                PlaceIntentDataType place => RequireNode(
+                    place.Destination, m_locations, true, nameof(place.Destination)),
+                PalletiseIntentDataType palletise => RequireNode(
+                    palletise.Pattern, m_locations, false, nameof(palletise.Pattern)),
+                FastenIntentDataType fasten when !fasten.Joint.IsNull => Check.Fail(
+                    "FastenIntent.Joint is not supported by this controller model."),
+                ToolChangeIntentDataType toolChange => RequireNode(
+                    toolChange.Tool, m_tools, false, nameof(toolChange.Tool)),
+                GraspIntentDataType grasp => RequireNode(grasp.Tool, m_tools, false, nameof(grasp.Tool)),
+                ReleaseIntentDataType release => RequireNode(release.Tool, m_tools, false, nameof(release.Tool)),
+                SetOutputIntentDataType output => ValidateOutput(output),
+                CallProgramIntentDataType program => RequireNode(
+                    program.Program, m_programs, true, nameof(program.Program)),
+                WaitIntentDataType wait => RequireNode(wait.Signal, m_waitSignals, false, nameof(wait.Signal)),
+                _ => Check.Pass
+            };
+        }
+
+        private Check ValidateOutput(SetOutputIntentDataType output)
+        {
+            Check node = RequireNode(output.Output, m_outputs, true, nameof(output.Output));
+            if (!node.Ok)
+            {
+                return node;
+            }
+            if (!m_outputDataTypes.TryGetValue(output.Output, out NodeId dataType) ||
+                dataType.IsNull ||
+                output.Value.TypeInfo.IsUnknown ||
+                !VariantMatchesDataType(output.Value, dataType))
+            {
+                return Check.Fail("SetOutput.Value does not match the OutputSignal Value DataType.");
+            }
+            return Check.Pass;
+        }
+
+        private static bool VariantMatchesDataType(Variant value, NodeId dataType)
+        {
+            BuiltInType builtInType = value.TypeInfo.BuiltInType;
+            if (dataType == global::Opc.Ua.DataTypeIds.Boolean)
+            {
+                return builtInType == BuiltInType.Boolean;
+            }
+            if (dataType == global::Opc.Ua.DataTypeIds.String)
+            {
+                return builtInType == BuiltInType.String;
+            }
+            if (dataType == global::Opc.Ua.DataTypeIds.Double)
+            {
+                return builtInType == BuiltInType.Double;
+            }
+            if (dataType == global::Opc.Ua.DataTypeIds.Float)
+            {
+                return builtInType == BuiltInType.Float;
+            }
+            if (dataType == global::Opc.Ua.DataTypeIds.Int32)
+            {
+                return builtInType == BuiltInType.Int32;
+            }
+            if (dataType == global::Opc.Ua.DataTypeIds.UInt32)
+            {
+                return builtInType == BuiltInType.UInt32;
+            }
+            if (dataType == global::Opc.Ua.DataTypeIds.Int16)
+            {
+                return builtInType == BuiltInType.Int16;
+            }
+            if (dataType == global::Opc.Ua.DataTypeIds.UInt16)
+            {
+                return builtInType == BuiltInType.UInt16;
+            }
+            if (dataType == global::Opc.Ua.DataTypeIds.Byte)
+            {
+                return builtInType == BuiltInType.Byte;
+            }
+            if (dataType == global::Opc.Ua.DataTypeIds.SByte)
+            {
+                return builtInType == BuiltInType.SByte;
+            }
+            return true;
+        }
+
+        private Check RequireFrameId(string? frameId, string name)
+        {
+            string effective = frameId ?? string.Empty;
+            return effective.Length == 0 || m_frameIds.Contains(effective)
+                ? Check.Pass
+                : Check.Fail($"{name} names an unknown CoordinateFrame FrameId.");
+        }
+
+        private static Check RequireNode(
+            NodeId nodeId, HashSet<NodeId> index, bool required, string name)
+        {
+            if (nodeId.IsNull)
+            {
+                return required ? Check.Fail($"{name} is required.") : Check.Pass;
+            }
+            return index.Contains(nodeId)
+                ? Check.Pass
+                : Check.Fail($"{name} does not resolve to the required node type under this controller.");
+        }
 
         private async Task PumpAsync(ISystemContext context, CancellationToken shutdown)
         {
@@ -753,11 +1367,17 @@ namespace Opc.Ua.RobotIntent.Server
                 };
             }
 #pragma warning disable CA1031 // an executor is application code; a fault must terminate
-            catch (Exception ex)                                   // the intent, not the pump
+            catch (Exception ex)
             {
+                m_logger?.IntentExecutorFault(ex, entry.IntentId);
                 outcome = IntentOutcome.Fail(IntentFailureEnum.Other, ex.Message);
             }
 #pragma warning restore CA1031
+
+            if (entry.ToleranceFailure != null && outcome.State == ExecutionStateEnum.Succeeded)
+            {
+                outcome = entry.ToleranceFailure;
+            }
 
             if (entry.CancelRequested && outcome.State != ExecutionStateEnum.Failed)
             {
@@ -775,99 +1395,14 @@ namespace Opc.Ua.RobotIntent.Server
 
             lock (m_lock)
             {
-                CompleteLocked(context, entry, outcome);
+                entry.ExecutionCompleted = true;
+                if (!IntentOutcome.IsTerminal(entry.State))
+                {
+                    CompleteLocked(context, entry, outcome);
+                }
                 m_current = null;
-                AdvanceMissionLocked(context, entry, outcome);
+                PruneTerminalOperationsLocked();
                 PublishControllerState(context);
-            }
-        }
-
-        // ------------------------------------------------------- real-time channels
-
-        /// <summary>
-        /// Takes a lease on a brokered real-time channel.
-        /// </summary>
-        /// <remarks>
-        /// This hands over what a client needs in order to connect and nothing else.
-        /// The samples travel on that channel; clause 4.3 explains why they cannot
-        /// travel here. A lease that is not renewed lapses, so a client that dies does
-        /// not hold the channel for good - the same reasoning as command authority.
-        /// </remarks>
-        public RealTimeLease OpenRealTimeChannel(
-            ISystemContext context, NodeId? sessionId, string channelId, double requestedLeaseMs)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            if (!m_options.RealTimeChannelsSupported)
-            {
-                return RealTimeLease.Refused("This Server brokers no real-time channels.");
-            }
-            lock (m_lock)
-            {
-                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
-                {
-                    return RealTimeLease.Refused(
-                        "The calling Session does not hold command authority.");
-                }
-                if (!m_channels.TryGetValue(channelId ?? string.Empty, out ChannelEntry? channel))
-                {
-                    return RealTimeLease.Refused("No channel with that identifier is offered.");
-                }
-                if (!channel.Available)
-                {
-                    return RealTimeLease.Refused("The channel is not available.");
-                }
-                if (channel.RequiredMode != m_options.OperationalMode)
-                {
-                    return RealTimeLease.Refused(
-                        $"The channel requires {channel.RequiredMode} mode.");
-                }
-                bool held = channel.Leased && channel.Expiry > DateTime.UtcNow;
-                if (held && channel.Holder != sessionId)
-                {
-                    return RealTimeLease.Refused("Another Session holds the lease.");
-                }
-
-                double lease = requestedLeaseMs > 0
-                    ? Math.Min(requestedLeaseMs, m_options.MaxChannelLeaseMs)
-                    : m_options.MaxChannelLeaseMs;
-                channel.Holder = sessionId;
-                channel.Leased = true;
-                channel.Expiry = DateTime.UtcNow.AddMilliseconds(lease);
-                PublishChannelLocked(context, channel);
-                return new RealTimeLease
-                {
-                    Granted = true,
-                    EndpointUrl = channel.EndpointUrl,
-                    PayloadDescriptor = channel.PayloadDescriptor,
-                    Expiry = channel.Expiry
-                };
-            }
-        }
-
-        /// <summary>
-        /// Gives up a lease on a brokered channel.
-        /// </summary>
-        public bool CloseRealTimeChannel(ISystemContext context, NodeId? sessionId, string channelId)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            lock (m_lock)
-            {
-                if (!m_channels.TryGetValue(channelId ?? string.Empty, out ChannelEntry? channel) ||
-                    !channel.Leased || channel.Holder != sessionId)
-                {
-                    return false;
-                }
-                channel.Holder = null;
-                channel.Leased = false;
-                channel.Expiry = DateTime.MinValue;
-                PublishChannelLocked(context, channel);
-                return true;
             }
         }
 
@@ -879,11 +1414,12 @@ namespace Opc.Ua.RobotIntent.Server
         /// the host can genuinely arbitrate: two things commanding one robot with no
         /// arbitration is the failure that rule exists to prevent.
         /// </remarks>
-        private bool AnyChannelHeldLocked()
+        private bool AnyChannelHeldLocked(ISystemContext context)
         {
+            ReapExpiredChannelsLocked(context);
             foreach (ChannelEntry channel in m_channels.Values)
             {
-                if (channel.Leased && channel.Expiry > DateTime.UtcNow)
+                if (channel.Leased)
                 {
                     return true;
                 }
@@ -891,10 +1427,132 @@ namespace Opc.Ua.RobotIntent.Server
             return false;
         }
 
+        private void ReapExpiredChannelsLocked(ISystemContext context)
+        {
+            DateTime now = DateTime.UtcNow;
+            foreach (ChannelEntry channel in m_channels.Values)
+            {
+                if (channel.Leased && channel.Expiry <= now)
+                {
+                    channel.Holder = null;
+                    channel.Leased = false;
+                    channel.Expiry = DateTime.MinValue;
+                    PublishChannelLocked(context, channel);
+                    m_logger?.RealTimeLeaseExpired(channel.ChannelId);
+                }
+            }
+        }
+
+        private void ReleaseChannelsLocked(ISystemContext context, NodeId? sessionId)
+        {
+            foreach (ChannelEntry channel in m_channels.Values)
+            {
+                if (channel.Leased && channel.Holder == sessionId)
+                {
+                    channel.Holder = null;
+                    channel.Leased = false;
+                    channel.Expiry = DateTime.MinValue;
+                    PublishChannelLocked(context, channel);
+                }
+            }
+        }
+
         /// <summary>
         /// Materialises the declared channels so a client can browse and read them
         /// before it asks for a lease.
         /// </summary>
+        private void BuildReferenceIndexes(ISystemContext context)
+        {
+            m_locations.Clear();
+            m_tools.Clear();
+            m_frames.Clear();
+            m_toolFrames.Clear();
+            m_outputs.Clear();
+            m_waitSignals.Clear();
+            m_programs.Clear();
+            m_outputDataTypes.Clear();
+            m_frameIds.Clear();
+            IndexFolder<LocationState>(context, m_controller.Locations, m_locations);
+            IndexFolder<ToolState>(context, m_controller.Tools, m_tools);
+            IndexFolder<ProgramState>(context, m_controller.Programs, m_programs);
+            IndexFrames(context, m_controller.Frames);
+            IndexOutputs(context, m_controller.Outputs);
+        }
+
+        private void IndexFolder<T>(ISystemContext context, NodeState? folder, HashSet<NodeId> index)
+            where T : BaseInstanceState
+        {
+            if (folder == null)
+            {
+                return;
+            }
+            var children = new List<BaseInstanceState>();
+            folder.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is T && !child.NodeId.IsNull)
+                {
+                    index.Add(child.NodeId);
+                }
+                IndexFolder<T>(context, child, index);
+            }
+        }
+
+        private void IndexFrames(ISystemContext context, NodeState? folder)
+        {
+            if (folder == null)
+            {
+                return;
+            }
+            var children = new List<BaseInstanceState>();
+            folder.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is CoordinateFrameState frame)
+                {
+                    m_frames.Add(frame.NodeId);
+                    if (frame.Role?.Value == FrameRoleEnum.Tool)
+                    {
+                        m_toolFrames.Add(frame.NodeId);
+                    }
+                    if (!string.IsNullOrEmpty(frame.FrameId?.Value))
+                    {
+                        m_frameIds.Add(frame.FrameId.Value);
+                    }
+                }
+                IndexFrames(context, child);
+            }
+        }
+
+        private void IndexOutputs(ISystemContext context, NodeState? folder)
+        {
+            if (folder == null)
+            {
+                return;
+            }
+            var children = new List<BaseInstanceState>();
+            folder.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is OutputSignalState output)
+                {
+                    m_outputs.Add(output.NodeId);
+                    m_waitSignals.Add(output.NodeId);
+                    if (output.Value != null && !output.Value.DataType.IsNull)
+                    {
+                        m_outputDataTypes[output.NodeId] = output.Value.DataType;
+                    }
+                    continue;
+                }
+                else if (child is BaseDataVariableState variable &&
+                    variable.DataType == global::Opc.Ua.DataTypeIds.Boolean)
+                {
+                    m_waitSignals.Add(variable.NodeId);
+                }
+                IndexOutputs(context, child);
+            }
+        }
+
         private void CreateChannels(ISystemContext context)
         {
             FolderState folder = EnsureFolder(
@@ -950,185 +1608,6 @@ namespace Opc.Ua.RobotIntent.Server
             node.ClearChangeMasks(context, true);
         }
 
-        // ------------------------------------------------------------------ missions
-
-        /// <summary>
-        /// Submits an ordered sequence of intents tracked as one unit.
-        /// </summary>
-        public MissionAdmission SubmitMission(
-            ISystemContext context,
-            NodeId? sessionId,
-            MissionDataType? mission)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            if (!m_options.MissionsSupported)
-            {
-                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
-                    "This Server does not implement missions.");
-            }
-            if (mission == null || mission.Steps.IsNull || mission.Steps.IsEmpty)
-            {
-                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
-                    "A mission must carry at least one step.");
-            }
-
-            Check ordering = MissionRules.ValidateSteps(mission.Steps);
-            if (!ordering.Ok)
-            {
-                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
-                    ordering.Message ?? "The mission steps are not valid.");
-            }
-            Check graph = MissionRules.ValidateTransitions(mission.Steps, mission.Transitions);
-            if (!graph.Ok)
-            {
-                return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
-                    graph.Message ?? "The mission graph is not valid.");
-            }
-
-            // Decided under the same acquisition that acts on it, for the reason given
-            // in SubmitCore: authority and mode can both change between a check that
-            // released the lock and the admission that follows it.
-            lock (m_lock)
-            {
-                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
-                {
-                    return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
-                        "The calling Session does not hold command authority.");
-                }
-                if (!IsSubmissionPermittedInMode())
-                {
-                    return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
-                        "Missions are accepted only in Automatic or AutomaticExternal mode.");
-                }
-
-                string id = mission.MissionId ?? string.Empty;
-                if (string.IsNullOrEmpty(id))
-                {
-                    id = FormattableString.Invariant(
-                        $"mission-{Interlocked.Increment(ref m_nextId)}");
-                }
-                else if (m_missions.TryGetValue(id, out MissionEntry? existing) &&
-                         !IntentOutcome.IsTerminal(existing.State))
-                {
-                    return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
-                        $"MissionId '{id}' is already outstanding.");
-                }
-
-                var entry = new MissionEntry(id, mission);
-                m_missions[id] = entry;
-                CreateMissionNode(context, entry);
-                SetMissionStateLocked(context, entry, ExecutionStateEnum.Executing);
-                StartNextStepLocked(context, entry, sessionId);
-                return MissionAdmission.Admitted(id, entry.Node!.NodeId);
-            }
-        }
-
-        /// <summary>
-        /// Replaces the horizon of a mission already submitted.
-        /// </summary>
-        /// <remarks>
-        /// The base is untouchable. It has been committed and may already have
-        /// executed, so an update that would alter a released step is refused rather
-        /// than partly applied, and the whole update is applied atomically.
-        /// </remarks>
-        public MissionUpdateOutcome UpdateMission(
-            ISystemContext context,
-            NodeId? sessionId,
-            string missionId,
-            uint missionUpdateId,
-            ArrayOf<MissionStepDataType> steps)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            if (!m_options.MissionHorizonSupported)
-            {
-                return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
-                    "This Server does not implement horizon updates.");
-            }
-            lock (m_lock)
-            {
-                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
-                {
-                    return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
-                        "The calling Session does not hold command authority.");
-                }
-                if (!m_missions.TryGetValue(missionId ?? string.Empty, out MissionEntry? entry))
-                {
-                    return new MissionUpdateOutcome(MissionUpdateResultEnum.UnknownMission,
-                        "No mission with that identifier is held.");
-                }
-                if (missionUpdateId <= entry.Mission.MissionUpdateId)
-                {
-                    // Two updates that crossed in flight: the later one wins and the
-                    // earlier is rejected rather than applied out of order.
-                    return new MissionUpdateOutcome(MissionUpdateResultEnum.Outdated,
-                        "MissionUpdateId must be greater than the mission's current value.");
-                }
-
-                Check conflict = MissionRules.ValidateBasePreserved(entry.Mission.Steps, steps);
-                if (!conflict.Ok)
-                {
-                    return new MissionUpdateOutcome(MissionUpdateResultEnum.BaseConflict,
-                        conflict.Message ?? "The update would alter a released step.");
-                }
-                Check ordering = MissionRules.ValidateSteps(steps);
-                if (!ordering.Ok)
-                {
-                    return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
-                        ordering.Message ?? "The replacement steps are not valid.");
-                }
-                Check graph = MissionRules.ValidateTransitions(steps, entry.Mission.Transitions);
-                if (!graph.Ok)
-                {
-                    return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
-                        graph.Message ?? "The mission graph is not valid.");
-                }
-
-                entry.Mission.Steps = steps;
-                entry.Mission.MissionUpdateId = missionUpdateId;
-                PublishMissionLocked(context, entry);
-                return new MissionUpdateOutcome(MissionUpdateResultEnum.Accepted, null);
-            }
-        }
-
-        /// <summary>
-        /// Ends a mission and every intent belonging to it.
-        /// </summary>
-        public bool CancelMission(ISystemContext context, NodeId? sessionId, string missionId)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            lock (m_lock)
-            {
-                if (m_options.RequireControlAuthority && ControlOwner != sessionId)
-                {
-                    return false;
-                }
-                if (!m_missions.TryGetValue(missionId ?? string.Empty, out MissionEntry? entry) ||
-                    IntentOutcome.IsTerminal(entry.State))
-                {
-                    return false;
-                }
-                foreach (IntentEntry intent in m_intents.Values.ToList())
-                {
-                    if (intent.MissionId == entry.MissionId &&
-                        !IntentOutcome.IsTerminal(intent.State))
-                    {
-                        CancelLocked(context, intent, IntentFailureEnum.None);
-                    }
-                }
-                FinishMissionLocked(context, entry, ExecutionStateEnum.Cancelled);
-                return true;
-            }
-        }
-
         private void StartNextStepLocked(ISystemContext context, MissionEntry mission, NodeId? sessionId)
         {
             MissionStepDataType? step = MissionRules.NextPending(mission.Mission.Steps, mission.NextIndex);
@@ -1140,7 +1619,8 @@ namespace Opc.Ua.RobotIntent.Server
 
             mission.CurrentStepId = step.StepId ?? string.Empty;
             IntentAdmission admission =
-                SubmitCore(context, sessionId, step.Intent, mission.MissionId, forceNewId: true);
+                SubmitCore(
+                    context, sessionId, ClientNameOf(context), step.Intent, mission.MissionId, forceNewId: true);
             if (!admission.Accepted)
             {
                 FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
@@ -1204,7 +1684,8 @@ namespace Opc.Ua.RobotIntent.Server
         {
             ArrayOf<MissionTransitionDataType> transitions = mission.Mission.Transitions;
             bool graphed = m_options.MissionBranchingSupported &&
-                !transitions.IsNull && !transitions.IsEmpty;
+                !transitions.IsNull &&
+                !transitions.IsEmpty;
 
             if (graphed)
             {
@@ -1284,15 +1765,13 @@ namespace Opc.Ua.RobotIntent.Server
             PublishMissionLocked(context, mission);
         }
 
-        // ------------------------------------------------------------ node plumbing
-
         private void CreateOperationNode(ISystemContext context, IntentEntry entry)
         {
             FolderState folder = m_intentsFolder
                 ?? throw new InvalidOperationException("The controller has no Intents folder.");
             var node = new IntentOperationState(folder)
             {
-                NodeId = ChildNodeId(folder.NodeId, entry.IntentId),
+                NodeId = ChildNodeId(folder.NodeId, entry.OperationNodeName),
                 BrowseName = new QualifiedName(entry.IntentId, folder.BrowseName.NamespaceIndex),
                 DisplayName = new LocalizedText(entry.IntentId),
                 SymbolicName = entry.IntentId,
@@ -1302,6 +1781,10 @@ namespace Opc.Ua.RobotIntent.Server
                 EventNotifier = global::Opc.Ua.EventNotifiers.SubscribeToEvents
             };
             node.Create(context, node.NodeId, node.BrowseName, node.DisplayName, false);
+            node.AddProgress(context);
+            node.AddQueuePosition(context);
+            node.AddCurrentPose(context);
+            EnsureFinalResultVariable(context, node).Value = Variant.Null;
             node.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, true, folder.NodeId);
             folder.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, false, node.NodeId);
 
@@ -1315,37 +1798,8 @@ namespace Opc.Ua.RobotIntent.Server
             SetValue(node.RecycleCount, 0);
             node.SetState(context, StateReady);
 
-            EnsureFinalResultData(context, node);
             entry.Node = node;
             AddNode(node);
-        }
-
-        /// <summary>
-        /// Part 10 declares FinalResultData Optional, so it is not materialised by
-        /// default. This host always produces a result and clause 6.7 says a Part 10
-        /// client must find it here, so the object is created rather than skipped.
-        /// </summary>
-        private static void EnsureFinalResultData(ISystemContext context, IntentOperationState node)
-        {
-            if (node.FinalResultData != null)
-            {
-                return;
-            }
-            const string browseName = "FinalResultData";
-            var final = new BaseObjectState(node)
-            {
-                NodeId = ChildNodeId(node.NodeId, browseName),
-                BrowseName = new QualifiedName(browseName, node.BrowseName.NamespaceIndex),
-                DisplayName = new LocalizedText(browseName),
-                SymbolicName = browseName,
-                ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,
-                TypeDefinitionId = global::Opc.Ua.ObjectTypeIds.BaseObjectType
-            };
-            node.AddChild(final);
-            final.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, true, node.NodeId);
-            node.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, false, final.NodeId);
-            node.FinalResultData = final;
-            _ = context;
         }
 
         private void CreateMissionNode(ISystemContext context, MissionEntry entry)
@@ -1381,18 +1835,91 @@ namespace Opc.Ua.RobotIntent.Server
         private void SetExecutionStateLocked(
             ISystemContext context, IntentEntry entry, ExecutionStateEnum state)
         {
+            ExecutionStateEnum previous = entry.State;
             entry.State = state;
+            PublishExecutionStateLocked(context, entry, previous, state);
+        }
+
+        private void PublishExecutionStateLocked(
+            ISystemContext context,
+            IntentEntry entry,
+            ExecutionStateEnum previous,
+            ExecutionStateEnum state)
+        {
             if (entry.Node is not { } node)
             {
                 return;
             }
             SetValue(node.ExecutionState, state);
-            node.SetState(context, MapToProgramState(state));
+            DriveProgramState(context, node, previous, state);
+            UpdateProgramDiagnosticTransition(context, node, DateTime.UtcNow);
             node.ClearChangeMasks(context, true);
+            m_logger?.IntentStateTransition(entry.IntentId, previous, state);
             if (IntentOutcome.IsTerminal(state))
             {
                 PruneTerminalOperationsLocked();
             }
+        }
+
+        private static void DriveProgramState(
+            ISystemContext context,
+            ProgramStateMachineState node,
+            ExecutionStateEnum previous,
+            ExecutionStateEnum state)
+        {
+            uint from = MapToProgramState(previous);
+            uint to = MapToProgramState(state);
+            if (from == to)
+            {
+                node.SetState(context, to);
+                return;
+            }
+            uint transition = ProgramTransition(from, to);
+            if (transition == 0 || ServiceResult.IsBad(node.DoTransition(context, transition, 0, [], [])))
+            {
+                node.SetState(context, to);
+            }
+        }
+
+        private static uint ProgramTransition(uint from, uint to)
+        {
+            if (from == StateHalted && to == StateReady)
+            {
+                return global::Opc.Ua.Objects.ProgramStateMachineType_HaltedToReady;
+            }
+            if (from == StateReady && to == StateRunning)
+            {
+                return global::Opc.Ua.Objects.ProgramStateMachineType_ReadyToRunning;
+            }
+            if (from == StateRunning && to == StateHalted)
+            {
+                return global::Opc.Ua.Objects.ProgramStateMachineType_RunningToHalted;
+            }
+            if (from == StateRunning && to == StateReady)
+            {
+                return global::Opc.Ua.Objects.ProgramStateMachineType_RunningToReady;
+            }
+            if (from == StateRunning && to == StateSuspended)
+            {
+                return global::Opc.Ua.Objects.ProgramStateMachineType_RunningToSuspended;
+            }
+            if (from == StateSuspended && to == StateRunning)
+            {
+                return global::Opc.Ua.Objects.ProgramStateMachineType_SuspendedToRunning;
+            }
+            if (from == StateSuspended && to == StateHalted)
+            {
+                return global::Opc.Ua.Objects.ProgramStateMachineType_SuspendedToHalted;
+            }
+            if (from == StateSuspended && to == StateReady)
+            {
+                return global::Opc.Ua.Objects.ProgramStateMachineType_SuspendedToReady;
+            }
+            if (from == StateReady && to == StateHalted)
+            {
+                return global::Opc.Ua.Objects.ProgramStateMachineType_ReadyToHalted;
+            }
+            return 0;
         }
 
         /// <summary>
@@ -1411,19 +1938,20 @@ namespace Opc.Ua.RobotIntent.Server
         private void PruneTerminalOperationsLocked()
         {
             uint keep = m_options.RetainedTerminalOperations;
-            if (keep == 0 || m_removeNode is null)
+            if (keep == 0)
             {
                 return;
             }
-            List<KeyValuePair<string, IntentEntry>> terminal = m_intents
+            var terminal = m_intents
                 .Where(kv => IntentOutcome.IsTerminal(kv.Value.State) &&
-                             !ReferenceEquals(kv.Value, m_current))
+                    !ReferenceEquals(kv.Value, m_current) &&
+                    (kv.Value.Execution == null || kv.Value.ExecutionCompleted))
                 .OrderBy(kv => kv.Value.StartTime)
                 .ToList();
             for (int i = 0; i < terminal.Count - (int)keep; i++)
             {
                 KeyValuePair<string, IntentEntry> victim = terminal[i];
-                if (victim.Value.Node is { } stale)
+                if (m_removeNode != null && victim.Value.Node is { } stale)
                 {
                     RemoveNode(stale);
                 }
@@ -1451,11 +1979,6 @@ namespace Opc.Ua.RobotIntent.Server
                 TaskScheduler.Default);
         }
 
-        /// <summary>
-        /// Raised when a per-invocation node could not be retired.
-        /// </summary>
-        public event EventHandler<IntentNodeAddFailure>? NodeRemoveFailed;
-
         private void SetMissionStateLocked(
             ISystemContext context, MissionEntry entry, ExecutionStateEnum state)
         {
@@ -1469,29 +1992,25 @@ namespace Opc.Ua.RobotIntent.Server
             node.ClearChangeMasks(context, true);
         }
 
-        /// <summary>
-        /// The clause 6.3 table, in code. A pairing not listed there is not legal, so
-        /// this mapping is total and has no default arm that guesses.
-        /// </summary>
-        internal static uint MapToProgramState(ExecutionStateEnum state)
+        private void CompleteLocked(ISystemContext context, IntentEntry entry, IntentOutcome outcome)
         {
-            return state switch
+            if (!IntentOutcome.IsTerminal(outcome.State))
             {
-                ExecutionStateEnum.Accepted => StateReady,
-                ExecutionStateEnum.Queued => StateReady,
-                ExecutionStateEnum.Executing => StateRunning,
-                ExecutionStateEnum.Cancelling => StateRunning,
-                ExecutionStateEnum.Suspended => StateSuspended,
-                ExecutionStateEnum.Succeeded => StateHalted,
-                ExecutionStateEnum.Failed => StateHalted,
-                ExecutionStateEnum.Cancelled => StateHalted,
-                ExecutionStateEnum.Retriable => StateHalted,
-                _ => throw new ArgumentOutOfRangeException(nameof(state), state,
-                    "ExecutionStateEnum has no clause 6.3 pairing.")
-            };
+                throw new ArgumentOutOfRangeException(nameof(outcome),
+                    "Only terminal outcomes can complete an operation.");
+            }
+
+            ExecutionStateEnum previous = entry.State;
+            entry.State = outcome.State;
+            PublishTerminalResultLocked(context, entry, outcome);
+            PublishExecutionStateLocked(context, entry, previous, entry.State);
+            AdvanceMissionLocked(context, entry, outcome);
         }
 
-        private void CompleteLocked(ISystemContext context, IntentEntry entry, IntentOutcome outcome)
+        private void PublishTerminalResultLocked(
+            ISystemContext context,
+            IntentEntry entry,
+            IntentOutcome outcome)
         {
             var result = new IntentResultDataType
             {
@@ -1513,10 +2032,11 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 SetValue(node.Result, result);
                 SetValue(node.QueuePosition, (uint)0);
+                node.Result?.ClearChangeMasks(context, true);
+                node.QueuePosition?.ClearChangeMasks(context, true);
                 PublishFinalResult(context, node, result);
                 node.ClearChangeMasks(context, true);
             }
-            SetExecutionStateLocked(context, entry, outcome.State);
         }
 
         /// <summary>
@@ -1531,14 +2051,22 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 return;
             }
+            var value = new Variant(new ExtensionObject(result));
+            BaseDataVariableState existing = EnsureFinalResultVariable(context, node);
+            existing.Value = value;
+            existing.ClearChangeMasks(context, false);
+        }
+
+        private static BaseDataVariableState EnsureFinalResultVariable(
+            ISystemContext context, IntentOperationState node)
+        {
+            BaseObjectState final = node.FinalResultData
+                ?? node.CreateOrReplaceFinalResultData(context, null);
             var browseName = new QualifiedName(
                 nameof(IntentOperationState.Result), node.BrowseName.NamespaceIndex);
-            var value = new Variant(new ExtensionObject(result));
             if (final.FindChild(context, browseName) is BaseDataVariableState existing)
             {
-                existing.Value = value;
-                existing.ClearChangeMasks(context, false);
-                return;
+                return existing;
             }
             var variable = new BaseDataVariableState(final)
             {
@@ -1550,10 +2078,10 @@ namespace Opc.Ua.RobotIntent.Server
                 TypeDefinitionId = global::Opc.Ua.VariableTypeIds.BaseDataVariableType,
                 DataType = ExpandedNodeId.ToNodeId(
                     DataTypeIds.IntentResultDataType, context.NamespaceUris),
-                ValueRank = global::Opc.Ua.ValueRanks.Scalar,
-                Value = value
+                ValueRank = global::Opc.Ua.ValueRanks.Scalar
             };
             final.AddChild(variable);
+            return variable;
         }
 
         private void RenumberQueueLocked(ISystemContext context)
@@ -1598,8 +2126,19 @@ namespace Opc.Ua.RobotIntent.Server
             m_controller.ClearChangeMasks(context, true);
         }
 
-        // PropertyState<T> and BaseDataVariableState<T> derive from different
-        // non-generic bases, so there is no one generic type to constrain on.
+        /// <summary>
+        /// PropertyState&lt;T&gt; and BaseDataVariableState&lt;T&gt; derive from different
+        /// non-generic bases, so there is no one generic type to constrain on.
+        /// </summary>
+        /// <typeparam name="T">
+        /// The value type carried by the variable.
+        /// </typeparam>
+        /// <param name="variable">
+        /// The variable to write, or null when the variable is absent.
+        /// </param>
+        /// <param name="value">
+        /// The value to write.
+        /// </param>
         private static void SetValue<T>(PropertyState<T>? variable, T value)
         {
             if (variable != null)
@@ -1663,11 +2202,6 @@ namespace Opc.Ua.RobotIntent.Server
                 TaskScheduler.Default);
         }
 
-        /// <summary>
-        /// Raised when a per-invocation node could not be published.
-        /// </summary>
-        public event EventHandler<IntentNodeAddFailure>? NodeAddFailed;
-
         private static NodeId ChildNodeId(NodeId parent, string name)
         {
             return new NodeId($"{parent.IdentifierAsString}_{name}", parent.NamespaceIndex);
@@ -1675,6 +2209,20 @@ namespace Opc.Ua.RobotIntent.Server
 
         private void WireMethods(ISystemContext context)
         {
+            SetMethodExecutable(m_controller.RequestControl);
+            SetMethodExecutable(m_controller.ReleaseControl);
+            SetMethodExecutable(m_controller.SubmitIntent);
+            SetMethodExecutable(m_controller.CancelIntent);
+            SetMethodExecutable(m_controller.CancelAll);
+            SetMethodExecutable(m_controller.Pause);
+            SetMethodExecutable(m_controller.Resume);
+            SetMethodExecutable(m_controller.Retry);
+            SetMethodExecutable(m_controller.SubmitMission);
+            SetMethodExecutable(m_controller.UpdateMission);
+            SetMethodExecutable(m_controller.CancelMission);
+            SetMethodExecutable(m_controller.OpenRealTimeChannel);
+            SetMethodExecutable(m_controller.CloseRealTimeChannel);
+
             if (m_controller.RequestControl is { } requestControl)
             {
                 requestControl.OnCallAsync = (ctx, method, objectId, ct) =>
@@ -1682,28 +2230,344 @@ namespace Opc.Ua.RobotIntent.Server
                     bool granted = RequestControl(context, SessionOf(ctx), out NodeId? owner);
                     return new ValueTask<RequestControlMethodStateResult>(new RequestControlMethodStateResult
                     {
+                        ServiceResult = ServiceResult.Good,
                         Granted = granted,
                         CurrentOwner = owner ?? global::Opc.Ua.NodeId.Null
                     });
+                };
+            }
+            if (m_controller.ReleaseControl is { } releaseControl)
+            {
+                releaseControl.OnCallMethod2Async = (ctx, method, objectId, inputArguments, outputArguments, ct) =>
+                {
+                    ReleaseControl(context, SessionOf(ctx));
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
                 };
             }
             if (m_controller.SubmitIntent is { } submit)
             {
                 submit.OnCallAsync = (ctx, method, objectId, intent, ct) =>
                 {
-                    IntentAdmission admission = SubmitIntent(context, SessionOf(ctx), intent);
-                    if (!admission.Accepted)
+                    IntentAdmission admission = SubmitCore(
+                        context, SessionOf(ctx), ClientNameOf(ctx), intent, string.Empty, forceNewId: false);
+                    return new ValueTask<SubmitIntentMethodStateResult>(ToSubmitIntentResult(admission));
+                };
+            }
+            if (m_controller.CancelIntent is { } cancelIntent)
+            {
+                cancelIntent.OnCallAsync = (ctx, method, objectId, intentId, stopMode, ct) =>
+                    new ValueTask<CancelIntentMethodStateResult>(new CancelIntentMethodStateResult
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUserAccessDenied, admission.Message ?? "Refused.");
-                    }
-                    return new ValueTask<SubmitIntentMethodStateResult>(new SubmitIntentMethodStateResult
+                        ServiceResult = ServiceResult.Good,
+                        Accepted = CancelIntent(context, SessionOf(ctx), intentId, stopMode)
+                    });
+            }
+            if (m_controller.CancelAll is { } cancelAll)
+            {
+                cancelAll.OnCallAsync = (ctx, method, objectId, stopMode, ct) =>
+                    new ValueTask<CancelAllMethodStateResult>(new CancelAllMethodStateResult
                     {
-                        IntentId = admission.IntentId,
-                        Operation = admission.Operation
+                        ServiceResult = ServiceResult.Good,
+                        Cancelled = CancelAll(context, SessionOf(ctx), stopMode)
+                    });
+            }
+            if (m_controller.Pause is { } pause)
+            {
+                pause.OnCallAsync = (ctx, method, objectId, ct) =>
+                    new ValueTask<PauseMethodStateResult>(new PauseMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        Accepted = Pause(context, SessionOf(ctx))
+                    });
+            }
+            if (m_controller.Resume is { } resume)
+            {
+                resume.OnCallAsync = (ctx, method, objectId, ct) =>
+                    new ValueTask<ResumeMethodStateResult>(new ResumeMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        Accepted = Resume(context, SessionOf(ctx))
+                    });
+            }
+            if (m_controller.Retry is { } retry)
+            {
+                retry.OnCallAsync = (ctx, method, objectId, intentId, ct) =>
+                {
+                    IntentAdmission admission = Retry(context, SessionOf(ctx), intentId);
+                    return new ValueTask<RetryMethodStateResult>(new RetryMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        Accepted = admission.Accepted,
+                        Operation = admission.Operation,
+                        Failure = admission.Failure,
+                        Message = new LocalizedText(admission.Message ?? string.Empty)
                     });
                 };
             }
+            if (m_controller.SubmitMission is { } submitMission)
+            {
+                submitMission.OnCallAsync = (ctx, method, objectId, mission, ct) =>
+                {
+                    MissionAdmission admission = SubmitMission(context, SessionOf(ctx), mission);
+                    return new ValueTask<SubmitMissionMethodStateResult>(new SubmitMissionMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        Accepted = admission.Accepted,
+                        MissionId = admission.MissionId,
+                        Operation = admission.Operation,
+                        Failure = admission.Failure,
+                        Message = new LocalizedText(admission.Message ?? string.Empty)
+                    });
+                };
+            }
+            if (m_controller.UpdateMission is { } updateMission)
+            {
+                updateMission.OnCallAsync = (ctx, method, objectId, missionId, updateId, steps, ct) =>
+                {
+                    MissionUpdateOutcome outcome = UpdateMission(context, SessionOf(ctx), missionId, updateId, steps);
+                    return new ValueTask<UpdateMissionMethodStateResult>(new UpdateMissionMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        Result = outcome.Result,
+                        Message = new LocalizedText(outcome.Message ?? string.Empty)
+                    });
+                };
+            }
+            if (m_controller.CancelMission is { } cancelMission)
+            {
+                cancelMission.OnCallAsync = (ctx, method, objectId, missionId, stopMode, ct) =>
+                    new ValueTask<CancelMissionMethodStateResult>(new CancelMissionMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        Accepted = CancelMission(context, SessionOf(ctx), missionId)
+                    });
+            }
+            if (m_controller.OpenRealTimeChannel is { } openChannel)
+            {
+                openChannel.OnCallAsync = (ctx, method, objectId, channelId, requestedLease, ct) =>
+                {
+                    RealTimeLease lease = OpenRealTimeChannel(
+                        context, SessionOf(ctx), channelId, requestedLease);
+                    return new ValueTask<OpenRealTimeChannelMethodStateResult>(
+                        new OpenRealTimeChannelMethodStateResult
+                        {
+                            ServiceResult = ServiceResult.Good,
+                            Granted = lease.Granted,
+                            EndpointUrl = lease.EndpointUrl,
+                            PayloadDescriptor = lease.PayloadDescriptor,
+                            LeaseExpiry = lease.Expiry,
+                            Message = new LocalizedText(lease.Message ?? string.Empty)
+                        });
+                };
+            }
+            if (m_controller.CloseRealTimeChannel is { } closeChannel)
+            {
+                closeChannel.OnCallAsync = (ctx, method, objectId, channelId, ct) =>
+                    new ValueTask<CloseRealTimeChannelMethodStateResult>(
+                        new CloseRealTimeChannelMethodStateResult
+                        {
+                            ServiceResult = ServiceResult.Good,
+                            Released = CloseRealTimeChannel(context, SessionOf(ctx), channelId)
+                        });
+            }
+        }
+
+        private static SubmitIntentMethodStateResult ToSubmitIntentResult(IntentAdmission admission)
+        {
+            return new SubmitIntentMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                Accepted = admission.Accepted,
+                IntentId = admission.IntentId,
+                Operation = admission.Operation,
+                Failure = admission.Failure,
+                Message = new LocalizedText(admission.Message ?? string.Empty)
+            };
+        }
+
+        private static void SetMethodExecutable(MethodState? method)
+        {
+            if (method != null)
+            {
+                method.Executable = true;
+                method.UserExecutable = true;
+            }
+        }
+
+        private void InitializeProgramDiagnostic(
+            ISystemContext context,
+            IntentEntry entry,
+            string methodName,
+            NodeId? sessionId)
+        {
+            if (entry.Node is not { } node)
+            {
+                return;
+            }
+            ProgramDiagnostic2State? diagnostic = node.ProgramDiagnostic;
+            if (diagnostic == null)
+            {
+                node.AddProgramDiagnostic(context);
+                diagnostic = node.ProgramDiagnostic;
+            }
+            if (diagnostic == null)
+            {
+                return;
+            }
+            SetValue(diagnostic.CreateSessionId, entry.CreateSessionId);
+            SetValue(diagnostic.CreateClientName, entry.CreateClientName);
+            SetValue(diagnostic.InvocationCreationTime, entry.InvocationCreationTime);
+            UpdateProgramDiagnosticMethod(
+                context,
+                node,
+                methodName,
+                sessionId ?? NodeId.Null,
+                ArrayOf.Create([new Variant(new ExtensionObject(entry.Intent))]),
+                [],
+                StatusCodes.Good);
+            diagnostic.ClearChangeMasks(context, true);
+        }
+
+        private static void UpdateProgramDiagnosticTransition(
+            ISystemContext context,
+            ProgramStateMachineState node,
+            DateTime transitionTime)
+        {
+            if (node.ProgramDiagnostic is { } diagnostic)
+            {
+                SetValue(diagnostic.LastTransitionTime, transitionTime);
+                diagnostic.ClearChangeMasks(context, true);
+            }
+        }
+
+        private static void UpdateProgramDiagnosticMethod(
+            ISystemContext context,
+            ProgramStateMachineState node,
+            string methodName,
+            NodeId sessionId,
+            ArrayOf<Variant> inputValues,
+            ArrayOf<Variant> outputValues,
+            StatusCode statusCode)
+        {
+            if (node.ProgramDiagnostic is not { } diagnostic)
+            {
+                return;
+            }
+            SetValue(diagnostic.LastMethodCall, methodName);
+            SetValue(diagnostic.LastMethodSessionId, sessionId);
+            SetValue(diagnostic.LastMethodInputArguments, []);
+            SetValue(diagnostic.LastMethodOutputArguments, []);
+            SetValue(diagnostic.LastMethodInputValues, inputValues);
+            SetValue(diagnostic.LastMethodOutputValues, outputValues);
+            SetValue(diagnostic.LastMethodCallTime, DateTime.UtcNow);
+            SetValue(diagnostic.LastMethodReturnStatus, statusCode);
+            diagnostic.ClearChangeMasks(context, true);
+        }
+
+        private void ApplyTrajectoryDeviation(
+            ISystemContext context,
+            IntentEntry entry,
+            double pathPositionDeviation,
+            double goalPositionDeviation,
+            double elapsedMilliseconds,
+            bool final)
+        {
+            if (entry.Intent is not TrajectoryIntentDataType trajectory ||
+                trajectory.Points.IsNull ||
+                trajectory.Points.IsEmpty)
+            {
+                return;
+            }
+            double pathTolerance = EffectiveTolerance(
+                trajectory.PathTolerance?.Position ?? 0, m_options.DefaultPathTolerance);
+            double goalTolerance = EffectiveTolerance(
+                trajectory.GoalTolerance?.Position ?? 0, m_options.DefaultGoalTolerance);
+            double goalTimeTolerance = EffectiveTolerance(
+                trajectory.GoalTimeTolerance, m_options.DefaultGoalTimeTolerance);
+            double finalTime = trajectory.Points[^1].TimeFromStart;
+            if (finalTime > 0)
+            {
+                entry.Execution?.Progress.ReportProgress(Math.Min(1.0, elapsedMilliseconds / finalTime));
+            }
+            if (!final && pathTolerance > 0 && pathPositionDeviation > pathTolerance)
+            {
+                entry.ToleranceFailure ??= IntentOutcome.Fail(
+                    IntentFailureEnum.Kinematics,
+                    "Trajectory path tolerance was exceeded.") with
+                {
+                    Outputs = ToleranceOutputs(pathTolerance, goalTolerance, goalTimeTolerance)
+                };
+                return;
+            }
+            if (final && goalTolerance > 0 && goalPositionDeviation > goalTolerance)
+            {
+                entry.ToleranceFailure ??= IntentOutcome.Fail(
+                    IntentFailureEnum.Kinematics,
+                    "Trajectory goal tolerance was exceeded.") with
+                {
+                    Outputs = ToleranceOutputs(pathTolerance, goalTolerance, goalTimeTolerance)
+                };
+                return;
+            }
+            if (final && goalTimeTolerance > 0 && elapsedMilliseconds > finalTime + goalTimeTolerance)
+            {
+                entry.ToleranceFailure ??= IntentOutcome.Fail(
+                    IntentFailureEnum.Timeout,
+                    "Trajectory goal time tolerance was exceeded.") with
+                {
+                    Outputs = ToleranceOutputs(pathTolerance, goalTolerance, goalTimeTolerance)
+                };
+            }
+            _ = context;
+        }
+
+        private void CompleteAtBlendPoint(
+            ISystemContext context,
+            IntentEntry entry,
+            Pose3DDataType pose)
+        {
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(entry, m_current) || IntentOutcome.IsTerminal(entry.State))
+                {
+                    return;
+                }
+                CompleteLocked(context, entry, IntentOutcome.SucceededAt(pose));
+            }
+        }
+
+        private static ArrayOf<KeyValuePair> ToleranceOutputs(
+            double pathTolerance,
+            double goalTolerance,
+            double goalTimeTolerance)
+        {
+            return ArrayOf.Create([
+                new KeyValuePair { Key = new QualifiedName("PathTolerance"), Value = new Variant(pathTolerance) },
+                new KeyValuePair { Key = new QualifiedName("GoalTolerance"), Value = new Variant(goalTolerance) },
+                new KeyValuePair
+                {
+                    Key = new QualifiedName("GoalTimeTolerance"),
+                    Value = new Variant(goalTimeTolerance)
+                }
+            ]);
+        }
+
+        private static double EffectiveTolerance(double requested, double fallback)
+        {
+            return requested > 0 ? requested : fallback;
+        }
+
+        private static string ClientNameOf(ISystemContext? context)
+        {
+            if (context is SessionSystemContext
+                {
+                    OperationContext: Opc.Ua.Server.OperationContext operation
+                } &&
+                operation.Session != null)
+            {
+                return operation.Session.SessionDiagnostics?.SessionName ?? string.Empty;
+            }
+            return string.Empty;
         }
 
         /// <summary>
@@ -1722,24 +2586,19 @@ namespace Opc.Ua.RobotIntent.Server
             return null;
         }
 
-        /// <inheritdoc/>
-        public void Dispose()
+        private void UnhookSessionManager()
         {
-            if (m_disposed)
+            if (m_sessionManager != null && m_sessionClosingHandler != null)
             {
-                return;
+                m_sessionManager.SessionClosing -= m_sessionClosingHandler;
             }
-            m_disposed = true;
+            m_sessionManager = null;
+            m_sessionClosingHandler = null;
+        }
+
+        private void DisposeResources()
+        {
             m_shutdown.Cancel();
-            try
-            {
-                m_pumpTask?.Wait(TimeSpan.FromSeconds(5));
-            }
-#pragma warning disable CA1031 // shutdown must not throw
-            catch (Exception)
-            {
-            }
-#pragma warning restore CA1031
             m_shutdown.Dispose();
             m_pump.Dispose();
             foreach (IntentEntry entry in m_intents.Values)
@@ -1748,8 +2607,100 @@ namespace Opc.Ua.RobotIntent.Server
             }
         }
 
+        private async ValueTask DisposeAsyncCore()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+            m_disposed = true;
+            UnhookSessionManager();
+            Task? pumpTask = m_pumpTask;
+            m_shutdown.Cancel();
+            foreach (IntentEntry entry in m_intents.Values)
+            {
+                entry.RequestCancel(IntentFailureEnum.Other, StopModeEnum.QuickStop);
+            }
+            if (pumpTask != null)
+            {
+                try
+                {
+                    if (!await WaitForPumpShutdownAsync(pumpTask).ConfigureAwait(false))
+                    {
+                        return;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }
+            DisposeResources();
+        }
+
+        private async Task<bool> WaitForPumpShutdownAsync(Task pumpTask)
+        {
+            double timeoutMs = m_options.ExecutorShutdownTimeoutMs;
+            if (timeoutMs <= 0)
+            {
+                return pumpTask.IsCompleted;
+            }
+            Task delay = Task.Delay(TimeSpan.FromMilliseconds(timeoutMs));
+            Task completed = await Task.WhenAny(pumpTask, delay).ConfigureAwait(false);
+            if (!ReferenceEquals(completed, pumpTask))
+            {
+                m_logger?.IntentControllerShutdownTimedOut(timeoutMs);
+                return false;
+            }
+            await pumpTask.ConfigureAwait(false);
+            return true;
+        }
+
+        private const uint StateReady = 1;
+        private const uint StateRunning = 2;
+        private const uint StateSuspended = 3;
+        private const uint StateHalted = 4;
+        private const StopModeEnum SupersededStopMode = StopModeEnum.QuickStop;
+
+        private readonly Lock m_lock = new();
+        private readonly IntentControllerState m_controller;
+        private readonly IIntentExecutor m_executor;
+        private readonly IntentControllerHostOptions m_options;
+        private readonly Func<NodeState, CancellationToken, ValueTask> m_addNode;
+        private readonly Func<NodeState, CancellationToken, ValueTask>? m_removeNode;
+        private readonly Dictionary<string, IntentEntry> m_intents = [];
+        private readonly Dictionary<string, MissionEntry> m_missions = [];
+        private readonly LinkedList<IntentEntry> m_queue = new();
+        private readonly Dictionary<NodeId, IntentCapabilityDataType> m_capabilities = [];
+        private NamespaceTable m_namespaceUris = new();
+        private readonly Dictionary<string, ChannelEntry> m_channels = [];
+        private SafetyStatus m_safety = SafetyStatus.Nominal;
+        private readonly HashSet<NodeId> m_locations = [];
+        private readonly HashSet<NodeId> m_tools = [];
+        private readonly HashSet<NodeId> m_frames = [];
+        private readonly HashSet<NodeId> m_toolFrames = [];
+        private readonly HashSet<NodeId> m_outputs = [];
+        private readonly HashSet<NodeId> m_waitSignals = [];
+        private readonly HashSet<NodeId> m_programs = [];
+        private readonly Dictionary<NodeId, NodeId> m_outputDataTypes = [];
+        private readonly HashSet<string> m_frameIds = new(StringComparer.Ordinal);
+        private FolderState? m_intentsFolder;
+        private FolderState? m_missionsFolder;
+        private readonly SemaphoreSlim m_pump = new(0);
+        private readonly CancellationTokenSource m_shutdown = new();
+        private ILogger? m_logger;
+
+        private IntentEntry? m_current;
+        private Task? m_pumpTask;
+        private long m_nextId;
+        private bool m_paused;
+        private global::Opc.Ua.Server.ISessionManager? m_sessionManager;
+        private global::Opc.Ua.Server.SessionEventHandler? m_sessionClosingHandler;
+        private bool m_disposed;
+
         private sealed class ProgressSink(
-            IntentControllerHost host, ISystemContext context, IntentEntry entry) : IIntentProgress
+            IntentControllerHost host,
+            ISystemContext context,
+            IntentEntry entry) : IIntentProgress, IIntentBlendProgress
         {
             public void ReportProgress(double fraction)
             {
@@ -1763,20 +2714,41 @@ namespace Opc.Ua.RobotIntent.Server
 
             public void ReportPose(Pose3DDataType pose)
             {
+                entry.LastPose = pose;
                 if (entry.Node is { } node)
                 {
                     SetValue(node.CurrentPose, pose);
                     node.CurrentPose?.ClearChangeMasks(context, false);
                 }
             }
+
+            public void ReportTrajectoryDeviation(
+                double pathPositionDeviation,
+                double goalPositionDeviation,
+                double elapsedMilliseconds,
+                bool final)
+            {
+                host.ApplyTrajectoryDeviation(
+                    context,
+                    entry,
+                    pathPositionDeviation,
+                    goalPositionDeviation,
+                    elapsedMilliseconds,
+                    final);
+            }
+
+            public void ReportBlendBegin(Pose3DDataType pose)
+            {
+                entry.LastPose = pose;
+                host.CompleteAtBlendPoint(context, entry, pose);
+            }
         }
 
         private sealed class IntentEntry(string intentId, IntentDataType intent, string missionId)
             : IDisposable
         {
-            private readonly CancellationTokenSource m_cts = new();
-
             public string IntentId { get; } = intentId;
+            public string OperationNodeName { get; } = $"{intentId}-{Guid.NewGuid():N}";
             public IntentDataType Intent { get; } = intent;
             public string MissionId { get; } = missionId;
             public IntentOperationState? Node { get; set; }
@@ -1784,14 +2756,23 @@ namespace Opc.Ua.RobotIntent.Server
             public ExecutionStateEnum State { get; set; } = ExecutionStateEnum.Accepted;
             public IntentResultDataType? Result { get; set; }
             public DateTime StartTime { get; } = DateTime.UtcNow;
+            public NodeId CreateSessionId { get; init; } = NodeId.Null;
+            public string CreateClientName { get; init; } = string.Empty;
+            public DateTime InvocationCreationTime { get; init; } = DateTime.UtcNow;
+            public IntentOutcome? ToleranceFailure { get; set; }
+            public Pose3DDataType? LastPose { get; set; }
+            public bool ExecutionCompleted { get; set; }
             public bool CancelRequested { get; private set; }
             public IntentFailureEnum CancelReason { get; private set; } = IntentFailureEnum.None;
+            public StopModeEnum AcceptedStopMode { get; set; } = StopModeEnum.OnPath;
             public CancellationToken CancellationToken => m_cts.Token;
 
-            public void RequestCancel(IntentFailureEnum reason)
+            public void RequestCancel(IntentFailureEnum reason, StopModeEnum stopMode)
             {
                 CancelRequested = true;
                 CancelReason = reason;
+                AcceptedStopMode = stopMode;
+                Execution?.AcceptCancellation(stopMode);
                 if (!m_cts.IsCancellationRequested)
                 {
                     m_cts.Cancel();
@@ -1802,6 +2783,8 @@ namespace Opc.Ua.RobotIntent.Server
             {
                 m_cts.Dispose();
             }
+
+            private readonly CancellationTokenSource m_cts = new();
         }
 
         private sealed class ChannelEntry
@@ -1829,5 +2812,52 @@ namespace Opc.Ua.RobotIntent.Server
             public string CurrentStepId { get; set; } = string.Empty;
             public string CurrentIntentId { get; set; } = string.Empty;
         }
+    }
+
+    internal static partial class IntentControllerHostLog
+    {
+        [LoggerMessage(EventId = RobotIntentServerEventIds.Admission, Level = LogLevel.Information,
+            Message = "Intent {IntentId} admitted as {IntentType}.")]
+        public static partial void IntentAdmitted(this ILogger logger, string intentId, string intentType);
+
+        [LoggerMessage(EventId = RobotIntentServerEventIds.AdmissionRefused, Level = LogLevel.Information,
+            Message = "Intent {IntentId} refused with {Failure}: {Message}")]
+        public static partial void IntentAdmissionRefused(
+            this ILogger logger, string intentId, IntentFailureEnum failure, string message);
+
+        [LoggerMessage(EventId = RobotIntentServerEventIds.StateTransition, Level = LogLevel.Debug,
+            Message = "Intent {IntentId} transitioned from {PreviousState} to {NewState}.")]
+        public static partial void IntentStateTransition(
+            this ILogger logger, string intentId, ExecutionStateEnum previousState, ExecutionStateEnum newState);
+
+        [LoggerMessage(EventId = RobotIntentServerEventIds.ExecutorFault, Level = LogLevel.Error,
+            Message = "Intent executor faulted for {IntentId}.")]
+        public static partial void IntentExecutorFault(this ILogger logger, Exception exception, string intentId);
+
+        [LoggerMessage(EventId = RobotIntentServerEventIds.NodeAddRemove, Level = LogLevel.Warning,
+            Message = "Intent node operation failed for {NodeId}.")]
+        public static partial void IntentNodeOperationFailed(this ILogger logger, Exception exception, NodeId nodeId);
+
+        [LoggerMessage(EventId = RobotIntentServerEventIds.AuthorityGranted, Level = LogLevel.Information,
+            Message = "Command authority granted to {SessionId}.")]
+        public static partial void AuthorityGranted(this ILogger logger, NodeId sessionId);
+
+        [LoggerMessage(EventId = RobotIntentServerEventIds.AuthorityReleased, Level = LogLevel.Information,
+            Message = "Command authority released from {SessionId}.")]
+        public static partial void AuthorityReleased(this ILogger logger, NodeId sessionId);
+
+        [LoggerMessage(EventId = RobotIntentServerEventIds.LeaseGranted, Level = LogLevel.Information,
+            Message = "Real-time channel {ChannelId} leased by {SessionId} until {Expiry}.")]
+        public static partial void RealTimeLeaseGranted(
+            this ILogger logger, string channelId, NodeId sessionId, DateTime expiry);
+
+        [LoggerMessage(EventId = RobotIntentServerEventIds.LeaseExpired, Level = LogLevel.Information,
+            Message = "Real-time channel {ChannelId} lease expired.")]
+        public static partial void RealTimeLeaseExpired(this ILogger logger, string channelId);
+
+        [LoggerMessage(EventId = RobotIntentServerEventIds.ShutdownTimedOut, Level = LogLevel.Warning,
+            Message = "Intent controller shutdown timed out after {TimeoutMilliseconds} ms.")]
+        public static partial void IntentControllerShutdownTimedOut(
+            this ILogger logger, double timeoutMilliseconds);
     }
 }

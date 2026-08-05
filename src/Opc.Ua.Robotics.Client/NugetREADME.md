@@ -22,5 +22,25 @@ with robot cells:
 
 Pair it with **Opc.Ua.OpenUsd.Client** to render and live-update the cell.
 
-See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md)
+## Robot Intent (draft)
+
+The package also provides typed helpers for the **draft** *OPC UA — Robot
+Intent* model. `RobotIntentClient` discovers intent controllers, reads their
+capabilities, acquires command authority, submits typed intents, tracks the
+Part 10 program lifecycle through `IntentOperationHandle`, updates missions,
+requests pause / resume / retry / cancel, and brokers optional real-time
+channels through `RealTimeChannelLease`.
+
+Use `RobotIntentBuilder` to build commands fluently: joint, linear and
+circular moves, trajectories, Cartesian paths, force moves, process commands,
+grasping, pick and place, tool change, output, program call, wait, and mission
+steps all use the generated Robot Intent DataTypes while keeping the client
+code concise.
+
+> The namespace `http://opcfoundation.org/UA/RobotIntent/` and every NodeId in
+> it are **provisional**. The model is a working-group draft and is neither
+> official nor endorsed by the OPC Foundation.
+
+See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md),
+the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/RobotIntent.md),
 and the [OpenUSD binding guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/OpenUsd.md).

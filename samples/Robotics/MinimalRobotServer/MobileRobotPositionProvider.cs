@@ -36,7 +36,6 @@ using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Gpos;
 using Opc.Ua.Positioning;
-using Opc.Ua.Positioning.Server;
 
 namespace Robotics
 {
