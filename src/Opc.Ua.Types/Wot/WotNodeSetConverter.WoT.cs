@@ -62,6 +62,7 @@ namespace Opc.Ua.Wot
 
             var diagnostics = new List<WotDiagnostic>();
             UANodeSet? nodeSet = ToNodeSetCore(document, options, null, null, diagnostics);
+            ApplyIdentifierLeniency(diagnostics, options);
             ThrowIfErrors(diagnostics);
             return nodeSet
                 ?? throw new FormatException("The WoT document could not be converted to a NodeSet.");
@@ -122,6 +123,7 @@ namespace Opc.Ua.Wot
             }
             UANodeSet? nodeSet = ToNodeSetCore(
                 document, options, thingCatalog, resolutionContext, diagnostics);
+            ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
         }
 
@@ -143,7 +145,47 @@ namespace Opc.Ua.Wot
             var diagnostics = new List<WotDiagnostic>();
             UANodeSet? nodeSet = ToNodeSetCore(
                 document, options, null, null, diagnostics);
+            ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
+        }
+
+        /// <summary>
+        /// Relaxes the portable-identity rules when the caller opted in.
+        /// </summary>
+        /// <remarks>
+        /// WoT Binding Sections 5.1.1 and 5.1.3 make the session-local
+        /// <c>ns=&lt;index&gt;</c> NodeId form and a numeric namespace prefix in a
+        /// browse name errors in release 1.1, where OPC 10101 v1.00 permitted
+        /// both. A caller migrating a v1.00 document can set
+        /// <see cref="WotNodeSetConverterOptions.AllowNonPortableIdentifiers"/>
+        /// to keep reading it; the occurrences are then reported as warnings so
+        /// the non-portable values still surface without failing the conversion.
+        /// </remarks>
+        /// <param name="diagnostics">The diagnostics collected so far.</param>
+        /// <param name="options">The effective converter options.</param>
+        private static void ApplyIdentifierLeniency(
+            List<WotDiagnostic> diagnostics,
+            WotNodeSetConverterOptions? options)
+        {
+            if (options?.AllowNonPortableIdentifiers != true)
+            {
+                return;
+            }
+            for (int ii = 0; ii < diagnostics.Count; ii++)
+            {
+                WotDiagnostic diagnostic = diagnostics[ii];
+                if (diagnostic.Severity != WotDiagnosticSeverity.Error ||
+                    diagnostic.Code is not (WotDiagnosticCode.NonPortableIdentity
+                        or WotDiagnosticCode.NonPortableQualifiedName))
+                {
+                    continue;
+                }
+                diagnostics[ii] = new WotDiagnostic(
+                    WotDiagnosticSeverity.Warning,
+                    diagnostic.Code,
+                    diagnostic.Message,
+                    diagnostic.Location);
+            }
         }
 
         private static UANodeSet? ToNodeSetCore(
@@ -1390,11 +1432,12 @@ namespace Opc.Ua.Wot
                 if (numeric)
                 {
                     diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Warning,
+                        WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.NonPortableQualifiedName,
                         $"The uav:browseName '{rawBrowseName}' uses a numeric " +
-                        "NamespaceIndex; persisted documents shall use a " +
-                        "context prefix or nsu=<NamespaceUri>;<Name>.",
+                        "NamespaceIndex, which is not permitted in a persisted " +
+                        "document; use a context prefix or " +
+                        "nsu=<NamespaceUri>;<Name>.",
                         new WotLocation(reference: rawBrowseName)));
                     return rawBrowseName;
                 }
@@ -1426,11 +1469,34 @@ namespace Opc.Ua.Wot
             return rawBrowseName;
         }
 
+        /// <summary>
+        /// Converts an authored portable NodeId into the NodeSet-local form.
+        /// </summary>
+        /// <remarks>
+        /// WoT Binding Section 5.1.1 forbids the session-local
+        /// <c>ns=&lt;index&gt;</c> form in every NodeId-valued term, because a
+        /// namespace index is only meaningful for the session that read the
+        /// namespace table. OPC 10101 v1.00 permitted it; release 1.1 rejects it
+        /// so a document cannot silently bind to the wrong namespace when the
+        /// table is reordered. Authors shall use
+        /// <c>nsu=&lt;NamespaceUri&gt;;&lt;idtype&gt;=&lt;id&gt;</c> instead.
+        /// </remarks>
         private static string ToNodeSetNodeId(
             string portableNodeId,
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
+            if (IsSessionLocalNodeId(portableNodeId))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.NonPortableIdentity,
+                    $"The NodeId '{portableNodeId}' uses the session-local " +
+                    "ns=<index> form, which is not permitted in a persisted " +
+                    "document; use nsu=<NamespaceUri>;<idtype>=<id>.",
+                    new WotLocation(reference: portableNodeId)));
+                return portableNodeId;
+            }
             if (portableNodeId.StartsWith("nsu=", StringComparison.Ordinal))
             {
                 int delimiter = portableNodeId.IndexOf(';', 4);
@@ -1461,6 +1527,31 @@ namespace Opc.Ua.Wot
                     identifier;
             }
             return portableNodeId;
+        }
+
+        /// <summary>
+        /// Determines whether a NodeId string uses the session-local
+        /// <c>ns=&lt;index&gt;</c> namespace form.
+        /// </summary>
+        /// <param name="nodeId">The authored NodeId string.</param>
+        /// <returns>
+        /// <c>true</c> when the value starts with <c>ns=</c> followed by at
+        /// least one digit and a <c>;</c> separator.
+        /// </returns>
+        private static bool IsSessionLocalNodeId(string nodeId)
+        {
+            const string prefix = "ns=";
+            if (!nodeId.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+            int index = prefix.Length;
+            int start = index;
+            while (index < nodeId.Length && nodeId[index] is >= '0' and <= '9')
+            {
+                index++;
+            }
+            return index > start && index < nodeId.Length && nodeId[index] == ';';
         }
 
         private static int GetOrAppendNamespaceUri(
