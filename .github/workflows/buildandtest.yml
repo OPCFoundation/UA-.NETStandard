@@ -167,6 +167,14 @@ jobs:
     needs: discover
     name: test-${{matrix.os}}-${{matrix.csproj}}
     runs-on: ${{ matrix.os }}
+    # Bound the job well below the 360-minute default. These entries normally
+    # take 3-15 minutes, so anything approaching an hour is a hang, and letting
+    # it run for six hours blocks the pull-request gate with no diagnostic
+    # information (observed on run 30988867402, where the Core and Client
+    # entries sat for ~6 hours). --blame-hang-timeout below turns the common
+    # case into a named test failure long before this fires; this is the
+    # backstop for a hang outside the test host itself.
+    timeout-minutes: 60
     # test_os is empty when Azure Pipelines owns the Linux matrix and macOS is
     # not included for this event; skip rather than fan out to nothing.
     if: ${{ needs.discover.outputs.test_os != '[]' }}
@@ -235,6 +243,17 @@ jobs:
           '--collect:XPlat Code Coverage',
           '--settings',
           './tests/coverlet.runsettings.xml',
+          # Kill (and name) any single test that exceeds 10 minutes, so a silent
+          # hang surfaces as "Test <Name> exceeded the configured timeout"
+          # instead of burning the whole job timeout with nothing to go on. The
+          # LongRunning and Stress tiers do not run here, so 10 minutes is well
+          # above any legitimate test. This mirrors what the Azure Pipelines
+          # test template already does; the mini dump captures every thread's
+          # stack, which is what a teardown/shutdown hang needs to diagnose.
+          '--blame-hang-timeout',
+          '10m',
+          '--blame-hang-dump-type',
+          'mini',
           '--results-directory',
           '${{ env.TESTRESULTS }}')
 
