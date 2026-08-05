@@ -215,7 +215,59 @@ namespace Opc.Ua.Wot
         /// <c>uav:contains</c> entry did not name a declared link, or a
         /// <c>uav:containedIn</c> value was malformed or named the type itself.
         /// </summary>
-        InvalidContainment = 6009
+        InvalidContainment = 6009,
+
+        /// <summary>
+        /// A projection document does not declare <c>uav:scenario</c>, or
+        /// declares one that is not an absolute IRI.
+        /// </summary>
+        ProjectionScenarioMissing = 6010,
+
+        /// <summary>
+        /// A projection document's <c>uav:projects</c> manifest is absent,
+        /// empty or structurally invalid.
+        /// </summary>
+        ProjectionManifestInvalid = 6011,
+
+        /// <summary>
+        /// A <c>uav:select</c> filter is malformed or carries a key outside the
+        /// closed predicate set.
+        /// </summary>
+        ProjectionSelectorInvalid = 6012,
+
+        /// <summary>
+        /// A projection document defines an affordance instead of declaring one
+        /// through <c>tm:ref</c>.
+        /// </summary>
+        ProjectionDefinesAffordance = 6013,
+
+        /// <summary>
+        /// A projection source could not be resolved.
+        /// </summary>
+        ProjectionSourceUnresolved = 6014,
+
+        /// <summary>
+        /// The projection source graph contains a cycle.
+        /// </summary>
+        ProjectionCycle = 6015,
+
+        /// <summary>
+        /// A projection source's <c>uav:sourceDigest</c> does not match the
+        /// retrieved bytes.
+        /// </summary>
+        ProjectionDigestMismatch = 6016,
+
+        /// <summary>
+        /// A context prefix is bound to two different URIs across the sources
+        /// of a projection.
+        /// </summary>
+        ProjectionContextConflict = 6017,
+
+        /// <summary>
+        /// A selection names an affordance that was already selected, so the
+        /// later selection is dropped.
+        /// </summary>
+        ProjectionSelectionDropped = 6018
     }
 
     /// <summary>

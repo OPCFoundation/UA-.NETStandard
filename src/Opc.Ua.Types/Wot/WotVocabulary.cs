@@ -65,6 +65,10 @@ namespace Opc.Ua.Wot
         // Type-annotation term for an event affordance projecting a UA EventType.
         public const string EventTypeAnnotation = "uav:eventType";
 
+        // Type-annotation term marking a document as a projection document,
+        // which declares rather than defines its affordances (Section 12.1).
+        public const string ProjectionAnnotation = "uav:projection";
+
         private static readonly Dictionary<string, string> s_referenceTypeNameToNodeId =
             new(StringComparer.Ordinal)
             {
