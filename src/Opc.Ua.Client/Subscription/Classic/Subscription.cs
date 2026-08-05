@@ -2696,7 +2696,8 @@ namespace Opc.Ua.Client
                             m_logger.SubscriptionSubscriptionIdDelayedMessageSequenceNumber(
                                 Id,
                                 ii.Value.SequenceNumber,
-                                m_lastSequenceNumberProcessed + 1);
+                                m_lastSequenceNumberProcessed + 1,
+                                Session?.SessionId);
                         }
 #endif
                     }
