@@ -70,6 +70,17 @@ namespace Opc.Ua.Wot
         public ArrayOf<WotProjectionReference> References { get; private set; }
 
         /// <summary>
+        /// Gets the <c>ua:Organizes</c> links, in authored order, that name the
+        /// groups this view is shaped from.
+        /// </summary>
+        /// <remarks>
+        /// See WoT Binding Section 12.7. Organizing is not selecting: these
+        /// links carry through to the resolved view unchanged and their
+        /// affordances stay in the groups that organize them.
+        /// </remarks>
+        public ArrayOf<WotOrganizingLink> OrganizingLinks { get; private set; }
+
+        /// <summary>
         /// Determines whether a document is a projection document.
         /// </summary>
         /// <param name="document">The document to test.</param>
@@ -136,6 +147,7 @@ namespace Opc.Ua.Wot
             };
             projection.Sources = ReadSources(document, diagnostics);
             projection.References = ReadReferences(document, diagnostics);
+            projection.OrganizingLinks = ReadOrganizingLinks(document);
             return projection;
         }
 
@@ -458,6 +470,35 @@ namespace Opc.Ua.Wot
                     Annotations = affordance.Value
                 });
             }
+        }
+
+        private static ArrayOf<WotOrganizingLink> ReadOrganizingLinks(WotDocument document)
+        {
+            var links = new List<WotOrganizingLink>();
+            foreach (JsonElement link in document.Links)
+            {
+                if (link.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+                string? rel = GetString(link, "rel");
+                if (!string.Equals(rel, WotVocabulary.OrganizesRel, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                string? href = GetString(link, "href");
+                if (string.IsNullOrEmpty(href))
+                {
+                    continue;
+                }
+                links.Add(new WotOrganizingLink
+                {
+                    Href = href!,
+                    RefName = GetString(link, WotVocabulary.RefNameAnnotation) ?? string.Empty,
+                    MediaType = GetString(link, "type") ?? string.Empty
+                });
+            }
+            return new ArrayOf<WotOrganizingLink>([.. links]);
         }
 
         private static bool TryReadAffordanceKind(

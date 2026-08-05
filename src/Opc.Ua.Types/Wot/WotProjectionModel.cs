@@ -196,4 +196,33 @@ namespace Opc.Ua.Wot
         /// </summary>
         public JsonElement Annotations { get; init; }
     }
+
+    /// <summary>
+    /// One <c>ua:Organizes</c> link of a projection document, naming another
+    /// projection document that forms a group within the view.
+    /// </summary>
+    /// <remarks>
+    /// See WoT Binding Section 12.7. An organizing link shapes the view without
+    /// selecting: the organizing document never absorbs the organized group's
+    /// affordances, and the graph the links induce shall be acyclic.
+    /// </remarks>
+    public sealed class WotOrganizingLink
+    {
+        /// <summary>
+        /// Gets the name of the group the link reaches, from
+        /// <c>uav:refName</c>.
+        /// </summary>
+        public string RefName { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the URI of the organized projection document, as authored.
+        /// </summary>
+        public string Href { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the declared media type of the organized document, or an empty
+        /// string when the link declares none.
+        /// </summary>
+        public string MediaType { get; init; } = string.Empty;
+    }
 }

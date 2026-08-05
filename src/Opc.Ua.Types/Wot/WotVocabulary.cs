@@ -69,6 +69,12 @@ namespace Opc.Ua.Wot
         // which declares rather than defines its affordances (Section 12.1).
         public const string ProjectionAnnotation = "uav:projection";
 
+        // Link relation naming an organized projection group (Section 12.7).
+        public const string OrganizesRel = "ua:Organizes";
+
+        // Term naming the group an organizing link reaches (Section 12.7).
+        public const string RefNameAnnotation = "uav:refName";
+
         private static readonly Dictionary<string, string> s_referenceTypeNameToNodeId =
             new(StringComparer.Ordinal)
             {
