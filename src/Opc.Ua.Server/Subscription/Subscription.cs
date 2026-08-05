@@ -3373,8 +3373,9 @@ namespace Opc.Ua.Server
                 case TraceStateId.Items:
                     m_logger.Log(
                         logLevel,
-                        "Subscription {Subscription}, Id={SubscriptionId}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}",
+                        "Subscription {Subscription}, SessionId={SessionId}, Id={SubscriptionId}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}",
                         context,
+                        Session?.Id,
                         Id,
                         monitoredItems,
                         itemsToCheck,
@@ -3384,8 +3385,9 @@ namespace Opc.Ua.Server
                 case TraceStateId.Monitor:
                     m_logger.Log(
                         logLevel,
-                        "Subscription {Subscription}, Id={SubscriptionId}, KeepAliveCounter={KeepAliveCounter}, LifeTimeCount={LifeTimeCount}, WaitingForPublish={WaitingForPublish}, SeqNo={SequenceNumber}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}, MessageCount={MessageCount}",
+                        "Subscription {Subscription}, SessionId={SessionId}, Id={SubscriptionId}, KeepAliveCounter={KeepAliveCounter}, LifeTimeCount={LifeTimeCount}, WaitingForPublish={WaitingForPublish}, SeqNo={SequenceNumber}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}, MessageCount={MessageCount}",
                         context,
+                        Session?.Id,
                         Id,
                         m_keepAliveCounter,
                         m_lifetimeCounter,
