@@ -5,7 +5,7 @@
     <Uri>http://opcfoundation.org/UA/xRegistry/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.1.0" PublicationDate="2026-07-16T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.3.0" PublicationDate="2026-07-31T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
     </Model>
   </Models>
@@ -31,7 +31,7 @@
   <UAObjectType NodeId="ns=1;i=63000" BrowseName="1:RegistryType">
     <DisplayName>RegistryType</DisplayName>
     <Description>The abstract xRegistry root, expressed as a FolderType that organizes its Group objects. It creates groups through the CreateGroup Method; a group is removed with its own Delete Method. The physical backing may be a file-system directory, but the type is a plain organizing folder. Domain registries subtype this.</Description>
-    <Category>xRegistry</Category>
+    <Category>XREG-Registry</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=63507</Reference>
@@ -55,7 +55,8 @@
   <UAObjectType NodeId="ns=1;i=63001" BrowseName="1:GroupType">
     <DisplayName>GroupType</DisplayName>
     <Description>An abstract xRegistry group, expressed as a FolderType that organizes its resource files. It creates resources and versions through the CreateResource Method and is removed with its own Delete Method. Domain group types subtype this and add the group key (e.g. a namespace URI).</Description>
-    <Category>xRegistry</Category>
+    <Category>XREG-Group</Category>
+    <Category>XREG-Identity</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=63527</Reference>
@@ -76,7 +77,9 @@
   <UAObjectType NodeId="ns=1;i=63002" BrowseName="1:ResourceType">
     <DisplayName>ResourceType</DisplayName>
     <Description>An abstract xRegistry resource/version whose document IS the file: the content is read and written through the inherited FileType methods (Open/Read/Write/Close). Carries the xRegistry attributes and an optional ExternalReference for federation. Domain resource types subtype this.</Description>
-    <Category>xRegistry</Category>
+    <Category>XREG-Resource</Category>
+    <Category>XREG-Identity</Category>
+    <Category>XREG-Federation</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11575</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=63545</Reference>
@@ -99,7 +102,7 @@
   <UAObjectType NodeId="ns=1;i=63003" BrowseName="1:AttributesType">
     <DisplayName>AttributesType</DisplayName>
     <Description>A container for an entity's extensible xRegistry attributes/labels. Each attribute materializes as a browsable HasProperty PropertyType Variable whose BrowseName is the attribute key, so attributes can be browsed, read and enumerated, and are deleted with the owning entity. The AddAttribute/RemoveAttribute Methods add and remove attributes. This follows the OPC UA extensible-container pattern (an OptionalPlaceholder Property plus Add/Remove Methods); the placeholder isolates dynamic attributes so they never conflict with an entity's fixed attribute BrowseNames.</Description>
-    <Category>xRegistry</Category>
+    <Category>XREG-Attributes</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=63500</Reference>
@@ -119,6 +122,7 @@
   <UAMethod NodeId="ns=1;i=63501" BrowseName="1:AddAttribute" ParentNodeId="ns=1;i=63003">
     <DisplayName>AddAttribute</DisplayName>
     <Description>Add or update an xRegistry attribute/label in this container. The server materializes it as a browsable PropertyType Variable whose BrowseName is the Key, and increments the owning entity's Epoch. If ExpectedEpoch is non-zero and does not equal the owning entity's current Epoch, the call fails with Bad_InvalidState and makes no change (optimistic concurrency). Success or failure is conveyed by the Method Call StatusCode.</Description>
+    <Category>XREG-Attributes</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63003</Reference>
@@ -137,6 +141,7 @@
   <UAMethod NodeId="ns=1;i=63503" BrowseName="1:RemoveAttribute" ParentNodeId="ns=1;i=63003">
     <DisplayName>RemoveAttribute</DisplayName>
     <Description>Remove an xRegistry attribute/label (the Variable whose BrowseName is the Key) from this container. If ExpectedEpoch is non-zero and does not equal the owning entity's current Epoch, the call fails with Bad_InvalidState and makes no change. Success or failure is conveyed by the Method Call StatusCode.</Description>
+    <Category>XREG-Attributes</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63003</Reference>
@@ -155,7 +160,7 @@
   <UADataType NodeId="ns=1;i=63004" BrowseName="1:RegistryCapabilitiesDataType">
     <DisplayName>RegistryCapabilitiesDataType</DisplayName>
     <Description>The typed form of the xRegistry capabilities document (xRegistry /capabilities), whose fields have a fixed schema in the xRegistry core specification. Read as a single Variant value from RegistryType.CapabilitiesInfo, in addition to the raw JSON exposed by the Capabilities FileType. Additional/vendor capability keys that are not among these fixed fields remain available through the Capabilities FileType JSON.</Description>
-    <Category>xRegistry</Category>
+    <Category>XREG-Capabilities</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
       <Reference ReferenceType="HasEncoding">ns=1;i=63505</Reference>
@@ -242,7 +247,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63514" BrowseName="1:Name" ParentNodeId="ns=1;i=63000" DataType="String" ValueRank="-1">
     <DisplayName>Name</DisplayName>
-    <Description>Human-readable name of the entity.</Description>
+    <Description>Human-readable name of the entity, and the source of its DisplayName. Where the entity's source identity is itself readable - a namespace URI, an authored asset identifier - Name is that identity verbatim, so a Client that shows only an identifier and a name still shows something a human recognizes.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -306,6 +311,7 @@
   <UAMethod NodeId="ns=1;i=63521" BrowseName="1:CreateGroup" ParentNodeId="ns=1;i=63000">
     <DisplayName>CreateGroup</DisplayName>
     <Description>Create a group under this registry and assign its GroupId. The server creates the GroupType Object and bootstraps its xRegistry attributes (Xid, Epoch, CreatedAt, ModifiedAt). Fails if a group with the same GroupId already exists; use GetOrCreateGroup for idempotent create-or-get.</Description>
+    <Category>XREG-Registration</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63000</Reference>
@@ -334,6 +340,7 @@
   <UAMethod NodeId="ns=1;i=63524" BrowseName="1:GetOrCreateGroup" ParentNodeId="ns=1;i=63000">
     <DisplayName>GetOrCreateGroup</DisplayName>
     <Description>Idempotently return the group with this GroupId, creating it if absent. One-shot form that avoids a separate existence check: returns the existing GroupType Object (Created = false) or a newly created and bootstrapped one (Created = true).</Description>
+    <Category>XREG-Registration</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63000</Reference>
@@ -361,7 +368,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63527" BrowseName="1:GroupId" ParentNodeId="ns=1;i=63001" DataType="String" ValueRank="-1">
     <DisplayName>GroupId</DisplayName>
-    <Description>xRegistry groupid: the stable identifier of this group. Group identifiers are globally unique for federation.</Description>
+    <Description>xRegistry groupid: the symbolic identifier of this group, constructed from the group's source identity (the group key) by the reverse-authority construction of the specification. Group identifiers are globally unique for federation.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -388,9 +395,9 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63530" BrowseName="1:Name" ParentNodeId="ns=1;i=63001" DataType="String" ValueRank="-1">
     <DisplayName>Name</DisplayName>
-    <Description>Human-readable name of the entity.</Description>
+    <Description>Human-readable name of the entity, and the source of its DisplayName. Where the entity's source identity is itself readable - a namespace URI, an authored asset identifier - Name is that identity verbatim, so a Client that shows only an identifier and a name still shows something a human recognizes.</Description>
     <References>
-      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63001</Reference>
     </References>
@@ -452,6 +459,7 @@
   <UAMethod NodeId="ns=1;i=63537" BrowseName="1:CreateResource" ParentNodeId="ns=1;i=63001">
     <DisplayName>CreateResource</DisplayName>
     <Description>Create a resource, or a new version of an existing resource, as a ResourceType file in this group, optionally opened for writing. A resource version is identified by (ResourceId, VersionId): when the ResourceId is new the resource is created with this first version; when the ResourceId already exists a new sibling version is created. When VersionId is empty the server assigns the next versionid per the registry model. The server bootstraps the resource's xRegistry attributes when the file is closed. Fails with Bad_NodeIdExists if that exact (ResourceId, VersionId) already exists; use GetOrCreateResource for idempotent create-or-get.</Description>
+    <Category>XREG-Registration</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63001</Reference>
@@ -480,6 +488,7 @@
   <UAMethod NodeId="ns=1;i=63540" BrowseName="1:GetOrCreateResource" ParentNodeId="ns=1;i=63001">
     <DisplayName>GetOrCreateResource</DisplayName>
     <Description>Idempotently return the (ResourceId, VersionId) version, creating it if absent, optionally opened for writing. When VersionId is empty the resource's default (latest) version is returned, or - if the resource does not yet exist - created as its first version. One-shot form that avoids a separate existence check: returns the existing ResourceType file (Created = false) or a newly created one (Created = true); a write FileHandle is returned when RequestFileOpen is true.</Description>
+    <Category>XREG-Registration</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63001</Reference>
@@ -508,6 +517,7 @@
   <UAMethod NodeId="ns=1;i=63543" BrowseName="1:Delete" ParentNodeId="ns=1;i=63001">
     <DisplayName>Delete</DisplayName>
     <Description>Delete this group and everything it contains (its resources and their versions and labels). The xRegistry-semantic deletion Method, symmetric with CreateResource. If ExpectedEpoch is non-zero and does not equal the group's current Epoch, the call fails with Bad_InvalidState and deletes nothing; 0 disables the check. Success or failure is conveyed by the Method Call StatusCode.</Description>
+    <Category>XREG-Registration</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63001</Reference>
@@ -525,7 +535,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63545" BrowseName="1:ResourceId" ParentNodeId="ns=1;i=63002" DataType="String" ValueRank="-1">
     <DisplayName>ResourceId</DisplayName>
-    <Description>xRegistry resourceid: the stable identifier of the resource within its group.</Description>
+    <Description>xRegistry resourceid: the symbolic identifier of the resource within its group, constructed from the resource's source identity by the reverse-authority construction of the specification. It is never derived from the resource document or from a digest of it, so it is invariant across the resource's versions.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -597,9 +607,9 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63553" BrowseName="1:Name" ParentNodeId="ns=1;i=63002" DataType="String" ValueRank="-1">
     <DisplayName>Name</DisplayName>
-    <Description>Human-readable name of the entity.</Description>
+    <Description>Human-readable name of the entity, and the source of its DisplayName. Where the entity's source identity is itself readable - a namespace URI, an authored asset identifier - Name is that identity verbatim, so a Client that shows only an identifier and a name still shows something a human recognizes.</Description>
     <References>
-      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63002</Reference>
     </References>
@@ -652,6 +662,7 @@
   <UAMethod NodeId="ns=1;i=63559" BrowseName="1:Delete" ParentNodeId="ns=1;i=63002">
     <DisplayName>Delete</DisplayName>
     <Description>Delete this resource file and everything it contains (its versions and labels). The xRegistry-semantic deletion Method, symmetric with the group's Delete and consistent with the resource being a FileType. If ExpectedEpoch is non-zero and does not equal the resource's current Epoch, the call fails with Bad_InvalidState and deletes nothing; 0 disables the check. Success or failure is conveyed by the Method Call StatusCode.</Description>
+    <Category>XREG-Registration</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63002</Reference>

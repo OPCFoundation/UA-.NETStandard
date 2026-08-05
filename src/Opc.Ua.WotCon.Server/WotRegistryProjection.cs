@@ -228,7 +228,6 @@ namespace Opc.Ua.WotCon.Server
                 .AddDelete(m_manager.SystemContext)
                 .AddXid(m_manager.SystemContext)
                 .AddEpoch(m_manager.SystemContext)
-                .AddName(m_manager.SystemContext)
                 .AddDescription(m_manager.SystemContext)
                 .AddCreatedAt(m_manager.SystemContext)
                 .AddModifiedAt(m_manager.SystemContext)
@@ -315,7 +314,6 @@ namespace Opc.Ua.WotCon.Server
                 .AddContentType(m_manager.SystemContext)
                 .AddXid(m_manager.SystemContext)
                 .AddEpoch(m_manager.SystemContext)
-                .AddName(m_manager.SystemContext)
                 .AddDescription(m_manager.SystemContext)
                 .AddCreatedAt(m_manager.SystemContext)
                 .AddModifiedAt(m_manager.SystemContext);
@@ -337,8 +335,7 @@ namespace Opc.Ua.WotCon.Server
 
             if (node is ThingDescriptionFileState td)
             {
-                td.AddThingId(m_manager.SystemContext)
-                    .AddThingTitle(m_manager.SystemContext)
+                td.AddThingTitle(m_manager.SystemContext)
                     .AddBaseUri(m_manager.SystemContext);
             }
             else if (node is ThingModelFileState tmNode)
