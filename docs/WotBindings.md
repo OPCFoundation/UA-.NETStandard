@@ -808,3 +808,55 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 * [WoT aggregation sample](../samples/WotCon/README.md) - exercises the complete generic projection runtime with two OPC UA source servers, runtime-loaded DI/Machinery/Pumps models, local monitored items, and shadow-generation replacement.
 * [Dependency injection](DependencyInjection.md)
 * [Runtime NodeSets](RuntimeNodeSets.md)
+
+## Conformance to WoT Binding 1.1
+
+The specification defines ten conformance units and four recommended profiles
+(Section 11). This is where the implementation stands against them.
+
+| Unit | Status | Where |
+|---|---|---|
+| **WoT-ProtocolBinding** | covered | URI/base/href handling, the four service mappings, access levels and the security schemes, in `Opc.Ua.WotCon.Bindings` and its planners |
+| **WoT-NativeMapping** | covered | `WotNodeSetConverter`, including the proof that `uav:nodes` is omitted when the readable mapping is complete |
+| **WoT-StructuredFallback** | covered | the structured `uav:nodes` projection in `WotNativeProjection` |
+| **WoT-JsonResidue** | covered | `WotJsonResidue`, pointer-addressed preservation through the NodeSet Extension |
+| **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
+| **WoT-ExactRoundtrip** | covered | the envelope-free roundtrip invariants, including residue |
+| **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems |
+| **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary`, all Section 6 terms with their validation rules |
+| **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
+| **WoT-Projection** | covered | `WotProjection`, `WotProjectionResolver` and, for materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost` |
+
+All four profiles - **WoT-Reader**, **WoT-Modeller**, **WoT-Converter** and
+**WoT-ArchivalConverter** - are therefore satisfied by the units above.
+
+### How this is checked
+
+The specification publishes twenty worked examples, and two of them are a golden
+pair: a projection document and the resolved view it is defined to resolve to.
+`WotSpecExampleTests` embeds all twenty and runs the pair through the resolver,
+asserting against the specification's own expected output rather than against our
+reading of the prose. That covers, in one document, all three selection forms, the
+bulk naming rule, the security closure naming and the provenance term.
+
+### Deliberate deviations
+
+There are none. Two points the specification leaves open were decided here and are
+recorded so a reader is not left guessing:
+
+- **`ViewVersion` recomputation.** The specification says the attribute changes when
+  the resolved membership changes but does not mechanically specify the trigger. It
+  is computed as an FNV-1a hash over the ordinal-sorted membership, so it is
+  deterministic across target frameworks, changes if and only if membership changes,
+  and is stable across a refresh that changes nothing.
+- **A projection over Thing Models.** The specification does not say whether a
+  type-level projection materializes as a `View` or as something else. It becomes a
+  `View`: that NodeClass is the only one whose purpose is to select rather than
+  define, and nothing in the materialization clause restricts it to instances.
+
+### One compatibility switch
+
+`WotNodeSetConverterOptions.AllowNonPortableIdentifiers` downgrades the two
+portable-identity errors to warnings so a document authored against OPC 10101 v1.00
+can still be read while it is migrated. It defaults to `false`, which is the release
+1.1 behaviour; see the migration guide for what to rewrite.
