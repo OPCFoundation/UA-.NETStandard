@@ -667,36 +667,77 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
 
             bool running = true;
+            Exception workerError = null;
 
-            var thread = new Thread(() =>
+            // The worker is a raw thread, so three things have to hold or it can
+            // take the whole test host down with it:
+            //   * IsBackground, so a worker that somehow outlives this method
+            //     cannot pin the process at exit. A foreground thread here is
+            //     exactly the shape of an "all tests passed, then the host never
+            //     exits" hang.
+            //   * Volatile access to the stop flag, so the worker is guaranteed
+            //     to observe the request rather than spinning on a cached read.
+            //   * A catch, because an unhandled exception on a raw thread
+            //     terminates the process and takes every remaining test with it.
+            //     Capture it and surface it on the test thread instead.
+            var worker = new Thread(() =>
             {
-                while (running)
+                try
                 {
-                    concurrentTaskAction(node);
+                    while (Volatile.Read(ref running))
+                    {
+                        concurrentTaskAction(node);
+                    }
                 }
-            });
-
-            thread.Start();
-
-            DateTime utcNow = DateTime.UtcNow;
-
-            while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(1))
+                catch (Exception ex)
+                {
+                    workerError = ex;
+                }
+            })
             {
-                ServiceResult writeResult = node.WriteAttribute(
-                    systemContext,
-                    attribute,
-                    default,
-                    new DataValue(variant));
+                IsBackground = true,
+                Name = "NodeStateHandlerConcurrency.Worker"
+            };
 
-                Assert.That(
-                    ServiceResult.IsGood(writeResult),
-                    Is.True,
-                    $"Expected Good ServiceResult but was: {writeResult}");
+            worker.Start();
+
+            try
+            {
+                DateTime utcNow = DateTime.UtcNow;
+
+                while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(1))
+                {
+                    ServiceResult writeResult = node.WriteAttribute(
+                        systemContext,
+                        attribute,
+                        default,
+                        new DataValue(variant));
+
+                    Assert.That(
+                        ServiceResult.IsGood(writeResult),
+                        Is.True,
+                        $"Expected Good ServiceResult but was: {writeResult}");
+                }
+            }
+            finally
+            {
+                // Stop the worker even when the assertion above throws;
+                // otherwise a single failed assertion leaks a spinning thread
+                // for the rest of the run.
+                Volatile.Write(ref running, false);
+                if (!worker.Join(TimeSpan.FromSeconds(30)))
+                {
+                    // Bounded so a stuck worker cannot hang the run. It is a
+                    // background thread, so leaving it behind is survivable.
+                    TestContext.Progress.WriteLine(
+                        "NodeStateHandlerConcurrency worker did not stop within 30 seconds.");
+                }
             }
 
-            running = false;
-
-            thread.Join();
+            if (workerError != null)
+            {
+                Assert.Fail($"The concurrent writer threw: {workerError}");
+            }
         }
 
         private static ServiceResult ValueChangedHandler(

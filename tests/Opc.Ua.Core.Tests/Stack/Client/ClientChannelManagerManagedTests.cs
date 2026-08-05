@@ -941,8 +941,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
                 var budget = new RetryBudget(TimeSpan.Zero, timeProvider);
 
-                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await sut.ReconnectAsync(ch, budget, default).AsTask().ConfigureAwait(false));
+                // Bounded: Assert.ThrowsAsync blocks the calling thread on the
+                // task with no timeout, and this test drives a fake clock, so
+                // an unbounded wait would deadlock the whole test host if the
+                // reconnect ever schedules a timer before failing.
+                Task exhaustedReconnect = sut.ReconnectAsync(ch, budget, default).AsTask();
+                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await exhaustedReconnect
+                        .WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false));
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
@@ -1005,9 +1012,23 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     }
                 };
 
-                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await sut.ReconnectAsync(ch, exhaustedBudget, default).AsTask().ConfigureAwait(false));
+                // Do NOT use Assert.ThrowsAsync directly on ReconnectAsync here.
+                // It blocks the calling thread on the task with no timeout, and
+                // this test drives a fake clock: if the reconnect schedules a
+                // timer before it fails, nothing can advance that clock while
+                // this thread is blocked, so the test never returns. NUnit then
+                // sits in WaitForCompletion and the whole test host hangs until
+                // --blame-hang-timeout kills it, taking every other test in the
+                // assembly with it. Every other wait in this test is bounded for
+                // exactly this reason.
+                Task faultedReconnect = sut
+                    .ReconnectAsync(ch, exhaustedBudget, default)
+                    .AsTask();
                 await faulted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await faultedReconnect
+                        .WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false));
 
                 Assert.That(ch.State, Is.EqualTo(ChannelState.Faulted));
 
