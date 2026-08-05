@@ -41,6 +41,7 @@ namespace Opc.Ua.Server
     public class MasterNodeManager :
         IDisposable,
         IMasterNodeManager,
+        IMonitoredItemTransferCoordinator,
         IDynamicNodeManagerHost,
         ISyncNodeManagerMonitoredItemRecovery
     {
@@ -321,6 +322,8 @@ namespace Opc.Ua.Server
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                m_shutdownCompletedNodeManagers.Clear();
+                Volatile.Write(ref m_shutdownCompletedNodeManagerCount, 0);
                 m_logger.MasterNodeManagerStartupNodeManagersCount(m_nodeManagers.Count);
 
                 // create the address spaces.
@@ -382,17 +385,32 @@ namespace Opc.Ua.Server
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
+                NotificationDispatchLease[] dispatches =
+                    GetSessionNotificationDispatches(activeNodeManagers);
+                try
                 {
-                    try
+                    foreach (NotificationDispatchLease dispatch in dispatches)
                     {
-                        await nodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
-                            .ConfigureAwait(false);
+                        try
+                        {
+                            await dispatch.NodeManager.SessionClosingAsync(
+                                context,
+                                sessionId,
+                                deleteSubscriptions,
+                                cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (Exception e)
+                        {
+                            m_logger.UnexpectedErrorClosingSessionForNodeManagerNodeManager(
+                                e,
+                                dispatch.NodeManager.GetType().Name);
+                        }
                     }
-                    catch (Exception e)
-                    {
-                        m_logger.UnexpectedErrorClosingSessionForNodeManagerNodeManager(e, nodeManager.GetType().Name);
-                    }
+                }
+                finally
+                {
+                    DisposeNotificationDispatches(dispatches);
                 }
             }
             finally
@@ -407,17 +425,31 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
-            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+            IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
+            NotificationDispatchLease[] dispatches =
+                GetSessionNotificationDispatches(activeNodeManagers);
+            try
             {
-                try
+                foreach (NotificationDispatchLease dispatch in dispatches)
                 {
-                    await nodeManager.SessionActivatedAsync(context, sessionId, cancellationToken)
-                        .ConfigureAwait(false);
+                    try
+                    {
+                        await dispatch.NodeManager.SessionActivatedAsync(
+                            context,
+                            sessionId,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.UnexpectedErrorNotifyingNodeManagerOfSession(
+                            e,
+                            dispatch.NodeManager.GetType().Name);
+                    }
                 }
-                catch (Exception e)
-                {
-                    m_logger.UnexpectedErrorNotifyingNodeManagerOfSession(e, nodeManager.GetType().Name);
-                }
+            }
+            finally
+            {
+                DisposeNotificationDispatches(dispatches);
             }
         }
 
@@ -428,12 +460,50 @@ namespace Opc.Ua.Server
 
             try
             {
-                m_logger.MasterNodeManagerShutdownNodeManagersCount(m_nodeManagers.Count);
+                IAsyncNodeManager[] nodeManagers = [.. m_nodeManagers];
+                m_logger.MasterNodeManagerShutdownNodeManagersCount(nodeManagers.Length);
+                var failures = new List<Exception>();
+                OperationCanceledException? cancellationException = null;
 
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager nodeManager in nodeManagers)
                 {
-                    await nodeManager.DeleteAddressSpaceAsync(cancellationToken)
-                        .ConfigureAwait(false);
+                    if (m_shutdownCompletedNodeManagers.Contains(nodeManager))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await nodeManager.DeleteAddressSpaceAsync(cancellationToken)
+                            .ConfigureAwait(false);
+                        m_shutdownCompletedNodeManagers.Add(nodeManager);
+                        Interlocked.Increment(ref m_shutdownCompletedNodeManagerCount);
+                    }
+                    catch (OperationCanceledException ex) when (
+                        cancellationToken.IsCancellationRequested)
+                    {
+                        cancellationException = ex;
+                        break;
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        failures.Add(
+                            new InvalidOperationException(
+                                $"NodeManager '{nodeManager.GetType().Name}' failed to delete its address space during shutdown.",
+                                ex));
+                    }
+                }
+
+                if (cancellationException is not null)
+                {
+                    throw cancellationException;
+                }
+                if (failures.Count > 0)
+                {
+                    throw new AggregateException(
+                        "One or more NodeManagers failed to delete their address spaces during shutdown.",
+                        failures);
                 }
             }
             finally
@@ -525,6 +595,8 @@ namespace Opc.Ua.Server
         async ValueTask IDynamicNodeManagerHost.ReplaceAsync(
             IAsyncNodeManager current,
             PreparedNodeManager replacement,
+            bool allowActiveMonitoredItems,
+            bool retainReplacedNotifications,
             CancellationToken ct)
         {
             if (current is null)
@@ -550,6 +622,9 @@ namespace Opc.Ua.Server
                 }
                 replacement.ReplacedNodeManager = current;
                 replacement.ReplacedExternalReferences = currentExternalReferences;
+                replacement.AllowActiveMonitoredItems = allowActiveMonitoredItems;
+                replacement.RetainReplacedNotifications =
+                    retainReplacedNotifications;
                 replacement.Staged = true;
             }
             finally
@@ -654,8 +729,11 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    EnsureNoActiveMonitoredItems(
-                        prepared.ReplacedNodeManager);
+                    if (!prepared.AllowActiveMonitoredItems)
+                    {
+                        EnsureNoActiveMonitoredItems(
+                            prepared.ReplacedNodeManager);
+                    }
                     await CommitReplacementAsync(prepared).ConfigureAwait(false);
                 }
                 prepared.Staged = false;
@@ -774,9 +852,31 @@ namespace Opc.Ua.Server
             }
         }
 
-        async ValueTask IDynamicNodeManagerHost.DestroyAsync(
+        async ValueTask IDynamicNodeManagerHost.DestroyAddressSpaceAsync(
             IAsyncNodeManager nodeManager,
-            bool removeExternalReferences,
+            CancellationToken ct)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            await FinalizeRetiredGenerationNotificationsAsync(nodeManager, ct)
+                .ConfigureAwait(false);
+            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
+                RemoveRetiredGenerationNotifications(nodeManager);
+            }
+            finally
+            {
+                m_startupShutdownSemaphoreSlim.Release();
+            }
+        }
+
+        async ValueTask IDynamicNodeManagerHost.RemoveDestroyedExternalReferencesAsync(
+            IAsyncNodeManager nodeManager,
             CancellationToken ct)
         {
             if (nodeManager is null)
@@ -787,33 +887,27 @@ namespace Opc.Ua.Server
             await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
-                if (removeExternalReferences)
+                List<LocalReference> referencesToRemove = nodeManager switch
                 {
-                    List<LocalReference> referencesToRemove = nodeManager switch
-                    {
-                        AsyncCustomNodeManager asyncCustomNodeManager =>
-                            asyncCustomNodeManager.GetRemovedExternalReferences(),
-                        _ when nodeManager.SyncNodeManager is
-                            CustomNodeManager2 customNodeManager =>
-                            customNodeManager.GetRemovedExternalReferences(),
-                        _ => []
-                    };
-                    if (referencesToRemove.Count > 0)
-                    {
-                        await RemoveReferencesAsync(
-                            referencesToRemove,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    if (nodeManager is AsyncCustomNodeManager asyncManagerToClear)
-                    {
-                        asyncManagerToClear.ClearRemovedExternalReferences();
-                    }
-                    else if (nodeManager.SyncNodeManager is
-                        CustomNodeManager2 syncManagerToClear)
-                    {
-                        syncManagerToClear.ClearRemovedExternalReferences();
-                    }
+                    AsyncCustomNodeManager asyncCustomNodeManager =>
+                        asyncCustomNodeManager.GetRemovedExternalReferences(),
+                    _ when nodeManager.SyncNodeManager is
+                        CustomNodeManager2 customNodeManager =>
+                        customNodeManager.GetRemovedExternalReferences(),
+                    _ => []
+                };
+                if (referencesToRemove.Count > 0)
+                {
+                    await RemoveReferencesAsync(referencesToRemove, ct).ConfigureAwait(false);
+                }
+                if (nodeManager is AsyncCustomNodeManager asyncManagerToClear)
+                {
+                    asyncManagerToClear.ClearRemovedExternalReferences();
+                }
+                else if (nodeManager.SyncNodeManager is
+                    CustomNodeManager2 syncManagerToClear)
+                {
+                    syncManagerToClear.ClearRemovedExternalReferences();
                 }
             }
             finally
@@ -840,9 +934,8 @@ namespace Opc.Ua.Server
             SetPreparing(prepared.NodeManager, preparing: false);
 
             await ((IDynamicNodeManagerHost)this)
-                .DestroyAsync(
+                .DestroyAddressSpaceAsync(
                     prepared.NodeManager,
-                    removeExternalReferences: false,
                     ct: ct)
                 .ConfigureAwait(false);
         }
@@ -854,12 +947,498 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
 
+            RemoveRetiredGenerationNotifications(nodeManager);
             if (m_dynamicExternalReferences.Remove(nodeManager))
             {
                 m_nodeManagers.Remove(nodeManager);
             }
         }
 
+        void IDynamicNodeManagerHost.SetRetiredGenerationDrainObserver(Action? observer)
+        {
+            m_retiredGenerationDrainObserver = observer;
+        }
+
+        void IDynamicNodeManagerHost.SetRetiredGenerationNotifications(
+            IAsyncNodeManager nodeManager,
+            bool enabled)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                RetiredGenerationNotifications? notifications =
+                    m_retiredGenerationNotifications.FirstOrDefault(candidate =>
+                        ReferenceEquals(candidate.NodeManager, nodeManager));
+                NotificationDispatchState? dispatchState =
+                    notifications?.DispatchState ??
+                    m_notificationDispatchStates.FirstOrDefault(candidate =>
+                        candidate.References(nodeManager));
+                if (dispatchState is not null)
+                {
+                    dispatchState.Enabled = enabled;
+                }
+                if (notifications is not null)
+                {
+                    notifications.Enabled = enabled;
+                    notifications.AcceptEventDeletes = enabled;
+                }
+            }
+        }
+
+        async ValueTask IDynamicNodeManagerHost.WaitForNotificationDispatchesAsync(
+            IAsyncNodeManager nodeManager,
+            CancellationToken ct)
+        {
+            await WaitForNotificationDispatchesAsync(nodeManager, ct)
+                .ConfigureAwait(false);
+        }
+
+        async ValueTask IDynamicNodeManagerHost
+            .FinalizeRetiredGenerationNotificationsAsync(
+                IAsyncNodeManager nodeManager,
+                CancellationToken ct)
+        {
+            await FinalizeRetiredGenerationNotificationsAsync(nodeManager, ct)
+                .ConfigureAwait(false);
+        }
+
+        private async ValueTask FinalizeRetiredGenerationNotificationsAsync(
+            IAsyncNodeManager nodeManager,
+            CancellationToken ct)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            await WaitForNotificationDispatchesAsync(nodeManager, ct)
+                .ConfigureAwait(false);
+
+            RetiredGenerationNotifications? notifications;
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                notifications = m_retiredGenerationNotifications.FirstOrDefault(
+                    candidate => ReferenceEquals(candidate.NodeManager, nodeManager));
+            }
+            if (notifications is null)
+            {
+                return;
+            }
+
+            IEventMonitoredItem[] monitoredItems;
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                if (!m_retiredGenerationNotifications.Contains(notifications))
+                {
+                    return;
+                }
+                monitoredItems = [.. notifications.SubscribedEventMonitoredItems];
+            }
+
+            foreach (IEventMonitoredItem monitoredItem in monitoredItems)
+            {
+                using var eventContext = new OperationContext(monitoredItem);
+                await nodeManager
+                    .SubscribeToAllEventsAsync(
+                        eventContext,
+                        monitoredItem.SubscriptionId,
+                        monitoredItem,
+                        true,
+                        ct)
+                    .ConfigureAwait(false);
+                lock (m_retiredGenerationNotificationsLock)
+                {
+                    if (m_retiredGenerationNotifications.Contains(notifications))
+                    {
+                        notifications.SubscribedEventMonitoredItems.RemoveAll(
+                            candidate => ReferenceEquals(candidate, monitoredItem));
+                    }
+                }
+            }
+        }
+
+        private async ValueTask WaitForNotificationDispatchesAsync(
+            IAsyncNodeManager nodeManager,
+            CancellationToken ct)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            Task dispatchesDrained;
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                RetiredGenerationNotifications? notifications =
+                    m_retiredGenerationNotifications.FirstOrDefault(
+                        candidate => ReferenceEquals(candidate.NodeManager, nodeManager));
+                NotificationDispatchState dispatchState =
+                    notifications?.DispatchState ??
+                    GetOrCreateNotificationDispatchState(nodeManager);
+                dispatchState.Enabled = false;
+                if (notifications is not null)
+                {
+                    notifications.Enabled = false;
+                    notifications.AcceptEventDeletes = false;
+                }
+
+                dispatchesDrained = dispatchState.ActiveDispatches == 0
+                    ? Task.CompletedTask
+                    : (dispatchState.DispatchesDrained ??=
+                        new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+            }
+
+            await dispatchesDrained.WaitAsync(ct).ConfigureAwait(false);
+        }
+
+        private void RetainRetiredGenerationNotifications(
+            IAsyncNodeManager nodeManager)
+        {
+            List<IEventMonitoredItem> monitoredItems =
+            [
+                .. Server.EventManager.GetMonitoredItems().Where(
+                    monitoredItem => monitoredItem.MonitoringAllEvents)
+            ];
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                if (m_retiredGenerationNotifications.Any(candidate =>
+                    ReferenceEquals(candidate.NodeManager, nodeManager)))
+                {
+                    throw new InvalidOperationException(
+                        "The NodeManager is already retained for lifecycle notifications.");
+                }
+                NotificationDispatchState dispatchState =
+                    GetOrCreateNotificationDispatchState(nodeManager);
+                var notifications = new RetiredGenerationNotifications(
+                    nodeManager,
+                    dispatchState,
+                    monitoredItems);
+                dispatchState.Notifications = notifications;
+                m_retiredGenerationNotifications.Add(notifications);
+            }
+        }
+
+        private void RemoveRetiredGenerationNotifications(
+            IAsyncNodeManager nodeManager)
+        {
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                for (int ii = m_retiredGenerationNotifications.Count - 1; ii >= 0; ii--)
+                {
+                    RetiredGenerationNotifications notifications =
+                        m_retiredGenerationNotifications[ii];
+                    if (ReferenceEquals(notifications.NodeManager, nodeManager))
+                    {
+                        m_retiredGenerationNotifications.RemoveAt(ii);
+                        if (ReferenceEquals(
+                            notifications.DispatchState.Notifications,
+                            notifications))
+                        {
+                            notifications.DispatchState.Notifications = null;
+                        }
+                        if (notifications.DispatchState.Enabled &&
+                            notifications.DispatchState.ActiveDispatches == 0)
+                        {
+                            m_notificationDispatchStates.Remove(notifications.DispatchState);
+                        }
+                    }
+                }
+                m_notificationDispatchStates.RemoveAll(dispatchState =>
+                    dispatchState.Enabled &&
+                    dispatchState.ActiveDispatches == 0 &&
+                    dispatchState.References(nodeManager));
+            }
+        }
+
+        private NotificationDispatchLease[] GetSessionNotificationDispatches(
+            IReadOnlyList<IAsyncNodeManager> activeNodeManagers)
+        {
+            var dispatches = new List<NotificationDispatchLease>();
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                foreach (IAsyncNodeManager nodeManager in activeNodeManagers)
+                {
+                    AddActiveNotificationDispatch(dispatches, nodeManager);
+                }
+                foreach (RetiredGenerationNotifications notifications in
+                    m_retiredGenerationNotifications)
+                {
+                    if (notifications.Enabled &&
+                        !ContainsNodeManager(dispatches, notifications.NodeManager))
+                    {
+                        dispatches.Add(
+                            CreateRetiredNotificationDispatch(notifications));
+                    }
+                }
+            }
+            return [.. dispatches];
+        }
+
+        private NotificationDispatchLease[] GetAllEventNotificationDispatches(
+            IReadOnlyList<IAsyncNodeManager> activeNodeManagers,
+            IEventMonitoredItem monitoredItem)
+        {
+            var dispatches = new List<NotificationDispatchLease>();
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                foreach (IAsyncNodeManager nodeManager in activeNodeManagers)
+                {
+                    AddActiveNotificationDispatch(dispatches, nodeManager);
+                }
+                foreach (RetiredGenerationNotifications notifications in
+                    m_retiredGenerationNotifications)
+                {
+                    if (notifications.Enabled &&
+                        notifications.SubscribedEventMonitoredItems.Any(candidate =>
+                            ReferenceEquals(candidate, monitoredItem)) &&
+                        !ContainsNodeManager(dispatches, notifications.NodeManager))
+                    {
+                        dispatches.Add(
+                            CreateRetiredNotificationDispatch(notifications));
+                    }
+                }
+            }
+            return [.. dispatches];
+        }
+
+        private NotificationDispatchLease[] GetConditionRefreshDispatches(
+            IReadOnlyList<IAsyncNodeManager> activeNodeManagers,
+            IList<IEventMonitoredItem> monitoredItems)
+        {
+            var dispatches = new List<NotificationDispatchLease>();
+            IEventMonitoredItem[] currentItems = [.. monitoredItems];
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                foreach (IAsyncNodeManager nodeManager in activeNodeManagers)
+                {
+                    AddActiveNotificationDispatch(
+                        dispatches,
+                        nodeManager,
+                        currentItems);
+                }
+                foreach (RetiredGenerationNotifications notifications in
+                    m_retiredGenerationNotifications)
+                {
+                    if (!notifications.Enabled ||
+                        ContainsNodeManager(dispatches, notifications.NodeManager))
+                    {
+                        continue;
+                    }
+
+                    IEventMonitoredItem[] retainedItems =
+                    [
+                        .. currentItems.Where(monitoredItem =>
+                            notifications.SubscribedEventMonitoredItems.Any(candidate =>
+                                ReferenceEquals(candidate, monitoredItem)) ||
+                            ReferenceEquals(
+                                monitoredItem.NodeManager,
+                                notifications.NodeManager))
+                    ];
+                    if (retainedItems.Length > 0)
+                    {
+                        dispatches.Add(
+                            CreateRetiredNotificationDispatch(
+                                notifications,
+                                retainedItems));
+                    }
+                }
+            }
+            return [.. dispatches];
+        }
+
+        private NotificationDispatchLease[] GetAllEventUnsubscribeDispatches(
+            IEventMonitoredItem monitoredItem)
+        {
+            IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
+            var dispatches = new List<NotificationDispatchLease>();
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                foreach (IAsyncNodeManager nodeManager in activeNodeManagers)
+                {
+                    AddActiveNotificationDispatch(dispatches, nodeManager);
+                }
+                foreach (RetiredGenerationNotifications notifications in
+                    m_retiredGenerationNotifications)
+                {
+                    if (notifications.AcceptEventDeletes &&
+                        notifications.SubscribedEventMonitoredItems.Any(candidate =>
+                            ReferenceEquals(candidate, monitoredItem)) &&
+                        !ContainsNodeManager(dispatches, notifications.NodeManager))
+                    {
+                        dispatches.Add(
+                            CreateRetiredNotificationDispatch(notifications));
+                    }
+                }
+            }
+            return [.. dispatches];
+        }
+
+        private void CompleteRetiredAllEventUnsubscribe(
+            IEventMonitoredItem monitoredItem,
+            IReadOnlyList<NotificationDispatchLease> dispatches)
+        {
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                foreach (NotificationDispatchLease dispatch in dispatches)
+                {
+                    RetiredGenerationNotifications? retired =
+                        dispatch.Notifications;
+                    if (retired is null)
+                    {
+                        continue;
+                    }
+                    if (m_retiredGenerationNotifications.Contains(retired))
+                    {
+                        retired.SubscribedEventMonitoredItems.RemoveAll(candidate =>
+                            ReferenceEquals(candidate, monitoredItem));
+                    }
+                }
+            }
+        }
+
+        private void CompleteRetiredAllEventUnsubscribe(
+            IEventMonitoredItem monitoredItem,
+            RetiredGenerationNotifications notifications)
+        {
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                if (m_retiredGenerationNotifications.Contains(notifications))
+                {
+                    notifications.SubscribedEventMonitoredItems.RemoveAll(candidate =>
+                        ReferenceEquals(candidate, monitoredItem));
+                }
+            }
+        }
+
+        private NotificationDispatchLease CreateRetiredNotificationDispatch(
+            RetiredGenerationNotifications notifications,
+            IEventMonitoredItem[]? monitoredItems = null)
+        {
+            return CreateNotificationDispatch(
+                notifications.NodeManager,
+                notifications.DispatchState,
+                monitoredItems);
+        }
+
+        private NotificationDispatchLease? TryCreateActiveNotificationDispatch(
+            IAsyncNodeManager nodeManager,
+            IEventMonitoredItem[]? monitoredItems = null)
+        {
+            if (m_retiredGenerationNotifications.Any(candidate =>
+                ReferenceEquals(candidate.NodeManager, nodeManager)))
+            {
+                return null;
+            }
+            NotificationDispatchState dispatchState =
+                GetOrCreateNotificationDispatchState(nodeManager);
+            return dispatchState.Enabled
+                ? CreateNotificationDispatch(
+                    nodeManager,
+                    dispatchState,
+                    monitoredItems)
+                : null;
+        }
+
+        private void AddActiveNotificationDispatch(
+            List<NotificationDispatchLease> dispatches,
+            IAsyncNodeManager nodeManager,
+            IEventMonitoredItem[]? monitoredItems = null)
+        {
+            NotificationDispatchLease? dispatch =
+                TryCreateActiveNotificationDispatch(nodeManager, monitoredItems);
+            try
+            {
+                if (dispatch is not null)
+                {
+                    dispatches.Add(dispatch);
+                    dispatch = null;
+                }
+            }
+            finally
+            {
+                dispatch?.Dispose();
+            }
+        }
+
+        private NotificationDispatchLease CreateNotificationDispatch(
+            IAsyncNodeManager nodeManager,
+            NotificationDispatchState dispatchState,
+            IEventMonitoredItem[]? monitoredItems)
+        {
+            dispatchState.ActiveDispatches++;
+            return new NotificationDispatchLease(
+                this,
+                nodeManager,
+                dispatchState,
+                monitoredItems ?? []);
+        }
+
+        private static bool ContainsNodeManager(
+            IReadOnlyList<NotificationDispatchLease> dispatches,
+            IAsyncNodeManager nodeManager)
+        {
+            return dispatches.Any(dispatch =>
+                ReferenceEquals(dispatch.NodeManager, nodeManager));
+        }
+
+        private void ReleaseNotificationDispatch(
+            NotificationDispatchState dispatchState)
+        {
+            TaskCompletionSource<bool>? dispatchesDrained = null;
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                Debug.Assert(dispatchState.ActiveDispatches > 0);
+                if (dispatchState.ActiveDispatches <= 0)
+                {
+                    return;
+                }
+
+                if (--dispatchState.ActiveDispatches == 0)
+                {
+                    dispatchesDrained = dispatchState.DispatchesDrained;
+                    dispatchState.DispatchesDrained = null;
+                    if (dispatchState.Enabled &&
+                        !m_retiredGenerationNotifications.Any(notifications =>
+                            ReferenceEquals(
+                                notifications.DispatchState,
+                                dispatchState)))
+                    {
+                        m_notificationDispatchStates.Remove(dispatchState);
+                    }
+                }
+            }
+            dispatchesDrained?.TrySetResult(true);
+        }
+
+        private NotificationDispatchState GetOrCreateNotificationDispatchState(
+            IAsyncNodeManager nodeManager)
+        {
+            m_notificationDispatchStates.RemoveAll(candidate =>
+                !candidate.IsAlive);
+            NotificationDispatchState? dispatchState =
+                m_notificationDispatchStates.FirstOrDefault(candidate =>
+                    candidate.References(nodeManager));
+            if (dispatchState is null)
+            {
+                dispatchState = new NotificationDispatchState(nodeManager);
+                m_notificationDispatchStates.Add(dispatchState);
+            }
+            return dispatchState;
+        }
+
+        private static void DisposeNotificationDispatches(
+            IReadOnlyList<NotificationDispatchLease> dispatches)
+        {
+            foreach (NotificationDispatchLease dispatch in dispatches)
+            {
+                dispatch.Dispose();
+            }
+        }
 
         /// <inheritdoc/>
         void ISyncNodeManagerMonitoredItemRecovery.RecoverDetachedMonitoredItems(
@@ -885,9 +1464,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IReadOnlyList<IMonitoredItem> monitoredItems =
-                    lifecycle.GetRecoverableMonitoredItemsSnapshot(nodeIds);
-                foreach (IMonitoredItem monitoredItem in monitoredItems)
+                foreach (IMonitoredItem monitoredItem in lifecycle.GetRecoverableMonitoredItemsSnapshot(nodeIds))
                 {
                     var itemLifecycle = (IDetachableMonitoredItem)monitoredItem;
                     if (!itemLifecycle.IsDetached)
@@ -923,7 +1500,6 @@ namespace Opc.Ua.Server
                         failures.Add(new ServiceResultException(attachResult));
                     }
                 }
-
             }
 
             if (failures.Count > 0)
@@ -1076,14 +1652,6 @@ namespace Opc.Ua.Server
                 }
             }
             return null;
-        }
-
-        private static bool AreSameNodeManager(
-            IAsyncNodeManager first,
-            IAsyncNodeManager second)
-        {
-            return ReferenceEquals(first, second) ||
-                ReferenceEquals(first.SyncNodeManager, second.SyncNodeManager);
         }
 
         /// <inheritdoc/>
@@ -1807,15 +2375,15 @@ namespace Opc.Ua.Server
                 return permissionResult;
             }
 
-            NodeId targetNodeId = NodeId.Null;
-            object? targetHandle = null;
             IAsyncNodeManager? targetOwner = null;
             NodeMetadata? targetMetadata = null;
+
             if (TryGetExplicitLocalTargetNodeId(
                 item.TargetServerUri,
                 item.TargetNodeId,
-                out targetNodeId))
+                out NodeId targetNodeId))
             {
+                object? targetHandle;
                 (targetHandle, targetOwner) = await GetManagerHandleAsync(
                     targetNodeId,
                     cancellationToken).ConfigureAwait(false);
@@ -1980,7 +2548,6 @@ namespace Opc.Ua.Server
             }
 
             NodeId targetNodeId = NodeId.Null;
-            object? targetHandle = null;
             IAsyncNodeManager? targetOwner = null;
             NodeMetadata? targetMetadata = null;
             bool explicitlyLocalTarget =
@@ -1991,6 +2558,7 @@ namespace Opc.Ua.Server
                     out targetNodeId);
             if (explicitlyLocalTarget)
             {
+                object? targetHandle;
                 (targetHandle, targetOwner) = await GetManagerHandleAsync(
                     targetNodeId,
                     cancellationToken).ConfigureAwait(false);
@@ -4052,17 +4620,33 @@ namespace Opc.Ua.Server
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
         {
-            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+            IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
+            NotificationDispatchLease[] dispatches =
+                GetConditionRefreshDispatches(
+                    activeNodeManagers,
+                    monitoredItems);
+            try
             {
-                try
+                foreach (NotificationDispatchLease dispatch in dispatches)
                 {
-                    await nodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken)
-                        .ConfigureAwait(false);
+                    try
+                    {
+                        await dispatch.NodeManager
+                            .ConditionRefreshAsync(
+                                context,
+                                dispatch.MonitoredItems,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.ErrorCallingConditionRefreshAsyncOnAsyncNodeManager(e);
+                    }
                 }
-                catch (Exception e)
-                {
-                    m_logger.ErrorCallingConditionRefreshAsyncOnAsyncNodeManager(e);
-                }
+            }
+            finally
+            {
+                DisposeNotificationDispatches(dispatches);
             }
         }
 
@@ -4686,19 +5270,19 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false);
 
-                // let each node manager figure out which items it owns.
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
-                {
-                    await nodeManager.ModifyMonitoredItemsAsync(
-                            context,
-                            timestampsToReturn,
-                            monitoredItems,
-                            itemsToModify,
-                            errors,
-                            filterResults,
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                }
+                // let each owning node manager modify the items it created. Data monitored
+                // items are dispatched to their recorded owning NodeManager (grouped by
+                // owner) rather than to visible routing-table managers only, so items still
+                // owned by a shadow-retired generation are handled by that generation.
+                await DispatchModifyToOwningNodeManagersAsync(
+                        context,
+                        timestampsToReturn,
+                        monitoredItems,
+                        itemsToModify,
+                        errors,
+                        filterResults,
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
                 // update results.
                 for (int ii = 0; ii < errors.Count; ii++)
@@ -4780,15 +5364,27 @@ namespace Opc.Ua.Server
                 // subscribe to all node managers.
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
-                    foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                    IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
+                    NotificationDispatchLease[] dispatches =
+                        GetAllEventNotificationDispatches(
+                            activeNodeManagers,
+                            monitoredItem);
+                    try
                     {
-                        await nodeManager.SubscribeToAllEventsAsync(
-                                context,
-                                monitoredItem.SubscriptionId,
-                                monitoredItem,
-                                false,
-                                cancellationToken)
-                            .ConfigureAwait(false);
+                        foreach (NotificationDispatchLease dispatch in dispatches)
+                        {
+                            await dispatch.NodeManager.SubscribeToAllEventsAsync(
+                                    context,
+                                    monitoredItem.SubscriptionId,
+                                    monitoredItem,
+                                    false,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        DisposeNotificationDispatches(dispatches);
                     }
                 }
                 // only subscribe to the node manager that owns the node.
@@ -4822,7 +5418,29 @@ namespace Opc.Ua.Server
                 context,
                 sendInitialValues,
                 monitoredItems,
-                errors).AsTask().GetAwaiter().GetResult();
+                errors,
+                new MonitoredItemTransferOptions()).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        [Obsolete("Use TransferMonitoredItemsAsync with MonitoredItemTransferOptions.")]
+        public virtual ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+        {
+            return TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                errors,
+                new MonitoredItemTransferOptions(),
+                cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -4831,24 +5449,79 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
-
             if (monitoredItems == null)
             {
                 throw new ArgumentNullException(nameof(monitoredItems));
             }
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
 
+            IMonitoredItemTransferTransaction transaction =
+                await PrepareMonitoredItemsTransferAsync(
+                    context,
+                    sendInitialValues,
+                    monitoredItems,
+                    errors,
+                    transferOptions,
+                    cancellationToken).ConfigureAwait(false);
+            transaction.Commit();
+        }
+
+        ValueTask<IMonitoredItemTransferTransaction>
+            IMonitoredItemTransferCoordinator.PrepareMonitoredItemsTransferAsync(
+                OperationContext destinationContext,
+                bool sendInitialValues,
+                IList<IMonitoredItem> monitoredItems,
+                IList<ServiceResult> errors,
+                MonitoredItemTransferOptions transferOptions,
+                CancellationToken cancellationToken)
+        {
+            return PrepareMonitoredItemsTransferAsync(
+                destinationContext,
+                sendInitialValues,
+                monitoredItems,
+                errors,
+                transferOptions,
+                cancellationToken);
+        }
+
+        private async ValueTask<IMonitoredItemTransferTransaction>
+            PrepareMonitoredItemsTransferAsync(
+                OperationContext destinationContext,
+                bool sendInitialValues,
+                IList<IMonitoredItem> monitoredItems,
+                IList<ServiceResult> errors,
+                MonitoredItemTransferOptions transferOptions,
+                CancellationToken cancellationToken)
+        {
+            if (destinationContext == null)
+            {
+                throw new ArgumentNullException(nameof(destinationContext));
+            }
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
             if (errors == null)
             {
                 throw new ArgumentNullException(nameof(errors));
             }
 
             var processedItems = new List<bool>(monitoredItems.Count);
+            var effectiveTransferOptions = new MonitoredItemTransferOptions
+            {
+                DeferInitialValues = sendInitialValues ||
+                    transferOptions.DeferInitialValues
+            };
 
             // preset results for unknown nodes
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -4858,28 +5531,129 @@ namespace Opc.Ua.Server
                 {
                     IsDetached: true
                 };
-                processedItems.Add(monitoredItem == null || isDetached);
+                processedItems.Add(
+                    monitoredItem == null ||
+                    isDetached);
                 errors[ii] = isDetached
                     ? ServiceResult.Good
                     : new ServiceResult(StatusCodes.BadMonitoredItemIdInvalid);
-                if (isDetached && sendInitialValues && monitoredItem is not null)
+            }
+
+            List<(IAsyncNodeManager Owner, List<int> Indices)>? owners =
+                GroupDataMonitoredItemsByOwner(
+                    monitoredItems,
+                    index => processedItems[index]);
+            if (owners is not null)
+            {
+                foreach ((IAsyncNodeManager owner, List<int> indices) in owners)
                 {
-                    ((IDetachableMonitoredItem)monitoredItem).QueueNodeIdUnknown();
+                    // Present only this owner's items as unprocessed.
+                    bool[] ownedItems = new bool[monitoredItems.Count];
+                    for (int ii = 0; ii < ownedItems.Length; ii++)
+                    {
+                        ownedItems[ii] = true;
+                    }
+                    foreach (int ii in indices)
+                    {
+                        ownedItems[ii] = false;
+                    }
+
+                    try
+                    {
+                        await owner.TransferMonitoredItemsAsync(
+                                destinationContext,
+                                sendInitialValues,
+                                monitoredItems,
+                                ownedItems,
+                                errors,
+                                effectiveTransferOptions,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception transferError)
+                    {
+                        m_logger.MonitoredItemTransferFailedForNodeManager(
+                            transferError,
+                            owner.GetType().Name);
+                        foreach (int ii in indices)
+                        {
+                            errors[ii] = ServiceResult.Create(
+                                transferError,
+                                StatusCodes.BadUnexpectedError,
+                                string.Empty);
+                            ownedItems[ii] = true;
+                            processedItems[ii] = true;
+                        }
+                        continue;
+                    }
+
+                    // Merge the owner's processed marks back into the shared list.
+                    foreach (int ii in indices)
+                    {
+                        if (ownedItems[ii])
+                        {
+                            processedItems[ii] = true;
+                        }
+                    }
                 }
             }
 
-            // call each node manager.
-            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+            return new MonitoredItemTransferTransaction(
+                sendInitialValues,
+                monitoredItems,
+                errors);
+        }
+
+        private sealed class MonitoredItemTransferTransaction :
+            IMonitoredItemTransferTransaction
+        {
+            public MonitoredItemTransferTransaction(
+                bool sendInitialValues,
+                IList<IMonitoredItem> monitoredItems,
+                IList<ServiceResult> errors)
             {
-                await nodeManager.TransferMonitoredItemsAsync(
-                        context,
-                        sendInitialValues,
-                        monitoredItems,
-                        processedItems,
-                        errors,
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                m_sendInitialValues = sendInitialValues;
+                m_monitoredItems = monitoredItems;
+                m_errors = errors;
             }
+
+            public void Commit()
+            {
+                if (Interlocked.CompareExchange(ref m_state, 1, 0) != 0)
+                {
+                    throw new InvalidOperationException("The monitored-item transfer is no longer pending.");
+                }
+
+                if (!m_sendInitialValues)
+                {
+                    return;
+                }
+
+                for (int ii = 0; ii < m_monitoredItems.Count; ii++)
+                {
+                    IMonitoredItem? monitoredItem = m_monitoredItems[ii];
+                    if (monitoredItem == null || ServiceResult.IsBad(m_errors[ii]))
+                    {
+                        continue;
+                    }
+                    if (monitoredItem is IDetachableMonitoredItem
+                        {
+                            IsDetached: true
+                        } detachedMonitoredItem)
+                    {
+                        detachedMonitoredItem.QueueNodeIdUnknown();
+                    }
+                    else
+                    {
+                        monitoredItem.SetupResendDataTrigger();
+                    }
+                }
+            }
+
+            private readonly bool m_sendInitialValues;
+            private readonly IList<IMonitoredItem> m_monitoredItems;
+            private readonly IList<ServiceResult> m_errors;
+            private int m_state;
         }
 
         /// <summary>
@@ -4956,17 +5730,21 @@ namespace Opc.Ua.Server
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            // call each node manager.
-            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
-            {
-                await nodeManager.DeleteMonitoredItemsAsync(
+            // call each owning node manager. Data monitored items are dispatched to their
+            // recorded owning NodeManager (grouped by owner) so items owned by a
+            // shadow-retired generation are deleted by that generation, draining it.
+            await DispatchDataMonitoredItemsToOwningNodeManagersAsync(
+                    itemsToDelete,
+                    processedItems,
+                    (owner, ownedItems) => owner.DeleteMonitoredItemsAsync(
                         context,
                         itemsToDelete,
-                        processedItems,
+                        ownedItems,
                         errors,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
+                        cancellationToken),
+                    notifyRetiredGenerationDrain: true,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             // fill results for unknown nodes.
             for (int ii = 0; ii < errors.Count; ii++)
@@ -4989,6 +5767,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
+            bool retiredGenerationDrained = false;
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 if (processedItems[ii])
@@ -5003,26 +5782,45 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                IAsyncNodeManager owningNodeManager = monitoredItem.NodeManager;
                 processedItems[ii] = true;
 
                 // unsubscribe to all node managers.
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
-                    foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                    NotificationDispatchLease[] dispatches =
+                        GetAllEventUnsubscribeDispatches(monitoredItem);
+                    try
                     {
-                        await nodeManager.SubscribeToAllEventsAsync(
-                                context,
-                                subscriptionId,
-                                monitoredItem,
-                                true,
-                                cancellationToken)
-                            .ConfigureAwait(false);
+                        foreach (NotificationDispatchLease dispatch in dispatches)
+                        {
+                            await dispatch.NodeManager.SubscribeToAllEventsAsync(
+                                    context,
+                                    subscriptionId,
+                                    monitoredItem,
+                                    true,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                            if (dispatch.Notifications is not null)
+                            {
+                                CompleteRetiredAllEventUnsubscribe(
+                                    monitoredItem,
+                                    dispatch.Notifications);
+                            }
+                        }
+                        CompleteRetiredAllEventUnsubscribe(
+                            monitoredItem,
+                            dispatches);
+                    }
+                    finally
+                    {
+                        DisposeNotificationDispatches(dispatches);
                     }
                 }
                 // only unsubscribe to the node manager that owns the node.
                 else
                 {
-                    await monitoredItem.NodeManager.SubscribeToEventsAsync(
+                    await owningNodeManager.SubscribeToEventsAsync(
                         context,
                         monitoredItem.ManagerHandle,
                         subscriptionId,
@@ -5033,9 +5831,15 @@ namespace Opc.Ua.Server
 
                 // delete the item.
                 Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                retiredGenerationDrained |= !m_nodeManagers.Contains(owningNodeManager);
 
                 // success.
                 errors[ii] = StatusCodes.Good;
+            }
+
+            if (retiredGenerationDrained)
+            {
+                m_retiredGenerationDrainObserver?.Invoke();
             }
         }
 
@@ -5097,17 +5901,22 @@ namespace Opc.Ua.Server
                 processedItems,
                 errors);
 
-            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
-            {
-                await nodeManager.SetMonitoringModeAsync(
+            // set the monitoring mode on each owning node manager. Data monitored items are
+            // dispatched to their recorded owning NodeManager (grouped by owner) so items
+            // owned by a shadow-retired generation are handled by that generation.
+            await DispatchDataMonitoredItemsToOwningNodeManagersAsync(
+                    itemsToModify,
+                    processedItems,
+                    (owner, ownedItems) => owner.SetMonitoringModeAsync(
                         context,
                         monitoringMode,
                         itemsToModify,
-                        processedItems,
+                        ownedItems,
                         errors,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
+                        cancellationToken),
+                    notifyRetiredGenerationDrain: false,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             // fill results for unknown nodes.
             for (int ii = 0; ii < errors.Count; ii++)
@@ -5150,6 +5959,176 @@ namespace Opc.Ua.Server
 
                 // success.
                 errors[ii] = StatusCodes.Good;
+            }
+        }
+
+        /// <summary>
+        /// Groups the unprocessed data monitored items by their recorded owning
+        /// NodeManager (by reference), preserving the original index of each item. Event
+        /// items and items already handled (processed) or unknown (null) are skipped.
+        /// </summary>
+        private static List<(IAsyncNodeManager Owner, List<int> Indices)>?
+            GroupDataMonitoredItemsByOwner(
+                IList<IMonitoredItem> monitoredItems,
+                Func<int, bool> isProcessed)
+        {
+            List<(IAsyncNodeManager Owner, List<int> Indices)>? owners = null;
+            Dictionary<object, int>? ownerIndex = null;
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                if (isProcessed(ii) || monitoredItems[ii] == null)
+                {
+                    continue;
+                }
+
+                IAsyncNodeManager owner = monitoredItems[ii].NodeManager;
+                if (owner is null)
+                {
+                    continue;
+                }
+
+                owners ??= [];
+                ownerIndex ??= new Dictionary<object, int>(RefEqualityComparer.Default);
+                if (!ownerIndex.TryGetValue(owner, out int group))
+                {
+                    owners.Add((owner, []));
+                    group = owners.Count - 1;
+                    ownerIndex[owner] = group;
+                }
+
+                owners[group].Indices.Add(ii);
+            }
+
+            return owners;
+        }
+
+        /// <summary>
+        /// Dispatches an ownership-sensitive data monitored item operation to each item's
+        /// recorded owning NodeManager rather than to the visible routing-table managers.
+        /// Each owner is offered only the items it owns (all other indices are pre-marked
+        /// processed) so a same-namespace replacement generation can never claim monitored
+        /// items still owned by a shadow-retired generation. Owners that are no longer
+        /// registered in the routing table are shadow-retired generations; when
+        /// <paramref name="notifyRetiredGenerationDrain"/> is set the registered drain
+        /// observer is notified afterwards so retired generations can be torn down once
+        /// their monitored items drain.
+        /// </summary>
+        private async ValueTask DispatchDataMonitoredItemsToOwningNodeManagersAsync(
+            IList<IMonitoredItem> monitoredItems,
+            List<bool> processedItems,
+            Func<IAsyncNodeManager, IList<bool>, ValueTask> dispatch,
+            bool notifyRetiredGenerationDrain,
+            CancellationToken cancellationToken)
+        {
+            List<(IAsyncNodeManager Owner, List<int> Indices)>? owners =
+                GroupDataMonitoredItemsByOwner(
+                    monitoredItems,
+                    index => processedItems[index]);
+            if (owners is null)
+            {
+                return;
+            }
+
+            bool retiredGenerationDrained = false;
+            foreach ((IAsyncNodeManager owner, List<int> indices) in owners)
+            {
+                // Present only this owner's items as unprocessed.
+                bool[] ownedItems = new bool[monitoredItems.Count];
+                for (int ii = 0; ii < ownedItems.Length; ii++)
+                {
+                    ownedItems[ii] = true;
+                }
+                foreach (int ii in indices)
+                {
+                    ownedItems[ii] = false;
+                }
+
+                await dispatch(owner, ownedItems).ConfigureAwait(false);
+
+                // Merge the owner's processed marks back into the shared list.
+                foreach (int ii in indices)
+                {
+                    if (ownedItems[ii])
+                    {
+                        processedItems[ii] = true;
+                    }
+                }
+
+                if (notifyRetiredGenerationDrain && !m_nodeManagers.Contains(owner))
+                {
+                    retiredGenerationDrained = true;
+                }
+            }
+
+            if (retiredGenerationDrained)
+            {
+                m_retiredGenerationDrainObserver?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Dispatches Modify to each data monitored item's recorded owning NodeManager.
+        /// Modify tracks per-item completion through <see cref="MonitoredItemModifyRequest.Processed"/>
+        /// rather than a processed-flag list, so each owner is isolated by temporarily
+        /// marking every item it does not own as processed for the duration of its call.
+        /// </summary>
+        private async ValueTask DispatchModifyToOwningNodeManagersAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            CancellationToken cancellationToken)
+        {
+            List<(IAsyncNodeManager Owner, List<int> Indices)>? owners =
+                GroupDataMonitoredItemsByOwner(
+                    monitoredItems,
+                    index => itemsToModify[index].Processed);
+            if (owners is null)
+            {
+                return;
+            }
+
+            foreach ((IAsyncNodeManager owner, List<int> indices) in owners)
+            {
+                bool[] ownedItems = new bool[monitoredItems.Count];
+                foreach (int ii in indices)
+                {
+                    ownedItems[ii] = true;
+                }
+
+                // Temporarily mark every item this owner does not own as processed so it
+                // only touches its own items, then restore them for the next owner.
+                var masked = new List<int>();
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    if (!ownedItems[ii] && !itemsToModify[ii].Processed)
+                    {
+                        itemsToModify[ii].Processed = true;
+                        masked.Add(ii);
+                    }
+                }
+
+                try
+                {
+                    await owner.ModifyMonitoredItemsAsync(
+                            context,
+                            timestampsToReturn,
+                            monitoredItems,
+                            itemsToModify,
+                            errors,
+                            filterResults,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    foreach (int ii in masked)
+                    {
+                        itemsToModify[ii].Processed = false;
+                    }
+                }
             }
         }
 
@@ -5257,12 +6236,18 @@ namespace Opc.Ua.Server
             bool currentReferenceMutationStarted = false;
             bool replacementReferenceMutationStarted = false;
             bool routeReplaced = false;
+            bool retiredNotificationsRetained = false;
             try
             {
                 currentReferenceMutationStarted = true;
                 await RemoveExternalReferencesAsync(
                     currentExternalReferences,
                     CancellationToken.None).ConfigureAwait(false);
+                if (prepared.RetainReplacedNotifications)
+                {
+                    RetainRetiredGenerationNotifications(current);
+                    retiredNotificationsRetained = true;
+                }
                 m_nodeManagers.Replace(
                     current,
                     prepared.NodeManager,
@@ -5320,6 +6305,7 @@ namespace Opc.Ua.Server
 
                 if (currentRestored)
                 {
+                    bool currentVisibilityRestored = !routeReplaced;
                     if (currentReferenceMutationStarted)
                     {
                         try
@@ -5345,12 +6331,18 @@ namespace Opc.Ua.Server
                             m_nodeManagers.SetVisible(
                                 current,
                                 currentWasVisible);
+                            currentVisibilityRestored = true;
                         }
                         catch (Exception rollbackException) when (
                             rollbackException is not OutOfMemoryException)
                         {
                             failures.Add(rollbackException);
                         }
+                    }
+                    if (retiredNotificationsRetained &&
+                        currentVisibilityRestored)
+                    {
+                        RemoveRetiredGenerationNotifications(current);
                     }
                 }
                 else
@@ -5531,6 +6523,9 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public IReadOnlyList<IAsyncNodeManager> AsyncNodeManagers => [.. m_nodeManagers];
+
+        internal int ShutdownCompletedNodeManagerCount =>
+            Volatile.Read(ref m_shutdownCompletedNodeManagerCount);
 
         /// <inheritdoc/>
         public IReadOnlyList<INodeManager> NodeManagers
@@ -6252,10 +7247,96 @@ namespace Opc.Ua.Server
 
         private static readonly TimeSpan s_nodeManagementCompensationTimeout =
             TimeSpan.FromSeconds(5);
+
+        private sealed class NotificationDispatchLease : IDisposable
+        {
+            public NotificationDispatchLease(
+                MasterNodeManager owner,
+                IAsyncNodeManager nodeManager,
+                NotificationDispatchState dispatchState,
+                IEventMonitoredItem[] monitoredItems)
+            {
+                m_owner = owner;
+                NodeManager = nodeManager;
+                DispatchState = dispatchState;
+                MonitoredItems = monitoredItems;
+            }
+
+            public IAsyncNodeManager NodeManager { get; }
+
+            public NotificationDispatchState DispatchState { get; }
+
+            public RetiredGenerationNotifications? Notifications =>
+                DispatchState.Notifications;
+
+            public IEventMonitoredItem[] MonitoredItems { get; }
+
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_owner, null)?
+                    .ReleaseNotificationDispatch(DispatchState);
+            }
+
+            private MasterNodeManager? m_owner;
+        }
+
+        private sealed class RetiredGenerationNotifications
+        {
+            public RetiredGenerationNotifications(
+                IAsyncNodeManager nodeManager,
+                NotificationDispatchState dispatchState,
+                List<IEventMonitoredItem> eventMonitoredItems)
+            {
+                NodeManager = nodeManager;
+                DispatchState = dispatchState;
+                SubscribedEventMonitoredItems = eventMonitoredItems;
+            }
+
+            public IAsyncNodeManager NodeManager { get; }
+
+            public NotificationDispatchState DispatchState { get; }
+
+            public List<IEventMonitoredItem> SubscribedEventMonitoredItems { get; }
+
+            public bool Enabled { get; set; } = true;
+
+            public bool AcceptEventDeletes { get; set; } = true;
+
+        }
+
+        private sealed class NotificationDispatchState
+        {
+            public NotificationDispatchState(IAsyncNodeManager nodeManager)
+            {
+                m_nodeManager = new WeakReference<IAsyncNodeManager>(nodeManager);
+            }
+
+            public bool IsAlive => m_nodeManager.TryGetTarget(out _);
+
+            public bool References(IAsyncNodeManager nodeManager)
+            {
+                return m_nodeManager.TryGetTarget(out IAsyncNodeManager? candidate) &&
+                    ReferenceEquals(candidate, nodeManager);
+            }
+
+            public bool Enabled { get; set; } = true;
+
+            public int ActiveDispatches { get; set; }
+
+            public TaskCompletionSource<bool>? DispatchesDrained { get; set; }
+
+            public RetiredGenerationNotifications? Notifications { get; set; }
+
+            private readonly WeakReference<IAsyncNodeManager> m_nodeManager;
+        }
+
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
+        private readonly HashSet<object> m_shutdownCompletedNodeManagers =
+            new(RefEqualityComparer.Default);
+        private int m_shutdownCompletedNodeManagerCount;
         private readonly MonitoredItemIdFactory m_monitoredItemIdFactory = new();
         private readonly List<IAsyncNodeManager> m_preparingNodeManagers = [];
         private readonly Lock m_preparingNodeManagersLock = new();
@@ -6263,6 +7344,13 @@ namespace Opc.Ua.Server
 
         private readonly Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>
             m_dynamicExternalReferences = [];
+
+        private readonly Lock m_retiredGenerationNotificationsLock = new();
+        private readonly List<RetiredGenerationNotifications>
+            m_retiredGenerationNotifications = [];
+        private readonly List<NotificationDispatchState>
+            m_notificationDispatchStates = [];
+        private volatile Action? m_retiredGenerationDrainObserver;
 
         private bool m_disposed;
     }
@@ -6454,6 +7542,13 @@ namespace Opc.Ua.Server
             Exception ex,
             uint monitoredItemId);
 
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 23, Level = LogLevel.Error,
+            Message = "NodeManager threw an exception transferring monitored items. NodeManager={NodeManager}")]
+        public static partial void MonitoredItemTransferFailedForNodeManager(
+            this ILogger logger,
+            Exception ex,
+            string nodeManager);
+
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 17, Level = LogLevel.Debug,
             Message = "Current user has no granted role.")]
         public static partial void CurrentUserHasNoGrantedRole(this ILogger logger);
@@ -6503,5 +7598,4 @@ namespace Opc.Ua.Server
             NodeId source,
             ExpandedNodeId target);
     }
-
 }

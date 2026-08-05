@@ -547,14 +547,16 @@ namespace Opc.Ua.Schema.Model
         {
             string name = field?.Name;
             scope ??= s_defaultMethodArgumentCodeNameScope;
-            lock (s_generatedCodeNamesLock)
+            if (field != null)
             {
-                if (field != null &&
-                    s_generatedCodeNames.TryGetValue(field, out GeneratedCodeNameState state) &&
-                    state.Names.TryGetValue(scope, out string generatedName) &&
-                    !string.IsNullOrEmpty(generatedName))
+                lock (s_generatedCodeNamesLock)
                 {
-                    name = generatedName;
+                    if (s_generatedCodeNames.TryGetValue(field, out GeneratedCodeNameState state) &&
+                        state.TryGetName(scope, out string generatedName) &&
+                        !string.IsNullOrEmpty(generatedName))
+                    {
+                        name = generatedName;
+                    }
                 }
             }
             return name.ToCSharpIdentifier(upperCamelCase);
@@ -724,7 +726,7 @@ namespace Opc.Ua.Schema.Model
                         argument,
                         out GeneratedCodeNameState state))
                 {
-                    state.Names.Remove(scope);
+                    state.ClearName(scope);
                 }
             }
         }
@@ -739,12 +741,31 @@ namespace Opc.Ua.Schema.Model
             string name,
             MethodArgumentCodeNameScope scope)
         {
-            s_generatedCodeNames.GetOrCreateValue(argument).Names[scope] = name;
+            s_generatedCodeNames.GetOrCreateValue(argument).SetName(scope, name);
         }
 
         private sealed class GeneratedCodeNameState
         {
-            public Dictionary<MethodArgumentCodeNameScope, string> Names { get; } = [];
+            public bool TryGetName(
+                MethodArgumentCodeNameScope scope,
+                out string name)
+            {
+                return m_names.TryGetValue(scope, out name);
+            }
+
+            public void SetName(
+                MethodArgumentCodeNameScope scope,
+                string name)
+            {
+                m_names[scope] = name;
+            }
+
+            public void ClearName(MethodArgumentCodeNameScope scope)
+            {
+                m_names.Remove(scope);
+            }
+
+            private readonly Dictionary<MethodArgumentCodeNameScope, string> m_names = [];
         }
 
         private static readonly MethodArgumentCodeNameScope
