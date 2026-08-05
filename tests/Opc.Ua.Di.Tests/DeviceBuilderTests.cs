@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Di.Server;
@@ -204,6 +205,46 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public async Task WithIdentificationWritesCompleteNameplateAsync()
+        {
+            IDeviceBuilder<DeviceState> builder = await m_fixture.Manager
+                .CreateDeviceAsync(new QualifiedName(
+                    "DeviceCompleteNameplate",
+                    m_fixture.Manager.DiNamespaceIndex))
+                .ConfigureAwait(false);
+
+            builder.WithIdentification(id =>
+            {
+                id.ManufacturerUri = "https://example.test/manufacturer";
+                id.Model = new LocalizedText("Model 2000");
+                id.HardwareRevision = "HW-2";
+                id.SoftwareRevision = "SW-3";
+                id.DeviceRevision = "REV-4";
+                id.ProductCode = "PC-5";
+                id.DeviceManual = "https://example.test/manual";
+                id.ProductInstanceUri = "urn:example:device:6";
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    builder.Device.ManufacturerUri!.Value,
+                    Is.EqualTo("https://example.test/manufacturer"));
+                Assert.That(builder.Device.Model!.Value.Text, Is.EqualTo("Model 2000"));
+                Assert.That(builder.Device.HardwareRevision!.Value, Is.EqualTo("HW-2"));
+                Assert.That(builder.Device.SoftwareRevision!.Value, Is.EqualTo("SW-3"));
+                Assert.That(builder.Device.DeviceRevision!.Value, Is.EqualTo("REV-4"));
+                Assert.That(builder.Device.ProductCode!.Value, Is.EqualTo("PC-5"));
+                Assert.That(
+                    builder.Device.DeviceManual!.Value,
+                    Is.EqualTo("https://example.test/manual"));
+                Assert.That(
+                    builder.Device.ProductInstanceUri!.Value,
+                    Is.EqualTo("urn:example:device:6"));
+            });
+        }
+
+        [Test]
         public async Task WithIdentificationSkipsUnsetFields()
         {
             IDeviceBuilder<DeviceState> builder = await m_fixture.Manager
@@ -261,6 +302,37 @@ namespace Opc.Ua.Di.Tests
 
             Assert.That(second, Is.SameAs(first),
                 "Calling WithMaintenanceGroup twice should reuse the existing group.");
+        }
+
+        [Test]
+        public async Task WellKnownFunctionalGroupsCreateExpectedNodesAsync()
+        {
+            IDeviceBuilder<DeviceState> builder = await m_fixture.Manager
+                .CreateDeviceAsync(new QualifiedName(
+                    "DeviceAllGroups",
+                    m_fixture.Manager.DiNamespaceIndex))
+                .ConfigureAwait(false);
+            var names = new List<string>();
+
+            builder
+                .WithIdentificationGroup(group => names.Add(group.Group.BrowseName.Name ?? string.Empty))
+                .WithDiagnosticsGroup(group => names.Add(group.Group.BrowseName.Name ?? string.Empty))
+                .WithStatusGroup(group => names.Add(group.Group.BrowseName.Name ?? string.Empty))
+                .WithOperationalGroup(group => names.Add(group.Group.BrowseName.Name ?? string.Empty))
+                .WithStatisticsGroup(group => names.Add(group.Group.BrowseName.Name ?? string.Empty))
+                .WithOperationCountersGroup(group => names.Add(group.Group.BrowseName.Name ?? string.Empty));
+
+            Assert.That(
+                names,
+                Is.EquivalentTo(
+                [
+                    WellKnownFunctionalGroups.Identification,
+                    WellKnownFunctionalGroups.Diagnostics,
+                    WellKnownFunctionalGroups.Status,
+                    WellKnownFunctionalGroups.Operational,
+                    WellKnownFunctionalGroups.Statistics,
+                    WellKnownFunctionalGroups.OperationCounters
+                ]));
         }
 
         [Test]
