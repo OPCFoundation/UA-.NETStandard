@@ -1144,7 +1144,52 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
-        // ---- helpers ----
+        [Test]
+        public async Task ReconnectAsyncWithExhaustedPolicyDoesNotSwapTheEntryAsync()
+        {
+            var timeProvider = new ObservableFakeTimeProvider();
+            var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.FromMilliseconds(10),
+                MaxDelay = TimeSpan.FromMilliseconds(10),
+                MaxAttempts = 0
+            };
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) =
+                CreateMockedSut(reconnectPolicy: reconnectPolicy, timeProvider: timeProvider);
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                var participant = new TestParticipant("p1", endpoint);
+                IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
+
+                // Deliberately generous. The policy, not the budget, is what ends this
+                // cycle: GetDelay returns the infinite sentinel as soon as the attempt
+                // count reaches MaxAttempts, before the budget is ever consulted. A
+                // race check that only asked whether the budget still had room would
+                // see plenty here, mistake the deliberate stop for a lost race against
+                // a concurrent close, and swap the entry to run a second, unbudgeted
+                // reconnect cycle behind the swap back-off.
+                var budget = new RetryBudget(TimeSpan.FromMinutes(1), timeProvider);
+
+                ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
+                    sut.ReconnectAsync(ch, budget, default).AsTask(),
+                    s_completionTimeout).ConfigureAwait(false);
+
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+                Assert.That(ch.State, Is.EqualTo(ChannelState.Faulted));
+                Assert.That(GetInternalIntProperty(ch, "SwapCount"), Is.Zero);
+                chMock.Verify(c => c.ReconnectAsync(
+                        It.IsAny<ITransportWaitingConnection?>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+                ch.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
 
         /// <summary>
         /// Awaits <paramref name="task"/> and returns the exception it faulted

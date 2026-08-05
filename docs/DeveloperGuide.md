@@ -321,7 +321,16 @@ Azure Pipelines reports its checks to GitHub as `<pipeline> (<stage> <job>)`, so
 
 The coverage check reports a clean failure when the thresholds are missed, so a miss is visible on the pull request, but it never blocks the merge. Do not add it to the ruleset — that would make a coverage dip unmergeable, which is not the intent.
 
-Both required checks are single rollup jobs on purpose. The jobs underneath them are matrix-generated, so their names change whenever a test project or an agent is added, and they are skipped wholesale by the CI backend switch or by the path filter. Requiring a generated job name would therefore break as soon as the matrix changed. Both rollups also run on `not(canceled())` / `always()` rather than on success, because a check that reports **skipped** is treated by GitHub as **satisfied** — a required check that skips when its dependency fails would wave a red build straight through.
+Both required checks are single rollup jobs on purpose. The jobs underneath them are matrix-generated, so their names change whenever a test project or an agent is added, and they are skipped wholesale by the CI backend switch or by the path filter. Requiring a generated job name would therefore break as soon as the matrix changed.
+
+The two rollups reach their verdict differently, and the difference matters:
+
+| | How the verdict is reached | What a failing dependency looks like |
+| --- | --- | --- |
+| `build-and-test summary` (Actions) | Runs on `always()` and inspects `needs.*.result` inside the job, calling `exit 1` itself. | The check reports **failure** — a red X. |
+| `Tests passed` (Azure) | Encoded in the stage `condition`, the one place Azure Pipelines reliably exposes stage results. | The stage is skipped and Azure posts **no check** — the required check stays unfulfilled. |
+
+The Actions job must use `always()` (rather than the implicit "all needs succeeded") precisely because a job that is *skipped* because a dependency failed surfaces to GitHub as `skipped`, and a required check reporting `skipped` is treated as **satisfied** — it would wave a red build straight through. The Azure stage is safe from that trap for a different reason: a skipped Azure *stage* posts nothing at all, so there is no `skipped` conclusion for the ruleset to accept. Verified on build 16613, where `Fast PR test` failed, `Tests passed` was skipped, and no `Tests passed` check-run reached the pull request.
 
 #### How coverage is measured
 
