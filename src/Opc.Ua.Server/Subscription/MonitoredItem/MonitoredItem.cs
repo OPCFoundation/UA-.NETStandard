@@ -42,7 +42,8 @@ namespace Opc.Ua.Server
         IEventMonitoredItem,
         ISampledDataChangeMonitoredItem,
         ITriggeredMonitoredItem,
-        IDetachableMonitoredItem
+        IDetachableMonitoredItem,
+        IMonitoredItemTransferState
     {
         /// <summary>
         /// Initializes the object with its node type.
@@ -507,6 +508,14 @@ namespace Opc.Ua.Server
                 {
                     m_resendData = true;
                 }
+            }
+        }
+
+        void IMonitoredItemTransferState.RestoreResendDataTrigger(bool resendData)
+        {
+            lock (m_lock)
+            {
+                m_resendData = resendData;
             }
         }
 
@@ -1591,7 +1600,8 @@ namespace Opc.Ua.Server
                 else
                 {
                     // pull any unprocessed data.
-                    if (m_calculator != null && m_calculator.HasEndTimePassed(DateTime.UtcNow))
+                    if (m_calculator != null &&
+                        m_calculator.HasEndTimePassed(DateTime.UtcNow))
                     {
                         while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
                         {

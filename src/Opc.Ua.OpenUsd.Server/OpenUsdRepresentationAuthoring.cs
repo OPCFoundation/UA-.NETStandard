@@ -138,11 +138,11 @@ namespace Opc.Ua.OpenUsd.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
-            // AddxBinding_ instantiates the <Binding> placeholder as a HasComponent
+            // AddBinding_Placeholder instantiates the <Binding> placeholder as a HasComponent
             // child (browsable) and creates its mandatory base members. The binding
             // intent is the concrete subtype (§5.4): retype the instance to the
             // requested OpenUsd{ValueChange,Alarm,History,Command}BindingType.
-            OpenUsdLiveBindingState b = representation.AddxBinding_(context, new QualifiedName(name, ns));
+            OpenUsdLiveBindingState b = representation.AddBinding_Placeholder(context, new QualifiedName(name, ns));
             b.TypeDefinitionId = new NodeId(bindingTypeId, ns);
 
             // Mandatory base members already exist on the instance; set their values.
@@ -245,7 +245,7 @@ namespace Opc.Ua.OpenUsd.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
-            OpenUsdComponentBindingState b = representation.AddxComponent_(context, new QualifiedName(name, ns));
+            OpenUsdComponentBindingState b = representation.AddComponent_Placeholder(context, new QualifiedName(name, ns));
             b.CreateOrReplaceBindingDefinitionId(context, null!).Value = new Uuid(bindingDefinitionId);
             b.CreateOrReplaceEnabled(context, null!).Value = true;
             b.CreateOrReplaceCardinality(context, null!).Value = cardinality;

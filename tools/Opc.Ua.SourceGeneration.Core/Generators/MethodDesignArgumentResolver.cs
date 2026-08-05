@@ -44,12 +44,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static Parameter[] ResolveMethodInputs(MethodDesign method)
         {
-            if (method == null)
-            {
-                throw new ArgumentNullException(nameof(method));
-            }
-
-            return ResolveMethodDefinition(method).InputArguments ?? [];
+            return ResolveMethodArguments(method).Inputs;
         }
 
         /// <summary>
@@ -57,12 +52,30 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static Parameter[] ResolveMethodOutputs(MethodDesign method)
         {
+            return ResolveMethodArguments(method).Outputs;
+        }
+
+        /// <summary>
+        /// Resolves the effective input and output arguments for a method design.
+        /// </summary>
+        public static (Parameter[] Inputs, Parameter[] Outputs) ResolveMethodArguments(
+            MethodDesign method)
+        {
             if (method == null)
             {
                 throw new ArgumentNullException(nameof(method));
             }
 
-            return ResolveMethodDefinition(method).OutputArguments ?? [];
+            MethodDesign definition = ResolveMethodDefinition(method);
+            Parameter[] inputs = ResolveArguments(
+                definition.InputArguments,
+                definition.MethodDeclarationNode?.InputArguments,
+                definition.MethodType?.InputArguments);
+            Parameter[] outputs = ResolveArguments(
+                definition.OutputArguments,
+                definition.MethodDeclarationNode?.OutputArguments,
+                definition.MethodType?.OutputArguments);
+            return (inputs, outputs);
         }
 
         /// <summary>
@@ -237,6 +250,29 @@ namespace Opc.Ua.SourceGeneration
                 method.OutputArguments ?? [],
                 targetDefinition.InputArguments ?? [],
                 targetDefinition.OutputArguments ?? []);
+        }
+
+        private static Parameter[] ResolveArguments(
+            Parameter[] methodArguments,
+            Parameter[] declarationArguments,
+            Parameter[] methodTypeArguments)
+        {
+            if (methodArguments is { Length: > 0 })
+            {
+                return methodArguments;
+            }
+
+            if (declarationArguments is { Length: > 0 })
+            {
+                return declarationArguments;
+            }
+
+            if (methodTypeArguments is { Length: > 0 })
+            {
+                return methodTypeArguments;
+            }
+
+            return [];
         }
 
         private static bool HaveSameSignature(

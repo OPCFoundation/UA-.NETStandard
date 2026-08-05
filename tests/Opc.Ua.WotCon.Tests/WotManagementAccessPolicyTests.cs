@@ -220,6 +220,40 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
+        public void LoweredMinimumSecurityModeAcceptsStrongerChannels()
+        {
+            using var harness = new PolicyHarness(_tempFolder, opts => opts.ManagementAccess = new WotManagementAccessPolicy
+            {
+                MinimumSecurityMode = MessageSecurityMode.Sign
+            });
+
+            // The configured mode itself is accepted.
+            Assert.DoesNotThrow(
+                () => harness.Manager.EnforceManagementAccess(
+                    harness.BuildSystemContext(
+                        MessageSecurityMode.Sign,
+                        identity: harness.BuildAdminIdentity()),
+                    "CreateAsset"));
+
+            // A stronger channel must not be rejected: the policy is a floor, not an exact match.
+            Assert.DoesNotThrow(
+                () => harness.Manager.EnforceManagementAccess(
+                    harness.BuildSystemContext(
+                        MessageSecurityMode.SignAndEncrypt,
+                        identity: harness.BuildAdminIdentity()),
+                    "CreateAsset"));
+
+            // A weaker channel is still denied.
+            ServiceResultException denied = Assert.Throws<ServiceResultException>(
+                () => harness.Manager.EnforceManagementAccess(
+                    harness.BuildSystemContext(
+                        MessageSecurityMode.None,
+                        identity: harness.BuildAdminIdentity()),
+                    "CreateAsset"))!;
+            Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
         public void AllowAnonymousPolicyAcceptsAnonymousWhenSecure()
         {
             using var harness = new PolicyHarness(_tempFolder, opts => opts.ManagementAccess = new WotManagementAccessPolicy

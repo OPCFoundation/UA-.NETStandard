@@ -364,6 +364,7 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -408,5 +409,42 @@ namespace Opc.Ua.Server
             OperationContext context,
             ArrayOf<WriteValue> nodesToWrite,
             CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Coordinates handing monitored items from a source session to a destination session, so a
+    /// TransferSubscriptions request can be prepared across every owning NodeManager and then
+    /// committed or rolled back as one unit.
+    /// </summary>
+    internal interface IMonitoredItemTransferCoordinator
+    {
+        /// <summary>
+        /// Prepares monitored items for transfer to another session without committing the move.
+        /// </summary>
+        /// <param name="destinationContext">The operation context for the destination session.</param>
+        /// <param name="sendInitialValues">Whether the destination should receive initial values.</param>
+        /// <param name="monitoredItems">The monitored items to transfer.</param>
+        /// <param name="errors">The per-item transfer results to update.</param>
+        /// <param name="transferOptions">Optional transfer behavior supplied by the caller.</param>
+        /// <param name="cancellationToken">The token that aborts preparation.</param>
+        /// <returns>A transaction that commits the prepared transfer.</returns>
+        ValueTask<IMonitoredItemTransferTransaction> PrepareMonitoredItemsTransferAsync(
+            OperationContext destinationContext,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Represents a prepared monitored item transfer that defers initial value queuing until commit.
+    /// </summary>
+    internal interface IMonitoredItemTransferTransaction
+    {
+        /// <summary>
+        /// Makes the prepared transfer visible to the destination session.
+        /// </summary>
+        void Commit();
     }
 }

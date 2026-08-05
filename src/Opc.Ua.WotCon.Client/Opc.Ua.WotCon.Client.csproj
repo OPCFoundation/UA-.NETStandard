@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.WotCon\Opc.Ua.WotCon.csproj" />
+    <ProjectReference Include="..\Opc.Ua.XRegistry.Client\Opc.Ua.XRegistry.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
