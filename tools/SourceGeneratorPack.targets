@@ -34,13 +34,6 @@
     <DevelopmentDependency>true</DevelopmentDependency>
     <NoPackageAnalysis>true</NoPackageAnalysis>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <!-- Must stay empty: common.props sets PackageLicenseFile=LICENSE.txt for every
-         packable project, and NuGet rejects a package that declares both a license
-         expression and a license file (NU5035). Clearing it also makes common.props
-         pack LICENSE.txt at the package root as plain content, which is what the
-         other OPC UA packages do. -->
-    <PackageLicenseFile></PackageLicenseFile>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
