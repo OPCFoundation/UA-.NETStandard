@@ -9,7 +9,6 @@
     <Description>Server/client-independent OPC 40010 Robotics contracts and source-generated Robotics and Industrial Automation models over OPC UA DI, including model identifiers, typed states and proxies, model loaders, and focused topology read-projection contracts.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
