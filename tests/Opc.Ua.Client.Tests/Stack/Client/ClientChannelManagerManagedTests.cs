@@ -922,10 +922,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                             StatusCodes.BadConnectionClosed, "simulated in-flight drop");
                     });
 
-                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await ch.SendRequestAsync(
+                ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
+                    ch.SendRequestAsync(
                         new WriteRequest { RequestHeader = new RequestHeader() },
-                        default).AsTask().ConfigureAwait(false));
+                        default).AsTask(),
+                    TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
@@ -978,10 +979,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                             StatusCodes.BadNodeIdUnknown, "non-transient application error");
                     });
 
-                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await ch.SendRequestAsync(
+                ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
+                    ch.SendRequestAsync(
                         new ReadRequest { RequestHeader = new RequestHeader() },
-                        default).AsTask().ConfigureAwait(false));
+                        default).AsTask(),
+                    TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -1249,15 +1251,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
                 var budget = new RetryBudget(TimeSpan.Zero, timeProvider);
 
-                // Bounded: Assert.ThrowsAsync blocks the calling thread on the
-                // task with no timeout, and this test drives a fake clock, so
-                // an unbounded wait would deadlock the whole test host if the
-                // reconnect ever schedules a timer before failing.
+                // Await rather than Assert.ThrowsAsync: see AssertThrowsAsync.
                 Task exhaustedReconnect = sut.ReconnectAsync(ch, budget, default).AsTask();
-                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await exhaustedReconnect
-                        .WaitAsync(TimeSpan.FromSeconds(5))
-                        .ConfigureAwait(false));
+                ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
+                    exhaustedReconnect,
+                    TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
@@ -1295,19 +1293,15 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 object originalEntry = GetLeaseEntry(ch);
                 var exhaustedBudget = new RetryBudget(TimeSpan.Zero, timeProvider);
 
-                // Bounded on purpose: Assert.ThrowsAsync blocks the calling
-                // thread on the task with no timeout, and this test drives a
-                // fake clock, so an unbounded wait here deadlocks NUnit in
-                // WaitForCompletion and hangs the entire test host until
-                // --blame-hang-timeout kills it. See the Opc.Ua.Core.Tests copy
-                // of this fixture for the full explanation.
+                // Await rather than Assert.ThrowsAsync: see AssertThrowsAsync.
+                // This test drives a fake clock from this thread, so blocking
+                // here would prevent the clock from ever moving again.
                 Task faultedReconnect = sut
                     .ReconnectAsync(ch, exhaustedBudget, default)
                     .AsTask();
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await faultedReconnect
-                        .WaitAsync(TimeSpan.FromSeconds(5))
-                        .ConfigureAwait(false));
+                await AssertThrowsAsync<ServiceResultException>(
+                    faultedReconnect,
+                    TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                 Assert.That(ch.State, Is.EqualTo(ChannelState.Faulted));
 
@@ -1384,8 +1378,9 @@ namespace Opc.Ua.Client.Tests.Stack.Client
 
                 timeProvider.Advance(TimeSpan.FromMilliseconds(100));
 
-                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await reconnectTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+                ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
+                    reconnectTask,
+                    TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
@@ -1404,6 +1399,46 @@ namespace Opc.Ua.Client.Tests.Stack.Client
         }
 
         // ---- helpers ----
+
+        /// <summary>
+        /// Awaits <paramref name="task"/> and returns the exception it faulted
+        /// with, failing the test if it succeeded or threw something else.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately not <c>Assert.ThrowsAsync</c>. That blocks the calling
+        /// thread until the task completes - sync over async - so on a
+        /// constrained CI agent it can starve the very continuation it is
+        /// waiting for, and it has no timeout, so the block is unbounded. Tests
+        /// that drive a fake clock from the test thread cannot survive either:
+        /// the clock cannot advance while the thread is blocked, NUnit's runner
+        /// thread never returns, and the whole test host hangs until the blame
+        /// collector kills it.
+        /// </remarks>
+        private static async Task<TException> AssertThrowsAsync<TException>(
+            Task task,
+            TimeSpan timeout)
+            where TException : Exception
+        {
+            try
+            {
+                await task.WaitAsync(timeout).ConfigureAwait(false);
+            }
+            catch (TException expected)
+            {
+                return expected;
+            }
+            catch (Exception other)
+            {
+                Assert.Fail(
+                    $"Expected {typeof(TException).Name} but got " +
+                    $"{other.GetType().Name}: {other}");
+                throw;
+            }
+
+            Assert.Fail(
+                $"Expected {typeof(TException).Name} but the operation completed successfully.");
+            throw new InvalidOperationException("unreachable");
+        }
 
         private static (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) CreateMockedSut(
             ITelemetryContext? telemetry = null,
