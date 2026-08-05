@@ -494,6 +494,67 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(actual.Name, Is.EqualTo("Variant"));
         }
 
+        [Test]
+        public void TryGetValueReturnsFalseWhenTheBinaryBodyIsTruncated()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var argument = new Argument();
+            ExtensionObject complete = CreateBinaryArgument(
+                context, "Truncated", argument.BinaryEncodingId);
+            Assert.That(complete.TryGetAsBinary(out ByteString binary), Is.True);
+            var truncated = new ExtensionObject(
+                argument.BinaryEncodingId,
+                ByteString.From(binary.Span[..2].ToArray()));
+
+            bool success = truncated.TryGetValue(out Argument actual, context);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual, Is.Null);
+        }
+
+        [Test]
+        public void TryGetValueReturnsFalseForAnUnknownXmlType()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            ExtensionObject known = CreateXmlArgument(context, "Xml");
+            Assert.That(known.TryGetAsXml(out XmlElement body), Is.True);
+            var unknown = new ExtensionObject(new ExpandedNodeId(999_998u), body);
+
+            bool success = unknown.TryGetValue(out IEncodeable actual, context);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual, Is.Null);
+        }
+
+        [Test]
+        public void TryGetValueReturnsFalseWhenTheXmlBodyIsNotWellFormed()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var argument = new Argument();
+            var malformed = new ExtensionObject(
+                argument.XmlEncodingId,
+                XmlElement.From("<Argument><Name>unterminated"));
+
+            bool success = malformed.TryGetValue(out Argument actual, context);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual, Is.Null);
+        }
+
+        [Test]
+        public void TryGetValueReturnsFalseForAnUnknownJsonType()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            ExtensionObject known = CreateJsonArgument(context, "Json");
+            Assert.That(known.TryGetAsJson(out string body), Is.True);
+            var unknown = new ExtensionObject(new ExpandedNodeId(999_997u), body);
+
+            bool success = unknown.TryGetValue(out IEncodeable actual, context);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual, Is.Null);
+        }
+
         private static ServiceMessageContext CreateMessageContext()
         {
             return ServiceMessageContext.Create(NUnitTelemetryContext.Create());

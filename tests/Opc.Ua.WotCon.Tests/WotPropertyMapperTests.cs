@@ -44,7 +44,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.Double));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.Double));
             Assert.That(valueRank, Is.EqualTo(ValueRanks.Scalar));
         }
 
@@ -56,7 +56,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.Int64));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.Int64));
             Assert.That(valueRank, Is.EqualTo(ValueRanks.Scalar));
         }
 
@@ -68,7 +68,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out _);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.Boolean));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.Boolean));
         }
 
         [Test]
@@ -79,7 +79,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out _);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.String));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.String));
         }
 
         [Test]
@@ -116,7 +116,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.Double));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.Double));
             Assert.That(valueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
 
@@ -132,7 +132,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.Boolean));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.Boolean));
             Assert.That(valueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
 
@@ -144,7 +144,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.BaseDataType));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.BaseDataType));
             Assert.That(valueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
 
@@ -166,7 +166,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.Double));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.Double));
             Assert.That(valueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
 
@@ -182,7 +182,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.Double));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.Double));
             Assert.That(valueRank, Is.EqualTo(ValueRanks.Scalar));
         }
 
@@ -195,7 +195,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out _);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.Boolean));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.Boolean));
         }
 
         [Test]
@@ -207,7 +207,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out _);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.Int64));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.Int64));
         }
 
         [Test]
@@ -219,7 +219,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out _);
 
             Assert.That(ok, Is.True);
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.String));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.String));
         }
 
         /// <summary>
@@ -233,7 +233,7 @@ namespace Opc.Ua.WotCon.Tests
             bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
 
             Assert.That(ok, Is.True, "Unknown primitive types still map (to BaseDataType).");
-            Assert.That(dataType, Is.EqualTo(DataTypeIds.BaseDataType));
+            Assert.That(dataType, Is.EqualTo(Ua.DataTypeIds.BaseDataType));
             Assert.That(valueRank, Is.EqualTo(ValueRanks.Scalar));
         }
 

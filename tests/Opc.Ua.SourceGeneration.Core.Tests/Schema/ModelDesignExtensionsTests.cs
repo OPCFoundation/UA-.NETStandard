@@ -34,6 +34,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 using Moq;
 using NUnit.Framework;
@@ -161,6 +162,78 @@ namespace Opc.Ua.Schema.Model.Tests
                 Assert.That(
                     outputs.Select(p => p.GetGeneratedCodeIdentifier(scope: nodeStateScope)),
                     Is.EqualTo(nodeStateOutputs));
+            });
+        }
+
+        [Test]
+        public void AssignMethodArgumentCodeNamesIsSafeForConcurrentScopes()
+        {
+            Parameter[] inputs =
+            [
+                new Parameter { Name = "Await" },
+                new Parameter { Name = "Ct" },
+                new Parameter { Name = "cT" },
+                new Parameter { Name = "CancellationToken" }
+            ];
+            Parameter[] outputs =
+            [
+                new Parameter { Name = "OutputArguments" },
+                new Parameter { Name = "ServiceResult" }
+            ];
+            var nodeStateScope = new MethodArgumentCodeNameScope(
+                "await",
+                "cancellationToken",
+                "outputArguments",
+                "serviceResult");
+            var proxyScope = new MethodArgumentCodeNameScope(
+                "await",
+                "ct",
+                "outputArguments");
+            string[] expectedNodeStateInputs =
+                ["await2", "ct", "cT2", "cancellationToken2"];
+            string[] expectedNodeStateOutputs =
+                ["outputArgumentsOut", "serviceResultOut"];
+            string[] expectedProxyInputs =
+                ["await2", "ct2", "cT3", "cancellationToken"];
+            string[] expectedProxyOutputs =
+                ["outputArgumentsOut", "serviceResult"];
+
+            Parallel.For(0, 10_000, index =>
+            {
+                if (index % 2 == 0)
+                {
+                    ModelDesignExtensions.AssignMethodArgumentCodeNames(
+                        inputs,
+                        outputs,
+                        nodeStateScope);
+
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(
+                            inputs.Select(p => p.GetGeneratedCodeIdentifier(scope: nodeStateScope)),
+                            Is.EqualTo(expectedNodeStateInputs));
+                        Assert.That(
+                            outputs.Select(p => p.GetGeneratedCodeIdentifier(scope: nodeStateScope)),
+                            Is.EqualTo(expectedNodeStateOutputs));
+                    });
+                }
+                else
+                {
+                    ModelDesignExtensions.AssignMethodArgumentCodeNames(
+                        inputs,
+                        outputs,
+                        proxyScope);
+
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(
+                            inputs.Select(p => p.GetGeneratedCodeIdentifier(scope: proxyScope)),
+                            Is.EqualTo(expectedProxyInputs));
+                        Assert.That(
+                            outputs.Select(p => p.GetGeneratedCodeIdentifier(scope: proxyScope)),
+                            Is.EqualTo(expectedProxyOutputs));
+                    });
+                }
             });
         }
 
