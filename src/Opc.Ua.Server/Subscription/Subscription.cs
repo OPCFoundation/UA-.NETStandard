@@ -826,7 +826,7 @@ namespace Opc.Ua.Server
 
             if (badTransfers > 0)
             {
-                m_logger.FailedToTransferCountMonitoredItems(badTransfers);
+                m_logger.FailedToTransferCountMonitoredItems(badTransfers, Id, SessionId);
             }
 
             lock (m_lock)
@@ -991,7 +991,7 @@ namespace Opc.Ua.Server
             }
             if (badTransfers > 0)
             {
-                m_logger.FailedToTransferCountMonitoredItems(badTransfers);
+                m_logger.FailedToTransferCountMonitoredItems(badTransfers, Id, SessionId);
             }
 
             return new PreparedSessionTransfer(
@@ -1637,7 +1637,7 @@ namespace Opc.Ua.Server
                 // check for missing notifications.
                 if (!keepAliveIfNoData && messages.Count == 0)
                 {
-                    m_logger.OopsMonitoredItemsQueuedButNoNotificationsAvailable();
+                    m_logger.OopsMonitoredItemsQueuedButNoNotificationsAvailable(SessionId, Id);
 
                     m_waitingForPublish = false;
 
@@ -3447,15 +3447,24 @@ namespace Opc.Ua.Server
         /// Logs the number of monitored items that could not be transferred.
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 1, Level = LogLevel.Trace,
-            Message = "Failed to transfer {Count} Monitored Items")]
-        public static partial void FailedToTransferCountMonitoredItems(this ILogger logger, int count);
+            Message = "Failed to transfer {Count} Monitored Items, " +
+                "SubscriptionId={SubscriptionId}, SessionId={SessionId}")]
+        public static partial void FailedToTransferCountMonitoredItems(
+            this ILogger logger,
+            int count,
+            uint subscriptionId,
+            NodeId? sessionId);
 
         /// <summary>
         /// Logs an invariant violation where monitored items were queued without available notifications.
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 2, Level = LogLevel.Error,
-            Message = "Oops! MonitoredItems queued but no notifications available.")]
-        public static partial void OopsMonitoredItemsQueuedButNoNotificationsAvailable(this ILogger logger);
+            Message = "Oops! MonitoredItems queued but no notifications available. " +
+                "SessionId={SessionId}, SubscriptionId={SubscriptionId}")]
+        public static partial void OopsMonitoredItemsQueuedButNoNotificationsAvailable(
+            this ILogger logger,
+            NodeId? sessionId,
+            uint subscriptionId);
 
         /// <summary>
         /// Logs that durable subscription setup was requested without a durable monitored item queue factory.
