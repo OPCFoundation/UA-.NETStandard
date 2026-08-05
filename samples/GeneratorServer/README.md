@@ -252,9 +252,11 @@ neighbouring machines from any operator-height camera, so it is now a beacon rin
 > colour (radiator, exhaust, manifold glow, alternator heat band). Whether those
 > land depends on the renderer: `primvars:displayColor` resolves as `color3f[]`
 > from the `UsdGeomGprim` schema whatever the layer declares, and a client that
-> cannot write that exact type cannot animate it. The **visibility** bindings —
-> run lamp, alarm beacon, fault halos — carry no such caveat and are the reliable
-> way to see state change in a viewport.
+> cannot write that exact type cannot animate it — which is the case for the
+> viewer this sample ships against, tracked upstream as
+> [openusd-dotnet#2](https://github.com/marcschier/openusd-dotnet/issues/2). The
+> **visibility** bindings — run lamp, alarm beacon, fault halos — carry no such
+> caveat and are the reliable way to see state change in a viewport.
 
 The operating-state readout is what makes an idle machine legible: without it the
 3D view shows *that* a set is not turning but not *why* — `Cooldown` and
