@@ -1373,11 +1373,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     }
                 };
 
+                // Arm before starting the reconnect so the waiter cannot be
+                // satisfied by an unrelated timer created earlier in the run.
+                Task<bool> shrunkBackoff = timeProvider.WaitForTimersCreatedAsync();
                 Task reconnectTask = sut.ReconnectAsync(ch, budget, default).AsTask();
                 await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                await timeProvider.WaitForTimerCreatedAsync(1)
-                    .WaitAsync(TimeSpan.FromSeconds(5))
-                    .ConfigureAwait(false);
+                await shrunkBackoff.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                 Assert.That(reconnectTask.IsCompleted, Is.False);
 
@@ -2087,6 +2088,21 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// A <see cref="FakeTimeProvider"/> that lets a test wait until the code
+        /// under test has actually registered its back-off timers.
+        /// </summary>
+        /// <remarks>
+        /// Waiting is deliberately <b>relative</b>: a waiter is armed for "N
+        /// more timers from now" rather than for "the Nth timer of the run".
+        /// Absolute numbering is a race - anything else that happens to create a
+        /// timer on this provider first (an earlier reconnect in the same test,
+        /// or manager housekeeping) consumes the low numbers, the waiter then
+        /// completes before the timer the test cares about exists, and the
+        /// subsequent Advance fires nothing. The reconnect is left parked on a
+        /// fake clock that nobody will move again, which hangs the test - and,
+        /// because NUnit blocks the runner thread, the whole test host.
+        /// </remarks>
         private sealed class ObservableFakeTimeProvider : FakeTimeProvider
         {
             public override ITimer CreateTimer(
@@ -2096,32 +2112,55 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 TimeSpan period)
             {
                 ITimer timer = base.CreateTimer(callback, state, dueTime, period);
-                int timerNumber = Interlocked.Increment(ref m_timerCount);
-                if (timerNumber == 1)
+
+                List<TaskCompletionSource<bool>>? ready = null;
+                lock (m_lock)
                 {
-                    m_firstTimerCreated.TrySetResult(true);
+                    m_timerCount++;
+                    for (int i = m_waiters.Count - 1; i >= 0; i--)
+                    {
+                        if (m_timerCount >= m_waiters[i].Target)
+                        {
+                            (ready ??= []).Add(m_waiters[i].Completion);
+                            m_waiters.RemoveAt(i);
+                        }
+                    }
                 }
-                else if (timerNumber == 2)
+
+                if (ready != null)
                 {
-                    m_secondTimerCreated.TrySetResult(true);
+                    foreach (TaskCompletionSource<bool> completion in ready)
+                    {
+                        completion.TrySetResult(true);
+                    }
                 }
+
                 return timer;
             }
 
-            public Task<bool> WaitForTimerCreatedAsync(int timerNumber)
+            /// <summary>
+            /// Returns a task that completes once <paramref name="count"/>
+            /// further timers have been created, counted from this call. Arm it
+            /// <b>before</b> starting the operation whose timers are awaited.
+            /// </summary>
+            public Task<bool> WaitForTimersCreatedAsync(int count = 1)
             {
-                return timerNumber switch
+                if (count < 1)
                 {
-                    1 => m_firstTimerCreated.Task,
-                    2 => m_secondTimerCreated.Task,
-                    _ => throw new ArgumentOutOfRangeException(nameof(timerNumber))
-                };
+                    throw new ArgumentOutOfRangeException(nameof(count));
+                }
+
+                var completion = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                lock (m_lock)
+                {
+                    m_waiters.Add((m_timerCount + count, completion));
+                }
+                return completion.Task;
             }
 
-            private readonly TaskCompletionSource<bool> m_firstTimerCreated = new(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            private readonly TaskCompletionSource<bool> m_secondTimerCreated = new(
-                TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly System.Threading.Lock m_lock = new();
+            private readonly List<(int Target, TaskCompletionSource<bool> Completion)> m_waiters = [];
             private int m_timerCount;
         }
     }
