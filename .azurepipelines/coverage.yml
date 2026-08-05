@@ -7,7 +7,7 @@
 #
 # This check is ADVISORY: it reports a clean failure when the thresholds are
 # missed so the miss is visible, but it must NOT be added to the GitHub branch
-# ruleset. The required check is the 'Tests passed' stage (gate.yml).
+# ruleset. The required check is the 'Tests passed' stage in azure-pipelines.yml.
 #
 # It deliberately does not re-run any tests. The previous design re-ran the
 # whole suite in a single job with the collector attached, which serialised a
@@ -51,10 +51,6 @@ stages:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
       DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
       disable.coverage.autogenerate: true
-      # See gate.yml: must be 'stageDependencies' at JOB scope, because a
-      # stage-scoped '$[ ]' variable is evaluated in the job's context where
-      # 'dependencies' means sibling jobs and resolves to '{}'.
-      stageResults: $[ convertToJson(stageDependencies) ]
     pool:
       ${{ if ne(parameters.poolName, '') }}:
         name: ${{ parameters.poolName }}
@@ -97,33 +93,18 @@ stages:
               exit 0
           }
 
-          # Nothing to evaluate. Whether that is expected depends on whether any
-          # test stage actually ran: if every stage was skipped there is
-          # genuinely no coverage to collect, but a stage that ran and published
-          # nothing means the collector is broken, and silently reporting green
-          # would hide that indefinitely.
-          $ran = @()
-          if (-not [string]::IsNullOrWhiteSpace($env:STAGE_RESULTS)) {
-              $deps = $env:STAGE_RESULTS | ConvertFrom-Json
-              foreach ($stage in $deps.PSObject.Properties) {
-                  foreach ($job in $stage.Value.PSObject.Properties) {
-                      if ($job.Value.result -eq 'Succeeded' -or $job.Value.result -eq 'SucceededWithIssues') {
-                          $ran += $stage.Name
-                          break
-                      }
-                  }
-              }
-          }
-
-          if ($ran.Count -gt 0) {
-              Write-Host "##vso[task.logissue type=error]Stage(s) $($ran -join ', ') completed but published no coverage at all; the collector is not working."
-              exit 1
-          }
-
-          Write-Host "##vso[task.logissue type=warning]No test stage completed, so there is no coverage to evaluate."
+          # Nothing to evaluate. That is expected when every test stage was
+          # skipped or failed before publishing anything, and it is the 'Tests
+          # passed' stage that owns the failure signal for those, so warn rather
+          # than manufacture a red coverage check with no data behind it.
+          #
+          # A broken collector on an otherwise green run is caught on the
+          # GitHub Actions side instead, where the test matrix result is
+          # available cheaply; the equivalent here would need the stage
+          # dependency context, which is too large to serialise in an
+          # expression (see the 'Tests passed' stage in azure-pipelines.yml).
+          Write-Host "##vso[task.logissue type=warning]No coverage was published by any test job; there is nothing to evaluate."
           exit 0
-      env:
-        STAGE_RESULTS: $(stageResults)
     - task: DotNetCoreCLI@2
       displayName: Install ReportGenerator tool
       condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))

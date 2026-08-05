@@ -317,6 +317,8 @@ Two concerns are deliberately kept apart, and both CI systems expose the same pa
 
 Azure Pipelines reports its checks to GitHub as `<pipeline> (<stage> <job>)`, so the two names to look for in the ruleset are `OPCFoundation.UA-.NETStandard (Tests passed Verify stage results)` and `OPCFoundation.UA-.NETStandard (Code coverage Merge and evaluate)`.
 
+> **`Tests passed` is fail-closed, not fail-red.** Its verdict lives in the stage `condition`, which is the one place Azure Pipelines reliably exposes stage results. When a test stage fails the condition is false, the stage is skipped, and Azure Pipelines posts **no check at all** for it — so the required check stays unfulfilled and the merge stays blocked. You will see the failing test job in red and `Tests passed` still waiting, rather than two red checks.
+
 The coverage check reports a clean failure when the thresholds are missed, so a miss is visible on the pull request, but it never blocks the merge. Do not add it to the ruleset — that would make a coverage dip unmergeable, which is not the intent.
 
 Both required checks are single rollup jobs on purpose. The jobs underneath them are matrix-generated, so their names change whenever a test project or an agent is added, and they are skipped wholesale by the CI backend switch or by the path filter. Requiring a generated job name would therefore break as soon as the matrix changed. Both rollups also run on `not(canceled())` / `always()` rather than on success, because a check that reports **skipped** is treated by GitHub as **satisfied** — a required check that skips when its dependency fails would wave a red build straight through.

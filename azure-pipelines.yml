@@ -402,20 +402,60 @@ stages:
       windowsImage: ${{ variables.hostWindowsImage }}
 
 
-# Terminal stages.  Both are stage templates, not job templates, because they
-# read the 'dependencies' context holding stage results, which resolves at STAGE
-# scope only; at job scope 'dependencies' refers to other jobs of the same
-# stage.  Each reads the set of stages to check out of that context, so it can
-# only ever verify exactly what it depends on.
-#
 # Required check.  Rolls every test stage up into a single status so the GitHub
 # branch ruleset does not have to name matrix-generated jobs, whose names change
 # whenever a test project or an agent is added.
-- template: .azurepipelines/gate.yml
-  parameters:
-    poolName: ${{ variables.hostPoolName }}
-    poolImage: ${{ variables.hostLinuxImage }}
-    stages: ${{ parameters.testStages }}
+#
+# The verdict lives entirely in the stage `condition`, which is the one place
+# Azure Pipelines reliably exposes stage results.  Two earlier attempts failed:
+# a stage-scoped `$[ ]` variable is evaluated when the JOB is prepared, where
+# `dependencies` means sibling jobs, so `convertToJson(dependencies)` resolved
+# to '{}' (build 16520); and `convertToJson(stageDependencies)` at job scope
+# blew the expression memory limit, because this pipeline's ~115 jobs carry
+# large output variables such as the serialised test matrix (build 16583).
+# Reading `dependencies.<stage>.result` here costs nothing and is the documented
+# usage.
+#
+# 'Skipped' is accepted because the Schedule/Manual-only stages report exactly
+# that on a pull request.  When a stage genuinely fails the condition is false,
+# this stage is skipped, and Azure Pipelines then posts NO check for it - which
+# leaves the required check permanently unfulfilled and blocks the merge.  That
+# is deliberately fail-closed: the failing job itself is already red, and a
+# required check that never reports can never be mistaken for a passing one.
+- stage: gate
+  displayName: 'Tests passed'
+  dependsOn: ${{ parameters.testStages }}
+  condition: |
+    and(
+      not(canceled()),
+      in(dependencies.build.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testfastpr.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testaot.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testdebug.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnet90.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnet80.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnet472.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnetstandard20.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnetstandard21.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnightly.result, 'Succeeded', 'SucceededWithIssues', 'Skipped')
+    )
+  jobs:
+  - job: gate
+    displayName: Verify stage results
+    timeoutInMinutes: 10
+    pool:
+      ${{ if ne(variables.hostPoolName, '') }}:
+        name: ${{ variables.hostPoolName }}
+        demands:
+          - ImageOverride -equals ${{ variables.hostLinuxImage }}
+      ${{ else }}:
+        vmImage: ${{ variables.hostLinuxImage }}
+    steps:
+    # Nothing is built or read from the tree; reaching this job IS the verdict.
+    - checkout: none
+    - pwsh: |
+        Write-Host 'Every test stage succeeded or was intentionally skipped.'
+      displayName: 'Tests passed'
 # Advisory check.  Merges every Cobertura fragment the run produced and
 # evaluates coverage-thresholds.json once.  It reports a clean failure when the
 # thresholds are missed so the miss is visible, but it must NOT be added to the
