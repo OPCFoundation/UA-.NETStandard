@@ -69,6 +69,23 @@ namespace Opc.Ua.Client.Tests.Stack.Client
     {
         private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
 
+        /// <summary>
+        /// How long a test waits for an asynchronous operation it has already
+        /// unblocked to be observed as complete.
+        /// </summary>
+        /// <remarks>
+        /// This is a hang detector, not a latency assertion. These tests drive a
+        /// fake clock, so the work under test finishes in microseconds; what is
+        /// being waited on is purely the thread-pool scheduling of the
+        /// continuation chain. On a saturated CI agent the pool injects threads
+        /// at roughly one per second, so a short budget times out while the
+        /// operation is merely queued - the channel has already faulted and its
+        /// completion source has already been signalled. Keep this generous
+        /// enough that it never fires on a healthy run, and far below the
+        /// blame-hang timeout so a genuine deadlock still fails the job quickly.
+        /// </remarks>
+        private static readonly TimeSpan s_completionTimeout = TimeSpan.FromSeconds(60);
+
         [Test]
         public void ChannelKeyEqualityIsValueBased()
         {
@@ -789,7 +806,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     }));
 
                 Task reconnectTask = sut.ReconnectAsync(ch, default).AsTask();
-                await reconnectEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await reconnectEntered.Task.WaitAsync(s_completionTimeout).ConfigureAwait(false);
                 Task<IServiceResponse> sendTask = ch.SendRequestAsync(
                     new ReadRequest { RequestHeader = new RequestHeader() },
                     default).AsTask();
@@ -1255,7 +1272,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 Task exhaustedReconnect = sut.ReconnectAsync(ch, budget, default).AsTask();
                 ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
                     exhaustedReconnect,
-                    TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    s_completionTimeout).ConfigureAwait(false);
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
@@ -1301,7 +1318,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     .AsTask();
                 await AssertThrowsAsync<ServiceResultException>(
                     faultedReconnect,
-                    TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    s_completionTimeout).ConfigureAwait(false);
 
                 Assert.That(ch.State, Is.EqualTo(ChannelState.Faulted));
 
@@ -1316,7 +1333,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     await Task.Delay(10).ConfigureAwait(false);
                 }
 
-                await reconnectTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await reconnectTask.WaitAsync(s_completionTimeout).ConfigureAwait(false);
 
                 object freshEntry = GetLeaseEntry(ch);
                 ManagedChannelDiagnostic diagnostic = sut.GetChannelDiagnostics()
@@ -1371,8 +1388,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 // satisfied by an unrelated timer created earlier in the run.
                 Task<bool> shrunkBackoff = timeProvider.WaitForTimersCreatedAsync();
                 Task reconnectTask = sut.ReconnectAsync(ch, budget, default).AsTask();
-                await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                await shrunkBackoff.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await reconnecting.Task.WaitAsync(s_completionTimeout).ConfigureAwait(false);
+                await shrunkBackoff.WaitAsync(s_completionTimeout).ConfigureAwait(false);
 
                 Assert.That(reconnectTask.IsCompleted, Is.False);
 
@@ -1380,7 +1397,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
 
                 ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
                     reconnectTask,
-                    TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    s_completionTimeout).ConfigureAwait(false);
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
@@ -1952,7 +1969,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             public async Task<Activity> WaitForStoppedActivityAsync(string operationName)
             {
                 Activity activity = await m_stoppedActivity.Task
-                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .WaitAsync(s_completionTimeout)
                     .ConfigureAwait(false);
 
                 Assert.That(activity.OperationName, Is.EqualTo(operationName));
