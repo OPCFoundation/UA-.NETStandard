@@ -61,7 +61,7 @@ namespace Opc.Ua.Wot
         /// <remarks>
         /// Selection order follows this order, so it is significant.
         /// </remarks>
-        public ArrayOf<WotProjectionSource> Sources { get; private set; }
+        public ArrayOf<WotProjectionManifestSource> Sources { get; private set; }
 
         /// <summary>
         /// Gets the enumerated selections, in the projection document's own
@@ -177,7 +177,7 @@ namespace Opc.Ua.Wot
             return value;
         }
 
-        private static ArrayOf<WotProjectionSource> ReadSources(
+        private static ArrayOf<WotProjectionManifestSource> ReadSources(
             WotDocument document,
             List<WotDiagnostic> diagnostics)
         {
@@ -193,7 +193,7 @@ namespace Opc.Ua.Wot
                 return default;
             }
 
-            var sources = new List<WotProjectionSource>();
+            var sources = new List<WotProjectionManifestSource>();
             var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (JsonElement entry in projects.EnumerateArray())
             {
@@ -205,7 +205,7 @@ namespace Opc.Ua.Wot
                         "Every uav:projects entry shall be an object."));
                     continue;
                 }
-                WotProjectionSource? source = ReadSource(entry, diagnostics);
+                WotProjectionManifestSource? source = ReadSource(entry, diagnostics);
                 if (source is null)
                 {
                     continue;
@@ -222,10 +222,10 @@ namespace Opc.Ua.Wot
                 }
                 sources.Add(source);
             }
-            return new ArrayOf<WotProjectionSource>([.. sources]);
+            return new ArrayOf<WotProjectionManifestSource>([.. sources]);
         }
 
-        private static WotProjectionSource? ReadSource(
+        private static WotProjectionManifestSource? ReadSource(
             JsonElement entry,
             List<WotDiagnostic> diagnostics)
         {
@@ -302,7 +302,7 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            return new WotProjectionSource
+            return new WotProjectionManifestSource
             {
                 SourceName = sourceName!,
                 Href = href!,

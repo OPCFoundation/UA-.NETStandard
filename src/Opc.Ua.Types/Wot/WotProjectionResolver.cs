@@ -252,7 +252,7 @@ namespace Opc.Ua.Wot
         }
 
         private async ValueTask<ResolvedSource?> ResolveSourceAsync(
-            WotProjectionSource source,
+            WotProjectionManifestSource source,
             HashSet<string> resolving,
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
@@ -963,7 +963,7 @@ namespace Opc.Ua.Wot
         }
 
         private static bool MatchesSource(
-            WotProjectionSource source,
+            WotProjectionManifestSource source,
             WotAffordanceKind kind,
             string name,
             JsonElement definition)
@@ -1453,7 +1453,7 @@ namespace Opc.Ua.Wot
                 .Replace("/", "~1", StringComparison.Ordinal);
         }
 
-        private static string ApplyPrefix(WotProjectionSource source, string name)
+        private static string ApplyPrefix(WotProjectionManifestSource source, string name)
         {
             return string.IsNullOrEmpty(source.NamePrefix)
                 ? name
@@ -1475,7 +1475,7 @@ namespace Opc.Ua.Wot
         }
 
         private static int FindSourceIndex(
-            ArrayOf<WotProjectionSource> sources,
+            ArrayOf<WotProjectionManifestSource> sources,
             string documentPart)
         {
             for (int ii = 0; ii < sources.Count; ii++)
@@ -1489,7 +1489,7 @@ namespace Opc.Ua.Wot
             return -1;
         }
 
-        private static bool HasFilters(WotProjectionSource source)
+        private static bool HasFilters(WotProjectionManifestSource source)
         {
             return !source.Filters.IsNull && source.Filters.Count > 0;
         }
@@ -1599,7 +1599,7 @@ namespace Opc.Ua.Wot
 
         private sealed class ResolvedSource
         {
-            public WotProjectionSource Source { get; init; } = null!;
+            public WotProjectionManifestSource Source { get; init; } = null!;
 
             public WotDocument Document { get; init; } = null!;
 

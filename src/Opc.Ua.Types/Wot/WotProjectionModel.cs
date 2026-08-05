@@ -114,7 +114,7 @@ namespace Opc.Ua.Wot
     /// assembled from; it never edits, wraps or copies it, and the source is
     /// unaware that it is projected.
     /// </remarks>
-    public sealed class WotProjectionSource
+    public sealed class WotProjectionManifestSource
     {
         /// <summary>
         /// Gets the alias for this source, unique within the manifest.
