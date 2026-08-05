@@ -9,7 +9,6 @@
     <Description>Draft OPC UA - OpenUSD Scene Materialization companion information model (stages, prims, attributes, relationships, composition arcs, variant sets, applied API schemas and georeferencing), source-generated from the shared NodeSet2.xml.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
