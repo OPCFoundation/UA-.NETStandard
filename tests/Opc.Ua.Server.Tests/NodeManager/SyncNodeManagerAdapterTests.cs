@@ -250,7 +250,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 modifyErrors,
                 filterErrors);
             adapter.DeleteMonitoredItems(context, monitoredItems, deleteProcessed, deleteErrors);
-            adapter.TransferMonitoredItems(context, true, monitoredItems, transferProcessed, transferErrors);
+            adapter.TransferMonitoredItems(
+                context,
+                true,
+                monitoredItems,
+                transferProcessed,
+                transferErrors,
+                new MonitoredItemTransferOptions());
             adapter.SetMonitoringMode(
                 context,
                 MonitoringMode.Reporting,
@@ -462,6 +468,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     monitoredItems,
                     transferProcessed,
                     transferErrors,
+                    It.IsAny<MonitoredItemTransferOptions>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             manager.Setup(m => m.SetMonitoringModeAsync(

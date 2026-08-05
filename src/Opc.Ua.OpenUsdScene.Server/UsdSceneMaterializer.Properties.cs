@@ -67,7 +67,7 @@ namespace Opc.Ua.OpenUsdScene.Server
             ushort ns,
             UsdMaterializationOptions options)
         {
-            UsdAttributeState node = primNode.AddxUsdAttribute_(
+            UsdAttributeState node = primNode.AddUsdAttribute_Placeholder(
                 context, new QualifiedName(attribute.Name, ns));
 
             UsdValueTypeMapping mapping = UsdValueTypeMap.Map(
@@ -140,7 +140,7 @@ namespace Opc.Ua.OpenUsdScene.Server
             UsdRelationship relationship,
             ushort ns)
         {
-            UsdRelationshipState node = primNode.AddxUsdRelationship_(
+            UsdRelationshipState node = primNode.AddUsdRelationship_Placeholder(
                 context, new QualifiedName(relationship.Name, ns));
 
             var paths = new string[relationship.Targets.Count];
@@ -295,9 +295,9 @@ namespace Opc.Ua.OpenUsdScene.Server
                 // (fail closed); its selection is still carried by the Selection property above.
                 foreach (UsdPrim branch in variantSet.Variants)
                 {
-                    UsdPrimState branchNode = node.AddxVariant_(
+                    UsdPrimState branchNode = node.AddVariant_Placeholder(
                         context, new QualifiedName(branch.Name, ns));
-                    // AddxVariant_ leaves the type's placeholder NodeId (i=6055); force a fresh
+                    // AddVariant_Placeholder leaves the type's placeholder NodeId (i=6055); force a fresh
                     // per-instance NodeId so branches on different sets never collide, matching
                     // how the CreateInstanceOf* factories mint instance ids.
                     context.AssignInstanceNodeId(branchNode);

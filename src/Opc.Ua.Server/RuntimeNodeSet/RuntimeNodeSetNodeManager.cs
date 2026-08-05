@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -68,12 +69,21 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// </param>
         /// <param name="defaultNamespaceUri">
         /// Namespace URI used as the default for browse-path lookups in
-        /// the fluent builder. May be <c>null</c> when no
-        /// <paramref name="configure"/> callback is set.
+        /// the fluent builder. May be <c>null</c> when neither
+        /// <paramref name="configure"/> nor <paramref name="configureAsync"/>
+        /// is set.
         /// </param>
         /// <param name="configure">
         /// Optional fluent configuration callback invoked after all
         /// NodeSet2 nodes have been added to the address space.
+        /// </param>
+        /// <param name="configureAsync">
+        /// Optional asynchronous fluent configuration callback invoked
+        /// after <paramref name="configure"/> (if also set) has run,
+        /// using the same unsealed builder. May return an
+        /// <see cref="IAsyncDisposable"/> owned by this manager's
+        /// generation; it is disposed asynchronously when the generation
+        /// is torn down.
         /// </param>
         internal RuntimeNodeSetNodeManager(
             IServerInternal server,
@@ -82,13 +92,15 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             string[] modelNamespaceUris,
             ParsedNodeSetDocument[] documents,
             string? defaultNamespaceUri,
-            Action<INodeManagerBuilder>? configure)
+            Action<INodeManagerBuilder>? configure,
+            Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? configureAsync)
             : base(server, configuration, logger, modelNamespaceUris)
         {
             m_documents = documents
                 ?? throw new ArgumentNullException(nameof(documents));
             m_defaultNamespaceUri = defaultNamespaceUri;
             m_configure = configure;
+            m_configureAsync = configureAsync;
         }
 
         /// <inheritdoc/>
@@ -141,21 +153,107 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 .ConfigureAwait(false);
 
             // Step 6 – Apply the optional fluent configuration.
-            if (m_configure is not null)
+            if (m_configure is not null || m_configureAsync is not null)
             {
                 ushort defaultNsIndex = ResolveDefaultNamespaceIndex();
 
                 NodeManagerBuilder builder = CreateFluentBuilder(defaultNsIndex);
-                m_configure(builder);
-                builder.Seal();
-                m_dispatcher = builder.Dispatcher;
+                m_configure?.Invoke(builder);
 
-                // Step 7 – Replay NotifyNodeAdded for every predefined node
-                // so that OnNodeAdded handlers registered in Configure fire.
-                foreach (KeyValuePair<NodeId, NodeState> kvp in PredefinedNodes)
+                IAsyncDisposable? generationOwner = m_configureAsync is null
+                    ? null
+                    : await m_configureAsync(builder, cancellationToken).ConfigureAwait(false);
+                try
                 {
-                    builder.NotifyNodeAdded(SystemContext, kvp.Value);
+                    builder.Seal();
+
+                    // Step 7 – Replay NotifyNodeAdded for every predefined node
+                    // so that OnNodeAdded handlers registered in Configure fire.
+                    foreach (KeyValuePair<NodeId, NodeState> kvp in PredefinedNodes)
+                    {
+                        builder.NotifyNodeAdded(SystemContext, kvp.Value);
+                    }
                 }
+                catch (Exception activationException) when (
+                    activationException is not OutOfMemoryException)
+                {
+                    if (generationOwner is not null)
+                    {
+                        try
+                        {
+                            await generationOwner.DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception disposalException) when (
+                            disposalException is not OutOfMemoryException)
+                        {
+                            throw new AggregateException(
+                                "RuntimeNodeSet configuration and generation owner disposal both failed.",
+                                activationException,
+                                disposalException);
+                        }
+                    }
+                    throw;
+                }
+
+                m_dispatcher = builder.Dispatcher;
+                m_generationOwner = generationOwner;
+            }
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Disposes the <see cref="IAsyncDisposable"/> generation owner
+        /// returned by <see cref="RuntimeNodeSetOptions.ConfigureAsync"/>
+        /// (if any) before releasing the base class's address-space
+        /// resources. Both steps always run, even if one of them fails,
+        /// so the owner can never leak. If both fail, the base cleanup
+        /// failure is treated as primary and reported together with the
+        /// owner disposal failure via <see cref="AggregateException"/>.
+        /// </remarks>
+        public override async ValueTask DeleteAddressSpaceAsync(
+            CancellationToken cancellationToken = default)
+        {
+            IAsyncDisposable? owner = Interlocked.Exchange(ref m_generationOwner, null);
+            Exception? ownerException = null;
+
+            if (owner is not null)
+            {
+                try
+                {
+                    await owner.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    ownerException = ex;
+                }
+            }
+
+            Exception? baseException = null;
+            try
+            {
+                await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                baseException = ex;
+            }
+
+            if (baseException is not null && ownerException is not null)
+            {
+                throw new AggregateException(
+                    "RuntimeNodeSet address-space cleanup and generation owner disposal both failed.",
+                    baseException,
+                    ownerException);
+            }
+
+            if (baseException is not null)
+            {
+                ExceptionDispatchInfo.Capture(baseException).Throw();
+            }
+
+            if (ownerException is not null)
+            {
+                ExceptionDispatchInfo.Capture(ownerException).Throw();
             }
         }
 
@@ -211,7 +309,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                             added.Add(reference);
                         }
                     }
-
                 }
             }
         }
@@ -426,6 +523,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// <see cref="InvalidOperationException"/> on the first duplicate
         /// detected.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void DetectDuplicateNodeIds(NodeStateCollection nodes)
         {
             var seen = new HashSet<NodeId>();
@@ -448,6 +546,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// Referenced namespaces may appear in NodeSet references, but not as
         /// NodeIds of nodes imported by this manager.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private void ValidateOwnedNodeNamespaces(NodeStateCollection nodes)
         {
             for (int i = 0; i < nodes.Count; i++)
@@ -482,6 +581,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// <see cref="m_defaultNamespaceUri"/>. Throws when the URI is
         /// not registered in the server's namespace table.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private ushort ResolveDefaultNamespaceIndex()
         {
             if (string.IsNullOrEmpty(m_defaultNamespaceUri))
@@ -506,8 +606,10 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         private readonly ParsedNodeSetDocument[] m_documents;
         private readonly string? m_defaultNamespaceUri;
         private readonly Action<INodeManagerBuilder>? m_configure;
+        private readonly Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? m_configureAsync;
         private readonly Lock m_addedReferencesLock = new();
         private readonly Dictionary<NodeId, List<IReference>> m_addedReferences = [];
         private IFluentDispatcher? m_dispatcher;
+        private IAsyncDisposable? m_generationOwner;
     }
 }

@@ -154,8 +154,12 @@ namespace Opc.Ua.Server.Fluent
         /// <exception cref="ServiceResultException">
         /// <list type="bullet">
         ///   <item><description><see cref="StatusCodes.BadNodeIdInvalid"/> — the id is null.</description></item>
-        ///   <item><description><see cref="StatusCodes.BadNodeIdUnknown"/> — no instance carries that type definition.</description></item>
-        ///   <item><description><see cref="StatusCodes.BadBrowseNameDuplicated"/> — more than one instance matches; supply a <see cref="QualifiedName"/> disambiguator via the <see cref="NodeFromTypeId(NodeId, QualifiedName)"/> overload.</description></item>
+        ///   <item><description><see cref="StatusCodes.BadNodeIdUnknown"/> —
+        ///   no instance carries that type definition.</description></item>
+        ///   <item><description><see cref="StatusCodes.BadBrowseNameDuplicated"/> —
+        ///   more than one instance matches; supply a <see cref="QualifiedName"/>
+        ///   disambiguator via the <see cref="NodeFromTypeId(NodeId, QualifiedName)"/>
+        ///   overload.</description></item>
         /// </list>
         /// </exception>
         INodeBuilder NodeFromTypeId(NodeId typeDefinitionId);
@@ -247,5 +251,56 @@ namespace Opc.Ua.Server.Fluent
         /// CLR type carried by the variable's <c>Value</c> attribute.
         /// </typeparam>
         IVariableBuilder<TValue> VariableFromTypeId<TValue>(NodeId typeDefinitionId, QualifiedName browseName);
+
+        /// <summary>
+        /// Resolves the unique variable instance whose
+        /// <c>DataType</c> attribute equals <paramref name="dataTypeId"/>
+        /// and returns a typed <see cref="IVariableBuilder{TValue}"/>
+        /// view. Useful for singleton variables whose well-known DataType
+        /// is more stable than the deployment-specific browse path.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR type carried by the variable's <c>Value</c> attribute.
+        /// </typeparam>
+        /// <param name="dataTypeId">
+        /// The DataType id of the variable to locate (typically a
+        /// generated <c>DataTypeIds.*</c> constant).
+        /// </param>
+        /// <exception cref="ServiceResultException">
+        /// <list type="bullet">
+        ///   <item><description><see cref="StatusCodes.BadNodeIdInvalid"/> — the id is null.</description></item>
+        ///   <item><description><see cref="StatusCodes.BadNodeIdUnknown"/> —
+        ///   no variable carries that DataType.</description></item>
+        ///   <item><description><see cref="StatusCodes.BadBrowseNameDuplicated"/> —
+        ///   more than one variable matches; supply a <see cref="QualifiedName"/>
+        ///   disambiguator via the
+        ///   <see cref="VariableFromDataTypeId{TValue}(NodeId, QualifiedName)"/>
+        ///   overload.</description></item>
+        ///   <item><description><see cref="StatusCodes.BadTypeMismatch"/> —
+        ///   the resolved variable's <c>Value</c> is not assignable to
+        ///   <typeparamref name="TValue"/>.</description></item>
+        /// </list>
+        /// </exception>
+        IVariableBuilder<TValue> VariableFromDataTypeId<TValue>(NodeId dataTypeId);
+
+        /// <summary>
+        /// Like <see cref="VariableFromDataTypeId{TValue}(NodeId)"/> but
+        /// disambiguates among multiple instances by matching
+        /// <paramref name="browseName"/> against
+        /// <see cref="NodeState.BrowseName"/>.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR type carried by the variable's <c>Value</c> attribute.
+        /// </typeparam>
+        /// <param name="dataTypeId">See <see cref="VariableFromDataTypeId{TValue}(NodeId)"/>.</param>
+        /// <param name="browseName">
+        /// Browse name of the instance to pick out.
+        /// </param>
+        /// <exception cref="ServiceResultException">
+        /// Same conditions as <see cref="VariableFromDataTypeId{TValue}(NodeId)"/>
+        /// plus <see cref="StatusCodes.BadNodeIdUnknown"/> when the
+        /// disambiguator matches no candidate.
+        /// </exception>
+        IVariableBuilder<TValue> VariableFromDataTypeId<TValue>(NodeId dataTypeId, QualifiedName browseName);
     }
 }
