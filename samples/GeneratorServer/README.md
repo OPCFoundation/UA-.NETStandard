@@ -17,7 +17,7 @@ dotnet run --project samples/GeneratorServer -- \
 | Argument | Default | Meaning |
 |---|---|---|
 | `--generators N` | 2 | How many sets to simulate (1…100) |
-| `--faults` | `true` | Let the last set develop faults on a slow rotation |
+| `--faults` | `true` | Let the first set develop faults on a slow rotation |
 | `--port` | 62543 | Endpoint port |
 | `--host` | `0.0.0.0` | Bind host |
 
@@ -140,9 +140,11 @@ something tripped but not what was being watched.
 **A healthy set cannot trip.** The datasheet curves are bounded well inside every
 trip point — that is what a datasheet means — so a plant running to spec would
 leave all four alarms, the shutdown class, `ResetFaults` and the whole `Fault`
-branch of the state machine as code that never runs. The last set therefore
+branch of the state machine as code that never runs. The first set therefore
 develops a fault on a slow rotation (`CoolingFailure` → `OilPressureLoss` →
-`Overload` → `GovernorFailure`), trips, annunciates, shuts down and recovers. A
+`Overload` → `GovernorFailure`), trips, annunciates, shuts down and recovers. It
+is the first set rather than the last because that is the machine nearest the
+hero camera in the 3D twin — an alarm nobody can see demonstrates nothing. A
 fault deviates the *measurement* from the curve, which is what a real fault does,
 so the datasheet identities keep holding for every healthy set. Pass
 `--faults false` for a purely healthy plant.
@@ -241,7 +243,18 @@ client asking why they are glowing reads the single value behind all three.
 Fault indicators sit clear of the machine. Both halos were originally tucked into
 the engine centre, which was fine against a plain block and invisible once there
 was a crankcase, an aftercooler and a sump in the way — and an indicator you cannot
-see is worse than none, because it reads as *no fault*.
+see is worse than none, because it reads as *no fault*. `AlarmRing` moved for the
+same reason: as a decal on the floor it was hidden by the skid and by the
+neighbouring machines from any operator-height camera, so it is now a beacon ring
+*above* the set, at the one height nothing else occupies.
+
+> **Colour changes may not be visible in every viewer.** Several bindings publish
+> colour (radiator, exhaust, manifold glow, alternator heat band). Whether those
+> land depends on the renderer: `primvars:displayColor` resolves as `color3f[]`
+> from the `UsdGeomGprim` schema whatever the layer declares, and a client that
+> cannot write that exact type cannot animate it. The **visibility** bindings —
+> run lamp, alarm beacon, fault halos — carry no such caveat and are the reliable
+> way to see state change in a viewport.
 
 The operating-state readout is what makes an idle machine legible: without it the
 3D view shows *that* a set is not turning but not *why* — `Cooldown` and

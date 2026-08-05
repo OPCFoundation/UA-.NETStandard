@@ -228,9 +228,11 @@ namespace Generators
 
             m_simulations[set.NodeId] = simulation;
 
-            // The last set registered is the one the fault schedule drives, so the
-            // rest of the plant stays a clean reference.
-            m_faultSubject = simulation;
+            // The first set registered is the one the fault schedule drives. It is
+            // the machine nearest the hero camera, so a trip is visible in the
+            // viewport rather than happening to a set that is off the far end of
+            // the row - an alarm nobody can see demonstrates nothing.
+            m_faultSubject ??= simulation;
 
             AttachSimulationToTwin(set, simulation);
             AttachProtectionAlarms(set, simulation);
@@ -238,7 +240,7 @@ namespace Generators
         }
 
         /// <summary>
-        /// Lets the last set develop a fault on a slow rotation, so the protection
+        /// Lets one set develop a fault on a slow rotation, so the protection
         /// path is exercised in a running plant.
         /// </summary>
         /// <param name="tick">Monotonic tick counter.</param>
@@ -252,8 +254,8 @@ namespace Generators
         /// never fire is worse than one that has none.
         /// </para>
         /// <para>
-        /// Confined to the highest-numbered set so the rest of the plant stays a
-        /// clean reference, and disabled entirely with <c>--no-faults</c>.
+        /// Confined to a single set so the rest of the plant stays a clean
+        /// reference, and disabled entirely with <c>--faults false</c>.
         /// </para>
         /// </remarks>
         private void DriveFaultSchedule(long tick)

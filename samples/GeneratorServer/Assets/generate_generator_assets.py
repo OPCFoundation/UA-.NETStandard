@@ -751,7 +751,11 @@ def build_generator() -> str:
             exhaust,
             control_panel,
             battery,
-            annulus_mesh("AlarmRing", 2.250, 2.450, 0.020, 48, "AlarmRed"),
+            # A beacon ring above the set rather than a decal on the floor. On the
+            # floor it was hidden by the skid and the neighbouring machines from
+            # any operator-height camera, which made the one indicator that says
+            # "this machine has tripped" the hardest thing in the scene to see.
+            annulus_mesh("AlarmRing", 1.500, 1.900, 3.100, 48, "AlarmRed"),
         ],
         metadata='kind = "component"',
         level=0,

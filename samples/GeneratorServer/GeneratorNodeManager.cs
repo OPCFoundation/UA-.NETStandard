@@ -64,7 +64,7 @@ namespace Generators
         public TimeSpan SimulationInterval { get; set; } = TimeSpan.FromMilliseconds(250);
 
         /// <summary>
-        /// Gets or sets whether the last set develops faults on a slow rotation.
+        /// Gets or sets whether one set develops faults on a slow rotation.
         /// </summary>
         /// <remarks>
         /// On by default. A set running to its datasheet stays well inside every
