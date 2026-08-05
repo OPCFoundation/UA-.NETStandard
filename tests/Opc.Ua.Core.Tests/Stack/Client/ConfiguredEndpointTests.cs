@@ -576,8 +576,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 SecurityPolicyUri = SecurityPolicies.None
             });
 
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() =>
-                endpoint.UpdateFromServerAsync(
+            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await endpoint.UpdateFromServerAsync(
                     (ApplicationConfiguration)null!,
                     telemetry: null));
             Assert.That(ex.ParamName, Is.EqualTo("applicationConfiguration"));
