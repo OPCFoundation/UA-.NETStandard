@@ -841,18 +841,28 @@ bulk naming rule, the security closure naming and the provenance term.
 
 ### Deliberate deviations
 
-There are none. Two points the specification leaves open were decided here and are
-recorded so a reader is not left guessing:
+There are none.
 
-- **`ViewVersion` recomputation.** The specification says the attribute changes when
-  the resolved membership changes but does not mechanically specify the trigger. It
-  is computed as an FNV-1a hash over the ordinal-sorted membership, so it is
-  deterministic across target frameworks, changes if and only if membership changes,
-  and is stable across a refresh that changes nothing.
-- **A projection over Thing Models.** The specification does not say whether a
-  type-level projection materializes as a `View` or as something else. It becomes a
-  `View`: that NodeClass is the only one whose purpose is to select rather than
-  define, and nothing in the materialization clause restricts it to instances.
+Two points the specification originally left open were decided here, and both have
+since been closed in the specification itself (spec-drafts PR #8) with wording that
+matches what was implemented, so they are no longer deviations:
+
+- **`ViewVersion` recomputation.** The published text said only that the attribute
+  changes when the resolved membership changes, specifying neither the trigger nor the
+  value. Section 12.6 now requires it to change when, and only when, the membership
+  changes, to be updated at commit time alongside the `NodeVersion` stamping, and to be
+  a deterministic function of the resolved membership alone taken in a canonical order.
+  It is computed here as an FNV-1a hash over the ordinally sorted membership, which
+  satisfies that: it is equal on two servers that resolved the same membership, is
+  unchanged by a refresh that changes nothing, and is unchanged by a reordering that
+  selects the same members. It is deliberately not monotonic, so it is compared for
+  inequality only. `ViewVersionIsUnchangedWhenOnlyTheOrderOfTheMembershipChanges`
+  holds the order-insensitivity.
+- **A projection over Thing Models.** Section 12.2 called this a *type-level view*
+  and defined the phrase nowhere. Section 12.6 now defines it: the NodeClass is `View`
+  in both cases, and a Thing Model projection's View organizes the ObjectType and
+  VariableType Nodes materialized from its source Thing Models. That is what this
+  implementation already did.
 
 ### One compatibility switch
 
