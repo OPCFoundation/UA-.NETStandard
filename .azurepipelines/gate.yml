@@ -42,17 +42,24 @@ stages:
   displayName: 'Tests passed'
   dependsOn: ${{ parameters.stages }}
   condition: not(canceled())
-  variables:
-    # The whole dependency map as JSON: { "<stage>": { "result": "...", ... } }.
-    # Serialising it wholesale avoids emitting one variable per stage and, more
-    # importantly, means the gate cannot check a different set of stages than it
-    # depends on. Azure Pipelines has no YAML anchors, so the alternative would
-    # be a second copy of the stage list.
-    stageResults: $[ convertToJson(dependencies) ]
   jobs:
   - job: gate
     displayName: Verify stage results
     timeoutInMinutes: 10
+    variables:
+      # Every job of every stage this one depends on, as
+      # { "<stage>": { "<job>": { "result": "...", ... } } }.
+      #
+      # This has to be 'stageDependencies' declared at JOB scope. A stage-scoped
+      # '$[ ]' variable is still evaluated when the job is prepared, where the
+      # 'dependencies' context means sibling jobs of the same stage - the gate
+      # stage has one job and no job dependencies, so
+      # '$[ convertToJson(dependencies) ]' resolves to '{}' and the gate
+      # silently verifies nothing (observed on build 16520).
+      #
+      # Reading the context rather than a second hand-maintained stage list also
+      # means the gate can only ever check exactly what it depends on.
+      stageResults: $[ convertToJson(stageDependencies) ]
     pool:
       ${{ if ne(parameters.poolName, '') }}:
         name: ${{ parameters.poolName }}
@@ -72,7 +79,7 @@ stages:
           $ErrorActionPreference = 'Stop'
 
           if ([string]::IsNullOrWhiteSpace($env:STAGE_RESULTS)) {
-              Write-Host "##vso[task.logissue type=error]No stage results were supplied; the gate cannot verify anything."
+              Write-Host "##vso[task.logissue type=error]The stage dependency context was empty; the gate cannot verify anything."
               exit 1
           }
 
@@ -80,13 +87,15 @@ stages:
               $deps = $env:STAGE_RESULTS | ConvertFrom-Json
           }
           catch {
-              Write-Host "##vso[task.logissue type=error]Could not parse the stage results: $($_.Exception.Message)"
+              Write-Host "##vso[task.logissue type=error]Could not parse the stage dependency context: $($_.Exception.Message)"
               exit 1
           }
 
           $stages = @($deps.PSObject.Properties)
           if ($stages.Count -eq 0) {
-              Write-Host "##vso[task.logissue type=error]This stage has no dependencies, so the gate would verify nothing."
+              # Never treat "no data" as success: that is exactly how a required
+              # check silently stops protecting the branch.
+              Write-Host "##vso[task.logissue type=error]The stage dependency context resolved to no stages, so the gate would verify nothing."
               exit 1
           }
 
@@ -94,24 +103,36 @@ stages:
           # is a pull request, or the CI backend switch stood it down.
           $acceptable = @('Succeeded', 'SucceededWithIssues', 'Skipped')
           $bad = @()
+          $checked = 0
 
           Write-Host 'Stage results:'
           foreach ($stage in ($stages | Sort-Object Name)) {
-              $result = $stage.Value.result
-              $shown = if ([string]::IsNullOrWhiteSpace($result)) { 'Skipped (did not report)' } else { $result }
-              Write-Host ("  {0,-22} {1}" -f $stage.Name, $shown)
-              if (-not [string]::IsNullOrWhiteSpace($result) -and $acceptable -notcontains $result) {
-                  $bad += "$($stage.Name) ($result)"
+              $jobs = @($stage.Value.PSObject.Properties)
+              if ($jobs.Count -eq 0) {
+                  # A stage that was skipped outright contributes no jobs.
+                  Write-Host ("  {0,-24} (skipped - no jobs ran)" -f $stage.Name)
+                  continue
+              }
+              foreach ($job in ($jobs | Sort-Object Name)) {
+                  $result = $job.Value.result
+                  $shown = if ([string]::IsNullOrWhiteSpace($result)) { 'Skipped (did not report)' } else { $result }
+                  Write-Host ("  {0,-24} {1,-46} {2}" -f $stage.Name, $job.Name, $shown)
+                  if ([string]::IsNullOrWhiteSpace($result)) { continue }
+                  $checked++
+                  if ($acceptable -notcontains $result) {
+                      $bad += "$($stage.Name)/$($job.Name) ($result)"
+                  }
               }
           }
 
           if ($bad.Count -gt 0) {
-              Write-Host "##vso[task.logissue type=error]$($bad.Count) stage(s) did not succeed: $($bad -join ', ')."
+              Write-Host "##vso[task.logissue type=error]$($bad.Count) job(s) did not succeed: $($bad -join ', ')."
               Write-Host 'Tests did NOT pass.'
               exit 1
           }
 
-          Write-Host "Every one of the $($stages.Count) test stage(s) either succeeded or was intentionally skipped."
+          Write-Host "Checked $checked job(s) across $($stages.Count) stage(s); all succeeded or were intentionally skipped."
           exit 0
       env:
         STAGE_RESULTS: $(stageResults)
+
