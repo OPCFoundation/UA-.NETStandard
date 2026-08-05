@@ -141,7 +141,11 @@ namespace Opc.Ua.PubSub.Encoding.Tests
                 int bit = int.Parse((string)field.Attribute("Value")!, CultureInfo.InvariantCulture);
                 var expected = (AvroNetworkMessageContentMask)(1u << bit);
                 Assert.That(
-                    Enum.Parse<AvroNetworkMessageContentMask>(name),
+                    // CA2263: Enum.Parse<T> does not exist on net48, which this test project also
+                    // targets, so the non-generic overload with a cast is required here.
+#pragma warning disable CA2263
+                    (AvroNetworkMessageContentMask)Enum.Parse(typeof(AvroNetworkMessageContentMask), name),
+#pragma warning restore CA2263
                     Is.EqualTo(expected),
                     $"bit {bit} ({name})");
             }
@@ -158,7 +162,11 @@ namespace Opc.Ua.PubSub.Encoding.Tests
                 int bit = int.Parse((string)field.Attribute("Value")!, CultureInfo.InvariantCulture);
                 var expected = (AvroDataSetMessageContentMask)(1u << bit);
                 Assert.That(
-                    Enum.Parse<AvroDataSetMessageContentMask>(name),
+                    // CA2263: Enum.Parse<T> does not exist on net48, which this test project also
+                    // targets, so the non-generic overload with a cast is required here.
+#pragma warning disable CA2263
+                    (AvroDataSetMessageContentMask)Enum.Parse(typeof(AvroDataSetMessageContentMask), name),
+#pragma warning restore CA2263
                     Is.EqualTo(expected),
                     $"bit {bit} ({name})");
             }

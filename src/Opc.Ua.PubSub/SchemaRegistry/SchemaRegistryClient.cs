@@ -51,7 +51,8 @@ namespace Opc.Ua.PubSub.SchemaRegistry
             SchemaRegistryWellKnown.SchemaRegistryNamespaceUri;
 
         /// <summary>
-        /// Initializes a Schema Registry client bound to a connected <paramref name="session"/>.
+        /// Initializes a Schema Registry client bound to a connected <paramref name="session"/>,
+        /// using the well-known Schema Registry root Object.
         /// </summary>
         /// <param name="session">The connected session whose server hosts the Schema Registry.</param>
         /// <param name="telemetry">Telemetry context used by the generated proxies.</param>
@@ -63,11 +64,40 @@ namespace Opc.Ua.PubSub.SchemaRegistry
             ISession session,
             ITelemetryContext telemetry,
             string? schemaRegistryNamespaceUri = null)
+            : this(session, telemetry, default, schemaRegistryNamespaceUri)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a Schema Registry client bound to a connected <paramref name="session"/> and
+        /// an explicit Schema Registry root Object.
+        /// <para>
+        /// A server does not have to publish the Schema Registry root at the provisional well-known
+        /// identifier, so a client that discovered the root by Browse passes it here rather than
+        /// relying on the default.
+        /// </para>
+        /// </summary>
+        /// <param name="session">The connected session whose server hosts the Schema Registry.</param>
+        /// <param name="telemetry">Telemetry context used by the generated proxies.</param>
+        /// <param name="registryNodeId">
+        /// The Schema Registry root Object. Pass a null NodeId to use the well-known root in the
+        /// resolved Schema Registry namespace.
+        /// </param>
+        /// <param name="schemaRegistryNamespaceUri">
+        /// The Schema Registry companion namespace URI. Defaults to
+        /// <see cref="SchemaRegistryNamespaceUri"/>.
+        /// </param>
+        public SchemaRegistryClient(
+            ISession session,
+            ITelemetryContext telemetry,
+            NodeId registryNodeId,
+            string? schemaRegistryNamespaceUri = null)
             : base(
                 session,
                 string.IsNullOrEmpty(schemaRegistryNamespaceUri)
                     ? SchemaRegistryNamespaceUri
                     : schemaRegistryNamespaceUri!,
+                registryNodeId,
                 telemetry)
         {
         }
