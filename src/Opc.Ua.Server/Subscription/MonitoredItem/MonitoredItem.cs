@@ -1659,7 +1659,8 @@ namespace Opc.Ua.Server
                     m_logger.DequeueValue(
                         m_lastValue.WrappedValue,
                         m_lastValue.StatusCode.Code,
-                        m_lastValue.StatusCode.Overflow);
+                        m_lastValue.StatusCode.Overflow,
+                        Id);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
                 }
 
@@ -2140,7 +2141,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception ex)
                             {
-                                m_logger.FailedToRestoreQueueForMonitoredItem(ex, Id);
+                                m_logger.FailedToRestoreQueueForMonitoredItem(ex, Id, SubscriptionId);
                             }
                         }
 
@@ -2182,7 +2183,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception ex)
                             {
-                                m_logger.FailedToRestoreQueueForMonitoredItem2(ex, Id);
+                                m_logger.FailedToRestoreQueueForMonitoredItem2(ex, Id, SubscriptionId);
                             }
                         }
                         if (restoredQueue != null)
@@ -2395,15 +2396,22 @@ namespace Opc.Ua.Server
             string state);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 7, Level = LogLevel.Error,
-            Message = "Failed to restore queue for monitored item with id {MonitoredItemId}")]
+            Message = "Failed to restore queue for monitored item with id {MonitoredItemId}," +
+                " SubscriptionId={SubscriptionId}")]
         public static partial void FailedToRestoreQueueForMonitoredItem(
             this ILogger logger,
             Exception ex,
-            uint monitoredItemId);
+            uint monitoredItemId,
+            uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 8, Level = LogLevel.Error,
-            Message = "Failed to restore queue for monitored item with id {Id}")]
-        public static partial void FailedToRestoreQueueForMonitoredItem2(this ILogger logger, Exception ex, uint id);
+            Message = "Failed to restore queue for monitored item with id {Id}," +
+                " SubscriptionId={SubscriptionId}")]
+        public static partial void FailedToRestoreQueueForMonitoredItem2(
+            this ILogger logger,
+            Exception ex,
+            uint id,
+            uint subscriptionId);
     }
 
 }
