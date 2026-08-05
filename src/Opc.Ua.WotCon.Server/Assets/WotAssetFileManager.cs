@@ -59,13 +59,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             int maxOpenHandles,
             int maxThingDescriptionSize,
             Func<ThingDescription, CancellationToken, ValueTask<ServiceResult>> onCloseAndUpdate,
-            ILogger logger)
+            ILogger logger,
+            Action<ISystemContext, string>? enforceAccess = null)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
             m_maxHandles = maxOpenHandles;
             m_maxSize = maxThingDescriptionSize;
             m_onCloseAndUpdate = onCloseAndUpdate ?? throw new ArgumentNullException(nameof(onCloseAndUpdate));
             m_logger = logger;
+            m_enforceAccess = enforceAccess;
 
             file.Size?.Value = 0;
             file.Writable?.Value = true;
@@ -241,6 +243,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             uint fileHandle,
             ByteString data)
         {
+            // The upload path reaches the same materializer as the management
+            // methods, so it carries the same obligation: role-based access
+            // control and a secure channel for every mutation, whether or not
+            // the registry backs the asset surface.
+            ServiceResult access = EnforceAccess(context, "Write");
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
             lock (m_handles)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
@@ -315,6 +326,11 @@ namespace Opc.Ua.WotCon.Server.Assets
             NodeId objectId,
             uint fileHandle)
         {
+            ServiceResult access = EnforceAccess(context, "CloseAndUpdate");
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
             Handle handle;
             lock (m_handles)
             {
@@ -424,11 +440,43 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Applies the management access policy to a mutating file operation.
+        /// </summary>
+        /// <remarks>
+        /// WoT Connectivity 1.1-draft3 names the WoTFile Write and
+        /// CloseAndUpdate operations alongside the management Methods, because
+        /// they reach the same materializer and a server implementing only the
+        /// 1.02 surface would otherwise inherit no obligation at all.
+        /// </remarks>
+        /// <param name="context">The calling system context.</param>
+        /// <param name="operation">The operation being authorised.</param>
+        /// <returns>
+        /// <see cref="ServiceResult.Good"/> when the call is permitted.
+        /// </returns>
+        private ServiceResult EnforceAccess(ISystemContext context, string operation)
+        {
+            if (m_enforceAccess is null)
+            {
+                return ServiceResult.Good;
+            }
+            try
+            {
+                m_enforceAccess(context, operation);
+                return ServiceResult.Good;
+            }
+            catch (ServiceResultException ex)
+            {
+                return new ServiceResult(ex);
+            }
+        }
+
         private readonly WoTAssetFileState m_file;
         private readonly int m_maxHandles;
         private readonly int m_maxSize;
         private readonly Func<ThingDescription, CancellationToken, ValueTask<ServiceResult>> m_onCloseAndUpdate;
         private readonly ILogger m_logger;
+        private readonly Action<ISystemContext, string>? m_enforceAccess;
         private readonly Dictionary<uint, Handle> m_handles = [];
         private uint m_nextHandle;
         private uint m_writingHandle;

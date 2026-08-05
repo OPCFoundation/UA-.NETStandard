@@ -187,7 +187,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                     m_options.MaxOpenFileHandlesPerAsset,
                     m_options.MaxThingDescriptionSize,
                     (td, token) => RebuildAsync(entry, td, persistOnSuccess: true, token),
-                    m_logger);
+                    m_logger,
+                    m_manager.EnforceManagementAccess);
 
                 lock (m_byName)
                 {

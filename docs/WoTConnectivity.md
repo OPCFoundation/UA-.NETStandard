@@ -452,11 +452,11 @@ may be exposed over `MessageSecurityMode.None` by deployment policy.
 ## 11. WoT Connectivity 1.1 registry and materialization (preview)
 
 > **Specification revision.** The information model in this repository tracks
-> **WoT Connectivity 1.1-draft2** (published 2026-07-31) and **WoT Binding
-> 1.1-draft2** (published 2026-07-29). Section 12 records what the draft2
-> revision changed and how much of it this implementation covers.
+> **WoT Connectivity 1.1-draft3** (published 2026-08-05) and **WoT Binding
+> 1.1-draft2** (published 2026-07-29). Section 12 records what those revisions
+> changed and how much of it this implementation covers.
 
-The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.1** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, marked deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry** base model the registry types build on:
+The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.1** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, superseded in capability but **not** deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry** base model the registry types build on:
 
 | Model | Namespace | Emitted C# namespace |
 |-------|-----------|----------------------|
@@ -787,7 +787,7 @@ landed. This clause records what changed and what the stack does about it.
 | | previous | draft2 |
 |---|---|---|
 | WoT Connectivity `Version` | `1.1.0` | `1.1` |
-| WoT Connectivity `PublicationDate` | `2026-07-22` | `2026-07-31` |
+| WoT Connectivity `PublicationDate` | `2026-07-22` | `2026-07-31`, then `2026-08-05` in draft3 |
 | xRegistry `RequiredModel` | `0.1.0` / `2026-07-16` | `0.3.0` / `2026-07-31` |
 
 Both NodeSets are now the artifacts the drafts publish, adopted verbatim rather
@@ -906,3 +906,48 @@ points at it through `HasWoTProjection`, navigable back through
 View and reported in `WoTResourceLoadResultDataType.Message`; the resource still
 reaches `LoadState = Active`, because an omission is a reported detail rather
 than a failure.
+
+### 12.6 What draft3 changed
+
+WoT Connectivity moved to `1.1-draft3` on 2026-08-05. The node graph is unchanged -
+the same 286 nodes with the same identifiers, modelling rules and definitions - so the
+revision costs no generated-code change. What changed is what the model *says*.
+
+**The 1.02 surface stops being deprecated.** The `ReleaseStatus="Deprecated"` marking
+is removed from all 96 attributes that carried it. Deprecating the flat asset surface
+said something the working group does not mean: serving a WoT asset that way is
+legitimate, and revision 1.1 neither removes it nor discourages it. A server may
+implement either surface or both. Nothing in this repository asserted the deprecation
+in code, but the package descriptions and this document did, and they now say
+"superseded in capability but not deprecated" instead.
+
+**Three profiles, forming a lattice rather than a ladder.**
+
+| Profile | Covers |
+|---|---|
+| *WoT-Con Minimal* | `WOTC-Legacy` alone - the published 1.02 shape and nothing else |
+| *WoT-Con Registry Server* | the registry surface without federation, change events, projections or the atomicity modes |
+| *WoT-Con Full* | every unit, `WOTC-Legacy` included |
+
+Minimal and Registry Server are each a subset of Full and neither is a subset of the
+other, because they share no conformance unit. The former *WoT-Con Legacy* profile is
+now *WoT-Con Minimal*.
+
+**`WOTC-Legacy` says what it covers.** As a one-unit profile it has to be implementable
+alone, so serving the data points of an uploaded Thing Description is inside the unit -
+and with it, that the document is format-validated before any node is materialized. A
+profile in which client-supplied input reaches the AddressSpace unchecked would not be
+acceptable, and materialization projects a *valid* document.
+
+**`WOTC-ProjectionMaterialization` is now carried by the model.** It was defined in the
+conformance clause but attached to no Type Node, so nothing in the model implemented it.
+`ThingDescriptionFileType`, `ThingModelFileType` and `HasWoTProjection` now claim it.
+
+**The 1.02 surface carries the security obligation directly.** It previously inherited
+role-based access control only by reference to the optional registry backing, so a
+server implementing only the 1.02 surface inherited no obligation at all. `CreateAsset`,
+`DeleteAsset`, `CreateAssetForEndpoint`, `ConnectionTest` and the `WoTFile` `Write` and
+`CloseAndUpdate` operations now require role-based access control and a `SignAndEncrypt`
+channel for every mutation, whether or not the registry backs them. The rule against
+dereferencing a URI found in a document extends to the `WoTFile` upload path, which
+reaches the same materializer.
