@@ -1227,7 +1227,7 @@ namespace Opc.Ua
             ITelemetryContext? telemetry,
             CancellationToken ct)
         {
-            // get the a discovery url.
+            // get a discovery url.
             Uri? discoveryUrl = GetDiscoveryUrl(endpointUrl);
 
             // create the discovery client.
