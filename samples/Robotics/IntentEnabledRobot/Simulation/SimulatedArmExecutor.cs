@@ -299,7 +299,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                         out SimulatedArmIkSolution? solution,
                         out SimulatedArmKinematicFailure failure))
                     {
-                        SetPose(pose, solution.JointAngles.Span);
+                        SetPose(solution.JointAngles.Span);
                     }
                     else
                     {
@@ -416,7 +416,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                         out SimulatedArmIkSolution? solution,
                         out SimulatedArmKinematicFailure failure))
                     {
-                        SetPose(pose, solution.JointAngles.Span);
+                        SetPose(solution.JointAngles.Span);
                     }
                     else
                     {
@@ -580,7 +580,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                         out SimulatedArmIkSolution? solution,
                         out SimulatedArmKinematicFailure failure))
                     {
-                        SetPose(pose, solution.JointAngles.Span);
+                        SetPose(solution.JointAngles.Span);
                     }
                     else
                     {
@@ -777,7 +777,18 @@ namespace Robotics.IntentEnabledRobot.Simulation
             SnapshotChanged?.Invoke(this, CurrentSnapshot);
         }
 
-        private void SetPose(Pose3DDataType pose, ReadOnlySpan<double> jointAngles)
+        /// <summary>
+        /// Publishes a new snapshot from the given joint angles.
+        /// </summary>
+        /// <remarks>
+        /// The tool pose is derived from the joint angles rather than taken from the pose that
+        /// was commanded. The two differ by the inverse-kinematics residual, and publishing the
+        /// commanded pose alongside joint frames computed from the solved joints let the tool
+        /// centre point and the rendered arm disagree - the twin reported a pose the joints did
+        /// not produce.
+        /// </remarks>
+        /// <param name="jointAngles">The joint angles the arm has reached.</param>
+        private void SetPose(ReadOnlySpan<double> jointAngles)
         {
             lock (m_lock)
             {
@@ -785,7 +796,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 SimulatedArmForwardPose forward = m_kinematics.Forward(m_jointAngles);
                 CurrentSnapshot = new SimulatedArmSnapshot(
                     ArrayOf.Create(m_jointAngles.AsSpan()),
-                    pose,
+                    forward.ToolPose,
                     forward.JointFramePoses,
                     m_gripperOpening,
                     m_hasObject,

@@ -100,6 +100,26 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             var clock = new ImmediateSimulatedArmClock();
             var kinematics = new SimulatedArmKinematics();
             var executor = new SimulatedArmExecutor(kinematics, clock);
+
+            // Start from a configuration well inside the joint limits. From the home pose the
+            // interpolated arc grazes a limit, which resolves differently on Windows and Linux
+            // and leaves the executor at the edge of IK convergence - so the test would be
+            // pinning a platform-dependent accident rather than the invariant it is named for.
+            // That an unsolvable path fails instead of publishing an inconsistent pose is
+            // covered deterministically by
+            // SimulatedArmExecutorTests.ForceIntentFailsWhenInterpolatedPathCannotBeSolved.
+            IntentOutcome preposition = await executor.ExecuteAsync(
+                new IntentExecution(
+                    "circular-consistency-start",
+                    new JointMoveIntentDataType
+                    {
+                        HasJointTargets = true,
+                        JointTargets = ArrayOf.Create([0.2, -1.25, 1.6, -1.1, 0.9, -0.35])
+                    },
+                    new NullProgress()),
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(preposition.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+
             Pose3DDataType start = executor.CurrentSnapshot.ToolPose;
             Pose3DDataType via = Offset(start, 0.02, 0.03, 0.02);
             Pose3DDataType target = Offset(start, 0.04, 0.0, 0.0);
@@ -115,7 +135,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(outcome.State, Is.EqualTo(ExecutionStateEnum.Failed));
+                Assert.That(outcome.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
                 Assert.That(Distance(forward, executor.CurrentSnapshot.ToolPose), Is.LessThan(1e-6));
             });
         }
