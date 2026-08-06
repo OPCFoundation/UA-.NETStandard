@@ -766,6 +766,19 @@ namespace Opc.Ua.RobotIntent.Integration
                 context.Session,
                 mode,
                 (int)OperationalModeEnum.ManualReducedSpeed).ConfigureAwait(false);
+            NodeId capabilities = await controller.Transport.ResolveChildAsync(
+                controller.Transport.ControllerId,
+                "Capabilities")
+                .ConfigureAwait(false);
+            Assert.That(capabilities.IsNull, Is.False, "Capabilities must be browsable.");
+            NodeId supportedFacets = await controller.Transport.ResolveChildAsync(
+                capabilities,
+                "SupportedFacets")
+                .ConfigureAwait(false);
+            StatusCode supportedFacetsWriteStatus = await WriteValueAsync(
+                context.Session,
+                supportedFacets,
+                Variant.From(new[] { "RI-Fake" }.ToArrayOf())).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -776,6 +789,8 @@ namespace Opc.Ua.RobotIntent.Integration
                 Assert.That(speedLimited.Accepted, Is.False);
                 Assert.That(speedLimited.Failure, Is.EqualTo(IntentFailureEnum.SafetyLimitExceeded));
                 Assert.That(StatusCode.IsBad(writeStatus), Is.True);
+                Assert.That(supportedFacets.IsNull, Is.False, "SupportedFacets must be browsable.");
+                Assert.That(supportedFacetsWriteStatus.Code, Is.EqualTo(StatusCodes.BadNotWritable));
             });
         }
 
@@ -1425,7 +1440,12 @@ namespace Opc.Ua.RobotIntent.Integration
                 result.Outputs.Count);
         }
 
-        private static async ValueTask<StatusCode> WriteValueAsync(ISession session, NodeId nodeId, int value)
+        private static ValueTask<StatusCode> WriteValueAsync(ISession session, NodeId nodeId, int value)
+        {
+            return WriteValueAsync(session, nodeId, Variant.From(value));
+        }
+
+        private static async ValueTask<StatusCode> WriteValueAsync(ISession session, NodeId nodeId, Variant value)
         {
             WriteResponse response = await session.WriteAsync(
                 null,
@@ -1435,7 +1455,7 @@ namespace Opc.Ua.RobotIntent.Integration
                     {
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
-                        Value = new DataValue(Variant.From(value))
+                        Value = new DataValue(value)
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);

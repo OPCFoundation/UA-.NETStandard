@@ -360,6 +360,24 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
+        public void ComputeFacetsClaimsInterop40010WhenControllerHasInverseHasIntentControllerReference()
+        {
+            AddIntentControllerOfReference();
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Contain("RI-Interop-40010"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsInterop40010WithoutInverseHasIntentControllerReference()
+        {
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-Interop-40010"));
+        }
+
+        [Test]
         public void ComputeFacetsRejectsToolChangeWithSingleTool()
         {
             AddTool("Tool0", true);
@@ -458,10 +476,89 @@ namespace Opc.Ua.Robotics.Tests
             await fixture.StartAsync(runner).ConfigureAwait(false);
             var controller = (IntentControllerState)runner.Results![0];
 
-            string[] published = [.. controller.Capabilities!.SupportedFacets!.Value];
+            string[] published = await ReadSupportedFacetsAsync(controller).ConfigureAwait(false);
             string[] computed = [.. RobotIntentFacetCalculator.Compute(controller)];
 
             Assert.That(published, Is.EqualTo(computed));
+        }
+
+        [Test]
+        public async Task RegisteredControllerReadSupportedFacetsIncludesInteropWhenRawReferenceIsAttachedAfterRegistration()
+        {
+            await using var fixture = new IntentFacetServerFixture();
+            var runner = new DelegateSetupRunner(async (context, cancellationToken) =>
+            {
+                IIntentControllerBuilder builder = await context.AddIntentControllerAsync(
+                    "PublishedInterop",
+                    controller => controller.Accepts<WaitIntentDataType>(),
+                    cancellationToken).ConfigureAwait(false);
+                return [builder.State];
+            });
+            await fixture.StartAsync(runner).ConfigureAwait(false);
+            var controller = (IntentControllerState)runner.Results![0];
+
+            string[] beforeReference = await ReadSupportedFacetsAsync(controller).ConfigureAwait(false);
+
+            controller.AddReference(
+                HasIntentControllerReferenceTypeId(),
+                true,
+                new NodeId("MotionDeviceSystem", 2));
+
+            string[] published = await ReadSupportedFacetsAsync(controller).ConfigureAwait(false);
+            string[] computed = [.. RobotIntentFacetCalculator.Compute(controller)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(beforeReference, Does.Not.Contain("RI-Interop-40010"));
+                Assert.That(published, Does.Contain("RI-Interop-40010"));
+                Assert.That(published, Is.EqualTo(computed));
+            });
+        }
+
+        [Test]
+        public async Task RegisteredControllerReadSupportedFacetsRemovesToolChangeWhenToolIsRemovedAfterRegistration()
+        {
+            await using var fixture = new IntentFacetServerFixture();
+            var runner = new DelegateSetupRunner(async (context, cancellationToken) =>
+            {
+                IIntentControllerBuilder builder = await context.AddIntentControllerAsync(
+                    "ToolChange",
+                    controller =>
+                    {
+                        IIntentFrameBuilder tool0Frame = controller.AddFrame(
+                            "Tool0Frame",
+                            "tool0",
+                            FrameRoleEnum.Tool,
+                            Pose());
+                        IIntentFrameBuilder tool1Frame = controller.AddFrame(
+                            "Tool1Frame",
+                            "tool1",
+                            FrameRoleEnum.Tool,
+                            Pose());
+                        controller.AddTool("Tool0", tool0Frame);
+                        controller.AddTool("Tool1", tool1Frame);
+                        controller.Accepts<ToolChangeIntentDataType>();
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                return [builder.State];
+            });
+            await fixture.StartAsync(runner).ConfigureAwait(false);
+            var controller = (IntentControllerState)runner.Results![0];
+
+            string[] beforeRemoval = await ReadSupportedFacetsAsync(controller).ConfigureAwait(false);
+            var tools = new List<BaseInstanceState>();
+            controller.Tools!.GetChildren(null!, tools);
+            Assert.That(tools, Has.Count.EqualTo(2));
+            controller.Tools.RemoveChild(tools[0]);
+            string[] afterRemoval = await ReadSupportedFacetsAsync(controller).ConfigureAwait(false);
+            string[] computed = [.. RobotIntentFacetCalculator.Compute(controller)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(beforeRemoval, Does.Contain("RI-ToolChange"));
+                Assert.That(afterRemoval, Does.Not.Contain("RI-ToolChange"));
+                Assert.That(afterRemoval, Is.EqualTo(computed));
+            });
         }
 
         [Test]
@@ -501,7 +598,7 @@ namespace Opc.Ua.Robotics.Tests
 
             foreach (IntentControllerState controller in runner.Results!)
             {
-                string[] facets = [.. controller.Capabilities!.SupportedFacets!.Value];
+                string[] facets = await ReadSupportedFacetsAsync(controller).ConfigureAwait(false);
 
                 Assert.That(facets, Does.Contain("RI-Base"));
             }
@@ -531,7 +628,7 @@ namespace Opc.Ua.Robotics.Tests
             await fixture.StartAsync(runner).ConfigureAwait(false);
             var controller = (IntentControllerState)runner.Results![0];
 
-            string[] facets = [.. controller.Capabilities!.SupportedFacets!.Value];
+            string[] facets = await ReadSupportedFacetsAsync(controller).ConfigureAwait(false);
 
             Assert.That(facets, Does.Not.Contain("RI-ToolChange"));
         }
@@ -551,12 +648,18 @@ namespace Opc.Ua.Robotics.Tests
             await fixture.StartAsync(runner).ConfigureAwait(false);
             var controller = (IntentControllerState)runner.Results![0];
             PropertyState<ArrayOf<string>> supportedFacets = controller.Capabilities!.SupportedFacets!;
+            ServiceResult writeResult = supportedFacets.WriteAttribute(
+                null!,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(Variant.From(new[] { "RI-Fake" }.ToArrayOf())));
 
             Assert.Multiple(() =>
             {
                 Assert.That(supportedFacets, Is.Not.Null);
                 Assert.That(supportedFacets.DataType, Is.EqualTo(global::Opc.Ua.DataTypeIds.String));
                 Assert.That(supportedFacets.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
+                Assert.That(writeResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotWritable));
             });
         }
 
@@ -616,6 +719,14 @@ namespace Opc.Ua.Robotics.Tests
             m_controller.Locations!.AddChild(location);
         }
 
+        private void AddIntentControllerOfReference()
+        {
+            m_controller.AddReference(
+                HasIntentControllerReferenceTypeId(),
+                true,
+                new NodeId("MotionDeviceSystem", 2));
+        }
+
         private void AddCompleteDescription(params string[] axisIds)
         {
             m_controller.AddDescription(m_context);
@@ -647,6 +758,32 @@ namespace Opc.Ua.Robotics.Tests
                 IntentType = NodeId.Create(dataType, RiNamespaces.RobotIntent, m_context.NamespaceUris),
                 SupportedBufferModes = (supportedBufferModes ?? [BufferModeEnum.Aborting]).ToArrayOf()
             };
+        }
+
+        private NodeId HasIntentControllerReferenceTypeId()
+        {
+            return NodeId.Create(
+                global::Opc.Ua.RobotIntent.ReferenceTypes.HasIntentController,
+                RiNamespaces.RobotIntent,
+                m_context.NamespaceUris);
+        }
+
+        private static async Task<string[]> ReadSupportedFacetsAsync(IntentControllerState controller)
+        {
+            PropertyState<ArrayOf<string>> supportedFacets = controller.Capabilities!.SupportedFacets!;
+            (ServiceResult result, DataValue value) = await supportedFacets.ReadAttributeAsync(
+                null!,
+                Attributes.Value,
+                NumericRange.Null,
+                QualifiedName.Null,
+                new DataValue()).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsBad(result), Is.False);
+                Assert.That(StatusCode.IsBad(value.StatusCode), Is.False);
+            });
+            return [.. value.WrappedValue.GetStringArray()];
         }
 
         private static Pose3DDataType Pose()

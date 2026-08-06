@@ -106,7 +106,8 @@ await context.AddIntentControllerAsync("Arm1", ConfigureArmController, ct);
 That standalone path is intentionally useful: because the NodeSet requires only the base OPC UA
 namespace, a machine can expose Robot Intent without OPC 40010, DI or the Robotics topology model. A
 server that already owns an OPC 40010 node manager can instead use `ConfigureRobotIntentFor<TNodeManager>`
-and then link a `MotionDeviceSystem` to the intent controller with `HasIntentController`.
+and then link a `MotionDeviceSystem` to the intent controller with `HasIntentController`. That inverse
+reference is the structural evidence used to derive **RI-Interop-40010**.
 
 ## Declaring a robot
 
@@ -596,9 +597,10 @@ if (!submission.Accepted)
 
 ## Facets in code
 
-A controller publishes the facets it claims in `Capabilities.SupportedFacets`, so a client reads the
-claim rather than reconstructing it. The server computes the list once, when the controller is
-registered:
+A controller publishes the facets it claims in the read-only `Capabilities.SupportedFacets`, so a
+client reads the claim rather than reconstructing it. The server binds that variable to the facet
+calculator, so the list is recomputed on every read and tracks the address space instead of being a
+registration-time snapshot:
 
 ```csharp
 ArrayOf<string> facets = controller.ComputeFacets();
@@ -628,16 +630,20 @@ That disagreement is the reason `SupportedFacets` exists. A facet is not a resta
 declaration a client has already read. Some of what the table below requires — that blending modes are
 honoured, that the refusal rules are followed, that a mission base is immutable — cannot be settled by
 reading the address space at all, so a client deriving facets locally is guessing at precisely the
-rows that matter most.
+rows that matter most. A published claim that could drift from the model would reintroduce the same
+defect with the server's authority behind the wrong answer; the live read binding makes that drift
+impossible by construction.
 
 ## Limitations
 
 The current stack implements the draft information model, admission rules, Part 10 operation lifecycle,
 missions, command authority, cancellation, safety observation, capability/facet reporting, real-time
 channel leasing and the client handles shown above. It does not provide a safety-rated interface, a
-servo-level real-time channel, or a vendor robot driver. The sample executor is a simulator, transition
-conditions are only as powerful as the server-supplied `ConditionEvaluator`, and real-time channels are
-brokered as leases rather than implemented as a cyclic transport in this package. The namespace
+servo-level real-time channel, or a vendor robot driver. The facet calculator checks every structural
+requirement in clause 12.2, but behavioural requirements remain the server's attestation and require
+interop or acceptance testing to verify. The sample executor is a simulator, transition conditions are
+only as powerful as the server-supplied `ConditionEvaluator`, and real-time channels are brokered as
+leases rather than implemented as a cyclic transport in this package. The namespace
 `http://opcfoundation.org/UA/RobotIntent/` and all NodeIds remain provisional until the companion
 specification is ratified.
 
@@ -945,7 +951,10 @@ A server claiming the interop profile exposes a `HasIntentController` reference 
 `MotionDeviceSystemType` instance describing the robot to the `IntentControllerType` instance that
 commands it, reports the same operational mode as the OPC 40010 model, publishes as `ProgramType`
 instances exactly those programs the OPC 40010 task control can load, and expresses its poses in frames
-consistent with the mounting and geometry OPC 40010 describes.
+consistent with the mounting and geometry OPC 40010 describes. The published **RI-Interop-40010** facet
+is derived from the inverse of that reference on the intent controller, and because `SupportedFacets`
+is a live read binding, the claim tracks the address space whether the reference is attached before or
+after the controller is registered.
 
 It does **not** duplicate OPC 40010's topology. `AxisType` exists here only to fix the order, kind and
 limits a joint target needs; where OPC 40010 is also implemented its axis description is the fuller one
@@ -989,7 +998,7 @@ statement in exactly the sense the honesty rules forbid, whatever `BlendingSuppo
 | **RI-Mission** | `MissionsSupported` true, `SubmitMission`, `CancelMission`, `MissionType` instances |
 | **RI-Mission-Horizon** | RI-Mission plus `MissionHorizonSupported` and `UpdateMission`; base immutability *(attested)* |
 | **RI-Mission-Branching** | RI-Mission plus `MissionBranchingSupported`; transitions evaluated and error policies honoured *(attested)* |
-| **RI-Interop-40010** | the OPC 40010 interop profile above |
+| **RI-Interop-40010** | inverse `HasIntentController` from the `MotionDeviceSystemType` instance to the `IntentControllerType` instance; operational-mode agreement with OPC 40010, `ProgramType` instances exactly matching the programs the OPC 40010 task control can load, pose/frame consistency and safety consistency *(attested)* |
 
 ## See also
 

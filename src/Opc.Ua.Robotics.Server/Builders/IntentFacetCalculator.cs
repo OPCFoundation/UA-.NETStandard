@@ -55,8 +55,8 @@ namespace Opc.Ua.Robotics.Server.Builders
         /// real-time lease rules; safety-state sourcing and safety refusals; process execution semantics; queue
         /// position maintenance; blending being honoured and <c>Result.AchievedPose</c> reporting the blend point;
         /// pause/retry state reachability; mission execution, base immutability and transition/error-policy
-        /// behaviour; and OPC 40010 interop semantics. RI-Interop-40010 is not inferred here because the calculator
-        /// receives only a Robot Intent controller, not the linked OPC 40010 model.
+        /// behaviour; and OPC 40010 agreement semantics. The structural OPC 40010 interop link is inferred from the
+        /// inverse <c>HasIntentController</c> reference on the controller.
         /// </remarks>
         public static ArrayOf<string> Compute(IntentControllerState controller)
         {
@@ -148,6 +148,10 @@ namespace Opc.Ua.Robotics.Server.Builders
             if (mission && controller.Capabilities?.MissionBranchingSupported?.Value == true)
             {
                 facets.Add("RI-Mission-Branching");
+            }
+            if (HasInterop40010Link(controller))
+            {
+                facets.Add("RI-Interop-40010");
             }
             return facets.ToArrayOf();
         }
@@ -403,6 +407,29 @@ namespace Opc.Ua.Robotics.Server.Builders
         private static bool HasFacet(List<string> facets, string facet)
         {
             return facets.Contains(facet);
+        }
+
+        private static bool HasInterop40010Link(IntentControllerState controller)
+        {
+            var references = new List<IReference>();
+            controller.GetReferences(null!, references);
+            for (int ii = 0; ii < references.Count; ii++)
+            {
+                IReference reference = references[ii];
+                if (reference.IsInverse &&
+                    IsHasIntentControllerReference(reference.ReferenceTypeId) &&
+                    !reference.TargetId.IsNull)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool IsHasIntentControllerReference(NodeId referenceTypeId)
+        {
+            return referenceTypeId.TryGetValue(out uint numeric) &&
+                numeric == global::Opc.Ua.RobotIntent.ReferenceTypes.HasIntentController;
         }
 
         private static bool HasAny(NodeState? folder)

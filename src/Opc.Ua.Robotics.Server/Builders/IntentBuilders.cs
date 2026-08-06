@@ -967,7 +967,10 @@ namespace Opc.Ua.Robotics.Server.Builders
         private void PublishSupportedFacets()
         {
             State.Capabilities!.CreateOrReplaceSupportedFacets(m_context.Context, null);
-            State.Capabilities.SupportedFacets!.Value = RobotIntentFacetCalculator.Compute(State);
+            MarkReadOnly(State.Capabilities.SupportedFacets!);
+            BindRead(
+                State.Capabilities.SupportedFacets!,
+                _ => new ValueTask<DataValue>(ToDataValue(RobotIntentFacetCalculator.Compute(State))));
         }
 
         private void EnsureControllerBrowseNameIsUnique()
@@ -1093,6 +1096,7 @@ namespace Opc.Ua.Robotics.Server.Builders
                 NodeId typed => ((IVariantBuilder<NodeId>)builder).WithValue(typed),
                 DateTimeUtc typed => ((IVariantBuilder<DateTimeUtc>)builder).WithValue(typed),
                 LocalizedText typed => ((IVariantBuilder<LocalizedText>)builder).WithValue(typed),
+                ArrayOf<string> typed => ((IVariantBuilder<ArrayOf<string>>)builder).WithValue(typed),
                 ArrayOf<IntentCapabilityDataType> typed =>
                     ((IVariantBuilder<ArrayOf<ExtensionObject>>)builder).WithValue(
                         EncodeableToExtensionObjects(typed)),
