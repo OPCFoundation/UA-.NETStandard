@@ -839,34 +839,68 @@ asserting against the specification's own expected output rather than against ou
 reading of the prose. That covers, in one document, all three selection forms, the
 bulk naming rule, the security closure naming and the provenance term.
 
-### Deliberate deviations
+### Compatibility switch for non-portable identifiers
 
-There are none.
+Release 1.1 rejects two identifier forms that OPC 10101 v1.00 permitted. Both are
+session-local: a document carrying either binds to the wrong namespace as soon as
+the server's namespace table is reordered, which is exactly what a document meant
+to be stored and re-read must not do.
 
-Two points the specification originally left open were decided here, and both have
-since been closed in the specification itself (spec-drafts PR #8) with wording that
-matches what was implemented, so they are no longer deviations:
+| Rejected in release 1.1 | Permitted in v1.00 | Portable form to use instead |
+| --- | --- | --- |
+| `ns=<index>` in any NodeId-valued term | § 6.2 | `nsu=<NamespaceUri>;<idtype>=<id>` |
+| a numeric namespace prefix in `uav:browseName` / `uav:browsePath` | § 6.5.3 | a context-bound non-numeric prefix, or `nsu=<NamespaceUri>;<Name>` |
 
-- **`ViewVersion` recomputation.** The published text said only that the attribute
-  changes when the resolved membership changes, specifying neither the trigger nor the
-  value. Section 12.6 now requires it to change when, and only when, the membership
-  changes, to be updated at commit time alongside the `NodeVersion` stamping, and to be
-  a deterministic function of the resolved membership alone taken in a canonical order.
-  It is computed here as an FNV-1a hash over the ordinally sorted membership, which
-  satisfies that: it is equal on two servers that resolved the same membership, is
-  unchanged by a refresh that changes nothing, and is unchanged by a reordering that
-  selects the same members. It is deliberately not monotonic, so it is compared for
-  inequality only. `ViewVersionIsUnchangedWhenOnlyTheOrderOfTheMembershipChanges`
-  holds the order-insensitivity.
-- **A projection over Thing Models.** Section 12.2 called this a *type-level view*
-  and defined the phrase nowhere. Section 12.6 now defines it: the NodeClass is `View`
-  in both cases, and a Thing Model projection's View organizes the ObjectType and
-  VariableType Nodes materialized from its source Thing Models. That is what this
-  implementation already did.
+The NodeId rule applies to every NodeId-valued term: `uav:id`, `uav:hasComponent`,
+`uav:componentOf`, `uav:mapToNodeId`, `uav:mapToType`, `uav:refId`, and the `href`
+of a form.
 
-### One compatibility switch
+So a v1.00 document written like this:
 
-`WotNodeSetConverterOptions.AllowNonPortableIdentifiers` downgrades the two
-portable-identity errors to warnings so a document authored against OPC 10101 v1.00
-can still be read while it is migrated. It defaults to `false`, which is the release
-1.1 behaviour; see the migration guide for what to rewrite.
+```jsonc
+{
+  "uav:id": "ns=3;i=1005",
+  "uav:browseName": "3:Identification",
+  "forms": [{ "href": "/?id=ns=3;s=Pump1.Temperature" }]
+}
+```
+
+is rewritten for 1.1 as:
+
+```jsonc
+{
+  "uav:id": "nsu=http://example.com/UA/Pumps/;i=1005",
+  "uav:browseName": "nsu=http://opcfoundation.org/UA/DI/;Identification",
+  "forms": [{ "href": "/?id=nsu=http://example.com/UA/Pumps/;s=Pump1.Temperature" }]
+}
+```
+
+The namespace URI is written out, so the meaning no longer depends on the order of
+the table the reader happens to hold.
+
+A document carrying either form fails to convert, reporting `NonPortableIdentity`
+or `NonPortableQualifiedName` as an error. Rewriting the document is the fix. While
+that is in progress, `WotNodeSetConverterOptions.AllowNonPortableIdentifiers`
+downgrades both errors to warnings, so the non-portable values stay visible rather
+than being silently accepted, and each is interpreted exactly as v1.00 defined it:
+
+```csharp
+var options = new WotNodeSetConverterOptions
+{
+    AllowNonPortableIdentifiers = true
+};
+
+WotConversionResult<UANodeSet> result =
+    WotNodeSetConverter.ToNodeSetResult(document, options);
+
+foreach (WotDiagnostic diagnostic in result.Diagnostics)
+{
+    // NonPortableIdentity / NonPortableQualifiedName arrive as warnings here
+    // instead of errors, naming the term and the value that has to be rewritten.
+    Console.WriteLine($"{diagnostic.Severity}: {diagnostic.Code} {diagnostic.Message}");
+}
+```
+
+The option defaults to `false`, which matches the release 1.1 validator. Leave it at
+the default once the documents are rewritten; it exists to keep a v1.00 corpus
+readable during migration, not as a supported long-term mode.

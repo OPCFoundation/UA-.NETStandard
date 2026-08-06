@@ -367,13 +367,25 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 // WOTC-Legacy requires an uploaded document to be format
                 // validated before any node is materialized from it, and a
-                // document that fails to materialize nothing. Parsing it as a
-                // WoT document is that check: deserializing into the Thing
-                // Description shape alone accepts JSON that is well formed but
-                // is not a WoT document at all.
+                // document that fails validation to materialize nothing.
+                // Deserializing into the Thing Description shape alone is not
+                // that check: every member of the POCO is optional, so an empty
+                // object deserializes happily. Parsing as a WoT document rejects
+                // JSON that is not an object, and requiring an identifying member
+                // rejects an object that is not a Thing Description. This surface
+                // keys an asset on "name" and W3C WoT TD 1.1 section 5.3.1 makes
+                // "title" mandatory, so either one identifies the document.
                 try
                 {
                     using WotDocument probe = WotDocument.Parse(content);
+                    if (probe.RootElement.ValueKind != JsonValueKind.Object ||
+                        !HasIdentifyingMember(probe.RootElement))
+                    {
+                        m_logger.UploadedDocumentIsNotAThingDescription();
+                        return ServiceResult.Create(StatusCodes.BadDecodingError,
+                            "The uploaded document is not a Thing Description: it must be " +
+                            "a JSON object carrying a 'name' or 'title'.");
+                    }
                 }
                 catch (Exception ex) when (ex is FormatException or JsonException)
                 {
@@ -502,6 +514,24 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Tests that a parsed document carries a member identifying it as a
+        /// Thing Description. This surface keys an asset on <c>name</c>, and W3C
+        /// WoT TD 1.1 §5.3.1 makes <c>title</c> mandatory, so either identifies
+        /// the document. An object carrying neither is not one.
+        /// </summary>
+        private static bool HasIdentifyingMember(JsonElement root)
+        {
+            return IsNonEmptyString(root, "name") || IsNonEmptyString(root, "title");
+        }
+
+        private static bool IsNonEmptyString(JsonElement root, string member)
+        {
+            return root.TryGetProperty(member, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrEmpty(value.GetString());
+        }
+
         private readonly WoTAssetFileState m_file;
         private readonly int m_maxHandles;
         private readonly int m_maxSize;
@@ -522,5 +552,10 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 1, Level = LogLevel.Warning,
             Message = "Uploaded document failed format validation and materialized nothing")]
         public static partial void ThingDescriptionFailedFormatValidation(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 2, Level = LogLevel.Warning,
+            Message = "Uploaded document is well formed JSON but is not a Thing Description " +
+                "and materialized nothing")]
+        public static partial void UploadedDocumentIsNotAThingDescription(this ILogger logger);
     }
 }

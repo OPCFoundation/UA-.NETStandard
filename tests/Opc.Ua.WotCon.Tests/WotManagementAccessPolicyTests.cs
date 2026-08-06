@@ -337,6 +337,22 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(ServiceResult.IsBad(write), Is.True);
             Assert.That(write.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
             Assert.That(enforced, Does.Contain("Write"));
+
+            // CloseAndUpdate reaches the same materializer and carries the same
+            // obligation. It enforces access before it validates the handle, so
+            // no valid handle is needed to prove the gate is wired.
+            Assert.That(file.CloseAndUpdate, Is.Not.Null);
+            CloseAndUpdateIWoTAssetTypeWoTFileMethodState closeAndUpdate = file.CloseAndUpdate!;
+            Assert.That(closeAndUpdate.OnCall, Is.Not.Null);
+            ServiceResult close = closeAndUpdate.OnCall!(
+                denied,
+                closeAndUpdate,
+                file.NodeId,
+                1u);
+
+            Assert.That(ServiceResult.IsBad(close), Is.True);
+            Assert.That(close.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(enforced, Does.Contain("CloseAndUpdate"));
         }
 
         /// <summary>

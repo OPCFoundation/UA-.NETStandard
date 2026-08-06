@@ -451,11 +451,6 @@ may be exposed over `MessageSecurityMode.None` by deployment policy.
 
 ## 11. WoT Connectivity 1.1 registry and materialization (preview)
 
-> **Specification revision.** The information model in this repository tracks
-> **WoT Connectivity 1.1-draft3** (published 2026-08-05) and **WoT Binding
-> 1.1-draft2** (published 2026-07-29). Section 12 records what those revisions
-> changed and how much of it this implementation covers.
-
 The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.1** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, superseded in capability but **not** deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry** base model the registry types build on:
 
 | Model | Namespace | Emitted C# namespace |
@@ -777,93 +772,58 @@ refresh.EnsureSuccess();
 
 Register the registry client with DI alongside `AddWotConClient` via `AddWotRegistryClient` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`, bindable from `IConfiguration`/`IConfigurationSection`, default section `OpcUa:WotCon:RegistryClient`). It follows the same lazy `ManagedSession`-backed factory pattern: resolve `Func<CancellationToken, Task<WotRegistryClient>>` for the lazily connected form, or `Func<ManagedSession, CancellationToken, Task<WotRegistryClient>>` to wrap an already-connected session.
 
-## 12. Alignment with the 1.1-draft2 revision
+## 12. Conformance to WoT Connectivity 1.1
 
-Both specifications moved to `1.1-draft2` after the initial implementation
-landed. This clause records what changed and what the stack does about it.
+This clause describes what the model requires and what this implementation
+provides. It is a statement of the current state, not a history of how either
+got here.
 
-### 12.1 Model metadata
+### 12.1 Model identity
 
-| | previous | draft2 |
+The information model is generated from the NodeSets the specifications publish,
+adopted verbatim rather than maintained by hand.
+
+| Model | Version | PublicationDate |
 |---|---|---|
-| WoT Connectivity `Version` | `1.1.0` | `1.1` |
-| WoT Connectivity `PublicationDate` | `2026-07-22` | `2026-07-31`, then `2026-08-05` in draft3 |
-| xRegistry `RequiredModel` | `0.1.0` / `2026-07-16` | `0.3.0` / `2026-07-31` |
+| WoT Connectivity | `1.1` | 2026-08-05 |
+| WoT Binding | `1.1` | 2026-07-29 |
+| xRegistry (`RequiredModel`) | `0.3.0` | 2026-07-31 |
 
-Both NodeSets are now the artifacts the drafts publish, adopted verbatim rather
-than maintained by hand. The xRegistry node graph is unchanged across the
-version bump - the same 66 nodes with the same identifiers, method signatures
-and modelling rules - so the bump costs no code. What did change is behavioural:
-xRegistry 0.3.0 adds a reverse-authority construction algorithm for `GroupId`
-and `ResourceId`, and requires `SignAndEncrypt` on every mutating operation.
+xRegistry contributes 66 nodes and two behavioural rules the registry honours: a
+reverse-authority construction algorithm for `GroupId` and `ResourceId`
+(§ 11.4), and `SignAndEncrypt` on every mutating operation.
 
-### 12.2 Members added
+### 12.2 Conformance units and profiles
 
-Three members were added, all at the end of the identifier block so that no
-existing member is renumbered:
+Three profiles form a lattice rather than a ladder:
 
-| NodeId | BrowseName | Declared on | ModellingRule |
-|---|---|---|---|
-| `64606` | `CatalogUri` | `ThingDescriptionGroupType` | Mandatory |
-| `64607` | `CatalogUri` | `ThingModelGroupType` | Mandatory |
-| `64608` | `ModelId` | `ThingModelFileType` | Mandatory |
+| Profile | Covers |
+|---|---|
+| *WoT-Con Minimal* | `WOTC-Legacy` alone — the published OPC 10100-1 v1.02 shape and nothing else |
+| *WoT-Con Registry Server* | the registry surface without federation, change events, projections or the atomicity modes |
+| *WoT-Con Full* | every unit, `WOTC-Legacy` included |
 
-Three existing members became Mandatory rather than Optional:
-`GroupType.Name`, `ResourceType.Name` and `ThingDescriptionFileType.ThingId`.
-A Mandatory member is materialized by the type itself, so the source generator
-no longer emits an optional-add helper for it and the projection code sets the
-value directly.
+Minimal and Registry Server are each a subset of Full, and neither is a subset of
+the other: they share no conformance unit. A server may implement either surface
+or both.
 
-### 12.3 The group vocabulary is gone
+`WOTC-Legacy` is implementable on its own, so it covers serving the data points of
+an uploaded Thing Description — and with it, format-validating that document
+before any Node is materialized from it. Client-supplied input never reaches the
+AddressSpace unchecked; a document that fails validation materializes nothing and
+returns `Bad_DecodingError`.
 
-`uav:propertyGroups`, `uav:eventGroups`, `uav:actionGroups` and `uav:memberOf`
-were removed from the WoT Binding vocabulary. They were a third way to state
-something the binding could already state twice, because a grouping is an
-Object and `Organizes` is a ReferenceType. They were WoT JSON-LD terms and never
-had a corresponding OPC UA ObjectType, and this implementation never used them,
-so nothing had to be removed here.
+`WOTC-ProjectionMaterialization` is carried by `ThingDescriptionFileType`,
+`ThingModelFileType` and `HasWoTProjection`.
 
-A grouping is now authored as an ordinary document whose members are reached by
-`ua:Organizes` links. Across documents it is a projection document.
+### 12.3 Grouping
 
-### 12.4 Portable identifiers are now enforced
+A grouping is an ordinary document whose members are reached by `ua:Organizes`
+links; across documents it is a projection document (§ 12.4). The binding has no
+separate grouping vocabulary, because a grouping is an Object and `Organizes` is
+a ReferenceType — the two constructs the model already has.
 
-Two forms that OPC 10101 v1.00 permitted are errors in release 1.1, because a
-document carrying either binds to the wrong namespace as soon as the namespace
-table is reordered:
-
-* the session-local `ns=<index>` form in any NodeId-valued term - `uav:id`,
-  `uav:hasComponent`, `uav:componentOf`, `uav:mapToNodeId`, `uav:mapToType`,
-  `uav:refId` and form `href`s;
-* a numeric namespace prefix in `uav:browseName` or `uav:browsePath`, such as
-  `3:PaintingRobot_1`.
-
-Authors use `nsu=<NamespaceUri>;<idtype>=<id>` and either a context-bound
-non-numeric prefix or `nsu=<NamespaceUri>;<Name>` instead.
-
-A document authored against v1.00 still has to be readable while it is being
-migrated, so `WotNodeSetConverterOptions.AllowNonPortableIdentifiers` downgrades
-both errors to warnings. It defaults to `false`, which matches the release 1.1
-validator. The occurrences stay visible as warnings rather than being
-suppressed, and the values are then interpreted exactly as v1.00 defined them.
-
-```csharp
-// Spec-conformant: a v1.00 document fails to convert.
-UANodeSet strict = WotNodeSetConverter.ToNodeSet(legacyDocument);
-
-// Migrating: the same document converts, and every non-portable
-// identifier it carries is reported as a warning.
-WotConversionResult<UANodeSet> lenient = WotNodeSetConverter.ToNodeSetResult(
-    legacyDocument,
-    new WotNodeSetConverterOptions { AllowNonPortableIdentifiers = true });
-
-foreach (WotDiagnostic diagnostic in lenient.Diagnostics)
-{
-    Console.WriteLine($"{diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
-}
-```
-
-### 12.5 Projection documents and the View NodeClass
+### 12.4 Projection documents and the View NodeClass
 
 A **projection document** is a Thing Description or Thing Model that declares,
 rather than defines, its affordances. It names source documents and states which
@@ -872,11 +832,11 @@ annotations only and has nothing that can drift from its sources.
 
 This completes the NodeClass binding. Seven OPC UA NodeClasses bind to a WoT
 construct that defines something; `View` is the eighth and the only one whose
-purpose is to select rather than define. A View owns no Node - it organizes
-Nodes that already exist so a client can browse a subset shaped for one task -
-and a projection document is that construct in WoT.
+purpose is to select rather than define. A View owns no Node — it organizes Nodes
+that already exist so a client can browse a subset shaped for one task — and a
+projection document is that construct in WoT.
 
-A projection is marked by `uav:projection` in its `@type` and shall declare:
+A projection is marked by `uav:projection` in its `@type` and declares:
 
 | Term | Meaning |
 |---|---|
@@ -887,67 +847,66 @@ A projection is marked by `uav:projection` in its `@type` and shall declare:
 | `uav:sourceDigest` | `sha-256:<hex>` pinning a source revision |
 | `uav:namePrefix` | prefix applied to bulk-selected names |
 
-Selection has three forms. An enumerated `tm:ref` names one affordance and is
-the only form that can annotate it; `uav:selectAll` takes every affordance of a
-source; and `uav:select` filters on affordance kind, semantic identifier and
-type tokens. The predicate set is closed - a filter carrying any other key is
-rejected rather than ignored - so a filter stays decidable by inspection.
+Selection has three forms. An enumerated `tm:ref` names one affordance and is the
+only form that can annotate it; `uav:selectAll` takes every affordance of a
+source; and `uav:select` filters on affordance kind, semantic identifier and type
+tokens. The predicate set is closed — a filter carrying any other key is rejected
+rather than ignored — so a filter stays decidable by inspection.
 
-Every member of `properties`, `actions` and `events` shall carry `tm:ref`. A
-member without one is defining an affordance, which is the one thing a
-projection document must not do.
+Every member of `properties`, `actions` and `events` carries `tm:ref`. A member
+without one is defining an affordance, which is the one thing a projection
+document must not do.
 
 Materialization produces a `View` Node that `Organizes` the Nodes already
 materialized from the sources. The View creates **no** affordance Node, so
 `MaterializedNodeCount` counts only the View and any organizational Objects, not
-the Nodes it organizes. `RootNodeId` is the View, and the document resource
-points at it through `HasWoTProjection`, navigable back through
-`WoTProjectionOf`. A source that is not in the address space is omitted from the
-View and reported in `WoTResourceLoadResultDataType.Message`; the resource still
-reaches `LoadState = Active`, because an omission is a reported detail rather
-than a failure.
+the Nodes it organizes. `RootNodeId` is the View, and the document resource points
+at it through `HasWoTProjection`, navigable back through `WoTProjectionOf`.
 
-### 12.6 What draft3 changed
+`ViewVersion` changes when, and only when, the resolved membership changes. It is
+a deterministic function of that membership taken in a canonical order, so two
+servers that resolved the same membership report the same value and a refresh that
+resolves the same membership leaves it untouched. It is deliberately not
+monotonic: compare it for inequality, never for order.
 
-WoT Connectivity moved to `1.1-draft3` on 2026-08-05. The node graph is unchanged -
-the same 286 nodes with the same identifiers, modelling rules and definitions - so the
-revision costs no generated-code change. What changed is what the model *says*.
+A projection over Thing Models materializes to a `View` in the same way,
+organizing the ObjectType and VariableType Nodes its source Thing Models
+materialized.
 
-**The 1.02 surface stops being deprecated.** The `ReleaseStatus="Deprecated"` marking
-is removed from all 96 attributes that carried it. Deprecating the flat asset surface
-said something the working group does not mean: serving a WoT asset that way is
-legitimate, and revision 1.1 neither removes it nor discourages it. A server may
-implement either surface or both. Nothing in this repository asserted the deprecation
-in code, but the package descriptions and this document did, and they now say
-"superseded in capability but not deprecated" instead.
+A source that is not in the address space is omitted from the View and reported in
+`WoTResourceLoadResultDataType.Message`; the resource still reaches
+`LoadState = Active`, because an omission is a reported detail rather than a
+failure.
 
-**Three profiles, forming a lattice rather than a ladder.**
+### 12.5 Portable identifiers
 
-| Profile | Covers |
-|---|---|
-| *WoT-Con Minimal* | `WOTC-Legacy` alone - the published 1.02 shape and nothing else |
-| *WoT-Con Registry Server* | the registry surface without federation, change events, projections or the atomicity modes |
-| *WoT-Con Full* | every unit, `WOTC-Legacy` included |
+Two identifier forms are errors, because a document carrying either binds to the
+wrong namespace as soon as the namespace table is reordered:
 
-Minimal and Registry Server are each a subset of Full and neither is a subset of the
-other, because they share no conformance unit. The former *WoT-Con Legacy* profile is
-now *WoT-Con Minimal*.
+* the session-local `ns=<index>` form in any NodeId-valued term — `uav:id`,
+  `uav:hasComponent`, `uav:componentOf`, `uav:mapToNodeId`, `uav:mapToType`,
+  `uav:refId` and form `href`s;
+* a numeric namespace prefix in `uav:browseName` or `uav:browsePath`, such as
+  `3:PaintingRobot_1`.
 
-**`WOTC-Legacy` says what it covers.** As a one-unit profile it has to be implementable
-alone, so serving the data points of an uploaded Thing Description is inside the unit -
-and with it, that the document is format-validated before any node is materialized. A
-profile in which client-supplied input reaches the AddressSpace unchecked would not be
-acceptable, and materialization projects a *valid* document.
+Authors write `nsu=<NamespaceUri>;<idtype>=<id>` and either a context-bound
+non-numeric prefix or `nsu=<NamespaceUri>;<Name>` instead.
+`WotNodeSetConverterOptions.AllowNonPortableIdentifiers` keeps a document written
+against OPC 10101 v1.00 readable while it is rewritten; see
+[WoT protocol bindings](WotBindings.md#compatibility-switch-for-non-portable-identifiers)
+for the forms and worked examples.
 
-**`WOTC-ProjectionMaterialization` is now carried by the model.** It was defined in the
-conformance clause but attached to no Type Node, so nothing in the model implemented it.
-`ThingDescriptionFileType`, `ThingModelFileType` and `HasWoTProjection` now claim it.
+### 12.6 The 1.02 asset surface
 
-**The 1.02 surface carries the security obligation directly.** It previously inherited
-role-based access control only by reference to the optional registry backing, so a
-server implementing only the 1.02 surface inherited no obligation at all. `CreateAsset`,
-`DeleteAsset`, `CreateAssetForEndpoint`, `ConnectionTest` and the `WoTFile` `Write` and
-`CloseAndUpdate` operations now require role-based access control and a `SignAndEncrypt`
-channel for every mutation, whether or not the registry backs them. The rule against
-dereferencing a URI found in a document extends to the `WoTFile` upload path, which
-reaches the same materializer.
+The incorporated OPC 10100-1 v1.02 management and upload surface (NodeIds
+`1..172`) is superseded in capability by the registry but is **not** deprecated:
+serving a WoT asset that way is legitimate, and *WoT-Con Minimal* is built on it.
+
+It carries its security obligation directly rather than by reference to the
+optional registry backing, so a server implementing only this surface still
+inherits it. `CreateAsset`, `DeleteAsset`, `CreateAssetForEndpoint`,
+`ConnectionTest` and the `WoTFile` `Open` (write mode), `Write` and
+`CloseAndUpdate` operations require role-based access control and a
+`SignAndEncrypt` channel for every mutation, whether or not the registry backs
+them. The rule against dereferencing a URI found in a document extends to the
+`WoTFile` upload path, which reaches the same materializer.

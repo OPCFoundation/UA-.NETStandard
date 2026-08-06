@@ -336,19 +336,25 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
-        public void CloseAndUpdateWithWellFormedJsonThatIsNotAThingDescriptionMaterializesNothing()
+        [TestCase("[1, 2, 3]", TestName = "CloseAndUpdateRejectsJsonThatIsNotAnObject")]
+        [TestCase("{}", TestName = "CloseAndUpdateRejectsAnObjectWithoutATitle")]
+        [TestCase(
+            "{\"description\":\"no title here\"}",
+            TestName = "CloseAndUpdateRejectsAnObjectWithOnlyOptionalMembers")]
+        public void CloseAndUpdateWithWellFormedJsonThatIsNotAThingDescriptionMaterializesNothing(
+            string payload)
         {
             // WOTC-Legacy requires an uploaded document to be format validated
             // before any node is materialized, and one that fails to materialize
             // nothing and return Bad_DecodingError. Deserializing into the Thing
-            // Description shape alone would accept this: it is well-formed JSON
-            // and every Thing Description member is simply absent.
+            // Description shape alone would accept the object cases: every member
+            // of that POCO is optional, so "{}" round-trips happily. W3C WoT TD
+            // 1.1 section 5.3.1 makes title mandatory, which is what separates a
+            // Thing Description from an arbitrary JSON object.
             using var harness = new Harness();
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
-            harness.Write(
-                handle,
-                ByteString.From(Encoding.UTF8.GetBytes("[1, 2, 3]")));
+            harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes(payload)));
             ServiceResult result = harness.CloseAndUpdate(handle);
 
             Assert.That(result.StatusCode,
