@@ -365,6 +365,14 @@ namespace Opc.Ua.Server
                         throw;
                     }
                 }
+
+                // Retain them: a NodeManager added later may own a Node that one
+                // of these references targets, and a reference to a Node that is
+                // not yet in the address space is dropped rather than queued.
+                // Startup gets away with collecting first and applying second, so
+                // order does not matter here; the dynamic path has no such second
+                // phase and replays these instead.
+                m_startupExternalReferences = externalReferences;
             }
             finally
             {
@@ -6164,6 +6172,9 @@ namespace Opc.Ua.Server
                 m_dynamicExternalReferences.Add(
                     prepared.NodeManager,
                     prepared.ExternalReferences);
+                await ReplayRetainedExternalReferencesAsync(
+                    prepared.NodeManager,
+                    CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
@@ -6462,6 +6473,47 @@ namespace Opc.Ua.Server
                 .. nodeManager.NamespaceUris
                     .Select(namespaceUri => (int)Server.NamespaceUris.GetIndexOrAppend(namespaceUri))
             ];
+        }
+
+        /// <summary>
+        /// Applies the external references retained from startup and from every
+        /// other dynamically registered NodeManager to a NodeManager that has
+        /// just been added.
+        /// </summary>
+        /// <remarks>
+        /// An external reference names a Node another NodeManager owns, and a
+        /// reference to a Node that is not in the address space is dropped
+        /// rather than queued. Startup avoids the problem by collecting every
+        /// NodeManager's external references first and applying them all
+        /// afterwards, so the order in which NodeManagers are created does not
+        /// matter. A NodeManager added later has no such second phase: anything
+        /// that referenced one of its Nodes before it existed lost that edge,
+        /// leaving the two ends of the Reference disagreeing - the target Node
+        /// browses to the source, the source does not list the target. Replaying
+        /// the retained references closes that gap. Each NodeManager applies
+        /// only the entries whose source Node it owns, so this is a no-op for
+        /// everything the new NodeManager does not own.
+        /// </remarks>
+        /// <param name="added">The NodeManager that has just been added.</param>
+        /// <param name="ct">The cancellation token.</param>
+        private async ValueTask ReplayRetainedExternalReferencesAsync(
+            IAsyncNodeManager added,
+            CancellationToken ct)
+        {
+            if (m_startupExternalReferences is { Count: > 0 } startup)
+            {
+                await added.AddReferencesAsync(startup, ct).ConfigureAwait(false);
+            }
+
+            foreach (KeyValuePair<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> entry
+                in m_dynamicExternalReferences)
+            {
+                if (ReferenceEquals(entry.Key, added) || entry.Value.Count == 0)
+                {
+                    continue;
+                }
+                await added.AddReferencesAsync(entry.Value, ct).ConfigureAwait(false);
+            }
         }
 
         private async ValueTask AddExternalReferencesAsync(
@@ -7344,6 +7396,8 @@ namespace Opc.Ua.Server
 
         private readonly Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>
             m_dynamicExternalReferences = [];
+
+        private Dictionary<NodeId, IList<IReference>>? m_startupExternalReferences;
 
         private readonly Lock m_retiredGenerationNotificationsLock = new();
         private readonly List<RetiredGenerationNotifications>
