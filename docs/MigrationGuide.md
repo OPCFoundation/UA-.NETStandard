@@ -87,19 +87,18 @@ provider through the server-wide historian registry, or override
 
 ## Migrating custom ISessionManager implementations to ShutdownAsync
 
-`ISessionManager` gained `ShutdownAsync(CancellationToken)`, and the
-synchronous `Shutdown()` is `[Obsolete]`. `SessionManager` previously
-started its session monitor loop with a discarded
-`Task.Factory.StartNew(...)`, so `Shutdown()` only *signalled* the loop
-and returned: the server could finish tearing down while the monitor was
-still closing expired sessions and raising keep-alive events against
-half-disposed state. `ShutdownAsync` cancels the loop and awaits it
-before disposing the sessions, which matches
-`ISubscriptionManager.ShutdownAsync`.
+`ISessionManager.Shutdown()` is **gone**, replaced by
+`ShutdownAsync(CancellationToken)`. `SessionManager` previously started its
+session monitor loop with a discarded `Task.Factory.StartNew(...)`, so
+`Shutdown()` only *signalled* the loop and returned: the server could
+finish tearing down while the monitor was still closing expired sessions
+and raising keep-alive events against half-disposed state. There is no
+correct synchronous way to wait for that loop — blocking on it would be
+sync-over-async — so the synchronous overload was removed rather than
+kept as a trap. `ShutdownAsync` cancels the loop and awaits it before
+disposing the sessions, matching `ISubscriptionManager.ShutdownAsync`.
 
-**Callers** need no change beyond preferring the async overload —
-`Shutdown()` still signals and closes the sessions, it just does not wait
-for the loop:
+**Callers** await instead of calling:
 
 ```csharp
 // before
@@ -111,8 +110,9 @@ await server.SessionManager.ShutdownAsync(cancellationToken)
 ```
 
 **Implementers** of `ISessionManager` (for example a manager registered
-through `services.AddSessionManager<T>()`) must add `ShutdownAsync`. If
-your implementation has no background work, delegate:
+through `services.AddSessionManager<T>()`) replace `Shutdown` with
+`ShutdownAsync`. If your implementation has no background work, return a
+completed task:
 
 ```csharp
 public ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
@@ -122,8 +122,9 @@ public ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
 }
 ```
 
-Deriving from `SessionManager` requires no change: both members are
-`virtual` and the base implementations already cooperate.
+Deriving from `SessionManager` requires no change beyond renaming any
+`Shutdown` override: `ShutdownAsync` is `virtual` and the base
+implementation already awaits the monitor loop.
 
 ## Migrating from 1.05.377 to 1.05.378
 

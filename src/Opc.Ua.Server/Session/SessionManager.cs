@@ -229,21 +229,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Stops the session manager and closes all sessions.
-        /// </summary>
-        [Obsolete("Use ShutdownAsync so the session monitor loop is awaited before the " +
-            "manager is torn down. This overload signals the loop but returns without " +
-            "waiting for it to exit.")]
-        public virtual void Shutdown()
-        {
-            // stop the monitoring loop.
-            m_shutdownEvent.Set();
-            m_workerCts?.Cancel();
-
-            CloseAllSessions();
-        }
-
-        /// <summary>
         /// Disposes every tracked session and empties the session table.
         /// </summary>
         private void CloseAllSessions()

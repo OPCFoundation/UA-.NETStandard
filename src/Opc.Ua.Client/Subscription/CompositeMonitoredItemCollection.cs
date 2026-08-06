@@ -69,7 +69,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// </summary>
     internal sealed class CompositeMonitoredItemCollection :
         IMonitoredItemCollection,
-        IMonitoredItemRetryCollection
+        IMonitoredItemRetryCollection,
+        IDisposable
     {
         /// <summary>
         /// Construct a composite over the supplied (shared) partition
@@ -542,7 +543,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         private void RunIdleDelete(IManagedSubscription partition)
         {
-            _ = Task.Run(async () =>
+            m_backgroundWork.Run(nameof(RunIdleDelete), async _ =>
             {
                 Func<IManagedSubscription, ValueTask>? disposer;
                 lock (m_partitionLock)
@@ -619,6 +620,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <summary>
+        /// Stops scheduling idle deletes and disposes every armed timer.
+        /// </summary>
+        public void Dispose()
+        {
+            DisposeIdleTimers();
+        }
+
+        /// <summary>
         /// Cancel and dispose every armed idle-delete timer. Called
         /// by the wrapper's <c>DisposeAsync</c> so timers do not
         /// outlive the logical subscription and fire against a
@@ -626,6 +635,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         internal void DisposeIdleTimers()
         {
+            // Signal only: this is reached from a synchronous teardown path. An
+            // idle delete already running finishes against a partition it has
+            // already removed from the maps, so it is safe to let it complete.
+            m_backgroundWork.Dispose();
+
             lock (m_partitionLock)
             {
                 foreach (ITimer t in m_idleTimers.Values)
@@ -709,6 +723,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         private readonly List<IManagedSubscription> m_partitions;
         private readonly object m_partitionLock;
+        private readonly BackgroundTaskScope m_backgroundWork =
+            new(nameof(CompositeMonitoredItemCollection), AmbientMessageContext.Telemetry);
         private readonly PartitionPlacementPolicy? m_policy;
         private readonly Func<IManagedSubscription>? m_partitionFactory;
         private readonly TimeProvider m_timeProvider;

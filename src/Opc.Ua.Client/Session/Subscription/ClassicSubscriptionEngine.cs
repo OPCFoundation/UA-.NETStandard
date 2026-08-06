@@ -65,6 +65,9 @@ namespace Opc.Ua.Client
             m_minPublishRequestCount = kDefaultPublishRequestCount;
             m_maxPublishRequestCount = kMaxPublishRequestCountMax;
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_backgroundWork = new BackgroundTaskScope(
+                nameof(ClassicSubscriptionEngine),
+                context.Telemetry);
         }
 
         /// <inheritdoc/>
@@ -197,6 +200,12 @@ namespace Opc.Ua.Client
         protected virtual void Dispose(bool disposing)
         {
             m_disposed = true;
+            if (disposing)
+            {
+                // Signal only: Dispose is synchronous. The throttled republish and
+                // the orphan cleanup both stop as soon as the token trips.
+                m_backgroundWork.Dispose();
+            }
         }
 
         /// <summary>
@@ -550,12 +559,14 @@ namespace Opc.Ua.Client
 
                     // throttle the next publish to reduce
                     // server load
-                    _ = Task.Run(async () =>
-                    {
-                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100))
-                            .ConfigureAwait(false);
-                        QueueBeginPublish();
-                    });
+                    m_backgroundWork.Run(
+                        "ThrottleNextPublish",
+                        async ct =>
+                        {
+                            await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100), ct)
+                                .ConfigureAwait(false);
+                            QueueBeginPublish();
+                        });
                     return;
                 }
             }
@@ -746,8 +757,11 @@ namespace Opc.Ua.Client
                 // Delete abandoned subscription from server.
                 m_logger.ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId(subscriptionId);
 
-                _ = Task.Run(
-                    () => m_context.DeleteOrphanedSubscriptionAsync(subscriptionId));
+                m_backgroundWork.Run(
+                    "DeleteOrphanedSubscription",
+                    async _ => await m_context
+                        .DeleteOrphanedSubscriptionAsync(subscriptionId)
+                        .ConfigureAwait(false));
             }
             else
             {
@@ -1015,6 +1029,7 @@ namespace Opc.Ua.Client
         private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
         private readonly TimeProvider m_timeProvider;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private readonly object m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
         internal uint PublishCounter;

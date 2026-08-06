@@ -101,6 +101,10 @@ namespace Opc.Ua.Server
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
 
+            m_backgroundWork = new BackgroundTaskScope(
+                nameof(SubscriptionManager),
+                server.Telemetry);
+
             // create queue and event for condition refresh worker
             m_conditionRefreshEvent = new ManualResetEvent(false);
             m_conditionRefreshQueue = new Queue<ConditionRefreshTask>();
@@ -153,6 +157,7 @@ namespace Opc.Ua.Server
                     subscription?.Dispose();
                 }
 
+                m_backgroundWork.Dispose();
                 m_shutdownEvent.Dispose();
                 m_conditionRefreshEvent.Dispose();
                 m_semaphoreSlim.Dispose();
@@ -303,6 +308,11 @@ namespace Opc.Ua.Server
 
                 m_workerCts?.Dispose();
                 m_workerCts = null;
+
+                // Expired-subscription cleanups scheduled by the publish sweep
+                // still delete subscriptions through the server, so drain them
+                // before the queues and subscriptions go away.
+                await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
 
                 // dispose of publish queues.
                 foreach (SessionPublishQueue queue in m_publishQueues.Values)
@@ -2492,7 +2502,7 @@ namespace Opc.Ua.Server
                 m_logger.SubscriptionAbandonedSubscriptionIdSubscriptionId(subscription.Id);
             }
 
-            CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
+            CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger, m_backgroundWork);
         }
 
         /// <summary>
@@ -2572,17 +2582,22 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="subscriptionsToDelete">The subscriptions to delete.</param>
         /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="backgroundWork">Owns the deletion so it is drained
+        /// before the caller that scheduled it goes away.</param>
         internal static void CleanupSubscriptions(
             IServerInternal server,
             IList<ISubscription> subscriptionsToDelete,
-            ILogger logger)
+            ILogger logger,
+            BackgroundTaskScope backgroundWork)
         {
             if (subscriptionsToDelete != null && subscriptionsToDelete.Count > 0)
             {
                 logger.ServerCountSubscriptionsScheduledForDelete(subscriptionsToDelete.Count);
 
-                _ = Task.Run(
-                    () => CleanupSubscriptionsCoreAsync(server, subscriptionsToDelete, logger));
+                backgroundWork.Run(
+                    nameof(CleanupSubscriptionsCoreAsync),
+                    async ct => await CleanupSubscriptionsCoreAsync(
+                        server, subscriptionsToDelete, logger, ct).ConfigureAwait(false));
             }
         }
 
@@ -2681,6 +2696,7 @@ namespace Opc.Ua.Server
         private readonly ManualResetEvent m_conditionRefreshEvent;
         private readonly ISubscriptionStore m_subscriptionStore;
         private Task? m_conditionRefreshWorkerTask;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private Task? m_publishWorkerTask;
         private CancellationTokenSource? m_workerCts;
 

@@ -94,14 +94,6 @@ namespace Opc.Ua.Server
         ValueTask ShutdownAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Stops the session manager and closes all sessions.
-        /// </summary>
-        [Obsolete("Use ShutdownAsync so the session monitor loop is awaited before the " +
-            "manager is torn down. This overload signals the loop but returns without " +
-            "waiting for it to exit.")]
-        void Shutdown();
-
-        /// <summary>
         /// Clears all tracked failed authentication attempts and lockouts.
         /// Intended for diagnostic and test scenarios.
         /// </summary>

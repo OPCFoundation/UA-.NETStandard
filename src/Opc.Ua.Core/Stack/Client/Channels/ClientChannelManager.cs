@@ -497,9 +497,18 @@ namespace Opc.Ua
             }
             ReconnectPolicy = reconnectPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
             TimeProvider = timeProvider ?? TimeProvider.System;
+            BackgroundWork = new BackgroundTaskScope(nameof(ClientChannelManager), telemetry);
             m_certRotation = new ClientChannelManagerCertRotation(this);
             WireCertificateRotation();
         }
+
+        /// <summary>
+        /// Owns the background work the channel internals start but cannot await
+        /// inline, so it is drained before the manager goes away.
+        /// </summary>
+        internal BackgroundTaskScope BackgroundWork { get; }
+
+        BackgroundTaskScope IChannelEntryHost.BackgroundWork => BackgroundWork;
 
         /// <inheritdoc/>
         public ValueTask<IManagedTransportChannel> GetAsync(
@@ -1057,6 +1066,11 @@ namespace Opc.Ua
                 await entry.DisposeAsync(ChannelCloseReason.ManagerDisposed)
                     .ConfigureAwait(false);
             }
+
+            // Drain last: releasing a lease or tearing down an entry can still
+            // schedule background work, and none of it may outlive the manager
+            // whose state it touches.
+            await BackgroundWork.DisposeAsync().ConfigureAwait(false);
 
             m_meter?.Dispose();
             m_shutdownCts.Dispose();

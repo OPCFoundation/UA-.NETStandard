@@ -632,8 +632,8 @@ namespace Opc.Ua.Client.Subscriptions
             ThrowIfDispatchingNotification(snapshot, "disposed");
             // Stop any armed secondary-partition idle timers first so
             // they cannot fire against partitions we are tearing
-            // down.
-            m_monitoredItems.DisposeIdleTimers();
+            // down, and stop scheduling new idle deletes.
+            m_monitoredItems.Dispose();
             // Dispose partitions in reverse-add order; secondary partitions
             // (added on demand) hold references back to the primary's
             // notification handler in subsequent milestones, so removing

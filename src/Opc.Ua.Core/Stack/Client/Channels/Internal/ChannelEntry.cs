@@ -441,7 +441,17 @@ namespace Opc.Ua
 
             if (starter)
             {
-                _ = Task.Run(() => RunReconnectCycleAsync(tcs), CancellationToken.None);
+                // The cycle's own outcome is observed through tcs, but the manager
+                // still has to know the work exists so disposal waits for it.
+                if (!OwnerManager.BackgroundWork.Run(
+                    nameof(RunReconnectCycleAsync),
+                    async _ => await RunReconnectCycleAsync(tcs).ConfigureAwait(false)))
+                {
+                    // The manager is going away; nothing will run the cycle.
+                    tcs.TrySetException(ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel manager is shutting down."));
+                }
             }
 
             return tcs.Task.WaitAsync(ct);
