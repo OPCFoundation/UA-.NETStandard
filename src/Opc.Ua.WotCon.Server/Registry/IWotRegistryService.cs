@@ -61,7 +61,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Gets or sets the raw document source bytes.
         /// </summary>
-        public ReadOnlyMemory<byte> Content { get; set; }
+        public ByteString Content { get; set; }
 
         /// <summary>
         /// Gets or sets the document media type.
@@ -367,6 +367,22 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         ValueTask<WotRegistryMutationResult> UpsertResourceAsync(
             WotUpsertResourceRequest request,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads the bytes for a stored resource version from the registry resource store.
+        /// </summary>
+        ValueTask<ByteString> ReadContentAsync(
+            WotResourceVersion version,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads one chunk of document bytes from the registry resource store by content digest.
+        /// </summary>
+        ValueTask<ByteString> ReadContentChunkAsync(
+            string digestHex,
+            long offset,
+            int count,
             CancellationToken cancellationToken = default);
 
         /// <summary>

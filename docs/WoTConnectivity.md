@@ -562,6 +562,26 @@ options.ResourceStore = new WotBlobResourceStore("/mnt/shared/wot-documents");
 
 The registry still writes and switches its own manifest atomically; only the bytes move. That split is required because `IXRegistryResourceStore` has no staging, flush or bulk-delete concept, whereas the file store fsyncs its blob directory before the manifest switch and deletes it wholesale when rolling back a pristine commit. It is safe because documents are content-addressed and therefore immutable: a document is always written *before* the manifest that references it, so an interrupted commit can leave an orphaned document but never a dangling reference. A supplied store owns the durability of the bytes it holds.
 
+##### Staging and promotion
+
+Writing bytes before the manifest that names them collides with the way the file store recognises trouble: a `blobs/` directory with no manifest means a lost generation or a crashed commit, and the store fails closed rather than report an empty registry and discard data. If the writer put bytes straight into `blobs/`, the very first write on a fresh deployment would look exactly like that.
+
+So writes land in `staging/` and the commit **promotes** the entries its snapshot references into `blobs/` as artifacts it owns, before switching the manifest:
+
+```text
+{root}/staging/…            writer's durable scratch — never evidence of prior state
+{root}/blobs/{digest}.bin   promoted by the commit, named by the manifest
+{root}/manifest.json        switched last
+```
+
+Reads prefer `blobs/` and fall back to `staging/`, so content written but not yet committed is still readable by the transaction that wrote it. A staged entry that never gets promoted is inert and safe to delete: nothing can reference a document until a manifest names it, and only promoted entries are ever named. A commit that is refused therefore leaves a staged orphan and changes nothing else.
+
+Promotion also restores the integrity check that content addressing is worth having. Each referenced document is streamed and hashed as the snapshot is validated, so a blob whose bytes were altered without changing its length, or that cannot be read at all, fails the commit closed. The hash is computed incrementally over chunks, so verifying a document never requires holding it in memory — which is the point of keeping bytes out of the snapshot. Structural validation runs first, so a malformed snapshot is reported for what is wrong with it rather than for content it was never entitled to reference.
+
+The practical win is that a commit no longer rewrites the whole corpus. A blob is written once per digest, so editing one document leaves every other document's file untouched — asserted by `MutatingOneResourceDoesNotRewriteAnotherResourceBytes`.
+
+A decorator around `IWotRegistryStore` **must** forward `IWotRegistryResourceStoreProvider`. A decorator that drops it leaves the registry service writing bytes into a private in-memory store while the wrapped store validates against its own, and every commit then reports the documents missing.
+
 Resource bounds (`WotRegistryPersistenceBounds`) cap document size, versions per resource, resources per group, and group count.
 
 ### 11.3 Materialization coordinator

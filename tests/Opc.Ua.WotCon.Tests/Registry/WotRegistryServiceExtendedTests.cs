@@ -345,7 +345,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "MyDevice",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td("urn:device")
+                Content = ByteString.From(TestMaterialization.Td("urn:device"))
             };
 
             WotRegistryMutationResult result = await service.UpsertResourceAsync(request);
@@ -363,7 +363,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "a",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td("urn:a")
+                Content = ByteString.From(TestMaterialization.Td("urn:a"))
             });
 
             WotRegistryMutationResult result = await service.UpsertResourceAsync(
@@ -372,7 +372,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "b",
                     Kind = WoTDocumentKindEnum.ThingDescription,
-                    Content = TestMaterialization.Td("urn:b")
+                    Content = ByteString.From(TestMaterialization.Td("urn:b"))
                 });
 
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected),

@@ -233,7 +233,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = content
+                Content = ByteString.From(content)
             }).AsTask();
         }
 

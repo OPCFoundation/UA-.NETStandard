@@ -204,7 +204,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "a",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td(SourceHref)
+                Content = ByteString.From(TestMaterialization.Td(SourceHref))
             });
             WotRegistrySnapshot snapshot = service.Current;
 

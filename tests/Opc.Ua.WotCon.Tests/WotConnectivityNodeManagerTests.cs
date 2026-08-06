@@ -989,8 +989,15 @@ namespace Opc.Ua.WotCon.Tests
             byte[] expected = JsonSerializer.SerializeToUtf8Bytes(
                 td,
                 ThingDescriptionJsonContext.Default.ThingDescription);
-            Assert.That(resource!.DefaultVersion!.Content.ToArray(), Is.EqualTo(expected),
+            // The version carries the digest rather than the bytes, and a SHA-256
+            // match is the same assertion: the mirrored document is byte-identical.
+            Assert.That(
+                resource!.DefaultVersion!.DigestHex,
+                Is.EqualTo(WotContentDigest.ToHex(WotContentDigest.Compute(expected))),
                 "The mirrored registry document must not diverge from the legacy document.");
+            Assert.That(
+                resource.DefaultVersion!.ContentLength,
+                Is.EqualTo(expected.Length));
 
             ServiceResult delete = await harness.Registry
                 .DeleteAssetAsync(assetId, CancellationToken.None).ConfigureAwait(false);

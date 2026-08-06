@@ -175,7 +175,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "td-v1",
                     Kind = WoTDocumentKindEnum.ThingDescription,
-                    Content = TestMaterialization.Td("urn:td", "v1")
+                    Content = ByteString.From(TestMaterialization.Td("urn:td", "v1"))
                 });
 
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -183,7 +183,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "td-v1",
                     Kind = WoTDocumentKindEnum.ThingDescription,
-                    Content = TestMaterialization.Td("urn:td", "v2")
+                    Content = ByteString.From(TestMaterialization.Td("urn:td", "v2"))
                 });
 
                 var reloadStore = new FileWotRegistryStore(root);
@@ -216,7 +216,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         GroupId = WotRegistryGroups.ThingDescriptions,
                         ResourceId = "to-delete",
                         Kind = WoTDocumentKindEnum.ThingDescription,
-                        Content = TestMaterialization.Td("urn:del")
+                        Content = ByteString.From(TestMaterialization.Td("urn:del"))
                     });
                     await service.DeleteResourceAsync(
                         WotRegistryGroups.ThingDescriptions, "to-delete");
@@ -252,7 +252,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         GroupId = WotRegistryGroups.ThingDescriptions,
                         ResourceId = "labeled",
                         Kind = WoTDocumentKindEnum.ThingDescription,
-                        Content = TestMaterialization.Td("urn:labeled")
+                        Content = ByteString.From(TestMaterialization.Td("urn:labeled"))
                     });
                     await service.AddResourceLabelAsync(
                         WotRegistryGroups.ThingDescriptions, "labeled", "color", "red");
@@ -290,7 +290,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "first",
                     Kind = WoTDocumentKindEnum.ThingDescription,
-                    Content = TestMaterialization.Td("urn:first")
+                    Content = ByteString.From(TestMaterialization.Td("urn:first"))
                 });
 
                 Assert.That(Directory.Exists(blobsDir), Is.True,
@@ -321,14 +321,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "a",
                     Kind = WoTDocumentKindEnum.ThingDescription,
-                    Content = content
+                    Content = ByteString.From(content)
                 });
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = WotRegistryGroups.ThingModels,
                     ResourceId = "b",
                     Kind = WoTDocumentKindEnum.ThingModel,
-                    Content = content
+                    Content = ByteString.From(content)
                 });
 
                 Assert.That(Directory.GetFiles(blobsDir, "*.bin"), Has.Length.EqualTo(1),

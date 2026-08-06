@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server.Materialization
@@ -211,10 +213,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Thing Model lands in a single closure), then each component is
         /// topologically ordered.
         /// </summary>
-        public static ImmutableArray<WotDependencyClosure> BuildClosures(
+        public static async ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
             WotRegistrySnapshot snapshot,
             IReadOnlyCollection<WotResource> selected,
-            int maxJsonDepth)
+            int maxJsonDepth,
+            Func<WotResourceVersion, CancellationToken, ValueTask<ByteString>> readContent,
+            CancellationToken cancellationToken)
         {
             if (selected.Count == 0)
             {
@@ -236,6 +240,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var edges = new Dictionary<string, List<WotDependency>>(StringComparer.Ordinal);
             while (queue.Count > 0)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 WotResource resource = queue.Dequeue();
                 var list = new List<WotDependency>();
                 edges[resource.Xid] = list;
@@ -244,8 +249,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     continue;
                 }
+                ByteString content = await readContent(version, cancellationToken)
+                    .ConfigureAwait(false);
                 foreach ((string href, string refType) in ExtractReferences(
-                    version.Content, maxJsonDepth))
+                    content.Span.ToArray(), maxJsonDepth))
                 {
                     WotResource? target = Resolve(snapshot, href);
                     list.Add(new WotDependency(

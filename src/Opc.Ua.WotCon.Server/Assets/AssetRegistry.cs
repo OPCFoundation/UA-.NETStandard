@@ -943,7 +943,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                         GroupId = m_options.RegistryBridgeGroupId,
                         ResourceId = name,
                         Kind = WoTDocumentKindEnum.ThingDescription,
-                        Content = bytes,
+                        Content = ByteString.From(bytes),
                         ContentType = "application/td+json",
                         Format = "WoT-TD/1.1",
                         Name = name,
