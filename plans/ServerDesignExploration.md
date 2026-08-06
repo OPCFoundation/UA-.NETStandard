@@ -1,1669 +1,1032 @@
-# Server Design Exploration — Design It Twice
+# Server Design Exploration, Round 2 — Delivery Strategy
 
 > **Status: design exploration / proposal — not shipped API.**
-> Four independent alternative designs for `src/Opc.Ua.Server` and its dependencies,
-> produced in parallel by four designers each working to a different design constraint,
-> followed by a comparison and a recommendation. Nothing here has been implemented.
->
-> This exploration deliberately includes the `NodeState` and node-manager surfaces,
-> which were excluded from [ServerRuntimeAnalysis.md](ServerRuntimeAnalysis.md) as
-> plugin API. It therefore supersedes nothing — it is the "what if we could change
-> everything" companion to the two evidence documents.
+> Round 2 of the Design It Twice exercise, run under a **different premise** from
+> [round 1](ServerDesignExplorationAlt.md): backward compatibility with 1.5.378 is no longer
+> required, and breaking changes are carried by the migration guide plus the
+> `Opc.Ua.MigrationAnalyzer` tooling. Nothing here has been implemented.
 
-Produced against commit `e73e71184` on `master`, 5 Aug 2026.
+Produced against commit `e73e71184` on `master`, 6 Aug 2026.
 
 ## Related documents
 
 | Document | Scope |
 |---|---|
-| [NodeManagerAnalysis.md](NodeManagerAnalysis.md) | Evidence: the node-manager plugin surface (93 virtuals, 112 override sites) |
-| [ServerRuntimeAnalysis.md](ServerRuntimeAnalysis.md) | Evidence: the server runtime cluster, node managers excluded |
-| **This document** | Design: four alternative interfaces covering *both*, plus a recommendation |
+| [NodeManagerAnalysis.md](NodeManagerAnalysis.md) | Evidence: the node-manager plugin surface |
+| [ServerRuntimeAnalysis.md](ServerRuntimeAnalysis.md) | Evidence: the server runtime cluster |
+| [ServerDesignExplorationAlt.md](ServerDesignExplorationAlt.md) | Round 1 (alternative): four interface designs under the back-compat constraint |
+| **This document** | Round 2: **how to deliver** — full rewrite vs side-by-side fork, plus the `NodeState` question round 1 refused |
 
 ## Table of contents
 
-- [Why this exercise](#why-this-exercise)
+- [What changed from round 1](#what-changed-from-round-1)
 - [Method](#method)
-- [The problem space as briefed](#the-problem-space-as-briefed)
-  - [Measured surface](#measured-surface)
-  - [Interface complexity outside the type signature](#interface-complexity-outside-the-type-signature)
-  - [Dependency categories](#dependency-categories)
-  - [Hard constraints given to every designer](#hard-constraints-given-to-every-designer)
-- [Design 1 — One-Seam Address Space (minimise the interface)](#design-1--one-seam-address-space-minimise-the-interface)
-- [Design 2 — Composition-First (maximise flexibility)](#design-2--composition-first-maximise-flexibility)
-- [Design 3 — Progressive Ladder (optimise the common caller)](#design-3--progressive-ladder-optimise-the-common-caller)
-- [Design 4 — State-Placement (ports and adapters)](#design-4--state-placement-ports-and-adapters)
+- [The migration infrastructure that now carries the burden](#the-migration-infrastructure-that-now-carries-the-burden)
+- [Option A — Full rewrite](#option-a--full-rewrite)
+- [Option B — Side-by-side fork](#option-b--side-by-side-fork)
+- [The NodeState question](#the-nodestate-question)
+- [Cross-cutting findings](#cross-cutting-findings)
+  - [New finding: a second lock leak](#new-finding-a-second-lock-leak)
+  - [Adjudicated disagreement: is NodeState client-coupled?](#adjudicated-disagreement-is-nodestate-client-coupled)
+  - [What all three designers converged on](#what-all-three-designers-converged-on)
 - [Comparison](#comparison)
-  - [Convergence — what all four agreed on](#convergence--what-all-four-agreed-on)
-  - [Divergence — the real disagreements](#divergence--the-real-disagreements)
-  - [Depth](#depth)
-  - [Locality](#locality)
-  - [Seam placement](#seam-placement)
-  - [Four answers to one defect](#four-answers-to-one-defect)
-- [Recommendation](#recommendation)
-  - [The hybrid](#the-hybrid)
-  - [What to reject and why](#what-to-reject-and-why)
-  - [Sequencing](#sequencing)
+- [Recommendation — staged convergence](#recommendation--staged-convergence)
+  - [The sequence](#the-sequence)
+  - [The gate that decides everything](#the-gate-that-decides-everything)
+  - [When to switch to a pure option](#when-to-switch-to-a-pure-option)
   - [Honest caveats](#honest-caveats)
-- [Appendix — verified facts each designer independently confirmed](#appendix--verified-facts-each-designer-independently-confirmed)
 
-## Why this exercise
+## What changed from round 1
 
-Per *Design It Twice* (Ousterhout): your first idea is unlikely to be the best. The two
-evidence documents established **what** is wrong with the current interfaces. They did not
-establish what should replace them, and the obvious replacement — "narrow the seam to the
-6 members people actually override" — is only one point in a large design space.
+Round 1 ran under a hard constraint: **1.5.378 compatibility, additive changes only,
+`[Obsolete]` rather than remove.** Every design was shaped by it, and two designers
+explicitly declined work because of it — most notably the `NodeState` re-cut:
 
-Four designers were given the same evidence and the same constraints, but different design
-constraints, and told to be radical. The value is in the disagreements, and in what they
-converged on despite never seeing each other's work.
+> *"I did not try to make `NodeState` itself composable-not-inherited — source generators
+> emit `NodeState` subclasses and that is a 15k-line load-bearing contract; re-cutting it is
+> out of scope and higher-risk than it is worth."* — round 1, `design-flexible`
+
+Round 2 lifts that constraint. The question is no longer *what should the interface be* —
+round 1 answered that, and its four designers converged strongly. The question is now
+**how to get there**, with two candidate strategies:
+
+- **Option A — full rewrite.** The existing implementation is replaced. One implementation
+  at the end. Consumers migrate via analyzer + guide.
+- **Option B — side-by-side fork.** The existing architecture is retained and a new
+  implementation ships alongside it in the same assembly. Consumers move at their own pace.
 
 ## Method
 
-Each designer received an identical technical brief containing: the measured surface below,
-the deep-module vocabulary (module, interface, implementation, depth, seam, adapter,
-leverage, locality), the principles (deletion test, "the interface is the test surface",
-one-adapter-means-hypothetical), the OPC UA domain vocabulary, the dependency-category
-framework, the hard constraints, and the list of existing seams to reuse rather than
-reinvent.
+Three designers worked in parallel, read-only, from an identical evidence base (the two
+analysis documents plus round 1's outcome), differing only in assignment:
 
-They differed only in one paragraph:
-
-| Designer | Design constraint |
+| Designer | Assignment |
 |---|---|
-| `design-minimal` | Minimise the interface. 1–3 entry points maximum. Maximise leverage per entry point. |
-| `design-flexible` | Maximise flexibility and composability — but through composition of small deep modules, **not** a wide inheritance surface. |
-| `design-commoncase` | Optimise for the most common caller. Make the default trivial, then make the progression to advanced smooth and explicit. |
-| `design-ports` | Design around ports and adapters, driven by the distributed / high-availability case. Be rigorous about the one-adapter rule. |
+| `r2-rewrite` | Build the strongest Option A and price it honestly |
+| `r2-fork` | Build the strongest Option B and price it honestly |
+| `r2-nodestate` | Decide whether `NodeState` should be re-cut — permitted to conclude "no" |
 
-All four worked read-only; no repository files were modified. Each produced five sections:
-interface, usage example, what the implementation hides, dependency strategy and adapters,
-and trade-offs. Their designs are reproduced below **verbatim and in full**.
+Both option-designers were told their counterpart existed and that *an oversold proposal
+loses to a fairly-priced one*. Both were required to produce balanced pros/cons and a
+falsifiable "what would make this the right choice" section. `r2-fork` was explicitly
+invited to say so if round 1's *soft* fork dominated its assigned *hard* fork.
 
-## The problem space as briefed
+Their proposals are reproduced below **verbatim and in full**.
 
-### Measured surface
+## The migration infrastructure that now carries the burden
 
-| Module | Interface | Implementation |
-|---|---:|---|
-| `NodeState` | **155 public, 65 virtual, 18 public delegates**, 2 events | 5,824 lines (`State` folder: 22 files / 15,434 lines) |
-| `AsyncCustomNodeManager` | **93 virtual/abstract** (80 distinct names) | 8,028 lines, 59 public + 92 protected |
-| `CustomNodeManager2` | 93 virtual/abstract | 6,302 lines |
-| `INodeManager.cs` | **22 interfaces in one file** | version chain `INodeManager`→`2`→`3` + async twin + 15 capability interfaces |
-| `MasterNodeManager` | 36 public | 7,601 lines |
-| `IServerInternal` | **57** (34 properties, 12 `Set*`) | `ServerInternalData` 1,355 lines, 200+ referencing files |
-| `ISubscription` | 42 | 3,471 |
-| `ISession` | 37 | 1,526 |
-| `ISubscriptionManager` | 26 | 2,858 |
-| `ISessionManager` | 18 (7 events) | 1,940 |
-| `IStandardServer` | **9** | 5,575 — the one healthy seam |
+Since the premise shifts the cost onto tooling, its actual reach is decisive. Measured:
 
-Override census across `src` + `samples` + `tests`: **112 override sites, 25 distinct names
-ever overridden, 55 of 80 never overridden anywhere.**
+| Asset | Reach |
+|---|---|
+| **20 analyzers** `UA0001`–`UA0023` | Types, client, config, certificates, GDS, PubSub |
+| **14 automated code fixes** | ~70% auto-fix rate |
+| Runtime shim `Opc.Ua.MigrationAnalyzer.Core`, marked `[OpcUaShim]` | Client `Session` (1,374 lines), classic `Subscription`, `ApplicationInstance`, `ChannelBase`, `TransportChannel`, `ServerBase`, `ApplicationConfiguration`, `EncodeableFactory`, `BuiltInType`, `CertificateIdentifier`, 3 GDS clients |
+| `MigrationGenerator.cs` (381 lines) | Source-generated `<Type>Collection` shims |
+| `docs/migrate/2.0.x/` | 15 per-area guides, including **`node-states.md`** |
 
-| Member | Sites | core | sibling libs | samples | tests |
-|---|---:|---:|---:|---:|---:|
-| `CreateAddressSpaceAsync` | 21 | 5 | 9 | 5 | 2 |
-| `Dispose` | 14 | 4 | 5 | 4 | 1 |
-| `New` (NodeId factory) | 12 | 3 | 5 | 3 | 1 |
-| `LoadPredefinedNodesAsync` | 11 | 1 | 8 | 1 | 1 |
-| `DeleteAddressSpaceAsync` | 8 | 2 | 4 | 1 | 1 |
-| `AddBehaviourToPredefinedNodeAsync` | 5 | 1 | 3 | 1 | 0 |
-| `OnMonitoredItemCreated` | 4 | 2 | 1 | 1 | 0 |
-| `OnMonitoredItemDeletedAsync` | 3 | 1 | 1 | 1 | 0 |
-| `GetHistorianProvider` | 3 | 0 | 0 | 2 | 1 |
-| `GetManagerHandleAsync` | 3 | 1 | 1 | 1 | 0 |
-| `ValidateNodeAsync` | 3 | 1 | 1 | 1 | 0 |
-| `OnMonitoringModeChangedAsync` | 3 | 1 | 1 | 1 | 0 |
-
-then a tail of `OnSubscribeToEventsAsync` (2), `ConditionRefreshAsync` (2),
-`OnMonitoredItemModifiedAsync` (2), `OnNodeRemovedAsync` (2), and ten single-use names.
-
-For scale: `ReferenceNodeManager` is a 6,373-line sample that overrides **8**.
-`FluentNodeManagerBase` overrides **4**. Exactly **one** class implements `INodeManager`
-directly outside the framework.
-
-The 18 `NodeState` delegates, many in sync/async pairs:
-`NodeStateChangedHandler` + `NodeStateChangedAsyncHandler`, `NodeStateReportEventHandler` +
-`NodeStateReportEventAsyncHandler`, `NodeValueEventHandler` + `NodeValueEventHandlerAsync`,
-`NodeValueSimpleEventHandler` + `NodeValueSimpleEventHandlerAsync`,
-`NodeValueWriteEventHandlerAsync`, `NodeValueSimpleWriteEventHandlerAsync`,
-`NodeStateValidateHandler`, `NodeStateReferenceAdded`, `NodeStateReferenceRemoved`,
-`NodeStateConditionRefreshEventHandler`, `NodeStateCreateBrowserEventHandler`,
-`NodeStatePopulateBrowserEventHandler`, `NodeAttributeEventHandler<T>`,
-`NodeStateConstructDelegate`.
-
-### Interface complexity outside the type signature
-
-Under the definition used throughout — the interface is *everything a caller must know* —
-these count, and they are enforced only by prose:
-
-- **`object? GetManagerHandle(NodeId)`** — an opaque untyped handle the caller round-trips.
-- **The `Processed` flag protocol** — *"must ignore ReadValueId with Processed set to true;
-  must set Processed for any it processes."* Restated **6 times** in `INodeManager.cs`.
-  `MasterNodeManager` broadcasts each request to every node manager and relies on each one
-  honouring it.
-- **Index-aligned parallel accumulators** — `Read(..., IList<DataValue> values,
-  IList<ServiceResult> errors)`; the caller pre-sizes, the implementer must index-align.
-- **`Browse(..., ref ContinuationPoint, IList<ReferenceDescription>)`** — documented that
-  *"references may already contain references when the method is called."*
-- **88 `lock` statements** on `object`-typed locks published across `IServerInternal`,
-  `ISession` and `ISubscription`, including 2 in a shipped sample. `DiagnosticsWriteLock`'s
-  getter calls `ForceDiagnosticsScan()` *outside* the lock it then returns.
-
-### Dependency categories
-
-| Category | What is here | Consequence |
-|---|---|---|
-| **1 — In-process** | node graph, diagnostics, publish pipeline, request routing | Deepenable directly, no port |
-| **2 — Local-substitutable** | `IContinuationPointStore`, `ISubscriptionStore`, `IMonitoredItemQueueFactory` | Internal seam only |
-| **3 — Remote but owned** | `ILocalAddressSpace`, HA/redundancy state stores | Ports already exist |
-| **4 — True external** | historian, file system — user-supplied | `IHistorianProvider` (2 members) is the exemplar |
-
-**No new port is needed.** Every external dependency already sits behind one. Designers were
-told this explicitly and asked to reuse rather than invent.
-
-Existing seams held up as exemplars: `IHistorianProvider` (2 members over ~5,900 lines with
-opt-in capability interfaces routed by `HistorianDispatcher`), `ILocalAddressSpace`
-(7 members, two real adapters), `IMonitoredItemManager` (7), `IFileSystemProvider` (11).
-
-### Hard constraints given to every designer
-
-1. **1.5.378 backward compatibility** — additive only, `[Obsolete]` rather than remove.
-2. **NativeAOT and trimming compatible** — no reflection requiring suppression.
-3. **Multi-TFM** — netstandard2.0/2.1, net48, net8.0/9.0/10.0.
-4. **DI-injectable** with a direct-construct fallback.
-5. **Type rules** — `ArrayOf<T>` over `IReadOnlyList<T>`/`T[]`; `ByteString` over `byte[]`;
-   `Span<byte>`/`ReadOnlySpan<byte>`; **never `object` in public API** (use `Variant`);
-   `INullable` types never wrapped in `System.Nullable<T>`.
-6. **Never expose locks** — `System.Threading.Lock` only, never `object`.
-7. **Async-only (TAP)** — no sync-over-async.
-8. **Sealed by default**, provider model over inheritance.
-9. **Source-generator-emittable.**
-10. **Must still support** 33 existing node-manager subclasses, companion specs (DI, GDS,
-    PubSub, Robotics, ISA95, WoT), NodeSet2 runtime loading, HA/distributed servers, and the
-    full OPC UA service set.
+**Every existing analyzer and every shim targets the client, types, configuration,
+certificates or GDS surfaces. None targets the node-manager or `NodeState` authoring
+surface.** The tooling has never been pointed at the server authoring model. Both option
+designers were required to price that gap rather than assume the 70% rate carries over.
 
 ---
 
+## Option A — Full rewrite
 
-## Design 1 — One-Seam Address Space (minimise the interface)
+**Assignment:** *Design and evaluate a full rewrite of `Opc.Ua.Server`. The existing implementation is replaced; one implementation at the end. Build the strongest possible version, and be rigorous and HONEST about its costs — an oversold proposal loses to a fairly-priced one.*
 
-**Design constraint given:** *Minimise the interface. Aim for 1-3 entry points maximum for authoring a server-side address space. Maximise leverage per entry point. Be radical — find out how small this interface can possibly get while still supporting real OPC UA servers.*
+> Reproduced verbatim as delivered. Section numbering is the designer's own.
 
-> Reproduced verbatim as delivered by the designer. Section numbering is the designer's own.
+### Option A — Full Rewrite of `Opc.Ua.Server`
 
-### The One-Seam Address Space: a minimal authoring interface for OPC UA servers
+*Design proposal, commit `e73e71184`. Read-only investigation; nothing modified. Measured facts are cited inline.*
 
-#### Design thesis
-
-A server author does exactly one thing: **contribute a partition of the address space**. Everything else the current 22 interfaces / 93 virtuals / 155 public members expose — routing, batching, the `Processed`-flag multiplex, continuation-point slicing, index-alignment, the publish pipeline, the service-locator — is framework plumbing that leaked across the seam. This design pushes all of it behind **one contributor interface (`INodeSource`, 2 members)**, **one builder the contributor is handed (`IAddressSpace`)**, and **one DI verb (`AddAddressSpace`)**. Virtual/external address spaces opt into behaviour through tiny capability interfaces inspected by a dispatcher — modelled bit-for-bit on `IHistorianProvider`, the best seam already in the tree.
-
-Radical claim: **95% of authors write a single method body and never name a second framework type. The other 5% implement between 2 and 5 one-line-signature members.** No base class. No factory. No `IServerInternal`. No `NodeState` unless they ask for it.
+**Scope reminder.** `Opc.Ua.Server` is **323 files / 133,695 lines**. `NodeState` and the information-model classes are **not** in it — they live in `Opc.Ua.Types/State` (22 files / ~15,434 lines) and are emitted by the source generator into `Opc.Ua.Core`, shared with the *client*. That boundary is load-bearing for everything below.
 
 ---
 
-#### 1. Interface
+#### 1. The design, freed from back-compat
 
-The entire mandatory authoring surface is two members:
+Round 1's hybrid was shaped by one compromise it could not escape: it kept **rung 4** — the entire `INodeManager`/`AsyncCustomNodeManager` surface — un-obsoleted and first-class, "because plugin surface with 33 subclasses." With compatibility lifted, the single most important change is:
 
-```csharp
-namespace Opc.Ua.Server.AddressSpace
-{
-    /// <summary>
-    /// The single seam for contributing a partition of the server address space.
-    /// A source owns one or more namespaces and is asked, exactly once, to bind
-    /// its content.
-    ///
-    /// INVARIANTS
-    ///  * <see cref="Namespaces"/> is stable for the lifetime of the source and
-    ///    is read before <see cref="BindAsync"/>; the framework assigns indexes.
-    ///  * <see cref="BindAsync"/> is called once per activation, after namespace
-    ///    assignment, before the source serves any request. On an HA standby it
-    ///    may be called again after a snapshot hydrate, so it MUST be idempotent.
-    ///
-    /// DEPTH (what the framework owns, not you): MasterNodeManager routing by
-    /// namespace, request batching, the Processed-flag multiplex across sources,
-    /// continuation-point slicing + persistence, index-range/data-encoding
-    /// post-processing, the monitored-item/publish pipeline, subscription
-    /// transfer. A source answers about ONE node at a time and never sees a
-    /// ContinuationPoint, an index-aligned accumulator, or the Processed flag.
-    /// </summary>
-    public interface INodeSource
-    {
-        /// <summary>
-        /// Namespace URIs owned by this source. Fixed for the source lifetime.
-        /// </summary>
-        ArrayOf<string> Namespaces { get; }
+> **There is no rung 4. The full node-manager surface is deleted, not retained.** One authoring model, one runtime, one test surface.
 
-        /// <summary>
-        /// Publishes this source's content into <paramref name="space"/>: either
-        /// materialize nodes (Add*/Import) and/or declare on-demand content
-        /// (space.Virtualize(this)). Errors abort server start.
-        /// </summary>
-        ValueTask BindAsync(IAddressSpace space, CancellationToken ct);
-    }
-}
-```
+Everything else follows from removing that escape valve. The four round-1 seams (portable handle, `IServerContext`, data/behaviour split, interceptor chain) were *already* the right shape; the constraint change lets them become the **only** shape instead of a second one layered beside the old.
 
-`IAddressSpace` is the builder the contributor is handed. It is deliberately small — depth lives *below* it (the NodeState engine) and *beside* it (node sources), not *in* it:
+##### 1.1 The composition root (unchanged verbs, but now the only path)
 
 ```csharp
-public interface IAddressSpace
-{
-    ISystemContext Context { get; }
-    ushort NamespaceIndex { get; }                 // index of Namespaces[0]
-
-    /// <summary>Purpose-built services for an address-space author: telemetry,
-    /// namespace table, and registration of the base-service providers. This is
-    /// NOT IServerInternal — no subsystem handles, no Set* mutators.</summary>
-    IAddressSpaceServices Services { get; }
-
-    // ---- Materialize (trivial + companion-spec authors) ----
-    /// <summary>Load a NodeSet2 / companion-spec model. The generator emits a
-    /// typed overload; the runtime overload takes a NodeSet2 stream. Returns a
-    /// binder for wiring behaviour onto model nodes.</summary>
-    IModelBinder Import(NodeModel model);
-
-    IFolderHandle    AddFolder(QualifiedName browseName);                 // under Objects
-    IFolderHandle    AddFolder(QualifiedName browseName, NodeId parent);  // NodeId.Null == Objects
-    IVariableHandle<T> AddVariable<T>(QualifiedName browseName, NodeId parent);
-    IMethodHandle    AddMethod(QualifiedName browseName, NodeId parent);
-
-    // ---- Bind behaviour onto an already-present node ----
-    INodeHandle        Node(NodeId nodeId);
-    IVariableHandle<T> Variable<T>(NodeId nodeId);
-    IMethodHandle      Method(NodeId nodeId);
-
-    // ---- Virtualize (external / browse-on-demand authors) ----
-    /// <summary>Declares an on-demand content provider. The framework routes
-    /// Browse/Read (and opt-in Write/Call/Observe/topology) for this source's
-    /// namespaces to <paramref name="provider"/>. Justified by two adapters: the
-    /// built-in NodeState-backed source and any external-system source.</summary>
-    void Virtualize(IVirtualNodes provider);
-
-    // ---- Reuse existing seams; do not reinvent ----
-    void UseHistorian(IHistorianProvider historian);   // Part 11 (existing umbrella seam)
-}
-```
-
-Node handles carry the whole per-node vocabulary (bind + runtime push). `INullable` domain types are never wrapped in `Nullable<T>`; values are `Variant`/`DataValue`; there is no `object` anywhere:
-
-```csharp
-public interface INodeHandle
-{
-    NodeId NodeId { get; }
-    INodeHandle OnEvent(out IEventEmitter emitter);            // push events
-}
-
-public interface IVariableHandle<T> : INodeHandle
-{
-    IVariableHandle<T> OnRead(Func<CancellationToken, ValueTask<T>> read);
-    IVariableHandle<T> OnRead(Func<ISystemContext, CancellationToken, ValueTask<T>> read);
-    IVariableHandle<T> OnWrite(Func<T, CancellationToken, ValueTask> write);
-    IVariableHandle<T> Observe(out IValueUpdater<T> updater);  // reuse existing IValueUpdater<T>
-    IVariableHandle<T> Historize();                            // opt this node into Part 11
-}
-
-public interface IMethodHandle : INodeHandle
-{
-    IMethodHandle OnCall(Func<CancellationToken, ValueTask> call);
-    IMethodHandle OnCall<TOut>(Func<CancellationToken, ValueTask<TOut>> call);
-    IMethodHandle OnCall<TIn, TOut>(Func<TIn, CancellationToken, ValueTask<TOut>> call);
-    // further typed arities are source-generator-emitted from the method's Arguments
-}
-```
-
-The **virtualization capability interfaces** — the only surface a browse-on-demand author touches — are historian-shaped: one mandatory content interface, plus opt-in siblings a dispatcher probes with `is`. Every value is `Variant`/`DataValue`; every collection is `ArrayOf<T>` or a lazy `IAsyncEnumerable<T>`; the browse cursor and Read batching are gone from the signature entirely:
-
-```csharp
-/// <summary>Read-only on-demand content. Mandatory when you Virtualize.</summary>
-public interface IVirtualNodes
-{
-    /// <summary>Resolve a NodeId to its attribute metadata, or return
-    /// <see cref="NodeSnapshot.Unknown"/> (IsUnknown == true) when not owned.
-    /// Must not block on I/O beyond what the token permits; must not throw for
-    /// unknown ids.</summary>
-    ValueTask<NodeSnapshot> ResolveAsync(ISystemContext context, NodeId nodeId, CancellationToken ct);
-
-    /// <summary>Lazily yield references from a node in a STABLE order. The
-    /// framework applies the browse filter, enforces maxReferences, fills target
-    /// attributes across sources, and slices the stream into continuation points
-    /// persisted via IContinuationPointStore. You never construct or return a
-    /// ContinuationPoint; you never see references from another source.</summary>
-    IAsyncEnumerable<NodeReference> BrowseAsync(
-        ISystemContext context, NodeId nodeId, BrowseFilter filter, CancellationToken ct);
-
-    /// <summary>Read ONE attribute of ONE node. The framework owns batching, the
-    /// Processed-flag multiplex, maxAge, index-range and data-encoding.</summary>
-    ValueTask<DataValue> ReadAsync(ISystemContext context, ReadTarget target, CancellationToken ct);
-}
-
-public interface IWritableNodes            // opt-in
-{
-    ValueTask<ServiceResult> WriteAsync(
-        ISystemContext context, WriteTarget target, DataValue value, CancellationToken ct);
-}
-
-public interface ICallableNodes            // opt-in
-{
-    ValueTask<CallOutcome> CallAsync(
-        ISystemContext context, NodeId objectId, NodeId methodId,
-        ArrayOf<Variant> inputs, CancellationToken ct);
-}
-
-public interface IObservableNodes          // opt-in: live values for monitored items
-{
-    /// <summary>Push DataValues for a monitored node. The framework owns the
-    /// sampling interval, queue depth, deadband, publish pipeline and
-    /// subscription transfer. The token is cancelled when the last monitored
-    /// item on the node is removed. Return an empty sequence for pull-sampled
-    /// nodes (the framework then polls ReadAsync at the sampling interval).</summary>
-    IAsyncEnumerable<DataValue> ObserveAsync(
-        ISystemContext context, MonitoredNodeRequest request, CancellationToken ct);
-}
-
-public interface IMutableTopology          // opt-in: AddNodes/DeleteNodes service set
-{
-    ValueTask<AddNodeOutcome>  AddNodeAsync(ISystemContext c, NewNode node, CancellationToken ct);
-    ValueTask<ServiceResult>   DeleteNodeAsync(ISystemContext c, NodeId nodeId, bool deleteTargetRefs, CancellationToken ct);
-    ValueTask<ServiceResult>   EditReferenceAsync(ISystemContext c, ReferenceEdit edit, CancellationToken ct);
-}
-```
-
-Supporting value types are `readonly struct`s with no `object`, `INullable` sentinels rather than `T?`:
-
-```csharp
-public readonly struct NodeSnapshot          // INullable-style: has .IsUnknown + static Unknown
-{
-    public bool IsUnknown { get; }
-    public static NodeSnapshot Unknown { get; }
-    public static NodeSnapshot Variable(NodeId id, QualifiedName browseName, NodeId dataType,
-        int valueRank = ValueRanks.Scalar, byte accessLevel = AccessLevels.CurrentRead,
-        NodeId typeDefinition = default);     // typeDefinition default => VariableTypeIds.BaseDataVariableType
-    public static NodeSnapshot Object(NodeId id, QualifiedName browseName, NodeId typeDefinition = default);
-    public static NodeSnapshot Method(NodeId id, QualifiedName browseName, bool executable = true);
-    // BrowseName/DisplayName/NodeClass/DataType/ValueRank/AccessLevel accessors …
-}
-
-public readonly struct NodeReference
-{
-    public static NodeReference Component(NodeId source, NodeId target, NodeId typeDefinition = default);
-    public static NodeReference Organizes(NodeId source, NodeId target);
-    public static NodeReference Of(NodeId referenceTypeId, bool isForward, ExpandedNodeId target);
-    // optional inline target attributes to save a Resolve round-trip …
-}
-
-public readonly struct BrowseFilter { /* BrowseDirection, ReferenceTypeId, IncludeSubtypes, NodeClassMask */ }
-public readonly struct ReadTarget   { public NodeId NodeId {get;} public uint AttributeId {get;}
-                                      public NumericRange IndexRange {get;} public QualifiedName DataEncoding {get;} }
-public readonly struct WriteTarget  { public NodeId NodeId {get;} public uint AttributeId {get;} public NumericRange IndexRange {get;} }
-public readonly struct MonitoredNodeRequest { public NodeId NodeId {get;} public TimeSpan SamplingInterval {get;} public uint AttributeId {get;} }
-public readonly struct CallOutcome  { public ServiceResult Result {get;} public ArrayOf<Variant> Outputs {get;} }
-```
-
-Two DI entry points, one verb:
-
-```csharp
-public static class AddressSpaceServiceCollectionExtensions
-{
-    /// <summary>Inline imperative source. The delegate is the ONE method you write.</summary>
-    public static IOpcUaServerBuilder AddAddressSpace(
-        this IOpcUaServerBuilder b, string namespaceUri,
-        Func<IAddressSpace, CancellationToken, ValueTask> build);
-
-    /// <summary>DI-activated source (hand-written or [AddressSpace]-generated).
-    /// Constructor-injected; direct-construct fallback: new NodeSourceHost(source).</summary>
-    public static IOpcUaServerBuilder AddAddressSpace<
-        [DynamicallyAccessedMembers(PublicConstructors)] TSource>(this IOpcUaServerBuilder b)
-        where TSource : class, INodeSource;
-}
-```
-
-The generator path — one attribute, one partial method, same `IAddressSpace`:
-
-```csharp
-[AttributeUsage(AttributeTargets.Class)]
-public sealed class AddressSpaceAttribute : Attribute   // supersedes [NodeManager]
-{
-    public string NamespaceUri { get; set; }
-    public string Design { get; set; }
-}
-// Emitted per attributed class: an INodeSource whose BindAsync loads the NodeSet2
-// predefined nodes then calls `partial void Build(IAddressSpace)` and the typed
-// `partial void Build(I{Model}AddressSpace)`; plus the DI registration.
-```
-
-That is the complete surface: `INodeSource` (2), `IAddressSpace` (~11), the handles, `IVirtualNodes` (3) + four opt-in one-to-three-member capabilities, `[AddressSpace]`, and `AddAddressSpace`. Reused unchanged: `IValueUpdater<T>`, `IHistorianProvider`, `Variant`, `DataValue`, `NodeId`, `ArrayOf<T>`.
-
----
-
-#### 2. Usage example
-
-**(a) Trivial server — a handful of variables, one method body, zero framework types named beyond the builder:**
-
-```csharp
-HostApplicationBuilder app = Host.CreateApplicationBuilder(args);
-app.Services.AddOpcUa()
-   .AddServer(o => { o.ApplicationName = "Mini"; o.EndpointUrls.Add("opc.tcp://localhost:4840/mini"); })
-   .AddAddressSpace("urn:example:mini", (space, ct) =>
-   {
-       NodeId plant = space.AddFolder("Plant").NodeId;
-
-       space.AddVariable<double>("Temperature", plant)
-            .OnRead(_ => new ValueTask<double>(Sensor.ReadCelsius()));
-
-       space.AddVariable<bool>("PumpRunning", plant)
-            .Observe(out IValueUpdater<bool> pump);          // push from anywhere later:
-       PumpMonitor.OnChange = running => pump.SetValue(running);
-
-       space.AddMethod("Reset", plant)
-            .OnCall(_ => { Plant.Reset(); return default; });
-
-       return default;                                       // ValueTask.CompletedTask
-   });
-await app.Build().RunAsync();
-```
-
-**(b) Non-trivial — an external SCADA gateway with millions of tags in a database, browse-on-demand, live subscriptions, writes.** The author implements `INodeSource` plus three opt-in capabilities. No node is materialized; the framework does browse-slicing, continuation persistence, the publish pipeline and routing:
-
-```csharp
-[AddressSpace(NamespaceUri = "urn:example:scada")]   // attribute optional; only needed for a typed model
-public sealed class ScadaSource : INodeSource, IVirtualNodes, IWritableNodes, IObservableNodes
-{
-    private readonly ITagStore _tags;                 // true-external dependency, DI-injected
-    public ScadaSource(ITagStore tags) => _tags = tags;
-
-    public ArrayOf<string> Namespaces => ["urn:example:scada"];
-
-    public ValueTask BindAsync(IAddressSpace space, CancellationToken ct)
-    {
-        space.AddFolder("Tags");        // one materialized anchor node
-        space.Virtualize(this);         // everything beneath is answered on demand
-        return default;
-    }
-
-    public async ValueTask<NodeSnapshot> ResolveAsync(ISystemContext c, NodeId id, CancellationToken ct)
-    {
-        if (!TagId.TryParse(id, out TagId tag)) return NodeSnapshot.Unknown;
-        TagInfo? info = await _tags.FindAsync(tag, ct).ConfigureAwait(false);
-        return info is null
-            ? NodeSnapshot.Unknown
-            : NodeSnapshot.Variable(id, info.Name, DataTypeIds.Double,
-                                    accessLevel: AccessLevels.CurrentReadOrWrite);
-    }
-
-    public async IAsyncEnumerable<NodeReference> BrowseAsync(
-        ISystemContext c, NodeId id, BrowseFilter filter, [EnumeratorCancellation] CancellationToken ct)
-    {
-        await foreach (TagInfo child in _tags.ChildrenOf(id, ct).ConfigureAwait(false))
-        {
-            yield return NodeReference.Component(id, child.NodeId, DataTypeIds.Double);
-        }
-        // Framework slices this into continuation points and enforces maxReferences.
-    }
-
-    public async ValueTask<DataValue> ReadAsync(ISystemContext c, ReadTarget t, CancellationToken ct)
-    {
-        double v = await _tags.ReadAsync(TagId.Parse(t.NodeId), ct).ConfigureAwait(false);
-        return new DataValue(Variant.From(v), StatusCodes.Good, DateTimeUtc.Now);
-    }
-
-    public async ValueTask<ServiceResult> WriteAsync(
-        ISystemContext c, WriteTarget t, DataValue value, CancellationToken ct)
-    {
-        if (!value.WrappedValue.TryGetValue(out double v)) return StatusCodes.BadTypeMismatch;
-        await _tags.WriteAsync(TagId.Parse(t.NodeId), v, ct).ConfigureAwait(false);
-        return ServiceResult.Good;
-    }
-
-    public async IAsyncEnumerable<DataValue> ObserveAsync(
-        ISystemContext c, MonitoredNodeRequest r, [EnumeratorCancellation] CancellationToken ct)
-    {
-        await foreach (double v in _tags.SubscribeAsync(TagId.Parse(r.NodeId), r.SamplingInterval, ct)
-                                        .ConfigureAwait(false))
-        {
-            yield return new DataValue(Variant.From(v), StatusCodes.Good, DateTimeUtc.Now);
-        }
-        // Framework owns queueing, deadband, publish and subscription transfer.
-    }
-}
-
-// wiring:
-app.Services.AddSingleton<ITagStore, SqlTagStore>();
-app.Services.AddOpcUa().AddServer(/*…*/).AddAddressSpace<ScadaSource>();
-```
-
-**(c) Companion-spec model (Boiler)** — identical ergonomics to today's generated `Configure`, but through `IAddressSpace`. Author writes one typed partial method; the generated source does the NodeSet2 load:
-
-```csharp
-[AddressSpace(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
-public partial class BoilerSource
-{
-    partial void Build(IBoilerAddressSpace space)          // typed traversal, generated per model
-    {
-        space.Boilers.Boiler__1.LCX001.Measurement
-             .OnRead(_ => new ValueTask<double>(_level.Read()))
-             .Historize();
-
-        space.Boilers.Boiler__1.Simulation.Halt
-             .OnCall(ct => HaltAsync(ct));
-
-        space.Boilers.Boiler__1.DrumX001
-             .OnEvent(out IEventEmitter drum);             // drum.Emit(new BaseEventState(…))
-        _heartbeat = drum;
-    }
-}
-```
-
----
-
-#### 3. What the implementation hides behind the seam
-
-Everything below stays in the tree (backward compatibility) but moves *off the authoring interface*. The default in-memory source **is** today's `AsyncCustomNodeManager`; a single internal `NodeSourceManager : IAsyncNodeManager` adapts every `INodeSource` onto the existing routing table, so `MasterNodeManager` is untouched.
-
-| Machinery | Lines / size | Was on interface as… | Now |
-|---|---|---|---|
-| `AsyncCustomNodeManager` | 8,028; 93 virtual/abstract, 80 distinct names | base class you inherit + override | private engine of the built-in source; author never derives it |
-| `CustomNodeManager2` | 6,302; 93 virtual | base class you inherit | retained for the 33 legacy subclasses only |
-| `MasterNodeManager` | 7,601; 36 public | routing you must satisfy (`Processed`, `GetManagerHandle`) | private; `INodeSource` adapted onto its routing table |
-| `ISubscription` / `Subscription` | 42 members / 3,471 | 11-member publish-pipeline protocol | fully private; `IObservableNodes.ObserveAsync` is the whole author view |
-| `IServerInternal` / `ServerInternalData` | 57 members / 1,355 | service locator every manager receives | replaced at the seam by `IAddressSpaceServices` (telemetry + namespaces + base-service registration) |
-| continuation-point slicing | `ref ContinuationPoint` + IContinuationPointStore | `ref` cursor + "references may already contain references" | framework slices `IAsyncEnumerable<NodeReference>` |
-| `NodeState` graph + 18 delegates | 5,824; 155 members | the object you hand-wire | optional; reachable via handles, not required |
-
-**Deletion test, applied explicitly:**
-
-1. **`object? GetManagerHandle(NodeId)` + `object sourceHandle` opaque handle.** Delete it from the interface: does complexity reappear across callers? No. It existed only to cache a NodeId parse and round-trip it back; every implementer invented a handle and every `MasterNodeManager` path treated it opaquely. Addressing by `NodeId` (a source parses/caches privately if it wants) makes the complexity vanish, not relocate. **It was a pass-through leak → deleted outright** (and with it two `object` violations of the type rules).
-
-2. **The `Processed` flag protocol** (restated 6× in prose, enforced only by convention). Delete it from the interface: complexity *reappears* — but concentrated, not scattered. It exists because `MasterNodeManager` fans a batch to every manager. In a namespace-partitioned world (the 99% case) the framework already knows the owner by `NamespaceIndex`, so it hands a source only its own nodes and the flag is unnecessary. For the rare non-namespace partition it survives as ONE dispatcher concern. **It was earning its keep across N callers → relocated behind the seam into one place (locality), not deleted.**
-
-3. **`ref ContinuationPoint` + "references may already contain references" on Browse.** Delete it from the interface: the cursor/partial-fill logic reappears — in exactly one framework component that slices `IAsyncEnumerable<NodeReference>` over the existing `IContinuationPointStore`. **Earning its keep → relocated, verified once, not re-implemented by every one of the 21 `CreateAddressSpace`/browse authors.**
-
-4. **`IServerInternal` (34 subsystem getters + 12 `Set*` mutators, two-phase construction).** Delete it *from the author's view*: does address-space-author complexity reappear? No — an address-space author needed telemetry, the namespace table, and registration of a handful of base providers, all now on `IAddressSpaceServices`. The 20-subsystem locator was a pass-through for them. It stays internal to the runtime; it leaves the seam authors cross. (Bonus: the diagnostics `object`-lock leak on `IServerInternal`/`ISession`/`ISubscription` is never re-exposed — no interface here surfaces a lock, and `IValueUpdater<T>` serializes writes internally with `System.Threading.Lock`.)
-
----
-
-#### 4. Dependency strategy and adapters
-
-| Dependency | Category | Port at the seam? | Adapters / reuse |
-|---|---|---|---|
-| Node graph, diagnostics, publish pipeline, request routing, continuation slicing, index-alignment | **1 – In-process** | **No port.** Pure in-memory computation, merged into the framework and tested *through* `IAddressSpace` / `IVirtualNodes`. | n/a — these are implementation, exercised by the two examples above |
-| Continuation-point store, subscription store, monitored-item queue factory | **2 – Local-substitutable** | Internal seam only; **not surfaced to authors.** | **Reuse** existing `IContinuationPointStore`, `ISubscriptionStore`, `IMonitoredItemQueueFactory` (in-memory default + persisted adapter) |
-| Distributed / HA movable state | **3 – Remote-but-owned** | Port exists; **reused, not invented.** | **Reuse** `INodeStateStore` / `ISharedKeyValueStore` with two adapters — `InMemoryNodeStateStore` (local/test) and Redis/CRDT (prod). The built-in source already adapts its graph to `ILocalAddressSpace` (capture/apply), so `AddressSpaceSynchronizer` mirrors an `INodeSource` unchanged. A **virtual** `INodeSource` is *inherently* HA-friendly: it holds no authoritative state, so standbys serve identical content by construction. |
-| Historian | **4 – True external** | **Reuse** `IHistorianProvider` (the exemplar umbrella + capability seam). | `space.UseHistorian(provider)`; `IVariableHandle.Historize()`. In-memory historian (default) + user historian (prod) |
-| File system, secret store, certificate manager | **4 – True external** | **Reuse** `IFileSystemProvider`, secret/cert seams via `IAddressSpaceServices`. | existing providers; nothing new |
-| The author's own external system (SCADA DB, robot, PLC gateway) | **4 – True external** | **`IVirtualNodes` (+ opt-in caps) — the one genuinely new port.** | Two real adapters justify it: the **built-in NodeState-backed source** and any **external-system source** (example (b)). Two adapters ⇒ a real seam, not a hypothetical one. In tests, mock `IVirtualNodes` directly — the test crosses the same seam the runtime does. |
-
-No new remote-but-owned or true-external port was invented except `IVirtualNodes`, and that one clears the two-adapter bar. Everything else reuses a seam that already ships.
-
----
-
-#### 5. Trade-offs
-
-**Where leverage is high.** The trivial and companion-spec authors collapse from "derive an 8,028-line base class, override `CreateAddressSpaceAsync`/`Dispose`/`New`/`LoadPredefinedNodesAsync`, register an `INodeManagerFactory`, satisfy the `Processed`/continuation/index-align contracts" to **one method body**. The virtual author writes 2–5 members whose signatures fit on one line each and gets browse-slicing, continuation persistence, the publish pipeline, subscription transfer and routing for free. The interface *is* the test surface: you unit-test a source by calling `BindAsync`/`ReadAsync`/`BrowseAsync`, the exact methods the runtime calls — no need to stand up a `MasterNodeManager` to test past the seam.
-
-**Where it is thin.** For a *fully materialized* model the `IVirtualNodes` port earns nothing — the built-in source is the only adapter that path ever sees, so for those authors it is a hypothetical seam kept alive only by the external-system author next door. That is the intended cost of one unified seam.
-
-**What gets harder.**
-- **Bespoke continuation-point semantics.** You no longer own slicing. Escape hatch: yield your own cursor state and let the framework persist it via `IContinuationPointStore`, or drop to the retained `AsyncCustomNodeManager`.
-- **Non-namespace partitioning** (the current `GetManagerHandle` override). `INodeSource` partitions strictly by namespace. The rare custom-partition server keeps subclassing the retained `MasterNodeManager`.
-- **Reaching for one of the 55 never-overridden virtuals.** Not on the new surface; those authors use the retained base class. Given the measured reality — 112 override sites, 25 distinct names, 6 names carrying nearly all use — this affects almost no one.
-
-**What I gave up to hit the constraint.** The fine-grained *one-interface-per-service-call* substitutability of the current 15 async capability interfaces — collapsed to 1 mandatory + 4 opt-in, cut at behavioural seams (content / write / call / observe / topology) instead of at service names. And direct `NodeState` delegate wiring as the *primary* path — still reachable through handles and the retained `INodeManagerBuilder`, but no longer the front door.
-
-**Migration path from the 93-virtual / 155-member world.**
-- **Additive, `[Obsolete]` per the 1.5.378 rule.** `INodeManager`/`INodeManager2`/`INodeManager3` (the sync family) and their factory get `[Obsolete]` (the tree already normalizes to `IAsyncNodeManager` before dispatch, so this is labelling, not behaviour change). `IAsyncNodeManager` + the 15 capability interfaces and `AsyncCustomNodeManager`/`CustomNodeManager2` are **retained unchanged** so all 33 subclasses keep compiling.
-- **One internal adapter** `NodeSourceManager : IAsyncNodeManager` bridges `INodeSource` onto the existing routing table — `MasterNodeManager`, `NodeManagerRoutingTable`, the publish pipeline and HA synchronizer are untouched.
-- **`[NodeManager]` → `[AddressSpace]`** (superset); `[NodeManager]` becomes an `[Obsolete]` alias emitting the same code, so existing generated servers rebuild clean.
-- **`INodeManagerBuilder`/`INodeBuilder`/`IVariableBuilder<T>`** (2.0-only, not in 1.5.378) are retained as the *advanced* surface; `IAddressSpace` is the minimal core, with two-way adapters (`space.AsNodeManagerBuilder()` / `builder.AsAddressSpace()`) so a manager can mix both during transition.
-- **`IServerInternal`** stays (200+ references, 1.5.378) but is documented legacy; new authors receive `IAddressSpaceServices`.
-- **Companion specs** (DI, GDS, PubSub, Robotics, ISA95, WoT) migrate file-by-file: swap the generated base from `CustomNodeManager2` to a generated `INodeSource`, keep the `Build`/`Configure` body verbatim. NodeSet2 runtime loading is unchanged (`space.Import(NodeModel.FromNodeSet2(stream))`). NativeAOT/trimming holds — the runtime path is reflection-free, handles are structs, and DI activation uses `[DynamicallyAccessedMembers(PublicConstructors)]` exactly as the current `AddNodeManager<TFactory>` does.
-
----
-
-## Design 2 — Composition-First (maximise flexibility)
-
-**Design constraint given:** *Maximise flexibility and composability — but achieve it through composition of small deep modules, NOT through a wide inheritance surface. A user should be able to replace or intercept ANY behaviour without subclassing an 8,000-line base class.*
-
-> Reproduced verbatim as delivered by the designer. Section numbering is the designer's own.
-
-### Composition-First Server Interface for OPC UA .NET Standard
-
-**Thesis.** The codebase already contains the composition model it needs — it is just applied to *one* subsystem (history) and everything else is inheritance. `IHistorianProvider` is a 2-member umbrella over ~5,900 lines, with opt-in capability facets a dispatcher probes by `is`/`as`, and `IHistorianRegistryProvider` extends the server *without touching `IServerInternal`*. My design generalises exactly that shape to the node-manager surface, the server surface, node behaviour, interception, and authentication. No new port is invented; every seam already has (or trivially has) two adapters.
-
----
-
-#### 1. Interface
-
-##### 1.1 The address-space partition — one umbrella, opt-in facets
-
-The umbrella replaces the ownership/lifecycle half of `INodeManager`/`INodeManager2`/`INodeManager3`. It is the *only* interface a partition must implement. Everything operational is an opt-in facet — the exact pattern of `IReadAsyncNodeManager` et al., but now attached to something you **compose**, not a base class you inherit.
-
-```csharp
-namespace Opc.Ua.Server.AddressSpace;
-
-/// <summary>
-/// A partition owns a set of NodeIds (usually one or more namespaces) and knows
-/// how to load/unload them. It advertises operational capability by ALSO
-/// implementing one or more service-set handler facets (IReadHandler, IBrowseHandler…).
-/// Sealed by default; deep behaviour lives behind the implementation, never inherited.
-/// Invariants:
-///   • NamespaceUris is stable for the partition's lifetime and non-overlapping
-///     with any other registered partition (the router enforces this at startup).
-///   • TryGetOwnership must NOT block on I/O; it recognises the NodeId syntax only.
-///   • LoadAsync runs exactly once before the partition serves any request.
-/// </summary>
-public interface IAddressSpacePartition
-{
-    ArrayOf<string> NamespaceUris { get; }
-
-    ValueTask LoadAsync(IAddressSpaceEditor editor, CancellationToken ct = default);
-    ValueTask UnloadAsync(CancellationToken ct = default);
-
-    /// <summary>Ownership probe. Returns a value-typed handle — never `object`.</summary>
-    bool TryGetOwnership(NodeId nodeId, out NodeOwnership ownership);
-}
-
-/// <summary>Replaces `object? GetManagerHandle(NodeId)`. Value type, no boxing, no round-trip.</summary>
-public readonly struct NodeOwnership
-{
-    public bool IsOwned { get; init; }
-    public NodeState? Node { get; init; }   // in-memory fast path (may be null for external partitions)
-    public ulong Token { get; init; }       // partition-local token for browse-on-demand partitions
-}
-```
-
-Service-set facets — each is the *interface a caller must learn to intercept that one operation*. These are re-cut from the existing 14 `I*AsyncNodeManager` facets, changing only the parameter shape (see §1.2). Old facets survive as `[Obsolete]` adapters (§5).
-
-```csharp
-public interface IReadHandler            { ValueTask ReadAsync(ReadBatch batch, CancellationToken ct = default); }
-public interface IWriteHandler           { ValueTask WriteAsync(WriteBatch batch, CancellationToken ct = default); }
-public interface IBrowseHandler          { ValueTask<ContinuationPoint?> BrowseAsync(BrowseRequest req, IReferenceSink sink, CancellationToken ct = default); }
-public interface ICallHandler            { ValueTask CallAsync(CallBatch batch, CancellationToken ct = default); }
-public interface IHistoryReadHandler     { ValueTask HistoryReadAsync(HistoryReadBatch batch, CancellationToken ct = default); }
-public interface IHistoryUpdateHandler   { ValueTask HistoryUpdateAsync(HistoryUpdateBatch batch, CancellationToken ct = default); }
-public interface ITranslateBrowsePathHandler { ValueTask TranslateAsync(TranslateRequest req, IBrowsePathSink sink, CancellationToken ct = default); }
-public interface INodeManagementHandler  { bool AllowNodeManagement { get; } /* AddNode/DeleteNode/AddReference/DeleteReference */ }
-public interface IEventNotifierHandler   { ValueTask<ServiceResult> SubscribeToEventsAsync(EventSubscriptionRequest req, CancellationToken ct = default); }
-
-/// <summary>Monitoring lifecycle — the 5 monitored-item operations grouped (they always co-vary).</summary>
-public interface IMonitoringHandler
-{
-    ValueTask CreateAsync(MonitoredItemCreateBatch batch, CancellationToken ct = default);
-    ValueTask ModifyAsync(MonitoredItemModifyBatch batch, CancellationToken ct = default);
-    ValueTask DeleteAsync(MonitoredItemDeleteBatch batch, CancellationToken ct = default);
-    ValueTask SetModeAsync(MonitoringModeBatch batch, CancellationToken ct = default);
-    ValueTask TransferAsync(MonitoredItemTransferBatch batch, CancellationToken ct = default);
-}
-
-/// <summary>Observe-only hooks (today: OnMonitoredItemCreated/Deleted/Modified, 4+3+2 override sites).</summary>
-public interface IMonitoringObserver
-{
-    ValueTask OnCreatedAsync(NodeState source, ISampledDataChangeMonitoredItem item, CancellationToken ct = default);
-    ValueTask OnDeletedAsync(NodeState source, IMonitoredItem item, CancellationToken ct = default);
-    ValueTask OnModeChangedAsync(NodeState source, IMonitoredItem item, CancellationToken ct = default);
-}
-```
-
-**Depth of the umbrella.** `IAddressSpacePartition` is 4 members; behind it sits the whole `NodeState` graph (5,824 lines), predefined-node loading, sampling groups, and reference bookkeeping — *for the in-memory adapter*. A browse-on-demand adapter puts a REST/SQL client behind the same 4 members. That is the leverage: one interface, radically different implementations.
-
-##### 1.2 Deep operation objects — dissolving the `Processed` protocol and the index-aligned accumulators
-
-This is the single biggest composability win. Today every facet carries three pieces of *prose-enforced* interface complexity: (a) the `Processed` cooperative-multiplex flag (restated 6×), (b) caller-pre-sized index-aligned parallel `values`/`errors` lists, (c) "references may already contain references". All three exist **because `MasterNodeManager` broadcasts each request to every node manager** (`foreach (IAsyncNodeManager nm in m_nodeManagers) await nm.ReadAsync(...)`, `MasterNodeManager.cs:4053`).
-
-I move ownership resolution *ahead* of dispatch. The router splits the request by owning partition and hands each partition **only its own items, locally indexed**, with a result sink that owns the local→global mapping:
-
-```csharp
-/// <summary>
-/// A partition's slice of a Read. Contains ONLY the items this partition owns.
-/// There is no Processed flag (you were only handed your items) and no global
-/// index alignment (Complete/Fail address local indices 0..Items.Count-1).
-/// `ReadBatch` is a readonly struct over a pooled backing buffer — allocation-free in steady state.
-/// </summary>
-public readonly struct ReadBatch
-{
-    public OperationContext Context { get; }
-    public IServerContext Server { get; }
-    public double MaxAge { get; }
-    public TimestampsToReturn TimestampsToReturn { get; }
-    public ArrayOf<ReadValueId> Items { get; }              // this partition's items, contiguous
-    public NodeOwnership OwnershipOf(int localIndex);        // resolved handle, no re-lookup
-    public void Complete(int localIndex, in DataValue value);// by-ref in; DataValue implements INullable — never Nullable<DataValue>
-    public void Fail(int localIndex, StatusCode status);
-}
-```
-
-`BrowseRequest`/`IReferenceSink` remove the "already contains references" clause — the partition only ever *emits*:
-
-```csharp
-public readonly struct BrowseRequest
-{
-    public OperationContext Context { get; }
-    public IServerContext Server { get; }
-    public NodeOwnership Source { get; }
-    public BrowseDescription Description { get; }
-    public ContinuationPoint? Resume { get; }   // null on first page
-}
-public interface IReferenceSink
-{
-    /// <summary>The sink owns dedup, NodeClassMask filtering it can do, and continuation sizing.</summary>
-    void Add(in ReferenceDescription reference);
-    bool IsFull { get; }   // partition checks this to decide when to return a ContinuationPoint
-}
-```
-
-##### 1.3 The interception pipeline — replace "override a virtual to intercept a service"
-
-This is the composition answer to *"a user should be able to intercept ANY behaviour without subclassing."* Interceptors are capability-probed exactly like historian providers — an interceptor implements only the service facets it cares about; the pipeline builder inspects with `is`/`as` at startup and builds one ordered array per service set. The chain is walked by a **struct** cursor, so there is no per-operation closure or delegate allocation.
-
-```csharp
-public interface IReadInterceptor  { ValueTask InvokeAsync(ReadBatch batch, ReadPipeline next, CancellationToken ct); }
-public interface IWriteInterceptor { ValueTask InvokeAsync(WriteBatch batch, WritePipeline next, CancellationToken ct); }
-public interface ICallInterceptor  { ValueTask InvokeAsync(CallBatch batch, CallPipeline next, CancellationToken ct); }
-// … one thin interceptor facet per service set; an interceptor implements only what it intercepts.
-
-/// <summary>Struct cursor: holds (interceptor[] chain, int index, terminal handler). No allocation to advance.</summary>
-public readonly struct ReadPipeline
-{
-    public ValueTask InvokeAsync(ReadBatch batch, CancellationToken ct);  // advances to next interceptor, or the router terminal
-}
-```
-
-Interception operates at **batch granularity** — the stack grows O(interceptor count) *per service call*, never per node. A server with 10k monitored items and 3 interceptors sees 3 frames, not 30 000.
-
-##### 1.4 The node-behaviour seam — collapse 18 delegates to two providers
-
-The 18 `NodeState` delegates (9 sync/async pairs) are a real composition mechanism, but they are shallow — 18 interface elements for what is conceptually "intercept a value read" and "intercept a value write". The async ones already return record structs (`AttributeReadResult`) because `ref` cannot cross `await`. I keep that insight and collapse the surface:
-
-```csharp
-/// <summary>Per-node (or per-type) value behaviour. Async-only. Replaces the 9 read/write delegates.</summary>
-public interface INodeValueBehavior
-{
-    ValueTask<AttributeReadResult>  ReadAsync(NodeValueReadContext ctx, CancellationToken ct);
-    ValueTask<AttributeWriteResult> WriteAsync(NodeValueWriteContext ctx, CancellationToken ct);
-}
-public interface INodeEventBehavior   // replaces ReportEvent/ConditionRefresh/CreateBrowser delegates
-{
-    ValueTask ReportAsync(NodeEventContext ctx, CancellationToken ct);
-    ValueTask ConditionRefreshAsync(NodeConditionRefreshContext ctx, CancellationToken ct);
-}
-```
-
-A node gets behaviour by *attachment*, not subclass: `node.Attach(behavior)`. The existing delegates remain as a `DelegateNodeBehavior` adapter (§4) so nothing breaks and the source generator can emit either.
-
-##### 1.5 The server context — replace the 57-member service locator
-
-`IServerInternal` (57 members, 200+ referencing files, `object DiagnosticsLock`/`DiagnosticsWriteLock`, 12 `Set*` mutators, two-phase `SetNodeManager` that reaches into its argument) is a service locator with zero depth. I split it into (a) a small ambient context every partition genuinely needs, and (b) **capability-probe interfaces** for the ~20 subsystems — reusing `IHistorianRegistryProvider` verbatim as the template.
-
-```csharp
-/// <summary>The ambient a partition always needs. ~8 members. No locks, no Set* mutators, no subsystems.</summary>
-public interface IServerContext
-{
-    ITelemetryContext        Telemetry { get; }
-    NamespaceTable           NamespaceUris { get; }
-    StringTable              ServerUris { get; }
-    IServiceMessageContext   MessageContext { get; }
-    ServerSystemContext      DefaultSystemContext { get; }
-    IEncodeableFactory       Factory { get; }
-    ServerState              State { get; }
-    ValueTask ReportEventAsync(IFilterTarget e, CancellationToken ct = default);
-}
-
-// Subsystems are opt-in probes — a partition that never touches subscriptions never learns this exists.
-public interface ISubscriptionHost      { ISubscriptionCoordinator Subscriptions { get; } }
-public interface ISessionHost           { ISessionRegistry Sessions { get; } }
-public interface IDiagnosticsHost       { IDiagnosticsRecorder Diagnostics { get; } }  // owns its own System.Threading.Lock internally
-public interface IHistorianRegistryProvider { IHistorianProviderRegistry HistorianRegistry { get; } } // REUSED, unchanged
-```
-
-Usage inside a partition: `if (Server is ISubscriptionHost host) { … host.Subscriptions … }`. `ServerContext` (production) implements all of them; the test double implements only what a given test exercises.
-
-Crucially, **no lock ever appears**. `IDiagnosticsRecorder` is a deep module that takes `DataValue`s and computes diagnostics behind its own `private readonly System.Threading.Lock m_lock = new();`. The 88 `lock` statements over the published `object` locks collapse into it.
-
-##### 1.6 The authentication pipeline — replace extension-by-mutable-event-args
-
-`ISessionManager.ImpersonateUser` decides auth by mutating `ImpersonateEventArgs.Identity`/`.EffectiveIdentity`/`.IdentityValidationError` across ordered handlers with no failure channel (`ISessionManager.cs:279–289`). The repo already gestures at the replacement in the `[Obsolete]` message ("Replaced by IUserTokenAuthenticator + IServerIdentityRegistry"). I formalise it as an ordered chain returning a value with a real result channel:
-
-```csharp
-public interface IUserTokenAuthenticator
-{
-    ValueTask<AuthenticationResult> AuthenticateAsync(AuthenticationRequest request, CancellationToken ct = default);
-}
-public readonly record struct AuthenticationResult(
-    AuthenticationDecision Decision,
-    IUserIdentity? Identity,
-    IUserIdentity? EffectiveIdentity,
-    ServiceResult Error);
-public enum AuthenticationDecision { Continue, Grant, Reject }  // first Grant/Reject wins; Continue defers to the next
-```
-
-No mutation, no invisible ordering dependency, and `Reject` carries a `ServiceResult` — the missing failure channel.
-
-##### 1.7 The composition root (DI, with direct-construct fallback)
-
-```csharp
-public interface IOpcUaServerBuilder   // extends today's builder
+public interface IOpcUaServerBuilder
 {
     IServiceCollection Services { get; }
-    IOpcUaServerBuilder AddPartition<[DynamicallyAccessedMembers(PublicConstructors)] T>()      where T : class, IAddressSpacePartition;
-    IOpcUaServerBuilder AddPartition(string namespaceUri, Action<INodeManagerBuilder> configure);// fluent — NO base class
-    IOpcUaServerBuilder AddReadInterceptor<[DynamicallyAccessedMembers(PublicConstructors)] T>() where T : class, IReadInterceptor;
-    IOpcUaServerBuilder AddAuthenticator<[DynamicallyAccessedMembers(PublicConstructors)] T>()   where T : class, IUserTokenAuthenticator;
-    // Back-compat bridges:
-    IOpcUaServerBuilder AddNodeManager<T>()     where T : class, IAsyncNodeManagerFactory; // [Obsolete] path, wrapped by LegacyPartitionAdapter
+
+    // Rung 1/2 — inline, no class. Closes the measured defect: today's fluent Variable<T>
+    // only *resolves* and throws if absent; these verbs *mint* nodes.
+    IOpcUaServerBuilder AddNodeSource(
+        string namespaceUri, Func<INodeSourceBuilder, CancellationToken, ValueTask> build);
+
+    // Rung 1/2 — class form (DI deps / state).
+    IOpcUaServerBuilder AddNodeSource<[DynamicallyAccessedMembers(PublicConstructors)] TSource>()
+        where TSource : class, INodeSource;
+
+    // Rung 3 — browse-on-demand over an external/huge/HA-backed space.
+    IOpcUaServerBuilder AddNodeProvider<[DynamicallyAccessedMembers(PublicConstructors)] TProvider>()
+        where TProvider : class, INodeProvider;
+
+    // Cross-cutting — audit / auth / rate-limit compose across ALL sources from one registration.
+    IOpcUaServerBuilder AddInterceptor<[DynamicallyAccessedMembers(PublicConstructors)] TInterceptor>()
+        where TInterceptor : class;
 }
 ```
 
-`is`/`as` probing and `ActivatorUtilities` construction are AOT-safe (the `[DynamicallyAccessedMembers(PublicConstructors)]` annotation is already used by today's `AddNodeManager<TFactory>`). No open-generic registration, no reflection over methods. Direct-construct fallback: `new ServerComposition(context, partitions, interceptors, authenticators)` — every piece is constructor-injectable without a container.
+`[DynamicallyAccessedMembers(PublicConstructors)]` + `ActivatorUtilities` is AOT/trim-safe (today's `AddNodeManager<TFactory>` already uses exactly this). Direct-construct fallback: `new ServerComposition(context, sources, providers, interceptors)` — every part is constructor-injectable without a container.
 
----
-
-#### 2. Usage example
-
-##### (a) Trivial server — a handful of variables, zero inheritance
+##### 1.2 `INodeSource` + `INodeSourceBuilder` — the authoring floor (commoncase, now with no base class beneath it)
 
 ```csharp
-builder.Services.AddOpcUa().AddServer(o => o.ApplicationName = "Demo")
-    .AddPartition("urn:demo", ns =>
-    {
-        ns.Variable<double>("Temperature").OnRead(_ => ReadSensor());
-        ns.Variable<bool>("Enabled").OnWrite((_, v) => { _enabled = v; return ServiceResult.Good; });
-    });
-```
-
-The fluent `INodeManagerBuilder` is unchanged from today — but it now configures a composed `NodeStatePartition`, **not** a `FluentNodeManagerBase : AsyncCustomNodeManager`. The user inherits nothing.
-
-##### (b) Demanding case — browse-on-demand over an external system, no `NodeState` graph
-
-A partition that projects a live SQL catalogue as OPC UA nodes. It implements the umbrella plus exactly the three facets it needs — ~a few hundred lines, no 8,028-line base class, and it never materialises a node graph.
-
-```csharp
-public sealed class SqlCatalogPartition : IAddressSpacePartition, IBrowseHandler, IReadHandler
-{
-    private readonly ISqlCatalog m_db;
-    private readonly ushort m_ns;
-    public SqlCatalogPartition(ISqlCatalog db) => m_db = db;
-
-    public ArrayOf<string> NamespaceUris => new[] { "urn:acme:sql-catalog" };
-
-    public ValueTask LoadAsync(IAddressSpaceEditor editor, CancellationToken ct) => default; // nothing to preload
-
-    public bool TryGetOwnership(NodeId nodeId, out NodeOwnership o)
-    {
-        // recognise "tbl:<id>" syntax without touching the DB (interface says: no I/O here)
-        if (nodeId.NamespaceIndex == m_ns && nodeId.Identifier is string s && s.StartsWith("tbl:"))
-        {
-            o = new NodeOwnership { IsOwned = true, Token = ParseId(s) };
-            return true;
-        }
-        o = default; return false;
-    }
-
-    public async ValueTask<ContinuationPoint?> BrowseAsync(BrowseRequest req, IReferenceSink sink, CancellationToken ct)
-    {
-        await foreach (Column col in m_db.EnumerateColumnsAsync(req.Source.Token, ct))
-        {
-            sink.Add(new ReferenceDescription { NodeId = ColumnNodeId(col), BrowseName = new QualifiedName(col.Name, m_ns), NodeClass = NodeClass.Variable });
-            if (sink.IsFull) return ContinuationFrom(col);   // sink owns the sizing decision
-        }
-        return null;
-    }
-
-    public async ValueTask ReadAsync(ReadBatch batch, CancellationToken ct)
-    {
-        for (int i = 0; i < batch.Items.Count; i++)   // only MY items, locally indexed — no Processed flag
-        {
-            DataValue v = await m_db.ReadCellAsync(batch.OwnershipOf(i).Token, ct).ConfigureAwait(false);
-            batch.Complete(i, v);
-        }
-    }
-    public ValueTask UnloadAsync(CancellationToken ct) => default;
-}
-```
-
-Registration: `.AddPartition<SqlCatalogPartition>()`. This is the demanding scenario the brief targets — **custom transport of nodes from an external system, no inheritance, no `Processed` bookkeeping**.
-
-##### (c) Replacing a behaviour that today requires overriding one of the 93 virtuals
-
-Today, to audit and role-check every `Read`/`Write` you override `CustomNodeManager2.Read` and `Write` (or `ValidateRolePermissions`, one of the tail virtuals). With composition it is an interceptor that touches nothing:
-
-```csharp
-public sealed class AuditInterceptor : IReadInterceptor, IWriteInterceptor, ICallInterceptor
-{
-    private readonly IAuditSink m_audit;
-    public AuditInterceptor(IAuditSink audit) => m_audit = audit;
-
-    public async ValueTask InvokeAsync(WriteBatch batch, WritePipeline next, CancellationToken ct)
-    {
-        await next.InvokeAsync(batch, ct).ConfigureAwait(false);       // run the write
-        for (int i = 0; i < batch.Items.Count; i++)
-            await m_audit.RecordWriteAsync(batch.Context, batch.Items[i], batch.ResultOf(i), ct).ConfigureAwait(false);
-    }
-    public ValueTask InvokeAsync(ReadBatch b, ReadPipeline next, CancellationToken ct) => next.InvokeAsync(b, ct);
-    public ValueTask InvokeAsync(CallBatch b, CallPipeline next, CancellationToken ct) => AuditCallAsync(b, next, ct);
-}
-```
-
-Registration: `.AddReadInterceptor<AuditInterceptor>()` (the builder probes it and also wires the Write/Call facets it implements). It composes across **every** partition, including the SQL one above — something an inheritance override can never do, because it would live on one base class.
-
-Mapping of the 25 ever-overridden virtuals to their composition seam:
-
-| Overridden virtual (sites) | Replacement seam |
-|---|---|
-| `CreateAddressSpaceAsync` (21) | `IAddressSpacePartition.LoadAsync` (it *is* the partition body) |
-| `Dispose` (14) | partition `IAsyncDisposable`; registries own their own teardown |
-| `New` NodeId factory (12) | `INodeIdFactory` provider (already exists) injected |
-| `LoadPredefinedNodesAsync` (11) | `INodeSetSource` provider passed to `LoadAsync` |
-| `DeleteAddressSpaceAsync` (8) | `IAddressSpacePartition.UnloadAsync` |
-| `AddBehaviourToPredefinedNodeAsync` (5) | `INodeValueBehavior`/`INodeEventBehavior` attach |
-| `OnMonitoredItem{Created,Deleted,Modified}` (4/3/2) | `IMonitoringObserver` facet |
-| `GetHistorianProvider` (3) | `IHistorianRegistryProvider` (already exists) |
-| `GetManagerHandleAsync` (3) | `IAddressSpacePartition.TryGetOwnership` |
-| `ValidateNodeAsync` (3) | `IReadInterceptor`/`INodeValidator` provider |
-| `OnMonitoringModeChangedAsync` (3) | `IMonitoringObserver.OnModeChangedAsync` |
-| `ConditionRefreshAsync`/`OnSubscribeToEventsAsync` (2/2) | `IEventNotifierHandler` / `INodeEventBehavior` |
-| `OnNodeRemovedAsync` (2) | `IAddressSpaceEditor` events (`ILocalAddressSpace.NodeRemoved`, reused) |
-
----
-
-#### 3. What the implementation hides behind the seam (deletion tests)
-
-**Moved from interface to implementation** (stays working, stops being something a caller must learn):
-- The entire `NodeState` graph (5,824 lines) + the `src/Opc.Ua.Types/State` folder (15,434 lines) become the private implementation of one adapter — `NodeStatePartition`. Visible surface for that adapter: `IAddressSpacePartition` + facets. A browse-on-demand partition hides a DB client instead.
-- `AsyncCustomNodeManager` (8,028 lines, 93 virtual/abstract) and `CustomNodeManager2` (6,302 lines) become the *body* of `NodeStatePartition`, exposed through facets — not 93 override points.
-- `MasterNodeManager` routing (7,601 lines) becomes an internal `AddressSpaceRouter`; the `Processed` fan-out loop (`MasterNodeManager.cs:4053`, 6 restatements) is deleted.
-
-**Deletion test #1 — the `Processed` flag protocol.** Delete it and the 6 prose restatements and the `foreach nodeManager` broadcast. Does complexity reappear across callers? *No.* It reappears in exactly **one** place — the router's ownership-split — which is complexity that must exist once anyway. The flag was pure pass-through overhead created by broadcast dispatch. It fails the test → remove it. Net: −6 duplicated contracts, −N partitions each re-implementing "check/set Processed".
-
-**Deletion test #2 — `IServerInternal.DiagnosticsLock` / `DiagnosticsWriteLock` (`object`).** Delete them from the interface. Complexity reappears? Only inside `IDiagnosticsRecorder`, which needs *one* `System.Threading.Lock`. The 88 `lock` statements across 7 files (incl. a sample) that today take a *published* lock collapse to recorder-internal calls. The public lock was negative-value interface (it enabled the `DiagnosticsWriteLock`-scans-outside-its-own-lock bug). Fails the test spectacularly → remove.
-
-**Deletion test #3 — `FluentNodeManagerBase : AsyncCustomNodeManager`.** Delete the inheritance. Complexity reappears? The fluent registries (`EventSourceRegistry`, `SimulationRegistry`) simply become constructor dependencies of `NodeStatePartition` — the `CreateFluentBuilder`/`AttachToBuilder`/`Configure`/`Seal` quadruple already exists and doesn't need the base class. The 93 inherited virtuals on the fluent surface vanish. The inheritance was a delivery mechanism for `PredefinedNodes` access, obtainable by composition. Fails the test → remove.
-
-**Deletion test #4 — `IAsyncNodeManager.SyncNodeManager`.** This member exists purely to let callers cross *back* over the async seam. Delete it. Complexity reappears only in the one obsolete `INodeManager` bridge adapter. The single external `INodeManager` implementer (`SampleNodeManager`) confirms the sync seam is *hypothetical* (one adapter). Collapse it to an `[Obsolete]` adapter, not a first-class seam.
-
-**Stays visible (correctly):** `NodeId`, `DataValue`, `ReferenceDescription`, `ContinuationPoint`, `OperationContext`, `ServiceResult`, `Variant`, `ArrayOf<T>` — the OPC UA domain vocabulary. `NodeState` stays visible *as a fast-path handle* on `NodeOwnership.Node` for in-memory partitions, because that genuinely varies (external partitions leave it null).
-
----
-
-#### 4. Dependency strategy and adapters
-
-Classifying every dependency and naming **two adapters per seam** (the anti-hypothetical-seam discipline the brief demands):
-
-| Seam | Category | Adapter #1 | Adapter #2 | Port or internal |
-|---|---|---|---|---|
-| `IAddressSpacePartition` | 1 In-process / 3 Remote-owned | `NodeStatePartition` (in-memory graph) | `SqlCatalogPartition` / distributed-HA partition over movable state | External interface, no separate port (partition *is* the seam) |
-| `IReadHandler`/`IBrowseHandler`/… facets | 1 In-process | NodeState default read/browse | `DiNodeManager` Call, browse-on-demand Browse (both exist today as overrides) | Internal to partition; probed by router |
-| `IReadInterceptor` (+ Write/Call…) | 1 In-process | `AuditInterceptor` (repo has audit APIs) | `RolePermissionInterceptor` (Part 18, today the `ValidateRolePermissions` virtual) | Public seam; ordered array built at startup |
-| `INodeValueBehavior` | 1 In-process | `DelegateNodeBehavior` (wraps the existing 18 delegates) | source-generated typed behavior / external value fetch | Internal; attach per-node |
-| `IServerContext` + subsystem probes | 1/2 | `ServerContext` (production, over the real subsystems) | in-memory test context (partition unit tests) | Ambient; probes reuse `IHistorianRegistryProvider` |
-| `IUserTokenAuthenticator` | 1/4 | `X509IdentityAuthenticator` | `UserNameIdentityAuthenticator` (+ anonymous) | Public seam; ordered chain |
-| `IHistorianProvider` | 4 True-external | `InMemoryHistorianProvider` (exists) | user SQL/PI historian | **Reused unchanged** |
-| `ILocalAddressSpace` | 2 Local-substitutable | node-manager `PredefinedNodes` | dictionary-backed test double | **Reused unchanged** |
-
-**Reused, not invented:** `IHistorianProvider`(+capability facets)/`IHistorianProviderRegistry`, `ILocalAddressSpace`, `IMonitoredItemManager`, `IContinuationPointStore`, `ISubscriptionStore`, `IMonitoredItemQueueFactory`, `IFileSystemProvider`, `INodeIdFactory`, `IConformanceContributor`, and the `IHistorianRegistryProvider` capability-probe *pattern*. Every external dependency already sits behind a port — I add none.
-
-**Kept internal (one adapter → hypothetical seam → NOT a public seam):**
-- `AddressSpaceRouter` — the routing table (`NodeManagerRoutingTable` is already `IReadOnlyList<IAsyncNodeManager>` internally). One production implementation. If someone later needs a distributed router, promote it then.
-- The pipeline-cursor structs (`ReadPipeline` etc.) — implementation detail of the interceptor mechanism.
-
----
-
-#### 5. Trade-offs
-
-**Where leverage is highest.** The umbrella + facet + interceptor triad. A consumer learns `IAddressSpacePartition` (4 members) + the one or two facets they need, and can implement *any* partition — in-memory, external, HA. Interceptors give cross-cutting reach (audit, auth, redaction, rate-limit — the repo already has a `RateLimiting` folder) across all partitions from a single registration, which inheritance fundamentally cannot. The 93-virtual/80-name surface becomes: 4 umbrella members + ~10 facet interfaces you pick from + ~8 interceptor facets. A companion spec (DI/GDS/PubSub/Robotics/ISA95/WoT) implements the umbrella, `INodeIdFactory`, `IConformanceContributor`, and overrides *nothing*.
-
-**Where leverage is thin (honest).** `IServerContext` is close to a data holder — its depth is low (it mostly hands out ambient values). It earns its place only because it (a) deletes the 12 `Set*` mutators and the two `object` locks, and (b) shrinks the mandatory surface from 57 to ~8. I would *not* claim it is a "deep" module; it is a **narrowing** module. Similarly `NodeOwnership` is a thin value type — but it removes `object` from the hottest interface, which is worth a shallow struct.
-
-**What gets harder.**
-- **Ordering across interceptors** becomes explicit configuration (registration order) rather than implicit call order — more visible, but users must now *think* about interceptor order. Mitigation: `AddReadInterceptor` documents "outermost-first"; provide `Order` metadata for the rare conflict.
-- **Cross-facet invariants** that a single base class enforced by construction (e.g. Create/Modify/Delete monitored-item state consistency) now span `IMonitoringHandler`'s 5 methods — which is *why* I grouped them into one interface rather than five, so a partition can't implement half.
-- **Debugging a request** now steps through router → interceptor chain → facet rather than one virtual. Batch-granularity keeps the stack shallow, but it is more indirection than a single overridden method.
-
-**Allocation / performance.** The design is explicitly built for the thousands-of-items hot path:
-- Batches (`ReadBatch`, `WriteBatch`, …) are **readonly structs over pooled backing buffers**; the per-partition `ArrayOf<ReadValueId>` slices are rented from a pool. Steady-state Read/Write/Publish allocate **zero** per operation.
-- Interceptor chains are **pre-built ordered arrays**; the `ReadPipeline` cursor is a struct — advancing the chain allocates nothing. Stack depth is O(interceptor count) **per service call**, not per node — the brief's explicit fear ("deep call stacks per node") is designed out.
-- `is`/`as` capability probing happens **once at startup** when building the router's facet table and the interceptor arrays — never on the request path. AOT/trim-safe: no reflection, no `MakeGenericType`, no open-generic DI.
-- The one cost: an ownership pre-split pass (O(items)) before dispatch. But `MasterNodeManager` already does an O(items) validation pass (`MasterNodeManager.cs:4023`), and the split *replaces* the O(items × partitions) broadcast — it is strictly cheaper on multi-partition servers.
-
-**What I gave up.** I did not try to make `NodeState` itself composable-not-inherited — source generators emit `NodeState` subclasses and that is a 15k-line load-bearing contract; re-cutting it is out of scope and higher-risk than it is worth. I kept it whole behind the `NodeStatePartition` adapter and only collapsed its *delegate* surface (§1.4).
-
-**Migration path (additive, `[Obsolete]`, 1.5.378-compatible).**
-1. Ship `IAddressSpacePartition` + facets + router + interceptors + `IServerContext` alongside the existing interfaces. Nothing is removed.
-2. `LegacyPartitionAdapter : IAddressSpacePartition` wraps any existing `IAsyncNodeManager` (delegating `TryGetOwnership`→`GetManagerHandleAsync`, facets→existing methods) so **all 33 existing subclasses run unchanged** under the new router. Conversely `PartitionAsNodeManager : IAsyncNodeManager` exposes a new partition to code still calling the old surface (mirrors today's `SyncNodeManagerAdapter`).
-3. `ServerContext` implements `IServerInternal` too during the transition; the `object` `DiagnosticsLock`/`DiagnosticsWriteLock` getters are marked `[Obsolete]` and forward to `IDiagnosticsRecorder`.
-4. Mark `INodeManager`/`INodeManager2`/`INodeManager3`, the `I*AsyncNodeManager` facets, `IAsyncNodeManager.SyncNodeManager`, `ImpersonateUser`/`ImpersonateEventArgs`, and the 18 `NodeState` delegates `[Obsolete]` with `see cref` to their composition replacement. (The `ImpersonateUser` obsoletion already exists and already points at `IUserTokenAuthenticator` — I am completing a migration the repo started.)
-5. Re-point the source generator to emit `sealed partial class FooPartition : IAddressSpacePartition, IReadHandler, …` composing a `NodeStatePartition` core, instead of `: FluentNodeManagerBase`. Generated code targets the same facets a hand-written partition uses — which is the proof that the design is generator-emittable.
-
-The end state: the *same* flexibility that 93 virtuals delivered, re-expressed as ~4 required members + a menu of opt-in facets + a cross-cutting interceptor chain — every one of which already has two real adapters in this repository.
-
----
-
-## Design 3 — Progressive Ladder (optimise the common caller)
-
-**Design constraint given:** *Optimise for the most common caller. Make the default case trivial — then make the progression to advanced cases smooth and explicit. Nobody should pay for a capability they do not use, and nobody should hit a cliff when they need one.*
-
-> Reproduced verbatim as delivered by the designer. Section numbering is the designer's own.
-
-### A Progressive Node-Source Interface for the OPC UA Server Stack
-
-**Design axis: optimise for the most common caller.** The measured data says the common caller creates a set of nodes, backs some with a device or database, and overrides nothing else — 55 of 80 virtuals are never touched anywhere, and the entire common case reduces to six overrides that are *all boilerplate the source generator already writes*. So the level‑1 **interface** must be "declare nodes, back their values," and every rung above it must be reachable by *learning one more verb or injecting one more provider* — never by inheriting an 8,028‑line base class.
-
-This design **builds on** three assets I verified in the tree rather than replacing them: the fluent builder (`src/Opc.Ua.Server/Fluent`, 35 files / 8,814 lines), the source generator (`BoilerNodeManager.NodeManager.g.cs` and the typed `Configure(IBoilerNodeManagerBuilder)` traversal), and the two reference‑quality seams `IStandardServer` (9 members over 5,575 lines) and `IHistorianProvider` (2 members + opt‑in capability interfaces). It removes the one structural flaw that turns the fluent layer into a veneer: `FluentNodeManagerBase : AsyncCustomNodeManager` (confirmed at `Fluent/FluentNodeManagerBase.cs:57`), which means a user who starts fluent and needs one more thing falls straight through to the 93‑virtual surface.
-
----
-
-#### 1. Interface
-
-##### The ladder at a glance — 4 rungs; you climb by adding a call or injecting a provider, never by subclassing
-
-| Rung | Seam the author learns | Size of interface | What triggers the climb |
-|---|---|---|---|
-| **1** | `INodeSourceBuilder` — create + back nodes | ~6 verbs | "I have nodes, some static, some device/DB‑backed" |
-| **2** | Capability verbs on the *same* builder + generated typed traversal | +1 verb per capability | history, alarms, a method, events, or a large authored NodeSet2 model |
-| **3** | Inject `INodeProvider<THandle>` (+ opt‑in `IBrowse/IValue/ICallProvider`) | 2 core members + 1 per service | browse‑on‑demand over a huge/external space, custom partitioning, HA‑backed nodes |
-| **4** | The existing `IAsyncNodeManager` / `AsyncCustomNodeManager` | full surface (unchanged) | anything off rungs 1–3 — a **documented step down**, not a silent fall |
-
-The crucial property that distinguishes this design from the current one: **rungs 1–2 produce a `sealed` module.** You cannot subclass the produced manager, so there is no second surface to fall through to. To go past rung 2 you *deliberately* implement a provider (rung 3) or the full node‑manager interface (rung 4). The seam is a wall with a labelled door, not a slope.
-
-##### Rung 1 — `INodeSourceBuilder`
-
-This is the whole interface a common‑case author must know. It **extends** today's `INodeManagerBuilder` (`Fluent/INodeManagerBuilder.cs`, 306 lines) with the missing *creational* verbs. Today every `Variable<T>(...)` overload only *resolves* an existing node and throws `ServiceResultException` if absent (verified in the interface doc-comments: *"Thrown if the path does not resolve"*). That is why the no‑class `AddNodeManager("ns", b => …)` path cannot stand up a device server without first authoring a NodeSet2 — the builder can wire callbacks but cannot mint a plain variable. Closing that gap is the single most important ergonomic fix.
-
-```csharp
-namespace Opc.Ua.Server;
-
 /// <summary>
-/// Everything a common-case node author must know: create nodes and bind
-/// what backs them. No NodeState, no NodeId factory, no IServerInternal,
-/// no lock, no object.
+/// Contributes a partition of the address space. The ONLY node-authoring seam.
+/// There is no base class to inherit and no INodeManager to implement.
+///
+/// INVARIANTS
+///  * NamespaceUris is fixed for the source lifetime; the framework assigns indexes
+///    BEFORE BuildAsync and no source's namespaces may overlap another's (router
+///    enforces at startup — BadInvalidState).
+///  * BuildAsync runs exactly once, single-threaded, at activation, before the source
+///    serves any request. After it returns the runtime SEALS the source: dispatch tables
+///    are frozen and read-only, so no synchronization primitive is ever exposed.
+///  * On an HA standby BuildAsync may run again after a snapshot hydrate: it MUST be
+///    idempotent. Behaviour (delegates) is re-attached here; data is hydrated by the runtime.
+/// ERROR MODES
+///  * A throw from BuildAsync aborts server start (fail-fast). Double-wiring the same
+///    node category throws ServiceResultException(BadNodeIdExists) at build time, surfacing
+///    author error at startup rather than first request.
 /// </summary>
+public interface INodeSource
+{
+    ArrayOf<string> NamespaceUris { get; }
+    ValueTask BuildAsync(INodeSourceBuilder builder, CancellationToken ct = default);
+}
+
 public interface INodeSourceBuilder
 {
-    /// <summary>
-    /// Minimal context: the ~5 things authors actually used out of
-    /// IServerInternal's 57 members.
-    /// </summary>
-    INodeSourceContext Context { get; }
+    IServerContext Context { get; }                 // §1.5 — NOT IServerInternal
+    ushort NamespaceIndex { get; }
 
-    // --- create nodes (the fix: these MINT nodes; they do not resolve) ---
-    IFolderNode      Folder(string browseName);
-    IObjectNode      Object(string browseName, NodeId typeDefinition = default);
-    IVariableNode<T> Variable<T>(string browseName);   // typed, minted, returns typed builder
-    IMethodNode      Method(string browseName);
+    // CREATE (the fix: these MINT nodes; today's Variable<T> only resolves + throws)
+    IFolderNode      Folder(QualifiedName browseName, NodeId parent = default);   // default => Objects
+    IObjectNode      Object(QualifiedName browseName, NodeId typeDefinition = default, NodeId parent = default);
+    IVariableNode<T> Variable<T>(QualifiedName browseName, NodeId parent = default);
+    IMethodNode      Method(QualifiedName browseName, NodeId parent = default);
 
-    // --- resolve nodes a model already created (NodeSet2 / companion spec) ---
-    INode            Node(string browsePath);
+    // IMPORT a NodeSet2 / companion-spec model; returns a binder to wire behaviour onto model nodes
+    IModelBinder Import(NodeModel model);
+
+    // RESOLVE nodes a model already created
+    IVariableNode<T> Bind<T>(NodeId nodeId);
     INode            Node(NodeId nodeId);
-    IVariableNode<T> Bind<T>(NodeId nodeId);           // resolve + type-narrow
 
-    // --- the one common-6 override that is genuinely author policy ---
-    INodeSourceBuilder UseNodeIdScheme(INodeIdScheme scheme); // retires the `New` virtual (12 sites)
+    INodeSourceBuilder UseNodeIdScheme(INodeIdScheme scheme);   // retires the `New` virtual (12 sites)
 }
 ```
 
-The typed variable node — note the **three read shapes**, which resolve the async‑ergonomics tension explicitly rather than forcing every getter to become async:
+The three read shapes — verified against `BaseVariableState.OnReadValue` (sync, line 559) and `OnReadValueAsync` (async, runs **without** `lock(this)`, line 578), so none of this is sync-over-async:
 
 ```csharp
 public interface IVariableNode<T> : INode
 {
-    // (a) pure static — ZERO delegates, ZERO async. The value sits in the node
-    //     and the built-in read path serves it. This is the overwhelming majority.
-    IVariableNode<T> Value(T initialValue);
-
-    // (b) synchronous getter — a GENUINE synchronous path
-    //     (BaseVariableState.OnReadValue, verified at line 559), invoked directly
-    //     on the sampling thread. This is NOT sync-over-async.
-    IVariableNode<T> OnRead(Func<T> read);
-    IVariableNode<T> OnRead(Func<ISystemContext, T> read);
-
-    // (c) async getter — for I/O-backed values. Runs WITHOUT lock(this)
-    //     (BaseVariableState.OnReadValueAsync, verified at line 578), so it may
-    //     await a device/DB freely without tying up a thread-pool thread.
-    IVariableNode<T> OnRead(Func<CancellationToken, ValueTask<T>> read);
-    IVariableNode<T> OnRead(Func<ISystemContext, CancellationToken, ValueTask<T>> read);
-
-    IVariableNode<T> OnWrite(Action<T> write);
+    IVariableNode<T> Value(T initialValue);                                   // static: no delegate, no async
+    IVariableNode<T> OnRead(Func<T> read);                                    // genuine sync path
+    IVariableNode<T> OnRead(Func<IServerContext, CancellationToken, ValueTask<T>> read); // async, lock-free
     IVariableNode<T> OnWrite(Func<T, CancellationToken, ValueTask> write);
-
+    IVariableNode<T> Observe(out IValueUpdater<T> updater);                   // reuse existing seam
     IVariableNode<T> Writable(bool writable = true);
-    IVariableNode<T> Units(string symbol, double low, double high);   // EU + EURange, folded in
+    IVariableNode<T> Historize();                                            // opt this node into Part 11
 }
 ```
 
-`IObjectNode`, `IFolderNode`, `IMethodNode` are the same shape, narrowing to the callbacks that make sense for the node class (an `IObjectNode` has no `OnRead`; an `IMethodNode` has `OnCall` — see rung 2). Each returns itself so calls chain, and each exposes `Child(...)`/`Variable<T>(...)` to build a subtree without re‑resolving from the root.
+##### 1.3 `INodeProvider<THandle>` — browse-on-demand (ports + commoncase), no legacy floor to fall through to
 
-**`INodeSourceContext` — deleting the service locator from the authoring surface:**
-
-```csharp
-public interface INodeSourceContext
-{
-    NamespaceTable      NamespaceUris { get; }
-    ITelemetryContext   Telemetry     { get; }  // create ILogger via the source-gen [LoggerMessage] conventions
-    TimeProvider        TimeProvider  { get; }
-    ISystemContext      SystemContext { get; }
-    // typed access to base-service ports the author is ALLOWED to use — each already a seam:
-    IHistorianRegistry  Historians    { get; }
-    IFileSystemProvider FileSystem    { get; }
-    ISecretStore        Secrets       { get; }
-}
-```
-
-**Invariants, ordering constraints and error modes that are part of this interface** (today these live as prose restated six times across `INodeManager.cs`; here they are structural and stated once):
-
-- **Build runs once, at activation, single‑threaded.** After the delegate returns, the runtime *seals* the source; the dispatch dictionaries are populated once and read‑only thereafter, so **no synchronization primitive is ever exposed** and no lock appears on the surface (satisfies "never expose locks"). This mirrors `NodeManagerBuilder`'s existing `Seal()` semantics.
-- **Ownership is by namespace** — the default `MasterNodeManager` partitioning. Cross‑namespace/id‑pattern ownership is a rung‑3/4 concern, not expressible here (stated so the author knows the boundary up front).
-- **Wiring is last‑writer‑wins per node per category; double‑wiring the same category on the same node throws at build time**, surfacing author errors at startup rather than at first request (already the fluent contract per `INodeBuilder` remarks: *"Wiring the same node twice with the same callback category is an error and throws."*).
-- **Node lookups resolve eagerly against the address space while the delegate runs**; a failed `Node(...)`/`Bind(...)` throws `ServiceResultException` (`BadNodeIdUnknown`, `BadBrowseNameDuplicated`, or `BadTypeMismatch`) immediately. The runtime path stays reflection‑free and AOT/trim safe.
-- **The `Processed` flag, index‑aligned parallel accumulators, and `ref ContinuationPoint` append semantics do not appear.** The runtime owns request fan‑out; the author never sees them.
-
-**What the level‑1 caller learns:** `Folder / Object / Variable<T> / Method` to create, `Value / OnRead / OnWrite` to back, `Writable / Units` to shape, `UseNodeIdScheme` if they mint runtime instances. That is the entire vocabulary for the common case.
-
-##### Rung 2 — the same builder, one verb per capability
-
-No new type to learn; you keep chaining on the node builders. These already exist as builder extension methods in `src/Opc.Ua.Server/Fluent` — I keep them and add the two the data shows are common (`OnCall` and monitored‑item lifecycle). All are AOT/trim safe (no reflection) and follow the return‑the‑same‑builder contract.
+Modelled bit-for-bit on `IHistorianProvider` (2 members over ~5,900 lines). First-match-wins routing **is** the replacement for the `Processed` protocol — the invariant is carried by a resolved handle, not by prose restated 6× in `INodeManager.cs`.
 
 ```csharp
-// history (Part 11) — HistorianFluentExtensions
-IVariableNode<T> Historize(byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
-                           IHistorianProvider? provider = null, bool autoCapture = true);
-IVariableNode<T> WithHistorian(IHistorianProvider provider);   // per-node provider binding
-
-// alarms & conditions — AlarmBuilderExtensions
-IAlarmBuilder<NonExclusiveLimitAlarmState> CreateLimitAlarm(string browseName);
-IAlarmBuilder<ExclusiveLimitAlarmState>    CreateExclusiveLimitAlarm(string browseName);
-IAlarmBuilder<OffNormalAlarmState>         CreateOffNormalAlarm(string browseName);
-INodeBuilder Done<TState>();                                    // terminates the alarm sub-chain
-
-// method dispatch — typed, replacing the (ISystemContext, MethodState, NodeId,
-// ArrayOf<Variant> inputs, IList<Variant> outputs, ...) positional shape
-IMethodNode OnCall(Func<CallRequest, CancellationToken, ValueTask<CallResult>> handler);
-IMethodNode OnCall<TArgs, TResult>(Func<TArgs, CancellationToken, ValueTask<TResult>> handler); // generated
-
-// event sources — typed Publish<TEvent> on notifier wrappers, EventSourceRegistry
-INode Publish(Func<BaseObjectState, ISystemContext, CancellationToken, IAsyncEnumerable<BaseEventState>> src);
-
-// push sampling — INodeBuilder.OnMonitoredItemCreated
-IVariableNode<T> OnMonitoredItemCreated(MonitoredItemCreatedHandler handler);
-
-// engineering units, simulation timers, dynamic child creation — existing extensions kept
-```
-
-Plus the **generated typed traversal** — `Configure(IBoilerNodeManagerBuilder builder)` — which the source generator already emits per model (`BoilerNodeManager.NodeManager.g.cs` calls both the untyped `Configure(INodeManagerBuilder)` and the typed `Configure(IBoilerNodeManagerBuilder)`). This is the strongest ergonomic asset in the current stack and I preserve it verbatim: each browse segment is a generated property returning the typed wrapper for the next node, so `builder.Boilers.Boiler__1.LCX001.Measurement.OnRead(...)` is fully type‑checked, IntelliSense surfaces every legal child, and a typo is a compile error rather than a startup `ServiceResultException`.
-
-**What level 2 adds:** one verb per capability, or a NodeSet2 design plus the generated traversal for a large static model. **Climb trigger:** you need history, an alarm, a method, an event source, push sampling, or a large authored model. You never change base classes; you add a call.
-
-##### Rung 3 — inject a provider (modelled exactly on `IHistorianProvider`)
-
-This eliminates the current *cliff*. Today, browse‑on‑demand over a large external address space means subclassing `AsyncCustomNodeManager` (8,028 lines, 93 virtuals) and overriding:
-
-- `GetManagerHandleAsync` — returns `ValueTask<object>` (the `object` leak, verified at `INodeManager.cs:902`);
-- `BrowseAsync(OperationContext, ContinuationPoint, IList<ReferenceDescription> references, …)` — where *"The references parameter may already contain references when the method is called. The implementer must include these references when calculating whether a continuation point must be returned"* (verified at `INodeManager.cs:588`); and
-- index‑aligned `Read`, honouring the `Processed` flag on every element.
-
-I re‑cut the 15 opt‑in capability interfaces (`IReadAsyncNodeManager`, `IWriteAsyncNodeManager`, `ICallAsyncNodeManager`, `IBrowseAsyncNodeManager`, `IHistoryReadAsyncNodeManager`, … verified in `INodeManager.cs`) from *interfaces you implement on a subclassed base* into *providers you inject, with a typed handle*:
-
-```csharp
-namespace Opc.Ua.Server;
-
-/// <summary>
-/// Core: recognize an id (no I/O) and describe it. Two members — the same
-/// progressive-disclosure shape as IHistorianProvider.
-/// </summary>
-public interface INodeProvider<THandle> where THandle : notnull
+public interface INodeProvider
 {
     ArrayOf<string> NamespaceUris { get; }
-
-    /// <summary>
-    /// Recognize the syntax of an id without blocking on the underlying system.
-    /// Returns a typed handle — no object round-trip, no Processed flag.
-    /// </summary>
-    bool TryResolve(NodeId nodeId, out THandle handle);
-
-    ValueTask<NodeMetadata?> DescribeAsync(THandle handle, CancellationToken ct);
+    /// <summary>Recognise id syntax WITHOUT blocking I/O. First provider returning true owns the node.
+    /// Returns a portable value handle (§1.4) — never `object`.</summary>
+    bool TryResolve(NodeId nodeId, out NodeManagerHandle handle);
+    ValueTask<NodeMetadata> DescribeAsync(in NodeManagerHandle h, CancellationToken ct);  // NodeMetadata.Unknown when not owned
 }
 
-// opt-in per service you actually support; unsupported services fall back automatically.
-public interface IBrowseProvider<THandle>
+// Opt-in per service; an unimplemented service auto-yields BadNotSupported (historian pattern).
+public interface IBrowseProvider : INodeProvider
 {
-    /// <summary>
-    /// Return one page of children. The runtime owns paging: you receive a token
-    /// and return the next token. You never append into a shared, pre-populated list.
-    /// </summary>
-    ValueTask<BrowsePage> BrowseAsync(
-        THandle handle, in BrowseFilter filter, ContinuationToken token, CancellationToken ct);
+    /// <summary>ONE page of children. The runtime owns paging, maxReferences, dedup, filtering:
+    /// you receive a token and return the next. You never mutate a caller-owned IList that
+    /// "may already contain references".</summary>
+    ValueTask<BrowsePage> BrowseAsync(in NodeManagerHandle h, in BrowseFilter filter,
+                                      ContinuationToken token, CancellationToken ct);
 }
-
-public interface IValueProvider<THandle>
+public interface IValueProvider : INodeProvider
 {
-    ValueTask<DataValue>     ReadAsync(THandle handle, in ReadFilter filter, CancellationToken ct);
-    ValueTask<ServiceResult> WriteAsync(THandle handle, DataValue value, CancellationToken ct);
+    ValueTask<DataValue>     ReadAsync (in NodeManagerHandle h, in ReadFilter f, CancellationToken ct);
+    ValueTask<ServiceResult> WriteAsync(in NodeManagerHandle h, in DataValue v, CancellationToken ct);
 }
+public interface ICallProvider : INodeProvider   { ValueTask<CallResult> CallAsync(in NodeManagerHandle h, in CallRequest r, CancellationToken ct); }
+public interface IObserveProvider : INodeProvider { IAsyncEnumerable<DataValue> ObserveAsync(in NodeManagerHandle h, in MonitorRequest r, CancellationToken ct); }
+```
 
-public interface ICallProvider<THandle>
+##### 1.4 `NodeManagerHandle` — portable value (ports), replacing `object? GetManagerHandle`
+
+```csharp
+public readonly record struct NodeManagerHandle
 {
-    ValueTask<CallResult> CallAsync(THandle handle, in CallRequest request, CancellationToken ct);
+    public NodeId NodeId { get; init; }
+    public int OwningNamespaceIndex { get; init; }   // the partition; portable across replicas
+    public ulong Token { get; init; }                // provider-local, opaque to the runtime, never boxed
+    // NO in-process pointer. Valid on any replica hosting the same namespace partition.
 }
 ```
 
-**Invariants and error modes here, made structural:**
+The runtime router resolves each `ReadValueId`/`WriteValue`/etc. to its single owning handle, then dispatches a **partition** (that provider's items only, locally 0-indexed) to exactly that provider. This deletes, in one move: the `Processed` flag, the index-aligned parallel `IList` accumulators, and the shared-mutable-array fan-out at `MasterNodeManager.cs:4053`.
 
-- **Dispatch is first‑match‑wins.** The runtime router calls `TryResolve` on each provider; the first that returns `true` owns the node. That single fact *replaces the entire prose‑enforced `Processed` protocol* — the invariant is now carried by the type system (a resolved `THandle`), not by "each of N node managers must set a flag while `MasterNodeManager` fans out and relies on each honouring it."
-- **A returned `BrowsePage` replaces the append accumulator.** You build and return your page; you never mutate a caller‑owned `IList<ReferenceDescription>` that may already hold references.
-- **Capability is advertised by which interfaces you implement.** A provider that implements `IValueProvider` but not `ICallProvider` automatically yields `BadNotSupported` for Call — the exact "implement the umbrella, add a capability interface per feature" model that `IHistorianProvider` + `IHistorianDataProvider`/`IHistorianEventProvider`/… already prove in `src/Opc.Ua.Server/Historian`.
-- **Per‑session behaviour is expressible** because `BrowseFilter`/`ReadFilter`/`CallRequest` carry the `OperationContext` (identity, session), so role‑based node visibility lives in the provider without any extra hook.
-
-**What level 3 adds:** a 2‑member core plus one capability interface per service set you support. **Climb trigger:** your address space is too big to materialise, lives in an external system, is partitioned by something other than namespace, or is backed by replicated/HA state.
-
-##### Rung 4 — the existing full surface, unchanged and un‑obsoleted
-
-`IAsyncNodeManager`, `AsyncCustomNodeManager`, `CustomNodeManager2`, and the `INodeManager`/`INodeManager2`/`INodeManager3` chain remain **first‑class and are not marked `[Obsolete]`.** They are rung 4. You register one via the existing `IStandardServer.AddNodeManager(IAsyncNodeManagerFactory)` / `AddNodeManager(INodeManagerFactory)`. This is the labelled door: the docs describe it as "you are leaving the ergonomic surface on purpose," and nodes authored at rungs 1–3 in other sources continue to work alongside it. **What level 4 is:** the complete, untouched power surface, entered deliberately.
-
-##### Registration — DI‑injectable with a direct‑construct fallback (both required)
+##### 1.5 `IServerContext` — replaces the 57-member `IServerInternal` service locator (ports)
 
 ```csharp
-// DI — the no-class trivial form already exists (AddNodeManager(string, Action<INodeManagerBuilder>),
-// verified at OpcUaServerBuilderExtensions.cs:863); I make its builder able to CREATE nodes:
-services.AddOpcUa()
-    .AddServer(o => { /* app name, uri, endpoints */ })
-    .AddNodeSource("urn:acme:line1", b => { /* rung 1–2 */ });   // Action<INodeSourceBuilder>
+/// <summary>Read-only ambient facts. Frozen after the single bind phase. No Set*, no object, no exposed lock.</summary>
+public interface IServerContext
+{
+    IServiceMessageContext MessageContext { get; }
+    NamespaceTable         NamespaceUris  { get; }
+    IEncodeableFactory     Factory        { get; }
+    ITelemetryContext      Telemetry      { get; }   // ILogger via source-gen [LoggerMessage]
+    TimeProvider           TimeProvider   { get; }
+    ServerSystemContext    DefaultSystemContext { get; }
+    ServerState            State          { get; }
 
-// class form when the source has DI dependencies or state:
-services.AddOpcUa().AddServer(o => …).AddNodeSource<TankSource>();      // TankSource : INodeSource
-
-// rung 3 provider, injectable (its own ctor deps resolved from the container):
-services.AddOpcUa().AddServer(o => …).AddNodeProvider<PlantNodeProvider>();
-
-// Direct-construct fallback (no Generic Host):
-IAsyncNodeManagerFactory factory = NodeSource.Factory("urn:acme:line1", b => { … });
-server.AddNodeManager(factory);   // the existing IStandardServer entry point
+    ValueTask<ServerState> TransitionStateAsync(ServerState target, LocalizedText reason, CancellationToken ct = default);
+    ValueTask ReportEventAsync(IFilterTarget e, CancellationToken ct = default);
+    ValueTask<ServerDiagnosticsSummaryDataType> GetServerDiagnosticsAsync(CancellationToken ct = default); // snapshot; private Lock
+}
 ```
 
-`INodeSource` is the class form of rung 1:
+Subsystems (`ISessionManager`, `ISubscriptionManager`, role/identity, the `IHistorianRegistry`) are **resolved from DI by the components that need them**, not handed out by a locator. The 12 `Set*` mutators and `ServerInternalData`'s two-phase construction are replaced by a single ordered bind phase; the hook stops leaking the locator:
 
 ```csharp
+public interface IServerStartupTask
+{
+    ValueTask OnServerStartedAsync(IServerContext context, IServiceProvider services, CancellationToken ct = default);
+}
+// Ordering: DI registration order. Any port bind after ServerState.Running throws BadInvalidState
+// (replaces silent re-entrant SetSessionManager). Redundancy.Server already uses this pipeline (18 refs).
+```
+
+##### 1.6 `INodeBehavior` / `INodeBehaviorSource` — the data/behaviour split (ports), now an *internal* seam
+
+This is the crux for HA, and the one place I keep `NodeState` — see §1.8. The 18 `NodeState` delegates collapse to one node-local provider that is re-attached after hydration; **the serialized payload carries no delegate, no `object`, no `Lock`.**
+
+```csharp
+internal interface INodeBehavior   // internal: it is engine depth, not authoring surface
+{
+    ValueTask<AttributeReadResult>  OnReadValueAsync (ISystemContext c, in ReadValueId id, CancellationToken ct = default);
+    ValueTask<AttributeWriteResult> OnWriteValueAsync(ISystemContext c, in WriteValue  v,  CancellationToken ct = default);
+    ValueTask<CallMethodResult>     OnCallAsync      (ISystemContext c, in CallMethodRequest r, CancellationToken ct = default);
+}
+internal interface INodeBehaviorSource { bool TryGetBehavior(NodeId nodeId, out INodeBehavior behavior); }
+```
+
+##### 1.7 Interceptor chain — cross-cutting at batch granularity (flexible)
+
+```csharp
+public interface IReadInterceptor  { ValueTask InvokeAsync(ReadBatch batch, ReadPipeline next, CancellationToken ct); }
+public interface IWriteInterceptor { ValueTask InvokeAsync(WriteBatch batch, WritePipeline next, CancellationToken ct); }
+/// <summary>Struct cursor: (interceptor[] chain, int index, terminal). No allocation to advance.
+/// Stack grows O(interceptor count) PER SERVICE CALL, never per node — 10k monitored items + 3
+/// interceptors = 3 frames, not 30 000. ORDERING: registration order is semantically significant
+/// (new obligation vs. today's implicit call order).</summary>
+public readonly struct ReadPipeline { public ValueTask InvokeAsync(ReadBatch batch, CancellationToken ct); }
+```
+
+##### 1.8 My explicit answers to the three questions the brief demands
+
+| Question | Answer | Why |
+|---|---|---|
+| **Delete `INodeManager`/`2`/`3`, `IAsyncNodeManager`?** | **Yes, outright.** | One direct external impl exists (`SampleNodeManager`); by the one-adapter rule the seam is *hypothetical*. `NodeManagerRoutingTable` already normalises everything to one internal contract before dispatch. |
+| **`CustomNodeManager2` / `AsyncCustomNodeManager` cease to exist?** | **Yes, as public API.** Absorbed as the `internal sealed` engine behind rungs 1–3. `MasterNodeManager` → internal router. | 93 virtuals bought ~5 used members; 55 of 80 never overridden. The *implementation* is deep and stays; only the interface is deleted. |
+| **Should `NodeState` be re-cut?** | **Apply the data/behaviour split; do NOT fold a full `NodeState` re-cut into this option.** Hide `NodeState` behind the ladder (rungs 1–2 never name it) and behind `INodeBehavior`. | `NodeState` is in `Opc.Ua.Types`, **shared with the client** and **emitted by the generator into `Opc.Ua.Core`**. Re-cutting it breaks the client and every companion generator simultaneously. The 2.0 `node-states.md` already documents that *modest* `NodeState` edits produced **silent binary-incompatible** regressions (virtual-signature no-ops). Coupling that program to the server rewrite multiplies two big-bangs. **Decouple them.** I defer the full `NodeState` re-cut to the colleague and require only that the server rewrite not *depend* on it. |
+
+That last row is the sharpest departure from a naïve "constraint's gone, change everything" reading, and it is where an honest Option A must hold its line: **the strongest full rewrite of `Opc.Ua.Server` still treats `Opc.Ua.Types/State` as a dependency it hides, not one it re-cuts.**
+
+---
+
+#### 2. What gets deleted
+
+Inventory (measured line counts). "Absorbed" = the implementation survives as `internal sealed` engine behind the new seams; "Deleted" = ceases to exist; "Unchanged" = untouched.
+
+| Element | Lines | Fate |
+|---|---:|---|
+| `INodeManager.cs` (22 interfaces: `INodeManager`/`2`/`3`, `IAsyncNodeManager`, 15 capability ifaces, 2 factories) | 1,158 | **Deleted** (public); internal router contract replaces it |
+| `AsyncCustomNodeManager` | 8,028 | **Absorbed** (internal engine); 93 virtuals → 0 public |
+| `CustomNodeManager2` | 6,302 | **Deleted** (the sync twin; async is the only runtime) |
+| `MasterNodeManager` (public 36) | 7,601 | **Absorbed** → internal sealed router; `Processed`, fan-out broadcast, handle resolution deleted |
+| `FluentNodeManagerBase : AsyncCustomNodeManager` | 280 + Fluent (35 files/8,814) | **Re-based** onto the sealed runtime; the `: AsyncCustomNodeManager` inheritance deleted |
+| `IServerInternal` (57) + `ServerInternalData` | 1,355 | **Deleted**; `IServerContext` (~10) + DI + frozen bind |
+| 5 diagnostics-lock members + 88 `lock (object)` statements (7 files incl. a sample) | — | **Deleted**; private `System.Threading.Lock` + snapshot getters |
+| `ISubscription` publish-protocol (11 of 42) | ~5,000 (Subscription+queues) | **Absorbed** to internal seam; `ISubscription` 42→~25 |
+| `ISession` `object` continuation members (2 leaks) | — | **Deleted**; routed to existing `IContinuationPointStore` |
+| `ImpersonateUser`/`ValidateSessionLessRequest` mutable-event-args | — | **Deleted**; routed to existing `IUserTokenAuthenticator`/`IServerIdentityRegistry` (both already exist) |
+| `IStandardServer` (9) + factory/lifecycle virtuals | 5,575 | **Unchanged** — the one healthy seam (16/37 virtuals used by 3 subclasses) |
+| `NodeState` + `Opc.Ua.Types/State` | 15,434 | **Unchanged as data**; only an internal `INodeBehavior` split |
+
+##### Deletion test applied
+
+1. **`IServerInternal` (57 members).** Delete it → complexity *vanishes at the seam* (it has zero depth: 1,355 lines of property storage behind 57 members) but *reappears as wiring* in ~65 core files. That wiring is real — but it is DI's job, not a locator's. Verdict: **delete the locator, keep the wiring in DI.** The `SetNodeManager`→silently-populates-3-more and re-entrant `SetSessionManager` hazards disappear with it.
+2. **The `Processed` protocol + `object` handle.** Delete → nothing reappears *if* routing pre-resolves owners (portable handle). The cooperative-multiplex existed *only* because `MasterNodeManager` broadcasts one shared mutable array to every manager. Owner-pre-split makes it unnecessary. Verdict: **pure prose-enforced complexity; delete.**
+3. **`CustomNodeManager2` (the sync twin, 6,302 lines).** Delete → nothing reappears: `NodeManagerRoutingTable` is already `IReadOnlyList<IAsyncNodeManager>`; everything is normalised to async before dispatch. The sync base is a *technology* duality, not a domain one. Verdict: **delete.**
+4. **`INodeManager`/`2`/`3` (versioned by suffix twice).** Delete → little reappears; routing runs on the internal async contract, and exactly one external adapter exists. Verdict: **compatibility surface, not a load-bearing seam; delete.**
+5. **The 88 `object` locks / 5 diagnostics-lock members.** Delete → nothing reappears; the guarded state is owned by `Subscription`/`Session`/`ServerInternalData` themselves, and `UpdateServerStatus(Action<T>)` already demonstrates the owner-side replacement. The `DiagnosticsWriteLock` getter that runs `ForceDiagnosticsScan()` *outside* the lock it returns becomes inexpressible. Verdict: **pure leak; delete.**
+
+---
+
+#### 3. Blast radius and migration story
+
+##### 3.1 Measured blast radius (counted this session)
+
+| Consumer category | Count | Detail |
+|---|---:|---|
+| **Node-manager derivations, production** | **~24** | 6 core impls + 12 sibling-lib + ~6 samples. Sibling libs: GDS (3), XRegistry (3), WotCon (2), PubSub (1), ISA95 (1), DI (1), Positioning (1) |
+| **Node-manager derivations, tests** | **~17** | incl. the giant `NodeManagerLifecycleTests.cs` (8,406) and `AsyncCustomNodeManagerTests.cs` (5,821) |
+| **Direct `INodeManager` impls** | **1** | `samples/Quickstarts.Servers/SampleNodeManager` |
+| **`IServerInternal` referencing files** | **268** | core 65 · sib 35 · sample 18 · **test 150** |
+| **`[NodeManager]` generator entry points** | **7** | template hard-wired to `FluentNodeManagerBase` (`NodeManagerTemplates.cs:61`) |
+| **Companion server libraries** | **12** | Di, Gds.Server.Common, Lds, ISA95, OpenUsd (×2), Positioning, PubSub, Redundancy, Robotics, WotCon, XRegistry |
+| **Server test files ≥ removed surface** | **5** | 8,406 + 5,821 + 2,499 + 1,639 + 1,355 = **~19,720 lines** testing *through* the deleted surface |
+| **External consumers** | **unknown & uncounted** | out-of-repo servers that derive `CustomNodeManager2` — the real risk |
+
+##### 3.2 The structural fact that dominates the migration story
+
+**The `[OpcUaShim]` runtime bridge that carried the client/types/config migration is structurally unavailable for the node-manager surface.** Verified: every shim in `MigrationAnalyzer.Core` is an **extension method or thin re-implementation over the *new* API** (e.g. `ServerBaseObsolete.Start(this IServerBase) => StartAsync(...).GetAwaiter().GetResult()`). That works when the old API is a veneer over the new one. But a node-manager author *inherits* an 8,028-line base and *overrides* virtuals whose bodies call `MasterNodeManager`/`NodeState`/`IServerInternal` internals — none of which exist after the rewrite. To shim it you would have to **ship the old base classes with their old runtime beneath them** — which is precisely Option B relocated into a NuGet package. **A base-class inheritance surface cannot be shimmed without retaining its implementation.** So for the authoring surface, category (c) is ~0.
+
+##### 3.3 Honest category split
+
+I split by *kind of consumer code*, because the same server project mixes both.
+
+**(i) Non-authoring churn** (client calls, `byte[]`→`ByteString`, `==null`→`.IsNull`, `EncodeableFactory` rename, `Session.Call` params) — already covered by UA0001–UA0023, **70% auto-fixed**. This is real and it discounts the *total* migration effort of a full server project. But it is not the hard part and it exists identically under Option B.
+
+**(ii) Node-manager / `IServerInternal` authoring code** — the part this rewrite creates. My honest estimate for *this slice*:
+
+| Category | Share | Justification |
+|---|---:|---|
+| **(a) Roslyn auto-fix** | **~10%** | Base-type rename in trivial passthrough managers; 1:1 renames (`Clone`→`CreateCopy`); mechanical signature additions. Cannot restructure a body. |
+| **(b) Analyzer-detect + human judgement** | **~30%** | Locate every `: AsyncCustomNodeManager`, every override of a removed virtual (25 distinct names), every `IServerInternal.X` read and map it to its injected seam. The tool points; the human rewrites. |
+| **(c) `[OpcUaShim]` runtime bridge** | **~0–5%** | Structurally unavailable for the base class (§3.2). Only isolated helper calls (`GetServerDiagnostics` snapshot) are bridgeable. |
+| **(d) Genuine consumer rewrite** | **~55–60%** | `CreateAddressSpaceAsync` bodies re-expressed as `BuildAsync`+builder; browse-on-demand managers re-expressed as `INodeProvider`; behaviour re-attachment; `Processed`/handle round-trips removed. No tool can write these. |
+
+**Why (d) dominates and I will not inflate (a).** The existing analyzers work on `OperationKind.Invocation` — "you *called* removed symbol X." The node-manager migration is "your *override body* must be reshaped," which is not an invocation pattern. The one precedent that already exists — 2.0's `node-states.md` — migrated `NodeState` changes **entirely by hand**, with explicit *"⚠ Silent regression … No runtime exception is thrown"* warnings. That is the ceiling of what tooling does here, and it is low.
+
+##### 3.4 New analyzers I would build (and which carry a code fix)
+
+| Rule | Detects | Code fix? |
+|---|---|---|
+| **UA0024** | `: CustomNodeManager2 / AsyncCustomNodeManager / FluentNodeManagerBase / INodeManager*` | **Partial** — rename base only for the ~10% trivial-passthrough shape; otherwise *no fix*, link `docs/migrate/2.x/node-sources.md` |
+| **UA0025** | `override` of any of the 25 removed virtuals (`CreateAddressSpaceAsync`, `New`, `LoadPredefinedNodesAsync`, `AddBehaviourToPredefinedNodeAsync`, …) | **No** — body restructuring; detect-and-point only |
+| **UA0026** | `IServerInternal` member access; maps each of ~20 subsystems to its new injected seam | **Partial** — 1:1 property reads (`.NamespaceUris`, `.Telemetry`); *no fix* for `Set*` / two-phase |
+| **UA0027** | `object GetManagerHandle` round-trip / `Processed` flag reads | **No** — rewrite to `INodeProvider.TryResolve` |
+| **UA0028** | `.DiagnosticsLock` / `.DiagnosticsWriteLock` acquisition (incl. the sample) | **Partial** — read-only snapshot → `GetServerDiagnosticsAsync` |
+| **UA0029** | Imperative `NodeState` tree-building in an override (`CreateVariable`/`AddChild`/`AddReference`) | **No** — link builder recipe |
+
+So of six new rules, **two carry partial fixes** and none carries a full body-rewriting fix — consistent with the ~10% auto-fix ceiling. Contrast the shipped 14/20 (70%) rate, which was achievable *only* because those targets were renames and wraps.
+
+##### 3.5 What the migration guide must carry that tooling cannot
+
+- **Recipe: `CreateAddressSpaceAsync` override → `BuildAsync` + creational builder** (worked example per node class).
+- **Decision guide: rung-1 materialize vs. rung-3 `INodeProvider`** for a given manager (the analyzer cannot judge address-space size).
+- **The `IServerInternal`-subsystem → new-home map** (all ~20 rows), because most have no 1:1 property.
+- **Behaviour re-attachment** and why delegates must not be in the replicated graph.
+- **Interceptor ordering** semantics (a new obligation) and **frozen-bind** timing (`BadInvalidState` after `Running`).
+- The **silent-regression classes** that have *no* build break (binary-incompat overrides), which only a recompile surfaces — the single most dangerous item, and tooling cannot see it in a pre-compiled external assembly.
+
+---
+
+#### 4. Pros and cons of the full-rewrite option
+
+**Implementation cost & elapsed time.** Rewriting the runtime + authoring surface within `Opc.Ua.Server` (~134k lines, of which the node-manager/master/server-internal cluster is ~24k directly re-cut and much of the rest re-wired) is, realistically, a **multi-quarter program for a small senior team**, gated on: (2) `IServerContext`+frozen bind, (3) creational builder + sealed runtime, (4) portable handle + router, (5) behaviour split — *plus* rewriting the generator template (`NodeManagerTemplates.cs`), regenerating 7 `[NodeManager]` models, and migrating 12 companion libraries and all samples **in lockstep**. This is strictly more than round 1's sequencing, because there is no rung-4 fallback to defer behind.
+
+**Risk to correctness / OPC UA compliance.** High and concentrated. Browse continuation, `Read`/`Write` index-alignment, `Call`, `HistoryRead`, Publish, subscription transfer, and `TranslateBrowsePath` semantics are fixed by the spec and are today validated *through the very surface being deleted*. The CTT / conformance-unit suite (`ConformanceUnitsManager`) is the safety net, but CTT exercises the wire protocol, not the authoring API — so a rewrite can pass CTT while silently changing authoring semantics, and can regress a conformance unit that no unit test now covers because the unit tests are being deleted with the surface. This is the **big-bang integration risk** in concrete form: nothing ships until core + generator + 12 libs + samples + a rebuilt test suite all pass together.
+
+**In-flight work / open PRs.** Any open PR touching `AsyncCustomNodeManager`, `CustomNodeManager2`, `MasterNodeManager`, `IServerInternal`, `Subscription`, or `Session` conflicts irreconcilably — these are the highest-churn files in the assembly. The rewrite must land as a coordinated freeze; long-lived branches against the old surface are write-offs. Option B does not force this.
+
+**Test-suite story.** The heaviest liability. **~19,720 lines across 5 files** (`NodeManagerLifecycleTests` 8,406; `AsyncCustomNodeManagerTests` 5,821; `MasterNodeManagerNodeManagementTests` 2,499; `MasterNodeManagerDeterministicTests` 1,639; `CustomNodeManagerDeterministicTests` 1,355) test *through* the deleted surface by subclassing it — they cannot be adapted, only rewritten. **150 test files** reference `IServerInternal`. The mocked diagnostics locks (`SubscriptionTests`, `SessionSecurityTests`) verify zero mutual exclusion and must be deleted, not ported. `IStandardServer` tests survive; most node-manager and server-internal tests do not.
+
+**Coverage requirement (must not decrease, 80%+).** This is a genuine hazard, not a footnote. Coverage is measured on the *shipping* assembly. The moment the old surface is deleted, ~19,720 lines of tests stop compiling; until equivalent tests exist against the narrow seam, coverage of the *new* engine is low. Because "coverage MUST NOT decrease," the new tests are **on the critical path of the same PR**, not a follow-up — inflating the big-bang further. The narrow interface is a *better* long-term test surface (fewer, deeper tests), but the transition trough is real.
+
+**External consumers not in this repo.** They get the worst deal of any option: no shim (§3.2), ~55–60% genuine rewrite, and a class of **silent binary-incompatible** regressions that only a recompile reveals. Their only safety net is the analyzer's detect-and-point and the migration guide. This is the cost Option B exists to avoid.
+
+**The honest pro.** Option A is the *only* option that actually pays the debt down. Option B keeps **~22,000 lines** of old node-manager code (`AsyncCustomNodeManager` + `CustomNodeManager2` + `MasterNodeManager`) alive beside the new implementation **forever**: every future fix is done twice, every security patch twice, and the "second surface for tests to fall through to" — the exact `FluentNodeManagerBase : AsyncCustomNodeManager` failure mode round 1 flagged — persists permanently. Option A's `internal sealed` runtime makes the shallow-facade failure *impossible by construction* (compiler-enforced, not documented). One implementation, one interface-as-test-surface, one thing to reason about for HA. If the assembly is going to be maintained for another decade, Option A is the only choice that stops the bleeding rather than adding a second wound.
+
+**Net.** Option A has the **lower total-cost-of-ownership and the higher one-time cost and risk.** It trades a large, concentrated, schedulable, mostly-internal cost for the elimination of a permanent recurring one — while pushing an un-shimmable, mostly-manual migration onto ~24 in-repo and an unknown number of external node-manager authors.
+
+---
+
+#### 5. What would make this the right choice
+
+**Clearly correct when:**
+
+1. **`Opc.Ua.Server` will be maintained for years and HA is a committed goal.** The data/behaviour split makes replication correct *by construction* (delegates are code, cannot be serialised, so must not be in the replicated graph). A fork cannot deliver that guarantee — it keeps two graphs. If HA is real, A is the only correct answer. If HA is aspirational, this pillar collapses and B suffices.
+2. **The external node-manager population is small or coordinated** (mostly first-party companion specs + a known handful of downstreams). Falsifiable: if telemetry/issues show few external `CustomNodeManager2` subclasses, (d)'s ~55–60% manual rewrite lands on a countable set and the analyzer+guide carry it. If that population is large and uncoordinated, the un-shimmable rewrite is a community-breaking event and B wins.
+3. **A single coordinated release train exists** that can land core + generator + 12 libs + samples + rebuilt tests together, with a freeze on the touched files. Falsifiable: if the project cannot freeze `MasterNodeManager`/`IServerInternal`/`Subscription` for the duration, the big-bang cannot be integrated and B's incremental path is mandatory.
+4. **The team will fund the test rewrite inside the same train** (the ~19,720-line suite + the 150 `IServerInternal` test files), so the coverage floor is never breached on the shipping assembly. Falsifiable: if the plan defers tests to "after," the 80%-no-decrease rule blocks the merge — a hard stop.
+5. **The `NodeState` re-cut is kept out of scope of this train** (my §1.8 position). If a decision-maker insists on folding the `Opc.Ua.Types/State` re-cut *into* the server rewrite, the two big-bangs compound: the generator, the client, and every companion model break at once, and the silent-binary-incompat class multiplies. That combination moves A from "hard but right" to "reckless."
+
+**Clearly *not* the right choice when:**
+
+- **Back-compat was lifted on paper but downstream reality has not changed** — i.e. large external `CustomNodeManager2` deployments that cannot recompile on your schedule. Then the missing shim (§3.2) is disqualifying and B's side-by-side path is correct.
+- **The near-term driver is the runtime debt, not the authoring model** — the diagnostics-lock leak (88 locks), the `IServerInternal` locator, the `ISubscription` publish-protocol leak. **All of these are fixable without deleting the node-manager surface at all** (they were round 1's steps 1–2, "worth doing regardless"). If that is the actual goal, a full rewrite is massive over-reach for it.
+- **There is no appetite for a multi-quarter freeze or a coverage trough.** A's costs are front-loaded and indivisible; a team that needs steady incremental delivery cannot absorb them, and B's ability to ship the new surface beside the old — trading permanent duplication for schedulability — is the rational trade.
+
+**One-line honest verdict.** Choose Option A if you are optimising the *next decade* of maintenance and HA correctness and can pay a large, coordinated, one-time cost with an un-shimmable external-migration tail. Choose the fork if you are optimising the *next year* of downstream stability and incremental delivery. The technical design above is the strongest A I can build; its price is a genuine consumer rewrite that tooling can detect and document but cannot perform.
+
+---
+
+## Option B — Side-by-side fork
+
+**Assignment:** *Design and evaluate a fork inside `Opc.Ua.Server` — existing architecture retained, new implementation shipping alongside it. Answer where the fork line falls, whether both can coexist in one address space, the double-maintenance cost, and the exit strategy. Say plainly if round 1's soft fork dominates.*
+
+> Reproduced verbatim as delivered. Section numbering is the designer's own.
+
+### Option B — A Side‑by‑Side Fork Inside `Opc.Ua.Server`
+
+#### Summary judgment up front (so it can't be lost in the length)
+
+The decisive fact I verified is that **`Opc.Ua.Server` already multiplexes heterogeneous node managers behind one seam.** `StandardServer.CreateMasterNodeManagerAsync` (StandardServer.cs:4913) builds a sync list *and* an async list of node managers and hands both to a single `MasterNodeManager`, which normalizes everything to `IAsyncNodeManager` (via the 812‑line `AsyncNodeManagerAdapter`) before dispatch. `NodeManagerRoutingTable` is already `IReadOnlyList<IAsyncNodeManager>`.
+
+That changes the whole character of Option B. **The fork line for a side‑by‑side model falls at `IAsyncNodeManager`, and everything below it — `MasterNodeManager`, `Session`, `Subscription`, `SubscriptionManager`, `StandardServer`, `ServerBase`/transport, and `NodeState` — is *shared*, not duplicated.** A "hard fork inside the assembly" is therefore not a fork of the ~130,000‑line runtime; it is a fork of only the **~15,000‑line authoring surface**, joined to the shared runtime by one new bridge adapter.
+
+This makes Option B far cheaper than the phrase "two live implementations" suggests — and it is exactly why, once priced honestly, **the *soft* fork (round‑1's un‑obsoleted rung 4: one node‑serving implementation, layered entry points) dominates the hard fork for every goal except one narrow case** (a second, structurally‑incompatible node‑serving engine for fully‑remote address spaces). I build the strongest hard‑fork design below, then show where it loses.
+
+---
+
+#### 1. The design and the fork line
+
+##### 1.1 What changes now that 1.5.378 compatibility is lifted
+
+Start from the round‑1 hybrid (commoncase ladder + ports data/behaviour split + `IServerContext`). With back‑compat gone, three things change:
+
+1. **Delete, don't `[Obsolete]`.** The sync `INodeManager`/`INodeManager2`/`INodeManager3` chain, `CustomNodeManager` (the 5,489‑line sync base), `SyncNodeManagerAdapter` (294 lines), and `IAsyncNodeManager.SyncNodeManager` can be **removed outright**, normalizing the whole stack to async. That is a genuine simplification the lifted constraint unlocks — but it forces the one direct `INodeManager` implementer (`SampleNodeManager`, Quickstarts.Servers) and its two subclasses to move.
+2. **No shim library, no obligatory analyzer.** In Option B the old authoring surface *keeps working as itself*, so there is nothing to shim. Contrast the existing `Opc.Ua.MigrationAnalyzer.Core` shims, which exist only for surfaces that were *removed* (client `Session`, `ServerBase`, `EncodeableFactory`, …).
+3. **The choice is now real.** In round 1 rung 4 was kept un‑obsoleted "because we must." Now we keep the old authoring surface **because we choose to** — which is precisely the hard‑fork decision, and it must earn its place rather than be grandfathered.
+
+##### 1.2 The fork line, exactly
+
+```
+   AUTHORING SURFACE  (FORKED — two implementations live here)
+   ┌───────────────────────────────┬────────────────────────────────────┐
+   │  OLD (frozen-but-alive)        │  NEW (Opc.Ua.Server.Nodes)          │
+   │  AsyncCustomNodeManager 7,080  │  INodeSource / INodeSourceBuilder    │
+   │  FluentNodeManagerBase         │  INodeProvider<THandle> (+caps)      │
+   │  NodeState 18-delegate surface │  internal sealed NodeSourceRuntime   │
+   └───────────────┬───────────────┴──────────────────┬─────────────────┘
+                   │  is-an IAsyncNodeManager          │  bridged to IAsyncNodeManager
+                   │                                    │  by NodeSourceManagerAdapter (NEW, ~800 ln)
+   ════════════════▼════════════════════════════════════▼═════════════════  ← THE FORK LINE
+   IAsyncNodeManager  (the normalization seam — SHARED, unchanged)
+   ┌───────────────────────────────────────────────────────────────────────┐
+   │  SHARED RUNTIME (one implementation, ~130,000 lines, NOT duplicated)    │
+   │  MasterNodeManager 6,791 · Session 1,368 · Subscription 3,039           │
+   │  SubscriptionManager 2,523 · StandardServer 4,963 · ServerBase 1,630    │
+   │  publish pipeline · monitored items · NodeState data core (5,075) ·      │
+   │  IServerInternal/ServerInternalData · continuation/subscription stores   │
+   └───────────────────────────────────────────────────────────────────────┘
+```
+
+**The fork line is `IAsyncNodeManager`.** Above it, an author picks one of two authoring surfaces. Below it, there is exactly one runtime. The new surface reaches the runtime through **one new adapter** that satisfies `IAsyncNodeManager`, exactly as `AsyncNodeManagerAdapter` does today for sync managers.
+
+##### 1.3 The new authoring surface (real C#)
+
+The internal runtime uses a **portable handle** (ports design) so it is HA‑ready and never round‑trips `object`:
+
+```csharp
+namespace Opc.Ua.Server.Nodes;
+
+/// <summary>
+/// Portable node identity used inside the new runtime. No in-process pointer,
+/// so it is valid on any replica hosting the same namespace partition.
+/// </summary>
+public readonly record struct NodeSourceHandle
+{
+    public NodeId NodeId { get; init; }
+    public int OwningNamespaceIndex { get; init; }
+}
+```
+
+The common‑case authoring seam (commoncase ladder, now free of any obsolete baggage). `INodeSourceBuilder` *mints* nodes — the round‑1‑verified gap that today's `Variable<T>(...)` only resolves and throws:
+
+```csharp
+namespace Opc.Ua.Server.Nodes;
+
 public interface INodeSource
 {
     ArrayOf<string> NamespaceUris { get; }
     ValueTask ConfigureAsync(INodeSourceBuilder builder, CancellationToken ct = default);
 }
-```
 
----
-
-#### 2. Usage example
-
-##### (a) The trivial case — a device‑backed server, single file, no NodeSet2, no class
-
-```csharp
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Opc.Ua;
-using Opc.Ua.Server;
-
-var modbus = new ModbusClient("10.0.0.7");                       // the author's device
-
-HostApplicationBuilder host = Host.CreateApplicationBuilder(args);
-host.Services.AddOpcUa()
-    .AddServer(o =>
-    {
-        o.ApplicationName = "Line1";
-        o.ApplicationUri  = "urn:localhost:acme:Line1";
-        o.ProductUri      = "uri:opcfoundation.org:Line1";
-        o.AutoAcceptUntrustedCertificates = true;               // sample convenience only
-        o.EndpointUrls.Add("opc.tcp://localhost:62541/Line1");
-    })
-    .AddNodeSource("urn:acme:line1", b =>
-    {
-        IObjectNode tank = b.Folder("Plant").Object("Tank1");
-
-        tank.Variable<double>("Level")
-            .OnRead(ct => modbus.ReadHoldingAsync(40001, ct))   // async, lock-free, device-backed
-            .Units("m", 0, 5);
-
-        tank.Variable<string>("Model")
-            .Value("ACME-9000");                                // static: no delegate, no async at all
-
-        tank.Variable<bool>("PumpOn")
-            .OnRead(() => modbus.Coil(1))                       // synchronous getter — genuine sync path
-            .OnWrite((v, ct) => modbus.WriteCoilAsync(1, v, ct))
-            .Writable();
-    });
-
-await host.Build().RunAsync();
-```
-
-Everything a newcomer learns is on that page: `Folder / Object / Variable<T>`, `OnRead / OnWrite / Value`, `Units / Writable`. There is no `NodeState`, no `NodeId` factory, no `CreateAddressSpace`, no `IServerInternal`, no `lock`, and no `object`. The static `Model` variable pays **zero** async ceremony; the sync `PumpOn` getter runs on a genuine synchronous read path; only the genuinely I/O‑backed `Level` opts into the awaitable shape.
-
-##### (b) One rung up — history + an alarm + a method (verbs added, nothing subclassed)
-
-```csharp
-.AddNodeSource("urn:acme:line1", b =>
+public interface INodeSourceBuilder
 {
-    IObjectNode tank = b.Folder("Plant").Object("Tank1");
+    IServerContext Context { get; }
 
-    IVariableNode<double> level = tank.Variable<double>("Level")
-        .OnRead(ct => modbus.ReadHoldingAsync(40001, ct))
-        .Units("m", 0, 5)
-        .Historize();                          // Part 11 — in-memory historian auto-installed on first use
+    IFolderNode      Folder(string browseName);
+    IObjectNode      Object(string browseName, NodeId typeDefinition = default);
+    IVariableNode<T> Variable<T>(string browseName);   // mints, returns typed builder
+    IMethodNode      Method(string browseName);
 
-    tank.CreateLimitAlarm("LevelHigh")         // Alarms & Conditions — one verb
-        .OfSource(level)
-        .HighLimit(4.5)
-        .Severity(700)
-        .Done();
+    INode            Node(NodeId nodeId);              // resolve a model-authored node
+    IVariableNode<T> Bind<T>(NodeId nodeId);
 
-    tank.Method("Drain")
-        .OnCall((in CallRequest r, CancellationToken ct) => modbus.DrainAsync(ct));  // typed dispatch
-});
-```
+    INodeSourceBuilder UseNodeIdScheme(INodeIdScheme scheme);   // retires the `New` virtual (12 sites)
+}
 
-For a *large* static model the climb is instead: author `Tank.NodeSet2.xml`, mark the partial class `[NodeManager(NamespaceUri = "urn:acme:line1")]`, let the generator emit the typed traversal, and wire only the device‑backed leaves:
-
-```csharp
-[NodeManager(NamespaceUri = "urn:acme:line1")]
-public partial class TankNodeManager
+public interface IVariableNode<T> : INode
 {
-    partial void Configure(ITankNodeManagerBuilder b)
-    {
-        b.Plant.Tank1.Level.OnRead(ct => m_modbus.ReadHoldingAsync(40001, ct)).Historize();
-        b.Plant.Tank1.Drain.OnCall(DrainAsync);
-    }
+    IVariableNode<T> Value(T initialValue);                                   // static: no delegate, no async
+    IVariableNode<T> OnRead(Func<T> read);                                    // genuine sync path
+    IVariableNode<T> OnRead(Func<ISystemContext, CancellationToken, ValueTask<T>> read);  // async, lock-free
+    IVariableNode<T> OnWrite(Func<T, CancellationToken, ValueTask> write);
+    IVariableNode<T> Writable(bool writable = true);
 }
 ```
 
-Same verbs, type‑checked paths, no strings or `NodeId`s at the call site.
-
-##### (c) The demanding case — browse‑on‑demand over a large external address space (rung 3)
+The advanced seam is a provider, modelled on `IHistorianProvider` (first‑match‑wins, no `Processed`, `BrowsePage` instead of an append accumulator):
 
 ```csharp
-// 200k tags in a plant historian; never materialised into NodeState. Inject a provider.
-public sealed class PlantNodeProvider :
-    INodeProvider<TagRef>, IBrowseProvider<TagRef>, IValueProvider<TagRef>
+namespace Opc.Ua.Server.Nodes;
+
+public interface INodeProvider<THandle> where THandle : notnull
 {
-    private readonly IPlantGateway m_plant;
-    public PlantNodeProvider(IPlantGateway plant) => m_plant = plant;   // DI-resolved
-
-    public ArrayOf<string> NamespaceUris => ["urn:acme:plant"];
-
-    public bool TryResolve(NodeId nodeId, out TagRef handle)            // cheap, no I/O
-        => TagRef.TryParse(nodeId, out handle);
-
-    public ValueTask<NodeMetadata?> DescribeAsync(TagRef h, CancellationToken ct)
-        => m_plant.DescribeAsync(h, ct);
-
-    public async ValueTask<BrowsePage> BrowseAsync(
-        TagRef h, in BrowseFilter f, ContinuationToken token, CancellationToken ct)
-    {
-        PlantPage page = await m_plant.ListChildrenAsync(h, token.Offset, pageSize: 500, ct);
-        return BrowsePage.From(
-            page.References,
-            next: page.HasMore ? token.Advance(500) : ContinuationToken.None);
-    }
-
-    public ValueTask<DataValue> ReadAsync(TagRef h, in ReadFilter f, CancellationToken ct)
-        => m_plant.ReadAsync(h, ct);
-
-    public ValueTask<ServiceResult> WriteAsync(TagRef h, DataValue v, CancellationToken ct)
-        => m_plant.WriteAsync(h, v, ct);
+    ArrayOf<string> NamespaceUris { get; }
+    bool TryResolve(NodeId nodeId, out THandle handle);           // cheap, no I/O
+    ValueTask<NodeMetadata> DescribeAsync(THandle handle, CancellationToken ct);
 }
 
-// registration:
-services.AddOpcUa().AddServer(o => …).AddNodeProvider<PlantNodeProvider>();
-```
-
-Note what is **absent**: no continuation‑point struct threaded through `ref` parameters, no `Processed` flag, no index‑aligned `IList<DataValue>` / `IList<ServiceResult>` the caller pre‑sized, no `object` handle. `TagRef` is the author's own typed handle. The provider implements `IValueProvider` but *not* `ICallProvider`, so Call automatically returns `BadNotSupported` — the same "advertise only what you support" model as `IHistorianProvider`'s capability interfaces. Per‑session ACLs, if needed, read `f.OperationContext.Session` inside `BrowseAsync`/`ReadAsync`.
-
-##### (d) The ergonomic cliff test — the user who needs something off‑ladder
-
-**Scenario 1 — a cross‑cutting concern (audit/transform *every* Read across all namespaces).** Rungs 1–3 are per‑node; there is no per‑node verb for "every request." The author *would* hit a wall — but the ladder **redirects them to the correct seam instead of dropping them into 93 virtuals.** This is a server concern, and the healthy 9‑member `IStandardServer` already exposes the right hook (`OnRequestValidatedAsync` is one of its clean lifecycle overrides):
-
-```csharp
-public sealed class AuditingServer : StandardServer
+public interface IValueProvider<THandle>
 {
-    protected override ValueTask OnRequestValidatedAsync(RequestContext ctx, CancellationToken ct)
-    {
-        m_audit.Record(ctx);
-        return base.OnRequestValidatedAsync(ctx, ct);
-    }
+    ValueTask<DataValue>     ReadAsync(THandle handle, in ReadFilter filter, CancellationToken ct);
+    ValueTask<ServiceResult> WriteAsync(THandle handle, in DataValue value, CancellationToken ct);
 }
 
-services.AddOpcUa().AddServer<AuditingServer>(o => …);   // AddServer<TServer> sits next to AddServer(...)
-```
-
-That is a **step**: one override on the reference‑shape server interface, discoverable because `AddServer<TServer>()` is right beside `AddServer(...)`. A good ladder also tells you when you are standing at the wrong ladder.
-
-**Scenario 2 — a genuine rung‑4 drop.** The author needs a manager that owns nodes by an **id pattern spanning namespaces** *and* wants to hook the publish pipeline's sampling‑group scheduling. Neither is expressible on rungs 1–3, so they descend, deliberately, to the full surface:
-
-```csharp
-public sealed class LegacyManager : AsyncCustomNodeManager   // full surface, on purpose
+public interface IBrowseProvider<THandle>
 {
-    public override IEnumerable<string> NamespaceUris => null;        // custom partitioning
-    // override the id-resolution + sampling hooks you need; the router already
-    // supports NamespaceUris == null via MasterNodeManager.GetManagerHandle fan-out.
+    ValueTask<BrowsePage> BrowseAsync(
+        THandle handle, in BrowseFilter filter, ContinuationToken token, CancellationToken ct);
 }
-
-server.AddNodeManager(new LegacyManagerFactory());
 ```
 
-This is a **step, not a fall**, for three reasons: (i) it is a deliberate `new` + registration, not silent inheritance; (ii) the docs name it as rung 4 with its trade‑offs; (iii) rung‑1/2 nodes in *other* sources keep working next to it. The difference from today is that you arrive here **by choice for a real reason**, not because you needed one extra thing the veneer didn't cover and got the whole 93‑virtual surface by inheritance.
-
----
-
-#### 3. What the implementation hides behind the seam
-
-The runtime keeps a single **`internal sealed`** implementation — call it `NodeSourceRuntime : IAsyncNodeManager` — that the builder (rungs 1–2) and the providers (rung 3) feed. It is the deep module: a small authored interface sits in front of the entire existing node‑manager engine.
-
-**Machinery that moves from interface to implementation (with line counts):**
-
-- **`AsyncCustomNodeManager` — 8,028 lines, 59 public + 92 protected members, 93 virtual/abstract resolving to 80 distinct names.** Authors never see it. `NodeSourceRuntime` *contains and drives* it; the 93 virtuals become private policy.
-- **`CustomNodeManager2` — 6,302 lines, 93 virtual/abstract.** Internal engine, not an authored base.
-- **`MasterNodeManager` — 7,601 lines, 36 public methods.** Its request fan‑out and the `Processed`‑flag arbitration are hidden; the router now owns dispatch via `TryResolve`, so the flag protocol is deleted from every authored surface.
-- **`IServerInternal` — 57 members (34 properties handing out 20+ subsystems, 12 `Set*` mutators), referenced across 200+ files; `ServerInternalData` is 1,355 lines.** Stays internal to the runtime; the authored surface sees the 6‑member `INodeSourceContext`.
-- **`NodeState` — 5,824 lines, 155 public members, 65 virtual/abstract, 2 events, 18 public delegates (the sync/async duplicated pairs).** Reduced, for the common case, to `Value / OnRead / OnWrite / OnCall / Publish` on the typed node builders. The full delegate surface remains available to rung‑4 authors.
-- **The 15 opt‑in capability node‑manager interfaces** (`IReadAsyncNodeManager`, `IBrowseAsyncNodeManager`, …) collapse into the injectable `INodeProvider`/`IBrowseProvider`/`IValueProvider`/`ICallProvider` family.
-
-**Machinery that stays visible (correctly):** `NodeId`, `Variant`, `DataValue`, `QualifiedName`, `ArrayOf<T>`, `ByteString`, `ServiceResult`/`StatusCode`, `OperationContext`, `NodeMetadata` — the domain vocabulary, unavoidable and shared with the rest of the stack. Hiding it would be dishonest depth (you cannot serve OPC UA without `NodeId` and `Variant`).
-
-**The deletion test, applied explicitly to three removals:**
-
-1. **`FluentNodeManagerBase` as a public base class** (`Fluent/FluentNodeManagerBase.cs:57`, `public abstract class FluentNodeManagerBase : AsyncCustomNodeManager`). Delete it as an *extension point*. Complexity does **not** reappear across callers: the 90% used only `CreateFluentBuilder` + `Configure` + the two registries (`EventSourceRegistry`, `SimulationRegistry`), which the runtime now performs for them. From the author's vantage the class was a **pass‑through** onto `AsyncCustomNodeManager` — it forwarded lifecycle to the base and attached two registries. A pass‑through whose deletion makes complexity vanish was a shallow module; removing it from the surface removes the cliff without removing any capability.
-2. **`object? GetManagerHandle` / `GetManagerHandleAsync` (`INodeManager.cs:902`) plus the `Processed`‑flag protocol** (restated six times in `INodeManager.cs`). Delete both from the authored interface. Complexity does **not** reappear for the few rung‑3 providers, because the router now arbitrates with a typed `THandle` and first‑match‑wins. This was complexity earning *negative* keep — a footgun replicated at every implementer and enforced only by prose; concentrating it in one router is a pure **locality** win (all id arbitration in one place) and a pure **leverage** win (providers get correct dispatch for free).
-3. **`IServerInternal` on the authoring surface.** Delete it from what a node source sees. Complexity does **not** reappear: callers referenced 3–4 of its 57 members (namespace table, telemetry, system context, occasionally a base‑service port). Those become the 6‑member `INodeSourceContext`. The locator stays internal to the runtime; its 200+ references are all framework‑internal and unaffected. This is the textbook shallow service locator — deleting it from the interface removes the newcomer's worst first encounter with zero loss of capability.
-
-**A non‑deletion, to show the test cuts both ways (earns its keep):** `MasterNodeManager` routing. Delete it and *every* rung‑3 provider re‑implements fan‑out, id arbitration, and cross‑manager reference stitching — complexity reappears once per caller (×N). It is not a pass‑through; it is deep behaviour behind a small seam. Keep it and *deepen* it (own the dispatch, stop leaking the protocol).
-
-**Why the simple surface is a deep module and not a shallow facade — and how tests stay honest.** The failure mode the brief names is a facade people test *past*. Two structural guarantees prevent that here:
-
-- `NodeSourceRuntime` is **`internal sealed`.** There is no public base to subclass, so neither an author nor a test can reach the 93 virtuals *through* a rung‑1/2 source. The only routes past rung 2 are the **front‑door** seams — implement a provider (rung 3) or a node manager (rung 4). Contrast the current design, where a test of a fluent manager can reach every virtual because `FluentNodeManagerBase : AsyncCustomNodeManager`.
-- **Caller surface == test surface.** A rung‑1/2 test mounts the `INodeSource` into an in‑memory server harness and drives **real Read/Browse/Call service‑set calls** at the same seam production uses — it never constructs an `IServerInternal`, never touches a virtual. A rung‑3 test constructs the provider and drives it through `TryResolve`/`BrowseAsync`/`ReadAsync` directly, or through the router with an `InMemoryNodeProvider` peer. Because the thing a test exercises is exactly the thing the router calls in production, the urge to "test past" the interface never arises — which is the operational definition of the module being the right shape. **Leverage** is high (the whole node‑manager engine behind ~6 verbs); **locality** is high (dispatch, id arbitration and paging all concentrate in the runtime, so a bug in any of them has exactly one home).
-
----
-
-#### 4. Dependency strategy and adapters
-
-Classifying every dependency this design touches by the four categories, stating which seams get ports vs stay internal, and naming two adapters per port:
-
-**Category 1 — In‑process (pure computation / in‑memory state; no I/O; always deepenable; no port).**
-The node graph (`NodeState`), the builder, request routing/dispatch, the publish pipeline, and diagnostics. These have **internal** seams only (private, used by their own tests). No adapter at the external interface. The builder and the router are the deep in‑process modules of this design, and they are exactly where the removed complexity now lives.
-
-**Category 2 — Local‑substitutable (a local test stand‑in exists; the seam is internal; no port at the external interface).**
-Continuation‑point store, subscription store, monitored‑item queue factory — already `IContinuationPointStore`, `ISubscriptionStore`, `IMonitoredItemQueueFactory`, each with an in‑memory and a durable implementation. **Reuse as‑is; invent nothing.** Rung‑3 paging (`ContinuationToken` → `BrowsePage`) is served by the existing continuation‑point store *behind* the router, so the provider author never sees it. These stay internal precisely because a single process can always substitute a local stand‑in — no port is warranted.
-
-**Category 3 — Remote‑but‑owned (define a port; in‑memory adapter for tests, network adapter for production).**
-Distributed / HA address‑space state. The port already exists: **`ILocalAddressSpace`** (7 members, `NodeManager/ILocalAddressSpace.cs`). Its two adapters justify the seam:
-- **Adapter A (test / local):** the dictionary‑backed implementation the interface doc‑comment explicitly calls out (*"tests use a dictionary-backed implementation"*).
-- **Adapter B (production):** the redundancy/network synchroniser (`AddOrUpdateRangeAsync` bulk‑hydration path for a standby, `NodeAdded`/`NodeRemoved` for outbound capture).
-
-**Reuse this seam.** A rung‑3 `INodeProvider` can be backed by an HA store transparently: the author writes the same provider whether the state is local or replicated, because the runtime owns the sync seam. Two real adapters ⇒ a real seam, not a hypothetical one.
-
-**Category 4 — True external (inject a port; mock in tests).**
-- **Historian** — `IHistorianProvider` (umbrella, 2 members) + the opt‑in `IHistorianDataProvider` / `IHistorianModifiedProvider` / `IHistorianAtTimeProvider` / `IHistorianProcessedProvider` / `IHistorianAnnotationProvider` / `IHistorianEventProvider` capabilities, routed by `HistorianDispatcher`. Two adapters: **`InMemoryHistorianProvider`** (`Historian/InMemory`) for tests/quickstart and the **user's time‑series adapter** for production. `.Historize()` and `.WithHistorian(...)` route here. **Reuse.**
-- **File system / secrets** — `IFileSystemProvider` (11 members), `ISecretStore`. Exposed to authors through `INodeSourceContext`. **Reuse.**
-- **The node/browse source** — the **one seam I re‑shape.** It is *not a new port*: it is the existing browse/read/call decomposition (the 15 capability interfaces), moved from "opt‑in interfaces on a subclassed base" to "providers you inject," with a typed `THandle` replacing `object`. It clears the two‑adapter bar (one adapter would make it merely hypothetical): **Adapter A** = `InMemoryNodeProvider` (tests and small dynamic sets), **Adapter B** = a real external adapter such as `PlantNodeProvider` over a gateway/SQL/OPC‑client. Two adapters ⇒ a real seam.
-
-**Net:** every external dependency already sits behind a port, so I reuse `IHistorianProvider`, `ILocalAddressSpace`, `IFileSystemProvider`, `ISecretStore`, `IContinuationPointStore`, and `ISubscriptionStore` unchanged. The only *reshaped* seam (`INodeProvider` + capabilities) is a re‑cut of an existing one (the 15 capability node‑manager interfaces), held to the two‑adapter bar. I invent no brand‑new external port.
-
----
-
-#### 5. Trade‑offs
-
-**Where leverage is high.** The trivial and one‑rung cases: ~6 verbs stand in front of the 8,028‑line manager, the 5,824‑line `NodeState`, and the 57‑member locator. The measured common‑6 overrides map cleanly onto builder knobs, which is the proof the ladder targets the *actual* common case rather than a guessed one:
-
-| Common‑6 override (override sites) | New home on the ladder |
-|---|---|
-| `CreateAddressSpaceAsync` (21) | the builder delegate **is** this |
-| `Dispose` (14) | runtime owns dispose; `IAsyncDisposable` backings disposed for you |
-| `New` / NodeId factory (12) | `builder.UseNodeIdScheme(...)` (rung 1) |
-| `LoadPredefinedNodesAsync` (11) | generator / `AddRuntimeNodeSet` / builder node creation |
-| `DeleteAddressSpaceAsync` (8) | runtime owns |
-| `AddBehaviourToPredefinedNodeAsync` (5) | `.OnRead / .OnWrite / .OnCall` wiring |
-
-Every member the data shows is *actually* overridden by the common caller becomes a rung‑1/2 knob. That is the whole thesis, demonstrated against the measurements.
-
-**Where leverage is thin (honest).** A rung‑3 provider author still learns OPC UA browse and continuation *concepts* — `BrowsePage`, filters, capability advertisement. The interface is far smaller and typed, but the domain is not eliminated. That is depth applied correctly: I hid the *mechanism* (paging state, `Processed` arbitration, `object` handles), not the *domain* (browse still means browse). Likewise, a static value truly needs nothing (`Value(T)`), but a historized, alarmed, method‑bearing object legitimately requires several verbs — the surface grows with genuine capability, not with accidental ceremony.
-
-**What gets harder / what a power user loses.** A power user who *liked* subclassing `CustomNodeManager2` and overriding an arbitrary virtual mid‑pipeline must now either (a) express the need as a provider capability, (b) use a server‑level hook on `IStandardServer`, or (c) drop to rung 4 explicitly. Rung 4 preserves 100% of today's power, but the *ambient* extensibility of "override anything, anywhere" is deliberately gone from rungs 1–3 — and that ambient power was precisely the 93‑virtual cliff, so its removal from the simple surface is the point, not a regret. A narrower loss: cross‑node atomic operations and bespoke sampling‑group scheduling have no rung‑1–3 verb and require rung 4.
-
-**The async‑ergonomics tension, addressed head‑on.** TAP‑only would ordinarily force a "return this value" callback to become `Func<CancellationToken, ValueTask<T>>`. The design defuses this with the **three read shapes**: `Value(T)` (no delegate, no async at all — served by the built‑in read path), `OnRead(Func<T>)` (a *genuine* synchronous path via `BaseVariableState.OnReadValue`, verified at line 559, invoked directly on the sampling thread), and `OnRead(Func<CancellationToken, ValueTask<T>>)` (lock‑free async via `OnReadValueAsync`, verified at line 578). The overwhelming majority pay zero async ceremony; only genuinely I/O‑backed reads opt into the awaitable shape. There is no `GetAwaiter().GetResult()`, `.Wait()`, or `.Result` anywhere on the path — the sync overload is a real synchronous read, not sync‑over‑async, which is why both handler families already coexist on `BaseVariableState`.
-
-**One residual risk, flagged.** `INodeProvider<THandle>` is generic; the router holds heterogeneous providers behind an internal, non‑generic erased adapter. That erasure boxes `THandle` at the router boundary only (once per resolve, not per value read) — a deliberate, measured cost to keep the *authored* interface `object`‑free and AOT‑clean. If profiling ever shows that boundary hot, the erased adapter can cache a typed dispatcher per provider without touching the authored interface — which is itself evidence the seam is in the right place.
-
-**Migration path — additive; `[Obsolete]` marks only the *replaced*, and removes nothing.**
-
-- **The full node‑manager surface stays.** `INodeManager` / `INodeManager2` / `INodeManager3`, `IAsyncNodeManager`, `AsyncCustomNodeManager`, `CustomNodeManager2` are **unchanged and not obsoleted.** They are rung 4. All **33 existing subclasses** across `src` / `samples` / `tests` compile and run untouched, as does the one class that implements `INodeManager` directly (`SampleNodeManager`). The full OPC UA service set, companion specs (DI, GDS, PubSub, Robotics, ISA95, WoT), NodeSet2 runtime loading, and HA/distributed servers all continue to work because none of their seams are removed.
-- **The Fluent layer is preserved, not deleted.** `NodeManagerBuilder`, `INodeManagerBuilder`, `IVariableBuilder<T>`, `INodeBuilder`, `EventSourceRegistry`, `SimulationRegistry`, and all the `*BuilderExtensions` become the *implementation* of rungs 1–2 — I extend `INodeManagerBuilder` additively with the creational verbs (`Variable<T>` that mints, `Folder`, `Object`, `Method`, `UseNodeIdScheme`) and keep every existing extension. Only one thing changes role: **`FluentNodeManagerBase`'s advertisement as a public base to derive from** gets `[Obsolete("Author an INodeSource or inject an INodeProvider; see NodeManagers.md")]`. It survives as the *internal* implementation vehicle, so existing derivers keep compiling while new code is steered to the front door.
-- **The source generator is re‑pointed, keeping its best output.** It currently emits `BoilerNodeManager : FluentNodeManagerBase` + `BoilerNodeManagerFactory : IAsyncNodeManagerFactory` + the typed `Configure(IBoilerNodeManagerBuilder)` traversal. It re‑points to emit an `INodeSource` (or an `internal sealed` runtime‑backed manager) plus the **same typed‑traversal partial**, which is the strongest ergonomic asset and is preserved verbatim. The `[NodeManager]` attribute opt‑in and the generated identifier tables are unchanged.
-- **Mechanical migration for the common case.** A subclass that overrides only the common‑6 becomes an `INodeSource` whose `ConfigureAsync` drives the builder: `CreateAddressSpaceAsync` → the delegate body, `New` → `UseNodeIdScheme`, `LoadPredefinedNodesAsync` → generator or `AddRuntimeNodeSet`, `Dispose`/`DeleteAddressSpaceAsync` → runtime‑owned, `AddBehaviourToPredefinedNodeAsync` → `.OnRead/.OnWrite/.OnCall`. The version‑suffixed `INodeManager2/3` chain and the 15 capability interfaces remain for rung‑4 authors but are documented as superseded by the provider model for new work.
-- **The diagnostics lock leak stays gone.** No `object`‑typed sync‑root is exposed anywhere on the new surface. The build‑once‑then‑seal model means the authored interface never hands out a lock, and the redesigned surface gives samples no reason to `lock(server…)` — retiring the pattern the `ConsoleReferenceServer` sample currently teaches.
-
----
-
-## Design 4 — State-Placement (ports and adapters)
-
-**Design constraint given:** *Design around ports and adapters, driven by the distributed / high-availability case. Identify precisely which state is local-ephemeral, which must transfer, which must replicate, which must persist. Be rigorous about the one-adapter rule.*
-
-> Reproduced verbatim as delivered by the designer. Section numbering is the designer's own.
-
-### Ports & Adapters for the OPC UA Server — a State‑Placement Design
-
-**Thesis.** This codebase has *already grown* most of the ports it needs (`ISharedKeyValueStore`, `ILeaderElection`, `IRecordProtector`, `ILocalAddressSpace`, `INodeStateStore`, `ISubscriptionStore`, `IContinuationPointStore`, `ISharedSessionStore`). But they are **bolted onto the side**: the `Opc.Ua.Redundancy.Server` package reaches *into* the core through `IServerStartupTask` + `IServerInternal.Set*` + duck‑typed `ILocalAddressSpaceSource` sniffing, because the core still centres on a **mutable service‑locator** (`IServerInternal`, 57 members) and a **mutable data+behaviour graph** (`NodeState`, 5,824 lines). My design does not invent new ports. It **promotes the existing seams to first‑class, DI‑injected state ports keyed by a four‑category state taxonomy, deletes the service locator and the `Set*` two‑phase construction, and splits `NodeState`'s data from its behaviour** so replication has a clean, reflection‑free payload. The differentiator is *where each byte of state lives* and *seam discipline*: I keep only the seams that have two real adapters, and I say plainly which "stores" are deep modules over `ISharedKeyValueStore` rather than substitution ports.
-
----
-
-#### 1. Interface
-
-##### 1.1 The state taxonomy (the organizing principle)
-
-Every port below is justified by exactly one row of this taxonomy. The taxonomy *is* the design.
-
-| Category | Meaning | Consistency | Dep. category | Port? |
-|---|---|---|---|---|
-| **A — Local & ephemeral** | Per‑request/per‑channel; regenerated on restart; may legitimately differ per replica | node‑local | 1 (in‑process) | **No port** |
-| **B — Transferable** | Session/subscription state a client needs to survive failover | eventual mirror (except nonce = linearizable) | 3 (remote‑but‑owned) | **Port** |
-| **C — Replicable** | Address‑space topology + values; identical NodeIds across the set | eventual (single‑writer or CRDT) | 3 | **Port** |
-| **D — Durable** | Survives full‑set restart: durable subs, trust lists, secrets, roles, users | mixed (local file → linearizable) | 3/4 | **Port** |
-| **Foundation** | The substrate B/C/D write through | pluggable | 3/4 | **The real seams** |
-
-##### 1.2 Replacing `IServerInternal` — split the locator; freeze the graph
-
-`IServerInternal` conflates three things: (i) immutable local facts, (ii) 20+ subsystem managers, (iii) 12 `Set*` mutators enabling two‑phase construction. I split them.
-
-**(i) `IServerContext` — Category A only. Read‑only, immutable after bind, constructor‑injected everywhere a component needs ambient facts. No `Set*`. No `object`. No exposed locks.**
+The narrow server façade (ports design — replaces `IServerInternal`'s 57 members with the ~6 authors used; no `Set*`, no exposed lock, no `object`):
 
 ```csharp
-namespace Opc.Ua.Server;
+namespace Opc.Ua.Server.Nodes;
 
-/// <summary>
-/// Immutable, read-only ambient server facts (Category A). Replaces the read side
-/// of IServerInternal. Frozen after the single startup bind phase.
-/// </summary>
 public interface IServerContext
 {
-    IServiceMessageContext MessageContext { get; }
-    NamespaceTable NamespaceUris { get; }
-    StringTable ServerUris { get; }
-    IEncodeableFactory Factory { get; }
-    ITelemetryContext Telemetry { get; }
-    ServerSystemContext DefaultSystemContext { get; }
-
-    /// <summary>Read-only type tree; populated during bind, frozen afterwards.</summary>
-    ITypeTable TypeTree { get; }
-
-    ServerState CurrentState { get; }
-
-    /// <summary>
-    /// The ONLY state mutation. Linearizable and audited. Replaces the mutable
-    /// <c>CurrentState { set; }</c> and the obsolete <c>Status</c> property.
-    /// </summary>
-    ValueTask<ServerState> TransitionStateAsync(
-        ServerState target, LocalizedText reason, CancellationToken ct = default);
-
-    /// <summary>
-    /// Replaces <c>object DiagnosticsLock</c> / <c>DiagnosticsWriteLock</c>. Returns a
-    /// consistent snapshot; the lock is a private <see cref="System.Threading.Lock"/>.
-    /// </summary>
-    ValueTask<ServerDiagnosticsSummaryDataType> GetServerDiagnosticsAsync(CancellationToken ct = default);
+    NamespaceTable    NamespaceUris { get; }
+    ITelemetryContext Telemetry     { get; }
+    TimeProvider      TimeProvider  { get; }
+    ISystemContext    SystemContext { get; }
+    IHistorianRegistry Historians   { get; }
+    IFileSystemProvider FileSystem  { get; }
 }
 ```
 
-**(ii) Subsystem managers** (`ISessionManager`, `ISubscriptionManager`, `IMasterNodeManager`, `EventManager`, …) are **resolved from DI by the components that need them**, not handed out by a locator. There is deliberately **no `IServerStatePorts` god‑bundle** — that would just rename the locator. A component's interface declares its dependencies:
+##### 1.4 The bridge — the one artifact that makes Option B work (real C#)
+
+The new runtime never sees the `Processed` protocol, index‑aligned accumulators, or the `object` handle. **The bridge translates the runtime's clean first‑match‑wins model into the shared `MasterNodeManager` fan‑out contract.** This is the paradigm analogue of `AsyncNodeManagerAdapter.ReadAsync` (AsyncNodeManagerAdapter.cs:542‑560):
 
 ```csharp
-public sealed class SessionManager(
-    IServerContext context,
-    ISharedSessionStore sessions,        // Category B
-    ISingleUseNonceRegistry nonces,      // Category B (linearizable)
-    IContinuationPointStore continuations // Category B
-) : ISessionManager { /* ... */ }
-```
+namespace Opc.Ua.Server.Nodes;
 
-**(iii) The 12 `Set*` mutators are deleted.** They are replaced by a **single ordered bind phase** — the existing `IServerStartupTask` pipeline — after which the object graph is **frozen**. The bind hook itself stops leaking the locator:
-
-```csharp
-// Before: OnServerStartedAsync(IServerInternal server, ...)  // hands out the whole locator
-// After:
-public interface IServerStartupTask
+/// <summary>
+/// Presents a new-model node source to the shared MasterNodeManager as an
+/// IAsyncNodeManager. This adapter — and only this adapter — carries the
+/// Processed / index-aligned-accumulator protocol on behalf of the new surface.
+/// </summary>
+internal sealed class NodeSourceManagerAdapter : IAsyncNodeManager
 {
-    ValueTask OnServerStartedAsync(
-        IServerContext context, IServiceProvider services, CancellationToken ct = default);
+    private readonly NodeSourceRuntime m_runtime;
+
+    public NodeSourceManagerAdapter(NodeSourceRuntime runtime)
+        => m_runtime = runtime;
+
+    public IEnumerable<string> NamespaceUris => m_runtime.NamespaceUris;
+
+    // Read: MasterNodeManager fans the SHARED values/errors/nodesToRead lists to every
+    // manager and relies on the Processed flag. The runtime below is first-match-wins;
+    // this method is where the two contracts meet.
+    public async ValueTask ReadAsync(
+        OperationContext context,
+        double maxAge,
+        ArrayOf<ReadValueId> nodesToRead,
+        IList<DataValue> values,
+        IList<ServiceResult> errors,
+        CancellationToken cancellationToken = default)
+    {
+        for (int ii = 0; ii < nodesToRead.Count; ii++)
+        {
+            ReadValueId nodeToRead = nodesToRead[ii];
+
+            if (nodeToRead.Processed)
+            {
+                continue;   // already served by an earlier manager
+            }
+
+            if (!m_runtime.TryResolve(nodeToRead.NodeId, out NodeSourceHandle handle))
+            {
+                continue;   // not ours — leave Processed = false for the next manager
+            }
+
+            nodeToRead.Processed = true;
+
+            var filter = new ReadFilter(
+                nodeToRead.AttributeId, nodeToRead.ParsedIndexRange, nodeToRead.DataEncoding, context);
+
+            (DataValue value, ServiceResult error) =
+                await m_runtime.ReadAsync(handle, filter, cancellationToken).ConfigureAwait(false);
+
+            values[ii] = value;
+            errors[ii] = error;
+        }
+    }
+
+    // The frozen seam still types the handle as object (see §2 deletion test #4);
+    // the bridge boxes the portable struct because it does NOT touch the shared seam.
+    public ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken ct = default)
+        => new(m_runtime.TryResolve(nodeId, out NodeSourceHandle h) ? h : null!);
+
+    // Browse/Write/Call/History/monitored-item members: identical shape — resolve, set
+    // Processed, translate BrowsePage↔ref-ContinuationPoint, index-align. (~800 lines total,
+    // matching AsyncNodeManagerAdapter's 812.)
 }
 ```
 
-Ordering/error contract: tasks run in DI registration order; a task may `services.GetRequiredService<T>()` any port; **any attempt to bind a port after `ServerState.Running` throws `BadInvalidState`** (replaces silent re‑entrant `SetSessionManager`).
+**Invariants, ordering, error modes carried by the bridge (stated once here, not restated six times as in `INodeManager.cs`):**
+- The bridge **must** skip `Processed == true` items and **must** set `Processed = true` for any it serves — this is the `MasterNodeManager` fan‑out contract (MasterNodeManager.cs:4051‑4073). A bug here means either double‑service or a spurious `BadNodeIdUnknown`.
+- `TryResolve` **must not** block on I/O (same rule the existing `GetManagerHandleAsync` doc‑comment states). First‑match‑wins ownership is decided by namespace partition, so two node sources owning the same namespace index is a startup error.
+- Browse translation **must** honour that the shared `Browse(ref ContinuationPoint, IList<ReferenceDescription>)` list "may already contain references" — the bridge appends, the runtime returns a fresh `BrowsePage`.
+- Reads on the local serving path stay **synchronous and allocation‑free** where `Value(T)`/`OnRead(Func<T>)` is used, via the existing `BaseVariableState.OnReadValue` sync path; only `OnRead(Func<…ValueTask<T>>)` awaits.
 
-##### 1.3 The address‑space data/behaviour split (the crux)
+##### 1.5 Can one server host BOTH an old‑style and a new‑style node manager in one address space?
 
-`NodeState` mixes **data** (topology, references, attribute values — serializable) with **18 behaviour delegates** (interception, browsers, validators, method handlers — *code, unserialisable*). Replication must carry only data. The split already exists implicitly in `NodeStateSerializer` (4‑byte `NodeClass` + `SaveAsBinary`, behaviour "re‑attached by the owning node manager"). I make it a **first‑class seam**.
+**Yes, provably, with zero runtime changes.** Registration is symmetric — a new source is just another `IAsyncNodeManagerFactory`:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(o => { o.ApplicationUri = "urn:plant:line-a"; })
+    .AddNodeManager<LegacyBoilerNodeManagerFactory>()     // OLD surface (AsyncCustomNodeManager)
+    .AddNodeSource("urn:acme:line1", b =>                  // NEW surface (bridged)
+    {
+        b.Folder("Plant").Object("Tank1")
+         .Variable<double>("Level").OnRead((_, ct) => modbus.ReadHoldingAsync(40001, ct));
+    });
+```
+
+Both land in `StandardServer`'s factory lists; `CreateMasterNodeManagerAsync` builds both; `MasterNodeManager` fans out to both. The `HostedNodeManagerLifecycle` even supports **adding and hot‑reloading** either kind at runtime (`AddAsync(IAsyncNodeManagerFactory)` / `AddAsync(INodeManagerFactory)`).
+
+**The cost of coexistence is the bridge, and it is paid once in the framework, not per consumer.** The two invariants a mixed address space must uphold are (a) disjoint namespace partitions between the old and new managers (already the default `MasterNodeManager` ownership rule) and (b) cross‑manager references stitched through `CreateAddressSpaceAsync`'s `externalReferences` dictionary — which works identically for both because both are `IAsyncNodeManager`.
+
+##### 1.6 Does the new implementation reuse `Session`/`Subscription`/`SubscriptionManager`/`MasterNodeManager`, or fork them?
+
+**It reuses all four, and forking any of them is rejected** (deletion tests in §2). This is the single most important design decision and the thing that keeps Option B affordable:
+
+- **`MasterNodeManager` (6,791 lines): shared.** It is the multiplexer; the bridge is designed *precisely* so the new surface plugs into its existing fan‑out. Forking it would duplicate request routing, reference stitching, `TranslateBrowsePath`, and — fatally — split OPC UA service‑set semantics into two code paths that must each pass CTT.
+- **`Session`/`Subscription`/`SubscriptionManager` (1,368 / 3,039 / 2,523): shared.** These sit *below* the node‑manager seam — the publish pipeline samples whatever `IAsyncNodeManager` serves. A new‑model node is a `NodeState` under the hood (produced by the builder), so monitored‑item sampling, Publish, Republish, and durable‑subscription restore all work unchanged.
+- **`NodeState` (5,075‑line core; 13,485‑line `State` folder in `Opc.Ua.Types`): shared.** The new builder *produces* `NodeState` instances; it hides the 155‑member/18‑delegate authoring surface behind `Value/OnRead/OnWrite`, but the underlying node objects, `NodeStateSerializer`, and the client‑side `NodeState` cache are one shared implementation.
+
+---
+
+#### 2. What gets duplicated, shared, and frozen
+
+##### 2.1 Inventory with line counts (verified)
+
+| Bucket | Module | Lines | Disposition |
+|---|---|---:|---|
+| **FORKED — new** | `INodeSource`/builder/providers + `NodeSourceRuntime` | ~6,000–9,000 new | The new authoring surface (comparable to today's 8,814‑line `Fluent` folder) |
+| **FORKED — new** | `NodeSourceManagerAdapter` (the bridge) | ~800 new | The only new runtime‑touching artifact; models `AsyncNodeManagerAdapter` (812) |
+| **FROZEN‑BUT‑ALIVE** | `AsyncCustomNodeManager` | 7,080 | Kept as the old authoring base; receives no new features |
+| **FROZEN‑BUT‑ALIVE** | `FluentNodeManagerBase` + `Fluent/*` | ~8,814 | Kept; the old fluent layer |
+| **FROZEN‑BUT‑ALIVE** | `NodeState` 18‑delegate authoring surface | (subset of 5,075) | Delegates stay for old authors; new authors never see them |
+| **DELETED** (back‑compat lifted) | `CustomNodeManager` (sync base), `SyncNodeManagerAdapter`, sync `INodeManager`/`2`/`3` chain, `IAsyncNodeManager.SyncNodeManager` | 5,489 + 294 + ~450 | Async‑only normalization; forces the 1 direct `INodeManager` implementer to move |
+| **SHARED — untouched** | `MasterNodeManager` | 6,791 | The multiplexer |
+| **SHARED — untouched** | `Session` / `Subscription` / `SubscriptionManager` | 1,368 / 3,039 / 2,523 | Publish pipeline, below the seam |
+| **SHARED — untouched** | `StandardServer` / `ServerBase` (Core) | 4,963 / 1,630 | Lifecycle + transport |
+| **SHARED — untouched** | `NodeState` data core + `State` folder | 5,075 / 13,485 | In `Opc.Ua.Types`; shared with the client |
+| **SHARED — untouched** | `IServerInternal`/`ServerInternalData` | 1,355 | New surface wraps it in `IServerContext`; object graph shared |
+
+**Headline: Option B duplicates ~10% of the assembly (the authoring layer) and shares ~90% (the runtime).** The phrase "two live implementations" is true only of the authoring surface; the runtime, and therefore the wire‑visible OPC UA semantics, are single‑sourced.
+
+##### 2.2 Deletion test, applied four ways (two *for*, two *against* forking)
+
+1. **Delete the bridge `NodeSourceManagerAdapter` → complexity reappears ×N.** Without it, every new‑model consumer would have to implement `IAsyncNodeManager` (14 capability interfaces + `Processed` + index alignment) itself. Concentrating it in one framework adapter is a pure **locality** and **leverage** win. **Verdict: the bridge earns its keep — it is the load‑bearing new module.** *(For the fork.)*
+2. **Delete the *frozen* `AsyncCustomNodeManager` today → complexity reappears in 33 subclasses + several framework‑internal managers (`CoreNodeManager`, `DiagnosticsNodeManager`, `AliasNameNodeManager`, `FileSystemNodeManager`).** It cannot be deleted now. **Verdict: it earns its keep *today* — which is the justification for keeping it, but also (§4) the reason it cannot truly freeze.** *(Honest both ways.)*
+3. **Delete a *hypothetical forked* `MasterNodeManager` (i.e., choose NOT to fork it) → nothing reappears, because the shared one already multiplexes heterogeneous managers.** A second `MasterNodeManager` would only *duplicate* routing and split CTT. **Verdict: forking `MasterNodeManager` fails the deletion test — do not fork it.** *(Against forking.)*
+4. **Delete a *hypothetical forked* `NodeState` (a "NodeState2") → complexity reappears massively:** `NodeStateSerializer`, the client‑side `INodeCache`, and every companion spec bind to `NodeState`, which lives in shared `Opc.Ua.Types`. A parallel node type would fork the type system itself. **Verdict: forking `NodeState` fails the deletion test — the new surface must produce the shared `NodeState`.** *(Against forking.)*
+
+The two "against" verdicts are what make Option B a *shallow* fork (authoring only). Any proposal that deepens the fork line below `IAsyncNodeManager` should be rejected on these grounds.
+
+---
+
+#### 3. Blast radius and migration story
+
+##### 3.1 Consumers, counted precisely
+
+**In‑repo authored node managers (round‑1 census: 33 non‑test subclasses + 1 direct `INodeManager`):**
+
+| Group | Projects / count | Base today |
+|---|---|---|
+| Companion‑spec servers (`src`) | `XRegistry.Server` (3 × `CustomNodeManager2`), `WotCon.Server` (2), `Gds.Server.Common` (1 + 2 base types), `Di.Server` (1), `ISA95.Server` (1), `Positioning.Server` (1), `PubSub.Server` (1), `Robotics.Server` (1) | mix of `AsyncCustomNodeManager` / `CustomNodeManager2` / `FluentNodeManagerBase` |
+| Framework‑internal (`Opc.Ua.Server`) | `CoreNodeManager`, `DiagnosticsNodeManager`, `AliasNameNodeManager`, `FileSystemNodeManager`, `ConfigurationNodeManager`, `FluentNodeManager` | `AsyncCustomNodeManager` / `FluentNodeManagerBase` |
+| Samples (~10) | `ReferenceNodeManager`, `TestDataNodeManager`, `AlarmNodeManager`, `SampleNodeManager` (+`Boiler`,`MemoryBuffer`), `HaSampleNodeManager`, `FlatTagNodeManager`, `PumpNodeManager`, Minimal* | mostly `AsyncCustomNodeManager`; `SampleNodeManager` is the **1** direct `INodeManager` |
+| Tests (~15 subclasses) | `Opc.Ua.Server.Tests`, `Opc.Ua.Redundancy.Server.Tests` | `AsyncCustomNodeManager` / `CustomNodeManager2` / `FluentNodeManagerBase` |
+
+**Consumers of the deleted sync surface** (forced to move even in Option B): `SampleNodeManager` + its 2 subclasses (`Boiler`, `MemoryBuffer`), and any external sync `INodeManager` implementer. Everyone else on `AsyncCustomNodeManager`/`FluentNodeManagerBase` **stays put and keeps compiling.**
+
+##### 3.2 Who moves, who stays
+
+| Consumer | Move? | Why |
+|---|---|---|
+| The 30+ `AsyncCustomNodeManager`/`FluentNodeManagerBase` subclasses | **Stay** | Their base is frozen‑but‑alive; no source change required |
+| `SampleNodeManager` + Boiler + MemoryBuffer | **Must move** | Sync `INodeManager` chain is deleted (async‑only normalization) |
+| Framework‑internal managers (`CoreNodeManager` …) | **Stay initially; must eventually move** | They keep the old base alive → they are the reason it can't freeze (§4). Migrating them is the exit trigger |
+| New device/greenfield servers | **New surface** | The point of the fork |
+| HA/Redundancy (`Redundancy.Server`) | **Stay** | It binds below the seam (`ILocalAddressSpace`, stores); portable‑handle benefits only accrue to new‑surface nodes |
+
+**Mixed state is stable and supported.** A codebase with some managers on the old base and some on the new source is not a transient hazard — it is the *steady state* the design intends, guaranteed by the single shared `MasterNodeManager`. This is Option B's genuine strength over a rewrite: no big‑bang migration, no flag day.
+
+##### 3.3 Analyzer work — quantifiably less than Option A
+
+The existing tooling (20 analyzers, 14 with fixes, the `Opc.Ua.MigrationAnalyzer.Core` shim library, the `<Type>Collection` generator) targets **client/types/config/certificates/GDS** — surfaces that were *removed*. Crucially, **there is no analyzer and no shim for the node‑manager authoring surface today.**
+
+- **Option A (rewrite)** would need that missing suite built from scratch: analyzers to detect `: AsyncCustomNodeManager`, overrides of `CreateAddressSpaceAsync`/`New`/`LoadPredefinedNodesAsync`, the `object` handle, the `Processed` idiom; code fixes for the ~70% that are mechanical; and an `[OpcUaShim]`‑marked runtime shim re‑implementing the old base over the new runtime. Call it **~6–10 new analyzers + 2–3 fixers + a node‑manager shim assembly.**
+- **Option B needs *zero mandatory* analyzers.** The old surface keeps compiling and running, so nothing must be rewritten. The only useful analyzers are **optional "nudge" diagnostics at `Info` severity** — e.g., `UA0101 (prefer INodeSource for new node managers)` — with **no shim library at all.** Realistically **0–2 optional analyzers, 0 fixers, 0 shim** versus A's suite.
+
+**But price the flip side honestly:** an optional nudge analyzer only helps people who *choose* to move. In Option A the analyzer is doing load‑bearing work (unblocking a forced migration); in Option B it is a marketing device. The migration *guide* does the real work: a new `docs/migrate/…/node-authoring.md` next to the existing `node-states.md`, documenting the ladder, the deleted sync surface, and a side‑by‑side "old vs new" for each of the common‑6 overrides.
+
+---
+
+#### 4. Pros and cons of the side‑by‑side fork
+
+##### Pros
+
+- **Lowest migration risk of any option.** Nothing on `AsyncCustomNodeManager`/`FluentNodeManagerBase` breaks. 30+ subclasses and all external consumers keep compiling. The mixed state is the supported steady state, not a transition hazard.
+- **The runtime is shared, so the scariest costs don't materialize.** Bug fixes to `MasterNodeManager`/`Session`/`Subscription`/publish are written **once** and benefit both surfaces. There is no "fix every bug twice" for the ~130,000‑line runtime.
+- **CTT compliance is mostly shared.** Because both surfaces funnel through one `MasterNodeManager` + `Session`/`Subscription`, the transport, service dispatch, and publish semantics are single‑sourced. You need CTT green on **one new reference server built on the new surface** (to validate the bridge + new runtime's Browse/Read/Call/History resolution); the existing old‑surface reference server's CTT baseline stays valid untouched. Cost ≈ **1.3× CTT, not 2×** — *provided the old surface truly freezes.*
+- **Incremental, shippable, reversible.** The new surface can ship behind one namespace with a handful of nodes proven first; if it stalls, the old surface is untouched. Elapsed time to a *usable* new surface is short because it is additive (weeks‑to‑months for the ladder + bridge), versus a rewrite's all‑or‑nothing cutover.
+- **Back‑compat lifted buys one real deletion:** async‑only normalization removes `CustomNodeManager` (5,489) + `SyncNodeManagerAdapter` (294) + the sync interface chain — a net simplification even inside a "keep the old" option.
+
+##### Cons (the honest price)
+
+- **Double *authoring‑layer* maintenance is real, even if the runtime isn't.** Two node‑authoring test suites (the new surface, plus the frozen `AsyncCustomNodeManagerTests` 5,821 lines / `NodeManagerLifecycleTests` 8,406 lines stay), two doc sets (`node-states.md` + a new `node-authoring.md`), and two mental models. Every node‑authoring example, sample, and tutorial must pick a side or show both.
+- **"Old is frozen" is aspirational, not real — and the code proves it.** Several **framework‑internal** node managers (`CoreNodeManager`, `DiagnosticsNodeManager`, `ConfigurationNodeManager`, `AliasNameNodeManager`, `FileSystemNodeManager`) derive from `AsyncCustomNodeManager`. The server *cannot start* without them. So the "frozen" base keeps receiving fixes and forward‑ports as long as the framework itself rides on it. It only truly freezes after the framework's own managers migrate to the new surface — which is most of the work of a rewrite anyway.
+- **Assembly size and trimming get worse, and I won't pretend otherwise.** Both authoring surfaces are public API rooted through `AddNodeManager(IAsyncNodeManagerFactory)` *and* used by the framework‑internal managers, so the IL linker **cannot** trim the old base classes away — a consumer who uses only the new surface still ships `AsyncCustomNodeManager` (7,080) + `FluentNodeManagerBase` + `Fluent/*` (~8,814). NativeAOT/trimming compatibility is preserved (no reflection), but **size is strictly larger than either a rewrite or the pre‑fork baseline.** A `[FeatureSwitchDefinition]` trim switch could gate the old surface *only after* the framework‑internal managers stop using it — i.e., only after the exit is reached.
+- **Confusion cost is high and compounds.** Two ways to do everything means newcomers must choose before they understand the tradeoff; Stack‑Overflow answers and blog posts split; and — specifically relevant here — **AI coding agents degrade.** With both `AsyncCustomNodeManager` and `INodeSource` valid and both present in‑repo, a model retrieving "how to write a node manager" will find and often copy the *old* 93‑virtual pattern, because there is more of it in the corpus. A rewrite gives one answer; a fork gives two and lets the more‑common (older) one win by default.
+- **Parity risk → permanent fork.** If the new surface never reaches feature parity for some hard case (bespoke sampling‑group scheduling, cross‑namespace id ownership, exotic history), authors keep dropping to the old base, the old base never freezes, and the "temporary" fork becomes **permanent double authoring‑layer maintenance** with no trimming win and a doubled doc/test burden forever.
+- **The `object` handle leak and other frozen‑seam defects are *inherited*, not fixed.** Because Option B‑minimal does not touch `IAsyncNodeManager`, the bridge must implement `GetManagerHandleAsync : ValueTask<object>` (see §1.4) — the exact `object`‑in‑public‑API defect round 1 wanted gone. The new surface hides it from authors, but it remains in the shared seam. A rewrite deletes it.
+
+##### Exit strategy (and what happens without one)
+
+**The exit is a major version (3.0):** delete `AsyncCustomNodeManager`/`FluentNodeManagerBase` once (a) all framework‑internal managers are re‑expressed on the new surface, (b) all in‑repo companion specs and samples are migrated, and (c) an adoption/telemetry threshold shows external usage has crossed over. Only then can the trim feature‑switch drop the old IL.
+
+**The trap:** step (a) is most of a rewrite. If the organization keeps deferring it because "the old one still works," the fork never closes. **A fork with no funded, scheduled exit is not a migration strategy — it is a permanent tax dressed as one.** The exit must be committed *before* the fork ships, or Option B silently becomes the most expensive option of all.
+
+##### Packaging / namespacing
+
+Same package (`OPCFoundation.NetStandard.Opc.Ua.Server`), **same assembly**, **distinct namespace** `Opc.Ua.Server.Nodes`. A separate package is impossible without a circular dependency, because the new surface's bridge references the shared runtime and the shared runtime's DI extensions reference the new registration. The consumer's `.csproj` is unchanged (same `PackageReference`); their `using` list gains one line:
+
+```xml
+<!-- unchanged -->
+<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Server" Version="…" />
+```
+```csharp
+using Opc.Ua.Server;         // shared runtime, StandardServer, hosting
+using Opc.Ua.Server.Nodes;   // NEW authoring surface; omit to stay on the old one
+```
+
+The distinct namespace is deliberate: keeping both surfaces in `Opc.Ua.Server` would put two `Variable<T>` verbs and two node‑manager idioms in one IntelliSense list — maximizing the confusion cost above.
+
+##### Source generators
+
+They currently emit against the **old** surface (`[NodeManager]` → typed `Configure(I…Builder)` traversal, ultimately `FluentNodeManagerBase`). Under Option B they must **emit for both** during the fork's life: keep the old template working (frozen), and add a new template that emits `INodeSource` + the typed traversal + the `TryGetBehavior` switch for the data/behaviour split. That is **generator double‑maintenance** — a concrete instance of the fork's cost landing in tooling, not just docs.
+
+---
+
+#### 5. What would make this the right choice — and where the soft fork wins
+
+##### Option B (hard fork) is clearly correct when:
+
+1. **A second, structurally‑incompatible node‑serving engine is a hard requirement.** If you need an address space that is fundamentally remote/async — where the shared runtime's synchronous `ILocalAddressSpace.TryGetNode` fast path and in‑process `NodeState` materialization are *wrong*, not just inconvenient — then the new runtime is genuinely a different implementation, and bridging it at `IAsyncNodeManager` is the honest way to run it beside the old one. This is the *only* justification that survives scrutiny, because it is the one thing the soft fork cannot do.
+2. **You have a funded, scheduled exit** (a committed 3.0 that migrates the framework‑internal managers), so the double maintenance is bounded and the trimming win eventually lands.
+3. **A large, un‑migratable external consumer base** makes any forced migration (Option A) commercially unacceptable, and you accept permanent‑ish authoring‑layer duplication as the price of never breaking them.
+
+##### It is clearly the wrong choice when:
+
+1. **The goal is authoring ergonomics** (which the evidence says it is: 93 virtuals, 155‑member `NodeState`, 55 of 80 overrides never used). Ergonomics is fixed by a *facade*, not a second engine.
+2. **There is no committed exit.** Without one, you get doubled docs/tests/generators and a strictly larger, un‑trimmable assembly, forever.
+3. **The HA/portable‑handle gains are the motivation** — because round 1's ports design shows those can be retrofitted into the *shared* `MasterNodeManager` (portable `NodeManagerHandle`, `Processed` retired by handle‑routing) **without a second engine at all.**
+
+##### The soft fork dominates — say it plainly
+
+Round 1's `commoncase` rung 4 (the un‑obsoleted old surface as a *documented step down*, with an `internal sealed NodeSourceRuntime` **facade over the same shared bases**) is the *soft* fork: **one node‑serving implementation, two layered entry points.** Compare it to the hard fork I designed above:
+
+| | Soft fork (facade) | Hard fork (Option B) |
+|---|---|---|
+| Node‑serving implementations | **1** (facade drives the shared engine) | **2** (new runtime + old bases) |
+| New bridge adapter | not needed (facade *is* an `AsyncCustomNodeManager`) | **required** (~800 lines) |
+| `Processed`/`object`‑handle defects | fixable in the one shared engine | inherited by the bridge |
+| CTT | shared (one engine) | 1.3× (bridge + new runtime need a gate) |
+| Doc/test/generator duplication | ergonomic layer only | full authoring layer |
+| Assembly size | ~baseline | strictly larger (un‑trimmable old bases) |
+| Ergonomic benefit delivered | **~90%** (ladder, minted nodes, narrow `IServerContext`, three read shapes) | ~100% |
+
+The hard fork buys the last ~10% of ergonomic polish and one capability the soft fork lacks — a genuinely separate engine — **at the price of a second implementation, a bridge, inherited seam defects, 1.3× CTT, and doubled docs/tests/generators.** Unless requirement (1) above is real (a structurally different remote address space), **that last 10% is not worth a permanent second implementation.**
+
+**My honest recommendation, even though Option B is my assigned option:** absent a hard requirement for a second node‑serving engine, adopt the **soft fork** — one shared engine, the new `INodeSource` ladder as a facade over it, the old `AsyncCustomNodeManager` kept un‑obsoleted as rung 4, and the round‑1 ports improvements (`IServerContext`, frozen bind phase, portable `NodeManagerHandle`, `Processed` retirement) applied *in place* to the shared runtime. That captures the entire measured win (the 93→~6 authoring collapse, the service‑locator removal, HA‑correctness) with one implementation to test, document, generate for, and trim. Reserve the hard fork for the day a fully‑remote address space actually demands a second engine — and if that day comes, the bridge in §1.4 is exactly how you bolt it on beside the first without a flag day.
+
+---
+
+## The NodeState question
+
+**Assignment:** *Determine whether `NodeState` should be re-cut — the work round 1 explicitly refused. Permitted to conclude it should NOT be. Feed the conclusion to both delivery options in a form they can consume.*
+
+> Reproduced verbatim as delivered. Section numbering is the designer's own.
+
+### Re-cutting `NodeState` — a State-Placement Proposal
+
+#### 1. Inventory
+
+##### 1.1 What is in the 5,824 lines
+
+`NodeState.cs` declares `public abstract class NodeState : IFormattable, ICloneable`. The file has **182 `public` declarations** (of which 18 are delegates and 3 are result structs), leaving **~155 public members on the class**, plus **26 protected**, **64 virtual + 2 abstract (≈65 virtual/abstract)**, **28 private fields**, **2 events**, and **18 public delegates**. I categorised every member from the LSP symbol table:
+
+| # | Concern | Members | ~Lines | What it is |
+|---|---|---:|---:|---|
+| 1 | **Serialisation** | ~42 methods + `AttributesToSave` enum | ~1,500 | `SaveAsBinary`/`LoadAsBinary`, `SaveAsXml`/`LoadFromXml`(×4), `Save`/`Update`/`SaveChildren`/`SaveReferences`/`LoadNode`/`UpdateUnknownChild`/`LoadUnknownNode`, `Export`(×2), `Clone`/`CreateCopy`/`CopyTo`/`DeepEquals`/`DeepGetHashCode` |
+| 2 | **Attribute interception** | 31 delegate fields (`OnRead*`/`OnWrite*`, `OnValidate`) | ~300 | *code*, per-attribute read/write hooks; `BaseVariableState` adds ~20 more (`OnReadValue`, `OnReadValueAsync`, …) |
+| 3 | **Lifecycle / creation** | ~26 | ~700 | ctor, `Initialize`(×6), `Create`/`CreateInternal`/`CreateAsPredefinedNode`, `Delete`, `AssignNodeIds`(×2), `OnBefore/AfterCreate/Delete` |
+| 4 | **Topology (parent/child)** | ~24 | ~700 | `FindChild`(×3), `CreateChild`, `AddChild`/`RemoveChild`, `SetChildValue`(×10), `GetChildren`, `GetInstanceHierarchy` |
+| 5 | **Attribute storage (data)** | ~20 properties + fields | ~400 | `NodeId`, `NodeClass`, `BrowseName`, `DisplayName`, `WriteMask`, `RolePermissions`, `AccessRestrictions`, … |
+| 6 | **Attribute read/write dispatch** | 11 methods | ~600 | `ReadAttribute`(×2), `ReadAttributeAsync`, `WriteAttribute`(×2), `WriteAttributeAsync`, `ReadValueAttribute` |
+| 7 | **References** | 10 methods + `m_references` + 2 delegates | ~300 | `AddReference`/`RemoveReference`/`ReferenceExists`/`GetReferences`/`UpdateReferenceTargets` |
+| 8 | **Events / conditions** | 10 methods + `Notifier` + 4 delegates | ~350 | `ReportEvent`/`ReportEventAsync`, `AddNotifier`, `ConditionRefresh`, `AreEventsMonitored`, `FindMethod` |
+| 9 | **Change tracking** | ~6 + `NodeStateChangeMasks` enum + 2 events | ~200 | `ChangeMasks`, `ClearChangeMasks`/`Async`, `RaiseStateChangedAsync`, `StateChanged`(`Async`) |
+| 10 | **Browsing** | 3 methods + 2 delegates | ~250 | `CreateBrowser`, `CreateDefaultNodeBrowser`, `PopulateBrowser` |
+| 11 | **Validation / type-system** | 2 + `IsPartOfTypeHierarchy` | ~80 | `Validate`, `ValidationRequired` |
+
+**Two findings that dominate the rest of this proposal:**
+
+- **Serialisation (concern 1) is the single largest bucket — ~42 methods / ~1,500 lines** — and it is pure data marshalling that already exists *twice more* outside the type (`NodeStateSerializer`, `UANodeSetHelpers`).
+- **Locks.** The 4 collection locks are compliant `System.Threading.Lock` (`m_referencesLock`, `m_childrenLock`, `m_notifiersLock`, `m_areEventsMonitoredLock`, lines 5473-5476). But `ReadAttributeAsync`/`WriteAttributeAsync` take **`lock(this)`** (lines 3926, 4255) under an explicit `#pragma warning disable CA2002, RCS1059` with a `// weak-identity lock on 'this' is intentional: external callers synchronise via lock(source)` comment and a TODO. This is a **published synchronization contract in the interface**: `AsyncCustomNodeManager` (12 sites), `BaseVariableState` (6), `CustomNodeManager` (1) all do `lock(source)` on the node. It is the largest single obstacle to the re-cut, and it cannot cross a replica.
+
+##### 1.2 Hierarchy — depth and counts
+
+The spine is shallow structurally but deep on two branches (verified against `State/readme.md`):
+
+```
+NodeState (abstract)
+├─ BaseTypeState → {BaseObjectTypeState, BaseVariableTypeState, ReferenceTypeState, DataTypeState}
+└─ BaseInstanceState (IFilterTarget)
+   ├─ BaseObjectState → FolderState → [Core.Types behaviour: ConditionState → AcknowledgeableConditionState
+   │                                    → AlarmConditionState → LimitAlarmState → ExclusiveLimitAlarmState]
+   ├─ BaseVariableState → BaseDataVariableState → BaseDataVariableState<T> → .Implementation<TBuilder>
+   │                    → PropertyState → PropertyState<T> → .Implementation<TBuilder>
+   ├─ MethodState
+   └─ ViewState
+```
+
+- **Deepest chain = 7** (`DataTypeDescriptionState : BaseDataVariableState<string>.Implementation<VariantBuilder>` — verified in generated `Opc.Ua.NodeStates.g.cs`).
+- **Hand-written subclasses: 28** (22 in `Opc.Ua.Types/State`, 2 base + the condition/alarm/state-machine behaviour types in `Opc.Ua.Core.Types/State` — **18 files / 6,023 lines** including `AlarmConditionState` 878+816, `ConditionState` 835, `FiniteStateMachineState` 806, `AcknowledgeableConditionState` 570).
+- `Opc.Ua.Types/State` = **22 files / 15,434 lines** (matches brief); the full state surface is ~21,457 lines across the two folders.
+
+##### 1.3 Generated surface bound to the shape
+
+Concrete subclasses are **overwhelmingly generated**, not authored:
+
+- Core model alone: **456 generated `partial class …State`** in `Opc.Ua.NodeStates.g.cs` (**9.2 MB**), plus **`Opc.Ua.NodeStates.ex.g.cs` (22.65 MB)** — an imperative factory of `CreateXxx(context) → state.CreateAsPredefinedNode(context) → nodes.Add(state)` calls, i.e. the address space materialised in code. Per-namespace `Add<Ns>(this NodeStateCollection, ISystemContext)`.
+- Base-class distribution across the 456 (verified): **116 `MethodState`, 77 `BaseObjectState`, 9 `BaseDataVariableState<T>`**, and deep chains through the hand-written behaviour types (`AlarmConditionState`, `LimitAlarmState`, `ExclusiveLimitAlarmState`, `BaseEventState`, `FiniteStateMachineState` …). **The generator emits inheritance that mirrors the OPC UA type tree**, and for the alarm/condition/state-machine families it inherits ~4,000 lines of *hand-written behaviour*.
+- Every companion spec repeats this: DI, GDS, PubSub, Robotics, ISA95, WoT, Positioning, xRegistry, OpenUsd (`Opc.Ua.<Spec>.NodeStates.g.cs`). The generator is the **primary delivery mechanism** for models.
+
+##### 1.4 Non-server dependants
+
+`NodeState` lives in `Opc.Ua.Types`, but the client barely touches it:
+
+- **`INodeCache` returns `Node`/`INode`** (`FetchNodeAsync : ValueTask<Node?>`), backed by the separate lightweight `Node`/`NodeTable`/`TypeTable`/`ReferenceTable` model in `Opc.Ua.Types/Nodes` (`Node : IEncodeable, ILocalNode`). **Client complex types use zero `NodeState`.**
+- `NodeState` leaks into the client **only** through the cold `CoreClientUtils.NodeSetExport.cs` path (`INode → NodeState → NodeSet2`).
+- `UANodeSetHelpers` (shared) `Import(NodeStateCollection)` / `Export(NodeState)` is the NodeSet2-XML ↔ graph bridge — itself a serializer.
+
+**Consequence:** a data-oriented, NodeId-keyed, `IEncodeable` node representation *already exists and ships* (it is what the client uses). The re-cut is a **server-side** concern; the client does not constrain it.
+
+---
+
+#### 2. Verdict: re-cut — but along the **data/behaviour** seam, not the inheritance seam
+
+**Re-cut: YES, partially.** Split the *object* into a **`NodeData`** core (topology, references, attribute values, change byte — data, sealed, serialisable, no delegates, no `lock(this)`) and an **`INodeBehavior`** bundle (the 50+ delegates, custom browse, method handlers, condition/alarm/state-machine logic — code, node-local, re-attached per replica). Extract serialisation onto the data core. Keep the typed C# subclass as a **typed accessor over `NodeData` + a bound behaviour**, emitted by the generator.
+
+**Do NOT** attempt to make `NodeState` "composable-not-inherited" wholesale — `design-flexible` was right to decline *that* framing. The inheritance spine is not the disease; the **conflation of behaviour and data inside one mutable, self-locking object** is.
+
+##### Deletion test, per concern (N = where complexity reappears)
+
+| Concern | Delete from the node? | Verdict |
+|---|---|---|
+| **Serialisation** (42 methods) | Complexity reappears in **N = 2** modules (binary + NodeSet/XML) that already exist (`NodeStateSerializer`, `UANodeSetHelpers`). Pure marshalling over data. | **EXTRACT** — biggest win, −1,500 lines from the type |
+| **Attribute interception** (31+ delegates) | It is *code*, not data — reappears only at the **25 distinct override names actually used** (round 1: 55 of 80 virtuals never overridden). | **EXTRACT to `INodeBehavior`** — the HA-correctness win |
+| **Change tracking** (events) | Reappears as **N = 1** address-space change feed (already `NodeStateChange`/`IAddressSpaceSynchronizer` in Redundancy). The `ChangeMasks` byte stays as data. | **RELOCATE** to the address space |
+| **`lock(this)` contract** | Reappears as a private `System.Threading.Lock` + the already-existing async no-lock path. **N = 19** framework sites stop doing `lock(source)`. | **DELETE the contract** |
+| **Browsing** | Default browse is a *function of reference data* → runtime `NodeBrowser` (exists). Custom browse is behaviour. | **SPLIT**: default → runtime, custom → `INodeBehavior` |
+| **Topology / References / Attribute storage** | Delete and it reappears **everywhere** — this *is* the node. Data. | **KEEP as `NodeData`**, slim the mutation API |
+| **Lifecycle (Create/AssignNodeIds)** | Reappears in the generator factory + node managers. A build protocol. | **KEEP slim** (generator needs `CreateAsPredefinedNode`) |
+| **Events/conditions, state machines** | Reappears as ~6,000 lines of stateful behaviour reused by 60-80 leaves. | **KEEP as behaviour** (see below) |
+
+##### Inheritance: load-bearing, or inheritance-as-code-reuse? Both — honestly.
+
+- **For the structural NodeClass spine** (`Object`/`Variable`/`Method`/`View`/`Type`) and the **typed value generic** (`BaseDataVariableState<T>.Implementation<TBuilder>`): inheritance is thin, structural, and **fits the domain**. The `<T>`+builder form was *already re-cut in 2.0* to be zero-allocation and reflection-free (`node-states.md`). Keep it.
+- **For alarm/condition/state-machine**: inheritance carries ~4,000 lines of **real behaviour** reused by 60-80 generated leaves (`ExclusiveLimitAlarmState` genuinely reuses `AlarmConditionState`→`ConditionState`→`BaseEventState`). This is the honest counter-argument to "sealed by default" — here inheritance is **load-bearing behaviour reuse that matches the standard's type tree** (`ExclusiveLimitAlarmType → LimitAlarmType → …`). **But** it is exactly the least-replicable state (an alarm's acked/active state is code-driven). The reconciliation: **keep the behaviour inheritance, but express it as a behaviour *provider* keyed by `TypeDefinitionId`, attached to `NodeData`, not baked into the data object.**
+- **The domain type tree itself is already data, not C# inheritance**, for instances: a `ServerObjectState` is `: BaseObjectState`, and its `ServerType`-ness lives in `TypeDefinitionId` — verified. So modelling the *information model* does not require the node's C# class to inherit; only *typed access* and *behaviour reuse* do.
+
+**Net:** the inheritance is ~70% justified (structure + typed value + genuine behaviour families) and ~30% accidental (behaviour delegates and serialisation riding on the data object). Re-cut the 30%.
+
+---
+
+#### 3. The design
+
+##### 3.1 `NodeData` — the data core (Category C: replicable)
+
+```csharp
+namespace Opc.Ua;
+
+/// <summary>
+/// The replicable data of one node: identity, attribute values, topology and references.
+/// No delegates, no events, no lock(this), no `object`. Serialisable and AOT-safe.
+/// Invariants: NodeId is immutable after Create; NodeClass is immutable for life;
+/// references and children are mutated only through the owning IAddressSpaceWriter,
+/// which is the single writer (Category C is single-writer or CRDT).
+/// Reads are synchronous and allocation-free; writes go through the writer and raise
+/// a NodeStateChange on the address-space feed (not a per-node event).
+/// </summary>
+public sealed class NodeData
+{
+    public NodeData(NodeClass nodeClass) => NodeClass = nodeClass;
+
+    public NodeId NodeId { get; init; } = NodeId.Null;      // INullable → .IsNull, never Nullable<T>
+    public NodeClass NodeClass { get; }
+    public QualifiedName BrowseName { get; set; } = QualifiedName.Null;
+    public LocalizedText DisplayName { get; set; } = LocalizedText.Null;
+    public AttributeWriteMask WriteMask { get; set; }
+    public ArrayOf<RolePermissionType> RolePermissions { get; set; }   // ArrayOf<T>, not IReadOnlyList
+    public AccessRestrictionType? AccessRestrictions { get; set; }
+
+    /// <summary>The Value attribute for Variable/VariableType nodes; Variant.Null otherwise.</summary>
+    public Variant Value { get; set; } = Variant.Null;      // Variant, never object
+    public StatusCode StatusCode { get; set; }
+    public DateTimeUtc SourceTimestamp { get; set; }
+
+    // Data-only topology + references. Mutated only by IAddressSpaceWriter.
+    public ArrayOf<NodeId> Children { get; internal set; }
+    public ReferenceSet References { get; internal set; }   // today's ReferenceDictionary, minus behaviour
+
+    public NodeStateChangeMasks ChangeMask { get; internal set; }   // stays as a data byte
+}
+```
+
+`NodeData` is what `NodeStateSerializer` already round-trips (it reconstructs a *generic base state* from `NodeClass` + `SaveAsBinary` and re-attaches behaviour — verified). Serialisation moves onto it as a free function: `NodeDataSerializer.Save(in NodeData, BinaryEncoder)` / `Load(NodeClass, BinaryDecoder)`.
+
+##### 3.2 `INodeBehavior` — the behaviour bundle (Category A: node-local, never replicated)
 
 ```csharp
 namespace Opc.Ua.Server;
 
 /// <summary>
-/// DATA seam (Category C). The replicable node graph. Already exists (7 members,
-/// two adapters). Reads are SYNCHRONOUS (local serving cache); writes are async
-/// (write-behind replication). Unchanged from today's ILocalAddressSpace.
-/// </summary>
-public interface ILocalAddressSpace { /* TryGetNode (sync) + AddOrUpdate/RemoveAsync + events */ }
-
-/// <summary>
-/// BEHAVIOUR seam (Category A, node-local, NEVER replicated). The 18 NodeState
-/// delegates collapse to one small typed provider that the owning node manager
-/// re-attaches locally after hydration. Values, not code, cross the wire.
+/// All node behaviour that today lives as NodeState delegates/virtuals. Code, never
+/// serialised. Re-attached locally by the owning node manager (INodeBehaviorSource)
+/// after a replica hydrates NodeData. A node with no custom behaviour has NO bundle
+/// (null), so the common case allocates nothing beyond NodeData.
+///
+/// Ordering: OnReadValueAsync/OnWriteValueAsync own their own thread-safety and run
+/// WITHOUT any node lock (this is already true of BaseVariableState.OnReadValueAsync,
+/// BaseVariableState.cs:578). A handler that returns Handled=true is the value source;
+/// the runtime does NOT post-process (index range/encoding) — same contract as today.
+/// Error mode: a handler returns ServiceResult; it never throws for a Bad status.
 /// </summary>
 public interface INodeBehavior
 {
-    ValueTask<AttributeReadResult>  OnReadValueAsync (ISystemContext ctx, in ReadValueId  id,    CancellationToken ct = default);
-    ValueTask<AttributeWriteResult> OnWriteValueAsync(ISystemContext ctx, in WriteValue   value, CancellationToken ct = default);
-    ValueTask<CallMethodResult>     OnCallAsync      (ISystemContext ctx, in CallMethodRequest r, CancellationToken ct = default);
-    NodeBrowser CreateBrowser(ISystemContext ctx, ContinuationPoint? cp);
+    ValueTask<AttributeReadResult>  OnReadValueAsync (ISystemContext ctx, in ReadValueId id, CancellationToken ct);
+    ValueTask<AttributeWriteResult> OnWriteValueAsync(ISystemContext ctx, in WriteValue  wr, CancellationToken ct);
+    ValueTask<CallMethodResult>     OnCallAsync      (ISystemContext ctx, in CallMethodRequest r, CancellationToken ct);
+
+    /// <summary>Custom browse; null-return means "use the data-driven default browser".</summary>
+    NodeBrowser? CreateBrowser(ISystemContext ctx, in BrowseDescriptor descriptor);
 }
 
 /// <summary>
-/// Implemented by a node manager (and by the source generator's output). After a
-/// standby hydrates the DATA graph from INodeStateStore, the server calls this to
-/// re-bind local behaviour by NodeId. Behaviour is deterministic from the model +
-/// the manager's code, so every replica reconstructs identical behaviour.
+/// Attaches behaviour to nodes by NodeId. Implemented by a node manager AND emitted by
+/// the source generator. Two adapters today ⇒ a real seam: hand-written + generated.
 /// </summary>
 public interface INodeBehaviorSource
 {
@@ -1671,441 +1034,361 @@ public interface INodeBehaviorSource
 }
 ```
 
-**Invariant:** the serialized `IStoredNode.Payload` (Category C) contains **no delegate, no `object`, no `System.Threading.Lock`**. Behaviour is a pure function of `(model, manager code)` reconstructed on each replica — so a value written on the writer, mirrored as a `DataValue`, and re‑served on a standby is identical, while the *validation/interception* that produced it runs locally on whichever replica is the writer.
+The condition/alarm/state-machine families become **behaviour implementations keyed by `TypeDefinitionId`** (a `ConditionBehavior`, `AlarmConditionBehavior : ConditionBehavior`, …). Inheritance survives *there* — where it is genuine behaviour reuse — but it is off the data path, so a replica hydrates `NodeData` and re-binds `AlarmConditionBehavior` locally. This is precisely what `NodeStateSerializer`'s doc-comment already promises ("re-attached by the owning node manager on the active replica").
 
-##### 1.4 Killing the `object` leaks and the `Processed` protocol
+##### 3.3 What the source generator emits
 
-**Opaque handle → portable value.** `GetManagerHandleAsync : ValueTask<object>` cannot survive a failover. Replace with a value:
+Today the generator emits (a) a typed subclass and (b) an imperative factory. Under the split it emits the **same two things, decoupled**:
 
 ```csharp
-public readonly record struct NodeManagerHandle
+// (a) Typed accessor — a readonly struct VIEW over NodeData, zero-inheritance, AOT-safe.
+public readonly struct BoilerType
 {
-    public NodeId NodeId { get; init; }
-    public int OwningNamespaceIndex { get; init; }   // the partition, portable across replicas
-    // NO in-process pointer. Valid on any replica hosting the same namespace partition.
+    private readonly NodeData m_node;
+    public BoilerType(NodeData node) => m_node = node;
+
+    public NodeData Node => m_node;
+    public AnalogUnitType Temperature => new(m_node.Child(BrowseNames.Temperature));  // typed child access preserved
+    public double TemperatureValue => m_node.Child(BrowseNames.Temperature).Value.GetValueOrDefault<double>();
 }
-ValueTask<NodeManagerHandle?> GetManagerHandleAsync(NodeId nodeId, CancellationToken ct = default);
+
+// (b) Data factory — builds NodeData (not a behaviour graph). Still imperative, still AOT,
+//     but now emits pure data the replicator can also emit as a NodeSet2 blob.
+public static NodeData CreateBoilerType(ISystemContext ctx) { /* set attributes, children, refs */ }
+
+// (c) Behaviour bundle — separate, only when the type has methods/handlers.
+internal sealed class BoilerTypeBehavior : INodeBehavior { /* method handlers */ }
 ```
 
-**This also deletes the `Processed`‑flag / index‑aligned‑accumulator protocol.** Today `MasterNodeManager` fans a shared mutable `IList<DataValue>`/`IList<ServiceResult>` out to *every* manager, each cooperatively skipping items whose `Processed` bit is set — cooperative multiplexing that only works because all managers share one in‑process array. With portable handles, `MasterNodeManager` resolves each `ReadValueId` to its single owning `NodeManagerHandle` (the routing table is already `NodeManagerRoutingTable : IReadOnlyList<IAsyncNodeManager>`) and dispatches a **partition** to exactly that manager, which returns its **own** `ArrayOf<DataValue>`. No shared array, no cooperative flag — and the partition composes across a network.
+The generator *wants* two things above all: **typed access to children/values** and **an AOT, reflection-free construction path**. Both survive. The struct-view form is strictly friendlier to AOT and to the `internal sealed` runtime than a 456-deep inheritance tree.
 
-**Untyped continuation → typed, AOT‑serialisable.** `object? RestoreHistoryContinuationPoint` / `SaveHistoryContinuationPoint(Guid, object)` become:
+##### 3.4 Hot path — Read and Browse
 
 ```csharp
-public interface IHistoryContinuationState : IEncodeable { }   // AOT-safe via source-gen encoders
+// READ (single node, common case: no behaviour). No lock, no await, no allocation.
+public ServiceResult ReadValue(NodeData node, in NumericRange range, ref DataValue value)
+{
+    if (m_behaviorSource.TryGetBehavior(node.NodeId, out INodeBehavior? b))   // dictionary hit only for custom nodes
+    {
+        return b.OnReadValueAsync(...).AsResult();   // async path, no node lock (as today)
+    }
+    value = new DataValue(node.Value, node.StatusCode, node.SourceTimestamp);  // pure field read
+    return ApplyRange(ref value, range);
+}
 
-ValueTask<IHistoryContinuationState?> RestoreHistoryContinuationPointAsync(ByteString id, CancellationToken ct = default);
-ValueTask SaveHistoryContinuationPointAsync(Guid id, IHistoryContinuationState state, CancellationToken ct = default);
+// BROWSE. Default browser walks NodeData.References (data). Custom browse only if a behaviour exists.
+public NodeBrowser Browse(NodeData node, in BrowseDescriptor d)
+    => (m_behaviorSource.TryGetBehavior(node.NodeId, out var b) ? b.CreateBrowser(ctx, d) : null)
+       ?? DataBrowser.Over(node.References, d);   // struct enumerator over ReferenceSet
 ```
 
-A node manager that can serialise its continuation now transfers it through `IContinuationPointStore`; generic managers keep the existing best‑effort `ContinuationPointEnvelope` (client re‑issues on `BadContinuationPointInvalid`, permitted by Part 4 §6.6.2.2).
+**Performance characteristics (the interface, not the impl):** the common-case Read is a field read with no lock and no `await`; today the same read either takes `lock(this)` (sync path) or allocates a `ValueTask` (async default). Browse over data is a struct enumerator. Behaviour costs exactly **one dictionary probe** and is paid only by nodes that have custom behaviour.
 
-**Diagnostics locks → gone.** `object DiagnosticsLock` / `DiagnosticsWriteLock` are **removed from `IServerInternal`, `ISession`, `ISubscription`** (the 88 `lock` sites become private `System.Threading.Lock`). Consumers use `GetServerDiagnosticsAsync` / `GetSessionDiagnosticsAsync` (snapshot). An exposed in‑process lock is a single‑node assumption baked into the interface; it cannot cross a replica and must not exist at the seam.
+---
 
-##### 1.5 Consistency contract (part of the interface)
+#### 4. Cost, risk, and migration
 
-| Operation | Guarantee | Backing |
+##### 4.1 What breaks
+
+- Every `node.OnReadValue = h` / `OnWriteValue` / `OnSimpleReadValue` (and the 31 `NodeState` + ~20 `BaseVariableState` handler fields) moves to a behaviour bundle.
+- Custom subclasses overriding protected virtuals (`ReadNonValueAttribute`, `PopulateBrowser`, `ConditionRefresh`, …) — the 25 distinct override names — must move logic into `INodeBehavior`.
+- The 19 framework `lock(source)` sites must stop locking the node.
+- The 42 serialisation methods leave the type (callers use `NodeDataSerializer`/`UANodeSetHelpers`).
+
+##### 4.2 What the analyzer can carry — honest split
+
+`Opc.Ua.MigrationAnalyzer` ships UA0001-UA0023 with ~70% auto-fix and a `[OpcUaShim]` runtime library — **but none target the node-manager/`NodeState` authoring surface** (verified: no analyzer references `NodeState`/`NodeManager`). New rules would be needed:
+
+| Migration class | Mechanism | Share |
 |---|---|---|
-| `ILocalAddressSpace.TryGetNode`, local value read/write | **node‑local**, synchronous, zero‑alloc | in‑process cache |
-| `INodeStateStore` topology/value mirror; `ISharedSessionStore`; subscription/MI/retransmission mirror | **eventually consistent**, write‑behind | `ISharedKeyValueStore` / CRDT |
-| `ISingleUseNonceRegistry.ConsumeAsync`; writer/leader election; durable‑subscription ownership | **linearizable** (CAS) | Raft strong keyspace |
-| Continuation‑point envelope | **best‑effort** (may be lost) | mirror |
+| `node.OnXxx = handler` field assignments | **Auto-fix**: rewrite to `behavior.OnXxx = handler` (delegate shape preserved) | ~35% |
+| Old serialisation calls (`node.SaveAsBinary`) | **Auto-fix**: redirect to `NodeDataSerializer.Save(node)` | ~10% |
+| `[OpcUaShim] NodeState` facade exposing legacy `OnXxx` fields forwarding to a bundle | **Shim** (transition window; same pattern as the existing client/config shims) | ~20% overlap |
+| Protected-virtual overrides → `INodeBehavior` | **Detect-only** (CS0115-style) + guidance | ~20% |
+| Condition/alarm/state-machine behaviour relocation | **Manual rewrite** | ~15% |
 
-**Not every state port is async.** The **local serving read path stays synchronous** (`TryGetNode`, node‑manager `Read`), so a node read remains a dictionary lookup with no `await` and no allocation. Only **writes, hydration, mirroring, and nonce CAS** are async, and mirroring runs off the publish path via coalesced background drains (as `SharedKeyValueMonitoredItemQueueFactory` already does).
+Realistic: **~45% auto-fix/shim-carried, ~20% compiler-guided rename, ~35% manual** — heavier on manual than the average 2.0 sub-migration, because behaviour relocation is semantic.
+
+##### 4.3 Precedent already set by `docs/migrate/2.0.x/node-states.md`
+
+This is direct precedent that re-cutting `NodeState` is **feasible and accepted**:
+
+- **`NodeState` no longer implements `IDisposable`** — "Node states do not manage resources, they access resources… management of resources must be done in a node manager." **This is the data/behaviour direction already shipped.**
+- **Typed `BaseVariableState<T>`/`BaseVariableTypeState<T>` re-cut** to zero-allocation, reflection-free **builder structs** (`VariantBuilder`, `StructureBuilder<T>`, `EnumBuilder<T>`).
+- **`Clone()` → `CreateCopy()` + `CopyTo()`** (new `protected abstract NodeState CreateCopy()`).
+- **`BaseVariableState` `Read(object, ref object)`/`Write(object)` removed.**
+- **Predefined nodes are now source-generated**; `AddBehaviorToPredefinedNode` receives the generated instance state and *attaches behaviour to it* — the authoring model is already "generated data + attached behaviour".
+
+Every one of these was delivered with **compiler-guided breaks (CS0115), recompilation, and manual guidance — no analyzer/shim**. The team has already broken this exact surface, repeatedly, this way.
+
+##### 4.4 Performance risk — with numbers
+
+- **Win:** a node with no custom behaviour drops **~50 nullable delegate slots** (`NodeState` 31 + `BaseVariableState` ~20). At 8 bytes each that is **~400 bytes/node**; at 100k nodes ≈ **~40 MB** and materially better cache locality on Browse/Read (the fields are gone from the hot object). The common-case Read also loses `lock(this)`.
+- **Cost:** custom-behaviour nodes pay **one dictionary probe** per Read/Browse/Call to reach `INodeBehavior`. Mitigation: `NodeData` may hold a single `object?`-free `INodeBehavior?` reference field (behaviour is server-side, not replicated, so a local reference is legitimate) turning the probe into a null-check — but that reintroduces one reference field per node, so it is a tunable (field vs side-table).
+- **Reasoning where I lack numbers:** no design was benchmarked (round 1's caveat holds). The claim "common-case Read gets cheaper" rests on: fewer fields + no lock + no `await` when no behaviour exists. The claim "custom Read unchanged" rests on the async no-lock path already being live (`AsyncCustomNodeManager` calls `ReadAttributeAsync` at 3505/3697/3824; `MonitoredNode` at 462/751 — verified).
 
 ---
 
-#### 2. Usage example
+#### 5. Feed to the two delivery options
 
-##### (a) Single‑node — in‑memory adapters
+**Direct answers for the two designers.**
+
+##### Does this make a full rewrite MORE or LESS attractive? — **MORE.**
+
+The data/behaviour split is far cheaper to *build greenfield* than to retrofit onto a 5,824-line self-locking type. A rewrite of `Opc.Ua.Server` can adopt `NodeData` + `INodeBehavior`/`INodeBehaviorSource` + generator-emits-both from day one, and **reuse machinery that already exists**: the client's `Node`/`NodeTable`/`TypeTable` data model, `NodeStateSerializer` (already does data-only round-trip), `UANodeSetHelpers`, `INodeStateStore`/`NodeStateChange`/`IAddressSpaceSynchronizer` (Redundancy). The rewrite does **not** need to invent the data model — it needs to *promote the client's data model to the server* and attach behaviour beside it. Recommend the full rewrite take `NodeData` as its address-space primitive and treat `INodeBehavior` as the only extension seam.
+
+##### Does this make a side-by-side fork MORE or LESS viable? — **Viable, but only at namespace/node-manager granularity, and it forces the `lock` cut to be global.**
+
+- **Can old-style and new-style `NodeState` coexist in ONE address space? Yes — at the routing boundary, No — within one node graph.** `MasterNodeManager` already routes by `NodeId`/namespace over `NodeManagerRoutingTable : IReadOnlyList<IAsyncNodeManager>`. A new-style node manager (serving `NodeData`) can sit beside an old-style `CustomNodeManager2` (serving `NodeState`); the master routes per node. **But a single parent/child graph must be homogeneous**, and the generator emits one shape — so migration is a **hard cut per node manager, a soft cut per server**. Companion specs migrate one at a time.
+- **The one thing a fork cannot defer is the `lock(source)` contract.** If new-style nodes drop `lock(this)`, any framework code that does `lock(source)` on a node it did not author will break. So the runtime (`MasterNodeManager`, browsers, `AsyncCustomNodeManager`) must **stop taking `lock(source)` before any new-style node exists** — a coordinated change, but bounded to the **19 measured sites**. Sequence it first; it is a prerequisite for the fork, not a consequence of it.
+- **`NodeState` can front `NodeData` during the fork.** Because `NodeStateSerializer` proves data is reconstructable into a generic base, an `[OpcUaShim]` `NodeState` can *wrap* a `NodeData` + optional `INodeBehavior`, exposing the legacy `OnXxx` fields as forwarders. That lets old node managers keep compiling against `NodeState` while the graph underneath is already `NodeData` — the fork's bridge.
+
+**Bottom line for the decision:** the re-cut is real and worth doing, but its *shape* is "extract behaviour + serialisation, keep the typed/behaviour inheritance," not "de-inherit the graph." That shape **favours the full rewrite** (greenfield data core, reusing the client model) and makes the fork **possible but not cheap** (per-node-manager hard cuts, with a mandatory up-front removal of the `lock(source)` contract). Neither option is blocked by client dependencies — `NodeState` is effectively server-only.
+
+---
+
+## Cross-cutting findings
+
+### New finding: a second lock leak
+
+`ServerRuntimeAnalysis.md` documented an `object`-typed diagnostics lock published on three
+interfaces and taken in 88 `lock` statements. **`r2-nodestate` found a second, independent
+lock leak** — and I verified it directly.
+
+`NodeState.ReadAttributeAsync` and `WriteAttributeAsync` take `lock (this)`:
 
 ```csharp
-services.AddOpcUa()
-    .AddServer(server => server.ApplicationUri = "urn:plant:line-a")
-    .AddNodeManager<BoilerNodeManagerFactory>();   // authoring code — see below
-// No Use* calls. DI supplies the in-memory adapters as the direct-construct fallback:
-//   ISharedKeyValueStore   -> InMemorySharedKeyValueStore
-//   ILeaderElection        -> StaticLeaderElection (always writer)
-//   ISubscriptionStore     -> in-memory (no durable persistence)
-//   ILocalAddressSpace     -> PredefinedNodesAddressSpace (per node manager)
+// src/Opc.Ua.Types/State/NodeState.cs:3925-3927 and 4254-4256
+#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
+lock (this)
+#pragma warning restore CA2002, RCS1059
 ```
 
-##### (b) Clustered — distributed adapters, **identical authoring code**
+The suppression comment states the contract explicitly: *external callers synchronise via
+`lock(source)`*. That is a **published synchronization contract carried in prose**, and it is
+honoured across the framework. Verified count of `lock(source)`-style sites in `src`:
 
-```csharp
-services.AddOpcUa()
-    .AddServer(server => server.ApplicationUri = "urn:plant:line-a")
-    .AddNodeManager<BoilerNodeManagerFactory>()          // <-- byte-for-byte identical to (a)
-    .UseRedundancyConsistency(c => c.Mode = ConsistencyMode.Strong)  // Raft strong keyspaces
-    .UseDistributedAddressSpace(o => o.NodeId = Environment.MachineName)  // Category C
-    .UseDistributedSessions(o => o.EnableFastReconnect = true)           // Category B
-    .UseDistributedSubscriptionMirroring()                              // Category B
-    .AddServerRedundancy(o => o.Mode = RedundancySupport.HotAndMirrored)
-    .AddServerServiceLevel(new LeaderServiceLevelProvider(election, RedundancySupport.HotAndMirrored));
-```
+| File | Sites |
+|---|---:|
+| `AsyncCustomNodeManager.cs` | 8 |
+| `BaseVariableState.cs` | 6 |
+| `NodeState.cs` | 4 |
+| `CustomNodeManager.cs` | 1 |
+| **Total** | **19** |
 
-The **authoring surface never changes** — `BoilerNodeManagerFactory` and its node manager are written once:
+Why this matters more than its size suggests:
 
-```csharp
-public sealed class BoilerNodeManager : ManagedNodeManager, INodeBehaviorSource
-{
-    protected override async ValueTask CreateAddressSpaceAsync(CancellationToken ct)
-    {
-        // DATA: create nodes as always. Replication captures these via ILocalAddressSpace.
-        _pressure = CreateVariable(Objects.Boiler, "Pressure", DataTypeIds.Double);
-    }
+- It is a **weak-identity lock on a public object**, so any consumer holding a `NodeState` can
+  contend with the framework's critical sections — the same defect class as
+  `Subscription.DiagnosticsLock => Diagnostics`.
+- It **cannot cross a replica**, so it is a single-node assumption baked into the node type
+  itself. Any HA design must remove it.
+- `r2-nodestate` establishes it as a **prerequisite, not a consequence**: if new-style nodes
+  drop `lock(this)`, framework code doing `lock(source)` on a node it did not author breaks.
+  The 19 sites must be cut **before** any new node representation exists.
 
-    // BEHAVIOUR (Category A) — re-attached locally on every replica; never serialized.
-    public bool TryGetBehavior(NodeId nodeId, out INodeBehavior? behavior)
-    {
-        if (nodeId == _pressure.NodeId) { behavior = new PressureBehavior(_sensor); return true; }
-        behavior = null; return false;
-    }
-}
-```
+It is bounded, mechanical, and independent of which delivery option is chosen. Like the
+diagnostics lock, it is worth doing regardless.
 
-The single‑node build re‑attaches behaviour on the one process; the clustered build re‑attaches the **same** behaviour on each standby after it hydrates the data graph. Same code, two adapter sets.
+### Adjudicated disagreement: is NodeState client-coupled?
 
-##### (c) Failover — what state moves, through which port
+The two designers made **contradictory factual claims**, and the answer changes the fork's
+viability. I verified it independently rather than take either on trust.
 
-Replica 1 (writer, active session S) crashes. Replica 2 (standby, already hydrated) is promoted:
+> **`r2-fork`:** *"Delete a hypothetical forked `NodeState` → complexity reappears massively:
+> `NodeStateSerializer`, the client-side `INodeCache`, and every companion spec bind to
+> `NodeState`, which lives in shared `Opc.Ua.Types`. A parallel node type would fork the type
+> system itself."*
 
-| State | Category | Port it travels through | Mechanism on promotion |
+> **`r2-nodestate`:** *"`INodeCache` returns `Node`/`INode` … Client complex types use zero
+> `NodeState`. `NodeState` leaks into the client only through the cold
+> `CoreClientUtils.NodeSetExport.cs` path. **The re-cut is a server-side concern; the client
+> does not constrain it.**"*
+
+**Verification:**
+
+- `src/Opc.Ua.Client/NodeCache/INodeCache.cs` — `FetchNodeAsync` returns `ValueTask<Node?>`
+  and `FetchNodesAsync` returns `ValueTask<ArrayOf<Node?>>`. **`INodeCache` does not expose
+  `NodeState` at all.** It is backed by the separate lightweight `Node`/`NodeTable`/
+  `TypeTable` model in `Opc.Ua.Types/Nodes`.
+- `NodeState` appears in the whole of `src/Opc.Ua.Client` in **exactly one file** —
+  `CoreClientUtils.NodeSetExport.cs` (19 references), the cold NodeSet-export path.
+
+**`r2-nodestate` is correct; `r2-fork`'s deletion-test verdict #4 rests on a false premise.**
+
+This has a consequence `r2-fork` did not get to draw: because `NodeState` is effectively
+server-only, the objection "forking it forks the type system" is much weaker than stated —
+and, as `r2-nodestate` notes, **a data-oriented, NodeId-keyed node model already exists and
+ships**: it is the one the client uses. A server-side re-cut can promote that model rather
+than invent one.
+
+The rest of `r2-fork`'s analysis — including its central finding about the fork line — is
+unaffected and was independently verified (see below).
+
+### What all three designers converged on
+
+| Convergent conclusion | `r2-rewrite` | `r2-fork` | `r2-nodestate` |
 |---|---|---|---|
-| Address space topology + values | C | `INodeStateStore` (+`INodeStateSnapshotStore`) via `IAddressSpaceSynchronizer` | Already resident (snapshot + delta‑log hydration); R2 flips writer role via `ILeaderElection` |
-| Node **behaviour** | A | *(none)* | `INodeBehaviorSource.TryGetBehavior` re‑binds locally — never crossed the wire |
-| Session S (token, nonce, identity, cert chain) | B | `ISharedSessionStore` / `SharedSessionEntry` | Client re‑`ActivateSession` with same `AuthenticationToken`; **`ISingleUseNonceRegistry.ConsumeAsync` (linearizable)** guarantees the mirrored nonce is spent once |
-| Subscriptions + monitored‑item queues + retransmission | B | `ISubscriptionStore` / `ISubscriptionRetransmissionStore` / `IMonitoredItemQueueFactory` | Definitions + queued‑but‑unpublished notifications restored; `Republish` continues |
-| Browse/HistoryRead continuation | B | `IContinuationPointStore` (best‑effort) | Restored if typed; else client re‑issues on `BadContinuationPointInvalid` |
-| Durable subscriptions, trust lists, roles | D | `ISubscriptionStore`(durable) / `SharedKeyValueCertificateStore` / `IRoleManager` | Read from shared/durable store |
+| Do **not** de-inherit `NodeState` wholesale | defer it entirely | forking it fails the deletion test | inheritance is ~70% justified; re-cut the other 30% |
+| The **data/behaviour split** is the right `NodeState` change | adopt as an internal seam | — | the core recommendation |
+| `IStandardServer` stays as-is | unchanged | shared, untouched | — |
+| The sync `INodeManager`/`2`/`3` chain can be deleted outright | delete | delete | — |
+| Everything is already normalised to `IAsyncNodeManager` before dispatch | yes | yes — this is the fork line | — |
 
-The client (`ManagedSession` with `WithServerRedundancy()`) sees a transparent reconnect. No authoring code participated in failover.
+Round 1's independent convergence (a 6-9 member `IServerContext`, the `object` handle
+removed, the `Processed` protocol eliminated, `IHistorianProvider` as the pattern) survives
+round 2 unchallenged. **No designer in either round has argued against those four.**
 
----
+Two further findings, each verified, that no round-1 designer had:
 
-#### 3. What the implementation hides behind the seam
+1. **The fork line falls at `IAsyncNodeManager`, and the runtime is shared.**
+   `r2-fork` verified that `StandardServer.CreateMasterNodeManagerAsync` already builds both a
+   sync and an async node-manager list and hands both to one `MasterNodeManager`, which
+   normalises everything through the 812-line `AsyncNodeManagerAdapter`;
+   `NodeManagerRoutingTable` is already `IReadOnlyList<IAsyncNodeManager>`. **Old and new
+   node managers can therefore coexist in one address space with zero runtime changes**, and a
+   "fork" duplicates only the ~15,000-line authoring surface (~10%), sharing the
+   ~130,000-line runtime.
 
-##### State inventory (every category of server state)
+2. **The `[OpcUaShim]` pattern is structurally unavailable for the authoring surface.**
+   `r2-rewrite` verified that every existing shim is an extension method or thin
+   re-implementation *over the new API* — e.g.
+   `ServerBaseObsolete.Start(this IServerBase) => StartAsync(...).GetAwaiter().GetResult()`.
+   That works when the old API is a veneer over the new one. A node-manager author instead
+   **inherits** an 8,028-line base and overrides virtuals whose bodies call
+   `MasterNodeManager`/`NodeState`/`IServerInternal` internals. Shimming it requires shipping
+   the old base classes *with their implementation* — *"which is precisely Option B relocated
+   into a NuGet package."* **A base-class inheritance surface cannot be shimmed without
+   retaining its implementation.**
 
-| State | Dep. cat. | Port | Why (one‑adapter check) |
-|---|---|---|---|
-| `OperationContext`, `SecureChannel`, transport listeners | 1 | none | Per‑request; regenerated. Pass‑through. |
-| `RequestManager`, `ResourceManager`, `AggregateManager`, `ModellingRulesManager`, `EventManager`, `ConformanceUnitsManager` | 1 | none | Pure in‑process compute/state. Merge as deep modules. |
-| In‑process `NodeState` serving cache | 1 | none (behind `ILocalAddressSpace` for capture) | Local materialised view; not itself a port. |
-| **Node behaviour** (18 delegates, method handlers) | 1 | `INodeBehavior`/`INodeBehaviorSource` (internal seam) | Node‑local, deterministic; two adapters = hand‑written + source‑generated. |
-| Per‑replica diagnostics counters | 1 | none | Spec permits divergence; snapshot via `GetServerDiagnosticsAsync`. |
-| Address‑space topology + values | 3 | `INodeStateStore`(+snapshot) / `IAddressSpaceSynchronizer` / `ILocalAddressSpace` | See §4 — real seams at synchronizer + KV. |
-| Session context + nonce | 3 | `ISharedSessionStore`, **`ISingleUseNonceRegistry`** | Transfer; nonce linearizable. |
-| Subscriptions / MI queues / retransmission | 3 | `ISubscriptionStore`, `ISubscriptionRetransmissionStore`, `IMonitoredItemQueueFactory` | Two real adapters each. |
-| Continuation points | 3 | `IContinuationPointStore` | Best‑effort; one adapter (see §4). |
-| Durable subscriptions | 3 | `ISubscriptionStore` (durable) | File + shared‑KV adapters. |
-| Trust lists / CRLs | 4 | `ICertificateStore` / `SharedKeyValueCertificateStore` | Directory + shared‑KV adapters. |
-| Secrets / record‑protection keys | 4 | secret manager + `IRecordProtector` | Null + AES‑CBC‑HMAC + key‑ring. |
-| Role assignments (Part 18) | 3/4 | `IRoleManager` | One prod adapter (see §4). |
-| User management (Part 18) | 3/4 | `IUserManagement` | Injected, nullable. |
-| **Substrate** | 3/4 | **`ISharedKeyValueStore`, `ILeaderElection`, `IRecordProtector`** | The real swap seams. |
-
-##### Machinery that moves from interface to implementation
-
-- **`AsyncCustomNodeManager` — 8,028 lines, 93 virtual/abstract (80 distinct), of which 55 never overridden** and only 25 distinct names ever overridden. These 55 non‑extension‑point virtuals move *behind* `ManagedNodeManager`; the interface exposes the ~6 real extension points (`CreateAddressSpaceAsync`, `LoadPredefinedNodesAsync`, `AddBehaviourToPredefinedNodeAsync`, `New`, `DeleteAddressSpaceAsync`, `Dispose`).
-- **`NodeState`'s 18 delegates + 2 events** move behind `INodeBehavior`; the serialized payload (`SaveAsBinary`, line 1048) stays, the delegates leave the graph.
-- **`IServerInternal`'s 12 `Set*` mutators + `ServerInternalData` two‑phase wiring (1,355 lines)** move behind the frozen bind phase.
-- **88 `lock` statements / 7 files + `Subscription.DiagnosticsLock => Diagnostics`** move behind `System.Threading.Lock`; snapshots surface via async getters.
-
-##### Deletion test (applied)
-
-1. **Delete `IServerInternal.Set*` (12 methods) + two‑phase construction.** Complexity **vanishes**: single‑node wires once through DI; the Redundancy library stops calling `SetSubscriptionStore`/`SetSessionManager`; the "`SetNodeManager` silently populates three more properties" and "`SetSessionManager` unhooks prior handlers so it can be called twice" hazards disappear. Pure indirection removed → **delete**.
-2. **Delete `object DiagnosticsLock`/`DiagnosticsWriteLock` (2 members).** Complexity **vanishes** at the interface: no caller needs the lock object; the `DiagnosticsWriteLock` getter that calls `ForceDiagnosticsScan()` *outside* the lock it returns is a latent bug that cannot be expressed once the lock is private. **Delete.**
-3. **Delete `INodeStateStore` *as a substitution port*** — keep it as a *module*. If deleted entirely, its 867 lines of framing/sequencing/snapshot logic **reappear** inside `AddressSpaceSynchronizer` → it earns its keep as a **deep module** (8 members over 867 lines). But as a *swappable port* it has **one** production adapter (`InMemoryNodeStateStore`) because the documented "Redis/CRDT backend" never materialised — real substitution happens at `ISharedKeyValueStore` beneath it. **Verdict: keep the module, do not market it as a substitution seam.**
-4. **Delete the `Processed` flag + index‑aligned accumulators.** Complexity **reappears elsewhere but better‑placed**: routing by `NodeManagerHandle` replaces cooperative multiplexing. Not pure indirection — but the *prose‑enforced* protocol (restated 6×) is deleted in favour of a typed partition dispatch. **Delete the protocol, keep the routing.**
-
----
-
-#### 4. Dependency strategy and adapters (two adapters or bust)
-
-**Reused seams (I invent nothing):** `ISharedKeyValueStore`, `ILeaderElection`, `IRecordProtector`, `ILocalAddressSpace`/`ILocalAddressSpaceSource`, `IAddressSpaceSynchronizer`, `INodeStateStore`/`INodeStateSnapshotStore`/`IStoredNode`/`NodeStateChange`/`NodeStateSerializer`, `ISubscriptionStore`/`IStoredSubscription`/`IStoredMonitoredItem`/`ISubscriptionRetransmissionStore`, `IMonitoredItemQueueFactory`, `IContinuationPointStore`/`ContinuationPointEnvelope`, `ISharedSessionStore`/`SharedSessionEntry`, `ISingleUseNonceRegistry`, `IEventIdProvider`, `IServerStartupTask`.
-
-| Port | Adapter 1 (single‑node/test) | Adapter 2 (distributed/prod) | Verdict |
-|---|---|---|---|
-| **`ISharedKeyValueStore`** | `InMemorySharedKeyValueStore` | `RaftSharedKeyValueStore`, `ReplicatedSharedKeyValueStore` (CRDT), `HybridSharedKeyValueStore` | **Real (4).** The foundation. |
-| **`ILeaderElection`** | `StaticLeaderElection` | `RaftLeaderElection`, `KubernetesLeaseLeaderElection`, `SharedStoreLeaseElection` | **Real (4).** |
-| **`IRecordProtector`** | `NullRecordProtector` | `AesCbcHmacRecordProtector`, `KeyRingRecordProtector` | **Real (3).** Category 4. |
-| **`ILocalAddressSpace`** | `DictionaryAddressSpace` | `PredefinedNodesAddressSpace` | **Real (2).** |
-| **`IAddressSpaceSynchronizer`** | `AddressSpaceSynchronizer` (single‑writer, 788 ln) | `ReplicatedAddressSpaceSynchronizer` (CRDT, 801 ln) | **Real (2).** Two genuinely different strategies. |
-| **`ISubscriptionStore`** | `SubscriptionStore` (file durable) | `SharedKeyValueSubscriptionStore` (mirror) | **Real (2).** |
-| **`IMonitoredItemQueueFactory`** | `MonitoredItemQueueFactory` | `DurableMonitoredItemQueueFactory`, `SharedKeyValueMonitoredItemQueueFactory` | **Real (3).** |
-| **`IEventIdProvider`** | default random‑GUID (implicit) | `DeterministicEventIdProvider` | **Real (2).** |
-| `INodeStateStore` | `InMemoryNodeStateStore` | — (`StallingNodeStateStore`, `NonSnapshotStoreView` are test‑only) | **One prod adapter.** Keep as **deep module**; substitution is at `ISharedKeyValueStore`. Do **not** sell as a swap seam. |
-| `ISharedSessionStore` | `SharedKeyValueSessionStore` | — | **One prod adapter** over KV. Keep as module; the swap is KV/CRDT (`SharedKeyValue` vs `Replicated` session store share this via the store beneath). |
-| `IContinuationPointStore` | `SharedKeyValueSubscriptionStore` (implements it) | — | **One adapter, best‑effort.** Keep the **envelope type** (it *is* the interface value); the transfer swap is KV. If no node manager ever serialises typed continuations, this is the weakest port — **justified only** by the typed‑continuation opt‑in in §1.4; otherwise a candidate to fold into `ISubscriptionStore`. |
-| `IRoleManager` | `RoleManager` (in‑memory) | — (LDAP/DB hypothetical) | **One adapter.** Category D port justified by the durable‑backing use case + test double as second adapter. Flag honestly: today a hypothetical seam. |
-| `IServerIdentityRegistry` | `ServerIdentityRegistry` | — (`RecordingRegistry` test only) | **One adapter.** Same call as `IRoleManager`. |
-
-**The honest conclusion:** the *true* substitution surface is the **foundation trio** plus `ILocalAddressSpace`, `IAddressSpaceSynchronizer`, `ISubscriptionStore`, `IMonitoredItemQueueFactory`, `IEventIdProvider`. The KV‑layered "stores" (`INodeStateStore`, `ISharedSessionStore`, `IContinuationPointStore`) are **deep modules with one production adapter each** — I keep them for their logic and as the synchronizers' test surface, but I do not pretend they are swap seams, and I would **reject** a proposal to add a fourth KV‑layered "store" that just forwards to `ISharedKeyValueStore`.
-
-**AOT & serialization (constraint 2).** No reflection anywhere on the replication path: `NodeStateSerializer` frames `NodeClass` + `NodeState.SaveAsBinary`; `SharedSessionEntry` and `IHistoryContinuationState : IEncodeable` use the source‑generated binary/JSON encoders. `IStoredNode.Payload` is a `ByteString`. `IRecordProtector` operates on `ReadOnlySpan<byte>`. **Constraint 5 types throughout:** `ArrayOf<T>`, `ByteString`, `in DataValue`, `NodeId`; no `object` in any port; `Variant` where a value is polymorphic.
-
----
-
-#### 5. Trade‑offs
-
-**Where leverage is high.** Deleting the `IServerInternal` locator + two‑phase construction pays across **200+ files**: each stops depending on 57 members to reach 1–2, and the Redundancy library stops reaching in through `Set*`. The `NodeState` data/behaviour split is the single change that makes HA *correct by construction* — behaviour can never accidentally be serialised, so a replica can never fail over into a half‑reconstructed graph. Portable `NodeManagerHandle` retires an entire prose‑enforced protocol (`Processed`, restated 6×) *and* the `object` handle in one move.
-
-**Where leverage is thin (kept honest).** `INodeStateStore`, `ISharedSessionStore`, `IContinuationPointStore` are single‑production‑adapter. They survive as deep modules, not as swap seams. `IRoleManager`/`IServerIdentityRegistry` are single‑adapter Category‑D ports whose "second adapter" is currently only a test double — I flag them rather than dress them up.
-
-**Latency/allocation cost of state behind ports.** The design's central defence is the **synchronous local fast path**: `ILocalAddressSpace.TryGetNode` and node‑manager `Read` stay sync and zero‑alloc, so the 2,000‑session/hot‑publish path is untouched in single‑node mode. The cost lands only on **writes** (write‑behind mirror, coalesced per monitored item — "latest state wins", so mirror cost scales with the *unpublished tail*, not every sampled value) and on **hydration** (snapshot + delta‑log, a handful of large reads instead of one per node). The genuine new tax is the **linearizable nonce CAS** on failover reconnect — one Raft round‑trip per re‑activation — which I accept because a replayable nonce is a security defect, not a perf knob.
-
-**What gets harder for the single‑node user who does not want HA.** Two things. (1) A node manager that used to hang a closure on `NodeState.OnReadValue` now implements `INodeBehaviorSource.TryGetBehavior` — a few more lines even when they will never cluster. Mitigation: `ManagedNodeManager` keeps a convenience overload that adapts a delegate to `INodeBehavior`, and the source generator emits the `TryGetBehavior` switch, so authored code rarely writes it by hand. (2) `IServerContext` being frozen after bind removes the "just call `SetSessionManager` again" escape hatch some tests used; they move to DI registration.
-
-**What I gave up.** On‑demand node fault‑in (materialising a node only on first browse) — hydration still fully materialises the graph (tracked as #3938). True active/active linearizable address‑space writes — the CRDT path is eventual by construction; strong consistency stays on the Raft keyspace for the exactly‑once cases only. And I deliberately did **not** unify the KV‑layered stores into one generic `IStateStore<T>` — that would be depth‑by‑genericity that erases the domain invariants (a subscription store's restore semantics differ from a node store's snapshot semantics).
-
-**Migration from the 93‑virtual / 155‑member / 57‑locator world (all additive; nothing removed — constraint 1).**
-1. **Ship `IServerContext` + individual port injection alongside `IServerInternal`.** `ServerInternalData` implements `IServerContext`; the 12 `Set*` and `object` locks are marked `[Obsolete("Bind through IServerStartupTask; frozen after Running")]` and forward into the bind phase (throwing only after `Running`).
-2. **`ManagedNodeManager` gains `INodeBehaviorSource`;** `CustomNodeManager2`/`AsyncCustomNodeManager` keep every virtual, but the 55 never‑overridden ones become non‑virtual‑by‑default in the new base while the old bases stay for the 33 existing subclasses.
-3. **Retype the `object` leaks additively:** add `GetManagerHandleAsync : ValueTask<NodeManagerHandle?>`, `RestoreHistoryContinuationPointAsync : IHistoryContinuationState?`, and `GetServerDiagnosticsAsync`; mark the `object`/lock members `[Obsolete]`.
-4. **The Redundancy library rebinds to the new `IServerStartupTask(IServerContext, IServiceProvider)` overload** and stops calling `Set*` — no behaviour change, just a cleaner seam.
-5. Update `docs/HighAvailability.md` + `migrationguide.md`; the `samples/RedundantServer` "no data loss on strong store" test is the acceptance gate.
+Finding 2 is the reason the honest auto-fix estimate for the authoring slice is ~10%, not the
+shipped 70%: the existing analyzers match `OperationKind.Invocation` — *"you called removed
+symbol X"* — whereas this migration is *"your override body must be reshaped"*, which is not
+an invocation pattern. The single precedent, `docs/migrate/2.0.x/node-states.md`, was
+migrated **entirely by hand** with explicit *"⚠ Silent regression … No runtime exception is
+thrown"* warnings.
 
 ---
 
 ## Comparison
 
-### Convergence — what all four agreed on
-
-Four designers working independently, none seeing another's output, arrived at the same
-five moves. When independent designs converge like this, the moves are not design opinions —
-they are the shape of the problem, and they are the most actionable output of the exercise.
-
-| Convergent move | minimal | flexible | commoncase | ports |
-|---|---|---|---|---|
-| `IServerInternal` 57 members → small read-only context | `IAddressSpaceServices` | `IServerContext` (8) | `INodeSourceContext` (6-7) | `IServerContext` (9) |
-| The `object` handle is removed | deleted outright | `NodeOwnership` struct | typed `THandle` | portable `NodeManagerHandle` |
-| The `Processed` protocol is eliminated or relocated to one place | relocated to dispatcher | dissolved by owner pre-split | dissolved by first-match-wins | dissolved by portable-handle routing |
-| `IHistorianProvider` is the pattern to copy | explicit | explicit | explicit | explicit |
-| Additive `[Obsolete]` migration; 33 subclasses keep compiling | yes | yes | yes | yes |
-
-All four also refused to expose a lock anywhere, and all four kept the OPC UA domain
-vocabulary (`NodeId`, `Variant`, `DataValue`, `ArrayOf<T>`) visible — correctly identifying
-that hiding the domain would be dishonest depth.
-
-### Divergence — the real disagreements
-
-**1. Batch versus per-node on the read path.** The sharpest technical split.
-
-| Design | Read shape | Consequence |
+| Axis | Option A (rewrite) | Option B (hard fork) |
 |---|---|---|
-| `minimal` | `ReadAsync(ctx, ReadTarget, ct)` — one node per call | Easiest to implement correctly; one `await` per node |
-| `commoncase` | `ReadAsync(THandle, in ReadFilter, ct)` — per node, but with sync/static shapes available | Most reads never become async at all |
-| `flexible` | `ReadBatch` readonly struct over pooled buffers | Zero steady-state allocation; author does local-index bookkeeping |
-| `ports` | Synchronous local serving read; async only for writes/mirror/hydrate | Hot path untouched in single-node mode |
+| Implementations at the end | **1** | **2** (authoring layer only) |
+| Duplicated code | none | ~15,000 lines (~10% of the assembly) |
+| Shared runtime | n/a | ~130,000 lines (~90%) — publish pipeline, CTT semantics single-sourced |
+| New bridge adapter | not needed | **required**, ~800 lines |
+| Coexistence in one address space | n/a | **yes, zero runtime changes** |
+| `object` handle / `Processed` defects | **deleted** | **inherited** by the bridge |
+| Consumer migration | forced, ~55-60% manual | opt-in; 30+ subclasses keep compiling |
+| Analyzer work | ~6 new rules, 2 partial fixes, no shim possible | 0-2 optional nudge rules |
+| Test rewrite | **~19,720 lines** across 5 files, on the critical path | old suites stay |
+| Coverage rule (must not decrease) | **hard stop** — new tests must land in the same train | not triggered |
+| CTT | one engine, but the whole surface is new | ~1.3× (bridge + new runtime need a gate) |
+| Trimming | improves | **strictly worse** — old bases un-trimmable |
+| In-flight PRs | irreconcilable conflicts; needs a freeze | unaffected |
+| Elapsed | multi-quarter, indivisible | incremental |
 
-This matters because a server may serve thousands of monitored items. `minimal`'s per-node
-`await` is central to its design, not peripheral.
+**The decisive asymmetry is not cost — it is who pays.** Option A concentrates a large,
+schedulable, mostly-internal cost and eliminates a permanent recurring one. Option B avoids
+the concentrated cost and accepts a permanent one, *conditional on an exit that step 2 of its
+own analysis shows is most of a rewrite anyway*.
 
-**2. Whether the full surface stays first-class.** `commoncase` alone keeps
-`IAsyncNodeManager`/`AsyncCustomNodeManager` **un-obsoleted** as rung 4 — a documented
-destination rather than a legacy path. `minimal` and `flexible` mark the old surface
-`[Obsolete]`. Given 33 subclasses and external consumers, `commoncase`'s position is the more
-realistic reading of what this API actually is.
+Because `r2-fork` established that a fork duplicates only the authoring layer, several of the
+scariest fork costs do not materialise: bug fixes to the runtime are written once, and CTT is
+mostly shared. Conversely, because `r2-rewrite` established that the shim is unavailable,
+the rewrite's external-consumer cost is worse than the tooling premise implied.
 
-**3. Whether async is mandatory.** `commoncase` and `ports` independently verified that
-`BaseVariableState` already carries **both** a synchronous handler family (`OnReadValue`,
-line 559) and an asynchronous one (`OnReadValueAsync`, line 578) — and that the async family
-runs *without* `lock(this)`. Both therefore preserve a genuine synchronous read path with no
-sync-over-async. `minimal` and `flexible` make every read awaitable.
+**Both designers, independently, declined to recommend their own assignment as-is:**
 
-**4. What the node-manager handle is for.** Only `ports` asked whether the handle can cross a
-machine boundary. That question is decisive for the stated HA goal and none of the other three
-raised it.
-
-### Depth
-
-`minimal` wins on raw interface size — 2 mandatory members. But it buys that number with the
-per-node read above, and it is candid that `IVirtualNodes` is a hypothetical seam for
-fully-materialised authors, kept alive only by the external-system author next door.
-
-`flexible` has the widest *learnable* surface (umbrella + ~10 facets + interceptor facets),
-but each individual piece is small and you only learn the ones you use. Its depth claim is
-strongest at the implementation boundary: 4 members in front of the whole `NodeState` engine
-for one adapter, in front of a REST/SQL client for another.
-
-`commoncase` has the most honest depth. Leverage is highest exactly where the measurements say
-callers actually live, and it proves it by mapping the measured common-6 one-to-one onto
-rung-1/2 knobs. It also declines to claim depth it does not have — noting that a rung-3 author
-still learns browse and continuation *concepts*, because the mechanism was hidden but the
-domain was not.
-
-`ports` optimises depth for state rather than authoring. Its `IServerContext` is explicitly a
-*narrowing* module, not a deep one — a distinction `flexible` also drew about its own
-equivalent, and both were right to draw it.
-
-### Locality
-
-`flexible` is unique. An interceptor registered once applies across **every** partition,
-including external ones — something inheritance structurally cannot do, because an override
-lives on one base class. The repository already has audit APIs, a `RateLimiting` folder, and
-Part 18 role permissions; all three are per-request cross-cutting concerns.
-`commoncase`'s answer to the same need — subclass `StandardServer` and override
-`OnRequestValidatedAsync` — is a weaker form, though it is at least the *right ladder*.
-
-`ports` gives the best locality for state: every category of server state has exactly one home,
-and behaviour can never accidentally be serialised because it is no longer in the replicated
-graph at all.
-
-`minimal` and `commoncase` both concentrate dispatch, id arbitration and paging in one runtime
-component, which is a large locality win over the status quo where 21+ browse authors each
-re-implement continuation handling.
-
-### Seam placement
-
-This separated them most sharply, because it is where a designer can quietly cheat.
-
-`ports` was the only one to **refuse seams it was invited to sell**:
-
-> "`INodeStateStore`, `ISharedSessionStore`, `IContinuationPointStore` are deep modules with
-> **one production adapter** each — I keep them for their logic and as the synchronizers' test
-> surface, but I do not pretend they are swap seams, and I would **reject** a proposal to add a
-> fourth KV-layered store that just forwards to `ISharedKeyValueStore`."
-
-It then flagged `IRoleManager` and `IServerIdentityRegistry` as "today a hypothetical seam"
-rather than dressing them up, and relocated the real substitution surface to
-`ISharedKeyValueStore` (**4 adapters**), `ILeaderElection` (4) and `IRecordProtector` (3).
-That is the one-adapter rule applied against its own brief's incentive.
-
-`flexible` was also disciplined — it explicitly declines to promote its router and pipeline
-cursor structs to public seams because each would have one adapter. `minimal` admits its one
-weak seam. `commoncase` is weakest here: its provider seam is justified partly by a test
-double, which is the thinnest of the four justifications.
-
-### Four answers to one defect
-
-The clearest evidence the exercise did its job. One defect — `object? GetManagerHandle(NodeId)` —
-produced four genuinely different resolutions:
-
-| Design | Resolution | Trade-off |
-|---|---|---|
-| `minimal` | **Delete it.** Address by `NodeId`; a source caches privately if it wants | Simplest; loses the caching the handle existed to provide |
-| `flexible` | `NodeOwnership` **readonly struct** with an in-process `NodeState` fast path | No boxing; carries a pointer, so cannot cross a replica |
-| `commoncase` | **Typed** `THandle` via `INodeProvider<THandle>` | Type-safe; admits boxing at the erased router boundary |
-| `ports` | **Portable** `NodeManagerHandle` (`NodeId` + owning namespace index, no pointer) | Survives failover; retires the `Processed` protocol as a side effect |
-
-Only `ports` asked whether the handle can survive a failover — the question that matters for the
-project's stated first architectural goal.
+- `r2-fork`: *"absent a hard requirement for a second node-serving engine, adopt the soft
+  fork … That captures the entire measured win with one implementation to test, document,
+  generate for, and trim."*
+- `r2-rewrite`: *"if the near-term driver is the runtime debt, not the authoring model … all
+  of these are fixable without deleting the node-manager surface at all. If that is the actual
+  goal, a full rewrite is massive over-reach for it."*
 
 ---
 
-## Recommendation
+## Recommendation — staged convergence
 
-**Take `design-commoncase` as the authoring surface. Take `design-ports` for state. Take the
-interceptor chain from `design-flexible`. Reject `design-minimal`'s per-node read.**
+**Take neither pure option. Reach Option A's end state by Option B's path, with an explicit
+gate that decides whether you finish.**
 
-### The hybrid
+The two options are usually framed as alternatives. The evidence says they are the same
+programme at different points in time. Three measured facts force this reading:
 
-| Concern | Take from | What |
-|---|---|---|
-| Authoring surface | **commoncase** | The 4-rung ladder; creational verbs on the builder; `internal sealed` runtime |
-| Read ergonomics | **commoncase** | Three read shapes — `Value(T)`, sync `OnRead(Func<T>)`, async `OnRead(Func<CT, ValueTask<T>>)` |
-| Node handle | **ports** | Portable `NodeManagerHandle` — beats commoncase's boxing `THandle` and flexible's pointer-carrying struct |
-| Node behaviour | **ports** | `INodeBehavior` / `INodeBehaviorSource` data/behaviour split |
-| Service locator | **ports** | `IServerContext` + frozen bind phase replacing the 12 `Set*` mutators |
-| Cross-cutting concerns | **flexible** | Interceptor chain at batch granularity, struct cursor |
-| Hot path | **flexible** + **ports** | Pooled batch structs where batching is needed; synchronous local serving reads |
-| Browse paging | **commoncase** or **minimal** | `BrowsePage`/`ContinuationToken`, or `IAsyncEnumerable<NodeReference>` — both let the framework own slicing |
+1. **Coexistence is nearly free** — the fork line is already there at `IAsyncNodeManager`,
+   and the runtime already multiplexes heterogeneous node managers.
+2. **The old base cannot freeze on its own** — `CoreNodeManager`, `DiagnosticsNodeManager`,
+   `ConfigurationNodeManager`, `AliasNameNodeManager` and `FileSystemNodeManager` all derive
+   from `AsyncCustomNodeManager`; **the server cannot start without them**. Migrating them is
+   simultaneously the fork's exit condition *and* the bulk of the rewrite.
+3. **The largest wins are not in either option** — the two lock leaks, the service locator,
+   and the publish-protocol leak are all fixable in the shared runtime without deleting
+   anything.
 
-**Why commoncase leads.** It is the only design grounded in the measured override
-distribution rather than an aesthetic, and it demonstrates the fit rather than asserting it.
-It found a real, verifiable defect none of the others did: *today's `Variable<T>` only
-resolves an existing node and throws if absent, which is why the no-class
-`AddNodeManager("ns", b => …)` path cannot stand up a device server without first authoring a
-NodeSet2.* That single gap explains why the existing ergonomic story does not land, and it is
-independently checkable.
+### The sequence
 
-Its `internal sealed` runtime is the right kind of answer to the shallow-facade risk — enforced
-by the compiler, not by documentation. Neither an author nor a test can reach the 93 virtuals
-through a rung-1/2 source, which is precisely the failure mode the current
-`FluentNodeManagerBase : AsyncCustomNodeManager` inheritance creates.
-
-And keeping rung 4 un-obsoleted respects what this API actually is: plugin surface with 33
-subclasses and unknown external consumers.
-
-**Why it must absorb ports.** `commoncase` does not address high availability at all — the
-project's stated *first* architectural goal. The data/behaviour split is the one change that
-makes replication correct by construction: delegates are code, cannot be serialised, and
-therefore must not live in the replicated graph. A replica can then never fail over into a
-half-reconstructed address space. `ports` also notes the split is already latent in the
-existing AOT-safe `NodeStateSerializer`, so this is formalising something the codebase has
-half-built rather than inventing.
-
-**Why the interceptor chain.** Audit, rate limiting and Part 18 role permissions are all
-per-request and all already present in the repository. They are the cases inheritance serves
-worst and composition serves best.
-
-### What to reject and why
-
-- **`minimal`'s per-node `ReadAsync`.** An `await` per node at thousands of monitored items is
-  a regression this codebase cannot absorb — a single node already tops out near 2,000
-  sessions. The rest of the design is elegant, and its `IAsyncEnumerable<NodeReference>` browse
-  is arguably the cleanest of the four, but the read path is central rather than peripheral.
-- **Any fifth KV-layered "store" port.** `ports` argued this pre-emptively and correctly:
-  a store that just forwards to `ISharedKeyValueStore` is indirection, not a seam.
-- **Obsoleting the full node-manager surface now.** `minimal` and `flexible` both propose it.
-  With 33 subclasses and external consumers, `commoncase`'s un-obsoleted rung 4 is the
-  defensible position.
-
-### Sequencing
-
-| # | Step | Depends on | Notes |
+| # | Step | Scope | Gate |
 |---|---|---|---|
-| 1 | **Diagnostics lock** — owner-side update methods over `System.Threading.Lock` | nothing | 88 `lock` statements; `UpdateServerStatus(Action<T>)` already shows the shape. Independent of everything below. |
-| 2 | **`IServerContext` + frozen bind phase** | 1 | All four designs agree; `ports`' version is the most rigorous. Deletes the 12 `Set*` mutators. |
-| 3 | **Creational verbs on the builder + `internal sealed` runtime** | 2 | Closes the ergonomic cliff; unblocks the trivial case. |
-| 4 | **Portable `NodeManagerHandle`** | 3 | Retires the `Processed` protocol as a side effect. |
-| 5 | **Data/behaviour split** (`INodeBehavior`/`INodeBehaviorSource`) | 4 | The HA enabler. Largest and last. |
+| **0** | Remove the `lock(source)` contract | 19 sites, verified | Prerequisite for *any* new node representation |
+| **1** | Owner-side diagnostics updates | 88 `lock` statements, 5 leaked members (#4183) | Independent; worth doing regardless |
+| **2** | `IServerContext` + frozen bind phase | deletes 12 `Set*` mutators; 268 referencing files | Independent; worth doing regardless |
+| **3** | Soft fork — `INodeSource` ladder as an `internal sealed` facade **over the shared engine** | new authoring surface, no second engine, no bridge | Delivers ~90% of the ergonomic win |
+| **4** | Data/behaviour split inside the shared engine | `NodeData` + `INodeBehavior`; extract the ~1,500-line serialisation bucket | The HA enabler |
+| **5** | Migrate the framework-internal node managers to the new surface | `CoreNodeManager`, `DiagnosticsNodeManager`, `ConfigurationNodeManager`, `AliasNameNodeManager`, `FileSystemNodeManager` | **THE GATE** |
+| **6** | Delete `AsyncCustomNodeManager` / `CustomNodeManager2` / the old bases | — | Only reachable if 5 completed |
 
-Steps 1 and 2 are worth doing regardless of whether the rest is ever taken.
+Steps 0-2 are pure debt paydown with no strategic commitment. Step 3 is the soft fork —
+one engine, layered entry points, `internal sealed` so tests cannot fall through. Step 4 is
+where HA correctness is won. **Step 5 is the decision point.**
+
+### The gate that decides everything
+
+Step 5 is the honest test of whether a rewrite is achievable, because it is the rewrite in
+miniature: five real node managers, in-repo, fully controlled, with the complete test suite
+available. If migrating them is tractable, the remaining consumers are tractable and step 6
+follows. If it is not, you have learned that at the cost of five node managers rather than a
+multi-quarter programme — and you stop at step 4 with a supported soft fork, which is a
+legitimate end state rather than a failure.
+
+This is what neither pure option offers: **a cheap, early, falsifiable test of the rewrite
+hypothesis.** Option A only discovers the answer after committing; Option B never asks the
+question.
+
+### When to switch to a pure option
+
+Take **Option A wholesale** if all five of `r2-rewrite`'s conditions hold — a decade-long
+maintenance horizon with HA committed, a small or coordinated external node-manager
+population, a release train that can freeze `MasterNodeManager`/`IServerInternal`/
+`Subscription`, funding for the ~19,720-line test rewrite inside the same train, and the
+`NodeState` re-cut kept out of scope. Note the last one: *both* the rewrite designer and the
+`NodeState` designer independently insist the two programmes must not be combined.
+
+Take **Option B's hard fork** only on `r2-fork`'s single surviving justification — a second,
+structurally-incompatible node-serving engine for a genuinely remote address space, where the
+shared runtime's synchronous `TryGetNode` fast path is *wrong* rather than inconvenient. Its
+§1.4 bridge is exactly how to bolt that on later without a flag day, which is another reason
+not to fork now.
 
 ### Honest caveats
 
-- **Steps 3-5 are a major undertaking against a live plugin API.** The evidence supports the
-  direction, but the cost is real and should not be understated by the neatness of the designs
-  above.
-- **The interceptor chain adds an ordering concern** that does not exist today. Registration
-  order becomes semantically meaningful, which is more visible than implicit call order but is
-  a new thing for users to reason about.
-- **The data/behaviour split costs the single-node user.** A node manager that hangs a closure
-  on `NodeState.OnReadValue` today would implement `INodeBehaviorSource.TryGetBehavior` —
-  more lines even for someone who will never cluster. Both the source generator and a delegate-
-  adapting convenience overload mitigate it, but it is a real tax.
-- **No design was tested.** These are proposals grounded in read-only investigation. Every
-  performance claim (pooled batches, zero-allocation steady state, sync fast path) is a design
-  intention, not a measurement.
-
----
-
-## Appendix — verified facts each designer independently confirmed
-
-Facts the designers checked against the tree during their investigation, useful because several
-are load-bearing for the recommendation and were verified more than once independently:
-
-- `BaseVariableState` carries **both** `OnReadValue` (sync, line 559) and `OnReadValueAsync`
-  (async, line 578); the async family runs **without** `lock(this)`. Confirmed by `commoncase`
-  and `ports` separately. This is what makes a genuine sync read path possible.
-- Today's fluent `Variable<T>(...)` overloads **only resolve** an existing node and throw
-  `ServiceResultException` if absent — they cannot mint a node. Confirmed by `commoncase` from
-  the interface doc comments.
-- `NodeManagerRoutingTable` is already `IReadOnlyList<IAsyncNodeManager>` — everything is
-  normalised to the async interface before dispatch. Confirmed by `minimal` and `flexible`.
-- `MasterNodeManager` broadcasts to every node manager in a `foreach` loop
-  (`MasterNodeManager.cs:4053`) and already performs an O(items) validation pass
-  (`MasterNodeManager.cs:4023`). Confirmed by `flexible`.
-- `NodeStateSerializer` frames `NodeClass` + `NodeState.SaveAsBinary` and is AOT-safe;
-  behaviour is already documented as "re-attached by the owning node manager". Confirmed by
-  `ports` — this is the latent data/behaviour split.
-- The `ImpersonateUser` obsoletion message **already** points at
-  `IUserTokenAuthenticator` + `IServerIdentityRegistry`. Confirmed by `flexible`, which noted
-  it was completing a migration the repository had already started.
-- `IHistorianRegistryProvider` already extends the server *without* touching `IServerInternal` —
-  an existing capability-probe precedent. Confirmed by `flexible`.
-- `AddNodeManager(string, Action<INodeManagerBuilder>)` already exists at
-  `OpcUaServerBuilderExtensions.cs:863` — the no-class registration path is present but cannot
-  create nodes. Confirmed by `commoncase`.
+- **Nothing here is implemented or benchmarked.** Every performance figure in all three
+  proposals — including the ~400 bytes/node saving from dropping ~50 delegate slots — is a
+  design estimate. Round 1's caveat stands.
+- **Step 5 may fail, and the plan must survive that.** The recommendation is structured so
+  failure at the gate leaves a coherent, supported architecture rather than a half-finished
+  rewrite. If that property is not preserved in execution, the staged path loses its main
+  advantage over Option A.
+- **Steps 3-6 are still a large programme.** Staging reduces risk and makes it schedulable;
+  it does not make it cheap. The un-shimmable external migration is deferred by staging, not
+  avoided — it arrives in full at step 6.
+- **Two designers' cost estimates are not independent of their assignments**, despite the
+  instruction to price honestly. Both landed on "not my option as assigned", which is
+  evidence of good faith, but the specific effort figures should be treated as informed
+  guesses rather than estimates.
+- **`docs/migrate/2.0.x/node-states.md` is the only precedent**, and it shows this surface has
+  been broken before with compiler-guided breaks, recompilation and manual guidance — no
+  analyzer, no shim. That is both encouraging (it has been survived) and sobering (it is the
+  ceiling of what tooling will do here).
