@@ -352,6 +352,37 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public async Task RepresentationIsMountedWithHasAddInAsync()
+        {
+            // The representation is an AddIn (§5.2), so the represented Object must
+            // reference it with HasAddIn, not plain HasComponent. Both browse the same
+            // way - HasAddIn is a subtype of HasComponent - so a wrong reference type
+            // is invisible to every functional test and only shows up against a
+            // conformance checker. Hence this assertion.
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
+            OpenUsdConnector.RepresentationInfo? rep = await PumpRepAsync(connector).ConfigureAwait(false);
+            Assert.That(rep, Is.Not.Null, "OpenUsdRepresentation not discovered on Pump #1.");
+
+            var browseOwner = new BrowseDescription
+            {
+                NodeId = rep!.NodeId,
+                BrowseDirection = BrowseDirection.Inverse,
+                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasAddIn,
+                IncludeSubtypes = false,
+                NodeClassMask = (uint)NodeClass.Object,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+            BrowseResponse owners = await m_session!.BrowseAsync(
+                null!, null!, 0, new BrowseDescription[] { browseOwner }, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                owners.Results[0].References,
+                Has.Count.EqualTo(1),
+                "The represented Object must reference its OpenUsdRepresentation with HasAddIn.");
+        }
+
+        [Test]
         public async Task SemanticIdAndSignalRoleAreSurfacedAsync()
         {
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());

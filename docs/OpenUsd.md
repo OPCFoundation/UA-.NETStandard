@@ -144,6 +144,13 @@ Observability is threaded through `ITelemetryContext` (resolved from DI), which 
 
 ## Server-side authoring
 
+`context.CreateRepresentation(owner, stage, primPath, openUsdNs)` attaches an `OpenUsdRepresentation` to a domain
+Object and points it at a stage and prim path. The representation is an **AddIn**, so it is mounted with
+`HasAddIn` — not plain `HasComponent`. The distinction is easy to get wrong because `HasAddIn` is a *subtype* of
+`HasComponent`: an AddIn mounted with the wrong reference type still browses, still aggregates, and still works
+end to end, so only a conformance checker notices. Prefer this helper over hand-rolling the mount; the sample
+servers assert the reference type in their E2E suites.
+
 `UsdAssetDelivery.AttachStageAssets(context, stage, openUsdNs, assets)` serves artist-authored USD layers through the
 address space as read-only Part 5 files with SHA-256 digests, so a generic connector can fetch, verify, cache, and
 render the twin with no external asset resolver. `assets` is an `ArrayOf<ServedAsset>` and the method returns the

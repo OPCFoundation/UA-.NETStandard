@@ -103,7 +103,7 @@ namespace Pumps
 
                 OpenUsdRepresentationState lineRep = SystemContext.CreateInstanceOfOpenUsdRepresentationType(
                     line, new QualifiedName("OpenUsdRepresentation", ns));
-                lineRep.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+                lineRep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
                 line.AddChild(lineRep);
                 lineRep.NodeId = SystemContext.NodeIdFactory.New(SystemContext, lineRep);
                 lineRep.CreateOrReplaceStage(SystemContext, null!).Value = m_plantStage.NodeId;
@@ -221,7 +221,7 @@ namespace Pumps
             };
             OpenUsdRepresentationState rep = SystemContext.CreateInstanceOfOpenUsdRepresentationType(
                 pump, new QualifiedName("OpenUsdRepresentation", ns));
-            rep.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
             pump.AddChild(rep);
             rep.CreateOrReplaceStage(SystemContext, null!).Value = m_plantStage!.NodeId;
             rep.CreateOrReplacePrimPath(SystemContext, null!).Value = primPath;
@@ -250,7 +250,7 @@ namespace Pumps
 
             OpenUsdRepresentationState rep = SystemContext.CreateInstanceOfOpenUsdRepresentationType(
                 obj, new QualifiedName("OpenUsdRepresentation", openUsdNs));
-            rep.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
             obj.AddChild(rep);
             rep.NodeId = SystemContext.NodeIdFactory.New(SystemContext, rep);
             rep.CreateOrReplaceStage(SystemContext, null!).Value = m_plantStage!.NodeId;

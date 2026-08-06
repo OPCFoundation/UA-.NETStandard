@@ -44,7 +44,7 @@ namespace Opc.Ua.OpenUsd.Server
     {
         /// <summary>
         /// Attaches an <c>OpenUsdRepresentation</c> AddIn to <paramref name="owner"/>
-        /// (HasComponent, browsable), pointing it at the given stage and prim path.
+        /// (HasAddIn, browsable), pointing it at the given stage and prim path.
         /// The caller adds live/component bindings to the returned representation.
         /// </summary>
         /// <param name="context">The server system context.</param>
@@ -71,9 +71,11 @@ namespace Opc.Ua.OpenUsd.Server
             OpenUsdRepresentationState rep = context
                 .CreateInstanceOfOpenUsdRepresentationType(
                     owner, new QualifiedName("OpenUsdRepresentation", ns));
-            // The instance factory leaves ReferenceTypeId = Null; set HasComponent so
-            // the AddIn is browsable from the represented object.
-            rep.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            // The instance factory leaves ReferenceTypeId = Null. The representation is
+            // an AddIn, so it is mounted with HasAddIn rather than plain HasComponent:
+            // HasAddIn is a subtype of HasComponent, so it stays browsable and still
+            // aggregates, while saying which of the two it is.
+            rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
             owner.AddChild(rep);
             rep.NodeId = context.RequireNodeIdFactory().New(context, rep);
             rep.CreateOrReplaceStage(context, null!).Value = stage;
