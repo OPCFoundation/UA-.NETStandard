@@ -11,6 +11,11 @@
     <NoWarn>$(NoWarn);CA1014;CA1822</NoWarn>
     <PublishAot>true</PublishAot>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <!-- Pinned to net10.0 for the OpenUSD payload, so it cannot take part in a
+         UA.slnx build pinned to a legacy TFM via CustomTestTarget: the libraries
+         would build as net472/net48 and their public System.Threading.Lock
+         polyfill would collide with this project's own net10.0 BCL. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
