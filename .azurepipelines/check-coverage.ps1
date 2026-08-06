@@ -3,22 +3,26 @@
     Enforces the repository's code-coverage gates against a Cobertura report.
 
  .DESCRIPTION
-    Replaces the retired codecov/project and codecov/patch status checks with a
-    self-contained gate that runs inside the pipeline. Three checks are made
+    The enforced coverage gate, run inside the pipeline so it can react to how
+    much a patch actually changed. codecov.io is still uploaded to, but purely
+    for reporting - its own status checks are `informational: true` (see
+    codecov.yml) precisely so there is only ever one gate. Three checks are made
     against the merged Cobertura report produced by ReportGenerator:
 
       1. Project floor (BLOCKING)  - total line and branch rates must meet the
                                      absolute floors in coverage-thresholds.json.
-      2. Patch coverage (BLOCKING) - lines added or modified relative to the pull
-                                     request's base must reach the patch target,
-                                     tolerating the configured threshold. This
-                                     mirrors the old codecov/patch semantics.
+      2. Patch coverage (GRADUATED)- lines added or modified relative to the pull
+                                     request's base must reach a floor that
+                                     scales with the size of the patch: small
+                                     patches warn, large ones fail. See
+                                     'patch.bands' in coverage-thresholds.json.
       3. Baseline delta (ADVISORY) - reports how the current total line rate
                                      compares to the recorded master baseline.
                                      Never fails the build.
 
     Files matching the 'ignore' globs in coverage-thresholds.json are excluded
-    from the patch calculation, exactly as they were excluded by codecov.yml.
+    from the patch calculation. Keep that list in step with the 'ignore' list in
+    codecov.yml so both report on the same code.
 
     When no base ref is supplied - a scheduled or master build rather than a pull
     request - the patch gate is skipped and only the project floor is enforced.

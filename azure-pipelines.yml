@@ -37,6 +37,15 @@ parameters:
   values:
   - ado
   - actions
+# Codecov is reporting only - the enforced coverage rules live in
+# coverage-thresholds.json and are applied by check-coverage.ps1 in the
+# 'Code coverage' stage.  Turn this off to stop uploading entirely; the upload
+# is skipped anyway whenever the CODECOV_TOKEN secret variable is unset, which
+# is the case for pull requests from forks.
+- name: enableCodecov
+  displayName: 'Upload the merged coverage report to codecov.io (reporting only, never gates)'
+  type: boolean
+  default: true
 # Every stage that runs tests, consumed by the two terminal stages at the bottom
 # of this file.  It is a parameter purely so the list is written once: Azure
 # Pipelines supports no YAML anchors, and a second hand-maintained copy would
@@ -465,3 +474,4 @@ stages:
     poolName: ${{ variables.hostPoolName }}
     poolImage: ${{ variables.hostLinuxImage }}
     stages: ${{ parameters.testStages }}
+    enableCodecov: ${{ parameters.enableCodecov }}

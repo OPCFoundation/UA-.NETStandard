@@ -48,6 +48,13 @@ permissions:
 # re-exported as job outputs.
 env:
   CI_BUILD_BACKEND: actions
+  # Upload the merged coverage report to codecov.io. Reporting only - the
+  # enforced rules live in coverage-thresholds.json and are applied by
+  # check-coverage.ps1 in the `code-coverage` job below, so a codecov outage can
+  # never fail a build. Set to 'false' to turn the upload off; it is skipped
+  # anyway when the CODECOV_TOKEN secret is unavailable, which is the case for
+  # pull requests from forks.
+  ENABLE_CODECOV: 'true'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -297,6 +304,12 @@ jobs:
       # pull_request from a fork the token is read-only regardless of what this
       # block says, which the comment step below handles.
       pull-requests: write
+    env:
+      # The `secrets` context is not available to a step's `if`, so the presence
+      # of the token is resolved once here (job-level `env` can read `secrets`)
+      # and tested as a plain string below. Fork pull requests get no secrets,
+      # so this is 'false' there and the upload is skipped rather than failing.
+      HAS_CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN != '' }}
     steps:
     - uses: actions/checkout@v7
       with:
@@ -363,6 +376,20 @@ jobs:
       with:
         name: coverage-report
         path: CodeCoverage
+
+    # Reporting only, and deliberately continue-on-error: the verdict comes from
+    # the gate below, never from codecov.io being reachable. Skipped when the
+    # secret is unavailable, which is how fork pull requests behave.
+    - name: Upload to codecov.io
+      if: ${{ steps.probe.outputs.has_reports == 'true' && env.ENABLE_CODECOV == 'true' && env.HAS_CODECOV_TOKEN == 'true' }}
+      continue-on-error: true
+      uses: codecov/codecov-action@v7
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: CodeCoverage/Cobertura.xml
+        flags: actions
+        disable_search: true
+        fail_ci_if_error: false
 
     # Writes the markdown summary even when the gate fails, so the numbers reach
     # the summary and the pull request either way. The gate's exit code is

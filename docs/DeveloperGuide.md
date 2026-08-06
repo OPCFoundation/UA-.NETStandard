@@ -362,6 +362,21 @@ The bands live in `patch.bands` in [`coverage-thresholds.json`](../coverage-thre
 
 Remember that the coverage check as a whole is advisory and stays out of the branch ruleset — an enforced band produces a red `Code coverage` check, not a blocked merge.
 
+##### Codecov
+
+The merged report is also uploaded to [codecov.io](https://codecov.io), which is where the pull-request comment, the file-by-file diff view and the coverage trend live. **Codecov does not gate.** Both of its status checks are `informational: true` in [`codecov.yml`](../codecov.yml), because two gates with two sets of thresholds would eventually disagree about the same pull request and the easier one to silence would win. The rules that actually decide are the ones above.
+
+Each CI system uploads the report it merged, under its own flag (`azure`, `actions`), since the two matrices deliberately cover different legs.
+
+The upload is optional on both systems and never fails a build:
+
+| | Turn it off with | Also skipped when |
+| --- | --- | --- |
+| Azure Pipelines | the `enableCodecov` pipeline parameter (default `true`) | the `CODECOV_TOKEN` secret variable is unset |
+| GitHub Actions | the `ENABLE_CODECOV` workflow `env` (default `'true'`) | the `CODECOV_TOKEN` secret is unavailable, as on fork pull requests |
+
+Keep the `ignore` list in `codecov.yml` in step with the one in `coverage-thresholds.json`, or the two will report on different code.
+
 #### Where the numbers appear
 
 The script renders a markdown summary that both systems surface, so you never have to open a raw log to see why coverage moved:

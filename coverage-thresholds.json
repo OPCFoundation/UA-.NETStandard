@@ -1,9 +1,14 @@
 {
   "$comment": [
-    "Coverage gates for the UA .NET Standard stack. These replace the codecov/project",
-    "and codecov/patch status checks; see .azurepipelines/check-coverage.ps1 for the",
-    "implementation and docs/DeveloperGuide.md for the contributor-facing description.",
+    "Coverage gates for the UA .NET Standard stack. These are the ENFORCED rules;",
+    "see .azurepipelines/check-coverage.ps1 for the implementation and",
+    "docs/DeveloperGuide.md for the contributor-facing description.",
     "Rates are percentages (0-100).",
+    "",
+    "codecov.io is still uploaded to, but only for reporting - its own",
+    "codecov/project and codecov/patch statuses are informational (see",
+    "codecov.yml) so that there is exactly one gate rather than two sets of",
+    "thresholds that can disagree about the same pull request.",
     "",
     "IMPORTANT: the coverage check is ADVISORY. Both the Azure 'Code coverage' stage and",
     "the GitHub Actions 'code coverage' job report a clean failure when these thresholds",
@@ -36,8 +41,9 @@
     "always enforced, because at that size the percentage is meaningful and a big",
     "untested change is exactly what the check exists to catch.",
     "",
-    "'ignore' carries over the exclusion list from the retired codecov.yml and is",
-    "applied to BOTH the project floor and the changed-lines check."
+    "'ignore' mirrors the exclusion list in codecov.yml so both report on the same",
+    "code - change the two together - and is applied to BOTH the project floor and",
+    "the changed-lines check."
   ],
   "project": {
     "minimumLineRate": 70.0,

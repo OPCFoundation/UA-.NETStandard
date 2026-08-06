@@ -35,6 +35,14 @@ parameters:
 - name: publishCoverage
   type: boolean
   default: true
+# Upload the merged report to codecov.io. Reporting only - the enforced rules
+# live in coverage-thresholds.json and are applied by the gate below. Set to
+# false to turn the upload off entirely; it is skipped anyway when the
+# CODECOV_TOKEN secret variable is not set, which is the case on fork pull
+# requests.
+- name: enableCodecov
+  type: boolean
+  default: true
 stages:
 - stage: ${{ parameters.stagename }}
   displayName: 'Code coverage'
@@ -160,6 +168,41 @@ stages:
           COMMIT_UUID: '$(Build.SourceVersion)'
         continueOnError: true
         displayName: 'Upload to Codacy'
+    - ${{ if parameters.enableCodecov }}:
+      - script: |
+          set -euo pipefail
+          # The bash uploader (codecov.io/bash) was sunset; this is the current
+          # Codecov CLI. Fetched as the platform binary rather than via pip so
+          # the step does not depend on a Python toolchain being present.
+          curl -Os https://cli.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          # On a pull request validation build Build.SourceVersion is the
+          # *merge* commit Azure created, which Codecov cannot match to the pull
+          # request. Report the head of the source branch instead when there is
+          # one.
+          SHA="${PR_SHA:-}"
+          if [ -z "$SHA" ]; then
+            SHA="$BUILD_SHA"
+          fi
+          ./codecov upload-process \
+            --disable-search \
+            --file "$REPORT_LOCATION" \
+            --flag azure \
+            --sha "$SHA"
+        # continueOnError: reporting must never be able to fail the run. The
+        # verdict comes from the gate below, not from codecov.io being
+        # reachable.
+        continueOnError: true
+        condition: >-
+          and(succeeded(),
+              eq(variables['reportProbe.HAS_REPORTS'], 'true'),
+              ne(variables['CODECOV_TOKEN'], ''))
+        env:
+          CODECOV_TOKEN: $(CODECOV_TOKEN)
+          REPORT_LOCATION: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
+          BUILD_SHA: '$(Build.SourceVersion)'
+          PR_SHA: '$(System.PullRequest.SourceCommitId)'
+        displayName: 'Upload to codecov.io'
     # Runs last so the report is published and downloadable even when the
     # thresholds are missed.
     - task: PowerShell@2
