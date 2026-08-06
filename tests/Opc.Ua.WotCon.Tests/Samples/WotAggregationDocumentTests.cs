@@ -152,6 +152,61 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// <i>OPC UA — Devices</i> (OPC 10000-100) §5.5 Table 48 defines
+        /// <c>ConnectsTo</c> as a subtype of <c>NonHierarchicalReferences</c>:
+        /// "It is NonHierarchical and symmetric, because this is natural for
+        /// this Reference." The official DI NodeSet carried
+        /// <c>HierarchicalReferences</c> up to and including DI 1.04 and was
+        /// corrected in DI 1.05.0, so refreshing the checked-in NodeSet from an
+        /// older upstream revision would silently reintroduce a non-compliant
+        /// model into every document generated from it.
+        /// </summary>
+        [Test]
+        public void DiConnectsToIsANonHierarchicalReference()
+        {
+            const string nonHierarchicalReferences = "i=32";
+            ModelDocument di = s_modelDocuments.Single(
+                document => document.ModelUri == DiNamespace);
+
+            UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(
+                RepositoryPath(di.SourcePath));
+            AssertConnectsToSuperType(source, nonHierarchicalReferences, di.SourcePath);
+
+            UANodeSet generated = WotNodeSetConverter.ToNodeSet(
+                File.ReadAllBytes(DocumentPath(di.FileName)),
+                WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+            AssertConnectsToSuperType(generated, nonHierarchicalReferences, di.FileName);
+        }
+
+        private static void AssertConnectsToSuperType(
+            UANodeSet nodeSet,
+            string expectedSuperType,
+            string origin)
+        {
+            UAReferenceType? connectsTo = nodeSet.Items!
+                .OfType<UAReferenceType>()
+                .SingleOrDefault(node => node.BrowseName == "1:ConnectsTo");
+            Assert.That(connectsTo, Is.Not.Null, $"{origin} declares no ConnectsTo ReferenceType.");
+
+            string? superType = connectsTo!.References!
+                .Where(reference =>
+                    reference.ReferenceType == "HasSubtype" && !reference.IsForward)
+                .Select(reference => reference.Value)
+                .SingleOrDefault();
+
+            Assert.That(
+                superType,
+                Is.EqualTo(expectedSuperType),
+                $"{origin}: ConnectsTo must be a subtype of NonHierarchicalReferences " +
+                "(i=32) per OPC 10000-100 section 5.5 Table 48, not HierarchicalReferences " +
+                "(i=33) as the DI NodeSet wrongly declared up to DI 1.04.");
+            Assert.That(
+                connectsTo.Symmetric,
+                Is.True,
+                $"{origin}: ConnectsTo is symmetric.");
+        }
+
         [Test]
         public void CompanionAndPumpNodeSetsRoundTripWithoutChange()
         {
