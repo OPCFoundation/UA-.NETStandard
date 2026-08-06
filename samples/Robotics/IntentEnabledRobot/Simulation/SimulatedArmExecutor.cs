@@ -32,9 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.RobotIntent;
-using Robotics.MinimalIntentRobotServer.Kinematics;
+using Robotics.IntentEnabledRobot.Kinematics;
 
-namespace Robotics.MinimalIntentRobotServer.Simulation
+namespace Robotics.IntentEnabledRobot.Simulation
 {
     /// <summary>
     /// Immutable observable state of the simulated arm.
@@ -196,7 +196,6 @@ namespace Robotics.MinimalIntentRobotServer.Simulation
                     await ExecutePlaceAsync(place, execution, cancellationToken).ConfigureAwait(false),
                 ToolChangeIntentDataType tool => await ExecuteToolChangeAsync(tool, execution, cancellationToken)
                     .ConfigureAwait(false),
-                SetOutputIntentDataType => IntentOutcome.Success,
                 WaitIntentDataType wait =>
                     await ExecuteWaitAsync(wait, execution, cancellationToken).ConfigureAwait(false),
                 _ => IntentOutcome.Fail(
@@ -287,13 +286,34 @@ namespace Robotics.MinimalIntentRobotServer.Simulation
                 distance,
                 CartesianSpeed(intent.Constraints),
                 CartesianAcceleration(intent.Constraints));
+            SimulatedArmKinematicFailure moveFailure = SimulatedArmKinematicFailure.None;
             IntentOutcome outcome = await FollowProfileAsync(
                 profile,
                 execution,
                 fraction =>
-                    SetPose(InterpolateArc(start, via, intent.Target, fraction), CurrentSnapshot.JointAngles.Span),
+                {
+                    Pose3DDataType pose = InterpolateArc(start, via, intent.Target, fraction);
+                    if (m_kinematics.TrySelectNearest(
+                        pose,
+                        CurrentSnapshot.JointAngles.Span,
+                        out SimulatedArmIkSolution? solution,
+                        out SimulatedArmKinematicFailure failure))
+                    {
+                        SetPose(pose, solution.JointAngles.Span);
+                    }
+                    else
+                    {
+                        moveFailure = failure;
+                    }
+                },
                 CartesianAcceleration(intent.Constraints),
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                () => moveFailure != SimulatedArmKinematicFailure.None).ConfigureAwait(false);
+            if (moveFailure != SimulatedArmKinematicFailure.None)
+            {
+                return IntentOutcome.Fail(
+                    SimulatedArmKinematics.ToIntentFailure(moveFailure), "The circular path is not feasible.");
+            }
             return outcome.State == ExecutionStateEnum.Succeeded
                 ? IntentOutcome.SucceededAt(CurrentSnapshot.ToolPose)
                 : outcome;
@@ -381,6 +401,7 @@ namespace Robotics.MinimalIntentRobotServer.Simulation
             var profile = new TrapezoidalVelocityProfile(
                 intent.MaxDistance, DefaultCartesianSpeed * 0.35, DefaultCartesianAcceleration);
             bool contacted = false;
+            SimulatedArmKinematicFailure moveFailure = SimulatedArmKinematicFailure.None;
             IntentOutcome outcome = await FollowProfileAsync(
                 profile,
                 execution,
@@ -389,14 +410,30 @@ namespace Robotics.MinimalIntentRobotServer.Simulation
                     double distance = fraction * intent.MaxDistance;
                     Pose3DDataType pose = TranslatePose(start, directionX, directionY, directionZ, distance);
                     contacted = IsContact(pose.Position.Span);
-                    SetPose(pose, CurrentSnapshot.JointAngles.Span);
+                    if (m_kinematics.TrySelectNearest(
+                        pose,
+                        CurrentSnapshot.JointAngles.Span,
+                        out SimulatedArmIkSolution? solution,
+                        out SimulatedArmKinematicFailure failure))
+                    {
+                        SetPose(pose, solution.JointAngles.Span);
+                    }
+                    else
+                    {
+                        moveFailure = failure;
+                    }
                 },
                 DefaultCartesianAcceleration,
                 cancellationToken,
-                () => contacted).ConfigureAwait(false);
+                () => contacted || moveFailure != SimulatedArmKinematicFailure.None).ConfigureAwait(false);
             if (outcome.State != ExecutionStateEnum.Succeeded)
             {
                 return outcome;
+            }
+            if (moveFailure != SimulatedArmKinematicFailure.None)
+            {
+                return IntentOutcome.Fail(
+                    SimulatedArmKinematics.ToIntentFailure(moveFailure), "The force path is not feasible.");
             }
             return contacted
                 ? IntentOutcome.SucceededAt(CurrentSnapshot.ToolPose)

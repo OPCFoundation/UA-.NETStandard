@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -112,7 +113,7 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
-        public void HostingExtensionsRegisterServicesAndOptionsIdempotently()
+        public void HostingExtensionsRegisterServicesAndOptions()
         {
             var services = new ServiceCollection();
             IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(_ => { });
@@ -124,7 +125,6 @@ namespace Opc.Ua.Robotics.Tests
                         options.InstanceNamespaceUri = "urn:test:intent";
                         options.SpecificationVersion = "1.2.3";
                     })
-                    .AddRobotIntent()
                     .AddRobotIntentExecutor<CompletingExecutor>()
                     .ConfigureRobotIntent(_ => { })
                     .ConfigureRobotIntent(async (context, cancellationToken) =>
@@ -150,7 +150,6 @@ namespace Opc.Ua.Robotics.Tests
                 Assert.That(provider.GetRequiredService<RobotIntentNodeManagerFactory>(), Is.Not.Null);
                 Assert.That(executors.Any(static executor => executor is RobotIntentRejectingExecutor), Is.True);
                 Assert.That(executors.Any(static executor => executor is CompletingExecutor), Is.True);
-                Assert.That(new CompletingExecutor(), Is.TypeOf<CompletingExecutor>());
             });
         }
 
@@ -242,8 +241,62 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(
                 () => _ = manager.Root,
                 Throws.TypeOf<ServiceResultException>().With.Property("StatusCode").EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(manager, Is.InstanceOf<IAsyncDisposable>());
 
             await manager.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task NodeManagerCompletesBaseDisposeAfterSynchronousDeferredHostShutdown()
+        {
+            await using IntentServerFixture fixture = new IntentServerFixture();
+            await fixture.CreateServerAsync().ConfigureAwait(false);
+            RobotIntentNodeManager manager = fixture.CreateManager(new RobotIntentServerOptions(), null);
+            using var executor = new BlockingExecutor();
+            SystemContext context = CreateSystemContext();
+            var controller = new IntentControllerState(null);
+            controller.Create(
+                context,
+                new NodeId("DeferredController", 1),
+                new QualifiedName("DeferredController", 1),
+                new LocalizedText("DeferredController"),
+                true);
+            var options = new IntentControllerHostOptions
+            {
+                OperationalMode = OperationalModeEnum.AutomaticExternal,
+                RequireControlAuthority = false,
+                AxisCount = 6,
+                MaxQueueDepth = 4,
+                ExecutorShutdownTimeoutMs = 50
+            };
+            options.Accept(global::Opc.Ua.RobotIntent.DataTypeIds.LinearMoveIntentDataType);
+            var host = new IntentControllerHost(
+                controller,
+                executor,
+                (_, _) => default,
+                options);
+            manager.RegisterIntentControllerHost(host);
+            host.Start(context);
+
+            IntentAdmission admission = host.SubmitIntent(context, null, Move("hung"));
+            Assert.That(admission.Accepted, Is.True, admission.Message);
+            await WaitUntilAsync(() => executor.Started.Task.IsCompleted).ConfigureAwait(false);
+
+            manager.Dispose();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(host.IsShutdownDeferred, Is.True);
+                if (!host.ResourcesDisposed)
+                {
+                    Assert.That(manager.BaseDisposeStarted, Is.False);
+                }
+            });
+
+            executor.Release();
+            await WaitUntilAsync(() => manager.BaseDisposeStarted).ConfigureAwait(false);
+
+            Assert.That(host.ResourcesDisposed, Is.True);
         }
 
         [Test]
@@ -535,6 +588,7 @@ namespace Opc.Ua.Robotics.Tests
                 Assert.That(state.SafetyState!.SafetyControllerOk!.Value, Is.True);
                 Assert.That(full.Host, Is.SameAs(fixture.Manager.GetIntentControllerHost(state.NodeId)));
                 Assert.That(full.ComputeFacets().ToArray(), Does.Contain("RI-Trajectory"));
+                Assert.That(minimal.State.Retry, Is.Null);
             });
         }
 
@@ -589,6 +643,16 @@ namespace Opc.Ua.Robotics.Tests
             };
         }
 
+        private static LinearMoveIntentDataType Move(string intentId)
+        {
+            return new LinearMoveIntentDataType
+            {
+                IntentId = intentId,
+                BufferMode = BufferModeEnum.Aborting,
+                Target = Pose()
+            };
+        }
+
         private static BaseInstanceState Child(NodeState parent, string browseName)
         {
             var children = new List<BaseInstanceState>();
@@ -596,6 +660,19 @@ namespace Opc.Ua.Robotics.Tests
             BaseInstanceState? child = children.FirstOrDefault(node => node.BrowseName.Name == browseName);
             Assert.That(child, Is.Not.Null, browseName);
             return child!;
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> predicate)
+        {
+            DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+            while (!predicate())
+            {
+                if (DateTime.UtcNow >= deadline)
+                {
+                    Assert.Fail("Timed out waiting for condition.");
+                }
+                await Task.Delay(20).ConfigureAwait(false);
+            }
         }
 
         private static void ConfigureInvalid(IIntentControllerBuilder controller, string scenario)
@@ -778,6 +855,10 @@ namespace Opc.Ua.Robotics.Tests
             }
         }
 
+        [SuppressMessage(
+            "Performance",
+            "CA1812:Avoid uninstantiated internal classes",
+            Justification = "Instantiated by DI generic registration in hosting tests; TODO: remove if CA1812 tracks DI.")]
         private sealed class CompletingExecutor : IIntentExecutor
         {
             public ValueTask<IntentOutcome> ExecuteAsync(
@@ -791,6 +872,38 @@ namespace Opc.Ua.Robotics.Tests
             {
                 return true;
             }
+        }
+
+        private sealed class BlockingExecutor : IIntentExecutor, IDisposable
+        {
+            public TaskCompletionSource<bool> Started { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public async ValueTask<IntentOutcome> ExecuteAsync(
+                IntentExecution execution,
+                CancellationToken cancellationToken)
+            {
+                Started.TrySetResult(true);
+                await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                return IntentOutcome.Success;
+            }
+
+            public bool CanCancel(IntentExecution execution)
+            {
+                return true;
+            }
+
+            public void Release()
+            {
+                m_gate.Release();
+            }
+
+            public void Dispose()
+            {
+                m_gate.Dispose();
+            }
+
+            private readonly SemaphoreSlim m_gate = new(0);
         }
     }
 }

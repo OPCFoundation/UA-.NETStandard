@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -43,7 +44,7 @@ namespace Opc.Ua.Robotics.Server
     /// <summary>
     /// Standalone node manager for OPC UA Robot Intent.
     /// </summary>
-    public sealed class RobotIntentNodeManager : FluentNodeManagerBase, INodeIdFactory
+    public sealed class RobotIntentNodeManager : FluentNodeManagerBase, INodeIdFactory, IAsyncDisposable
     {
         /// <summary>
         /// Creates a standalone Robot Intent node manager.
@@ -101,6 +102,8 @@ namespace Opc.Ua.Robotics.Server
                 }
             }
         }
+
+        internal bool BaseDisposeStarted => Volatile.Read(ref m_baseDisposeStarted) != 0;
 
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
@@ -180,10 +183,15 @@ namespace Opc.Ua.Robotics.Server
         /// </summary>
         public async ValueTask DisposeAsync()
         {
-            if (await DisposeHostsAsync().ConfigureAwait(false))
+            ArrayOf<IntentControllerHost> deferredHosts = await DisposeHostsAsync().ConfigureAwait(false);
+            if (deferredHosts.Count == 0)
             {
-                Dispose();
+                DisposeBase(disposing: true);
+                GC.SuppressFinalize(this);
+                return;
             }
+            _ = DisposeBaseWhenHostsCompleteAsync(deferredHosts);
+            GC.SuppressFinalize(this);
         }
 
         /// <inheritdoc/>
@@ -216,13 +224,23 @@ namespace Opc.Ua.Robotics.Server
         }
 
         /// <inheritdoc/>
+        [SuppressMessage(
+            "Usage",
+            "CA2215:Dispose methods should call base class dispose",
+            Justification = DeferredBaseDisposeJustification)]
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                DisposeHosts();
+                ArrayOf<IntentControllerHost> deferredHosts = DisposeHosts();
+                if (deferredHosts.Count != 0)
+                {
+                    // Base disposal is completed by the continuation once every deferred host has released resources.
+                    _ = DisposeBaseWhenHostsCompleteAsync(deferredHosts);
+                    return;
+                }
             }
-            base.Dispose(disposing);
+            DisposeBase(disposing);
         }
 
         internal void RegisterIntentControllerHost(IntentControllerHost host)
@@ -352,25 +370,63 @@ namespace Opc.Ua.Robotics.Server
             return (ushort)context.NamespaceUris.GetIndex(m_options.InstanceNamespaceUri);
         }
 
-        private void DisposeHosts()
+        private ArrayOf<IntentControllerHost> DisposeHosts()
         {
             ArrayOf<IntentControllerHost> hosts = TakeHosts();
+            var deferredHosts = new List<IntentControllerHost>();
             for (int ii = 0; ii < hosts.Count; ii++)
             {
                 hosts[ii].Dispose();
+                if (hosts[ii].IsShutdownDeferred)
+                {
+                    deferredHosts.Add(hosts[ii]);
+                }
             }
+            return deferredHosts.ToArray().ToArrayOf();
         }
 
-        private async ValueTask<bool> DisposeHostsAsync()
+        private async ValueTask<ArrayOf<IntentControllerHost>> DisposeHostsAsync()
         {
             ArrayOf<IntentControllerHost> hosts = TakeHosts();
-            bool clean = true;
+            var deferredHosts = new List<IntentControllerHost>();
             for (int ii = 0; ii < hosts.Count; ii++)
             {
                 await hosts[ii].DisposeAsync().ConfigureAwait(false);
-                clean &= !hosts[ii].IsShutdownDeferred;
+                if (hosts[ii].IsShutdownDeferred)
+                {
+                    deferredHosts.Add(hosts[ii]);
+                }
             }
-            return clean;
+            return deferredHosts.ToArray().ToArrayOf();
+        }
+
+        private async Task DisposeBaseWhenHostsCompleteAsync(ArrayOf<IntentControllerHost> deferredHosts)
+        {
+            while (!AllResourcesDisposed(deferredHosts))
+            {
+                await Task.Delay(50).ConfigureAwait(false);
+            }
+            DisposeBase(disposing: true);
+        }
+
+        private static bool AllResourcesDisposed(ArrayOf<IntentControllerHost> hosts)
+        {
+            for (int ii = 0; ii < hosts.Count; ii++)
+            {
+                if (!hosts[ii].ResourcesDisposed)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private void DisposeBase(bool disposing)
+        {
+            if (Interlocked.Exchange(ref m_baseDisposeStarted, 1) == 0)
+            {
+                base.Dispose(disposing);
+            }
         }
 
         private ArrayOf<IntentControllerHost> TakeHosts()
@@ -390,6 +446,9 @@ namespace Opc.Ua.Robotics.Server
         private readonly Lock m_hostsLock = new();
         private readonly List<IntentControllerHost> m_hosts = [];
         private readonly HashSet<IntentControllerHost> m_startedHosts = [];
+        private const string DeferredBaseDisposeJustification =
+            "Deferred host shutdown must postpone base teardown; TODO: remove when CA2215 models async handoff.";
+        private int m_baseDisposeStarted;
         private RobotIntentRootState? m_root;
     }
 

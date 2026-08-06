@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -62,7 +63,8 @@ namespace Opc.Ua.Robotics.Client.Intent
         public ValueTask<ArrayOf<RobotIntentNodeLookupEntry>> DiscoverControllersAsync(
             CancellationToken cancellationToken = default)
         {
-            return CreateTransport(global::Opc.Ua.ObjectIds.ObjectsFolder).BrowseControllersAsync(cancellationToken);
+            return CreateTransport(global::Opc.Ua.ObjectIds.ObjectsFolder, observeReconnect: false)
+                .BrowseControllersAsync(cancellationToken);
         }
 
         /// <summary>
@@ -75,7 +77,12 @@ namespace Opc.Ua.Robotics.Client.Intent
 
         private UaRobotIntentTransport CreateTransport(NodeId controllerId)
         {
-            return new UaRobotIntentTransport(m_session, controllerId, m_telemetry, m_streaming);
+            return CreateTransport(controllerId, observeReconnect: true);
+        }
+
+        private UaRobotIntentTransport CreateTransport(NodeId controllerId, bool observeReconnect)
+        {
+            return new UaRobotIntentTransport(m_session, controllerId, m_telemetry, m_streaming, observeReconnect);
         }
 
         private static void RegisterEncodeableTypes(ISession session)
@@ -209,7 +216,11 @@ namespace Opc.Ua.Robotics.Client.Intent
                 .ConfigureAwait(false);
             if (result.Accepted)
             {
-                m_lastMissionUpdateId = mission.MissionUpdateId;
+                string missionId = result.MissionId.Length == 0 ? mission.MissionId ?? string.Empty : result.MissionId;
+                lock (m_missionUpdateLock)
+                {
+                    m_lastMissionUpdateIds[missionId] = mission.MissionUpdateId;
+                }
             }
             return result;
         }
@@ -223,16 +234,20 @@ namespace Opc.Ua.Robotics.Client.Intent
             ArrayOf<MissionStepDataType> horizonSteps,
             CancellationToken cancellationToken = default)
         {
-            if (missionUpdateId <= m_lastMissionUpdateId)
+            lock (m_missionUpdateLock)
             {
-                Transport.Logger.MissionUpdateRefusedLocal(
-                    missionId,
-                    missionUpdateId,
-                    MissionUpdateResultEnum.Outdated,
-                    "MissionUpdateId shall be strictly greater than the current value.");
-                throw new ArgumentOutOfRangeException(
-                    nameof(missionUpdateId),
-                    "MissionUpdateId shall be strictly greater than the current value.");
+                if (m_lastMissionUpdateIds.TryGetValue(missionId, out uint lastMissionUpdateId) &&
+                    missionUpdateId <= lastMissionUpdateId)
+                {
+                    Transport.Logger.MissionUpdateRefusedLocal(
+                        missionId,
+                        missionUpdateId,
+                        MissionUpdateResultEnum.Outdated,
+                        "MissionUpdateId shall be strictly greater than the mission's current value.");
+                    return new MissionUpdateOutcome(
+                        MissionUpdateResultEnum.Outdated,
+                        new LocalizedText("MissionUpdateId shall be strictly greater than the mission's current value."));
+                }
             }
             MissionUpdateOutcome outcome = await Transport.UpdateMissionAsync(
                 missionId,
@@ -241,7 +256,10 @@ namespace Opc.Ua.Robotics.Client.Intent
                 cancellationToken).ConfigureAwait(false);
             if (outcome.Result == MissionUpdateResultEnum.Accepted)
             {
-                m_lastMissionUpdateId = missionUpdateId;
+                lock (m_missionUpdateLock)
+                {
+                    m_lastMissionUpdateIds[missionId] = missionUpdateId;
+                }
             }
             return outcome;
         }
@@ -270,7 +288,8 @@ namespace Opc.Ua.Robotics.Client.Intent
             return lease;
         }
 
-        private uint m_lastMissionUpdateId;
+        private readonly Lock m_missionUpdateLock = new();
+        private readonly Dictionary<string, uint> m_lastMissionUpdateIds = new(StringComparer.Ordinal);
     }
 
     internal static partial class RobotIntentControllerClientLog

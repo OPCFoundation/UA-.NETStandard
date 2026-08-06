@@ -109,6 +109,10 @@ namespace Opc.Ua.Robotics.Client.Intent
             EndpointUrl = result.EndpointUrl;
             PayloadDescriptor = result.PayloadDescriptor;
             LeaseExpiry = result.LeaseExpiry;
+            if (Granted && ((DateTime)LeaseExpiry) <= DateTime.UtcNow)
+            {
+                LeaseExpiry = new DateTimeUtc(DateTime.UtcNow + m_requestedLease);
+            }
             Message = result.Message;
             if (Granted)
             {
@@ -166,6 +170,7 @@ namespace Opc.Ua.Robotics.Client.Intent
 
         private async Task RenewLoopAsync(CancellationToken cancellationToken)
         {
+            TimeSpan failureBackoff = s_initialRenewFailureBackoff;
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
@@ -177,6 +182,7 @@ namespace Opc.Ua.Robotics.Client.Intent
                     {
                         return;
                     }
+                    failureBackoff = s_initialRenewFailureBackoff;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -185,7 +191,10 @@ namespace Opc.Ua.Robotics.Client.Intent
                 catch (Exception exception)
                 {
                     m_transport.Logger.ChannelLeaseRenewalFailed(exception, ChannelId);
-                    await Task.Delay(s_renewFailureBackoff, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(failureBackoff, cancellationToken).ConfigureAwait(false);
+                    failureBackoff = TimeSpan.FromTicks(Math.Min(
+                        failureBackoff.Ticks * 2,
+                        s_maximumRenewFailureBackoff.Ticks));
                 }
             }
         }
@@ -196,14 +205,16 @@ namespace Opc.Ua.Robotics.Client.Intent
             TimeSpan remaining = expiry - DateTime.UtcNow;
             if (remaining <= TimeSpan.Zero)
             {
-                return s_minimumRenewDelay;
+                TimeSpan fallback = TimeSpan.FromTicks(m_requestedLease.Ticks / 2);
+                return fallback < s_minimumRenewDelay ? s_minimumRenewDelay : fallback;
             }
             var half = TimeSpan.FromTicks(remaining.Ticks / 2);
             return half < s_minimumRenewDelay ? s_minimumRenewDelay : half;
         }
 
         private static readonly TimeSpan s_minimumRenewDelay = TimeSpan.FromMilliseconds(100);
-        private static readonly TimeSpan s_renewFailureBackoff = TimeSpan.FromMilliseconds(100);
+        private static readonly TimeSpan s_initialRenewFailureBackoff = TimeSpan.FromMilliseconds(100);
+        private static readonly TimeSpan s_maximumRenewFailureBackoff = TimeSpan.FromSeconds(5);
 
         private readonly IRobotIntentTransport m_transport;
         private readonly TimeSpan m_requestedLease;

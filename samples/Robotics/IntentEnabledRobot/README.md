@@ -1,4 +1,4 @@
-# MinimalIntentRobotServer
+# IntentEnabledRobot
 
 This sample is a small OPC UA Robot Intent server for one stationary UR5e-style arm. It publishes
 `Server/RobotIntent/Controllers/UR5eIntentController`, the controller's frames, tools, locations,
@@ -7,10 +7,10 @@ axes, outputs, programs, description, safety state and OpenUSD representation.
 ## Run
 
 ```powershell
-dotnet run --project samples\Robotics\MinimalIntentRobotServer\MinimalIntentRobotServer.csproj -- --host localhost --port 62840
+dotnet run --project samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj -- --host localhost --port 62840
 ```
 
-Default endpoint: `opc.tcp://{host}:{port}/MinimalIntentRobotServer` with port `62840`.
+Default endpoint: `opc.tcp://{host}:{port}/IntentEnabledRobot` with port `62840`.
 The default host is `localhost` so the generated server certificate matches local clients. Stop the
 server before rebuilding the sample; the running process holds its assemblies open.
 

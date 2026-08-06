@@ -105,7 +105,7 @@ Each sample has its own `README.md` with build and run instructions.
 - [Minimal Robot Server](samples/Robotics/MinimalRobotServer/README.md) — OPC 40010
   Robotics with independently configurable RSL/GPOS motion and live OpenUSD
   transforms.
-- [Minimal Intent Robot Server](samples/Robotics/MinimalIntentRobotServer/README.md) —
+- [Intent Enabled Robot](samples/Robotics/IntentEnabledRobot/README.md) —
   one collaborative arm exposing the draft Robot Intent command surface: task-level
   motion verbs tracked on a Part 10 program lifecycle, with missions, command
   authority and safety-aware refusal.

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -523,8 +524,11 @@ namespace Opc.Ua.Robotics.Server.Builders
                 MarkCommandMethod(State.Pause!);
                 MarkCommandMethod(State.Resume!);
             }
-            State.AddRetry(m_context.Context);
-            MarkCommandMethod(State.Retry!);
+            if (m_capabilities.Any(static capability => capability.RetrySupported))
+            {
+                State.AddRetry(m_context.Context);
+                MarkCommandMethod(State.Retry!);
+            }
         }
 
         private void WireNotStartedMethodGuards()
@@ -992,6 +996,7 @@ namespace Opc.Ua.Robotics.Server.Builders
         private void BindSafetySource(IRobotIntentSafetySource source)
         {
             global::Opc.Ua.RobotIntent.SafetyStateState safety = State.SafetyState!;
+            IntentControllerFacetMetadata.MarkSafetySourceBound(State);
             BindRead(
                 safety.ActiveFunction!,
                 async ct => ToDataValue((int)(await source.ReadAsync(ct).ConfigureAwait(false)).ActiveFunction));
@@ -1184,6 +1189,26 @@ namespace Opc.Ua.Robotics.Server.Builders
         private IntentDescriptionBuilder? m_description;
         private IntentControllerHost? m_host;
         private bool m_registered;
+    }
+
+    internal static class IntentControllerFacetMetadata
+    {
+        public static void MarkSafetySourceBound(IntentControllerState controller)
+        {
+            s_safetySourceBound.GetValue(controller, static _ => new SafetySourceBinding());
+        }
+
+        public static bool HasSafetySourceBound(IntentControllerState controller)
+        {
+            return s_safetySourceBound.TryGetValue(controller, out _);
+        }
+
+        private sealed class SafetySourceBinding
+        {
+        }
+
+        private static readonly ConditionalWeakTable<IntentControllerState, SafetySourceBinding> s_safetySourceBound =
+            new();
     }
 
     internal sealed class IntentFrameBuilder : IIntentFrameBuilder

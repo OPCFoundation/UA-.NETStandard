@@ -1,13 +1,13 @@
 # Robotics samples
 
 Three runnable samples covering the two robotics companion models this stack implements: **OPC 40010
-Robotics**, which describes a robot, and the draft **[OPC UA — Robot Intent](../../docs/RobotIntent.md)**,
+Robotics**, which describes a robot, and the draft **[OPC UA — Robot Intent](../../docs/Robotics.md#robot-intent)**,
 which commands one.
 
 | Sample | What it is | What it shows |
 |---|---|---|
 | [`MinimalRobotServer`](MinimalRobotServer) | A server for a two-robot cell | OPC 40010 topology, RSL/GPOS positioning, and an OpenUSD representation of the whole cell |
-| [`MinimalIntentRobotServer`](MinimalIntentRobotServer) | A server for one collaborative arm | The Robot Intent command surface end to end, plus an OpenUSD representation you can drive |
+| [`IntentEnabledRobot`](IntentEnabledRobot) | A server for one collaborative arm | The Robot Intent command surface end to end, plus an OpenUSD representation you can drive |
 | [`IntentViewerClient`](IntentViewerClient) | A client with a 3-D viewport | Clicking a target in the OpenUSD viewport and watching the arm execute the intent |
 
 All three are non-production demonstration code. `--insecure` in the command lines below means an
@@ -36,7 +36,7 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- `
 See [`MinimalRobotServer/README.md`](MinimalRobotServer/README.md) for the full walkthrough, the
 address-space layout and the USD binding contract.
 
-## `MinimalIntentRobotServer`
+## `IntentEnabledRobot`
 
 One stationary UR5e-style collaborative arm with an offset wrist — deliberately a different kinematic
 family from the cell sample's arms — on a workbench with four target locations.
@@ -48,7 +48,7 @@ a simulated motion kernel with real kinematics. Every intent is tracked on a Par
 a motion that takes a minute outlives the `Call` that started it.
 
 ```powershell
-dotnet run --project samples/Robotics/MinimalIntentRobotServer -- --host localhost --port 62840
+dotnet run --project samples/Robotics/IntentEnabledRobot -- --host localhost --port 62840
 ```
 
 ## `IntentViewerClient`
@@ -63,7 +63,7 @@ Start the server first, then:
 
 ```powershell
 dotnet run --project samples/Robotics/IntentViewerClient -- `
-    --server opc.tcp://localhost:62840/MinimalIntentRobotServer `
+    --server opc.tcp://localhost:62840/IntentEnabledRobot `
     --insecure --view
 ```
 
@@ -72,7 +72,7 @@ native OpenUSD payload:
 
 ```powershell
 dotnet run --project samples/Robotics/IntentViewerClient -- `
-    --server opc.tcp://localhost:62840/MinimalIntentRobotServer --insecure
+    --server opc.tcp://localhost:62840/IntentEnabledRobot --insecure
 ```
 
 In headless mode the four targets are offered as a console menu instead of as prims to click, and
@@ -81,21 +81,23 @@ everything downstream of the pick — submission, tracking, cancellation, comman
 ### How a click becomes an intent
 
 The viewport is rendered by the optional [`Opc.Ua.OpenUsd.Connector.Viewer`](../../tools/Opc.Ua.OpenUsd.Connector.Viewer)
-assembly, which resolves a pointer press to a USD prim path and raises `UsdViewOptions.PrimPicked`. The
-client maps that prim path to the `LocationType` node the server published under the controller's
-`Locations` folder, builds an intent naming that location, and submits it.
+assembly. Today, the working pick path is the command-prim fallback: clicking a target puck edits
+`/World/IntentCommand`, the viewer raises `UsdViewOptions.PrimPicked`, and the client maps that prim
+path to the `LocationType` node the server published under the controller's `Locations` folder, builds
+an intent naming that location, and submits it.
 
 `UsdViewOptions.PickMode` selects how the pick is resolved:
 
 | Mode | Behaviour |
 |---|---|
-| `Auto` (default) | Renderer-backed pointer pick when the host can reach the picking backend, otherwise the command-prim fallback |
-| `Renderer` | Renderer-backed pointer pick only |
+| `Auto` (default) | Degrades immediately to the command-prim fallback with the current OpenUSD package version |
+| `Renderer` | Renderer-backed pointer pick only; does not produce picks until upstream exposes a reachable picking backend |
 | `CommandPrim` | Watch `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`) and raise the callback when its `targetPrim` changes |
 
-The fallback exists because the renderer's picking backend is not exposed through a supported accessor
-on the viewer package, so the probe that finds it is best-effort by nature. `CommandPrim` also lets any
-other USD tool drive the robot by editing one prim.
+The fallback exists because no `IRenderPickingBackend` is reachable through this OpenUSD package
+version's viewport object graph. Renderer-backed picking depends on upstream exposing such a backend;
+feature requests are filed in `marcschier/openusd-dotnet` issues #1, #5, #8, #9, #10 and #11. The
+fallback is the supported sample path today, and clicking a target genuinely commands the robot.
 
 ## Prerequisites
 
@@ -107,7 +109,7 @@ other USD tool drive the robot by editing one prim.
 ## See also
 
 * [Robotics developer guide](../../docs/Robotics.md) — the OPC 40010 model these servers expose.
-* [Robot Intent](../../docs/RobotIntent.md) — the command surface, its lifecycle and its safety boundary.
+* [Robot Intent](../../docs/Robotics.md#robot-intent) — the command surface, its lifecycle and its safety boundary.
 * [OpenUSD](../../docs/OpenUsd.md) — the binding, the connector tool and the viewport.
 * [Relative Spatial Location and Global Positioning](../../docs/Positioning.md) — how the cell sample
   places its robots.

@@ -45,9 +45,10 @@ namespace Opc.Ua.Robotics.Client.Intent
         public CommandAuthorityLease(IRobotIntentTransport transport, bool granted, NodeId currentOwner)
         {
             m_transport = transport ?? throw new ArgumentNullException(nameof(transport));
-            Granted = granted;
+            m_granted = granted;
             m_releaseOnDispose = granted;
-            CurrentOwner = currentOwner;
+            m_currentOwner = currentOwner;
+            m_grantedOwner = currentOwner;
         }
 
         /// <summary>
@@ -58,12 +59,44 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Gets a value indicating whether this Session was granted authority.
         /// </summary>
-        public bool Granted { get; private set; }
+        public bool Granted
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_granted;
+                }
+            }
+            private set
+            {
+                lock (m_lock)
+                {
+                    m_granted = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets the current ControlOwner.
         /// </summary>
-        public NodeId CurrentOwner { get; private set; }
+        public NodeId CurrentOwner
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_currentOwner;
+                }
+            }
+            private set
+            {
+                lock (m_lock)
+                {
+                    m_currentOwner = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Starts observing ControlOwner.
@@ -75,12 +108,21 @@ namespace Opc.Ua.Robotics.Client.Intent
                 "ControlOwner",
                 cancellationToken).ConfigureAwait(false);
             m_pumpTask = PumpAsync(ownerNode, m_disposeCts.Token);
-            CurrentOwner = await m_transport.ReadControlOwnerAsync(cancellationToken).ConfigureAwait(false);
+            int observedOwnerVersion = Volatile.Read(ref m_ownerVersion);
+            NodeId currentOwner = await m_transport.ReadControlOwnerAsync(cancellationToken).ConfigureAwait(false);
+            lock (m_lock)
+            {
+                if (observedOwnerVersion == m_ownerVersion)
+                {
+                    m_currentOwner = currentOwner;
+                }
+                currentOwner = m_currentOwner;
+            }
             if (m_releaseOnDispose)
             {
-                m_transport.Logger.AuthorityGranted(CurrentOwner);
+                m_transport.Logger.AuthorityGranted(currentOwner);
             }
-            OwnerChanged?.Invoke(CurrentOwner);
+            OwnerChanged?.Invoke(currentOwner);
         }
 
         /// <inheritdoc/>
@@ -136,9 +178,19 @@ namespace Opc.Ua.Robotics.Client.Intent
                 {
                     if (change.Value.TryGetValue(out NodeId owner))
                     {
-                        CurrentOwner = owner;
-                        Granted = false;
-                        m_transport.Logger.AuthorityLost(owner);
+                        bool authorityLost = false;
+                        lock (m_lock)
+                        {
+                            m_currentOwner = owner;
+                            m_ownerVersion++;
+                            bool stillGranted = m_releaseOnDispose && Equals(owner, m_grantedOwner);
+                            authorityLost = m_granted && !stillGranted;
+                            m_granted = stillGranted;
+                        }
+                        if (authorityLost)
+                        {
+                            m_transport.Logger.AuthorityLost(owner);
+                        }
                         OwnerChanged?.Invoke(owner);
                     }
                 }
@@ -151,8 +203,13 @@ namespace Opc.Ua.Robotics.Client.Intent
         private readonly IRobotIntentTransport m_transport;
         private readonly bool m_releaseOnDispose;
         private readonly CancellationTokenSource m_disposeCts = new();
+        private readonly Lock m_lock = new();
+        private readonly NodeId m_grantedOwner;
         private Task? m_pumpTask;
+        private NodeId m_currentOwner;
+        private bool m_granted;
         private int m_disposed;
+        private int m_ownerVersion;
     }
 
     internal static partial class CommandAuthorityLeaseLog

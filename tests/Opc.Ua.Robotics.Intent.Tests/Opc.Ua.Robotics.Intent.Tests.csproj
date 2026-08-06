@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
-    <RootNamespace>Opc.Ua.RobotIntent.Integration</RootNamespace>
-    <AssemblyName>Opc.Ua.RobotIntent.Integration</AssemblyName>
+    <RootNamespace>Opc.Ua.Robotics.Intent.Tests</RootNamespace>
+    <AssemblyName>Opc.Ua.Robotics.Intent.Tests</AssemblyName>
     <OutputType>Exe</OutputType>
     <GenerateProgramFile>false</GenerateProgramFile>
     <Nullable>enable</Nullable>

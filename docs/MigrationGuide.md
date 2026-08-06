@@ -85,21 +85,6 @@ provider through the server-wide historian registry, or override
 [Server address-space metadata](NodeManagers.md#server-address-space-metadata) and
 [Historical Access](HistoricalAccess.md).
 
-## Migrating robotics operation-convention prototypes to Robot Intent
-
-Robot Intent is new API on the unreleased 2.0 surface. It replaces nothing
-from 1.5.378: existing OPC 40010 Robotics applications that only expose
-systems, controllers, motion devices, axes, task controls, and safety state
-do not need to migrate.
-
-During 2.0 development, the earlier experimental robotics operation-convention
-API (`RoboticsOperationsClient`, `RoboticsOperationConventions`, and
-`RoboticsOperationsBuilders`) was removed and superseded by the draft
-Robot Intent model. If you used that unreleased prototype, model commands as
-Robot Intent DataTypes, implement an `IIntentExecutor`, and expose the
-controller with `AddRobotIntent` / `ConfigureRobotIntent` or the standalone
-`RobotIntentNodeManager`. See [Robot Intent](RobotIntent.md).
-
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

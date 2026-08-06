@@ -625,6 +625,56 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
+        public async Task AbortingSubmissionDoesNotOverwriteTerminalBlendResult()
+        {
+            m_executor.Gate = new SemaphoreSlim(0);
+            using var blendGate = new SemaphoreSlim(0);
+            IntentControllerHostOptions options = Options();
+            options.BlendingSupported = true;
+            options.Capabilities.Clear();
+            options.Capabilities.Add(new DeclaredCapability
+            {
+                IntentType = RiDataTypeIds.LinearMoveIntentDataType,
+                SupportedBufferModes = new[]
+                {
+                    BufferModeEnum.Aborting,
+                    BufferModeEnum.Buffered,
+                    BufferModeEnum.BlendingNext
+                }
+            });
+            using IntentControllerHost host = NewHost(options);
+            m_executor.OnExecute = e =>
+            {
+                if (e.IntentId == "a")
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        await blendGate.WaitAsync().ConfigureAwait(false);
+                        e.Progress.ReportBlendBegin(Pose(2, 0, 0));
+                    });
+                }
+            };
+
+            host.SubmitIntent(m_context, null, Move("a"));
+            await WaitAsync(() => m_executor.Started.Contains("a")).ConfigureAwait(false);
+            host.SubmitIntent(m_context, null, Move("b", BufferModeEnum.BlendingNext));
+            blendGate.Release();
+            IntentOperationState first = await WaitForTerminalAsync("a").ConfigureAwait(false);
+
+            host.SubmitIntent(m_context, null, Move("stop"));
+            IntentResultDataType resultAfterAbort = first.Result!.Value!;
+            m_executor.Gate.Release(3);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(resultAfterAbort.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(resultAfterAbort.HasAchievedPose, Is.True);
+                Assert.That(resultAfterAbort.AchievedPose.Position[0], Is.EqualTo(2));
+            });
+        }
+
+        [Test]
         public async Task SingleOrHardWorkDoesNotBeginWhileAnotherIntentExecutes()
         {
             m_executor.Gate = new SemaphoreSlim(0);
@@ -691,6 +741,27 @@ namespace Opc.Ua.Robotics.Tests
             m_executor.Gate!.Release();
             IntentOperationState node = await WaitForTerminalAsync("a").ConfigureAwait(false);
             Assert.That(node.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
+        }
+
+        [Test]
+        public async Task CancelAcceptanceWaitsForExecutorBeforePublishingResult()
+        {
+            m_executor.Gate = new SemaphoreSlim(0);
+
+            m_host.SubmitIntent(m_context, null, Move("a"));
+            await WaitAsync(() => m_executor.Started.Contains("a")).ConfigureAwait(false);
+
+            Assert.That(m_host.CancelIntent(m_context, null, "a"), Is.True);
+            IntentOperationState node = FindOperation("a")!;
+            await WaitAsync(() => node.ExecutionState!.Value == ExecutionStateEnum.Cancelling)
+                .ConfigureAwait(false);
+
+            Assert.That(IntentOutcome.IsTerminal(node.Result!.Value!.State), Is.False,
+                "cancel acceptance is not the end of motion and must not publish a terminal result");
+
+            m_executor.Gate.Release();
+            await WaitForTerminalAsync("a").ConfigureAwait(false);
+            Assert.That(node.Result.Value!.State, Is.EqualTo(ExecutionStateEnum.Cancelled));
         }
 
         [Test]
@@ -783,15 +854,19 @@ namespace Opc.Ua.Robotics.Tests
         [Test]
         public async Task RetryCreatesANewOperationAndLeavesTheOriginalTerminal()
         {
+            IntentControllerHostOptions options = Options();
+            options.Capabilities.Clear();
+            options.Accept(RiDataTypeIds.LinearMoveIntentDataType, retrySupported: true);
+            using IntentControllerHost host = NewHost(options);
             m_executor.Outcome = IntentOutcome.Retriable(
                 IntentFailureEnum.GraspFailed, "nothing in the gripper");
 
-            IntentAdmission first = m_host.SubmitIntent(m_context, null, Move("a"));
+            IntentAdmission first = host.SubmitIntent(m_context, null, Move("a"));
             IntentOperationState original = await WaitForTerminalAsync("a").ConfigureAwait(false);
             Assert.That(original.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Retriable));
 
             m_executor.Outcome = IntentOutcome.Success;
-            IntentAdmission retry = m_host.Retry(m_context, null, "a");
+            IntentAdmission retry = host.Retry(m_context, null, "a");
 
             Assert.Multiple(() =>
             {
@@ -802,6 +877,24 @@ namespace Opc.Ua.Robotics.Tests
             });
             await WaitForTerminalAsync(retry.IntentId).ConfigureAwait(false);
             Assert.That(original.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Retriable));
+        }
+
+        [Test]
+        public async Task RetryIsRefusedWhenCapabilityDoesNotSupportIt()
+        {
+            m_executor.Outcome = IntentOutcome.Retriable(
+                IntentFailureEnum.GraspFailed, "nothing in the gripper");
+
+            m_host.SubmitIntent(m_context, null, Move("a"));
+            await WaitForTerminalAsync("a").ConfigureAwait(false);
+
+            IntentAdmission retry = m_host.Retry(m_context, null, "a");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(retry.Accepted, Is.False);
+                Assert.That(retry.Failure, Is.EqualTo(IntentFailureEnum.CapabilityNotSupported));
+            });
         }
 
         [Test]
@@ -1030,6 +1123,53 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
+        public async Task PauseOnlyStopsQueueDispatchAndPublishesControllerNotReady()
+        {
+            m_executor.Gate = new SemaphoreSlim(0);
+            m_host.SubmitIntent(m_context, null, Move("a"));
+            m_host.SubmitIntent(m_context, null, Move("b", BufferModeEnum.Buffered));
+            await WaitAsync(() => m_executor.Started.Contains("a")).ConfigureAwait(false);
+
+            Assert.That(m_host.Pause(m_context, null), Is.True);
+            IntentOperationState first = FindOperation("a")!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Executing));
+                Assert.That(m_controller.Ready!.Value, Is.False);
+            });
+
+            m_executor.Gate.Release();
+            await WaitForTerminalAsync("a").ConfigureAwait(false);
+            Assert.That(m_executor.Started, Does.Not.Contain("b"));
+
+            Assert.That(m_host.Resume(m_context, null), Is.True);
+            await WaitAsync(() => m_executor.Started.Contains("b")).ConfigureAwait(false);
+            m_executor.Gate.Release();
+        }
+
+        [Test]
+        public async Task NonTerminalExecutorOutcomeFailsOperationAndPumpContinues()
+        {
+            m_executor.Outcome = new IntentOutcome { State = ExecutionStateEnum.Executing };
+
+            m_host.SubmitIntent(m_context, null, Move("a"));
+            IntentOperationState first = await WaitForTerminalAsync("a").ConfigureAwait(false);
+
+            m_executor.Outcome = IntentOutcome.Success;
+            m_host.SubmitIntent(m_context, null, Move("b"));
+            IntentOperationState second = await WaitForTerminalAsync("b").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Failed));
+                Assert.That(first.Result!.Value!.Failure, Is.EqualTo(IntentFailureEnum.Other));
+                Assert.That(second.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(m_controller.Ready!.Value, Is.True);
+            });
+        }
+
+        [Test]
         public async Task QueuedMissionStepCancellationAdvancesTheMission()
         {
             m_executor.Gate = new SemaphoreSlim(0);
@@ -1093,6 +1233,59 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(admission.Accepted, Is.True);
             await WaitAsync(() => m_executor.Started.Length >= 2).ConfigureAwait(false);
             Assert.That(m_executor.Started, Is.EqualTo(["s1", "s2"]));
+        }
+
+        [Test]
+        public async Task MissionRefusedAfterFirstStepRemainsFailed()
+        {
+            m_executor.Gate = new SemaphoreSlim(0);
+            using IntentControllerHost host = NewHost(Options(requireAuthority: true));
+            var session = new NodeId("session", 1);
+            Assert.That(host.RequestControl(m_context, session, out _), Is.True);
+            MissionAdmission admission = host.SubmitMission(m_context, session, new MissionDataType
+            {
+                MissionId = "m1",
+                Steps = new[] { Step("s1", 1, released: true), Step("s2", 2, released: true) }
+            });
+            await WaitAsync(() => m_executor.Started.Contains("s1")).ConfigureAwait(false);
+
+            host.ReleaseControl(m_context, session);
+            m_executor.Gate.Release();
+
+            await WaitAsync(() =>
+            {
+                MissionObjectState mission = FindOperationByNodeId<MissionObjectState>(admission.Operation)!;
+                return mission.ExecutionState?.Value == ExecutionStateEnum.Failed;
+            }).ConfigureAwait(false);
+            MissionObjectState node = FindOperationByNodeId<MissionObjectState>(admission.Operation)!;
+            Assert.That(node.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Failed));
+        }
+
+        [Test]
+        public async Task ReusingTerminalMissionIdCreatesDistinctMissionNode()
+        {
+            MissionAdmission first = m_host.SubmitMission(m_context, null, new MissionDataType
+            {
+                MissionId = "m1",
+                Steps = new[] { Step("s1", 1, released: true) }
+            });
+            await WaitAsync(() =>
+            {
+                MissionObjectState mission = FindOperationByNodeId<MissionObjectState>(first.Operation)!;
+                return mission.ExecutionState?.Value == ExecutionStateEnum.Succeeded;
+            }).ConfigureAwait(false);
+
+            MissionAdmission second = m_host.SubmitMission(m_context, null, new MissionDataType
+            {
+                MissionId = "m1",
+                Steps = new[] { Step("s1", 1, released: true) }
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(second.Accepted, Is.True);
+                Assert.That(second.Operation, Is.Not.EqualTo(first.Operation));
+            });
         }
 
         [Test]

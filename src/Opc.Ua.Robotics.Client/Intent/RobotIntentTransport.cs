@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.RobotIntent;
 
@@ -64,6 +65,11 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// Gets the session namespace table.
         /// </summary>
         NamespaceTable NamespaceUris { get; }
+
+        /// <summary>
+        /// Gets the service message context used to decode ExtensionObject bodies.
+        /// </summary>
+        IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Browses the RobotIntent entry point for controllers.
@@ -188,7 +194,8 @@ namespace Opc.Ua.Robotics.Client.Intent
             ISession session,
             NodeId controllerId,
             ITelemetryContext telemetry,
-            IStreamingSubscription? streaming = null)
+            IStreamingSubscription? streaming = null,
+            bool observeReconnect = true)
         {
             m_session = session ?? throw new ArgumentNullException(nameof(session));
             ControllerId = controllerId;
@@ -196,7 +203,7 @@ namespace Opc.Ua.Robotics.Client.Intent
             Logger = telemetry.CreateLogger<UaRobotIntentTransport>();
             m_streaming = streaming ?? RoboticsClient.GetDefaultStreaming(session);
             m_proxy = new IntentControllerTypeClient(session, controllerId, telemetry);
-            if (session is ManagedSession managedSession)
+            if (observeReconnect && session is ManagedSession managedSession)
             {
                 managedSession.ConnectionStateChanged += OnConnectionStateChanged;
             }
@@ -213,6 +220,9 @@ namespace Opc.Ua.Robotics.Client.Intent
 
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
+
+        /// <inheritdoc/>
+        public IServiceMessageContext MessageContext => m_session.MessageContext;
 
         private ushort NamespaceIndex
         {
@@ -342,10 +352,10 @@ namespace Opc.Ua.Robotics.Client.Intent
             return new IntentSubmissionResult
             {
                 Accepted = accepted,
-                IntentId = intentId,
-                Operation = operation,
+                IntentId = intentId ?? string.Empty,
+                Operation = operation.IsNull ? NodeId.Null : operation,
                 Failure = failure,
-                Message = message
+                Message = message.IsNull ? LocalizedText.Null : message
             };
         }
 
@@ -386,9 +396,9 @@ namespace Opc.Ua.Robotics.Client.Intent
             {
                 Accepted = accepted,
                 IntentId = intentId,
-                Operation = operation,
+                Operation = operation.IsNull ? NodeId.Null : operation,
                 Failure = failure,
-                Message = message
+                Message = message.IsNull ? LocalizedText.Null : message
             };
         }
 
@@ -402,10 +412,10 @@ namespace Opc.Ua.Robotics.Client.Intent
             return new MissionSubmissionResult
             {
                 Accepted = accepted,
-                MissionId = missionId,
-                Operation = operation,
+                MissionId = missionId ?? string.Empty,
+                Operation = operation.IsNull ? NodeId.Null : operation,
                 Failure = failure,
-                Message = message
+                Message = message.IsNull ? LocalizedText.Null : message
             };
         }
 
@@ -425,7 +435,7 @@ namespace Opc.Ua.Robotics.Client.Intent
             {
                 Logger.MissionUpdateRefused(missionId, missionUpdateId, result, message.Text ?? string.Empty);
             }
-            return new MissionUpdateOutcome(result, message);
+            return new MissionUpdateOutcome(result, message.IsNull ? LocalizedText.Null : message);
         }
 
         /// <inheritdoc/>
@@ -442,7 +452,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         public async ValueTask<CommandAuthorityOutcome> RequestControlAsync(CancellationToken ct = default)
         {
             (bool granted, NodeId currentOwner) = await m_proxy.RequestControlAsync(ct).ConfigureAwait(false);
-            return new CommandAuthorityOutcome(granted, currentOwner);
+            return new CommandAuthorityOutcome(granted, currentOwner.IsNull ? NodeId.Null : currentOwner);
         }
 
         /// <inheritdoc/>
@@ -463,10 +473,10 @@ namespace Opc.Ua.Robotics.Client.Intent
             return new RealTimeChannelOpenResult
             {
                 Granted = granted,
-                EndpointUrl = endpointUrl,
-                PayloadDescriptor = payloadDescriptor,
+                EndpointUrl = endpointUrl ?? string.Empty,
+                PayloadDescriptor = payloadDescriptor ?? string.Empty,
                 LeaseExpiry = leaseExpiry,
-                Message = message
+                Message = message.IsNull ? LocalizedText.Null : message
             };
         }
 
@@ -527,8 +537,27 @@ namespace Opc.Ua.Robotics.Client.Intent
             await foreach (DataValueChange change in m_streaming.SubscribeDataChangesAsync(nodes, ct: ct)
                 .ConfigureAwait(false))
             {
-                yield return new RobotIntentDataChange(NodeId.Null, change.Value.WrappedValue);
+                yield return new RobotIntentDataChange(
+                    ResolveMonitoredNodeId(change.MonitoredItem, nodes),
+                    change.Value.WrappedValue);
             }
+        }
+
+        private static NodeId ResolveMonitoredNodeId(IMonitoredItem? monitoredItem, List<NodeId> nodes)
+        {
+            if (monitoredItem == null)
+            {
+                return NodeId.Null;
+            }
+            string name = monitoredItem.Name;
+            foreach (NodeId node in nodes)
+            {
+                if (name.EndsWith("_" + node, StringComparison.Ordinal))
+                {
+                    return node;
+                }
+            }
+            return NodeId.Null;
         }
 
         private async ValueTask<TEnum> ReadEnumValueAsync<TEnum>(NodeId nodeId, CancellationToken ct)

@@ -33,7 +33,7 @@ using System.Globalization;
 using Opc.Ua;
 using Opc.Ua.RobotIntent;
 
-namespace Robotics.MinimalIntentRobotServer.Kinematics
+namespace Robotics.IntentEnabledRobot.Kinematics
 {
     /// <summary>
     /// Classifies why a target cannot be reached by the simulated arm.

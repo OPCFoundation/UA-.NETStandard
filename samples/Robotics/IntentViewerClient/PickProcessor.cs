@@ -41,7 +41,7 @@ using Opc.Ua.RobotIntent;
 
 namespace IntentViewerClient
 {
-    internal sealed partial class PickProcessor
+    internal sealed partial class PickProcessor : IDisposable
     {
         public PickProcessor(
             RobotIntentControllerClient controller,
@@ -58,6 +58,24 @@ namespace IntentViewerClient
         }
 
         public async Task ProcessPickAsync(string primPath, CancellationToken cancellationToken)
+        {
+            await m_pickGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await ProcessPickCoreAsync(primPath, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_pickGate.Release();
+            }
+        }
+
+        public void Dispose()
+        {
+            m_pickGate.Dispose();
+        }
+
+        private async Task ProcessPickCoreAsync(string primPath, CancellationToken cancellationToken)
         {
             TargetLocation? target = m_targets.FirstOrDefault(
                 t => string.Equals(t.PrimPath, primPath, StringComparison.Ordinal));
@@ -247,5 +265,6 @@ namespace IntentViewerClient
         private readonly IReadOnlyList<TargetLocation> m_targets;
         private readonly ILogger m_logger;
         private readonly bool m_canCommand;
+        private readonly SemaphoreSlim m_pickGate = new(1, 1);
     }
 }

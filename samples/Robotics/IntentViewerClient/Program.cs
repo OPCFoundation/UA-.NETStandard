@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -47,7 +48,7 @@ namespace IntentViewerClient
 {
     internal sealed record IntentViewerOptions
     {
-        public string ServerUrl { get; init; } = "opc.tcp://localhost:62840/MinimalIntentRobotServer";
+        public string ServerUrl { get; init; } = "opc.tcp://localhost:62840/IntentEnabledRobot";
 
         public bool Insecure { get; init; }
 
@@ -69,7 +70,7 @@ namespace IntentViewerClient
         {
             return new IntentViewerOptions
             {
-                ServerUrl = GetOption(args, "--server") ?? "opc.tcp://localhost:62840/MinimalIntentRobotServer",
+                ServerUrl = GetOption(args, "--server") ?? "opc.tcp://localhost:62840/IntentEnabledRobot",
                 Insecure = HasFlag(args, "--insecure"),
                 View = HasFlag(args, "--view"),
                 Renderer = GetOption(args, "--renderer"),
@@ -78,7 +79,7 @@ namespace IntentViewerClient
                     GetOption(args, "--seconds"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds)
                     ? seconds
                     : 0,
-                PickMode = Enum.TryParse(GetOption(args, "--pick-mode"), ignoreCase: true, out UsdViewPickMode pickMode)
+                PickMode = TryParsePickMode(GetOption(args, "--pick-mode"), out UsdViewPickMode pickMode)
                     ? pickMode
                     : UsdViewPickMode.Auto,
                 Mission = HasFlag(args, "--mission"),
@@ -101,6 +102,12 @@ namespace IntentViewerClient
         private static bool HasFlag(string[] args, string name)
         {
             return args.Any(a => string.Equals(a, name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        internal static bool TryParsePickMode(string? value, out UsdViewPickMode pickMode)
+        {
+            return Enum.TryParse(value, ignoreCase: true, out pickMode) &&
+                pickMode is UsdViewPickMode.Auto or UsdViewPickMode.Renderer or UsdViewPickMode.CommandPrim;
         }
     }
 
@@ -142,8 +149,8 @@ namespace IntentViewerClient
                     .ReadAsync(lifetime.Token).ConfigureAwait(false);
                 PrintCapabilities(controllerInfo);
 
-                CommandAuthorityLease? authority = null;
                 bool commandAllowed = false;
+                CommandAuthorityLease? authority = null;
                 try
                 {
                     authority = await controller.RequestAuthorityAsync(lifetime.Token).ConfigureAwait(false);
@@ -166,70 +173,77 @@ namespace IntentViewerClient
                         "discovery, capabilities, facets and target mappings remain visible.");
                 }
 
-                var connector = new OpenUsdConnector(sample.Session, new MockUsdSink(), enableCommands: false);
-                await using (connector.ConfigureAwait(false))
+                try
                 {
-                    IReadOnlyList<TargetLocation> targets = await DiscoverTargetLocationsAsync(
-                        connector, controllerInfo, lifetime.Token).ConfigureAwait(false);
-                    if (targets.Count == 0)
+                    var connector = new OpenUsdConnector(sample.Session, new MockUsdSink(), enableCommands: false);
+                    await using (connector.ConfigureAwait(false))
                     {
-                        Console.Error.WriteLine(
-                            "No target prim to LocationType mapping was published by OpenUSD bindings.");
-                        return 3;
-                    }
-
-                    if (options.Mission)
-                    {
-                        if (commandAllowed)
+                        IReadOnlyList<TargetLocation> targets = await DiscoverTargetLocationsAsync(
+                            connector, controllerInfo, lifetime.Token).ConfigureAwait(false);
+                        if (targets.Count == 0)
                         {
-                            await SubmitSmallMissionAsync(controller, targets, sample.Session, lifetime.Token)
+                            Console.Error.WriteLine(
+                                "No target prim to LocationType mapping was published by OpenUSD bindings.");
+                            return 3;
+                        }
+
+                        if (options.Mission)
+                        {
+                            if (commandAllowed)
+                            {
+                                await SubmitSmallMissionAsync(controller, targets, sample.Session, lifetime.Token)
+                                    .ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Mission demo skipped because command authority was not granted.");
+                            }
+                        }
+
+                        string outPath = PrepareLiveLayerPath(options);
+                        if (!string.IsNullOrEmpty(options.FetchAssetsDirectory))
+                        {
+                            await FetchAssetsAsync(
+                                sample.Session, options.FetchAssetsDirectory!, lifetime.Token).ConfigureAwait(false);
+                        }
+
+                        targets = await FilterTargetsWithReadablePoseAsync(sample.Session, targets, lifetime.Token)
+                            .ConfigureAwait(false);
+                        if (targets.Count == 0)
+                        {
+                            Console.Error.WriteLine(
+                                "All published target locations had Pose values that could not be decoded; " +
+                                "no commandable targets remain.");
+                            return 4;
+                        }
+
+                        using var processor = new PickProcessor(
+                            controller, sample.Session, targets, logger, commandAllowed);
+                        string unavailable = string.Empty;
+                        if (options.View && UsdViewHostLoader.TryLoad(out IUsdViewHost? viewHost, out unavailable))
+                        {
+                            await RunViewportAsync(
+                                options, sample.Session, outPath, viewHost!, processor, telemetry, lifetime.Token)
                                 .ConfigureAwait(false);
                         }
                         else
                         {
-                            Console.WriteLine("Mission demo skipped because command authority was not granted.");
+                            if (options.View)
+                            {
+                                Console.WriteLine(
+                                    $"Viewport unavailable; falling back to headless mode. {unavailable}");
+                            }
+                            await RunHeadlessAsync(
+                                sample.Session, outPath, targets, processor, lifetime.Token).ConfigureAwait(false);
                         }
-                    }
-
-                    string outPath = PrepareLiveLayerPath(options);
-                    if (!string.IsNullOrEmpty(options.FetchAssetsDirectory))
-                    {
-                        await FetchAssetsAsync(
-                            sample.Session, options.FetchAssetsDirectory!, lifetime.Token).ConfigureAwait(false);
-                    }
-
-                    targets = await FilterTargetsWithReadablePoseAsync(sample.Session, targets, lifetime.Token)
-                        .ConfigureAwait(false);
-                    if (targets.Count == 0)
-                    {
-                        Console.Error.WriteLine(
-                            "All published target locations had Pose values that could not be decoded; " +
-                            "no commandable targets remain.");
-                        return 4;
-                    }
-
-                    var processor = new PickProcessor(controller, sample.Session, targets, logger, commandAllowed);
-                    string unavailable = string.Empty;
-                    if (options.View && UsdViewHostLoader.TryLoad(out IUsdViewHost? viewHost, out unavailable))
-                    {
-                        await RunViewportAsync(
-                            options, sample.Session, outPath, viewHost!, processor, telemetry, lifetime.Token)
-                            .ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        if (options.View)
-                        {
-                            Console.WriteLine($"Viewport unavailable; falling back to headless mode. {unavailable}");
-                        }
-                        await RunHeadlessAsync(
-                            sample.Session, outPath, targets, processor, lifetime.Token).ConfigureAwait(false);
                     }
                 }
-
-                if (authority is not null)
+                finally
                 {
-                    await authority.DisposeAsync().ConfigureAwait(false);
+                    if (authority is not null)
+                    {
+                        await authority.DisposeAsync().ConfigureAwait(false);
+                    }
                 }
             }
             return 0;
@@ -398,11 +412,44 @@ namespace IntentViewerClient
                 PrimPicked = processor.ProcessPickAsync
             };
             Console.WriteLine("Opening OpenUSD viewport. Click a target puck to submit a Robot Intent.");
-            viewHost.RunViewport(
-                viewOptions,
-                async (sink, ct) => await StreamOpenUsdAsync(session, sink, ct).ConfigureAwait(false),
-                cancellationToken);
-            await Task.CompletedTask.ConfigureAwait(false);
+            await RunViewportOnStaThreadAsync(viewHost, viewOptions, session, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private static Task<bool> RunViewportOnStaThreadAsync(
+            IUsdViewHost viewHost,
+            UsdViewOptions viewOptions,
+            ISession session,
+            CancellationToken cancellationToken)
+        {
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var uiThread = new Thread(() =>
+            {
+                try
+                {
+                    viewHost.RunViewport(
+                        viewOptions,
+                        async (sink, ct) => await StreamOpenUsdAsync(session, sink, ct).ConfigureAwait(false),
+                        cancellationToken);
+                    completion.TrySetResult(true);
+                }
+#pragma warning disable CA1031 // Surfaced to the asynchronous caller.
+                catch (Exception exception)
+#pragma warning restore CA1031
+                {
+                    completion.TrySetException(exception);
+                }
+            })
+            {
+                IsBackground = false,
+                Name = "Intent OpenUSD viewport"
+            };
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                uiThread.SetApartmentState(ApartmentState.STA);
+            }
+            uiThread.Start();
+            return completion.Task;
         }
 
         private static async Task RunHeadlessAsync(
@@ -468,7 +515,30 @@ namespace IntentViewerClient
             var connector = new OpenUsdConnector(session, sink, enableCommands: false);
             await using (connector.ConfigureAwait(false))
             {
-                await connector.StartAsync(cancellationToken).ConfigureAwait(false);
+                await StreamConnectorUntilCancelledAsync(
+                    connector.StartAsync,
+                    connector.StopAsync,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        internal static async Task StreamConnectorUntilCancelledAsync(
+            Func<CancellationToken, Task> startAsync,
+            Func<CancellationToken, Task> stopAsync,
+            CancellationToken cancellationToken)
+        {
+            await startAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Viewport shutdown is the expected end of the live stream.
+            }
+            finally
+            {
+                await stopAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
 

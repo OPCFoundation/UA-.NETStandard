@@ -186,9 +186,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             try
             {
                 RenderPickRequest request = createRequest();
-                RendererPickOutcome outcome = await Task.Run(
-                    () => pickAsync(request, cancellationToken).AsTask(),
-                    cancellationToken).ConfigureAwait(false);
+                RendererPickOutcome outcome = await pickAsync(request, cancellationToken).ConfigureAwait(false);
                 if (outcome == RendererPickOutcome.Fallback)
                 {
                     return fallbackController.DisableRenderer(null);
@@ -243,7 +241,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     reportFailure = true;
                 }
 
-                if (m_mode == UsdViewPickMode.Auto &&
+                if (m_mode is UsdViewPickMode.Auto or UsdViewPickMode.Renderer &&
                     m_hasCallback &&
                     !m_commandPrimWatcherStarted)
                 {
@@ -306,32 +304,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             private readonly IRenderPickingBackend m_backend;
         }
 
-        internal sealed class ReflectedPickBackend : IOpenUsdPickBackend
-        {
-            public ReflectedPickBackend(object backend, MethodInfo pickMethod)
-            {
-                m_backend = backend;
-                m_pickMethod = pickMethod;
-            }
-
-            public ValueTask<RenderPickResult> PickAsync(
-                RenderPickRequest request,
-                CancellationToken cancellationToken)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (m_pickMethod.Invoke(m_backend, [request]) is RenderPickResult result)
-                {
-                    return ValueTask.FromResult(result);
-                }
-                return ValueTask.FromResult(RenderPickResult.Unsupported(
-                    in request, request.RequestedStateRevision, request.RequestedSceneRevision));
-            }
-
-            private readonly object m_backend;
-            private readonly MethodInfo m_pickMethod;
-        }
-
-        private static IOpenUsdPickBackend? TryFindPickBackend(object root, bool includeProperties)
+        private static RenderPickingBackendAdapter? TryFindPickBackend(object root, bool includeProperties)
         {
             const int maxVisited = 32;
             var visited = new HashSet<object>(ReferenceIdentityComparer.Instance);
@@ -351,17 +324,6 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 }
 
                 Type currentType = current.GetType();
-                MethodInfo? pickMethod = currentType.GetMethod(
-                    "Pick",
-                    BindingFlags.Public | BindingFlags.Instance,
-                    binder: null,
-                    [typeof(RenderPickRequest)],
-                    modifiers: null);
-                if (pickMethod is not null &&
-                    pickMethod.ReturnType == typeof(RenderPickResult))
-                {
-                    return new ReflectedPickBackend(current, pickMethod);
-                }
 
                 if (!ReferenceEquals(current, root) && !IsOpenUsdType(currentType))
                 {
@@ -526,6 +488,10 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                         rendererPick.Attachment = TryAttachRendererPick(
                             options.PrimPicked, fallbackController, logger, lifetime.Token, stageToken);
                         rendererPickStarted = rendererPick.Attachment is not null;
+                        if (!rendererPickStarted)
+                        {
+                            fallbackController.DisableRenderer(null);
+                        }
                     }
                     pickDecision = PickModeSelection.Select(
                         options.PickMode, options.PrimPicked is not null, rendererPickStarted);
@@ -932,13 +898,11 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
     internal static partial class OpenUsdViewHostLog
     {
         [LoggerMessage(EventId = OpenUsdViewerEventIds.ViewHost + 0, Level = LogLevel.Warning,
-            Message = "Renderer viewport pick failed; CommandPrim fallback will be enabled " +
-                "when Auto pick mode allows it.")]
+            Message = "Renderer viewport pick failed; CommandPrim fallback will be enabled.")]
         public static partial void RendererPickFailed(this ILogger logger, Exception exception);
 
         [LoggerMessage(EventId = OpenUsdViewerEventIds.ViewHost + 1, Level = LogLevel.Warning,
-            Message = "Renderer viewport pick is unsupported; CommandPrim fallback will be enabled " +
-                "when Auto pick mode allows it.")]
+            Message = "Renderer viewport pick is unsupported; CommandPrim fallback will be enabled.")]
         public static partial void RendererPickUnsupported(this ILogger logger);
 
         [LoggerMessage(EventId = OpenUsdViewerEventIds.ViewHost + 2, Level = LogLevel.Warning,

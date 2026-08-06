@@ -69,7 +69,23 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Gets the last known snapshot.
         /// </summary>
-        public IntentOperationSnapshot Current { get; private set; } = new();
+        public IntentOperationSnapshot Current
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_current;
+                }
+            }
+            private set
+            {
+                lock (m_lock)
+                {
+                    m_current = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets a task that completes with Result when ExecutionState reaches a terminal value.
@@ -97,6 +113,10 @@ namespace Opc.Ua.Robotics.Client.Intent
                 Operation,
                 "Result",
                 cancellationToken).ConfigureAwait(false);
+            m_executionStateNode = executionState;
+            m_progressNode = progress;
+            m_currentPoseNode = currentPose;
+            m_resultNode = resultNode;
             ArrayOf<NodeId> nodes = [executionState, progress, currentPose, resultNode];
             m_pumpTask = PumpAsync(nodes, m_disposeCts.Token);
             await RefreshAsync(cancellationToken).ConfigureAwait(false);
@@ -110,7 +130,14 @@ namespace Opc.Ua.Robotics.Client.Intent
             IntentOperationSnapshot snapshot = await m_controller.Transport.ReadOperationSnapshotAsync(
                 Operation,
                 cancellationToken).ConfigureAwait(false);
-            Apply(snapshot);
+            bool resultObserved = RobotIntentRules.IsTerminal(snapshot.ExecutionState) &&
+                snapshot.Result.State == snapshot.ExecutionState;
+            Apply(
+                snapshot,
+                stateObserved: true,
+                progressObserved: true,
+                poseObserved: true,
+                resultObserved: resultObserved);
         }
 
         /// <summary>
@@ -187,30 +214,52 @@ namespace Opc.Ua.Robotics.Client.Intent
                 await foreach (RobotIntentDataChange change in m_controller.Transport
                     .SubscribeDataChangesAsync(nodes, cancellationToken).ConfigureAwait(false))
                 {
-                    IntentOperationSnapshot snapshot = Current with { Operation = Operation };
-                    if (TryGetEnumValue(change.Value, out ExecutionStateEnum state))
+                    IntentOperationSnapshot? snapshot = null;
+                    bool stateObserved = false;
+                    bool progressObserved = false;
+                    bool poseObserved = false;
+                    bool resultObserved = false;
+                    if (Matches(change.NodeId, m_executionStateNode) &&
+                        TryGetEnumValue(change.Value, out ExecutionStateEnum state))
                     {
-                        snapshot = snapshot with { ExecutionState = state };
+                        snapshot = new IntentOperationSnapshot { Operation = Operation, ExecutionState = state };
+                        stateObserved = true;
                     }
-                    else if (change.Value.TryGetValue(out double progress))
+                    else if (Matches(change.NodeId, m_progressNode) &&
+                        change.Value.TryGetValue(out double progress))
                     {
-                        snapshot = snapshot with { Progress = progress };
+                        snapshot = new IntentOperationSnapshot { Operation = Operation, Progress = progress };
+                        progressObserved = true;
                     }
-                    else if (TryGetEncodeable(change.Value, out Pose3DDataType pose))
+                    else if (Matches(change.NodeId, m_currentPoseNode) &&
+                        TryGetEncodeable(change.Value, out Pose3DDataType pose))
                     {
-                        snapshot = snapshot with { CurrentPose = pose };
+                        snapshot = new IntentOperationSnapshot { Operation = Operation, CurrentPose = pose };
+                        poseObserved = true;
                     }
-                    else if (change.Value.TryGetValue(out ExtensionObject extension) &&
+                    else if (Matches(change.NodeId, m_resultNode) &&
+                        change.Value.TryGetValue(out ExtensionObject extension) &&
                         extension.TryGetValue(out IEncodeable? encodeable) &&
                         encodeable is IntentResultDataType extensionResult)
                     {
-                        snapshot = snapshot with { Result = extensionResult };
+                        snapshot = new IntentOperationSnapshot { Operation = Operation, Result = extensionResult };
+                        resultObserved = true;
                     }
-                    else if (TryGetEncodeable(change.Value, out IntentResultDataType directResult))
+                    else if (Matches(change.NodeId, m_resultNode) &&
+                        TryGetEncodeable(change.Value, out IntentResultDataType directResult))
                     {
-                        snapshot = snapshot with { Result = directResult };
+                        snapshot = new IntentOperationSnapshot { Operation = Operation, Result = directResult };
+                        resultObserved = true;
                     }
-                    Apply(snapshot);
+                    if (snapshot != null && Apply(
+                        snapshot,
+                        stateObserved,
+                        progressObserved,
+                        poseObserved,
+                        resultObserved))
+                    {
+                        await RefreshAsync(cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -222,18 +271,42 @@ namespace Opc.Ua.Robotics.Client.Intent
             }
         }
 
-        private void Apply(IntentOperationSnapshot snapshot)
+        private bool Apply(
+            IntentOperationSnapshot snapshot,
+            bool stateObserved,
+            bool progressObserved,
+            bool poseObserved,
+            bool resultObserved)
         {
-            Current = snapshot;
-            Changed?.Invoke(snapshot);
-            if (RobotIntentRules.IsTerminal(snapshot.ExecutionState))
+            IntentOperationSnapshot current;
+            bool shouldReadResult = false;
+            bool completed = false;
+            lock (m_lock)
+            {
+                current = Merge(m_current, snapshot, stateObserved, progressObserved, poseObserved, resultObserved);
+                m_current = current;
+                m_resultObserved |= resultObserved;
+                if (RobotIntentRules.IsTerminal(current.ExecutionState))
+                {
+                    if (m_resultObserved)
+                    {
+                        completed = m_completion.TrySetResult(current.Result);
+                    }
+                    else
+                    {
+                        shouldReadResult = true;
+                    }
+                }
+            }
+            Changed?.Invoke(current);
+            if (completed)
             {
                 m_controller.Transport.Logger.OperationTerminal(
                     IntentId,
                     Operation,
-                    snapshot.ExecutionState);
-                m_completion.TrySetResult(snapshot.Result);
+                    current.ExecutionState);
             }
+            return shouldReadResult;
         }
 
         private void OnReconnected()
@@ -262,20 +335,64 @@ namespace Opc.Ua.Robotics.Client.Intent
             }
         }
 
-        private static bool TryGetEncodeable<T>(Variant value, out T result)
+        private IntentOperationSnapshot Merge(
+            IntentOperationSnapshot current,
+            IntentOperationSnapshot update,
+            bool stateObserved,
+            bool progressObserved,
+            bool poseObserved,
+            bool resultObserved)
+        {
+            IntentOperationSnapshot merged = current with
+            {
+                Operation = Operation
+            };
+            if (!update.Operation.IsNull)
+            {
+                merged = merged with { Operation = update.Operation };
+            }
+            if (stateObserved)
+            {
+                if (!RobotIntentRules.IsTerminal(current.ExecutionState) ||
+                    RobotIntentRules.IsTerminal(update.ExecutionState))
+                {
+                    merged = merged with { ExecutionState = update.ExecutionState };
+                }
+            }
+            if (progressObserved)
+            {
+                merged = merged with { Progress = update.Progress };
+            }
+            if (poseObserved)
+            {
+                merged = merged with { CurrentPose = update.CurrentPose };
+            }
+            if (resultObserved)
+            {
+                merged = merged with { Result = update.Result };
+            }
+            return merged;
+        }
+
+        private bool TryGetEncodeable<T>(Variant value, out T result)
             where T : class, IEncodeable
         {
             result = null!;
             // TryGetValue annotates out parameters conservatively for nullable analysis.
             // TODO: remove this suppression when Variant carries precise MaybeNull annotations for encodeables.
 #pragma warning disable CS8600
-            if (!value.TryGetValue(out T decoded, null) || decoded == null)
+            if (!value.TryGetValue(out T decoded, m_controller.Transport.MessageContext) || decoded == null)
 #pragma warning restore CS8600
             {
                 return false;
             }
             result = decoded;
             return true;
+        }
+
+        private static bool Matches(NodeId actual, NodeId expected)
+        {
+            return actual.IsNull || Equals(actual, expected);
         }
 
         private static bool TryGetEnumValue<TEnum>(Variant value, out TEnum result)
@@ -299,12 +416,19 @@ namespace Opc.Ua.Robotics.Client.Intent
 
         private readonly RobotIntentControllerClient m_controller;
         private readonly CancellationTokenSource m_disposeCts = new();
+        private readonly Lock m_lock = new();
 
         private readonly TaskCompletionSource<IntentResultDataType> m_completion = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
         private Task? m_pumpTask;
+        private IntentOperationSnapshot m_current = new();
+        private NodeId m_executionStateNode = NodeId.Null;
+        private NodeId m_progressNode = NodeId.Null;
+        private NodeId m_currentPoseNode = NodeId.Null;
+        private NodeId m_resultNode = NodeId.Null;
         private int m_disposed;
+        private bool m_resultObserved;
     }
 
     internal static partial class IntentOperationHandleLog

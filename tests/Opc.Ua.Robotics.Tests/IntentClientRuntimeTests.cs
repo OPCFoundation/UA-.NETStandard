@@ -92,6 +92,41 @@ namespace Opc.Ua.Robotics.Client.Tests
         }
 
         [Test]
+        public async Task OperationHandleWaitsForResultAfterTerminalStateNotification()
+        {
+            FakeRobotIntentTransport transport = new()
+            {
+                Snapshot = new IntentOperationSnapshot
+                {
+                    Operation = new NodeId(10),
+                    ExecutionState = ExecutionStateEnum.Executing
+                }
+            };
+            RobotIntentControllerClient controller = new(transport);
+
+            await using IntentOperationHandle handle = await controller.TrackOperationAsync(
+                "i1",
+                new NodeId(10));
+            transport.PublishChange("ExecutionState", Variant.From((int)ExecutionStateEnum.Succeeded));
+            Task early = await Task.WhenAny(handle.Completion, Task.Delay(100)).ConfigureAwait(false);
+
+            IntentResultDataType expected = new()
+            {
+                IntentId = "i1",
+                State = ExecutionStateEnum.Succeeded
+            };
+            transport.PublishChange("Result", Variant.FromStructure(expected));
+            IntentResultDataType result = await AwaitWithTimeoutAsync(handle.Completion, TimeSpan.FromSeconds(1));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(early, Is.Not.SameAs(handle.Completion));
+                Assert.That(result.IntentId, Is.EqualTo("i1"));
+                Assert.That(result.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+            });
+        }
+
+        [Test]
         public async Task OperationHandleRereadsAfterReconnect()
         {
             FakeRobotIntentTransport transport = new()
@@ -210,8 +245,32 @@ namespace Opc.Ua.Robotics.Client.Tests
 
                 Assert.That(lease.CurrentOwner, Is.EqualTo(new NodeId(2)));
             }
-
             Assert.That(transport.ReleaseCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AuthorityLeaseKeepsGrantWhenInitialNotificationIsOwnOwner()
+        {
+            NodeId owner = new(1);
+            FakeRobotIntentTransport transport = new()
+            {
+                AuthorityOutcome = new CommandAuthorityOutcome(true, owner),
+                ControlOwner = owner
+            };
+            RobotIntentControllerClient controller = new(transport);
+
+            await using CommandAuthorityLease lease = await controller.RequestAuthorityAsync();
+            int notifications = 0;
+            lease.OwnerChanged += _ => Interlocked.Increment(ref notifications);
+            transport.PublishOwner(owner);
+            await WaitUntilAsync(() => Volatile.Read(ref notifications) > 0, TimeSpan.FromSeconds(1))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(lease.Granted, Is.True);
+                Assert.That(lease.CurrentOwner, Is.EqualTo(owner));
+            });
         }
 
         [Test]
@@ -304,9 +363,37 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             _ = await controller.SubmitMissionAsync(mission);
 
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-                await controller.UpdateMissionAsync("m1", 3, []));
+            MissionUpdateOutcome outcome = await controller.UpdateMissionAsync("m1", 3, []);
+
+            Assert.That(outcome.Result, Is.EqualTo(MissionUpdateResultEnum.Outdated));
             Assert.That(transport.UpdateMissionCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task MissionUpdateIdsAreTrackedPerMission()
+        {
+            FakeRobotIntentTransport transport = new();
+            RobotIntentControllerClient controller = new(transport);
+
+            _ = await controller.SubmitMissionAsync(RobotIntentBuilder.Mission("a")
+                .WithMissionUpdateId(5)
+                .HorizonStep("a1", RobotIntentBuilder.Wait(1).Build())
+                .Build());
+            _ = await controller.SubmitMissionAsync(RobotIntentBuilder.Mission("b")
+                .WithMissionUpdateId(1)
+                .HorizonStep("b1", RobotIntentBuilder.Wait(1).Build())
+                .Build());
+            MissionUpdateOutcome accepted = await controller.UpdateMissionAsync("b", 2, []);
+            MissionUpdateOutcome outdated = await controller.UpdateMissionAsync("a", 4, []);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(accepted.Result, Is.EqualTo(MissionUpdateResultEnum.Accepted));
+                Assert.That(outdated.Result, Is.EqualTo(MissionUpdateResultEnum.Outdated));
+                Assert.That(transport.UpdateMissionCount, Is.EqualTo(1));
+                Assert.That(transport.LastUpdateMissionId, Is.EqualTo("b"));
+                Assert.That(transport.LastMissionUpdateId, Is.EqualTo(2));
+            });
         }
 
         [Test]
@@ -563,11 +650,11 @@ namespace Opc.Ua.Robotics.Client.Tests
                 }
             };
 
-            await using RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
+            await using RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromSeconds(1));
             await lease.OpenAsync();
             TimeSpan delay = InvokeComputeRenewDelay(lease);
 
-            Assert.That(delay, Is.GreaterThan(TimeSpan.Zero));
+            Assert.That(delay, Is.GreaterThan(TimeSpan.FromMilliseconds(250)));
         }
 
         [Test]
@@ -814,6 +901,9 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public NamespaceTable NamespaceUris { get; } = new();
 
+            public IServiceMessageContext MessageContext { get; } =
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create(true));
+
             public ILogger Logger { get; } = NullLogger.Instance;
 
             public IntentOperationSnapshot Snapshot { get; set; } = new();
@@ -905,7 +995,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public Exception? CloseException { get; set; }
 
-            private ConcurrentQueue<Variant> ChangeNotifications { get; } = new();
+            private ConcurrentQueue<RobotIntentDataChange> ChangeNotifications { get; } = new();
 
             public Task WaitForOpenChannelCountAsync(int count)
             {
@@ -940,7 +1030,12 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public void PublishChange(Variant value)
             {
-                ChangeNotifications.Enqueue(value);
+                PublishChange("ExecutionState", value);
+            }
+
+            public void PublishChange(string browseName, Variant value)
+            {
+                ChangeNotifications.Enqueue(new RobotIntentDataChange(ChildNode(browseName), value));
                 m_notificationAvailable.Release();
             }
 
@@ -1099,8 +1194,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public ValueTask<NodeId> ResolveChildAsync(NodeId root, string browseName, CancellationToken ct = default)
             {
-                int hash = Math.Abs(browseName.GetHashCode(StringComparison.Ordinal));
-                return new ValueTask<NodeId>(new NodeId((uint)hash));
+                return new ValueTask<NodeId>(ChildNode(browseName));
             }
 
             public ValueTask<IntentOperationSnapshot> ReadOperationSnapshotAsync(
@@ -1124,9 +1218,9 @@ namespace Opc.Ua.Robotics.Client.Tests
                 while (!ct.IsCancellationRequested)
                 {
                     await m_notificationAvailable.WaitAsync(ct).ConfigureAwait(false);
-                    if (ChangeNotifications.TryDequeue(out Variant value))
+                    if (ChangeNotifications.TryDequeue(out RobotIntentDataChange change))
                     {
-                        yield return new RobotIntentDataChange(new NodeId(1), value);
+                        yield return change;
                     }
                     else if (m_ownerNotifications.TryDequeue(out NodeId owner))
                     {
@@ -1140,6 +1234,19 @@ namespace Opc.Ua.Robotics.Client.Tests
             private readonly System.Threading.Lock m_stateLock = new();
             private TaskCompletionSource<bool>? m_openChannelCountReached;
             private int m_openChannelCountTarget = int.MaxValue;
+
+            private static NodeId ChildNode(string browseName)
+            {
+                return browseName switch
+                {
+                    "ExecutionState" => new NodeId(1),
+                    "Progress" => new NodeId(2),
+                    "CurrentPose" => new NodeId(3),
+                    "Result" => new NodeId(4),
+                    "ControlOwner" => new NodeId(5),
+                    _ => new NodeId((uint)Math.Abs(browseName.GetHashCode(StringComparison.Ordinal)))
+                };
+            }
         }
     }
 }

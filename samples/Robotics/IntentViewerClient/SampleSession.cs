@@ -59,7 +59,7 @@ namespace IntentViewerClient
             ITelemetryContext telemetry,
             CancellationToken cancellationToken)
         {
-            string pkiRoot = Path.Combine(GetPrivateStateRoot(), Path.GetRandomFileName());
+            string pkiRoot = GetPrivateStateRoot();
             var configuration = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "IntentViewerClient",

@@ -42,5 +42,6 @@ namespace Opc.Ua.RobotIntent.Server
         public const int LeaseExpired = 8008;
         public const int SafetyRefusal = 8009;
         public const int ShutdownTimedOut = 8010;
+        public const int PumpFault = 8011;
     }
 }

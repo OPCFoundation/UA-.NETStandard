@@ -42,16 +42,3 @@ using Opc.Ua.OpenUsd.Connector;
 // assembly alongside the connector; the runner hosts the viewport on its own dedicated
 // UI thread, so this entry point stays fully asynchronous.
 return await OpenUsdConnectorRunner.RunAsync(args).ConfigureAwait(false);
-
-internal static class OpenUsdConnectorProgram
-{
-    public static bool HasArguments(string[] args)
-    {
-        return args.Length > 0;
-    }
-
-    public static int NormalizeExitCode(int exitCode)
-    {
-        return exitCode < 0 ? 1 : exitCode;
-    }
-}

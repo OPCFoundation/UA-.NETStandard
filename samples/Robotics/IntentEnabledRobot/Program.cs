@@ -34,8 +34,8 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Robotics.Server;
 using Opc.Ua.Server;
-using Robotics.MinimalIntentRobotServer;
-using Robotics.MinimalIntentRobotServer.Simulation;
+using Robotics.IntentEnabledRobot;
+using Robotics.IntentEnabledRobot.Simulation;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -60,11 +60,11 @@ builder.Services
     .AddOpcUa()
     .AddServer(options =>
     {
-        options.ApplicationName = "MinimalIntentRobotServer";
-        options.ApplicationUri = "urn:localhost:OPCFoundation:MinimalIntentRobotServer";
-        options.ProductUri = "uri:opcfoundation.org:MinimalIntentRobotServer";
+        options.ApplicationName = "IntentEnabledRobot";
+        options.ApplicationUri = "urn:localhost:OPCFoundation:IntentEnabledRobot";
+        options.ProductUri = "uri:opcfoundation.org:IntentEnabledRobot";
         options.AutoAcceptUntrustedCertificates = true;
-        options.EndpointUrls.Add($"opc.tcp://{host}:{port}/MinimalIntentRobotServer");
+        options.EndpointUrls.Add($"opc.tcp://{host}:{port}/IntentEnabledRobot");
     })
     .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
     {

@@ -46,13 +46,15 @@ namespace Opc.Ua.Robotics.Server.Builders
         /// structural evidence available in the materialised address space and the controller capability declaration:
         /// required intent DataTypes in <c>SupportedIntents</c>; joint axes covering <c>0..AxisCount - 1</c>;
         /// trajectory, path, force, real-time, mission, mission-horizon, mission-branching and blending capability
-        /// flags; folders or nodes named by a row, including tools, locations, outputs, programs, safety state,
-        /// description, real-time channels and mission methods; tool TCP frames and tool-frame roles; description
-        /// kinematic-chain coverage and limits; queue depth; accepted buffer modes; pause/resume and retry methods;
-        /// palletise location patterns; and the RI-Force dependency for surface finish.
+        /// flags; folders or nodes named by a row, including tools, locations, outputs, programs, a bound
+        /// safety-state source, description, real-time channels and mission methods; tool TCP frames and
+        /// tool-frame roles; description kinematic-chain coverage and limits; queue depth; accepted buffer modes;
+        /// pause/resume and retry methods; palletise location patterns; and the RI-Force dependency for surface
+        /// finish.
         /// Behavioural parts cannot be settled by reading the address space. The calculator therefore trusts the
         /// server's attestation for the RI-Base refusal rules; trajectory tolerance rules; force regulation;
-        /// real-time lease rules; safety-state sourcing and safety refusals; process execution semantics; queue
+        /// real-time lease rules; safety-state values being populated from that bound source and safety refusals;
+        /// process execution semantics; queue
         /// position maintenance; blending being honoured and <c>Result.AchievedPose</c> reporting the blend point;
         /// pause/retry state reachability; mission execution, base immutability and transition/error-policy
         /// behaviour; and OPC 40010 agreement semantics. The structural OPC 40010 interop link is inferred from the
@@ -67,45 +69,46 @@ namespace Opc.Ua.Robotics.Server.Builders
             var facets = new List<string> { "RI-Base" };
             ArrayOf<IntentCapabilityDataType> capabilities = GetSupportedIntentCapabilities(controller);
             HashSet<NodeId> intents = GetSupportedIntentTypes(capabilities);
-            AddIf(facets, intents, "RI-Motion-Joint", global::Opc.Ua.RobotIntent.DataTypes.JointMoveIntentDataType,
+            ushort robotIntentNamespaceIndex = GetRobotIntentNamespaceIndex(controller);
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Motion-Joint", global::Opc.Ua.RobotIntent.DataTypes.JointMoveIntentDataType,
                 controller.Axes != null && AxisIndicesAreContiguous(controller));
-            AddIf(facets, intents, "RI-Motion-Linear", global::Opc.Ua.RobotIntent.DataTypes.LinearMoveIntentDataType);
-            AddIf(facets, intents, "RI-Motion-Circular",
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Motion-Linear", global::Opc.Ua.RobotIntent.DataTypes.LinearMoveIntentDataType);
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Motion-Circular",
                 global::Opc.Ua.RobotIntent.DataTypes.CircularMoveIntentDataType);
-            AddIf(facets, intents, "RI-Trajectory", global::Opc.Ua.RobotIntent.DataTypes.TrajectoryIntentDataType,
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Trajectory", global::Opc.Ua.RobotIntent.DataTypes.TrajectoryIntentDataType,
                 controller.Capabilities?.TrajectorySupported?.Value == true);
-            AddIf(facets, intents, "RI-Path", global::Opc.Ua.RobotIntent.DataTypes.CartesianPathIntentDataType,
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Path", global::Opc.Ua.RobotIntent.DataTypes.CartesianPathIntentDataType,
                 controller.Capabilities?.TrajectorySupported?.Value == true);
-            AddIf(facets, intents, "RI-Force", global::Opc.Ua.RobotIntent.DataTypes.ForceIntentDataType,
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Force", global::Opc.Ua.RobotIntent.DataTypes.ForceIntentDataType,
                 controller.Capabilities?.ForceControlSupported?.Value == true);
-            AddIf(facets, intents, "RI-Grasp", global::Opc.Ua.RobotIntent.DataTypes.GraspIntentDataType,
-                HasIntent(intents, global::Opc.Ua.RobotIntent.DataTypes.ReleaseIntentDataType) &&
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Grasp", global::Opc.Ua.RobotIntent.DataTypes.GraspIntentDataType,
+                HasIntent(intents, robotIntentNamespaceIndex, global::Opc.Ua.RobotIntent.DataTypes.ReleaseIntentDataType) &&
                 HasToolWithTcpFrame(controller));
-            AddIf(facets, intents, "RI-PickPlace", global::Opc.Ua.RobotIntent.DataTypes.PickIntentDataType,
-                HasIntent(intents, global::Opc.Ua.RobotIntent.DataTypes.PlaceIntentDataType) &&
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-PickPlace", global::Opc.Ua.RobotIntent.DataTypes.PickIntentDataType,
+                HasIntent(intents, robotIntentNamespaceIndex, global::Opc.Ua.RobotIntent.DataTypes.PlaceIntentDataType) &&
                 HasAny(controller.Locations));
-            AddIf(facets, intents, "RI-ToolChange", global::Opc.Ua.RobotIntent.DataTypes.ToolChangeIntentDataType,
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-ToolChange", global::Opc.Ua.RobotIntent.DataTypes.ToolChangeIntentDataType,
                 CountChildren(controller.Tools) > 1);
-            AddIf(facets, intents, "RI-Output", global::Opc.Ua.RobotIntent.DataTypes.SetOutputIntentDataType,
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Output", global::Opc.Ua.RobotIntent.DataTypes.SetOutputIntentDataType,
                 controller.Outputs != null);
-            AddIf(facets, intents, "RI-Program", global::Opc.Ua.RobotIntent.DataTypes.CallProgramIntentDataType,
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Program", global::Opc.Ua.RobotIntent.DataTypes.CallProgramIntentDataType,
                 controller.Programs != null);
-            AddIf(facets, intents, "RI-Wait", global::Opc.Ua.RobotIntent.DataTypes.WaitIntentDataType);
-            AddIf(facets, intents, "RI-Process-ArcWeld",
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Wait", global::Opc.Ua.RobotIntent.DataTypes.WaitIntentDataType);
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Process-ArcWeld",
                 global::Opc.Ua.RobotIntent.DataTypes.ArcWeldIntentDataType);
-            AddIf(facets, intents, "RI-Process-SpotWeld",
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Process-SpotWeld",
                 global::Opc.Ua.RobotIntent.DataTypes.SpotWeldIntentDataType);
-            AddIf(facets, intents, "RI-Process-Dispense",
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Process-Dispense",
                 global::Opc.Ua.RobotIntent.DataTypes.DispenseIntentDataType);
-            AddIf(facets, intents, "RI-Process-Fasten",
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Process-Fasten",
                 global::Opc.Ua.RobotIntent.DataTypes.FastenIntentDataType);
-            AddIf(facets, intents, "RI-Process-Palletise",
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Process-Palletise",
                 global::Opc.Ua.RobotIntent.DataTypes.PalletiseIntentDataType,
                 HasAny(controller.Locations));
-            AddIf(facets, intents, "RI-Process-SurfaceFinish",
+            AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Process-SurfaceFinish",
                 global::Opc.Ua.RobotIntent.DataTypes.SurfaceFinishIntentDataType,
                 HasFacet(facets, "RI-Force"));
-            if (controller.SafetyState != null)
+            if (IntentControllerFacetMetadata.HasSafetySourceBound(controller))
             {
                 facets.Add("RI-Safety");
             }
@@ -113,8 +116,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             {
                 facets.Add("RI-Description");
             }
-            if (controller.RealTimeChannels != null &&
-                controller.Capabilities?.RealTimeChannelsSupported?.Value == true)
+            if (HasRealTimeChannelSupport(controller))
             {
                 facets.Add("RI-RealTimeChannel");
             }
@@ -149,7 +151,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             {
                 facets.Add("RI-Mission-Branching");
             }
-            if (HasInterop40010Link(controller))
+            if (HasInterop40010Link(controller, robotIntentNamespaceIndex))
             {
                 facets.Add("RI-Interop-40010");
             }
@@ -159,21 +161,24 @@ namespace Opc.Ua.Robotics.Server.Builders
         private static void AddIf(
             List<string> facets,
             HashSet<NodeId> intents,
+            ushort robotIntentNamespaceIndex,
             string facet,
             uint dataTypeId,
             bool condition = true)
         {
-            if (condition && HasIntent(intents, dataTypeId))
+            if (condition && HasIntent(intents, robotIntentNamespaceIndex, dataTypeId))
             {
                 facets.Add(facet);
             }
         }
 
-        private static bool HasIntent(HashSet<NodeId> intents, uint dataTypeId)
+        private static bool HasIntent(HashSet<NodeId> intents, ushort robotIntentNamespaceIndex, uint dataTypeId)
         {
             foreach (NodeId intent in intents)
             {
-                if (intent.TryGetValue(out uint numeric) && numeric == dataTypeId)
+                if (intent.NamespaceIndex == robotIntentNamespaceIndex &&
+                    intent.TryGetValue(out uint numeric) &&
+                    numeric == dataTypeId)
                 {
                     return true;
                 }
@@ -326,6 +331,14 @@ namespace Opc.Ua.Robotics.Server.Builders
                 controller.CancelMission != null;
         }
 
+        private static bool HasRealTimeChannelSupport(IntentControllerState controller)
+        {
+            return controller.Capabilities?.RealTimeChannelsSupported?.Value == true &&
+                GetChildren<RealTimeChannelState>(controller.RealTimeChannels).Count > 0 &&
+                controller.OpenRealTimeChannel != null &&
+                controller.CloseRealTimeChannel != null;
+        }
+
         private static bool HasAnyCapabilityWithPause(ArrayOf<IntentCapabilityDataType> capabilities)
         {
             for (int ii = 0; ii < capabilities.Count; ii++)
@@ -409,7 +422,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             return facets.Contains(facet);
         }
 
-        private static bool HasInterop40010Link(IntentControllerState controller)
+        private static bool HasInterop40010Link(IntentControllerState controller, ushort robotIntentNamespaceIndex)
         {
             var references = new List<IReference>();
             controller.GetReferences(null!, references);
@@ -417,7 +430,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             {
                 IReference reference = references[ii];
                 if (reference.IsInverse &&
-                    IsHasIntentControllerReference(reference.ReferenceTypeId) &&
+                    IsHasIntentControllerReference(reference.ReferenceTypeId, robotIntentNamespaceIndex) &&
                     !reference.TargetId.IsNull)
                 {
                     return true;
@@ -426,10 +439,16 @@ namespace Opc.Ua.Robotics.Server.Builders
             return false;
         }
 
-        private static bool IsHasIntentControllerReference(NodeId referenceTypeId)
+        private static bool IsHasIntentControllerReference(NodeId referenceTypeId, ushort robotIntentNamespaceIndex)
         {
-            return referenceTypeId.TryGetValue(out uint numeric) &&
+            return referenceTypeId.NamespaceIndex == robotIntentNamespaceIndex &&
+                referenceTypeId.TryGetValue(out uint numeric) &&
                 numeric == global::Opc.Ua.RobotIntent.ReferenceTypes.HasIntentController;
+        }
+
+        private static ushort GetRobotIntentNamespaceIndex(IntentControllerState controller)
+        {
+            return controller.TypeDefinitionId.NamespaceIndex;
         }
 
         private static bool HasAny(NodeState? folder)

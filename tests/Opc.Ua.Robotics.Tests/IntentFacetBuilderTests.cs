@@ -119,7 +119,9 @@ namespace Opc.Ua.Robotics.Tests
             AddLocation("Location0");
             m_controller.AddOutputs(m_context);
             m_controller.AddPrograms(m_context);
-            m_controller.AddRealTimeChannels(m_context);
+            AddRealTimeChannel("FastChannel");
+            m_controller.AddOpenRealTimeChannel(m_context);
+            m_controller.AddCloseRealTimeChannel(m_context);
             m_controller.Capabilities!.RealTimeChannelsSupported!.Value = true;
             m_controller.Capabilities.SupportedIntents!.Value = new[]
             {
@@ -141,10 +143,35 @@ namespace Opc.Ua.Robotics.Tests
                 Assert.That(facets, Does.Contain("RI-ToolChange"));
                 Assert.That(facets, Does.Contain("RI-Output"));
                 Assert.That(facets, Does.Contain("RI-Program"));
-                Assert.That(facets, Does.Contain("RI-Safety"));
+                Assert.That(facets, Does.Not.Contain("RI-Safety"));
                 Assert.That(facets, Does.Contain("RI-Description"));
                 Assert.That(facets, Does.Contain("RI-RealTimeChannel"));
             });
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsRealTimeChannelWithEmptyFolder()
+        {
+            m_controller.AddRealTimeChannels(m_context);
+            m_controller.AddOpenRealTimeChannel(m_context);
+            m_controller.AddCloseRealTimeChannel(m_context);
+            m_controller.Capabilities!.RealTimeChannelsSupported!.Value = true;
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-RealTimeChannel"));
+        }
+
+        [Test]
+        public void ComputeFacetsRejectsRealTimeChannelWithoutMethods()
+        {
+            AddRealTimeChannel("FastChannel");
+            m_controller.AddOpenRealTimeChannel(m_context);
+            m_controller.Capabilities!.RealTimeChannelsSupported!.Value = true;
+
+            string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
+
+            Assert.That(facets, Does.Not.Contain("RI-RealTimeChannel"));
         }
 
         [Test]
@@ -350,13 +377,33 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
-        public void ComputeFacetsRejectsSafetyWithoutSafetyState()
+        public void ComputeFacetsRejectsSafetyWithoutBoundSource()
         {
-            m_controller.SafetyState = null;
-
             string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
 
             Assert.That(facets, Does.Not.Contain("RI-Safety"));
+        }
+
+        [Test]
+        public async Task RegisteredControllerPublishesSafetyFacetWhenSafetySourceIsBound()
+        {
+            await using var fixture = new IntentFacetServerFixture();
+            var runner = new DelegateSetupRunner(async (context, cancellationToken) =>
+            {
+                IIntentControllerBuilder builder = await context.AddIntentControllerAsync(
+                    "SafetyBound",
+                    controller => controller
+                        .WithSafetyState(new StaticSafetySource())
+                        .Accepts<WaitIntentDataType>(),
+                    cancellationToken).ConfigureAwait(false);
+                return [builder.State];
+            });
+            await fixture.StartAsync(runner).ConfigureAwait(false);
+            var controller = (IntentControllerState)runner.Results![0];
+
+            string[] facets = await ReadSupportedFacetsAsync(controller).ConfigureAwait(false);
+
+            Assert.That(facets, Does.Contain("RI-Safety"));
         }
 
         [Test]
@@ -500,7 +547,7 @@ namespace Opc.Ua.Robotics.Tests
             string[] beforeReference = await ReadSupportedFacetsAsync(controller).ConfigureAwait(false);
 
             controller.AddReference(
-                HasIntentControllerReferenceTypeId(),
+                HasIntentControllerReferenceTypeId(fixture.Manager.SystemContext.NamespaceUris),
                 true,
                 new NodeId("MotionDeviceSystem", 2));
 
@@ -656,7 +703,6 @@ namespace Opc.Ua.Robotics.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(supportedFacets, Is.Not.Null);
                 Assert.That(supportedFacets.DataType, Is.EqualTo(global::Opc.Ua.DataTypeIds.String));
                 Assert.That(supportedFacets.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
                 Assert.That(writeResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotWritable));
@@ -719,6 +765,18 @@ namespace Opc.Ua.Robotics.Tests
             m_controller.Locations!.AddChild(location);
         }
 
+        private void AddRealTimeChannel(string browseName)
+        {
+            m_controller.AddRealTimeChannels(m_context);
+            RealTimeChannelState channel = OpcUaRobotIntentExtensions.CreateInstanceOfRealTimeChannelType(
+                m_context,
+                m_controller.RealTimeChannels!,
+                new QualifiedName(browseName, 1));
+            channel.CreateOrReplaceChannelId(m_context, null);
+            channel.ChannelId!.Value = browseName;
+            m_controller.RealTimeChannels!.AddChild(channel);
+        }
+
         private void AddIntentControllerOfReference()
         {
             m_controller.AddReference(
@@ -762,10 +820,15 @@ namespace Opc.Ua.Robotics.Tests
 
         private NodeId HasIntentControllerReferenceTypeId()
         {
+            return HasIntentControllerReferenceTypeId(m_context.NamespaceUris);
+        }
+
+        private static NodeId HasIntentControllerReferenceTypeId(NamespaceTable namespaceUris)
+        {
             return NodeId.Create(
                 global::Opc.Ua.RobotIntent.ReferenceTypes.HasIntentController,
                 RiNamespaces.RobotIntent,
-                m_context.NamespaceUris);
+                namespaceUris);
         }
 
         private static async Task<string[]> ReadSupportedFacetsAsync(IntentControllerState controller)
@@ -798,6 +861,8 @@ namespace Opc.Ua.Robotics.Tests
 
         private sealed class IntentFacetServerFixture : IAsyncDisposable
         {
+            public RobotIntentNodeManager Manager => m_manager!;
+
             public async Task StartAsync(ControllerSetupRunner runner)
             {
                 m_fixture = new ServerFixture<StandardServer>(
@@ -866,6 +931,21 @@ namespace Opc.Ua.Robotics.Tests
             }
 
             private readonly Func<IRobotIntentBuildContext, CancellationToken, ValueTask<object[]>> m_configure;
+        }
+
+        private sealed class StaticSafetySource : IRobotIntentSafetySource
+        {
+            public ValueTask<RobotIntentSafetySnapshot> ReadAsync(CancellationToken cancellationToken)
+            {
+                return new ValueTask<RobotIntentSafetySnapshot>(new RobotIntentSafetySnapshot(
+                    SafeMotionFunctionEnum.None,
+                    false,
+                    false,
+                    false,
+                    0.0,
+                    true,
+                    LocalizedText.Null));
+            }
         }
 
         private SystemContext m_context = null!;

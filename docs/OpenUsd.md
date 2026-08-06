@@ -157,7 +157,7 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
   locations drive geospatial metadata; a generic connector renders the cell
   live. See [Positioning](Positioning.md).
 * The Robotics samples also include a Robot Intent flow where an OpenUSD viewport prim pick becomes a robot command
-  through `UsdViewOptions.PrimPicked`. See [Robot Intent](RobotIntent.md) and the
+  through `UsdViewOptions.PrimPicked`. See [Robot Intent](Robotics.md#robot-intent) and the
   [Robotics samples](../samples/Robotics/README.md).
 * [`PumpDeviceIntegrationServer`](../samples/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition, cross-server components, and served-asset delivery.
@@ -214,11 +214,12 @@ connector never opens the stage a second time. `CompositeUsdSink` fans values ou
 so the on-disk artefact and the picture never diverge.
 
 The connector client API also exposes `UsdViewOptions.PrimPicked`, a callback that receives picked USD prim paths.
-`UsdViewOptions.PickMode` defaults to `Auto`: the optional viewer first tries renderer-backed pointer picking and
-falls back to a command prim if the live renderer cannot be reached. Set it to `Renderer` to require mouse picking or
-`CommandPrim` to use only the fallback. For the fallback, set a `targetPrim` relationship, string attribute, or token
-attribute on `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`) and the callback fires when that target
-changes.
+With the current OpenUSD package version, no `IRenderPickingBackend` is reachable through the viewport object graph, so
+renderer-backed picking does not produce picks. The working path is the command-prim fallback: `Auto` degrades to it
+immediately, `CommandPrim` uses it directly, and `Renderer` will not pick until upstream exposes a reachable picking
+backend. For the fallback, set a `targetPrim` relationship, string attribute, or token attribute on
+`UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`) and the callback fires when that target changes.
+The upstream gaps are tracked in `marcschier/openusd-dotnet` issues #1, #5, #8, #9, #10 and #11.
 
 > The viewport requires .NET 10 on `win-x64` and the OpenUSD packages
 > (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging.win-x64`), which are published on nuget.org, so a plain

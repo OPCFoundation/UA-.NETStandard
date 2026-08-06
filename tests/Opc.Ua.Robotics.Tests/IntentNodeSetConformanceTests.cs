@@ -125,10 +125,12 @@ namespace Opc.Ua.Robotics.Server.Tests
                 AssertHasReference(intentOperationType, "HasSubtype", "i=2391", false, "IntentOperationType base type");
                 AssertHasReference(missionType, "HasSubtype", "i=2391", false, "MissionType base type");
                 Assert.That(finalResultData.Name.LocalName, Is.EqualTo("UAObject"));
+                Assert.That(finalResultData.Attribute("BrowseName")?.Value, Is.EqualTo("FinalResultData"));
                 AssertHasReference(finalResultData, "HasComponent", "ns=1;i=1003", false, "FinalResultData parent");
                 AssertHasReference(finalResultData, "HasTypeDefinition", "i=58", true, "FinalResultData type");
                 AssertHasReference(finalResultData, "HasModellingRule", "i=78", true, "FinalResultData rule");
                 Assert.That(programDiagnostic.Name.LocalName, Is.EqualTo("UAVariable"));
+                Assert.That(programDiagnostic.Attribute("BrowseName")?.Value, Is.EqualTo("ProgramDiagnostic"));
                 Assert.That(NormalizeNodeId(programDiagnostic.Attribute("DataType")?.Value), Is.EqualTo("i=24033"));
                 AssertHasReference(programDiagnostic, "HasComponent", "ns=1;i=1003", false, "ProgramDiagnostic parent");
                 AssertHasReference(programDiagnostic, "HasTypeDefinition", "i=15383", true, "ProgramDiagnostic type");

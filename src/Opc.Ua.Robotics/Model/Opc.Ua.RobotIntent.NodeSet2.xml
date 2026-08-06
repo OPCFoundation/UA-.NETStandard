@@ -600,7 +600,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
       <Reference ReferenceType="HasEncoding">ns=1;i=5018</Reference>
     </References>
-    <Definition Name="IntentCapabilityDataType"><Field Name="IntentType" DataType="i=17"><Description>The DataType of the intent, a subtype of IntentDataType.</Description></Field><Field Name="Description" DataType="i=21"><Description>What this Server does with it.</Description></Field><Field Name="CancelSupported" DataType="i=1"><Description>True when Cancel is honoured for it. A Server may still refuse a particular cancel; see clause 6.5.</Description></Field><Field Name="PauseSupported" DataType="i=1"><Description>True when Pause and Resume are honoured.</Description></Field><Field Name="RetrySupported" DataType="i=1"><Description>True when it can terminate Retriable and be re-attempted.</Description></Field><Field Name="SupportedBufferModes" DataType="ns=1;i=3002" ValueRank="1"><Description>Buffer modes accepted for it. Aborting is always accepted and always listed.</Description></Field><Field Name="SupportedBlockingModes" DataType="ns=1;i=3003" ValueRank="1"><Description>Blocking modes accepted for it.</Description></Field><Field Name="Attributes" DataType="i=14533" ValueRank="1"><Description>Named parameters this Server recognises in the intent's Attributes field.</Description></Field></Definition>
+    <Definition Name="IntentCapabilityDataType"><Field Name="IntentType" DataType="i=17"><Description>The DataType of the intent, a subtype of IntentDataType.</Description></Field><Field Name="Description" DataType="i=21"><Description>What this Server does with it.</Description></Field><Field Name="CancelSupported" DataType="i=1"><Description>True when Cancel is honoured for it. A Server may still refuse a particular cancel; see clause 6.5.</Description></Field><Field Name="PauseSupported" DataType="i=1"><Description>True when Pause and Resume are honoured for a running intent. False when the Server can only stop its queue: suspending execution means the robot stops, and Suspended is never reported while it is still moving.</Description></Field><Field Name="RetrySupported" DataType="i=1"><Description>True when it can terminate Retriable and be re-attempted.</Description></Field><Field Name="SupportedBufferModes" DataType="ns=1;i=3002" ValueRank="1"><Description>Buffer modes accepted for it. Aborting is always accepted and always listed.</Description></Field><Field Name="SupportedBlockingModes" DataType="ns=1;i=3003" ValueRank="1"><Description>Blocking modes accepted for it.</Description></Field><Field Name="Attributes" DataType="i=14533" ValueRank="1"><Description>Named parameters this Server recognises in the intent's Attributes field.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=1;i=5018" BrowseName="Default Binary" SymbolicName="DefaultBinary">
     <DisplayName>Default Binary</DisplayName>
@@ -2473,7 +2473,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
     </References>
   </UAVariable>
-  <UAObject NodeId="ns=1;i=6137" BrowseName="1:FinalResultData" ParentNodeId="ns=1;i=1003">
+  <UAObject NodeId="ns=1;i=6137" BrowseName="FinalResultData" ParentNodeId="ns=1;i=1003">
     <DisplayName>FinalResultData</DisplayName>
     <Description>Part 10 result container. Carries the same IntentResultDataType value as Result, so a Part 10 client finds the outcome where Part 10 says it will be. Mandatory here because clause 6.7 requires it and an Optional member cannot carry a SHALL.</Description>
     <References>
@@ -2482,9 +2482,9 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1003</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=6138" BrowseName="1:ProgramDiagnostic" ParentNodeId="ns=1;i=1003" DataType="i=24033" ValueRank="-1">
+  <UAVariable NodeId="ns=1;i=6138" BrowseName="ProgramDiagnostic" ParentNodeId="ns=1;i=1003" DataType="i=24033" ValueRank="-1">
     <DisplayName>ProgramDiagnostic</DisplayName>
-    <Description>Part 10 invocation diagnostics: which Session invoked the program, when, with what arguments and to what outcome. Mandatory here because the auditable-commanding property of clause 1.2 is exactly this member, and a capability the specification advertises cannot rest on one a Server may omit. Declared exactly as OPC 10000-10 declares it - a Variable of ProgramDiagnostic2Type reached by HasComponent - because a promotion that altered the inherited member's TypeDefinition or reference type would declare a second member rather than promote the inherited one.</Description>
+    <Description>Part 10 invocation diagnostics: which Session invoked the program, when, with what arguments and to what outcome. Mandatory here because the auditable-commanding property of clause 1.2 is exactly this member, and a capability the specification advertises cannot rest on one a Server may omit. Declared exactly as OPC 10000-10 declares it - a Variable of ProgramDiagnostic2Type reached by HasComponent, with the inherited namespace-0 BrowseName - because a promotion that altered the inherited member's TypeDefinition, reference type or BrowseName namespace would declare a second member rather than promote the inherited one.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=15383</Reference>

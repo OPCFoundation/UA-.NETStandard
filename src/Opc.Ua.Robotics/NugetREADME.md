@@ -41,4 +41,4 @@ frame tree.
 > are **provisional**. The model is a working-group draft and is neither official
 > nor endorsed by the OPC Foundation.
 
-See the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/RobotIntent.md).
+See the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md#robot-intent).

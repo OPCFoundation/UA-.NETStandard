@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Robotics.MinimalIntentRobotServer
+namespace Robotics.IntentEnabledRobot
 {
     /// <summary>
     /// Centrally managed event id offsets for source-generated log messages in this assembly.
     /// </summary>
-    internal static class MinimalIntentRobotServerEventIds
+    internal static class IntentEnabledRobotEventIds
     {
         public const int IntentRobotCell = 0;
         public const int OpenUsdRepresentation = 10;

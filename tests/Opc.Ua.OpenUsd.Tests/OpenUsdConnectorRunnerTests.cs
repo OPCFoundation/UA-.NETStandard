@@ -246,14 +246,5 @@ namespace Opc.Ua.OpenUsd.Client.Tests
 
             await wait;
         }
-
-        [Test]
-        public void ProgramHelperCoversEntrypointFileWithoutRunningNetworkConnector()
-        {
-            Assert.That(OpenUsdConnectorProgram.HasArguments(["--view"]), Is.True);
-            Assert.That(OpenUsdConnectorProgram.HasArguments([]), Is.False);
-            Assert.That(OpenUsdConnectorProgram.NormalizeExitCode(-1), Is.EqualTo(1));
-            Assert.That(OpenUsdConnectorProgram.NormalizeExitCode(5), Is.EqualTo(5));
-        }
     }
 }

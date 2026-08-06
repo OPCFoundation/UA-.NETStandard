@@ -30,7 +30,7 @@
 using System;
 using NUnit.Framework;
 using Opc.Ua.RobotIntent;
-using Robotics.MinimalIntentRobotServer.Kinematics;
+using Robotics.IntentEnabledRobot.Kinematics;
 
 namespace Opc.Ua.Robotics.Tests
 {

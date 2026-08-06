@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -590,6 +592,141 @@ namespace Opc.Ua.Robotics.Tests
                 Assert.That(host.SubmitIntent(m_context, null,
                     new CallProgramIntentDataType { Program = location }).Failure,
                     Is.EqualTo(IntentFailureEnum.ParameterInvalid));
+            });
+        }
+
+        [Test]
+        public void EveryGeneratedNodeIdIntentMemberIsValidatedAgainstControllerScope()
+        {
+            NodeId location = new("loc", 1);
+            NodeId tool = new("tool", 1);
+            NodeId toolFrame = new("toolFrame", 1);
+            NodeId output = new("out", 1);
+            NodeId booleanVariable = new("bool", 1);
+            NodeId program = new("program", 1);
+            NodeId arbitrary = new("attacker", 1);
+            IntentControllerHostOptions options = Options();
+            options.Accept(RiDataTypeIds.JointMoveIntentDataType);
+            options.Accept(RiDataTypeIds.CircularMoveIntentDataType);
+            options.Accept(RiDataTypeIds.GraspIntentDataType);
+            options.Accept(RiDataTypeIds.ReleaseIntentDataType);
+            using IntentControllerHost host = NewHost(options, controller =>
+            {
+                AddLocation(controller, location);
+                AddTool(controller, tool);
+                AddFrame(controller, toolFrame, FrameRoleEnum.Tool, "tool");
+                AddOutput(controller, output, global::Opc.Ua.DataTypeIds.Boolean);
+                AddBooleanVariable(controller, booleanVariable);
+                AddProgram(controller, program);
+            });
+
+            var factories = new Dictionary<Type, Func<IntentDataType>>
+            {
+                [typeof(LinearMoveIntentDataType)] = () => new LinearMoveIntentDataType
+                {
+                    Target = Pose(),
+                    ToolFrame = toolFrame
+                },
+                [typeof(JointMoveIntentDataType)] = () => new JointMoveIntentDataType
+                {
+                    HasJointTargets = true,
+                    JointTargets = new[] { 0.0, 0.1, 0.2, 0.3, 0.4, 0.5 },
+                    ToolFrame = toolFrame
+                },
+                [typeof(CircularMoveIntentDataType)] = () => new CircularMoveIntentDataType
+                {
+                    ViaPoint = Pose(),
+                    Target = Pose(),
+                    ToolFrame = toolFrame
+                },
+                [typeof(TrajectoryIntentDataType)] = () => new TrajectoryIntentDataType
+                {
+                    Points = new[] { Point(10), Point(20) },
+                    ToolFrame = toolFrame
+                },
+                [typeof(CartesianPathIntentDataType)] = () => new CartesianPathIntentDataType
+                {
+                    Waypoints = new[] { new PathWaypointDataType { Pose = Pose() } },
+                    ToolFrame = toolFrame
+                },
+                [typeof(ForceIntentDataType)] = () => new ForceIntentDataType
+                {
+                    Direction = new[] { 0.0, 0.0, -1.0 },
+                    ContactForce = 5,
+                    MaxDistance = 0.1,
+                    ToolFrame = toolFrame
+                },
+                [typeof(ArcWeldIntentDataType)] = () => new ArcWeldIntentDataType { ProcessProgram = program },
+                [typeof(SpotWeldIntentDataType)] = () => new SpotWeldIntentDataType { ProcessProgram = program },
+                [typeof(DispenseIntentDataType)] = () => new DispenseIntentDataType { ProcessProgram = program },
+                [typeof(FastenIntentDataType)] = () => new FastenIntentDataType(),
+                [typeof(PalletiseIntentDataType)] = () => new PalletiseIntentDataType { Pattern = location },
+                [typeof(SurfaceFinishIntentDataType)] = () => new SurfaceFinishIntentDataType
+                {
+                    ProcessProgram = program
+                },
+                [typeof(PlaceIntentDataType)] = () => new PlaceIntentDataType
+                {
+                    Destination = location,
+                    Tool = tool
+                },
+                [typeof(PickIntentDataType)] = () => new PickIntentDataType
+                {
+                    Source = location,
+                    Tool = tool
+                },
+                [typeof(ToolChangeIntentDataType)] = () => new ToolChangeIntentDataType
+                {
+                    Tool = tool,
+                    DockStation = location
+                },
+                [typeof(GraspIntentDataType)] = () => new GraspIntentDataType { Tool = tool },
+                [typeof(ReleaseIntentDataType)] = () => new ReleaseIntentDataType { Tool = tool },
+                [typeof(SetOutputIntentDataType)] = () => new SetOutputIntentDataType
+                {
+                    Output = output,
+                    Value = new Variant(true)
+                },
+                [typeof(CallProgramIntentDataType)] = () => new CallProgramIntentDataType { Program = program },
+                [typeof(WaitIntentDataType)] = () => new WaitIntentDataType { Signal = booleanVariable }
+            };
+            var cases = typeof(IntentDataType).Assembly.GetTypes()
+                .Where(static type => !type.IsAbstract &&
+                    type != typeof(MotionIntentDataType) &&
+                    type != typeof(ProcessIntentDataType) &&
+                    typeof(IntentDataType).IsAssignableFrom(type))
+                .Select(type => new
+                {
+                    Type = type,
+                    Properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                        .Where(static property => property.PropertyType == typeof(NodeId) &&
+                            property.SetMethod != null)
+                        .ToArray()
+                })
+                .Where(static item => item.Properties.Length > 0)
+                .ToArray();
+
+            Assert.Multiple(() =>
+            {
+                foreach (var item in cases)
+                {
+                    Assert.That(factories.TryGetValue(item.Type, out Func<IntentDataType>? factory), Is.True,
+                        $"add a scoped-reference test factory for {item.Type.Name}");
+                    if (factory == null)
+                    {
+                        continue;
+                    }
+                    Assert.That(host.SubmitIntent(m_context, null, factory()).Accepted, Is.True,
+                        $"{item.Type.Name} test factory must produce an admissible intent");
+                    foreach (PropertyInfo property in item.Properties)
+                    {
+                        IntentDataType intent = factory();
+                        property.SetValue(intent, arbitrary);
+                        IntentAdmission admission = host.SubmitIntent(m_context, null, intent);
+                        Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.ParameterInvalid),
+                            $"{item.Type.Name}.{property.Name} must be rejected when outside the controller scope");
+                    }
+                }
             });
         }
 

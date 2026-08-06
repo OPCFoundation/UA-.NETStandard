@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+using System.Linq;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Robotics.Server;
@@ -77,6 +79,8 @@ namespace Opc.Ua.Robotics.Tests
                 Assert.That(returned, Is.SameAs(motionBuilder.Object));
                 Assert.That(motionState.ReferenceExists(referenceTypeId, false, controllerState.NodeId), Is.True);
                 Assert.That(controllerState.ReferenceExists(referenceTypeId, true, motionState.NodeId), Is.True);
+                Assert.That(CountReferences(motionState, referenceTypeId, false, controllerState.NodeId), Is.EqualTo(1));
+                Assert.That(CountReferences(controllerState, referenceTypeId, true, motionState.NodeId), Is.EqualTo(1));
             });
         }
 
@@ -107,6 +111,20 @@ namespace Opc.Ua.Robotics.Tests
                 NamespaceUris = messageContext.NamespaceUris,
                 EncodeableFactory = messageContext.Factory
             };
+        }
+
+        private static int CountReferences(
+            NodeState node,
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId)
+        {
+            var references = new List<IReference>();
+            node.GetReferences(null!, references);
+            return references.Count(reference =>
+                reference.ReferenceTypeId == referenceTypeId &&
+                reference.IsInverse == isInverse &&
+                reference.TargetId == targetId);
         }
     }
 }

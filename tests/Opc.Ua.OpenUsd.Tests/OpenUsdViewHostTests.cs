@@ -162,7 +162,9 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         public async Task RendererPickDispatchCreatesRequestBeforeHopAndRaisesHit()
         {
             int callerThread = Environment.CurrentManagedThreadId;
-            var backend = new SequencePickBackend(static request => Hit(request, "/World/RobotTargets/TargetA"));
+            var backend = new ThreadAffinityPickBackend(
+                callerThread,
+                static request => Hit(request, "/World/RobotTargets/TargetA"));
             bool createdOnCallerThread = false;
             string? picked = null;
             int reports = 0;
@@ -237,7 +239,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public async Task RendererPickFailureInRendererModeDoesNotStartCommandFallback()
+        public async Task RendererPickFailureInRendererModeStartsCommandFallback()
         {
             int reports = 0;
             int fallbackStarts = 0;
@@ -253,9 +255,9 @@ namespace Opc.Ua.OpenUsd.Client.Tests
                 fallback,
                 CancellationToken.None);
 
-            Assert.That(outcome, Is.EqualTo(RendererPickFailureFallback.None));
+            Assert.That(outcome, Is.EqualTo(RendererPickFailureFallback.CommandPrim));
             Assert.That(reports, Is.EqualTo(1));
-            Assert.That(fallbackStarts, Is.Zero);
+            Assert.That(fallbackStarts, Is.EqualTo(1));
         }
 
         [Test]
@@ -269,7 +271,8 @@ namespace Opc.Ua.OpenUsd.Client.Tests
                 Is.EqualTo(new PickModeDecision(true, false)));
             Assert.That(PickModeSelection.Select(UsdViewPickMode.Renderer, hasCallback: true, rendererStarted: false),
                 Is.EqualTo(new PickModeDecision(true, false)));
-            Assert.That(PickModeSelection.Select(UsdViewPickMode.CommandPrim, hasCallback: true, rendererStarted: false),
+            Assert.That(PickModeSelection.Select(
+                    UsdViewPickMode.CommandPrim, hasCallback: true, rendererStarted: false),
                 Is.EqualTo(new PickModeDecision(false, true)));
 
             var decision = new PickModeDecision(ProbeRenderer: true, WatchCommandPrim: false);
@@ -291,27 +294,23 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public async Task BackendDiscoveryPrefersFieldsBeforeProperties()
+        public void BackendDiscoveryDoesNotBindSynchronousPickMethods()
         {
             var root = new global::OpenUsd.TestDoubles.RootWithFieldAndProperty();
 
             IOpenUsdPickBackend? backend = RendererPickBackendDiscovery.TryFindPickBackend(root);
 
-            Assert.That(backend, Is.Not.Null);
-            RenderPickResult result = await backend!.PickAsync(MakeRequest(), CancellationToken.None);
-            Assert.That(result.PrimPath, Is.EqualTo("/World/Field"));
+            Assert.That(backend, Is.Null);
         }
 
         [Test]
-        public async Task BackendDiscoveryUsesPropertiesAfterFieldPass()
+        public void BackendDiscoveryDoesNotBindSynchronousPickProperties()
         {
             var root = new global::OpenUsd.TestDoubles.RootWithPropertyBackend();
 
             IOpenUsdPickBackend? backend = RendererPickBackendDiscovery.TryFindPickBackend(root);
 
-            Assert.That(backend, Is.Not.Null);
-            RenderPickResult result = await backend!.PickAsync(MakeRequest(), CancellationToken.None);
-            Assert.That(result.PrimPath, Is.EqualTo("/World/Property"));
+            Assert.That(backend, Is.Null);
         }
 
         [Test]
@@ -379,6 +378,35 @@ namespace Opc.Ua.OpenUsd.Client.Tests
                 cancellationToken.ThrowIfCancellationRequested();
                 Requests.Add(request);
                 return ValueTask.FromResult(m_results.Dequeue()(request));
+            }
+        }
+
+        private sealed class ThreadAffinityPickBackend : IOpenUsdPickBackend
+        {
+            private readonly int m_ownerThreadId;
+            private readonly Func<RenderPickRequest, RenderPickResult> m_result;
+
+            public ThreadAffinityPickBackend(
+                int ownerThreadId,
+                Func<RenderPickRequest, RenderPickResult> result)
+            {
+                m_ownerThreadId = ownerThreadId;
+                m_result = result;
+            }
+
+            public List<RenderPickRequest> Requests { get; } = [];
+
+            public ValueTask<RenderPickResult> PickAsync(
+                RenderPickRequest request,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (Environment.CurrentManagedThreadId != m_ownerThreadId)
+                {
+                    throw new InvalidOperationException("Renderer pick was invoked off the owning thread.");
+                }
+                Requests.Add(request);
+                return ValueTask.FromResult(m_result(request));
             }
         }
     }

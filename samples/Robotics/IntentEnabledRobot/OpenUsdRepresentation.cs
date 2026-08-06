@@ -38,7 +38,7 @@ using Opc.Ua.OpenUsd;
 using Opc.Ua.OpenUsd.Server;
 using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
-namespace Robotics.MinimalIntentRobotServer
+namespace Robotics.IntentEnabledRobot
 {
     /// <summary>
     /// Publishes the OpenUSD representation for the minimal Robot Intent sample.
@@ -271,17 +271,17 @@ namespace Robotics.MinimalIntentRobotServer
 
     internal static partial class OpenUsdRepresentationLog
     {
-        [LoggerMessage(EventId = MinimalIntentRobotServerEventIds.OpenUsdRepresentation + 1,
+        [LoggerMessage(EventId = IntentEnabledRobotEventIds.OpenUsdRepresentation + 1,
             Level = LogLevel.Information,
             Message = "Materialised OpenUSD facility (root {RootId}, stage {StageId}).")]
         public static partial void MaterialisedOpenUsdFacility(this ILogger logger, NodeId rootId, NodeId stageId);
 
-        [LoggerMessage(EventId = MinimalIntentRobotServerEventIds.OpenUsdRepresentation + 2,
+        [LoggerMessage(EventId = IntentEnabledRobotEventIds.OpenUsdRepresentation + 2,
             Level = LogLevel.Error,
             Message = "Failed to materialise the OpenUSD facility.")]
         public static partial void OpenUsdFacilityFailed(this ILogger logger, Exception exception);
 
-        [LoggerMessage(EventId = MinimalIntentRobotServerEventIds.OpenUsdRepresentation + 3,
+        [LoggerMessage(EventId = IntentEnabledRobotEventIds.OpenUsdRepresentation + 3,
             Level = LogLevel.Information,
             Message = "Materialised {RepresentationCount} OpenUSD representations with " +
                 "{LocationCount} target mappings.")]

@@ -89,6 +89,28 @@ namespace Opc.Ua.Robotics.Server.Tests
         }
 
         [Test]
+        public void ResolvesFrameToRootWithNonIdentityParentOrientation()
+        {
+            var tree = new FrameTree();
+            double quarterTurn = Math.Sqrt(0.5);
+            AddFrame(tree, "world", string.Empty, Pose("world"), FrameRoleEnum.World);
+            AddFrame(
+                tree,
+                "base",
+                "world",
+                Pose("base", 1.0, 0.0, 0.0, 0.0, 0.0, quarterTurn, quarterTurn),
+                FrameRoleEnum.Base);
+            AddFrame(tree, "tool", "base", Pose("tool", 1.0, 0.0, 0.0), FrameRoleEnum.Tool);
+
+            bool resolved = tree.TryResolveToRoot("tool", out Pose3DDataType transform, out string? error);
+
+            Assert.That(resolved, Is.True);
+            Assert.That(error, Is.Null);
+            AssertPositionEqual([1.0, 1.0, 0.0], transform.Position.Span, 1e-12);
+            AssertQuaternionEqual([0.0, 0.0, quarterTurn, quarterTurn], transform.Orientation.Span, 1e-12);
+        }
+
+        [Test]
         public void ExpressesPoseRelativeToIntermediateTargetFrame()
         {
             FrameTree tree = BuildTree();
@@ -317,11 +339,24 @@ namespace Opc.Ua.Robotics.Server.Tests
 
         private static Pose3DDataType Pose(string frameId, double x = 0.0, double y = 0.0, double z = 0.0)
         {
+            return Pose(frameId, x, y, z, 0.0, 0.0, 0.0, 1.0);
+        }
+
+        private static Pose3DDataType Pose(
+            string frameId,
+            double x,
+            double y,
+            double z,
+            double qx,
+            double qy,
+            double qz,
+            double qw)
+        {
             return new Pose3DDataType
             {
                 FrameId = frameId,
                 Position = ArrayOf.Create([x, y, z]),
-                Orientation = ArrayOf.Create([0.0, 0.0, 0.0, 1.0])
+                Orientation = ArrayOf.Create([qx, qy, qz, qw])
             };
         }
 

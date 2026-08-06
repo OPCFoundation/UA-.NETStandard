@@ -42,5 +42,5 @@ code concise.
 > official nor endorsed by the OPC Foundation.
 
 See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md),
-the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/RobotIntent.md),
+the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md#robot-intent),
 and the [OpenUSD binding guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/OpenUsd.md).

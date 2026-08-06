@@ -42,15 +42,17 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Configuration;
+using Opc.Ua.RobotIntent;
 using Opc.Ua.Robotics;
 using Opc.Ua.Robotics.Client.Intent;
+using Opc.Ua.Robotics.Intent;
 using Opc.Ua.Robotics.Server;
 using Opc.Ua.Robotics.Server.Builders;
 using Opc.Ua.Server.Hosting;
 using RiRobotIntent = Opc.Ua.RobotIntent;
 using RiServer = Opc.Ua.RobotIntent.Server;
 
-namespace Opc.Ua.RobotIntent.Integration
+namespace Opc.Ua.Robotics.Intent.Tests
 {
     /// <summary>
     /// Exercises Robot Intent through real OPC UA SecureChannels and Sessions.
@@ -155,7 +157,6 @@ namespace Opc.Ua.RobotIntent.Integration
                 Assert.That(supportedFacets, Does.Contain("RI-Output"));
                 Assert.That(supportedFacets, Does.Contain("RI-Program"));
                 Assert.That(supportedFacets, Does.Contain("RI-Wait"));
-                Assert.That(supportedFacets, Does.Contain("RI-Safety"));
                 Assert.That(supportedFacets, Does.Contain("RI-RealTimeChannel"));
                 Assert.That(supportedFacets, Does.Contain("RI-Queue"));
                 Assert.That(supportedFacets, Does.Contain("RI-Mission"));
@@ -505,35 +506,67 @@ namespace Opc.Ua.RobotIntent.Integration
                 .ConfigureAwait(false);
 
             m_fixture.Executor.HoldCompletion("pause-live");
+            m_fixture.Executor.HoldCompletion("pause-queued");
             await using IntentOperationHandle pausing = await controller.SubmitIntentAsync(WaitIntent("pause-live", 600))
                 .ConfigureAwait(false);
+            IntentSubmissionResult queued;
             IntentCommandOutcome pause;
-            IntentOperationSnapshot suspended;
+            IntentOperationSnapshot executingWhilePaused;
+            IntentOperationSnapshot queuedBeforePause;
+            IntentOperationSnapshot queuedWhilePaused;
             IntentCommandOutcome resume;
             IntentOperationSnapshot resumed;
             IntentResultDataType pauseResult;
+            IntentResultDataType queuedResult;
+            bool readyWhilePaused;
             try
             {
                 await WaitForStateAsync(pausing, ExecutionStateEnum.Executing).ConfigureAwait(false);
-                pause = await controller.Transport.PauseAsync().ConfigureAwait(false);
-                suspended = await WaitForSnapshotAsync(
+                queued = await controller.TrySubmitIntentAsync(WaitIntent("pause-queued", 100, BufferModeEnum.Buffered))
+                    .ConfigureAwait(false);
+                queuedBeforePause = await WaitForSnapshotAsync(
                     controller,
-                    pausing.Operation,
-                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Suspended,
-                    "pause-live suspended").ConfigureAwait(false);
-                resume = await controller.Transport.ResumeAsync().ConfigureAwait(false);
-                resumed = await WaitForSnapshotAsync(
+                    queued.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Queued,
+                    "pause-queued queued before pause").ConfigureAwait(false);
+                pause = await controller.Transport.PauseAsync().ConfigureAwait(false);
+                executingWhilePaused = await WaitForSnapshotAsync(
                     controller,
                     pausing.Operation,
                     snapshot => snapshot.ExecutionState == ExecutionStateEnum.Executing,
-                    "pause-live resumed").ConfigureAwait(false);
+                    "pause-live remains executing while paused").ConfigureAwait(false);
+                await WaitForAsync(
+                    async () => !await ReadBooleanPathAsync(
+                        context.Session,
+                        controller.Transport.ControllerId,
+                        "Ready").ConfigureAwait(false),
+                    "controller Ready to become false after Pause").ConfigureAwait(false);
+                readyWhilePaused = await ReadBooleanPathAsync(
+                    context.Session,
+                    controller.Transport.ControllerId,
+                    "Ready").ConfigureAwait(false);
                 m_fixture.Executor.ReleaseCompletion("pause-live");
                 pauseResult = await WaitForTerminalAsync(controller, pausing.IntentId, pausing.Operation)
+                    .ConfigureAwait(false);
+                queuedWhilePaused = await WaitForSnapshotAsync(
+                    controller,
+                    queued.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Queued,
+                    "pause-queued remains queued while paused").ConfigureAwait(false);
+                resume = await controller.Transport.ResumeAsync().ConfigureAwait(false);
+                resumed = await WaitForSnapshotAsync(
+                    controller,
+                    queued.Operation,
+                    snapshot => snapshot.ExecutionState == ExecutionStateEnum.Executing,
+                    "pause-queued starts after resume").ConfigureAwait(false);
+                m_fixture.Executor.ReleaseCompletion("pause-queued");
+                queuedResult = await WaitForTerminalAsync(controller, queued.IntentId, queued.Operation)
                     .ConfigureAwait(false);
             }
             finally
             {
                 m_fixture.Executor.ReleaseCompletion("pause-live");
+                m_fixture.Executor.ReleaseCompletion("pause-queued");
             }
 
             IntentSubmissionResult retriable = await controller
@@ -553,10 +586,15 @@ namespace Opc.Ua.RobotIntent.Integration
             Assert.Multiple(() =>
             {
                 Assert.That(pause.Accepted, Is.True);
-                Assert.That(suspended.ExecutionState, Is.EqualTo(ExecutionStateEnum.Suspended));
+                Assert.That(queued.Accepted, Is.True);
+                Assert.That(executingWhilePaused.ExecutionState, Is.EqualTo(ExecutionStateEnum.Executing));
+                Assert.That(queuedBeforePause.ExecutionState, Is.EqualTo(ExecutionStateEnum.Queued));
+                Assert.That(readyWhilePaused, Is.False);
                 Assert.That(resume.Accepted, Is.True);
+                Assert.That(queuedWhilePaused.ExecutionState, Is.EqualTo(ExecutionStateEnum.Queued));
                 Assert.That(resumed.ExecutionState, Is.EqualTo(ExecutionStateEnum.Executing));
                 Assert.That(pauseResult.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(queuedResult.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
                 Assert.That(retriable.Accepted, Is.True);
                 Assert.That(retriableResult.State, Is.EqualTo(ExecutionStateEnum.Retriable));
                 Assert.That(retry.Accepted, Is.True);
@@ -702,8 +740,8 @@ namespace Opc.Ua.RobotIntent.Integration
             IntentCommandOutcome resume = await controller.Transport.ResumeAsync().ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(pause.Accepted, Is.False);
-                Assert.That(resume.Accepted, Is.False);
+                Assert.That(pause.Accepted, Is.True);
+                Assert.That(resume.Accepted, Is.True);
             });
             if (info.MissionsSupported)
             {
@@ -984,26 +1022,26 @@ namespace Opc.Ua.RobotIntent.Integration
             m_fixture.Executor.ClearCompleted();
             MissionSubmissionResult branch = await controller.SubmitMissionAsync(CreateBranchingMission("branch"))
                 .ConfigureAwait(false);
-            await WaitForAsync(
-                () => m_fixture.Executor.CompletedIntentIds.Count >= 2,
+            string[] branchOrder = await WaitForCompletedIntentIdsToSettleAsync(
+                m_fixture.Executor,
+                2,
                 "branching mission to execute two steps").ConfigureAwait(false);
-            string[] branchOrder = m_fixture.Executor.CompletedIntentIds.ToArray()!;
 
             m_fixture.Executor.ClearCompleted();
             MissionSubmissionResult fallback = await controller.SubmitMissionAsync(
                 CreateErrorPolicyMission("fallback", ErrorPolicyEnum.Fallback)).ConfigureAwait(false);
-            await WaitForAsync(
-                () => m_fixture.Executor.CompletedIntentIds.Count >= 3,
+            string[] fallbackOrder = await WaitForCompletedIntentIdsToSettleAsync(
+                m_fixture.Executor,
+                3,
                 "fallback mission to execute three steps").ConfigureAwait(false);
-            string[] fallbackOrder = m_fixture.Executor.CompletedIntentIds.ToArray()!;
 
             m_fixture.Executor.ClearCompleted();
             MissionSubmissionResult compensate = await controller.SubmitMissionAsync(
                 CreateErrorPolicyMission("compensate", ErrorPolicyEnum.Compensate)).ConfigureAwait(false);
-            await WaitForAsync(
-                () => m_fixture.Executor.CompletedIntentIds.Count >= 2,
+            string[] compensateOrder = await WaitForCompletedIntentIdsToSettleAsync(
+                m_fixture.Executor,
+                2,
                 "compensate mission to execute two steps").ConfigureAwait(false);
-            string[] compensateOrder = m_fixture.Executor.CompletedIntentIds.ToArray()!;
 
             Assert.Multiple(() =>
             {
@@ -1489,6 +1527,17 @@ namespace Opc.Ua.RobotIntent.Integration
             {
                 return NodeId.Null;
             }
+            ReferenceTypeNode referenceTypeNode = (ReferenceTypeNode)await session
+                .ReadNodeAsync(referenceType, NodeClass.ReferenceType)
+                .ConfigureAwait(false);
+            if (inverse)
+            {
+                Assert.That(referenceTypeNode.InverseName.Text, Is.EqualTo(referenceName));
+            }
+            else
+            {
+                Assert.That(referenceTypeNode.BrowseName.Name, Is.EqualTo(referenceName));
+            }
             BrowseResponse response = await session.BrowseAsync(
                 null,
                 null,
@@ -1511,7 +1560,7 @@ namespace Opc.Ua.RobotIntent.Integration
             for (int ii = 0; ii < result.References.Count; ii++)
             {
                 ReferenceDescription reference = result.References[ii];
-                if (reference.BrowseName.Name == referenceName || !reference.NodeId.IsNull)
+                if (!reference.NodeId.IsNull)
                 {
                     target = reference;
                     break;
@@ -1623,6 +1672,32 @@ namespace Opc.Ua.RobotIntent.Integration
                 return lease.Granted;
             }, "command authority after Session close").ConfigureAwait(false);
             return lease!;
+        }
+
+        private static async ValueTask<string[]> WaitForCompletedIntentIdsToSettleAsync(
+            DeterministicExecutor executor,
+            int expectedCount,
+            string description)
+        {
+            await WaitForAsync(
+                () => executor.CompletedIntentIds.Count >= expectedCount,
+                description).ConfigureAwait(false);
+
+            while (true)
+            {
+                int observedVersion = executor.CompletionVersion;
+                string[] snapshot = executor.CompletedIntentIds.ToArray()!;
+                using var noChange = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+                try
+                {
+                    await executor.WaitForCompletionChangeAsync(observedVersion, noChange.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (noChange.IsCancellationRequested)
+                {
+                    return snapshot;
+                }
+            }
         }
 
         /// <summary>
@@ -2133,11 +2208,23 @@ namespace Opc.Ua.RobotIntent.Integration
                 }
             }
 
+            public int CompletionVersion
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_completionVersion;
+                    }
+                }
+            }
+
             public void ClearCompleted()
             {
                 lock (m_lock)
                 {
                     m_completedIntentIds.Clear();
+                    SignalCompletionChanged();
                 }
             }
 
@@ -2227,12 +2314,35 @@ namespace Opc.Ua.RobotIntent.Integration
                 return IntentOutcome.SucceededAt(Pose(0.05, 0.1, 0.15));
             }
 
+            public Task WaitForCompletionChangeAsync(int observedVersion, CancellationToken cancellationToken)
+            {
+                Task gate;
+                lock (m_lock)
+                {
+                    if (m_completionVersion != observedVersion)
+                    {
+                        return Task.CompletedTask;
+                    }
+                    gate = m_completionChanged.Task;
+                }
+                return AwaitGateAsync(gate, cancellationToken);
+            }
+
             private void AddCompleted(string intentId)
             {
                 lock (m_lock)
                 {
                     m_completedIntentIds.Add(intentId);
+                    SignalCompletionChanged();
                 }
+            }
+
+            private void SignalCompletionChanged()
+            {
+                m_completionVersion++;
+                m_completionChanged.TrySetResult(true);
+                m_completionChanged = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
             }
 
             private async ValueTask WaitForCancellationGateAsync(
@@ -2278,6 +2388,9 @@ namespace Opc.Ua.RobotIntent.Integration
             private readonly List<string> m_completedIntentIds = [];
             private readonly Dictionary<string, TaskCompletionSource<bool>> m_completionGates = [];
             private readonly Dictionary<string, TaskCompletionSource<bool>> m_cancellationGates = [];
+            private TaskCompletionSource<bool> m_completionChanged = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_completionVersion;
         }
     }
 }

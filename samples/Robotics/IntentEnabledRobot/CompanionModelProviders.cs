@@ -32,7 +32,7 @@ using Opc.Ua;
 using Opc.Ua.OpenUsd;
 using Opc.Ua.Robotics.Server;
 
-namespace Robotics.MinimalIntentRobotServer
+namespace Robotics.IntentEnabledRobot
 {
     /// <summary>
     /// Contributes the compiled OpenUSD companion model to the standalone Robot Intent manager.

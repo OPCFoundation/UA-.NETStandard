@@ -91,6 +91,32 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
+        public async Task SubmitIntentRefusalAcceptsNullVariantOutputs()
+        {
+            ArrayOf<Variant> outputs =
+            [
+                Variant.From(false),
+                Variant.Null,
+                Variant.Null,
+                Variant.From(IntentFailureEnum.ControlNotOwned),
+                Variant.Null
+            ];
+            using TransportHarness harness = TransportHarness.Create(outputs);
+
+            IntentSubmissionResult result = await harness.Transport.SubmitIntentAsync(WaitIntent());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Accepted, Is.False);
+                Assert.That(result.IntentId, Is.Empty);
+                Assert.That(result.Operation.IsNull, Is.True);
+                Assert.That(result.Failure, Is.EqualTo(IntentFailureEnum.ControlNotOwned));
+                Assert.That(result.Message, Is.EqualTo(LocalizedText.Null));
+            });
+        }
+
+
+        [Test]
         public void SubmitIntentBadStatusCodeThrowsServiceFault()
         {
             using TransportHarness harness = TransportHarness.Create([], StatusCodes.BadUserAccessDenied);

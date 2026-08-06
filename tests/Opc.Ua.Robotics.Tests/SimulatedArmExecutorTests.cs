@@ -33,8 +33,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.RobotIntent;
-using Robotics.MinimalIntentRobotServer.Kinematics;
-using Robotics.MinimalIntentRobotServer.Simulation;
+using Robotics.IntentEnabledRobot.Kinematics;
+using Robotics.IntentEnabledRobot.Simulation;
 
 namespace Opc.Ua.Robotics.Tests
 {
@@ -48,6 +48,8 @@ namespace Opc.Ua.Robotics.Tests
             var clockB = new ManualSimulatedArmClock();
             var executorA = new SimulatedArmExecutor(new SimulatedArmKinematics(), clockA);
             var executorB = new SimulatedArmExecutor(new SimulatedArmKinematics(), clockB);
+            await MoveToNonSingularStartAsync(executorA, clockA, "circ-start-a").ConfigureAwait(false);
+            await MoveToNonSingularStartAsync(executorB, clockB, "circ-start-b").ConfigureAwait(false);
             Pose3DDataType start = executorA.CurrentSnapshot.ToolPose;
             Pose3DDataType viaA = Offset(start, 0.02, 0.03, 0.02, [0.0, 0.0, 0.0, 1.0]);
             Pose3DDataType viaB = Offset(start, 0.02, 0.03, 0.02, [0.0, 0.0, 1.0, 0.0]);
@@ -104,6 +106,7 @@ namespace Opc.Ua.Robotics.Tests
         {
             var clock = new ManualSimulatedArmClock();
             var executor = new SimulatedArmExecutor(new SimulatedArmKinematics(), clock);
+            await MoveToNonSingularStartAsync(executor, clock, "force-contact-start").ConfigureAwait(false);
             IntentOutcome outcome = await ExecuteAsync(
                 executor,
                 "force-contact",
@@ -116,6 +119,34 @@ namespace Opc.Ua.Robotics.Tests
                 clock).ConfigureAwait(false);
 
             Assert.That(outcome.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
+        }
+
+        [Test]
+        public async Task ForceIntentFailsWhenInterpolatedPathCannotBeSolved()
+        {
+            var clock = new ManualSimulatedArmClock();
+            var kinematics = new SimulatedArmKinematics();
+            var executor = new SimulatedArmExecutor(kinematics, clock);
+            await MoveToNonSingularStartAsync(executor, clock, "force-unreachable-start").ConfigureAwait(false);
+
+            IntentOutcome outcome = await ExecuteAsync(
+                executor,
+                "force-unreachable",
+                new ForceIntentDataType
+                {
+                    Direction = ArrayOf.Create([1.0, 0.0, 0.0]),
+                    ContactForce = 5.0,
+                    MaxDistance = 2.0
+                },
+                clock).ConfigureAwait(false);
+            Pose3DDataType forwardPose = kinematics.Forward(executor.CurrentSnapshot.JointAngles).ToolPose;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.State, Is.EqualTo(ExecutionStateEnum.Failed));
+                Assert.That(outcome.Failure, Is.EqualTo(IntentFailureEnum.JointLimit));
+                Assert.That(Distance(executor.CurrentSnapshot.ToolPose, forwardPose), Is.LessThan(2e-5));
+            });
         }
 
         [Test]
@@ -299,6 +330,23 @@ namespace Opc.Ua.Robotics.Tests
                 CancellationToken.None).AsTask();
             await DrainAsync(task, clock).ConfigureAwait(false);
             return await task.ConfigureAwait(false);
+        }
+
+        private static async Task MoveToNonSingularStartAsync(
+            SimulatedArmExecutor executor,
+            ManualSimulatedArmClock clock,
+            string intentId)
+        {
+            IntentOutcome outcome = await ExecuteAsync(
+                executor,
+                intentId,
+                new JointMoveIntentDataType
+                {
+                    HasJointTargets = true,
+                    JointTargets = ArrayOf.Create([0.2, -1.25, 1.6, -1.1, 0.9, -0.35])
+                },
+                clock).ConfigureAwait(false);
+            Assert.That(outcome.State, Is.EqualTo(ExecutionStateEnum.Succeeded));
         }
 
         private static async Task<CancelledMotion> ExecuteCancelledMoveAsync(StopModeEnum stopMode)

@@ -125,5 +125,5 @@ actual robot work and reports progress through `IIntentProgress`.
 > official nor endorsed by the OPC Foundation.
 
 See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md),
-the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/RobotIntent.md),
+the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md#robot-intent),
 and the [Dependency Injection guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DependencyInjection.md).

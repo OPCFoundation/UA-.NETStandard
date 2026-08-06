@@ -29,10 +29,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Robotics.Server;
+using Opc.Ua.Robotics.Server.Builders;
 using Opc.Ua.RobotIntent;
 using Opc.Ua.RobotIntent.Server;
 using Opc.Ua.Server;
@@ -61,14 +64,7 @@ namespace Opc.Ua.Robotics.Tests
                 EncodeableFactory = messageContext.Factory
             };
 
-            m_controller = new IntentControllerState(null);
-            m_controller.Create(
-                m_context,
-                new NodeId("Controller", 1),
-                new QualifiedName("Controller", 1),
-                new LocalizedText("Controller"),
-                true);
-            AddOptionalMethods();
+            m_controller = CreateControllerWithBuilderMethodDefinitions();
 
             m_host = new IntentControllerHost(
                 m_controller,
@@ -94,7 +90,7 @@ namespace Opc.Ua.Robotics.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(ServiceResult.IsGood(result), Is.True, $"{methodCall.Name} returned {result}.");
-                Assert.That(outputCount, Is.EqualTo(methodCall.OutputCount), methodCall.Name);
+                Assert.That(outputCount, Is.EqualTo(methodCall.GetOutputArgumentCount(m_controller)), methodCall.Name);
             });
         }
 
@@ -112,7 +108,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 2);
                 },
-                2);
+                controller => controller.RequestControl!.OutputArguments!.Value.Count);
             yield return Call(
                 "ReleaseControl",
                 async (controller, context) =>
@@ -128,7 +124,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result, outputs.Count);
                 },
-                0);
+                controller => controller.ReleaseControl!.OutputArguments!.Value.Count);
             yield return Call(
                 "SubmitIntent",
                 async (controller, context) =>
@@ -142,7 +138,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 5);
                 },
-                5);
+                controller => controller.SubmitIntent!.OutputArguments!.Value.Count);
             yield return Call(
                 "CancelIntent",
                 async (controller, context) =>
@@ -157,7 +153,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 1);
                 },
-                1);
+                controller => controller.CancelIntent!.OutputArguments!.Value.Count);
             yield return Call(
                 "CancelAll",
                 async (controller, context) =>
@@ -171,7 +167,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 1);
                 },
-                1);
+                controller => controller.CancelAll!.OutputArguments!.Value.Count);
             yield return Call(
                 "Pause",
                 async (controller, context) =>
@@ -184,7 +180,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 1);
                 },
-                1);
+                controller => controller.Pause!.OutputArguments!.Value.Count);
             yield return Call(
                 "Resume",
                 async (controller, context) =>
@@ -197,7 +193,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 1);
                 },
-                1);
+                controller => controller.Resume!.OutputArguments!.Value.Count);
             yield return Call(
                 "Retry",
                 async (controller, context) =>
@@ -211,7 +207,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 4);
                 },
-                4);
+                controller => controller.Retry!.OutputArguments!.Value.Count);
             yield return Call(
                 "SubmitMission",
                 async (controller, context) =>
@@ -225,7 +221,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 5);
                 },
-                5);
+                controller => controller.SubmitMission!.OutputArguments!.Value.Count);
             yield return Call(
                 "UpdateMission",
                 async (controller, context) =>
@@ -241,7 +237,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 2);
                 },
-                2);
+                controller => controller.UpdateMission!.OutputArguments!.Value.Count);
             yield return Call(
                 "CancelMission",
                 async (controller, context) =>
@@ -256,7 +252,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 1);
                 },
-                1);
+                controller => controller.CancelMission!.OutputArguments!.Value.Count);
             yield return Call(
                 "OpenRealTimeChannel",
                 async (controller, context) =>
@@ -271,7 +267,7 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 5);
                 },
-                5);
+                controller => controller.OpenRealTimeChannel!.OutputArguments!.Value.Count);
             yield return Call(
                 "CloseRealTimeChannel",
                 async (controller, context) =>
@@ -285,15 +281,15 @@ namespace Opc.Ua.Robotics.Tests
                         CancellationToken.None).ConfigureAwait(false);
                     return (result.ServiceResult, 1);
                 },
-                1);
+                controller => controller.CloseRealTimeChannel!.OutputArguments!.Value.Count);
         }
 
         private static BoundMethodCall Call(
             string name,
             Func<IntentControllerState, SystemContext, ValueTask<(ServiceResult Result, int OutputCount)>> invokeAsync,
-            int outputCount)
+            Func<IntentControllerState, int> getOutputArgumentCount)
         {
-            return new BoundMethodCall(name, invokeAsync, outputCount);
+            return new BoundMethodCall(name, invokeAsync, getOutputArgumentCount);
         }
 
         private static IntentControllerHostOptions Options()
@@ -318,16 +314,36 @@ namespace Opc.Ua.Robotics.Tests
             return options;
         }
 
-        private void AddOptionalMethods()
+        private IntentControllerState CreateControllerWithBuilderMethodDefinitions()
         {
-            m_controller.AddSubmitMission(m_context);
-            m_controller.AddUpdateMission(m_context);
-            m_controller.AddCancelMission(m_context);
-            m_controller.AddOpenRealTimeChannel(m_context);
-            m_controller.AddCloseRealTimeChannel(m_context);
-            m_controller.AddPause(m_context);
-            m_controller.AddResume(m_context);
-            m_controller.AddRetry(m_context);
+            RobotIntentRootState root = OpcUaRobotIntentExtensions.CreateInstanceOfRobotIntentRootType(
+                m_context,
+                null!,
+                new QualifiedName("RobotIntent", 1));
+            root.CreateOrReplaceControllers(m_context, null);
+            var context = new Mock<IRobotIntentBuildContext>(MockBehavior.Strict);
+            context.SetupGet(static c => c.Context).Returns(m_context);
+            context.SetupGet(static c => c.Root).Returns(root);
+            context.SetupGet(static c => c.InstanceNamespaceIndex).Returns((ushort)1);
+            var builder = new IntentControllerBuilder(context.Object, "Controller");
+            builder.State.Capabilities!.MissionsSupported!.Value = true;
+            builder.State.Capabilities.MissionHorizonSupported!.Value = true;
+            builder.AddRealTimeChannel(
+                "FastChannel",
+                "test-channel",
+                RealTimeTransportEnum.OpcUaFx,
+                "udp://239.0.0.40:4840");
+            builder.Accepts<LinearMoveIntentDataType>(retrySupported: true);
+            InvokeBuilderMethod(builder, "EnsureOptionalMethods");
+            InvokeBuilderMethod(builder, "EnsureMethodArguments");
+            return builder.State;
+        }
+
+        private static void InvokeBuilderMethod(IntentControllerBuilder builder, string methodName)
+        {
+            typeof(IntentControllerBuilder)
+                .GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(builder, []);
         }
 
         private static LinearMoveIntentDataType Move()
@@ -352,7 +368,7 @@ namespace Opc.Ua.Robotics.Tests
         public sealed record BoundMethodCall(
             string Name,
             Func<IntentControllerState, SystemContext, ValueTask<(ServiceResult Result, int OutputCount)>> InvokeAsync,
-            int OutputCount);
+            Func<IntentControllerState, int> GetOutputArgumentCount);
 
         private sealed class CompletingExecutor : IIntentExecutor
         {

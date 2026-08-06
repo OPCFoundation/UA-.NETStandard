@@ -37,13 +37,13 @@ using Opc.Ua.Robotics.Server;
 using Opc.Ua.Robotics.Server.Builders;
 using Opc.Ua.RobotIntent;
 using Opc.Ua.Server;
-using Robotics.MinimalIntentRobotServer.Kinematics;
-using Robotics.MinimalIntentRobotServer.Simulation;
+using Robotics.IntentEnabledRobot.Kinematics;
+using Robotics.IntentEnabledRobot.Simulation;
 using ThreeDCartesianCoordinates = Opc.Ua.ThreeDCartesianCoordinates;
 using ThreeDFrame = Opc.Ua.ThreeDFrame;
 using ThreeDOrientation = Opc.Ua.ThreeDOrientation;
 
-namespace Robotics.MinimalIntentRobotServer
+namespace Robotics.IntentEnabledRobot
 {
     /// <summary>
     /// Builds the minimal Robot Intent sample cell.
@@ -127,8 +127,6 @@ namespace Robotics.MinimalIntentRobotServer
                 .Accepts<PickIntentDataType>(cancelSupported: false)
                 .Accepts<PlaceIntentDataType>(cancelSupported: true)
                 .Accepts<ToolChangeIntentDataType>(cancelSupported: false)
-                .Accepts<SetOutputIntentDataType>(cancelSupported: true)
-                .Accepts<CallProgramIntentDataType>(cancelSupported: true)
                 .Accepts<WaitIntentDataType>(cancelSupported: true)
                 .WithSafetyState(m_safetySource);
 
@@ -192,8 +190,6 @@ namespace Robotics.MinimalIntentRobotServer
             m_gripperOpenValue = gripperOpen.State.Value;
             m_benchLightValue = benchLight.State.Value;
 
-            controller.AddProgram("Home", "home");
-            controller.AddProgram("PickAndPlace", "pick-and-place");
             controller.AddRealTimeChannel(
                 "JointTelemetry", "joint-telemetry", RealTimeTransportEnum.OpcUaFx, "udp://239.0.0.40:4840");
             controller.WithDescription(description => description
@@ -350,9 +346,9 @@ namespace Robotics.MinimalIntentRobotServer
 
     internal static partial class IntentRobotCellLog
     {
-        [LoggerMessage(EventId = MinimalIntentRobotServerEventIds.IntentRobotCell + 1,
+        [LoggerMessage(EventId = IntentEnabledRobotEventIds.IntentRobotCell + 1,
             Level = LogLevel.Information,
-            Message = "Materialised MinimalIntentRobotServer ({AxisCount} axes, " +
+            Message = "Materialised IntentEnabledRobot ({AxisCount} axes, " +
                 "{LocationCount} locations, facets {Facets}).")]
         public static partial void IntentCellReady(
             this ILogger logger, int axisCount, int locationCount, ArrayOf<string> facets);
@@ -509,7 +505,7 @@ namespace Robotics.MinimalIntentRobotServer
             };
             if (m_kinematics.TrySelectNearest(
                 approach,
-                new double[SimulatedArmKinematics.JointCount],
+                m_inner.CurrentSnapshot.JointAngles.Span,
                 out SimulatedArmIkSolution? solution,
                 out SimulatedArmKinematicFailure failure))
             {
@@ -596,23 +592,23 @@ namespace Robotics.MinimalIntentRobotServer
 
     internal static partial class SafetyConsoleLog
     {
-        [LoggerMessage(EventId = MinimalIntentRobotServerEventIds.SafetyConsole + 1,
+        [LoggerMessage(EventId = IntentEnabledRobotEventIds.SafetyConsole + 1,
             Level = LogLevel.Information,
             Message = "Safety commands: type 'stop', 'limit <m/s>' or 'reset' in the console.")]
         public static partial void SafetyCommandsReady(this ILogger logger);
 
-        [LoggerMessage(EventId = MinimalIntentRobotServerEventIds.SafetyConsole + 2,
+        [LoggerMessage(EventId = IntentEnabledRobotEventIds.SafetyConsole + 2,
             Level = LogLevel.Warning,
             Message = "Simulated protective stop is active; submitted intents are refused with NotPermittedInMode.")]
         public static partial void ProtectiveStopActive(this ILogger logger);
 
-        [LoggerMessage(EventId = MinimalIntentRobotServerEventIds.SafetyConsole + 3,
+        [LoggerMessage(EventId = IntentEnabledRobotEventIds.SafetyConsole + 3,
             Level = LogLevel.Warning,
             Message = "Simulated safe speed limit is {Limit} m/s; faster motions are refused " +
                 "with SafetyLimitExceeded.")]
         public static partial void SafeSpeedLimitActive(this ILogger logger, double limit);
 
-        [LoggerMessage(EventId = MinimalIntentRobotServerEventIds.SafetyConsole + 4,
+        [LoggerMessage(EventId = IntentEnabledRobotEventIds.SafetyConsole + 4,
             Level = LogLevel.Information,
             Message = "Simulated safety state reset to nominal.")]
         public static partial void SafetyReset(this ILogger logger);
