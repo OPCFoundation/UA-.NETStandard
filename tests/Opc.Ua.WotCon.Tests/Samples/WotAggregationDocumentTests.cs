@@ -531,8 +531,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static readonly (string NodeId, string BrowseName, string TypeDefinition)[] s_pumpNodes =
         [
-            ("ns=1;s=Pump1", "Pump #1", "ns=2;i=1052"),
-            ("ns=1;s=Pump1.Identification", "Identification", "ns=4;i=1005"),
+            ("ns=1;s=Pump1", "Pump_1", "ns=2;i=1052"),
+            ("ns=1;s=Pump1.Identification", "Identification", "ns=2;i=1005"),
             ("ns=1;s=Pump1.Operational", "Operational", "ns=2;i=1053"),
             ("ns=1;s=Pump1.Operational.Measurements", "Measurements", "ns=2;i=1054"),
             (

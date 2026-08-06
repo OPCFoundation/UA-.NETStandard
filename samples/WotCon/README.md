@@ -164,7 +164,7 @@ The sample aggregation server sets `AutoRefresh = false` so the four uploads do 
 The materialized namespace is `urn:opcfoundation.org:UA:WotAggregation:PumpInstance`, with root `Pump1`. The end-to-end test verifies that the runtime-loaded hierarchy and type definitions comply with the checked-in companion models:
 
 * `Pump1` has the Pumps `PumpType` definition.
-* `Pump1.Identification` uses its DI type definition.
+* `Pump1.Identification` uses the Pumps `PumpIdentificationType`, which OPC 40223 declares for `PumpType.Identification`. It is a subtype of Machinery's `MachineryItemIdentificationType` and ultimately of DI's `FunctionalGroupType`, so the DI identification properties remain available on it.
 * `Operational`, `Operational.Measurements`, `Events`, `Events.SupervisionProcessFluid`, and `Events.SupervisionPumpOperation` use their Pumps type definitions.
 * The hierarchy contains Identification, Operational, Events, and Maintenance groups.
 * Measurements contain DifferentialPressure, FluidTemperature, BearingTemperature, PumpPowerInput, MassFlow, PumpEfficiency, Level, and NumberOfStarts.

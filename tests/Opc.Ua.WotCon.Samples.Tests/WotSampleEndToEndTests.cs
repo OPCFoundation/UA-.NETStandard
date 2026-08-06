@@ -413,7 +413,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             await AssertTypeDefinitionAsync(
                 session,
                 new NodeId("Pump1.Identification", pumpNodeId.NamespaceIndex),
-                new NodeId(1005u, diNs),
+                new NodeId(1005u, pumpsNs),
                 cancellationToken).ConfigureAwait(false);
             await AssertTypeDefinitionAsync(
                 session,
