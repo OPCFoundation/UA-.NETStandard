@@ -123,6 +123,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Does.StartWith(request.ResourceNodeId.IdentifierAsString));
         }
 
+        /// <summary>
+        /// A refresh applies the replacement View before retiring the handle it
+        /// supersedes, and both carry the same resource Xid. A host that removed
+        /// by Xid alone would delete the View that had just been applied, so the
+        /// default in-memory host must stay consistent across a re-materialization.
+        /// </summary>
+        [Test]
+        public async Task RefreshingAProjectionLeavesExactlyOneAppliedView()
+        {
+            await RegisterTd("src-r", TestMaterialization.Td("urn:src-r"));
+            await RegisterTd("view-r",
+                Projection("urn:view:r", "http://example.com/scenario/R", "urn:src-r"));
+
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            Assert.That(m_viewHost.Applied, Has.Count.EqualTo(1),
+                "The first refresh must apply the View.");
+
+            await RegisterTd("src-r", TestMaterialization.Td("urn:src-r", "Changed"));
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            Assert.That(m_viewHost.Applied, Has.Count.EqualTo(1),
+                "Re-materializing must leave the replacement View applied, not remove it.");
+        }
+
         [Test]
         public async Task ProjectionMaterializedNodeCountCoversOnlyTheView()
         {

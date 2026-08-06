@@ -202,7 +202,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 lock (m_lock)
                 {
-                    return [.. m_applied.Values];
+                    var applied = new List<WotViewProjectionRequest>(m_applied.Count);
+                    foreach (AppliedView view in m_applied.Values)
+                    {
+                        applied.Add(view.Request);
+                    }
+                    return applied;
                 }
             }
         }
@@ -216,15 +221,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 throw new ArgumentNullException(nameof(request));
             }
-            lock (m_lock)
-            {
-                m_applied[request.ResourceXid] = request;
-            }
-            return new ValueTask<WotViewProjectionHandle>(new WotViewProjectionHandle(
+            var handle = new WotViewProjectionHandle(
                 request.ResourceXid,
                 request.ViewNodeId,
                 request.Plan.MaterializedNodeCount,
-                JoinOmissions(request.Plan.Omissions)));
+                JoinOmissions(request.Plan.Omissions));
+            lock (m_lock)
+            {
+                m_applied[request.ResourceXid] = new AppliedView(request, handle);
+            }
+            return new ValueTask<WotViewProjectionHandle>(handle);
         }
 
         /// <inheritdoc/>
@@ -236,11 +242,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 lock (m_lock)
                 {
-                    m_applied.Remove(handle.ResourceXid);
+                    // A refresh applies the replacement before retiring the handle
+                    // it supersedes, and both carry the same ResourceXid. Removing
+                    // by Xid alone would therefore delete the View that was just
+                    // applied. Only the handle this entry was issued for may
+                    // retire it.
+                    if (m_applied.TryGetValue(handle.ResourceXid, out AppliedView view) &&
+                        ReferenceEquals(view.Handle, handle))
+                    {
+                        m_applied.Remove(handle.ResourceXid);
+                    }
                 }
             }
             return default;
         }
+
+        private readonly record struct AppliedView(
+            WotViewProjectionRequest Request,
+            WotViewProjectionHandle Handle);
 
         private static string JoinOmissions(ArrayOf<string> omissions)
         {
@@ -257,7 +276,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly Lock m_lock = new();
-        private readonly Dictionary<string, WotViewProjectionRequest> m_applied =
+        private readonly Dictionary<string, AppliedView> m_applied =
             new(StringComparer.Ordinal);
     }
 }
