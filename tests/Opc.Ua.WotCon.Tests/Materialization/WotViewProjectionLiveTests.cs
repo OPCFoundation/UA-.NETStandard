@@ -164,6 +164,39 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// The View <c>Organizes</c> exactly the planned member Nodes and nothing else.
         /// </summary>
+        /// <summary>
+        /// <i>WoT Connectivity</i> §6.7 requires <c>HasWoTProjection</c> from the
+        /// stored projection document resource to the View it materialized, so a
+        /// client can navigate between them. The View owns the inverse edge.
+        /// </summary>
+        [Test]
+        public async Task AppliedViewCarriesHasWoTProjectionBackToItsResource()
+        {
+            NodeId viewNodeId = ViewNodeId("projection-ref");
+            // The resource Node must actually exist: a reference to an unknown
+            // target is dropped when the View is imported. In the server the
+            // registry NodeManager owns that Node; here the Server Object stands
+            // in for it.
+            var request = new WotViewProjectionRequest(
+                "closure",
+                "resource-xid",
+                Ua.ObjectIds.Server,
+                viewNodeId,
+                Plan(1u, Members(Ua.VariableIds.Server_ServerStatus_CurrentTime)));
+
+            _ = await m_viewHost.ApplyAsync(request).ConfigureAwait(false);
+
+            NodeId hasWoTProjection = ExpandedNodeId.ToNodeId(
+                ReferenceTypeIds.HasWoTProjection, m_server.CurrentInstance.NamespaceUris);
+            List<ReferenceDescription> inverse = await BrowseAsync(
+                viewNodeId, hasWoTProjection, BrowseDirection.Inverse).ConfigureAwait(false);
+
+            Assert.That(
+                inverse.Any(r => TargetOf(r) == request.ResourceNodeId),
+                Is.True,
+                "The View must carry HasWoTProjection back to its document resource.");
+        }
+
         [Test]
         public async Task AppliedViewOrganizesExactlyThePlannedNodeIds()
         {

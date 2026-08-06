@@ -103,6 +103,26 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 .AddReferencesAsync(Ua.ObjectIds.ViewsFolder, viewsFolderLink, cancellationToken)
                 .ConfigureAwait(false);
 
+            // The forward HasWoTProjection edge sits on the document resource Node,
+            // which the registry NodeManager owns, so it is added through the
+            // master. The inverse edge added in BuildView lets the deletion path
+            // remove this one with the View.
+            if (!request.ResourceNodeId.IsNull)
+            {
+                var projectionLink = new List<IReference>
+                {
+                    new ReferenceNode
+                    {
+                        ReferenceTypeId = HasWoTProjectionReferenceTypeId(),
+                        IsInverse = false,
+                        TargetId = request.ViewNodeId
+                    }
+                };
+                await Server.NodeManager
+                    .AddReferencesAsync(request.ResourceNodeId, projectionLink, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             m_logger.MaterializedProjectionView(
                 request.ViewNodeId,
                 request.Plan.MaterializedNodeCount,
@@ -176,7 +196,29 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // The inverse Organizes edge to the Views folder is what the deletion
             // path uses to remove the forward edge added by the master.
             view.AddReference(Ua.ReferenceTypeIds.Organizes, true, Ua.ObjectIds.ViewsFolder);
+
+            // HasWoTProjection runs from the document resource to its View
+            // (WoT Connectivity 6.7), so a client can navigate from the stored
+            // projection document to the View it materialized and, through the
+            // inverse WoTProjectionOf, back again. The resource Node belongs to the
+            // registry NodeManager, so only the inverse edge is added here and the
+            // forward one goes through the master in ApplyViewAsync.
+            if (!request.ResourceNodeId.IsNull)
+            {
+                view.AddReference(HasWoTProjectionReferenceTypeId(), true, request.ResourceNodeId);
+            }
             return view;
+        }
+
+        /// <summary>
+        /// Resolves the <c>HasWoTProjection</c> ReferenceType against the server's
+        /// namespace table.
+        /// </summary>
+        private NodeId HasWoTProjectionReferenceTypeId()
+        {
+            return ExpandedNodeId.ToNodeId(
+                ReferenceTypeIds.HasWoTProjection,
+                Server.NamespaceUris);
         }
 
         private void BuildGroup(
