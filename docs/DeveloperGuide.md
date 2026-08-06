@@ -341,10 +341,26 @@ The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/chec
 | Check | Behaviour |
 | --- | --- |
 | **Project floor** | Total line and branch rates must meet the absolute floors in `coverage-thresholds.json`. The `ignore` globs are applied here too, so samples, tests and generated code do not count. |
-| **Patch coverage** | On pull requests, lines you added or modified must reach `patch.target` percent, tolerating `patch.threshold` percentage points. The uncovered changed lines are listed by file. |
+| **Patch coverage** | On pull requests, lines you added or modified must reach a floor that is **graduated by how much changed** — see below. The uncovered changed lines are listed by file. |
 | **Baseline delta** | Reports how total coverage compares with the recorded `baselineLineRate`. Warning only, even within this advisory check. |
 
 Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red check green.
+
+##### Patch coverage is graduated by patch size
+
+A coverage percentage over a handful of lines carries almost no information. One uncovered line in a two-line fix reads as 50%, and a flat floor would fail it — which teaches authors to ignore the check rather than act on it. So the requirement scales with how much actually changed:
+
+| Coverable changed lines | Floor | Below the floor |
+| --- | --- | --- |
+| 1 – 10 | 50 % | :warning: **warning**, check still passes |
+| 11 – 100 | 60 % | :warning: **warning**, check still passes |
+| more than 100 | `patch.target` − `patch.threshold` (75 %) | :x: **failure** |
+
+Only changes larger than the last band can fail the patch check. At that size the percentage is meaningful, and a large untested change is exactly what the check exists to catch. Below it you still get a warning naming the uncovered lines, so the signal is never silent — it just does not block.
+
+The bands live in `patch.bands` in [`coverage-thresholds.json`](../coverage-thresholds.json). They are consulted in order and the first band whose `maxChangedLines` covers the patch wins; set `enforced: true` on a band to make it blocking. Anything larger than the last band falls through to `patch.target` − `patch.threshold` and is always enforced.
+
+Remember that the coverage check as a whole is advisory and stays out of the branch ruleset — an enforced band produces a red `Code coverage` check, not a blocked merge.
 
 #### Where the numbers appear
 

@@ -98,6 +98,46 @@ function Write-GateWarning([string] $message) {
     Write-Host "WARNING: $message"
 }
 
+<#
+.SYNOPSIS
+Selects the patch-coverage requirement that applies to a change of a given size.
+
+.DESCRIPTION
+A coverage percentage over a handful of lines carries almost no information: a
+single uncovered line in a two-line fix reads as 50%, which a flat floor would
+fail even though nothing is wrong. Small changes therefore get a lower bar and
+report a warning rather than a failure, while changes large enough for the
+percentage to mean something are enforced. Bands are consulted in order and the
+first one whose maxChangedLines covers the patch wins; anything larger falls
+through to the enforced target.
+
+.PARAMETER changedLines
+Number of coverable changed lines in the patch.
+
+.PARAMETER patch
+The 'patch' object from coverage-thresholds.json.
+#>
+function Get-PatchBand([int] $changedLines, $patch) {
+    $bands = @($patch.bands)
+    foreach ($band in $bands) {
+        if ($null -eq $band) { continue }
+        if ($changedLines -le [int]$band.maxChangedLines) {
+            return [pscustomobject]@{
+                Floor    = [double]$band.target
+                Enforced = [bool]$band.enforced
+                Scope    = ('<= {0} changed lines' -f [int]$band.maxChangedLines)
+            }
+        }
+    }
+
+    $largest = if ($bands.Count -gt 0) { [int]$bands[-1].maxChangedLines } else { 0 }
+    return [pscustomobject]@{
+        Floor    = [double]$patch.target - [double]$patch.threshold
+        Enforced = $true
+        Scope    = ('> {0} changed lines' -f $largest)
+    }
+}
+
 # Markdown summary accumulated as the gate runs and written to -SummaryPath at
 # the end. Kept separate from the console output because the console log is a
 # flat transcript while this is rendered as a table in both CI UIs.
@@ -528,15 +568,17 @@ else {
         if ($uncovered.Count -gt 0) { $uncoveredByFile[$file] = $uncovered }
     }
 
-    $patchFloor = [double]$thresholds.patch.target - [double]$thresholds.patch.threshold
+    $patchBand = Get-PatchBand -changedLines $coverableChanged -patch $thresholds.patch
+    $patchFloor = $patchBand.Floor
     if ($coverableChanged -eq 0) {
         Write-Host 'No coverable changed lines were found; the patch gate passes vacuously.'
-        Add-SummaryRow 'Patch coverage' 'no coverable changed lines' ('>= {0:N2}%' -f $patchFloor) 'info'
+        Add-SummaryRow 'Patch coverage' 'no coverable changed lines' '-' 'info'
     }
     else {
         $patchRate = 100.0 * $coveredChanged / $coverableChanged
-        Write-Host ("Patch:       {0:N2}% ({1}/{2} changed lines covered, floor {3:N2}%)" -f `
-            $patchRate, $coveredChanged, $coverableChanged, $patchFloor)
+        Write-Host ("Patch:       {0:N2}% ({1}/{2} changed lines covered, floor {3:N2}% for {4}, {5})" -f `
+            $patchRate, $coveredChanged, $coverableChanged, $patchFloor, $patchBand.Scope,
+            $(if ($patchBand.Enforced) { 'enforced' } else { 'advisory' }))
 
         if ($uncoveredByFile.Count -gt 0) {
             Write-Host 'Uncovered changed lines:'
@@ -545,10 +587,22 @@ else {
             }
         }
 
-        $patchState = if ($patchRate -lt $patchFloor) { 'fail' } else { 'pass' }
+        $patchBelowFloor = $patchRate -lt $patchFloor
+        $patchState = if (-not $patchBelowFloor) {
+            'pass'
+        }
+        elseif ($patchBand.Enforced) {
+            'fail'
+        }
+        else {
+            'warn'
+        }
+
         Add-SummaryRow 'Patch coverage' `
             ('**{0:N2}%** ({1}/{2} changed lines)' -f $patchRate, $coveredChanged, $coverableChanged) `
-            ('>= {0:N2}%' -f $patchFloor) $patchState
+            ('>= {0:N2}% ({1}{2})' -f $patchFloor, $patchBand.Scope,
+                $(if ($patchBand.Enforced) { '' } else { ', advisory' })) `
+            $patchState
 
         # List the uncovered changed lines in the summary too - that is the
         # actionable part for the author, and it saves opening the raw log.
@@ -564,9 +618,15 @@ else {
             Add-SummaryNote $detail.ToString()
         }
 
-        if ($patchRate -lt $patchFloor) {
-            $failures += ('Patch coverage {0:N2}% is below the required {1:N2}% ({2} of {3} changed lines are uncovered).' -f `
-                $patchRate, $patchFloor, ($coverableChanged - $coveredChanged), $coverableChanged)
+        if ($patchBelowFloor) {
+            $message = ('Patch coverage {0:N2}% is below {1:N2}% for {2} ({3} of {4} changed lines are uncovered).' -f `
+                $patchRate, $patchFloor, $patchBand.Scope, ($coverableChanged - $coveredChanged), $coverableChanged)
+            if ($patchBand.Enforced) {
+                $failures += $message
+            }
+            else {
+                Write-GateWarning ($message + ' Advisory at this patch size - add a test if the change deserves one.')
+            }
         }
     }
 }
