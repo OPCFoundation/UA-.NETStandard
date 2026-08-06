@@ -289,6 +289,23 @@ namespace Opc.Ua.WotCon.Server.Assets
                     inner => m_options.Discovery.CreateThingDescriptionAsync(
                         assetName, normalizedEndpoint!.AbsoluteUri, inner),
                     ct).ConfigureAwait(false);
+
+                // §11 requires a Thing Description auto-generated from a
+                // caller-chosen endpoint to be treated as untrusted input,
+                // subject to the same WOTC-Legacy format validation an
+                // uploaded document gets, and to materialize nothing when it
+                // fails. The provider is pluggable and the endpoint it dialled
+                // was chosen by the caller, so neither is a trusted source.
+                if (!ThingDescriptionFormatValidator.HasIdentifyingMember(td))
+                {
+                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                    m_logger.GeneratedThingDescriptionFailedFormatValidation(assetName);
+                    return (ServiceResult.Create(StatusCodes.BadDecodingError,
+                        "The Thing Description generated for this endpoint is not a Thing " +
+                        "Description: it must carry a 'name' or 'title'."),
+                        NodeId.Null);
+                }
+
                 AssetEntry entry = FindByNodeId(assetId)
                     ?? throw new InvalidOperationException("Asset disappeared after creation.");
 
@@ -1250,6 +1267,12 @@ namespace Opc.Ua.WotCon.Server.Assets
             Message = "DiscoverAssets withheld {Count} endpoint(s) the asset endpoint policy forbids")]
         public static partial void DiscoveredEndpointsFilteredByPolicy(
             this ILogger logger, int count);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 36, Level = LogLevel.Warning,
+            Message = "Thing description generated for asset {AssetName} failed format validation " +
+                "and materialized nothing")]
+        public static partial void GeneratedThingDescriptionFailedFormatValidation(
+            this ILogger logger, string assetName);
 
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 7, Level = LogLevel.Warning,
             Message = "ConnectionTest rejected by AssetEndpointPolicy: {Status}")]

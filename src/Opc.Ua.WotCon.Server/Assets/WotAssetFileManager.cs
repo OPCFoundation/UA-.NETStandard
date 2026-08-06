@@ -522,14 +522,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// </summary>
         private static bool HasIdentifyingMember(JsonElement root)
         {
-            return IsNonEmptyString(root, "name") || IsNonEmptyString(root, "title");
-        }
-
-        private static bool IsNonEmptyString(JsonElement root, string member)
-        {
-            return root.TryGetProperty(member, out JsonElement value) &&
-                value.ValueKind == JsonValueKind.String &&
-                !string.IsNullOrEmpty(value.GetString());
+            return ThingDescriptionFormatValidator.HasIdentifyingMember(root);
         }
 
         private readonly WoTAssetFileState m_file;

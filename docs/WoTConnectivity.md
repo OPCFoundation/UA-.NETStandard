@@ -340,6 +340,30 @@ connector. Operators who need IP-range enforcement must either pin
 `AllowedHosts` to IP literals or accept that the IP-range gates only
 fire when the host portion of the URI itself is an IP literal.
 
+The same policy applies to the endpoints `DiscoverAssets` returns:
+they are filtered through `AssetEndpointValidator` before they reach
+the caller, so a provider cannot use discovery to hand a client an
+address the policy would have refused on `ConnectionTest`.
+
+### The generated Thing Description is untrusted too
+
+§11 of the specification requires a Thing Description auto-generated
+from a caller-chosen endpoint to be treated as untrusted input,
+subject to the same `WOTC-Legacy` format validation an uploaded
+document gets. `CreateAssetForEndpoint` therefore validates what
+`IWotAssetDiscoveryProvider.CreateThingDescriptionAsync` returns before
+materialising anything from it: the document must identify itself by
+carrying a non-empty `name` or `title`. A document that fails
+materialises nothing — the asset created to hold it is removed again —
+and the call returns `Bad_DecodingError`.
+
+Deserializing into `ThingDescription` is not that check. Every member
+of that type is optional, so an empty object deserializes happily;
+neither the endpoint (chosen by the caller) nor the provider
+(pluggable) is a trusted source. The rule lives in one place,
+`ThingDescriptionFormatValidator`, which both the upload path and this
+path call.
+
 ---
 
 ## 7. Error reporting

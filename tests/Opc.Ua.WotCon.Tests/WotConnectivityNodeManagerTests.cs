@@ -751,6 +751,88 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(assetId.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// <i>OPC UA — WoT Connectivity</i> §11 requires a Thing Description
+        /// auto-generated from a caller-chosen endpoint to be treated as
+        /// untrusted input subject to the <c>WOTC-Legacy</c> format validation
+        /// of §14, and §14 requires a document that fails that validation to
+        /// materialize nothing and to return <c>Bad_DecodingError</c>. The
+        /// discovery provider is pluggable and the endpoint it dialled was
+        /// chosen by the caller, so neither is a trusted source.
+        /// </summary>
+        [Test]
+        public async Task CreateAssetForEndpointRejectsAGeneratedThingDescriptionThatDoesNotIdentifyItself()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                discoveryProvider: new UnidentifiedThingDescriptionProvider());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (ServiceResult status, NodeId assetId) = await harness.Registry
+                .CreateAssetForEndpointAsync("asset-x", "sim://endpoint", CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(assetId.IsNull, Is.True);
+            Assert.That(harness.Registry.AssetNames, Does.Not.Contain("asset-x"),
+                "A document that fails format validation must materialize nothing, so the " +
+                "asset created to hold it must be removed again.");
+        }
+
+        /// <summary>
+        /// The counterpart to the test above: a generated Thing Description
+        /// that does identify itself passes format validation and reaches the
+        /// binding lookup, which this harness registers none for. Reaching
+        /// <c>Bad_NotSupported</c> rather than <c>Bad_DecodingError</c> is what
+        /// shows the validation gate let it through.
+        /// </summary>
+        [Test]
+        public async Task CreateAssetForEndpointAcceptsAGeneratedThingDescriptionThatIdentifiesItself()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                discoveryProvider: new SimulatedWotDiscoveryProvider());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (ServiceResult status, NodeId assetId) = await harness.Registry
+                .CreateAssetForEndpointAsync(
+                    "asset-y", SimulatedWotDiscoveryProvider.CannedEndpoint, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(assetId.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// A discovery provider whose generated Thing Description carries
+        /// neither <c>name</c> nor <c>title</c>. Every member of
+        /// <see cref="ThingDescription"/> is optional, so this deserializes
+        /// and constructs happily - which is exactly why the format validation
+        /// cannot be the deserialization.
+        /// </summary>
+        private sealed class UnidentifiedThingDescriptionProvider : IWotAssetDiscoveryProvider
+        {
+            public ValueTask<IReadOnlyList<string>> DiscoverAsync(CancellationToken ct)
+            {
+                return new(Array.Empty<string>());
+            }
+
+            public ValueTask<(bool Success, string Status)> TestAsync(
+                string assetEndpoint,
+                CancellationToken ct)
+            {
+                return new((true, "Healthy"));
+            }
+
+            public ValueTask<ThingDescription> CreateThingDescriptionAsync(
+                string assetName,
+                string assetEndpoint,
+                CancellationToken ct)
+            {
+                return new(new ThingDescription { Base = assetEndpoint });
+            }
+        }
+
         [Test]
         public async Task DiscoverAssetsForwardsToConfiguredProvider()
         {
