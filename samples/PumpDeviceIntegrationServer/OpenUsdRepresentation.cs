@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -50,9 +51,76 @@ namespace Pumps
     {
         private OpenUsdRootState? m_openUsdRoot;
         private OpenUsdStageState? m_plantStage;
-        private BaseDataVariableState? m_alarmActiveVar;
-        private BaseDataVariableState? m_speedSetpointVar;
-        private BaseDataVariableState? m_shaftAngleVar;
+
+        /// <summary>
+        /// Everything the OpenUSD twin needs to render one simulated pump: the
+        /// prim the pump composes into, the hand-built signal Variables that
+        /// feed its bindings, and the simulation those signals read. One
+        /// instance exists per configured pump, so a server started with
+        /// <c>--pumps N</c> drives N independently animated machines.
+        /// </summary>
+        private sealed class PumpTwin
+        {
+            public PumpTwin(string primPath, int pumpNumber)
+            {
+                PrimPath = primPath;
+                PumpNumber = pumpNumber;
+            }
+
+            /// <summary>
+            /// Absolute prim path of this pump on the plant stage.
+            /// </summary>
+            public string PrimPath { get; }
+
+            /// <summary>
+            /// One-based number of the simulated unit.
+            /// </summary>
+            public int PumpNumber { get; }
+
+            public BaseDataVariableState? AlarmActive { get; set; }
+
+            public BaseDataVariableState? ShaftAngle { get; set; }
+
+            public BaseDataVariableState? SpeedSetpoint { get; set; }
+
+            public BaseDataVariableState? BayPosition { get; set; }
+
+            /// <summary>
+            /// Position of the liquid surface in the suction vessel, published as a
+            /// structured coordinate so the Translation profile can drive it.
+            /// </summary>
+            public BaseDataVariableState? FluidSurface { get; set; }
+
+            public OpenUsdRepresentationState? Representation { get; set; }
+
+            /// <summary>
+            /// The pump this twin renders, needed to resolve nodes the fluent pass
+            /// creates after the pump has been materialised.
+            /// </summary>
+            public PumpState? Pump { get; set; }
+
+            /// <summary>
+            /// The simulation this twin renders. Assigned by
+            /// <c>RegisterPumpSimulation</c>, which runs after the pump has been
+            /// materialised, so it stays null until the fluent pass completes.
+            /// </summary>
+            public PumpSimulationState? Simulation { get; set; }
+
+            /// <summary>
+            /// Shaft angular position in degrees, or zero before the simulation
+            /// is wired.
+            /// </summary>
+            public double ShaftAngleDegrees => Simulation?.ShaftAngleDegrees ?? 0.0;
+
+            /// <summary>
+            /// The supervision alarm state the status-light binding follows.
+            /// </summary>
+            public bool AlarmActiveState => Simulation?.AlarmActive ?? false;
+        }
+
+        // Written while the address space is built and while a pump is added at
+        // runtime; read by the 250 ms simulation tick.
+        private readonly ConcurrentDictionary<NodeId, PumpTwin> m_twins = new();
 
         /// <summary>
         /// Rate at which the server samples the hand-built OpenUSD signals, in
@@ -68,11 +136,27 @@ namespace Pumps
         /// and read correctly but are never sampled, which leaves any binding that
         /// uses them frozen at its start-up value.
         /// </summary>
-        private async ValueTask RegisterOpenUsdSignalsAsync(CancellationToken cancellationToken)
+        /// <param name="pump">The pump whose signals to register.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <remarks>
+        /// Registers one pump, not every pump materialised so far. This runs once
+        /// per pump as it is created, and the twin is already in the dictionary by
+        /// then, so walking the whole dictionary would re-register every earlier
+        /// pump and add its shaft angle to the publish set again - leaving the
+        /// first pump published N times per tick for N pumps.
+        /// </remarks>
+        private async ValueTask RegisterOpenUsdSignalsAsync(
+            PumpState pump, CancellationToken cancellationToken)
         {
+            if (!m_twins.TryGetValue(pump.NodeId, out PumpTwin? twin))
+            {
+                return;
+            }
+
             foreach (BaseDataVariableState? signal in new[]
             {
-                m_alarmActiveVar, m_shaftAngleVar, m_speedSetpointVar
+                twin.AlarmActive, twin.ShaftAngle, twin.SpeedSetpoint,
+                twin.BayPosition, twin.FluidSurface
             })
             {
                 if (signal != null)
@@ -81,17 +165,44 @@ namespace Pumps
                         .ConfigureAwait(false);
                 }
             }
+
             // Push the shaft angle from the same loop that drives the generated
             // measurement Variables, so it uses the one path proven to raise
-            // data-change notifications.
-            if (m_shaftAngleVar != null)
+            // data-change notifications. The closure captures this pump's twin,
+            // so every pump reports its own angle.
+            if (twin.ShaftAngle != null)
             {
-                TrackSignal(m_shaftAngleVar, () => ShaftAngleDegrees);
+                TrackSignal(twin.ShaftAngle, () => twin.ShaftAngleDegrees);
             }
         }
 
         private const string PlantRootLayerIdentifier = "asset-repo/Plant.usd";
-        private const string PumpPrimPath = "/Plant/Pumps/P101";
+
+        /// <summary>
+        /// Prim scope the configured pumps are composed into. Each pump owns
+        /// <c>&lt;PumpsScopePrimPath&gt;/&lt;BrowseName&gt;</c>, which the plant
+        /// aggregation composes from the served <c>pump.usda</c> component asset.
+        /// </summary>
+        private const string PumpsScopePrimPath = "/Plant/Pumps";
+
+        /// <summary>
+        /// Plant prim the DeviceSet-level representation anchors on.
+        /// </summary>
+        private const string PlantPrimPath = "/Plant";
+
+        /// <summary>
+        /// Spacing between two pump bays along the plant Y axis, in metres. Wide
+        /// enough to clear the 1.80 m baseplate with an access aisle.
+        /// </summary>
+        private const double PumpBaySpacingMetres = 2.4;
+
+        /// <summary>
+        /// Absolute prim path of the supplied pump.
+        /// </summary>
+        private static string PumpPrimPathFor(PumpState pump)
+        {
+            return PumpsScopePrimPath + "/" + (pump.BrowseName.Name ?? "Pump");
+        }
 
         private async ValueTask MaterialiseOpenUsdFacilityAsync(
             CancellationToken cancellationToken)
@@ -172,7 +283,6 @@ namespace Pumps
             {
                 new ServedAsset("Plant.usda", OpenUsdAssetKindEnum.RootLayer, ReadEmbeddedAsset("Plant.usda")),
                 new ServedAsset("pump.usda", OpenUsdAssetKindEnum.Reference, ReadEmbeddedAsset("pump.usda")),
-                new ServedAsset("remote-pump.usda", OpenUsdAssetKindEnum.Reference, ReadEmbeddedAsset("remote-pump.usda")),
             };
         }
 
@@ -227,13 +337,15 @@ namespace Pumps
         // Call before AddPredefinedNodeAsync(pump), so the binding source
         // NodeIds captured here are the per-instance ones the generated
         // CreateOrReplace/AddXxx helpers assigned.
-        private void AttachOpenUsdRepresentation(PumpState pump)
+        private void AttachOpenUsdRepresentation(PumpState pump, int pumpNumber)
         {
             if (m_plantStage == null)
             {
                 return;
             }
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(Opc.Ua.OpenUsd.Namespaces.OpenUSD);
+            string primPath = PumpPrimPathFor(pump);
+            var twin = new PumpTwin(primPath, pumpNumber);
 
             OpenUsdRepresentationState rep = SystemContext
                 .CreateInstanceOfOpenUsdRepresentationType(
@@ -245,25 +357,52 @@ namespace Pumps
             rep.NodeId = SystemContext.NodeIdFactory.New(SystemContext, rep);
 
             rep.CreateOrReplaceStage(SystemContext, null!).Value = m_plantStage.NodeId;
-            rep.CreateOrReplacePrimPath(SystemContext, null!).Value = PumpPrimPath;
+            rep.CreateOrReplacePrimPath(SystemContext, null!).Value = primPath;
+            twin.Representation = rep;
+            twin.Pump = pump;
 
             MeasurementsState? m = pump.Operational?.Measurements;
             NodeId bearingTemp = m?.BearingTemperature?.NodeId ?? NodeId.Null;
             NodeId diffPressure = m?.DifferentialPressure?.NodeId ?? NodeId.Null;
+            NodeId fluidTemp = m?.FluidTemperature?.NodeId ?? NodeId.Null;
+            NodeId massFlow = m?.MassFlow?.NodeId ?? NodeId.Null;
+            NodeId efficiency = m?.PumpEfficiency?.NodeId ?? NodeId.Null;
+            NodeId level = m?.Level?.NodeId ?? NodeId.Null;
+            NodeId numberOfStarts = m?.NumberOfStarts?.NodeId ?? NodeId.Null;
+
+            // Layout: each pump publishes the bay it stands in, bound as a
+            // translation on its own prim. That keeps the shared component asset
+            // position-free, so any number of pumps lays out without editing it.
+            twin.BayPosition = CreatePumpVariable(
+                pump,
+                "BayPosition",
+                Opc.Ua.DataTypeIds.ThreeDCartesianCoordinates,
+                Variant.From(new ExtensionObject(new ThreeDCartesianCoordinates
+                {
+                    X = 0.0,
+                    Y = (pumpNumber - 1) * PumpBaySpacingMetres,
+                    Z = 0.0
+                })),
+                writable: false);
+            CreateBinding(rep, ns, "BayLayout",
+                GuidFor("BayLayout"),
+                twin.BayPosition.NodeId, primPath, "xformOp:translate", "double3",
+                OpenUsdRenderTargetKindEnum.Translation, 1.0);
 
             // 0.2 UaAlarmToUsd: a supervision alarm active-state drives the status
             // light visibility. A dedicated Boolean variable exposes the alarm
             // aspect the simulation toggles (see AdvanceSimulation).
-            m_alarmActiveVar = CreatePumpVariable(
+            twin.AlarmActive = CreatePumpVariable(
                 pump, "AlarmActive", Opc.Ua.DataTypeIds.Boolean, new Variant(false), writable: false);
             // Serve the live flag from the simulation. The Variable is registered
             // in its own right by RegisterOpenUsdSignalsAsync, which is what lets
             // a monitored item sample it.
-            m_alarmActiveVar.MinimumSamplingInterval = SignalSamplingIntervalMilliseconds;
-            m_alarmActiveVar.OnSimpleReadValue =
+            twin.AlarmActive.MinimumSamplingInterval = SignalSamplingIntervalMilliseconds;
+            PumpTwin alarmTwin = twin;
+            twin.AlarmActive.OnSimpleReadValue =
                 (ISystemContext context, NodeState node, ref Variant value) =>
                 {
-                    value = new Variant(AlarmActive);
+                    value = new Variant(alarmTwin.AlarmActiveState);
                     return ServiceResult.Good;
                 };
 
@@ -271,13 +410,14 @@ namespace Pumps
             // is running: MassFlow is a rate, so binding it straight to a rotation
             // op only ever produces a fixed fraction of a degree. Integrating it
             // into an angle gives the impeller and coupling a continuous spin.
-            m_shaftAngleVar = CreatePumpVariable(
+            twin.ShaftAngle = CreatePumpVariable(
                 pump, "ShaftAngle", Opc.Ua.DataTypeIds.Double, new Variant(0.0), writable: false);
-            m_shaftAngleVar.MinimumSamplingInterval = SignalSamplingIntervalMilliseconds;
-            m_shaftAngleVar.OnSimpleReadValue =
+            twin.ShaftAngle.MinimumSamplingInterval = SignalSamplingIntervalMilliseconds;
+            PumpTwin shaftTwin = twin;
+            twin.ShaftAngle.OnSimpleReadValue =
                 (ISystemContext context, NodeState node, ref Variant value) =>
                 {
-                    value = new Variant(ShaftAngleDegrees);
+                    value = new Variant(shaftTwin.ShaftAngleDegrees);
                     return ServiceResult.Good;
                 };
 
@@ -287,32 +427,93 @@ namespace Pumps
             // the render to a legible ~45 degrees per second - a real 2900 rpm shaft
             // would alias into a stroboscopic blur at any practical sampling rate.
             CreateBinding(rep, ns, "ShaftSpin",
-                new Guid("6e63cf2c-f2de-4f78-a8f8-f0ccdbb7647a"),
-                m_shaftAngleVar.NodeId, "/Plant/Pumps/P101/Impeller", "xformOp:rotateZ", "double",
-                OpenUsdRenderTargetKindEnum.Rotation, 0.0025,
+                GuidFor("ShaftSpin"),
+                twin.ShaftAngle.NodeId, primPath + "/Impeller", "xformOp:rotateZ", "double",
+                OpenUsdRenderTargetKindEnum.Rotation, ShaftRenderScale,
                 sourceSemanticId: MassFlowSemanticId);
+
+            // The motor cooling fan turns with the duty point, so a pump that is
+            // barely moving fluid is visibly loafing.
+            CreateBinding(rep, ns, "MotorFanSpin",
+                GuidFor("MotorFanSpin"),
+                twin.ShaftAngle.NodeId, primPath + "/Motor/FanBlades", "xformOp:rotateZ", "double",
+                OpenUsdRenderTargetKindEnum.Rotation, ShaftRenderScale * FanToShaftRatio);
+
             // BearingTemperature is published in Kelvin (OPC 40223), but the
-            // DisplayColor render target ramps blue -> red over 20..100 degrees
-            // Celsius, so the binding declares the -273.15 shift.
+            // DisplayColor render target ramps blue -> red over the datasheet
+            // bearing-temperature range, so the binding declares the Kelvin shift.
             CreateBinding(rep, ns, "BearingTempColor",
-                new Guid("b1a1f6f0-5c2b-5a1e-9f3a-2b7c4d8e0011"),
-                bearingTemp, "/Plant/Pumps/P101/Body/Mat/Surface", "inputs:diffuseColor", "color3f",
+                GuidFor("BearingTempColor"),
+                bearingTemp, primPath + "/Body/Mat/Surface", "inputs:diffuseColor", "color3f",
                 OpenUsdRenderTargetKindEnum.DisplayColor, 1.0,
-                offset: -273.15);
+                offset: -KelvinOffset);
 
-            // DifferentialPressure is published in Pascal; the EmissiveColor
-            // render target brightens over 0..6 bar, so scale Pa -> bar.
-            CreateBinding(rep, ns, "DiffPressureEmissive",
-                new Guid("c2b2a7e1-6d3c-5b2f-a04b-3c8d5e9f1122"),
-                diffPressure, "/Plant/Pumps/P101/StatusLight/Mat/Surface", "inputs:emissiveColor", "color3f",
-                OpenUsdRenderTargetKindEnum.EmissiveColor, 0.00001);
+            // Bearing-temperature gauge: 0 degrees at the bottom of the datasheet
+            // range, sweeping SweepDegrees over the whole range.
+            CreateBinding(rep, ns, "BearingTempNeedle",
+                GuidFor("BearingTempNeedle"),
+                bearingTemp, primPath + "/PowerEnd/TempGauge/Needle", "xformOp:rotateZ", "double",
+                OpenUsdRenderTargetKindEnum.Rotation,
+                GaugeSweepDegrees / (PumpDatasheet.Ranges.BearingTemperatureMax -
+                    PumpDatasheet.Ranges.BearingTemperatureMin),
+                offset: -GaugeSweepDegrees * PumpDatasheet.Ranges.BearingTemperatureMin /
+                    (PumpDatasheet.Ranges.BearingTemperatureMax -
+                        PumpDatasheet.Ranges.BearingTemperatureMin));
 
-            CreateBinding(rep, ns, "AlarmActiveVisibility",
-                new Guid("d3c3b8f2-7e4d-5c30-b15c-4d9e6a0b2233"),
-                m_alarmActiveVar.NodeId, "/Plant/Pumps/P101/StatusLight", "visibility", "token",
-                OpenUsdRenderTargetKindEnum.Visibility, 1.0,
-                bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdAlarmBindingType,
-                alarmAspect: OpenUsdAlarmAspectEnum.ActiveState);
+            // Discharge pressure gauge needle over the datasheet pressure range.
+            CreateBinding(rep, ns, "DischargePressureNeedle",
+                GuidFor("DischargePressureNeedle"),
+                diffPressure, primPath + "/Discharge/Gauge/Needle", "xformOp:rotateZ", "double",
+                OpenUsdRenderTargetKindEnum.Rotation,
+                GaugeSweepDegrees / PumpDatasheet.Ranges.DifferentialPressureMax);
+
+            // Suction vessel: the connector converts a scalar level into a scalar,
+            // and xformOp:translate needs a double3, so the simulation publishes the
+            // surface position as a structured coordinate the Translation profile
+            // accepts. The surface disc rides on top of the liquid.
+            twin.FluidSurface = CreatePumpVariable(
+                pump,
+                "FluidSurfacePosition",
+                Opc.Ua.DataTypeIds.ThreeDCartesianCoordinates,
+                Variant.From(new ExtensionObject(FluidSurfaceAt(
+                    PumpDatasheet.Simulation.LevelNominal))),
+                writable: false);
+            twin.FluidSurface.MinimumSamplingInterval = SignalSamplingIntervalMilliseconds;
+            CreateBinding(rep, ns, "SuctionLevelRise",
+                GuidFor("SuctionLevelRise"),
+                twin.FluidSurface.NodeId, primPath + "/SuctionVessel/Surface",
+                "xformOp:translate", "double3",
+                OpenUsdRenderTargetKindEnum.Translation, 1.0);
+
+            // Efficiency and mass flow carry no render semantics of their own -- the
+            // DisplayColor ramp models a temperature, so colouring efficiency with it
+            // would read as a lie. They are surfaced as attributes a viewer shows on
+            // selection, which is what makes the twin inspectable.
+            CreateBinding(rep, ns, "EfficiencyReadout",
+                GuidFor("EfficiencyReadout"),
+                efficiency, primPath + "/Motor/Nameplate", "inputs:pumpEfficiency", "double",
+                OpenUsdRenderTargetKindEnum.Custom, 1.0);
+
+            // Suction line tint follows the pumped fluid temperature. The
+            // DisplayColor ramp runs blue -> red over 20..100 degrees Celsius, so
+            // the binding declares the Kelvin shift and nothing else.
+            CreateBinding(rep, ns, "FluidTempColor",
+                GuidFor("FluidTempColor"),
+                fluidTemp, primPath + "/Suction/Neck/Mat/Surface", "inputs:diffuseColor", "color3f",
+                OpenUsdRenderTargetKindEnum.DisplayColor, 1.0,
+                offset: -KelvinOffset);
+
+            CreateBinding(rep, ns, "MassFlowReadout",
+                GuidFor("MassFlowReadout"),
+                massFlow, primPath + "/Motor/Nameplate", "inputs:massFlow", "double",
+                OpenUsdRenderTargetKindEnum.Custom, 1.0,
+                sourceSemanticId: MassFlowSemanticId);
+            CreateBinding(rep, ns, "NumberOfStartsReadout",
+                GuidFor("NumberOfStartsReadout"),
+                numberOfStarts, primPath + "/Motor/Nameplate", "inputs:numberOfStarts", "double",
+                OpenUsdRenderTargetKindEnum.Custom, 1.0);
+
+            AttachAlarmBindings(pump, rep, ns, primPath, twin);
 
             // 0.2 UsdToUaCommand (opt-in): a writable speed setpoint Variable is the
             // command target. The binding is Controllable and present, but a
@@ -324,25 +525,158 @@ namespace Pumps
             // granted only to an authenticated (non-anonymous) session — a Server
             // "withholds by default" the RolePermissions a connector must hold before
             // issuing any command.
-            m_speedSetpointVar = CreatePumpVariable(
+            twin.SpeedSetpoint = CreatePumpVariable(
                 pump, "SpeedSetpoint", Opc.Ua.DataTypeIds.Double, new Variant(0.0), writable: true);
-            m_speedSetpointVar.OnReadUserAccessLevel = OnReadCommandTargetUserAccessLevel;
+            twin.SpeedSetpoint.OnReadUserAccessLevel = OnReadCommandTargetUserAccessLevel;
             CreateBinding(rep, ns, "SpeedSetpointCommand",
-                new Guid("e4d4c9a3-8f5e-5d41-c26d-5e0f7b1c3344"),
-                NodeId.Null, "/Plant/Pumps/P101/Impeller", "inputs:speedSetpoint", "double",
+                GuidFor("SpeedSetpointCommand"),
+                NodeId.Null, primPath + "/Impeller", "inputs:speedSetpoint", "double",
                 kind: null, 1.0,
                 bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdCommandBindingType,
                 signalRole: OpenUsdSignalRoleEnum.Controllable,
-                commandTargetNodeId: m_speedSetpointVar.NodeId,
+                commandTargetNodeId: twin.SpeedSetpoint.NodeId,
                 commandTriggerPropertyName: "inputs:speedSetpoint");
 
             // Composition (§5.12): the pump is composed of an Impeller and a Bearing,
             // each a component Object with its own representation, mapped 1:1 to a child
             // prim (arc=Child). This adds <Component> bindings on the pump representation.
-            AttachPumpComponents(pump, rep, ns);
+            AttachPumpComponents(pump, rep, ns, primPath);
 
             SystemContext.AssignInstanceChildNodeIds(rep);
+            m_twins[pump.NodeId] = twin;
         }
+
+        /// <summary>
+        /// Binds the per-pump supervision states, so the twin distinguishes
+        /// <i>which</i> fault a pump has - and which pump has it - rather than
+        /// showing one undifferentiated halo.
+        /// </summary>
+        private void AttachAlarmBindings(
+            PumpState pump,
+            OpenUsdRepresentationState rep,
+            ushort ns,
+            string primPath,
+            PumpTwin twin)
+        {
+            SupervisionState? events = pump.Events;
+            NodeId cavitation = events?.SupervisionProcessFluid?.Cavitation?.NodeId ?? NodeId.Null;
+            NodeId motorOverheat = events?.SupervisionPumpOperation?.MotorOverheat?.NodeId ?? NodeId.Null;
+
+            // Any active supervision state draws a red circle on the floor around
+            // the machine. A ring reads from anywhere in the hall and from any
+            // camera angle; a lamp on a mast only reads when you happen to be
+            // looking straight at it.
+            CreateBinding(rep, ns, "AlarmRingVisibility",
+                GuidFor("AlarmRingVisibility"),
+                twin.AlarmActive!.NodeId, primPath + "/AlarmRing", "visibility", "token",
+                OpenUsdRenderTargetKindEnum.Visibility, 1.0,
+                bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdAlarmBindingType,
+                alarmAspect: OpenUsdAlarmAspectEnum.ActiveState);
+
+            // Which fault, at the place on the machine where it actually is: the
+            // ring says a pump is in alarm, these say why.
+            CreateBinding(rep, ns, "CavitationHalo",
+                GuidFor("CavitationHalo"),
+                cavitation, primPath + "/Suction/CavitationHalo", "visibility", "token",
+                OpenUsdRenderTargetKindEnum.Visibility, 1.0,
+                bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdAlarmBindingType,
+                alarmAspect: OpenUsdAlarmAspectEnum.ActiveState);
+            CreateBinding(rep, ns, "OverheatHalo",
+                GuidFor("OverheatHalo"),
+                motorOverheat, primPath + "/OverheatHalo", "visibility", "token",
+                OpenUsdRenderTargetKindEnum.Visibility, 1.0,
+                bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdAlarmBindingType,
+                alarmAspect: OpenUsdAlarmAspectEnum.ActiveState);
+
+            // The OverTempAlarm condition itself is deliberately not bound. The
+            // fluent alarm builder leaves the condition's state children on their
+            // standard namespace-0 declaration NodeIds - which
+            // PumpInstanceNodeIdRegressionTests pins - so every pump's alarm shares
+            // one ActiveState, Severity and AckedState node. Binding those would
+            // ring every pump in the hall at once. The per-pump supervision states
+            // above are the alarm indication instead: they are genuinely per
+            // instance, and they are what drives the condition through
+            // ActivatesAlarm in the first place.
+        }
+
+        /// <summary>
+        /// Position of the suction-vessel liquid surface for a published level.
+        /// </summary>
+        private static ThreeDCartesianCoordinates FluidSurfaceAt(double levelMetres)
+        {
+            return new ThreeDCartesianCoordinates
+            {
+                X = 0.0,
+                Y = 0.0,
+                Z = levelMetres * FluidSurfaceScale
+            };
+        }
+
+        /// <summary>
+        /// Stable declaration identifiers for the pump bindings. The binding model
+        /// defines the effective runtime identity as
+        /// (represented object, BindingDefinitionId) and the id itself as a
+        /// declaration identifier, "NOT a runtime instance key" — so every pump
+        /// declares the same ids and its own representation disambiguates them.
+        /// </summary>
+        private static readonly Dictionary<string, Guid> s_bindingDefinitionIds =
+            new(StringComparer.Ordinal)
+            {
+                ["ShaftSpin"] = new Guid("6e63cf2c-f2de-4f78-a8f8-f0ccdbb7647a"),
+                ["BearingTempColor"] = new Guid("b1a1f6f0-5c2b-5a1e-9f3a-2b7c4d8e0011"),
+                ["AlarmRingVisibility"] = new Guid("d3c3b8f2-7e4d-5c30-b15c-4d9e6a0b2233"),
+                ["SpeedSetpointCommand"] = new Guid("e4d4c9a3-8f5e-5d41-c26d-5e0f7b1c3344"),
+                ["ImpellerComponent"] = new Guid("a1b2c3d4-0001-4000-8000-000000000001"),
+                ["BearingComponent"] = new Guid("a1b2c3d4-0001-4000-8000-000000000002"),
+                ["BayLayout"] = new Guid("a1b2c3d4-0005-4000-8000-000000000001"),
+                ["MotorFanSpin"] = new Guid("a1b2c3d4-0005-4000-8000-000000000002"),
+                ["BearingTempNeedle"] = new Guid("a1b2c3d4-0005-4000-8000-000000000003"),
+                ["DischargePressureNeedle"] = new Guid("a1b2c3d4-0005-4000-8000-000000000004"),
+                ["SuctionLevelRise"] = new Guid("a1b2c3d4-0005-4000-8000-000000000005"),
+                ["EfficiencyReadout"] = new Guid("a1b2c3d4-0005-4000-8000-000000000006"),
+                ["FluidTempColor"] = new Guid("a1b2c3d4-0005-4000-8000-000000000007"),
+                ["MassFlowReadout"] = new Guid("a1b2c3d4-0005-4000-8000-000000000008"),
+                ["NumberOfStartsReadout"] = new Guid("a1b2c3d4-0005-4000-8000-000000000009"),
+                ["CavitationHalo"] = new Guid("a1b2c3d4-0005-4000-8000-00000000000a"),
+                ["OverheatHalo"] = new Guid("a1b2c3d4-0005-4000-8000-00000000000b")
+            };
+
+        /// <summary>
+        /// The declaration identifier of the named binding.
+        /// </summary>
+        private static Guid GuidFor(string binding)
+        {
+            return s_bindingDefinitionIds[binding];
+        }
+
+        /// <summary>
+        /// Renders the integrated shaft angle at a legible speed: a real 2900 rpm
+        /// shaft aliases into a stroboscopic blur at any practical sampling rate.
+        /// </summary>
+        private const double ShaftRenderScale = 0.0025;
+
+        /// <summary>
+        /// The cooling fan sits on the same shaft, so it turns at the same speed;
+        /// rendering it slightly faster keeps the two visually distinguishable.
+        /// </summary>
+        private const double FanToShaftRatio = 1.6;
+
+        /// <summary>
+        /// Angular sweep of a gauge needle across its full scale, in degrees.
+        /// </summary>
+        private const double GaugeSweepDegrees = 270.0;
+
+        /// <summary>
+        /// Kelvin-to-Celsius shift the colour render targets expect.
+        /// </summary>
+        private const double KelvinOffset = 273.15;
+
+        /// <summary>
+        /// Metres of modelled vessel height per metre of published level. The
+        /// suction vessel is drawn at a fifth of its real height so it does not
+        /// tower over the machine it feeds.
+        /// </summary>
+        private const double FluidSurfaceScale = 0.2;
 
         // ECLASS-style IRDI for "volume flow rate" — a portable semantic id a
         // connector can use to resolve the source across vendors (0.2 SemanticSource).
@@ -408,28 +742,29 @@ namespace Pumps
             return v;
         }
 
-        private void OrganiseRepresentation(PumpState pump)
+        /// <summary>
+        /// Registers every pump's representation in the well-known
+        /// <c>Server/OpenUSD/Representations</c> registry. A connector discovers
+        /// twins through that registry alone, so a representation that is not
+        /// organised there is invisible no matter how completely it is authored.
+        /// </summary>
+        private void OrganiseRepresentations()
         {
             FolderState? registry = m_openUsdRoot?.Representations;
             if (registry == null)
             {
                 return;
             }
-            foreach (BaseInstanceState child in EnumerateChildren(pump))
+            foreach (PumpTwin twin in m_twins.Values)
             {
-                if (child is OpenUsdRepresentationState rep)
+                OpenUsdRepresentationState? rep = twin.Representation;
+                if (rep == null)
                 {
-                    registry.AddReference(ReferenceTypeIds.Organizes, false, rep.NodeId);
-                    rep.AddReference(ReferenceTypeIds.Organizes, true, registry.NodeId);
+                    continue;
                 }
+                registry.AddReference(ReferenceTypeIds.Organizes, false, rep.NodeId);
+                rep.AddReference(ReferenceTypeIds.Organizes, true, registry.NodeId);
             }
-        }
-
-        private System.Collections.Generic.List<BaseInstanceState> EnumerateChildren(NodeState parent)
-        {
-            var children = new System.Collections.Generic.List<BaseInstanceState>();
-            parent.GetChildren(SystemContext, children);
-            return children;
         }
 
         // Thin adapter over the reusable Opc.Ua.OpenUsd.Server authoring API: binds the

@@ -567,6 +567,23 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public void UpdateFromServerWithNullApplicationConfigurationThrowsArgumentNullException()
+        {
+            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            {
+                EndpointUrl = "opc.wss://localhost:4840",
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            });
+
+            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await endpoint.UpdateFromServerAsync(
+                    (ApplicationConfiguration)null!,
+                    telemetry: null));
+            Assert.That(ex.ParamName, Is.EqualTo("applicationConfiguration"));
+        }
+
+        [Test]
         public void GetDiscoveryUrlWithHttpScheme()
         {
             var endpoint = new ConfiguredEndpoint(null, new EndpointDescription

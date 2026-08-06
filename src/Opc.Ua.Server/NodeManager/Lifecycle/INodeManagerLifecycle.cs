@@ -43,6 +43,14 @@ namespace Opc.Ua.Server
         ArrayOf<NodeManagerRegistration> Registrations { get; }
 
         /// <summary>
+        /// Gets whether the owning server has started its ordered shutdown sequence.
+        /// Once this is set, the lifecycle rejects add and reload requests and tears
+        /// down every remaining registration itself, so callers that only want to
+        /// release a registration during teardown can skip the round trip.
+        /// </summary>
+        bool IsShuttingDown { get; }
+
+        /// <summary>
         /// Creates and publishes a NodeManager from an asynchronous factory.
         /// </summary>
         /// <param name="factory">The factory that creates the NodeManager.</param>
@@ -79,6 +87,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces a live registration with a new asynchronous factory generation.
         /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
         /// <param name="registration">The registration to replace.</param>
         /// <param name="replacement">The factory that creates the next generation.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
@@ -98,6 +110,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces a live registration with a new synchronous factory generation.
         /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
         /// <param name="registration">The registration to replace.</param>
         /// <param name="replacement">The factory that creates the next generation.</param>
         /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
@@ -112,6 +128,66 @@ namespace Opc.Ua.Server
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
             IOperationContext? callerContext,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Replaces a live registration with a new asynchronous factory generation while
+        /// allowing the current generation to keep serving monitored items that were
+        /// already created on it. New service requests are atomically routed to the
+        /// replacement generation as soon as it is committed; the current generation is
+        /// retained only for its existing monitored items and any request or continuation
+        /// point that already captured it, and is disposed automatically once they drain.
+        /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
+        ValueTask<NodeManagerRegistration> ShadowReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Replaces a live registration with a new synchronous factory generation while
+        /// allowing the current generation to keep serving monitored items that were
+        /// already created on it. New service requests are atomically routed to the
+        /// replacement generation as soon as it is committed; the current generation is
+        /// retained only for its existing monitored items and any request or continuation
+        /// point that already captured it, and is disposed automatically once they drain.
+        /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
+        ValueTask<NodeManagerRegistration> ShadowReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Replaces a live registration and immediately invalidates monitored items
+        /// owned by the previous generation with <see cref="StatusCodes.BadNodeIdUnknown"/>.
+        /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
+        ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Replaces a live registration and immediately invalidates monitored items
+        /// owned by the previous generation with <see cref="StatusCodes.BadNodeIdUnknown"/>.
+        /// </summary>
+        /// <remarks>
+        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
+        /// reload modes.
+        /// </remarks>
+        ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
             CancellationToken ct = default);
 
         /// <summary>

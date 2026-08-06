@@ -34,6 +34,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 
 namespace Opc.Ua.WotCon.Server.Assets
@@ -237,6 +238,7 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 await m_manager.DeleteAssetNodeAsync(entry.Asset, ct).ConfigureAwait(false);
                 DeleteTdFromDisk(entry.Name);
+                await RemoveFromRegistryAsync(entry.Name, ct).ConfigureAwait(false);
                 return ServiceResult.Good;
             }
             finally
@@ -574,10 +576,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.Asset.ClearChangeMasks(m_manager.SystemContext, includeChildren: true);
 
                 if (persistOnSuccess)
-
                 {
                     PersistTdToDisk(entry.Name, td);
                 }
+
+                await MirrorToRegistryAsync(entry.Name, td, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -641,7 +644,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 BrowseName = new QualifiedName(name, ns),
                 DisplayName = new LocalizedText(property.Title ?? name),
                 Description = property.Description != null ? new LocalizedText(property.Description) : LocalizedText.Null,
-                DataType = mapped ? dataType : DataTypeIds.BaseDataType,
+                DataType = mapped ? dataType : Ua.DataTypeIds.BaseDataType,
                 ValueRank = mapped ? valueRank : ValueRanks.Scalar,
                 AccessLevel = property.ReadOnly ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite,
                 UserAccessLevel = property.ReadOnly ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite,
@@ -721,7 +724,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_in");
                 inputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.InputArguments);
                 inputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.InputArguments);
-                inputProperty.DataType = DataTypeIds.Argument;
+                inputProperty.DataType = Ua.DataTypeIds.Argument;
                 inputProperty.ValueRank = ValueRanks.OneDimension;
                 inputProperty.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
                 inputProperty.TypeDefinitionId = VariableTypeIds.PropertyType;
@@ -741,7 +744,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_out");
                 outputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.OutputArguments);
                 outputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.OutputArguments);
-                outputProperty.DataType = DataTypeIds.Argument;
+                outputProperty.DataType = Ua.DataTypeIds.Argument;
                 outputProperty.ValueRank = ValueRanks.OneDimension;
                 outputProperty.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
                 outputProperty.TypeDefinitionId = VariableTypeIds.PropertyType;
@@ -899,6 +902,69 @@ namespace Opc.Ua.WotCon.Server.Assets
             catch (Exception ex)
             {
                 m_logger.FailedToDeleteTd(ex, name);
+            }
+        }
+
+        private async ValueTask MirrorToRegistryAsync(
+            string name, ThingDescription td, CancellationToken ct)
+        {
+            IWotRegistryService? registry = m_options.RegistryBridge;
+            if (registry is null)
+            {
+                return;
+            }
+
+            try
+            {
+                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(
+                    td,
+                    ThingDescriptionJsonContext.Default.ThingDescription);
+                WotRegistryMutationResult result = await registry.UpsertResourceAsync(
+                    new WotUpsertResourceRequest
+                    {
+                        GroupId = m_options.RegistryBridgeGroupId,
+                        ResourceId = name,
+                        Kind = WoTDocumentKindEnum.ThingDescription,
+                        Content = bytes,
+                        ContentType = "application/td+json",
+                        Format = "WoT-TD/1.1",
+                        Name = name,
+                        SetAsDefault = true
+                    },
+                    ct).ConfigureAwait(false);
+                if (result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed)
+                {
+                    m_logger.RegistryBridgeMirrorRejected(name, result.Outcome, result.Message);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.RegistryBridgeMirrorFailed(ex, name);
+            }
+        }
+
+        private async ValueTask RemoveFromRegistryAsync(string name, CancellationToken ct)
+        {
+            IWotRegistryService? registry = m_options.RegistryBridge;
+            if (registry is null)
+            {
+                return;
+            }
+
+            try
+            {
+                WotRegistryMutationResult result = await registry.DeleteResourceAsync(
+                    m_options.RegistryBridgeGroupId,
+                    name,
+                    cancellationToken: ct).ConfigureAwait(false);
+                if (result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed)
+                {
+                    m_logger.RegistryBridgeDeleteRejected(name, result.Outcome, result.Message);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.RegistryBridgeDeleteFailed(ex, name);
             }
         }
 
@@ -1257,5 +1323,29 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 30, Level = LogLevel.Warning,
             Message = "Provider for asset {AssetName} threw on shutdown")]
         public static partial void ProviderForAssetThrewOnShutdown(this ILogger logger, Exception ex, string assetName);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 31, Level = LogLevel.Warning,
+            Message = "Registry bridge rejected mirrored Thing Description for asset {AssetName}: {Outcome} {Message}")]
+        public static partial void RegistryBridgeMirrorRejected(
+            this ILogger logger,
+            string assetName,
+            WoTOutcomeEnum outcome,
+            string message);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 32, Level = LogLevel.Warning,
+            Message = "Registry bridge failed to mirror Thing Description for asset {AssetName}")]
+        public static partial void RegistryBridgeMirrorFailed(this ILogger logger, Exception ex, string assetName);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 33, Level = LogLevel.Warning,
+            Message = "Registry bridge rejected resource delete for asset {AssetName}: {Outcome} {Message}")]
+        public static partial void RegistryBridgeDeleteRejected(
+            this ILogger logger,
+            string assetName,
+            WoTOutcomeEnum outcome,
+            string message);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 34, Level = LogLevel.Warning,
+            Message = "Registry bridge failed to delete resource for asset {AssetName}")]
+        public static partial void RegistryBridgeDeleteFailed(this ILogger logger, Exception ex, string assetName);
     }
 }

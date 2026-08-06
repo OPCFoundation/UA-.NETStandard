@@ -527,10 +527,12 @@ namespace Opc.Ua.SourceGeneration
             MethodDesign effectiveMethod = method.IsOverridden()
                 ? (MethodDesign)method.GetMergedInstance()
                 : method;
-            Parameter[] inputs =
-                MethodDesignArgumentResolver.ResolveMethodInputs(effectiveMethod);
-            Parameter[] outputs =
-                MethodDesignArgumentResolver.ResolveMethodOutputs(effectiveMethod);
+            (Parameter[] inputs, Parameter[] outputs) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(effectiveMethod);
+            ModelDesignExtensions.AssignMethodArgumentCodeNames(
+                inputs,
+                outputs,
+                s_methodArgumentCodeNameScope);
 
             string methodIdConstant = CoreUtils.Format(
                 "global::{0}.MethodIds.{1}",
@@ -570,7 +572,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 context.Out.WriteLine(
                     "/// <param name=\"{0}\">Input argument {1}.</param>",
-                    GetParameterName(inputs[ii]),
+                    GetMethodArgumentIdentifier(inputs[ii]).TrimStart('@'),
                     ii);
             }
             context.Out.WriteLine(
@@ -592,7 +594,7 @@ namespace Opc.Ua.SourceGeneration
                         targetNamespace,
                         namespaces,
                         inputs[ii].IsOptional),
-                    GetParameterName(inputs[ii]));
+                    GetMethodArgumentIdentifier(inputs[ii]));
             }
             context.Out.WriteLine();
             context.Out.WriteLine(
@@ -610,7 +612,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     context.Out.WriteLine(
                         "    if ({0} is null) throw new global::System.ArgumentNullException(nameof({0}));",
-                        GetParameterName(input));
+                        GetMethodArgumentIdentifier(input));
                 }
             }
 
@@ -693,7 +695,7 @@ namespace Opc.Ua.SourceGeneration
                         namespaces,
                         outputs[ii].IsOptional))
                     .Append(' ')
-                    .Append(GetParameterName(outputs[ii]));
+                    .Append(GetMethodArgumentIdentifier(outputs[ii]));
             }
             builder.Append(")>");
             return builder.ToString();
@@ -778,17 +780,17 @@ namespace Opc.Ua.SourceGeneration
                 namespaces,
                 parameter.IsOptional);
             string localName = GetLocalVariableName(parameter);
-            string parameterName = GetParameterName(parameter);
 
             switch (parameter.DataTypeNode.BasicDataType)
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
-                        "    if (!_outputArguments[{0}].TryGetStructure(out {1} {2}))",
+                        "    if (!_outputArguments[{0}].TryGetValue(" +
+                        "out {1} {2}, base.Session.MessageContext))",
                         index,
                         typeName,
                         localName);
-                    EmitConversionFailure(context, methodName, parameterName);
+                    EmitConversionFailure(context, methodName, parameter.Name);
                     break;
                 case BasicDataType.BaseDataType when parameter.ValueRank == ValueRank.Scalar:
                     // The argument is itself a Variant; assign directly.
@@ -804,7 +806,7 @@ namespace Opc.Ua.SourceGeneration
                         index,
                         typeName,
                         localName);
-                    EmitConversionFailure(context, methodName, parameterName);
+                    EmitConversionFailure(context, methodName, parameter.Name);
                     break;
             }
         }
@@ -823,10 +825,11 @@ namespace Opc.Ua.SourceGeneration
                 "        throw new global::Opc.Ua.ServiceResultException(");
             context.Out.WriteLine(
                 "            global::Opc.Ua.StatusCodes.BadUnexpectedError,");
-            context.Out.WriteLine(
-                "            \"Method '{0}' returned an unexpected value for output '{1}'.\");",
+            string message = CoreUtils.Format(
+                "Method '{0}' returned an unexpected value for output '{1}'.",
                 methodName,
                 parameterName);
+            context.Out.WriteLine("            {0});", message.AsStringLiteral());
             context.Out.WriteLine("    }");
         }
 
@@ -836,7 +839,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static string BoxInputArgument(Parameter parameter)
         {
-            string name = GetParameterName(parameter);
+            string name = GetMethodArgumentIdentifier(parameter);
             switch (parameter.DataTypeNode.BasicDataType)
             {
                 case BasicDataType.UserDefined:
@@ -879,54 +882,57 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Returns a lowerCamelCase parameter name for the given UA argument.
-        /// Reserved C# identifiers are escaped with the standard '@' prefix.
-        /// </summary>
-        private static string GetParameterName(Parameter parameter)
-        {
-            string name = parameter.Name;
-            if (string.IsNullOrEmpty(name))
-            {
-                return "value";
-            }
-            string camel = char.ToLowerInvariant(name[0]) + name[1..];
-            return s_csharpKeywords.Contains(camel) ? "@" + camel : camel;
-        }
-
-        /// <summary>
         /// Returns the local variable name used inside the method body for
         /// an output argument. Always prefixed to avoid colliding with
         /// input parameter names.
         /// </summary>
         private static string GetLocalVariableName(Parameter parameter)
         {
-            return "_" + GetParameterName(parameter).TrimStart('@');
+            return GetOutputLocalVariableName(GetMethodArgumentIdentifier(parameter));
         }
 
-        /// <summary>
-        /// C# 12 reserved keywords that, when reused as parameter names,
-        /// must be escaped with an '@' prefix. Kept narrow on purpose;
-        /// contextual keywords (e.g. "value", "var") are intentionally
-        /// omitted because they are valid identifiers.
-        /// </summary>
-        private static readonly HashSet<string> s_csharpKeywords =
-        [
-            "abstract", "as", "base", "bool", "break", "byte", "case", "catch",
-            "char", "checked", "class", "const", "continue", "decimal", "default",
-            "delegate", "do", "double", "else", "enum", "event", "explicit",
-            "extern", "false", "finally", "fixed", "float", "for", "foreach",
-            "goto", "if", "implicit", "in", "int", "interface", "internal", "is",
-            "lock", "long", "namespace", "new", "null", "object", "operator",
-            "out", "override", "params", "private", "protected", "public",
-            "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof",
-            "stackalloc", "static", "string", "struct", "switch", "this",
-            "throw", "true", "try", "typeof", "uint", "ulong", "unchecked",
-            "unsafe", "ushort", "using", "virtual", "void", "volatile", "while"
-        ];
+        private static string GetOutputLocalVariableName(string identifier)
+        {
+            return "_" + identifier.TrimStart('@');
+        }
+
+        private static IEnumerable<string> GetMethodArgumentCollisionIdentifiers(
+            string identifier,
+            bool output)
+        {
+            yield return identifier;
+            if (output)
+            {
+                yield return GetOutputLocalVariableName(identifier);
+            }
+        }
+
+        private static string GetMethodArgumentIdentifier(Parameter parameter)
+        {
+            return parameter.GetGeneratedCodeIdentifier(
+                scope: s_methodArgumentCodeNameScope);
+        }
 
         private const string kStandardUaNamespaceUri = "http://opcfoundation.org/UA/";
         private const string kStandardUaProxyNamespace = "Opc.Ua";
         private const string kRootBaseClass = "global::Opc.Ua.ObjectTypeClient";
+
+        private static readonly MethodArgumentCodeNameScope s_methodArgumentCodeNameScope = new(
+            GetMethodArgumentCollisionIdentifiers,
+            "_",
+            "await",
+            "ct",
+            "cancellationToken",
+            "context",
+            "inputArguments",
+            "method",
+            "nameof",
+            "objectId",
+            "outputArguments",
+            "_outputArguments",
+            "results",
+            "serviceResult",
+            "ServiceResult");
 
         private readonly IGeneratorContext m_context;
         private readonly Microsoft.Extensions.Logging.ILogger m_logger;

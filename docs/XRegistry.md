@@ -174,7 +174,7 @@ public sealed class MyResourceStore : IXRegistryResourceStore
     }
 
     public ValueTask WriteAsync(
-        string resourceKey, long offset, ReadOnlyMemory<byte> data, CancellationToken ct = default)
+        string resourceKey, long offset, ByteString data, CancellationToken ct = default)
     {
         // Random access: the chunk may land anywhere. Writing past the end grows the document and
         // the gap reads back as zeros; writing at 0 does *not* truncate what follows.
@@ -216,6 +216,11 @@ Two rules make a store substitutable:
 
 The contract is exercised by `XRegistryResourceStoreContractTests`; deriving a fixture from it is the
 quickest way to validate a new implementation.
+
+`Opc.Ua.WotCon.Server` is a worked example: `WotBlobResourceStore` implements this interface over
+the `{root}/{digest}.bin` layout the WoT registry has always written, so a domain registry can adopt
+the shared byte layer without an on-disk migration. See
+[WoT Connectivity — keeping the document bytes in a shared store](WoTConnectivity.md#keeping-the-document-bytes-in-a-shared-store).
 
 ### Transport security
 
@@ -410,6 +415,39 @@ hierarchy (`SchemaFileTypeClient : ResourceTypeClient : FileTypeClient`). Two th
 * A **generic client** still drives a domain registry, because a domain instance *is* an instance
   of the base type. Discovery must be subtype-aware (browse with `includeSubtypes`, test with
   `IsTypeOf`) rather than comparing TypeDefinition NodeIds for equality.
+
+#### Registry roots that are not well-known
+
+`XRegistryWellKnown.RegistryObject` (`65000`) is *provisional*, and a domain registry generally
+declares its own root instead — the WoT Connectivity registry publishes `WoTRegistry` as a
+`HasComponent` child of the `Server` object, which a client discovers by Browse. Pass the resolved
+NodeId to the constructor so the root is a construction-time input that cannot subsequently drift:
+
+```csharp
+public sealed class WotRegistryClient : XRegistryClient
+{
+    public WotRegistryClient(ISession session, NodeId registryObjectId, ITelemetryContext telemetry)
+        : base(session, Namespaces.WotCon, registryObjectId, telemetry)
+    {
+        Proxy = new WoTRegistryTypeClient(session, registryObjectId, telemetry);
+    }
+}
+```
+
+`RegistryNodeId` then reports that root, and every inherited lifecycle method targets it. Passing a
+null NodeId selects the well-known root, so the overload stays equivalent to the namespace-only
+constructor. `GenericXRegistryClient` exposes the same overload, so a caller can drive a domain
+registry without deriving a client at all:
+
+```csharp
+var registry = new GenericXRegistryClient(
+    session, Namespaces.WotCon, wotRegistryNodeId, telemetry);
+```
+
+`Opc.Ua.WotCon.Client` is the worked example: `WotRegistryClient` derives from `XRegistryClient`,
+inherits `Session`, `RegistryNodeId` and the group/resource lifecycle, and adds only WoT-specific
+surface — the `ForServerAsync` Browse resolution, the reserved Thing Description / Thing Model
+groups, a typed `Refresh` result and a dependency-ordered bulk load.
 
 ## Well-known identifiers
 

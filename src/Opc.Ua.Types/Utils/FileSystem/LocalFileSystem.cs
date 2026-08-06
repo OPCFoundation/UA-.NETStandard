@@ -92,5 +92,29 @@ namespace Opc.Ua
         {
             return new FileInfo(path).Length;
         }
+
+        /// <inheritdoc/>
+        public void Replace(string sourcePath, string destinationPath)
+        {
+            string? directoryName = Path.GetDirectoryName(destinationPath);
+            if (directoryName != null && !Directory.Exists(directoryName))
+            {
+                Directory.CreateDirectory(directoryName);
+            }
+
+#if NETCOREAPP3_0_OR_GREATER
+            File.Move(sourcePath, destinationPath, overwrite: true);
+#else
+            if (File.Exists(destinationPath))
+            {
+                // Replace keeps the destination's identity and discards the source, but
+                // it refuses to run when the two paths sit on different volumes.
+                File.Replace(sourcePath, destinationPath, null);
+                return;
+            }
+
+            File.Move(sourcePath, destinationPath);
+#endif
+        }
     }
 }
