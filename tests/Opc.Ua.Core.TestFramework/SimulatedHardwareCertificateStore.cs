@@ -192,6 +192,18 @@ namespace Opc.Ua.Core.TestFramework
                 Interlocked.Increment(ref m_rejectedPrivateKeyWrites);
             }
 
+            lock (m_lock)
+            {
+                // A token does not discard a key it generated because someone
+                // handed it the matching public certificate. Only genuinely new
+                // certificates are taken.
+                if (m_certificates.TryGetValue(certificate.Thumbprint, out Certificate? existing) &&
+                    existing.HasPrivateKey)
+                {
+                    return Task.CompletedTask;
+                }
+            }
+
             Store(Certificate.FromRawData(certificate.RawData));
             return Task.CompletedTask;
         }
