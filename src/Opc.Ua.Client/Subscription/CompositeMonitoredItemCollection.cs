@@ -105,7 +105,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// disables idle-delete.</param>
         public CompositeMonitoredItemCollection(
             List<IManagedSubscription> partitions,
-            object partitionLock,
+            Lock partitionLock,
             PartitionPlacementPolicy? policy = null,
             Func<IManagedSubscription>? partitionFactory = null,
             TimeProvider? timeProvider = null,
@@ -722,7 +722,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             => m_partitionFactory == null || m_policy == null;
 
         private readonly List<IManagedSubscription> m_partitions;
-        private readonly object m_partitionLock;
+        private readonly Lock m_partitionLock;
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(CompositeMonitoredItemCollection), AmbientMessageContext.Telemetry);
         private readonly PartitionPlacementPolicy? m_policy;

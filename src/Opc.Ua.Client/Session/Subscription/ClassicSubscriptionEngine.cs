@@ -877,7 +877,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(acknowledgementsToSend));
             }
 
-            Debug.Assert(Monitor.IsEntered(m_acknowledgementsToSendLock));
+            Debug.Assert(m_acknowledgementsToSendLock.IsHeldByCurrentThread);
 
             acknowledgementsToSend.Add(new SubscriptionAcknowledgement
             {
@@ -1030,7 +1030,7 @@ namespace Opc.Ua.Client
         private readonly ILogger m_eventLogger;
         private readonly TimeProvider m_timeProvider;
         private readonly BackgroundTaskScope m_backgroundWork;
-        private readonly object m_acknowledgementsToSendLock = new();
+        private readonly Lock m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
         internal uint PublishCounter;
         private int m_tooManyPublishRequests;
