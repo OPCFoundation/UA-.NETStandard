@@ -184,12 +184,22 @@ stages:
           if [ -z "$SHA" ]; then
             SHA="$BUILD_SHA"
           fi
+          # Resolve owner/repo. Build.Repository.Name is empty on this pipeline
+          # (Azure puts the slug in Build.Repository.ID for a GitHub-backed
+          # repository), so fall back to parsing the clone URI, which is always
+          # populated. Passing an empty slug is what made the CLI report
+          # "Repository not found".
+          SLUG="${REPO_SLUG:-}"
+          if [ -z "$SLUG" ]; then
+            SLUG=$(printf '%s' "$REPO_URI" | sed -E 's#^.*://[^/]+/##; s#\.git$##')
+          fi
+          echo "Uploading coverage for slug '$SLUG' at commit '$SHA'."
           ./codecov upload-process \
             --disable-search \
             --file "$REPORT_LOCATION" \
             --flag azure \
             --git-service github \
-            --slug "$REPO_SLUG" \
+            --slug "$SLUG" \
             --sha "$SHA"
         # continueOnError: reporting must never be able to fail the run. The
         # verdict comes from the gate below, not from codecov.io being
@@ -206,9 +216,9 @@ stages:
           PR_SHA: '$(System.PullRequest.SourceCommitId)'
           # The CLI cannot infer owner/repo from an Azure DevOps pipeline that
           # builds a GitHub repository - it looks for an Azure Repos project and
-          # reports "Repository not found". Build.Repository.Name is already the
-          # 'owner/name' slug for a GitHub-backed pipeline.
-          REPO_SLUG: '$(Build.Repository.Name)'
+          # reports "Repository not found".
+          REPO_SLUG: '$(Build.Repository.ID)'
+          REPO_URI: '$(Build.Repository.Uri)'
         displayName: 'Upload to codecov.io'
     # Runs last so the report is published and downloadable even when the
     # thresholds are missed.
