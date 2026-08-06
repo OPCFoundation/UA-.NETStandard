@@ -210,6 +210,26 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         [Test]
+        public void ExportingDetachedKeyAsPkcs12Fails()
+        {
+            using Certificate publicOnly = CreatePublicOnlyRsaCertificate(out RSA softwareKey);
+            var hardwareKey = new NonExportableRsa(softwareKey, ownsKey: true);
+            using Certificate withKey = publicOnly.CopyWithDetachedPrivateKey(hardwareKey);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => withKey.Export(X509ContentType.Pfx),
+                    Throws.TypeOf<CryptographicException>(),
+                    "A PKCS#12 export must fail loudly rather than silently omit the key.");
+                Assert.That(
+                    () => withKey.Export(X509ContentType.Cert),
+                    Throws.Nothing,
+                    "Exporting the public certificate must still work.");
+            });
+        }
+
+        [Test]
         public void CopyWithDetachedPrivateKeyRejectsNullKey()
         {
             using Certificate publicOnly = CreatePublicOnlyRsaCertificate(out RSA softwareKey);

@@ -428,6 +428,7 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The exported certificate bytes.</returns>
         public byte[] Export(X509ContentType contentType)
         {
+            ThrowIfDetachedKeyCannotBeExported(contentType);
             return X509.Export(contentType);
         }
 
@@ -440,6 +441,7 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The exported certificate bytes.</returns>
         public byte[] Export(X509ContentType contentType, ReadOnlySpan<char> password)
         {
+            ThrowIfDetachedKeyCannotBeExported(contentType);
 #if NETFRAMEWORK
             return X509.Export(contentType, new string(password.ToArray()));
 #else
@@ -605,6 +607,38 @@ namespace Opc.Ua.Security.Certificates
                 X509CertificateLoader.LoadCertificate(X509.RawData),
                 privateKey,
                 ownsPrivateKey);
+        }
+
+        /// <summary>
+        /// Rejects an export that would silently drop a detached private key.
+        /// </summary>
+        /// <param name="contentType">The requested export format.</param>
+        /// <exception cref="CryptographicException">
+        /// Thrown when a key bearing format is requested and the private key is
+        /// held in detached form.
+        /// </exception>
+        /// <remarks>
+        /// The inner <see cref="X509Certificate2"/> of a detached key certificate
+        /// carries no private key, so a PKCS#12 export would succeed and quietly
+        /// produce a file without one. Failing loudly is safer: a key held in a
+        /// TPM, an HSM or a remote key service is not exportable by design, and a
+        /// caller that wanted the key would otherwise be handed a useless blob.
+        /// </remarks>
+        private void ThrowIfDetachedKeyCannotBeExported(X509ContentType contentType)
+        {
+            if (m_core.DetachedPrivateKey is null)
+            {
+                return;
+            }
+
+            // X509ContentType.Pkcs12 and X509ContentType.Pfx are the same value.
+            if (contentType == X509ContentType.Pfx)
+            {
+                throw new CryptographicException(
+                    "The private key is held in detached form and cannot be exported. " +
+                    "Export the certificate without the private key, or keep the key " +
+                    "where it resides.");
+            }
         }
 
         /// <summary>
