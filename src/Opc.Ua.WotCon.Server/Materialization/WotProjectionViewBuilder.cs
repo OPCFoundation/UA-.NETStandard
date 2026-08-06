@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -69,6 +70,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// source affordance.
         /// </param>
         /// <param name="options">The bounded conversion options, or <c>null</c>.</param>
+        /// <param name="serverNamespaceUris">
+        /// The server's namespace table, used to write a member's NodeId in the
+        /// portable ExpandedNodeId form the <c>ViewVersion</c> algorithm of
+        /// <i>OPC UA — WoT Binding</i> §12.6 is defined over.
+        /// </param>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="thingResolver"/> or <paramref name="nodeIndex"/> is
         /// <c>null</c>.
@@ -76,13 +82,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WotProjectionViewBuilder(
             IWotThingResolver thingResolver,
             IWotMaterializedNodeIndex nodeIndex,
-            WotNodeSetConverterOptions? options = null)
+            WotNodeSetConverterOptions? options = null,
+            NamespaceTable? serverNamespaceUris = null)
         {
             m_thingResolver = thingResolver ??
                 throw new ArgumentNullException(nameof(thingResolver));
             m_nodeIndex = nodeIndex ?? throw new ArgumentNullException(nameof(nodeIndex));
             m_options = options ?? new WotNodeSetConverterOptions();
             m_options.Validate();
+            m_serverNamespaceUris = serverNamespaceUris;
             m_resolver = new WotProjectionResolver(thingResolver, m_options);
         }
 
@@ -408,94 +416,108 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return false;
         }
 
-        private static uint ComputeViewVersion(Membership root)
+        /// <summary>
+        /// Computes <c>ViewVersion</c> exactly as <i>OPC UA — WoT Binding</i>
+        /// §12.6 specifies: take the ExpandedNodeId of each resolved member in
+        /// the portable form of §5.1.1, sort those strings ascending by Unicode
+        /// code point, join them each followed by U+000A, encode as UTF-8, and
+        /// take the first four octets of the SHA-256 digest as a big-endian
+        /// <c>UInt32</c>. A value of zero is reported as one, because
+        /// OPC 10000-3 §5.4 requires a <c>ViewVersion</c> greater than zero.
+        /// </summary>
+        /// <remarks>
+        /// Only the members are hashed. Groups and their names are deliberately
+        /// not: the clause states that <c>ViewVersion</c> records what a View
+        /// contains and not how it is arranged. A <c>UInt32</c> cannot separate
+        /// every membership, so the clause admits that two different memberships
+        /// may compute the same value; a client treats inequality as proof that
+        /// the membership changed and equality as evidence rather than proof.
+        /// </remarks>
+        private uint ComputeViewVersion(Membership root)
         {
-            var builder = new StringBuilder("wot:view;");
-            AppendMembership(builder, root);
-            return Fnv1A(builder.ToString());
+            var members = new List<string>();
+            CollectPortableMembers(root, members);
+            members.Sort(StringComparer.Ordinal);
+
+            var builder = new StringBuilder();
+            foreach (string member in members)
+            {
+                builder.Append(member).Append('\n');
+            }
+
+            byte[] digest = Sha256(Encoding.UTF8.GetBytes(builder.ToString()));
+            uint value = ((uint)digest[0] << 24) |
+                ((uint)digest[1] << 16) |
+                ((uint)digest[2] << 8) |
+                digest[3];
+            return value == 0 ? 1u : value;
         }
 
-        private static void AppendMembership(StringBuilder builder, Membership membership)
+        /// <summary>
+        /// Collects every resolved member of the closure, including the members
+        /// of nested groups, in the portable form of §5.1.1.
+        /// </summary>
+        private void CollectPortableMembers(Membership membership, List<string> members)
         {
-            var ordered = new List<string>(membership.Members.Count);
             for (int i = 0; i < membership.Members.Count; i++)
             {
-                ordered.Add(membership.Members[i].ToString());
+                members.Add(ToPortableForm(membership.Members[i]));
             }
-            ordered.Sort(StringComparer.Ordinal);
-            foreach (string id in ordered)
-            {
-                AppendToken(builder, id);
-            }
-            builder.Append('#');
-            var groups = new List<WotOrganizationalGroup>(membership.Groups.Count);
             for (int i = 0; i < membership.Groups.Count; i++)
             {
-                groups.Add(membership.Groups[i]);
-            }
-            groups.Sort(CompareGroups);
-            foreach (WotOrganizationalGroup group in groups)
-            {
-                AppendToken(builder, group.RefName);
-                builder.Append('{');
-                AppendMembership(
-                    builder, new Membership(group.OrganizedNodeIds, group.Groups, ArrayOf<string>.Empty));
-                builder.Append('}');
+                WotOrganizationalGroup group = membership.Groups[i];
+                CollectPortableMembers(
+                    new Membership(group.OrganizedNodeIds, group.Groups, ArrayOf<string>.Empty),
+                    members);
             }
         }
 
         /// <summary>
-        /// Appends a length-prefixed token. A NodeId string identifier and a
-        /// <c>uav:refName</c> are both authored input and may contain any of the
-        /// delimiters used here, so appending them raw would not be injective:
-        /// the members <c>ns=2;s=A</c> and <c>ns=2;s=B</c> would serialize the
-        /// same as the single member whose identifier is <c>A;ns=2;s=B</c>, and
-        /// the two memberships would share a ViewVersion.
+        /// Writes a NodeId in the portable ExpandedNodeId form of §5.1.1:
+        /// <c>nsu=&lt;NamespaceUri&gt;;&lt;idtype&gt;=&lt;id&gt;</c>, with the
+        /// canonical namespace-0 form used unprefixed for a Node in the base
+        /// namespace.
         /// </summary>
-        private static void AppendToken(StringBuilder builder, string value)
+        private string ToPortableForm(NodeId nodeId)
         {
-            builder.Append(value.Length).Append(':').Append(value).Append(';');
+            if (nodeId.NamespaceIndex == 0)
+            {
+                return nodeId.ToString();
+            }
+            string? uri = m_serverNamespaceUris?.GetString(nodeId.NamespaceIndex);
+            if (string.IsNullOrEmpty(uri))
+            {
+                // Defensive: a server that cannot name its own namespace cannot
+                // produce the portable form. Stay deterministic rather than
+                // throwing during a materialization.
+                return nodeId.ToString();
+            }
+            var builder = new StringBuilder("nsu=").Append(uri).Append(';');
+            NodeId.Format(
+                CultureInfo.InvariantCulture,
+                builder,
+                nodeId.IdentifierAsString,
+                nodeId.IdType,
+                0);
+            return builder.ToString();
         }
 
-        /// <summary>
-        /// Orders groups by <c>uav:refName</c> and then by their own canonical
-        /// serialization. <c>uav:refName</c> is optional and defaults to the
-        /// empty string, so it is not unique on its own, and
-        /// <c>List&lt;T&gt;.Sort</c> is not stable - ordering on it alone would
-        /// let two authorings of the same membership hash differently.
-        /// </summary>
-        private static int CompareGroups(WotOrganizationalGroup a, WotOrganizationalGroup b)
+        private static byte[] Sha256(byte[] content)
         {
-            int byName = string.CompareOrdinal(a.RefName, b.RefName);
-            if (byName != 0)
-            {
-                return byName;
-            }
-            var left = new StringBuilder();
-            AppendMembership(left, new Membership(a.OrganizedNodeIds, a.Groups, ArrayOf<string>.Empty));
-            var right = new StringBuilder();
-            AppendMembership(right, new Membership(b.OrganizedNodeIds, b.Groups, ArrayOf<string>.Empty));
-            return string.CompareOrdinal(left.ToString(), right.ToString());
-        }
-
-        private static uint Fnv1A(string value)
-        {
-            const uint offsetBasis = 2166136261;
-            const uint prime = 16777619;
-            uint hash = offsetBasis;
-            byte[] bytes = Encoding.UTF8.GetBytes(value);
-            foreach (byte b in bytes)
-            {
-                hash ^= b;
-                hash *= prime;
-            }
-            return hash;
+            // TODO: SHA256.HashData is only available on .NET 5+; this project
+            // also targets net472/net48/netstandard2.x, where the instance
+            // ComputeHash API is the portable equivalent.
+#pragma warning disable CA1850
+            using var sha = SHA256.Create();
+            return sha.ComputeHash(content);
+#pragma warning restore CA1850
         }
 
         private readonly IWotThingResolver m_thingResolver;
         private readonly IWotMaterializedNodeIndex m_nodeIndex;
         private readonly WotNodeSetConverterOptions m_options;
         private readonly WotProjectionResolver m_resolver;
+        private readonly NamespaceTable? m_serverNamespaceUris;
 
         /// <summary>
         /// The resolved membership of one projection document node: the Nodes it

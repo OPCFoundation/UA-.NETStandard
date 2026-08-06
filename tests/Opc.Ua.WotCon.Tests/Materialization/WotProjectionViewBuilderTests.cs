@@ -51,6 +51,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [Category("WoT")]
     public sealed class WotProjectionViewBuilderTests
     {
+        private const string TestNamespaceUri = "urn:test:pump";
         private static readonly NodeId s_alphaNode = new("SourceA/Alpha", 5);
         private static readonly NodeId s_betaNode = new("SourceA/Beta", 5);
         private static readonly NodeId s_gammaNode = new("SourceB/Gamma", 5);
@@ -237,23 +238,34 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// A NodeId string identifier is authored input and may contain the
-        /// delimiters the ViewVersion canonicalization uses. Appending members
-        /// raw would make the encoding non-injective, so a single member whose
-        /// identifier embeds a <c>;</c> separator would hash identically to the
-        /// two members it imitates, and a client would never see the change.
+        /// <summary>
+        /// <i>OPC UA — WoT Binding</i> §12.6 joins the portable member
+        /// identities with U+000A and does not escape it, but an ExpandedNodeId
+        /// string identifier may contain U+000A. A single member embedding a
+        /// newline therefore serializes byte-for-byte identically to the two
+        /// members it imitates, so the two memberships share a
+        /// <c>ViewVersion</c>.
         /// </summary>
+        /// <remarks>
+        /// This is a characterization test: it records what the specified
+        /// algorithm does, which this implementation follows exactly. It is not
+        /// the statistical 32-bit collision the clause knowingly accepts - it is
+        /// a structural one an author can construct deliberately - and it is
+        /// raised against the specification. When the encoding is made injective
+        /// this test flips to <c>Is.Not.EqualTo</c>.
+        /// </remarks>
         [Test]
-        public async Task ViewVersionDoesNotCollideWhenAMemberIdentifierEmbedsTheSeparator()
+        public async Task ViewVersionCollidesWhenAMemberIdentifierEmbedsTheJoinSeparator()
         {
             var twoMembers = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
             {
-                ["urn:sourceA#alpha"] = s_alphaNode,
-                ["urn:sourceA#beta"] = s_betaNode
+                ["urn:sourceA#alpha"] = new NodeId("A", 5),
+                ["urn:sourceA#beta"] = new NodeId("B", 5)
             });
-            // Serializes to "ns=5;s=SourceA/Alpha;ns=5;s=SourceA/Beta" - exactly
-            // what the two members above concatenate to.
-            var collidingNode = new NodeId("SourceA/Alpha;ns=5;s=SourceA/Beta", 5);
+            // The two members serialize to "nsu=urn:test:pump;s=A\n" and
+            // "nsu=urn:test:pump;s=B\n". A single member whose identifier is
+            // "A\nnsu=urn:test:pump;s=B" produces exactly the same octets.
+            var collidingNode = new NodeId("A\nnsu=" + TestNamespaceUri + ";s=B", 5);
             var oneMember = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
             {
                 ["urn:sourceA#alpha"] = collidingNode
@@ -268,8 +280,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(one.Success, Is.True);
             Assert.That(two.Plan!.OrganizedNodeIds, Has.Count.EqualTo(2));
             Assert.That(one.Plan!.OrganizedNodeIds, Has.Count.EqualTo(1));
-            Assert.That(one.Plan!.ViewVersion, Is.Not.EqualTo(two.Plan!.ViewVersion),
-                "Two different memberships must not share a ViewVersion.");
+            Assert.That(one.Plan!.ViewVersion, Is.EqualTo(two.Plan!.ViewVersion),
+                "The specified encoding is not injective: a member embedding the U+000A " +
+                "join separator collides with the members it imitates.");
         }
 
         /// <summary>
@@ -309,6 +322,36 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "Two groups tying on an absent uav:refName must be ordered deterministically.");
         }
 
+        /// <summary>
+        /// Pins <c>ViewVersion</c> to the algorithm <i>OPC UA — WoT Binding</i>
+        /// §12.6 specifies, not to whatever this code happens to produce. The
+        /// expected value is computed independently of the implementation: the
+        /// two members in portable form are
+        /// <c>nsu=urn:test:pump;i=1001</c> and <c>nsu=urn:test:pump;s=Alpha</c>;
+        /// sorted ascending by code point and each followed by U+000A that is
+        /// <c>"nsu=urn:test:pump;i=1001\nnsu=urn:test:pump;s=Alpha\n"</c>, whose
+        /// SHA-256 digest begins 1C A7 69 28 — 480733480 big-endian.
+        /// </summary>
+        [Test]
+        public async Task ViewVersionMatchesTheSpecifiedAlgorithm()
+        {
+            const uint expected = 480733480u;
+            var index = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                ["urn:sourceA#alpha"] = new NodeId(1001u, 5),
+                ["urn:sourceA#beta"] = new NodeId("Alpha", 5)
+            });
+
+            WotViewProjectionResult result =
+                await Build(Builder(index, ("urn:sourceA", SourceA)), SimpleProjection);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Plan!.OrganizedNodeIds, Has.Count.EqualTo(2));
+            Assert.That(result.Plan!.ViewVersion, Is.EqualTo(expected),
+                "ViewVersion must be the first four octets of the SHA-256 digest of the " +
+                "code-point-sorted portable member identities joined by U+000A.");
+        }
+
         [Test]
         public async Task NonProjectionDocumentDoesNotMaterializeAView()
         {
@@ -339,6 +382,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.Plan!.OrganizedNodeIds.Count, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// The namespace table the builder writes portable member identities
+        /// against. Index 5 is the namespace the test NodeIds live in.
+        /// </summary>
+        private static NamespaceTable TestNamespaces()
+        {
+            var namespaces = new NamespaceTable();
+            namespaces.Append("urn:test:one");
+            namespaces.Append("urn:test:two");
+            namespaces.Append("urn:test:three");
+            namespaces.Append("urn:test:four");
+            namespaces.Append(TestNamespaceUri);
+            return namespaces;
+        }
+
         private static WotProjectionViewBuilder Builder(
             IWotMaterializedNodeIndex index,
             params (string Href, string Json)[] documents)
@@ -348,7 +406,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 map[documents[i].Href] = documents[i].Json;
             }
-            return new WotProjectionViewBuilder(new MapThingResolver(map), index);
+            return new WotProjectionViewBuilder(
+                new MapThingResolver(map), index, null, TestNamespaces());
         }
 
         private static async Task<WotViewProjectionResult> Build(

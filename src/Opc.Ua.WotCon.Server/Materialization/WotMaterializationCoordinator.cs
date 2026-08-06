@@ -909,7 +909,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             NamespaceTable namespaces = ServerNamespaceUris ?? new NamespaceTable();
             var index = new WotMaterializedNodeIndex(snapshot, namespaces, sourceRoots);
             var thingResolver = new SnapshotThingResolver(snapshot);
-            var builder = new WotProjectionViewBuilder(thingResolver, index, m_converterOptions);
+            var builder = new WotProjectionViewBuilder(
+                thingResolver, index, m_converterOptions, namespaces);
 
             foreach (WotResource member in projectionMembers)
             {

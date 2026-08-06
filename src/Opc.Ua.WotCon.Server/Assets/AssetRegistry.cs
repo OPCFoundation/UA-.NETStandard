@@ -345,7 +345,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 IReadOnlyList<string> endpoints = await m_options.Discovery.DiscoverAsync(ct)
                     .ConfigureAwait(false);
-                return (ServiceResult.Good, endpoints);
+                return (ServiceResult.Good, FilterDiscoveredEndpoints(endpoints));
             }
             catch (NotSupportedException ex)
             {
@@ -1143,6 +1143,44 @@ namespace Opc.Ua.WotCon.Server.Assets
         }
 
         /// <summary>
+        /// Applies the asset-endpoint policy to the endpoints discovery returned.
+        /// </summary>
+        /// <remarks>
+        /// WoT Connectivity §11 requires the same allowlist, trust policy and
+        /// size limits that guard a caller-supplied <c>AssetEndpoint</c> to
+        /// apply to the endpoints <c>DiscoverAssets</c> probes, because it
+        /// probes on the server's own initiative and returns the outcome to the
+        /// caller. Handing back an endpoint the policy forbids would make the
+        /// server a network probe for a caller that could not reach it directly.
+        /// </remarks>
+        /// <param name="endpoints">The endpoints discovery reported.</param>
+        /// <returns>The endpoints the policy permits.</returns>
+        private IReadOnlyList<string> FilterDiscoveredEndpoints(
+            IReadOnlyList<string> endpoints)
+        {
+            if (endpoints.Count == 0)
+            {
+                return endpoints;
+            }
+            var permitted = new List<string>(endpoints.Count);
+            foreach (string endpoint in endpoints)
+            {
+                if (ServiceResult.IsGood(AssetEndpointValidator.Validate(
+                        endpoint, m_options.AssetEndpointPolicy, out Uri? normalized)) &&
+                    normalized is not null)
+                {
+                    permitted.Add(normalized.AbsoluteUri);
+                }
+            }
+            if (permitted.Count != endpoints.Count)
+            {
+                m_logger.DiscoveredEndpointsFilteredByPolicy(
+                    endpoints.Count - permitted.Count);
+            }
+            return permitted;
+        }
+
+        /// <summary>
         /// Returns the conventional WoT status code for the supplied
         /// exception. Mapping:
         ///   <see cref="NotSupportedException"/>       => Bad_NotSupported
@@ -1207,6 +1245,11 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 6, Level = LogLevel.Error,
             Message = "DiscoverAssets failed")]
         public static partial void DiscoverAssetsFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 35, Level = LogLevel.Warning,
+            Message = "DiscoverAssets withheld {Count} endpoint(s) the asset endpoint policy forbids")]
+        public static partial void DiscoveredEndpointsFilteredByPolicy(
+            this ILogger logger, int count);
 
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 7, Level = LogLevel.Warning,
             Message = "ConnectionTest rejected by AssetEndpointPolicy: {Status}")]

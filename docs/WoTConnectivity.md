@@ -863,11 +863,21 @@ materialized from the sources. The View creates **no** affordance Node, so
 the Nodes it organizes. `RootNodeId` is the View, and the document resource points
 at it through `HasWoTProjection`, navigable back through `WoTProjectionOf`.
 
-`ViewVersion` changes when, and only when, the resolved membership changes. It is
-a deterministic function of that membership taken in a canonical order, so two
-servers that resolved the same membership report the same value and a refresh that
-resolves the same membership leaves it untouched. It is deliberately not
-monotonic: compare it for inequality, never for order.
+`ViewVersion` is a deterministic function of the resolved membership alone, computed
+exactly as *WoT Binding* §12.6 specifies: each resolved member's ExpandedNodeId in the
+portable `nsu=` form, sorted ascending by Unicode code point, joined each followed by
+U+000A, UTF-8 encoded, and the first four octets of the SHA-256 digest read as a
+big-endian `UInt32`, with `0` reported as `1` because OPC 10000-3 §5.4 requires a value
+greater than zero.
+
+Naming the function is what makes the property testable: two servers that resolved the
+same membership compute the same value, which a per-server counter could not promise
+across a redundant pair. It needs no persisted state, so it survives a restart or a
+rebuild from the registry, and it records *what* a View contains rather than how it is
+arranged — reordering the same members does not change it. It is not monotonic and
+carries no ordering. A `UInt32` cannot separate every possible membership, so a client
+treats inequality as proof that the membership changed and equality as evidence rather
+than proof that it did not.
 
 A projection over Thing Models materializes to a `View` in the same way,
 organizing the ObjectType and VariableType Nodes its source Thing Models
