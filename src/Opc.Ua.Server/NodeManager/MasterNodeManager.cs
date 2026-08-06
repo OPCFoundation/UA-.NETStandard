@@ -6226,6 +6226,19 @@ namespace Opc.Ua.Server
                             prepared.ExternalReferences;
                         RetainPreparedNodeManager(prepared);
                     }
+                    else
+                    {
+                        // The NodeManager is out of the routing table again, so the
+                        // references retained for it must go with it. Anything that
+                        // throws after they were recorded - the replay of retained
+                        // references does - would otherwise leave them behind, and a
+                        // NodeManager present here but absent from the routing table
+                        // breaks two things: PublishAsync refuses to register the
+                        // instance ever again because it looks already registered,
+                        // and every later add replays these dead references into the
+                        // NodeManager being added.
+                        m_dynamicExternalReferences.Remove(prepared.NodeManager);
+                    }
                 }
                 if (failures.Count > 1)
                 {
