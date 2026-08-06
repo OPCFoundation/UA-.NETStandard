@@ -16,6 +16,7 @@ Here is a list of available documentation for different topics:
 * About [continuous integration](DeveloperGuide.md#continuous-integration) — which pipeline runs what, how to start a validation build on a pull request with `/azp run`, and the coverage gates a change has to satisfy.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * [CertificateManager](CertificateManager.md) - Centralized certificate lifecycle management, server-side push certificate rotation, and the OPC UA Part 12 PushManagement transaction model (`ApplyChanges`/`CancelChanges`, staged TrustList/Certificate updates, `DeleteCertificate`, pending-key persistence).
+* [Crypto provider](CryptoProvider.md) - Replacing the stack's cryptography with another library, a remote service or hardware (TPM, HSM, PKCS#11, cloud key service), keeping private keys inside the device, selecting providers per purpose and security policy, and auditing the use of uncertified cryptography.
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP and WSS transports.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * [Diagnostics](Diagnostics.md) — logging, telemetry, server audit events, server diagnostics nodes, and packet capture.

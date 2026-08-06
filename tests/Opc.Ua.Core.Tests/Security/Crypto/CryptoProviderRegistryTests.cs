@@ -254,6 +254,85 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         }
 
         /// <summary>
+        /// The default posture must withhold nothing, since every endpoint that
+        /// works today has to keep working.
+        /// </summary>
+        [Test]
+        [TestCase(CryptoCompliancePolicy.Permissive)]
+        [TestCase(CryptoCompliancePolicy.WarnOnUncertified)]
+        public void NonFipsPosturesPermitEveryPolicy(CryptoCompliancePolicy policy)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    CryptoCompliance.IsPolicyPermitted(SecurityPolicies.ECC_brainpoolP256r1, policy),
+                    Is.True);
+                Assert.That(
+                    CryptoCompliance.IsPolicyPermitted(SecurityPolicies.RSA_DH_ChaChaPoly, policy),
+                    Is.True);
+                Assert.That(
+                    CryptoCompliance.IsPolicyPermitted(SecurityPolicies.Basic128Rsa15, policy),
+                    Is.True);
+            });
+        }
+
+        [Test]
+        [TestCase(SecurityPolicies.Basic256Sha256)]
+        [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
+        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.ECC_nistP384)]
+        [TestCase(SecurityPolicies.ECC_nistP256_AesGcm)]
+        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
+        public void FipsOnlyPermitsApprovedPolicies(string securityPolicyUri)
+        {
+            Assert.That(
+                CryptoCompliance.IsPolicyPermitted(
+                    securityPolicyUri, CryptoCompliancePolicy.FipsOnly),
+                Is.True);
+        }
+
+        [Test]
+        [TestCase(SecurityPolicies.Basic128Rsa15)]
+        [TestCase(SecurityPolicies.Basic256)]
+        [TestCase(SecurityPolicies.RSA_DH_ChaChaPoly)]
+        [TestCase(SecurityPolicies.ECC_nistP256_ChaChaPoly)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP256r1)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP384r1_AesGcm)]
+        [TestCase(SecurityPolicies.ECC_curve25519)]
+        [TestCase(SecurityPolicies.ECC_curve448_ChaChaPoly)]
+        public void FipsOnlyWithholdsUnapprovedPolicies(string securityPolicyUri)
+        {
+            Assert.That(
+                CryptoCompliance.IsPolicyPermitted(
+                    securityPolicyUri, CryptoCompliancePolicy.FipsOnly),
+                Is.False);
+        }
+
+        [Test]
+        public void FilteringDropsOnlyTheUnapprovedPolicies()
+        {
+            var policies = new ArrayOf<string>(
+                new[]
+                {
+                    SecurityPolicies.Basic256Sha256,
+                    SecurityPolicies.ECC_brainpoolP256r1,
+                    SecurityPolicies.ECC_nistP256,
+                    SecurityPolicies.RSA_DH_ChaChaPoly
+                });
+
+            ArrayOf<string> filtered = CryptoCompliance.FilterPolicies(
+                policies, CryptoCompliancePolicy.FipsOnly);
+
+            Assert.That(filtered.Count, Is.EqualTo(2));
+            Assert.Multiple(() =>
+            {
+                Assert.That(filtered[0], Is.EqualTo(SecurityPolicies.Basic256Sha256));
+                Assert.That(filtered[1], Is.EqualTo(SecurityPolicies.ECC_nistP256));
+            });
+        }
+
+        /// <summary>
         /// A provider that declares exactly the capabilities it is given.
         /// </summary>
         private sealed class StubProvider : ICryptoProvider
