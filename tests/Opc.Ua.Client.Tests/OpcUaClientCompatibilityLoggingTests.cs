@@ -64,8 +64,8 @@ namespace Opc.Ua.Client.Tests
                 sessionId);
             logger.ClientEventNotification(42, "123");
             logger.ClientEventNotificationReceived(10, 11, sessionId);
-            logger.ClientEventPublishStart(12);
-            logger.ClientEventPublishStop(12);
+            logger.ClientEventPublishStart(12, sessionId);
+            logger.ClientEventPublishStop(12, sessionId);
 
             RecordedLogRecord subscription = AssertRecord(
                 provider,
