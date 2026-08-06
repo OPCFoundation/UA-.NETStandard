@@ -342,7 +342,7 @@ agree:
 
 ```csharp
 NodeId target = result.ResolveBindingTargetNodeId(
-    "/Plant/Pumps/P101/Pump/Impeller", "xformOp:rotateZ");
+    "/Plant/Pumps/Pump_1/Pump/Impeller", "xformOp:rotateZ");
 ```
 
 ### Conformance units

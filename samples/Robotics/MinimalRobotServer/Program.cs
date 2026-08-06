@@ -53,6 +53,7 @@ string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0"
 builder.Services.AddOptions<MobileRobotPositionOptions>()
     .Bind(builder.Configuration.GetSection("Robots"));
 builder.Services.AddSingleton<RobotPositioningScenario>();
+builder.Services.AddSingleton<CellChoreographer>();
 
 IPositioningServerBuilder positioning = builder.Services
     .AddOpcUa()

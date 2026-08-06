@@ -16,7 +16,7 @@ Use the [source-generated path](NodeManagers.md#source-generated-node-managers) 
 
 `AddRuntimeNodeSet` on `IOpcUaServerBuilder` remains the startup path: its factory is created before the server starts and its NodeSet is imported during `CreateAddressSpaceAsync`.
 
-Running servers also expose `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted server, or use `StandardServer.NodeManagerLifecycle` when constructing the server directly. The lifecycle provider can add, reload, and remove runtime NodeSets without restarting the server.
+Running servers also expose `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted server, or use `StandardServer.NodeManagerLifecycle` when constructing the server directly. The lifecycle provider can add, reload, shadow-reload, and remove runtime NodeSets without restarting the server.
 
 ```csharp
 public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
@@ -30,6 +30,7 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
             {
                 Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
             },
+            callerContext: null,
             ct);
     }
 
@@ -41,19 +42,52 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
             {
                 Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
             },
+            callerContext: null,
             ct);
     }
 
     public ValueTask RemoveAsync(CancellationToken ct)
     {
-        return lifecycle.RemoveAsync(m_registration!, ct);
+        return lifecycle.RemoveAsync(m_registration!, callerContext: null, ct);
     }
 }
 ```
 
 Each add returns an immutable `NodeManagerRegistration`, and reload returns the next generation while invalidating the previous handle.
 
+`AddRuntimeNodeSetAsync`, `ReloadRuntimeNodeSetAsync`, and `RemoveAsync` take the operation the caller is running under. Pass `context.GetOperationContext()` when calling from a NodeManager or Method callback: a lifecycle operation drains the requests that are in flight, so one started from inside a request would wait for itself and is rejected with an `InvalidOperationException`. A control-plane caller such as the `ModelLoader` above is not serving a request and passes `null`. See [Registering NodeManagers](NodeManagers.md#runtime-registration).
+
 The rules that apply to every NodeManager registered at runtime -- what happens to MonitoredItems, Browse continuation points, namespace indexes, DataTypes, and change notifications, and which NodeManagers may be reloaded at all -- are described once in [Registering NodeManagers](NodeManagers.md#registering-node-managers). Runtime NodeSets follow those rules, and the built-in runtime NodeSet manager already implements the `INodeManagerReloadParticipant` contract that reload requires.
+
+### Shadow reload
+
+`ShadowReloadRuntimeNodeSetAsync` (backed by `INodeManagerLifecycle.ShadowReloadAsync`) replaces a live registration the same way `ReloadRuntimeNodeSetAsync` does, but without the active-monitored-item guard:
+
+```csharp
+public async ValueTask ShadowReloadAsync(CancellationToken ct)
+{
+    m_registration = await lifecycle.ShadowReloadRuntimeNodeSetAsync(
+        m_registration!,
+        new RuntimeNodeSetOptions
+        {
+            Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
+        },
+        ct);
+}
+```
+
+The replacement generation is prepared and published through the same transactional prepare/publish/commit/rollback path as `ReloadAsync`, so a failure during preparation, publication, or the routing switch leaves the current generation fully active and cleans up the replacement, exactly as a normal reload does. Once committed, every new service request is atomically routed to the replacement generation, including for namespaces the current and replacement generations share.
+
+The current generation is not torn down immediately. It is moved to the same retired-generation bookkeeping used for an ordinary reload, but its existing monitored items and any request or continuation point that already captured it keep being served by it, unaffected by the routing switch. The retired generation is disposed automatically, without deleting any client subscription, once its monitored items and in-flight state drain; a later lifecycle operation (or shutdown) opportunistically retries that cleanup until it succeeds. `ShadowReloadAsync` returns the replacement `NodeManagerRegistration` immediately and invalidates the current handle for further lifecycle mutations, the same as `ReloadAsync`.
+
+Use `ShadowReloadAsync` when a model update must take effect for new requests without waiting for existing subscriptions to unsubscribe first; use the fail-closed `ReloadAsync` when a stale generation must never remain reachable, even briefly, for already-open monitored items.
+
+### Immediate reload
+
+`ImmediateReloadRuntimeNodeSetAsync` (backed by `INodeManagerLifecycle.ImmediateReloadAsync`) performs the same atomic replacement but does not retain the previous generation until monitored items drain. After requests that already captured the old routing generation finish, every affected data-change monitored item is made publishable with `BadNodeIdUnknown`, event monitored items stop producing events, continuation points are invalidated, and the old NodeManager is disposed. The subscription and monitored-item records remain available so clients can receive the status and delete or recreate the affected items.
+
+Use immediate reload only when continuity through the previous generation is not required. Durable monitored items are not eligible for immediate retirement because their terminal state would have to survive restart; choose shadow reload for any generation that owns them.
+
 
 ## Quick-start examples
 

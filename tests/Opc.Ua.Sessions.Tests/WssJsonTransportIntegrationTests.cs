@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
@@ -132,6 +133,37 @@ namespace Opc.Ua.Sessions.Tests
                     ep.SecurityMode == MessageSecurityMode.None);
             Assert.That(none, Is.Not.Null,
                 "Reference server did not advertise an unsecured WSS endpoint - JSON sub-protocol requires SM None.");
+        }
+
+        [Test]
+        public async Task AnonymousSessionOverWssBinaryOpensWithoutMutualTlsAsync()
+        {
+            EndpointDescription wss = m_server.GetEndpoints()
+                .ToArray()
+                .First(ep =>
+                    string.Equals(ep.TransportProfileUri, Profiles.UaWssTransport, StringComparison.Ordinal) &&
+                    ep.SecurityMode == MessageSecurityMode.None);
+            Assert.That(
+                wss.UserIdentityTokens.ToArray(),
+                Has.Some.Matches<UserTokenPolicy>(token => token.TokenType == UserTokenType.Anonymous));
+
+            // Connect through a ConfiguredEndpoint built from the discovered
+            // wss/UA-Binary endpoint description (rather than the raw
+            // endpoint URL) so the test actually exercises the intended
+            // transport profile and security mode instead of whatever the
+            // fixture's default discovery/selection would otherwise pick.
+            var endpoint = new ConfiguredEndpoint(null, wss);
+            using ISession session = await m_clientFixture
+                .ConnectAsync(endpoint)
+                .ConfigureAwait(false);
+            Assert.That(session.Connected, Is.True);
+            Assert.That(
+                session.ConfiguredEndpoint?.Description?.TransportProfileUri,
+                Is.EqualTo(Profiles.UaWssTransport));
+            Assert.That(
+                session.ConfiguredEndpoint?.Description?.SecurityMode,
+                Is.EqualTo(MessageSecurityMode.None));
+            await session.CloseAsync().ConfigureAwait(false);
         }
 
         [Test]

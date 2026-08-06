@@ -38,6 +38,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 using Opc.Ua.OpenUsd.Client;
+using Opc.Ua.OpenUsdScene.Conversion;
+using Opc.Ua.OpenUsdScene.Scene;
 
 namespace Opc.Ua.OpenUsd.Connector
 {
@@ -48,8 +50,10 @@ namespace Opc.Ua.OpenUsd.Connector
     /// streams live values into a <see cref="UsdFileSink"/> (an override <c>live.usda</c>).
     /// With <c>--view</c> it additionally opens a viewport on the composed stage and fans
     /// the same values into it, so the twin animates on screen in the same process.
-    /// Invoked as <code>Opc.Ua.OpenUsd.Connector [--server &lt;url&gt;] [--out &lt;live.usda&gt;]
-    /// [--seconds N] [--view] [--renderer &lt;Auto|Storm|D3D12|Vulkan&gt;]</code>.
+    /// Invoked as <c>Opc.Ua.OpenUsd.Connector [--server &lt;url&gt;] [--out &lt;live.usda&gt;]
+    /// [--seconds N] [--view] [--camera &lt;primPath&gt;]
+    /// [--renderer &lt;Auto|Storm|D3D12|Vulkan&gt;]</c>. Absent <c>--camera</c>, the
+    /// viewport opens on the first camera the served stage authors.
     /// </summary>
     public static class OpenUsdConnectorRunner
     {
@@ -295,9 +299,14 @@ namespace Opc.Ua.OpenUsd.Connector
                     {
                         WriteStageUsda(cacheDir!, fetched);
                         stagePath ??= Path.Combine(cacheDir!, "stage.usda");
+                        cameraPath ??= FindStageCamera(fetched);
                         Console.WriteLine(
                             $"Fetched {fetched.Count} server-delivered USD layer(s) into {cacheDir}; " +
                             "wrote a self-contained stage.usda.");
+                        if (cameraPath != null)
+                        {
+                            Console.WriteLine($"Opening on the stage camera {cameraPath}.");
+                        }
                     }
                     else
                     {
@@ -659,6 +668,50 @@ namespace Opc.Ua.OpenUsd.Connector
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await session.DisposeAsync().ConfigureAwait(false);
             (config.CertificateManager as IDisposable)?.Dispose();
+        }
+
+        /// <summary>
+        /// The prim path of the camera a served stage wants a viewer to open on.
+        /// </summary>
+        /// <remarks>
+        /// A stage that authors a camera has an opinion about how it should first be seen,
+        /// and it is a better one than framing the bounds: the eye lands wherever the
+        /// geometry happens to extend, which for an enclosed scene means inside it. The
+        /// first camera in the served root layer wins, so a stage orders its establishing
+        /// shot first; <c>--camera</c> overrides this outright.
+        /// </remarks>
+        /// <param name="fetched">The layers fetched from the server.</param>
+        /// <returns>The camera prim path, or <c>null</c> when the stage authors none.</returns>
+        private static string? FindStageCamera(List<OpenUsdConnector.FetchedAsset> fetched)
+        {
+            OpenUsdConnector.FetchedAsset? root =
+                fetched.Find(a => a.Kind == OpenUsdAssetKind.RootLayer);
+            if (root == null || !File.Exists(root.LocalPath))
+            {
+                return null;
+            }
+
+            try
+            {
+                UsdStage stage = UsdaReader.ParseFile(
+                    root.LocalPath, applyExampleOverlays: false);
+                foreach (UsdPrim prim in stage.AllPrims())
+                {
+                    if (string.Equals(prim.TypeName, "Camera", StringComparison.Ordinal))
+                    {
+                        return prim.Path;
+                    }
+                }
+            }
+            catch (IOException)
+            {
+                // A stage we cannot read is not a reason to refuse to open one: fall back
+                // to letting the host frame the bounds itself.
+            }
+            catch (FormatException)
+            {
+            }
+            return null;
         }
 
         private static string? GetOption(string[] args, string name)

@@ -1173,7 +1173,34 @@ namespace Opc.Ua
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
-        public async Task UpdateFromServerAsync(
+        /// <remarks>
+        /// The application configuration supplies the certificate validator required by
+        /// secure discovery transports such as WSS.
+        /// </remarks>
+        public Task UpdateFromServerAsync(
+            ApplicationConfiguration applicationConfiguration,
+            ITelemetryContext? telemetry,
+            CancellationToken ct = default)
+        {
+            if (applicationConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(applicationConfiguration));
+            }
+
+            return UpdateFromServerCoreAsync(
+                applicationConfiguration,
+                EndpointUrl!,
+                connection: null,
+                m_description.SecurityMode,
+                m_description.SecurityPolicyUri!,
+                telemetry,
+                ct);
+        }
+
+        /// <summary>
+        /// Updates an endpoint with information from the server's discovery endpoint.
+        /// </summary>
+        public Task UpdateFromServerAsync(
             Uri endpointUrl,
             ITransportWaitingConnection? connection,
             MessageSecurityMode securityMode,
@@ -1181,14 +1208,41 @@ namespace Opc.Ua
             ITelemetryContext? telemetry,
             CancellationToken ct = default)
         {
-            // get the a discovery url.
+            return UpdateFromServerCoreAsync(
+                applicationConfiguration: null,
+                endpointUrl,
+                connection,
+                securityMode,
+                securityPolicyUri,
+                telemetry,
+                ct);
+        }
+
+        private async Task UpdateFromServerCoreAsync(
+            ApplicationConfiguration? applicationConfiguration,
+            Uri endpointUrl,
+            ITransportWaitingConnection? connection,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri,
+            ITelemetryContext? telemetry,
+            CancellationToken ct)
+        {
+            // get a discovery url.
             Uri? discoveryUrl = GetDiscoveryUrl(endpointUrl);
 
             // create the discovery client.
             DiscoveryClient? client = null;
             try
             {
-                if (connection != null)
+                if (applicationConfiguration != null)
+                {
+                    client = await DiscoveryClient.CreateAsync(
+                        applicationConfiguration,
+                        discoveryUrl,
+                        m_configuration,
+                        ct: ct).ConfigureAwait(false);
+                }
+                else if (connection != null)
                 {
                     client = await DiscoveryClient.CreateAsync(
                         connection,

@@ -112,7 +112,8 @@ namespace Opc.Ua.SourceGeneration
                             __nsIndex,
                             __FindRootByBrowseName,
                             __FindRootByNodeId,
-                            __FindByTypeDefinitionId);
+                            __FindByTypeDefinitionId,
+                            __FindByDataTypeId);
 
                         // Attach the FluentNodeManagerBase event-source registry
                         // to the builder so Publish(...) extensions can resolve
@@ -233,6 +234,48 @@ namespace Opc.Ua.SourceGeneration
                             }
                         }
                         return __matches;
+                    }
+
+                    private global::Opc.Ua.ArrayOf<global::Opc.Ua.NodeState> __FindByDataTypeId(
+                        global::Opc.Ua.NodeId dataTypeId)
+                    {
+                        if (dataTypeId == null || dataTypeId.IsNull)
+                        {
+                            return [];
+                        }
+
+                        var __matches = new global::System.Collections.Generic.List<global::Opc.Ua.NodeState>();
+                        var __queue = new global::System.Collections.Generic.Queue<global::Opc.Ua.NodeState>();
+                        var __seen = new global::System.Collections.Generic.HashSet<global::Opc.Ua.NodeState>();
+                        var __scratch = new global::System.Collections.Generic.List<global::Opc.Ua.BaseInstanceState>();
+                        foreach (global::Opc.Ua.NodeState __root in PredefinedNodes.Values)
+                        {
+                            if (__root != null && __seen.Add(__root))
+                            {
+                                __queue.Enqueue(__root);
+                            }
+                        }
+                        while (__queue.Count > 0)
+                        {
+                            global::Opc.Ua.NodeState __current = __queue.Dequeue();
+                            if (__current is global::Opc.Ua.BaseVariableState __variable &&
+                                __variable.DataType == dataTypeId)
+                            {
+                                __matches.Add(__current);
+                            }
+                            __scratch.Clear();
+                            __current.GetChildren(SystemContext, __scratch);
+                            for (int __i = 0; __i < __scratch.Count; __i++)
+                            {
+                                global::Opc.Ua.BaseInstanceState __child = __scratch[__i];
+                                if (__child != null && __seen.Add(__child))
+                                {
+                                    __queue.Enqueue(__child);
+                                }
+                            }
+                        }
+                        return new global::Opc.Ua.ArrayOf<global::Opc.Ua.NodeState>(
+                            __matches.ToArray());
                     }
                 }
             }

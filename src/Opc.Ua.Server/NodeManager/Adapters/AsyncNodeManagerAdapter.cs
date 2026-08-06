@@ -719,6 +719,7 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
             if (SyncNodeManager is ITransferMonitoredItemsAsyncNodeManager asyncNodeManager)
@@ -729,6 +730,7 @@ namespace Opc.Ua.Server
                     monitoredItems,
                     processedItems,
                     errors,
+                    transferOptions,
                     cancellationToken);
             }
 
@@ -737,7 +739,8 @@ namespace Opc.Ua.Server
                 sendInitialValues,
                 monitoredItems,
                 processedItems,
-                errors);
+                errors,
+                transferOptions);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;

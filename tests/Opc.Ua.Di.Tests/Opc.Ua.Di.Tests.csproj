@@ -55,6 +55,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <Compile Remove="PumpAddressSpaceComplianceTests.cs" />
+    <Compile Remove="PumpDatasheetConformanceTests.cs" />
     <Compile Remove="PumpHostingIntegrationTests.cs" />
     <Compile Remove="PumpHostedReferenceTests.cs" />
     <Compile Remove="PumpInstanceNodeIdRegressionTests.cs" />
@@ -64,6 +65,8 @@
     <Compile Remove="PumpOpenUsdE2eTests.cs" />
     <Compile Remove="RobotOpenUsdE2eTests.cs" />
     <Compile Remove="RobotMobilityTests.cs" />
+    <Compile Remove="RobotKinematicsTests.cs" />
+    <Compile Remove="CellChoreographyTests.cs" />
     <Compile Remove="TopologyElementBuilderTests.cs" />
   </ItemGroup>
 </Project>

@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -49,8 +50,10 @@ namespace Opc.Ua.Client.ModelChange
         private readonly INodeCache? m_nodeCache;
         private readonly INamespaceTableRefresher? m_namespaceTables;
         private readonly ILogger m_logger;
+        private readonly Lock m_stateLock = new();
         private CancellationTokenSource? m_cts;
         private Task? m_pumpTask;
+        private Task? m_startReadyTask;
         private bool m_disposed;
 
         /// <inheritdoc/>
@@ -87,34 +90,72 @@ namespace Opc.Ua.Client.ModelChange
         }
 
         /// <inheritdoc/>
-        public ValueTask StartTrackingAsync(CancellationToken ct = default)
+        public async ValueTask StartTrackingAsync(CancellationToken ct = default)
         {
-            if (IsTracking)
+            ct.ThrowIfCancellationRequested();
+
+            bool ownsStart = false;
+            Task readyTask;
+
+            lock (m_stateLock)
             {
-                return default;
+                if (IsTracking)
+                {
+                    readyTask = m_startReadyTask ?? Task.CompletedTask;
+                }
+                else
+                {
+                    var ready = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+
+                    m_cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    // Capture the token before launching the pump task so a racing
+                    // StopTrackingAsync (which nulls m_cts) cannot NRE the lambda.
+                    CancellationToken pumpToken = m_cts.Token;
+                    m_startReadyTask = ready.Task;
+                    m_pumpTask = Task.Run(
+                        () => PumpAsync(ready, pumpToken),
+                        CancellationToken.None);
+                    IsTracking = true;
+                    ownsStart = true;
+                    readyTask = ready.Task;
+                }
             }
 
-            m_cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            // Capture the token before launching the pump task so a racing
-            // StopTrackingAsync (which nulls m_cts) cannot NRE the lambda.
-            CancellationToken pumpToken = m_cts.Token;
-            m_pumpTask = Task.Run(() => PumpAsync(pumpToken), pumpToken);
-            IsTracking = true;
-
-            return default;
+            try
+            {
+                await readyTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                if (ownsStart)
+                {
+                    await StopTrackingAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                throw;
+            }
         }
 
         /// <inheritdoc/>
         public async ValueTask StopTrackingAsync(CancellationToken ct = default)
         {
-            if (!IsTracking)
-            {
-                return;
-            }
+            Task? pumpTask;
+            CancellationTokenSource? cts;
 
-            IsTracking = false;
-            CancellationTokenSource? cts = m_cts;
-            m_cts = null;
+            lock (m_stateLock)
+            {
+                if (!IsTracking)
+                {
+                    return;
+                }
+
+                IsTracking = false;
+                cts = m_cts;
+                pumpTask = m_pumpTask;
+                m_cts = null;
+                m_pumpTask = null;
+                m_startReadyTask = null;
+            }
 
             if (cts != null)
             {
@@ -128,17 +169,16 @@ namespace Opc.Ua.Client.ModelChange
                 }
             }
 
-            if (m_pumpTask != null)
+            if (pumpTask != null)
             {
                 try
                 {
-                    await m_pumpTask.ConfigureAwait(false);
+                    await pumpTask.ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
                     // expected
                 }
-                m_pumpTask = null;
             }
 
             cts?.Dispose();
@@ -155,7 +195,7 @@ namespace Opc.Ua.Client.ModelChange
             await StopTrackingAsync().ConfigureAwait(false);
         }
 
-        private async Task PumpAsync(CancellationToken ct)
+        private async Task PumpAsync(TaskCompletionSource<bool> ready, CancellationToken ct)
         {
             try
             {
@@ -167,8 +207,8 @@ namespace Opc.Ua.Client.ModelChange
                     QueueSize = 50
                 };
 
-                IAsyncEnumerable<EventNotification> source =
-                    m_streaming.SubscribeEventsAsync(ObjectIds.Server, filter, options, ct);
+                IAsyncEnumerable<EventNotification> source = SubscribeModelChangeEvents(
+                    filter, options, ready, ct);
                 await foreach (EventNotification notification in source.ConfigureAwait(false))
                 {
                     await HandleNotificationAsync(notification, ct).ConfigureAwait(false);
@@ -176,11 +216,60 @@ namespace Opc.Ua.Client.ModelChange
             }
             catch (OperationCanceledException)
             {
+                ready.TrySetCanceled(ct);
                 // graceful shutdown
             }
             catch (Exception ex)
             {
+                ready.TrySetException(ex);
                 m_logger.ModelChangeTrackerPumpFailed(ex);
+            }
+        }
+
+        private IAsyncEnumerable<EventNotification> SubscribeModelChangeEvents(
+            EventFilter filter,
+            MonitoringOptions options,
+            TaskCompletionSource<bool> ready,
+            CancellationToken ct)
+        {
+            if (m_streaming is IStreamingSubscriptionReadiness readiness)
+            {
+                return readiness.SubscribeEventsAsync(
+                    ObjectIds.Server,
+                    filter,
+                    options,
+                    async (item, itemCt) =>
+                    {
+                        await WaitForMonitoredItemCreatedAsync(item, itemCt).ConfigureAwait(false);
+                        ready.TrySetResult(true);
+                    },
+                    ct);
+            }
+
+            ready.TrySetResult(true);
+            return m_streaming.SubscribeEventsAsync(ObjectIds.Server, filter, options, ct);
+        }
+
+        private static async ValueTask WaitForMonitoredItemCreatedAsync(
+            IMonitoredItem item,
+            CancellationToken ct)
+        {
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                if (item.Created)
+                {
+                    return;
+                }
+
+                if (item is IMonitoredItemApplyState { HasPendingChanges: false } &&
+                    ServiceResult.IsBad(item.Error))
+                {
+                    throw new ServiceResultException(item.Error);
+                }
+
+                await Task.Delay(10, ct).ConfigureAwait(false);
             }
         }
 

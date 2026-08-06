@@ -56,9 +56,12 @@ namespace Robotics
 
         public MobileRobotPositionProvider(
             IOptions<MobileRobotPositionOptions> options,
-            RobotPositioningScenario scenario)
+            RobotPositioningScenario scenario,
+            CellChoreographer choreographer)
             : this(options.Value, scenario, TimeProvider.System)
         {
+            Choreographer = choreographer ??
+                throw new ArgumentNullException(nameof(choreographer));
         }
 
         public MobileRobotPositionProvider(
@@ -74,6 +77,11 @@ namespace Robotics
         }
 
         public RobotPositioningScenario Scenario { get; }
+
+        /// <summary>
+        /// The choreographer whose agents own the robot poses, when the provider is hosted.
+        /// </summary>
+        public CellChoreographer? Choreographer { get; }
 
         /// <inheritdoc/>
         public bool SupportsPush => true;
@@ -94,8 +102,7 @@ namespace Robotics
             string sourceId,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            RobotMotionOptions options = GetOptions(sourceId);
-            if (options.Mode == RobotMotionMode.Fixed)
+            if (Choreographer == null && GetOptions(sourceId).Mode == RobotMotionMode.Fixed)
             {
                 yield break;
             }
@@ -123,6 +130,36 @@ namespace Robotics
             string sourceId,
             TimeSpan elapsed)
         {
+            // The choreographer owns the pose whenever the provider is hosted: the two
+            // robots have to agree on where each other is, which independent parametric
+            // paths could never do. The options-driven path below stays for tests that
+            // exercise the provider on its own.
+            if (Choreographer != null)
+            {
+                foreach (RobotAgent agent in Choreographer.Robots)
+                {
+                    if (!string.Equals(agent.Id, sourceId, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+                    return new ThreeDFrame
+                    {
+                        CartesianCoordinates = new ThreeDCartesianCoordinates
+                        {
+                            X = agent.X,
+                            Y = agent.Y,
+                            Z = 0.0
+                        },
+                        Orientation = new ThreeDOrientation
+                        {
+                            A = 0.0,
+                            B = 0.0,
+                            C = agent.HeadingDegrees
+                        }
+                    };
+                }
+            }
+
             RobotMotionOptions options = GetOptions(sourceId);
             double period = Math.Max(0.1, options.PeriodSeconds);
             double theta = 2.0 *

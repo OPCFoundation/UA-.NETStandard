@@ -95,9 +95,14 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "        48: 180.0,",
                 "    }");
 
-            Assert.That(attr.Value, Is.Null, "no authored default was declared");
+            Assert.That(attr.Value.IsNull, Is.True, "no authored default was declared");
             Assert.That(attr.TimeSamples.Keys, Is.EqualTo(new[] { 0.0, 24.0, 48.0 }));
-            Assert.That(attr.TimeSamples.Values, Is.EqualTo(new object?[] { 0.0, 90.0, 180.0 }));
+            Assert.That(attr.TimeSamples.Values, Is.EqualTo(new[]
+            {
+                UsdValue.From(0.0),
+                UsdValue.From(90.0),
+                UsdValue.From(180.0)
+            }));
         }
 
         [Test]
@@ -108,7 +113,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "    double a.timeSamples = { 0: 0.0, 24: 90.0 }");
 
             Assert.That(attr.TimeSamples.Keys, Is.EqualTo(new[] { 0.0, 24.0 }));
-            Assert.That(attr.TimeSamples.Values, Is.EqualTo(new object?[] { 0.0, 90.0 }));
+            Assert.That(attr.TimeSamples.Values, Is.EqualTo(new[] { UsdValue.From(0.0), UsdValue.From(90.0) }));
         }
 
         [Test]
@@ -123,8 +128,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "    }");
 
             Assert.That(attr.TimeSamples.Keys, Is.EqualTo(new[] { -12.0, 0.5, 2.25 }));
-            Assert.That(attr.TimeSamples[-12.0], Is.EqualTo(-1.0));
-            Assert.That(attr.TimeSamples[0.5], Is.EqualTo(5.0));
+            UsdTestHelpers.AssertDouble(attr.TimeSamples[-12.0], -1.0);
+            UsdTestHelpers.AssertDouble(attr.TimeSamples[0.5], 5.0);
         }
 
         [Test]
@@ -151,8 +156,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "        24: (1, 2, 3),",
                 "    }");
 
-            Assert.That(attr.TimeSamples[0.0], Is.EqualTo(new object?[] { 0L, 0L, 0L }));
-            Assert.That(attr.TimeSamples[24.0], Is.EqualTo(new object?[] { 1L, 2L, 3L }));
+            UsdTestHelpers.AssertIntegerItems(attr.TimeSamples[0.0], 0L, 0L, 0L);
+            UsdTestHelpers.AssertIntegerItems(attr.TimeSamples[24.0], 1L, 2L, 3L);
         }
 
         [Test]
@@ -165,8 +170,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "        24: [4, 5, 6],",
                 "    }");
 
-            Assert.That(attr.TimeSamples[0.0], Is.EqualTo(new List<object?> { 1L, 2L, 3L }));
-            Assert.That(attr.TimeSamples[24.0], Is.EqualTo(new List<object?> { 4L, 5L, 6L }));
+            UsdTestHelpers.AssertIntegerItems(attr.TimeSamples[0.0], 1L, 2L, 3L);
+            UsdTestHelpers.AssertIntegerItems(attr.TimeSamples[24.0], 4L, 5L, 6L);
         }
 
         [Test]
@@ -179,8 +184,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "        24: @./b.usda@,",
                 "    }");
 
-            Assert.That(attr.TimeSamples[0.0], Is.EqualTo("./a.usda"));
-            Assert.That(attr.TimeSamples[24.0], Is.EqualTo("./b.usda"));
+            UsdTestHelpers.AssertAssetPath(attr.TimeSamples[0.0], "./a.usda");
+            UsdTestHelpers.AssertAssetPath(attr.TimeSamples[24.0], "./b.usda");
         }
 
         [Test]
@@ -193,8 +198,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "        24: \"closed\",",
                 "    }");
 
-            Assert.That(attr.TimeSamples[0.0], Is.EqualTo("open"));
-            Assert.That(attr.TimeSamples[24.0], Is.EqualTo("closed"));
+            UsdTestHelpers.AssertString(attr.TimeSamples[0.0], "open");
+            UsdTestHelpers.AssertString(attr.TimeSamples[24.0], "closed");
         }
 
         [Test]
@@ -208,7 +213,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 "        24: 90.0,",
                 "    }");
 
-            Assert.That(attr.Value, Is.EqualTo(5.0));
+            UsdTestHelpers.AssertDouble(attr.Value, 5.0);
             Assert.That(attr.TimeSamples.Keys, Is.EqualTo(new[] { 0.0, 24.0 }));
         }
 
@@ -322,15 +327,15 @@ namespace Opc.Ua.OpenUsdScene.Tests
             var a = new UsdStage("S");
             UsdPrim pa = a.AddRootPrim(new UsdPrim("X", "Xform"));
             var attrA = new UsdAttribute("v", "double");
-            attrA.TimeSamples[0.0] = 0.0;
-            attrA.TimeSamples[24.0] = 90.0;
+            attrA.TimeSamples[0.0] = UsdValue.From(0.0);
+            attrA.TimeSamples[24.0] = UsdValue.From(90.0);
             pa.Attributes.Add(attrA);
 
             var b = new UsdStage("S");
             UsdPrim pb = b.AddRootPrim(new UsdPrim("X", "Xform"));
             var attrB = new UsdAttribute("v", "double");
-            attrB.TimeSamples[0.0] = 0.0;
-            attrB.TimeSamples[24.0] = 91.0;
+            attrB.TimeSamples[0.0] = UsdValue.From(0.0);
+            attrB.TimeSamples[24.0] = UsdValue.From(91.0);
             pb.Attributes.Add(attrB);
 
             Assert.That(UsdSceneSignature.Compute(b), Is.Not.EqualTo(UsdSceneSignature.Compute(a)));
@@ -342,13 +347,13 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var withSamples = new UsdStage("S");
             UsdPrim ps = withSamples.AddRootPrim(new UsdPrim("X", "Xform"));
-            var sampled = new UsdAttribute("v", "double") { Value = 1.0 };
-            sampled.TimeSamples[0.0] = 0.0;
+            var sampled = new UsdAttribute("v", "double") { Value = UsdValue.From(1.0) };
+            sampled.TimeSamples[0.0] = UsdValue.From(0.0);
             ps.Attributes.Add(sampled);
 
             var withoutSamples = new UsdStage("S");
             UsdPrim pn = withoutSamples.AddRootPrim(new UsdPrim("X", "Xform"));
-            pn.Attributes.Add(new UsdAttribute("v", "double") { Value = 1.0 });
+            pn.Attributes.Add(new UsdAttribute("v", "double") { Value = UsdValue.From(1.0) });
 
             Assert.That(
                 UsdSceneSignature.Compute(withoutSamples),
@@ -361,15 +366,15 @@ namespace Opc.Ua.OpenUsdScene.Tests
             var a = new UsdStage("S");
             UsdPrim pa = a.AddRootPrim(new UsdPrim("X", "Xform"));
             var attrA = new UsdAttribute("v", "double");
-            attrA.TimeSamples[0.0] = 0.0;
-            attrA.TimeSamples[24.0] = 90.0;
+            attrA.TimeSamples[0.0] = UsdValue.From(0.0);
+            attrA.TimeSamples[24.0] = UsdValue.From(90.0);
             pa.Attributes.Add(attrA);
 
             var b = new UsdStage("S");
             UsdPrim pb = b.AddRootPrim(new UsdPrim("X", "Xform"));
             var attrB = new UsdAttribute("v", "double");
-            attrB.TimeSamples[0.0] = 0.0;
-            attrB.TimeSamples[24.0] = 90.0;
+            attrB.TimeSamples[0.0] = UsdValue.From(0.0);
+            attrB.TimeSamples[24.0] = UsdValue.From(90.0);
             pb.Attributes.Add(attrB);
 
             Assert.That(UsdSceneSignature.Compute(b), Is.EqualTo(UsdSceneSignature.Compute(a)));
@@ -382,7 +387,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // samples existed, so the existing round-trip corpus cannot be perturbed.
             var stage = new UsdStage("S");
             UsdPrim prim = stage.AddRootPrim(new UsdPrim("X", "Xform"));
-            prim.Attributes.Add(new UsdAttribute("v", "int") { Value = 1L });
+            prim.Attributes.Add(new UsdAttribute("v", "int") { Value = UsdValue.From(1L) });
 
             string signature = UsdSceneSignature.Compute(stage);
 

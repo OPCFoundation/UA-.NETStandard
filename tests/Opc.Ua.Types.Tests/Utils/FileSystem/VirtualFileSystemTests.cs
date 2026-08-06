@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Utils.FileSystem
@@ -402,6 +403,35 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             int bytesRead = stream.Read(buffer, 0, buffer.Length);
             Assert.That(bytesRead, Is.EqualTo(content2.Length));
             Assert.That(buffer, Is.EqualTo(content2));
+        }
+
+        [Test]
+        public void ReplaceConcurrentWritersPublishesOneStagedFile()
+        {
+            using var vfs = new VirtualFileSystem();
+            const string destinationPath = "published.txt";
+            const int writerCount = 32;
+            var expectedContents = new List<byte[]>(writerCount);
+
+            for (int i = 0; i < writerCount; i++)
+            {
+                string sourcePath = "staged-" + i + ".txt";
+                byte[] content = [(byte)i];
+                expectedContents.Add(content);
+                vfs.Add(sourcePath, content);
+            }
+
+            Parallel.For(
+                0,
+                writerCount,
+                i => vfs.Replace("staged-" + i + ".txt", destinationPath));
+
+            byte[] published = vfs.Get(destinationPath);
+            Assert.That(expectedContents, Has.Some.EqualTo(published));
+            for (int i = 0; i < writerCount; i++)
+            {
+                Assert.That(vfs.Exists("staged-" + i + ".txt"), Is.False);
+            }
         }
 
         [Test]

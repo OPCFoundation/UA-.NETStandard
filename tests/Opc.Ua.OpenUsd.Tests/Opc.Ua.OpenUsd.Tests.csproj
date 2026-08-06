@@ -25,7 +25,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="OpenUsd.Rendering" VersionOverride="0.1.0-alpha"
+    <PackageReference Include="OpenUsd.Rendering" VersionOverride="0.4.0-alpha"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
   </ItemGroup>
   <ItemGroup>
