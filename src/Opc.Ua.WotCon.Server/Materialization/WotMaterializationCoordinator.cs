@@ -920,78 +920,118 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     continue;
                 }
 
-                WotDocument? document = TryParseDocument(version.Content);
-                if (document is null)
+                try
                 {
-                    const string reason = "The projection document could not be parsed.";
-                    viewResults.Add(FailResult(
-                        member, generation, WoTPhaseEnum.FormatValidation, reason));
-                    viewProjections.Add(FailProjection(member, reason, FormatFailure(reason)));
-                    RaiseValidationFailure(member, generation, FormatFailure(reason), reason);
-                    continue;
-                }
-
-                WotViewProjectionResult build;
-                using (document)
-                {
-                    build = await builder
-                        .BuildAsync(document, null, cancellationToken)
+                    await MaterializeProjectionViewAsync(
+                        builder, member, version, generation,
+                        viewResults, viewProjections, viewHandles, cancellationToken)
                         .ConfigureAwait(false);
                 }
-
-                if (!build.Success || build.Plan is null)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    string reason = FormatDiagnostics(build.Diagnostics,
-                        "The projection document could not be materialized as a View.");
-                    viewResults.Add(FailResult(member, generation, WoTPhaseEnum.Projection, reason));
+                    // Contain the failure to this member. Letting it escape would
+                    // abort the loop with the Views applied so far held only in the
+                    // local list, which the caller publishes into ClosureState only
+                    // on the success path - so those Nodes would stay in the address
+                    // space with no handle recorded and nothing could ever remove
+                    // them. Reporting the member failed keeps every applied handle
+                    // reachable for the next refresh to retire.
+                    string reason = "The projection View could not be materialized: " +
+                        ex.Message;
+                    viewResults.Add(FailResult(
+                        member, generation, WoTPhaseEnum.Activation, reason));
                     viewProjections.Add(FailProjection(member, reason));
                     RaiseLoadFailure(member, generation, reason);
-                    continue;
                 }
-
-                WotViewProjectionPlan plan = build.Plan;
-                NodeId viewNodeId = ComputeViewNodeId(member);
-                var request = new WotViewProjectionRequest(
-                    member.Xid, member.Xid, ComputeResourceNodeId(member), viewNodeId, plan);
-                WotViewProjectionHandle viewHandle = await m_viewHost
-                    .ApplyAsync(request, cancellationToken)
-                    .ConfigureAwait(false);
-                viewHandles.Add(viewHandle);
-
-                string message = viewHandle.Message.Length != 0
-                    ? viewHandle.Message
-                    : "Materialized projection View organizing " +
-                        plan.OrganizedNodeIds.Count.ToString(CultureInfo.InvariantCulture) +
-                        " Node(s).";
-                viewResults.Add(new WoTResourceLoadResultDataType
-                {
-                    Xid = member.Xid,
-                    GroupId = member.GroupId,
-                    ResourceId = member.ResourceId,
-                    VersionId = member.DefaultVersionId ?? string.Empty,
-                    Kind = member.Kind,
-                    Outcome = WoTOutcomeEnum.Success,
-                    Phase = WoTPhaseEnum.Activation,
-                    LoadState = WoTLoadStateEnum.Active,
-                    Generation = generation,
-                    MaterializedNodeCount = (uint)plan.MaterializedNodeCount,
-                    RootNodeId = viewNodeId,
-                    ContentDigest = DigestOf(member),
-                    Message = message
-                });
-                viewProjections.Add(new WotResourceProjection(
-                    member.GroupId,
-                    member.ResourceId,
-                    WoTLoadStateEnum.Active,
-                    member.DefaultVersionId,
-                    generation,
-                    plan.MaterializedNodeCount,
-                    viewNodeId,
-                    SuccessValidation(),
-                    OmissionDiagnostics(plan.Omissions),
-                    DateTime.UtcNow));
-                RaiseResource(member, generation, WoTOutcomeEnum.Success, WoTLoadStateEnum.Active);
             }
+        }
+
+        /// <summary>
+        /// Materializes the View for one projection-document member. Expected
+        /// failures are reported through the result lists; anything unexpected is
+        /// contained by the caller.
+        /// </summary>
+        private async ValueTask MaterializeProjectionViewAsync(
+            WotProjectionViewBuilder builder,
+            WotResource member,
+            WotResourceVersion version,
+            uint generation,
+            List<WoTResourceLoadResultDataType> viewResults,
+            List<WotResourceProjection> viewProjections,
+            List<WotViewProjectionHandle> viewHandles,
+            CancellationToken cancellationToken)
+        {
+            WotDocument? document = TryParseDocument(version.Content);
+            if (document is null)
+            {
+                const string reason = "The projection document could not be parsed.";
+                viewResults.Add(FailResult(
+                    member, generation, WoTPhaseEnum.FormatValidation, reason));
+                viewProjections.Add(FailProjection(member, reason, FormatFailure(reason)));
+                RaiseValidationFailure(member, generation, FormatFailure(reason), reason);
+                return;
+            }
+
+            WotViewProjectionResult build;
+            using (document)
+            {
+                build = await builder
+                    .BuildAsync(document, null, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (!build.Success || build.Plan is null)
+            {
+                string reason = FormatDiagnostics(build.Diagnostics,
+                    "The projection document could not be materialized as a View.");
+                viewResults.Add(FailResult(member, generation, WoTPhaseEnum.Projection, reason));
+                viewProjections.Add(FailProjection(member, reason));
+                RaiseLoadFailure(member, generation, reason);
+                return;
+            }
+
+            WotViewProjectionPlan plan = build.Plan;
+            NodeId viewNodeId = ComputeViewNodeId(member);
+            var request = new WotViewProjectionRequest(
+                member.Xid, member.Xid, ComputeResourceNodeId(member), viewNodeId, plan);
+            WotViewProjectionHandle viewHandle = await m_viewHost
+                .ApplyAsync(request, cancellationToken)
+                .ConfigureAwait(false);
+            viewHandles.Add(viewHandle);
+
+            string message = viewHandle.Message.Length != 0
+                ? viewHandle.Message
+                : "Materialized projection View organizing " +
+                    plan.OrganizedNodeIds.Count.ToString(CultureInfo.InvariantCulture) +
+                    " Node(s).";
+            viewResults.Add(new WoTResourceLoadResultDataType
+            {
+                Xid = member.Xid,
+                GroupId = member.GroupId,
+                ResourceId = member.ResourceId,
+                VersionId = member.DefaultVersionId ?? string.Empty,
+                Kind = member.Kind,
+                Outcome = WoTOutcomeEnum.Success,
+                Phase = WoTPhaseEnum.Activation,
+                LoadState = WoTLoadStateEnum.Active,
+                Generation = generation,
+                MaterializedNodeCount = (uint)plan.MaterializedNodeCount,
+                RootNodeId = viewNodeId,
+                ContentDigest = DigestOf(member),
+                Message = message
+            });
+            viewProjections.Add(new WotResourceProjection(
+                member.GroupId,
+                member.ResourceId,
+                WoTLoadStateEnum.Active,
+                member.DefaultVersionId,
+                generation,
+                plan.MaterializedNodeCount,
+                viewNodeId,
+                SuccessValidation(),
+                OmissionDiagnostics(plan.Omissions),
+                DateTime.UtcNow));
+            RaiseResource(member, generation, WoTOutcomeEnum.Success, WoTLoadStateEnum.Active);
         }
 
         private NodeId ComputeResourceNodeId(WotResource member)

@@ -151,9 +151,24 @@ namespace Opc.Ua.Wot
             WotDocument? view = null;
             if (bytes is not null && !HasErrors(diagnostics))
             {
+                try
+                {
 #pragma warning disable CA2000 // Ownership of the returned WotDocument transfers to the caller through the result.
-                view = WotDocument.Parse(bytes, m_options);
+                    view = WotDocument.Parse(bytes, m_options);
 #pragma warning restore CA2000
+                }
+                catch (Exception exception) when (
+                    exception is JsonException or FormatException)
+                {
+                    // The assembled view is a merge of N sources, so it can exceed
+                    // a limit none of them individually broke. Report it rather
+                    // than throwing out of a method whose contract documents only
+                    // ArgumentNullException.
+                    AddError(
+                        diagnostics,
+                        WotDiagnosticCode.ValidationError,
+                        "The resolved view could not be parsed: " + exception.Message);
+                }
             }
             return new WotConversionResult<WotDocument>(view, diagnostics);
         }
@@ -349,10 +364,23 @@ namespace Opc.Ua.Wot
                     {
                         return null;
                     }
+                    WotDocument resolvedView;
+                    try
+                    {
 #pragma warning disable CA2000 // Ownership transfers to openDocuments, disposed in the caller's finally.
-                    WotDocument resolvedView =
-                        WotDocument.Parse(nestedBytes, m_options);
+                        resolvedView = WotDocument.Parse(nestedBytes, m_options);
 #pragma warning restore CA2000
+                    }
+                    catch (Exception exception) when (
+                        exception is JsonException or FormatException)
+                    {
+                        AddError(
+                            diagnostics,
+                            WotDiagnosticCode.ValidationError,
+                            $"The nested resolved view '{href}' could not be parsed: " +
+                                exception.Message);
+                        return null;
+                    }
                     openDocuments.Add(resolvedView);
                     return new ResolvedSource
                     {
