@@ -26,7 +26,7 @@ needs `Sign` and `Decrypt`.
 The remaining 15 % is not the protocol: it is **six certificate *persistence and export* call sites**
 that assume a PFX round-trip is always possible[^breakage]. Those are the real work.
 
-Three conclusions drive the design:
+Five conclusions drive the design:
 
 1. **Do not invent a new asymmetric crypto interface.** `RSA`/`ECDsa` subclasses plus
    `X509Certificate2.CopyWithPrivateKey` already are the plugin contract, and they are the contract
@@ -38,12 +38,36 @@ Three conclusions drive the design:
 3. **Where a seam *is* needed for "different library" scenarios, a null-check fast path costs nothing.**
    A 64 KB chunk costs ~50 µs of AES+HMAC; an interface dispatch costs ~1–9 ns — **0.002 %–0.018 %**[^perf].
    A predicted-not-taken null test is below measurement noise.
+4. **Selection must be per *purpose* × per *security policy*, not global.** A realistic deployment wants
+   the application instance key in a TPM, user identity keys offboard in a KMS, key agreement in
+   hardware, and everything else in software — simultaneously. This makes the provider model a
+   **resolution problem**, structurally identical to the existing `IHistorianProviderRegistry`
+   (specific → less specific → default)[^histregistry], not a single injected singleton.
+5. **Provider selection and compliance posture are the same mechanism.** Every provider declares which
+   capabilities it can serve *and* its validation provenance. A security policy is advertised only if
+   some registered provider can serve it **and** it passes the configured compliance filter. This single
+   registry satisfies "mix and match", "add missing profiles", "FIPS-compliant default" and "auditable
+   use of uncertified crypto" coherently, instead of four bolted-on features.
 
 Most of the required seams already exist and simply need to be used and hardened:
 `ICertificateStoreProvider`[^storeprovider], `ICertificateStore.LoadPrivateKeyAsync`[^loadpk],
 `IPushCertificateKeyGenerator` (whose XML doc already says "for example, to delegate to a hardware
 security module")[^pushkeygen], `X509SignatureGenerator` overloads on `ICertificateBuilder`[^certbuilder], and
-`ITokenIssuer` as the established async-offboard-signing precedent[^tokenissuer].
+`ITokenIssuer` as the established async-offboard-signing precedent[^tokenissuer]. The audit surface needed for
+requirement 6 also already exists in full — ~30 `Report*` audit events, the Part 12 `ServerConfiguration`
+address-space node, and a deprecated-policy `LogLevel.Warning` pattern that is an exact template[^auditapi][^deprecatedwarn].
+
+**Two findings materially change scope versus the first draft:**
+
+- **Making a *new* security policy pluggable is a much larger change than making crypto pluggable.**
+  There are ten interlocking structural blockers, including closed C# enums for every algorithm and
+  policy dictionaries built by **reflection over `typeof(SecurityPolicies).GetFields()`**[^policyblockers].
+  This is tracked as a separate, later workstream (Phase 6) and should not gate the hardware-key work.
+- **The current default configuration is not FIPS-clean.** The stack advertises ChaCha20-Poly1305 and
+  brainpool policies by default and neither algorithm is FIPS-approved; `net472`/`net48` additionally use
+  the non-validated `BouncyCastle.Cryptography` NuGet[^fipsgaps]. "FIPS-compliant by default" therefore
+  requires an explicit compliance profile that **filters the advertised policy set**, not merely a
+  statement about which library performs the maths.
 
 ---
 
@@ -78,15 +102,38 @@ closed in 2021 without an implementation; #1202 ("OPC UA Security and HSM hardwa
 #2637 / PR #2761 fixed a *symptom* in 2024 — the stack crashed on HTTPS when the private key was
 non-exportable[^issues].
 
-### 2.2 The second requirement: replaceable crypto library
+### 2.2 Additional requirements beyond the issue
+
+Six further requirements were raised during design review. They are not refinements — several change
+the shape of the solution.
+
+| # | Requirement | Design consequence |
+|---|---|---|
+| **A1** | Alternative crypto must be **dependency injectable** | Confirms the provider model; registration via `IOpcUaBuilder`, `TryAddSingleton`, no reflection (AOT)[^diroot][^aot] |
+| **A2** | Selection must be possible **case by case** — e.g. user certificates offboard, key agreement and instance certificate from a TPM | Introduces a **purpose axis**. A single global provider is insufficient; needs a resolver |
+| **A3** | **Crypto .NET does not support**, and therefore **missing profiles**, might be provided by an external library or hardware | Inverts the capability model: providers must be able to **add** policies, not only be filtered by them. This is the largest new scope |
+| **A4** | Possibly **mix and match per security profile** | Introduces a **policy axis** orthogonal to the purpose axis |
+| **A5** | The **default must be FIPS compliant**, using the certified .NET libraries | Requires a compliance profile that filters the advertised policy set — the current default is *not* FIPS-clean |
+| **A6** | Use of **uncertified crypto must be auditable** | Requires provenance metadata per provider plus reporting through logs, metrics and the address space |
+
+**A2 and A4 together define a two-dimensional selection matrix** (purpose × security policy, with
+certificate type as a third discriminator). **A5 and A6 together define a provenance model.** The key
+design insight is that these are the *same* registry: a provider declares what it can serve and how it
+is validated; resolution and compliance filtering are two queries over one capability set.
+
+**A3 is in direct tension with A5.** The profiles .NET cannot do natively — curve25519/Ed25519, and to a
+lesser extent brainpool — are precisely the algorithms that are *not* FIPS-approved[^fipsalgs]. The design must
+therefore make compliance posture an explicit, auditable choice rather than an emergent accident.
+
+### 2.3 The second requirement: replaceable crypto library
 
 Beyond hardware custody, the request includes running crypto *offboard* or *via a different library*
 (FIPS-validated module, BouncyCastle, an OpenSSL provider). This is a **broader** scope than hardware
 keys, because it touches the symmetric per-message path, which hardware offload does not.
 
-The two requirements need different mechanisms, and conflating them is the main design risk.
+The requirements need different mechanisms, and conflating them is the main design risk.
 
-### 2.3 Specification backing
+### 2.4 Specification backing
 
 | Source | Statement |
 |---|---|
@@ -271,9 +318,229 @@ graph TB
 **Layer 0 delivers issue #4190 and requires no hot-path change at all.** Layers 1 and 2 deliver the
 "replace the library / run offboard" requirement and are independently shippable.
 
-### 4.3 Layer 0 — key custody
+### 4.3 Selection and resolution model (requirements A2, A4)
 
-#### 4.3.1 Getting a hardware certificate into the stack
+A single injected provider cannot express *"instance certificate in the TPM, user certificates offboard,
+key agreement in hardware, everything else in software"*. Selection is a **resolution problem over three
+discriminators**:
+
+```mermaid
+graph LR
+    Q["Resolution query"] --> P["Purpose<br/>ApplicationInstanceKey · UserIdentityKey<br/>KeyAgreement · CertificateIssuance<br/>ChannelSymmetric · RandomNumberGeneration"]
+    Q --> S["Security policy URI<br/>Basic256Sha256 · ECC_nistP256 · …"]
+    Q --> C["Certificate type NodeId<br/>RsaSha256 · EccNistP256 · …"]
+    P & S & C --> R["ICryptoProviderRegistry.Resolve"]
+    R --> M1["1. exact (purpose, policy) binding"]
+    M1 --> M2["2. purpose binding"]
+    M2 --> M3["3. registered default"]
+    M3 --> M4["4. built-in platform provider"]
+    style M4 fill:#e6ffe6
+```
+
+The precedence chain is deliberately identical to the existing `IHistorianProviderRegistry`
+(`RegisterForNode` → `RegisterForNamespace` → `RegisterDefault` → `Resolve`)[^histregistry], so the concept is
+already familiar in this codebase.
+
+```csharp
+/// <summary>
+/// Identifies what a crypto operation is being performed for. Selection is per purpose so that,
+/// for example, an application instance key can live in a TPM while user identity keys are
+/// signed by a remote KMS.
+/// </summary>
+public readonly record struct CryptoPurpose
+{
+    public static CryptoPurpose ApplicationInstanceKey { get; }
+    public static CryptoPurpose UserIdentityKey { get; }
+    public static CryptoPurpose KeyAgreement { get; }
+    public static CryptoPurpose CertificateIssuance { get; }
+    public static CryptoPurpose ChannelSymmetric { get; }
+    public static CryptoPurpose RandomNumberGeneration { get; }
+}
+
+public interface ICryptoProviderRegistry
+{
+    // Most specific wins. Registration is explicit — no reflection, no assembly scanning (AOT).
+    void RegisterFor(CryptoPurpose purpose, string securityPolicyUri, ICryptoProvider provider);
+    void RegisterFor(CryptoPurpose purpose, ICryptoProvider provider);
+    void RegisterDefault(ICryptoProvider provider);
+
+    ICryptoProvider Resolve(in CryptoResolutionQuery query);
+    ArrayOf<ICryptoProvider> Providers { get; }
+}
+```
+
+Resolution happens **at binding time, not per operation** — once per channel open, per certificate load
+or per key-generation request. The resolved provider is then held for the lifetime of that object, so
+the resolution cost never appears on any repeated path. This is the same discipline that keeps
+`SecurityPolicyInfo` lookup off the hot path today (it is cached on `ChannelToken.SecurityPolicy`).
+
+A worked configuration for the motivating deployment:
+
+```csharp
+services.AddOpcUa()
+    .AddCryptoProvider(b => b
+        .UseDefault(PlatformCryptoProvider.Instance)                    // FIPS-capable .NET/OS crypto
+        .For(CryptoPurpose.ApplicationInstanceKey).Use<TpmCryptoProvider>()
+        .For(CryptoPurpose.KeyAgreement).Use<TpmCryptoProvider>()
+        .For(CryptoPurpose.UserIdentityKey).Use<KeyVaultCryptoProvider>()
+        .For(CryptoPurpose.CertificateIssuance, SecurityPolicies.ECC_nistP384)
+            .Use<Pkcs11CryptoProvider>());                              // mix-and-match per policy
+```
+
+### 4.4 Provider capabilities and provenance (requirements A5, A6)
+
+Every provider declares **what it can serve** and **how it is validated**. Both queries run against one
+declaration, which is what unifies mix-and-match, missing-profile contribution, FIPS filtering and audit.
+
+```csharp
+public interface ICryptoProvider
+{
+    /// <summary>
+    /// Stable identifier used in logs, metrics and the address space, e.g. "Platform", "TPM2.0-CNG".
+    /// </summary>
+    string Name { get; }
+
+    /// <summary>
+    /// Provenance of the underlying cryptographic module. Drives compliance filtering and audit.
+    /// </summary>
+    CryptoValidationStatus Validation { get; }
+
+    /// <summary>
+    /// Capabilities this provider can serve. Used both to resolve providers and to compute the
+    /// advertised security policy set.
+    /// </summary>
+    ArrayOf<CryptoCapability> Capabilities { get; }
+}
+
+public readonly record struct CryptoValidationStatus(
+    CryptoValidationLevel Level,      // FipsValidated | FipsCapablePlatform | Uncertified | Unknown
+    string? ModuleName,               // e.g. "Windows CNG bcryptprimitives.dll"
+    string? CertificateReference);    // e.g. "CMVP #4825"
+```
+
+`CryptoValidationLevel` distinguishes three practically different situations, which matters because
+**.NET itself holds no FIPS certificate** — it is a call-through layer to the OS module[^fipsdotnet]:
+
+| Level | Meaning |
+|---|---|
+| `FipsValidated` | Provider asserts a specific CMVP certificate for the module it uses |
+| `FipsCapablePlatform` | Delegates to platform crypto that *is* validated **when the OS is configured for FIPS** — the honest status of the default .NET provider |
+| `Uncertified` | Third-party or bespoke implementation with no CMVP validation (e.g. `BouncyCastle.Cryptography`) |
+| `Unknown` | Provider declined to declare — treated as `Uncertified` for filtering, and always audited |
+
+#### FIPS-compliant default — what can and cannot be claimed
+
+Research established the boundaries precisely[^fipsdotnet][^fipsclaim]:
+
+- .NET has **no FIPS certificate of its own**; on Windows it calls CNG (`bcryptprimitives.dll`,
+  CMVP #4825), on Linux OpenSSL (FIPS provider if the operator configures one), on macOS CoreCrypto.
+- The historical `*Managed`-classes-throw-in-FIPS-mode behaviour is **gone** on .NET 6+; those classes
+  now delegate to the OS. The repo uses none of them anyway — a grep for `AesManaged`,
+  `SHA256Managed`, `*CryptoServiceProvider` returns **zero matches**[^fipsgaps].
+- Microsoft's own position: *"It does not enforce the use of FIPS Approved algorithms… the system
+  administrator is responsible for configuring the FIPS compliance for an operating system."*[^fipsdotnet]
+
+So the *provider* default is already right — platform crypto, no third-party library on modern TFMs.
+**The gap is the advertised algorithm set.** These are enabled by default today and are **not**
+FIPS-approved[^fipsalgs][^fipsgaps]:
+
+| Algorithm / policy family | FIPS-approved? | Status in repo |
+|---|---|---|
+| ChaCha20-Poly1305 (`*_ChaChaPoly`, `RSA_DH_ChaChaPoly`, DTLS) | ❌ No | **Advertised by default**, gated only on `ChaCha20Poly1305.IsSupported` |
+| Brainpool P256r1/P384r1 | ❌ No | **Advertised by default** (runtime platform check only) |
+| Curve25519 / X25519 | ❌ No | Behind `#if CURVE25519` — never compiled |
+| Ed25519 / Ed448 | ✅ Since FIPS 186-5 (2023) | but **module validation lags**; check the specific CMVP cert |
+| SHA-1 / P-SHA1 (Basic128Rsa15, Basic256) | ❌ Deprecated for new signing (SP 800-131A) | Already marked deprecated |
+| AES-CBC/GCM, SHA-256/384, HMAC-SHA-2, RSA ≥2048, ECDSA/ECDH on NIST P-curves, HKDF | ✅ Yes | Default path |
+| `BouncyCastle.Cryptography` NuGet (net472/net48 ECC cert building) | ❌ **Not validated** — the validated product is the separately licensed BC-FNA, CMVP #4416 | Used on `net4x` only |
+
+Therefore the design introduces a **compliance profile** that filters the advertised policy set:
+
+```csharp
+public enum CryptoCompliancePolicy
+{
+    Permissive,           // today's behaviour: advertise everything the platform supports
+    WarnOnUncertified,    // advertise everything, but log + audit every uncertified use  (proposed default)
+    FipsOnly              // advertise only capabilities served by FipsValidated/FipsCapablePlatform providers
+                          // using FIPS-approved algorithms; refuse to start otherwise
+}
+```
+
+> 🔺 **Decision required.** Making `FipsOnly` the *default* would silently drop ChaCha20 and brainpool
+> endpoints and is a behavioural break. The plan proposes defaulting to `WarnOnUncertified` — which
+> satisfies A6 immediately and makes A5 a one-line opt-in — and documenting `FipsOnly` as the
+> recommended posture for regulated deployments. Maintainer sign-off needed.
+
+The library must never claim to *be* FIPS-validated. The defensible claim is: *"On .NET 8+ with the
+`FipsOnly` profile, the stack performs no cryptography outside the platform modules, and those modules
+are FIPS-validated when the operating system is configured for FIPS."* `net472`/`net48` cannot make the
+claim at all while BouncyCastle is in the certificate path[^fipsclaim].
+
+#### Audit surface (A6)
+
+Nothing new needs inventing — three existing surfaces are reused:
+
+| Surface | Mechanism | Precedent |
+|---|---|---|
+| **Logs** | Source-generated `[LoggerMessage]` at `LogLevel.Warning` naming provider, purpose, policy and validation level whenever a non-`FipsValidated`/`FipsCapablePlatform` provider is bound | `SecuredApplicationHelpersLog` emits exactly this shape for deprecated policies[^deprecatedwarn]; `docs/Diagnostics.md` states diagnostics tooling *"emits a `Warning`-level log line at startup so the choice is observable in production logs"*[^pcapwarn] |
+| **Metrics** | New `opc.ua.crypto.*` instruments (operations by provider/purpose/policy; a gauge for bound uncertified providers). **No security or crypto meter exists today** — this is a genuine gap[^metrics] | `opc.ua.certcache.*`, `opc.ua.channel.*`[^metrics] |
+| **Address space** | Optional children on the Part 12 `ServerConfigurationState` node reporting active provider names and validation status, readable only by `SecurityAdmin` | `SupportedPrivateKeyFormats` and `ServerCapabilities` are populated there already[^serverconfignode] |
+| **Audit events** | An `AuditEventState`-derived event at startup and on provider rebind, `SourceName = "Security/CryptoProvider"` | ~30 `Report*` helpers exist; `SourceName` convention `"Security/<area>"`[^auditapi] |
+
+Key redaction is already handled: `AuditEvents.RedactedPrivateKey` is used as a placeholder so key
+material never enters the audit stream[^auditapi]. Provider *names* are not sensitive, but the `Redact`
+API is available for any identifier that is[^auditapi].
+
+### 4.5 Contributing missing security policies (requirement A3)
+
+This is the **largest and least certain** part of the work, and it is deliberately sequenced last.
+
+The motivating case already exists in the tree: **`ECC_curve25519` and `ECC_curve448` are fully
+implemented but dead.** The URI constants, the `SecurityPolicyInfo` instances, the BouncyCastle
+Ed25519/Ed448 and X25519/X448 implementations and the `IsPlatformSupportedName` branches all exist —
+but the `CURVE25519` symbol is **never defined in any `.csproj` or props file in the repository**, so
+none of it ever compiles[^curve25519]. .NET has no native support for these curves, which is precisely the
+"non-.NET-supported crypto / missing profile" scenario. **Lighting up curve25519 through the provider
+model, with no `#if`, is the acceptance test for this workstream.**
+
+Ten structural blockers prevent a plugin from contributing a policy today[^policyblockers]:
+
+| # | Blocker | Location | Severity |
+|---|---|---|---|
+| 1 | **Closed C# enums** for every algorithm (`AsymmetricSignatureAlgorithm`, `SymmetricEncryptionAlgorithm`, `KeyDerivationAlgorithm`, `CertificateKeyAlgorithm`, …) | `SecurityPolicyInfo.cs` | **Hard** — a new algorithm cannot be *expressed*, let alone dispatched |
+| 2 | Policy dictionaries built by **reflection over `typeof(SecurityPolicies).GetFields()`**, then frozen | `SecurityPolicies.cs` | **Hard** — no registration API exists |
+| 3 | `IsPlatformSupportedName` is a hardcoded `if`-chain; unknown names return `false` | `SecurityPolicies.cs` | Hard |
+| 4 | `GetDefaultUris()` / `GetDefaultEccUris()` hardcoded arrays | `SecurityPolicies.cs` | Hard |
+| 5 | `BuildSupportedSecurityPolicies()` switches on known certificate-type IDs | `SecurityConfiguration.cs` | Hard |
+| 6 | `MapSecurityPolicyToCertificateTypes()` switch; unknown URI → abstract type only → certificate lookup fails | `CertificateIdentifier.cs` | Hard |
+| 7 | `Encrypt`/`Decrypt`/`CreateSignatureData`/`VerifySignatureData` throw `BadSecurityPolicyRejected` when `GetInfo()` returns `null` | `SecurityPolicies.cs` | Hard |
+| 8 | `GetCurveFromCertificateTypeId()` hardcoded if-chain | `CryptoUtils.cs` | Hard |
+| 9 | `SecurityPolicyInfo` properties are all `private set` — an external assembly cannot construct a configured instance | `SecurityPolicyInfo.cs` | Soft — `internal set` + a builder/factory fixes it |
+| 10 | `CURVE25519` never defined in any project | — | Process |
+
+Blockers 1 and 2 are the structural ones. Addressing them means:
+
+- **Replacing closed enums with an open identifier type** (a `readonly record struct` with well-known
+  static instances, following `TrustListIdentifier`), and converting the `switch (enum)` dispatch in
+  `CreateSignatureHmac`, `Encrypt`, `Decrypt`, `CreateSignatureData` and `VerifySignatureData` into
+  polymorphic dispatch through the resolved provider. This is a **wide, breaking-ish refactor** of
+  `Opc.Ua.Core`'s security constants and must be costed separately.
+- **Replacing reflection-built frozen dictionaries with an explicit registry** seeded from the built-in
+  set and extensible via DI. As a side benefit this removes a reflection dependency from a
+  trim/AOT-annotated assembly.
+
+`IPubSubSecurityPolicy` is the right *interface shape* to copy — span-based `Sign`/`Verify`/`Encrypt`/
+`Decrypt` — but `PubSubSecurityPolicyRegistry` is **not** a usable registry template: its backing store is
+a `private static readonly` array with no registration API, exactly like `SecurityPolicies`[^pubsubreg].
+
+> **Recommendation:** treat A3 as a distinct, later epic (Phase 6) with its own design issue. Phases 0–5
+> deliver hardware-held keys, per-purpose/per-policy selection, FIPS filtering and audit **without**
+> touching the enums or the policy tables. Coupling them would put a multi-thousand-line refactor of the
+> security constants on the critical path of a feature that does not need it.
+
+### 4.6 Layer 0 — key custody
+
+#### 4.6.1 Getting a hardware certificate into the stack
 
 No new interface needed. `ICertificateStoreProvider` is already a DI seam keyed by store-type name[^storeprovider]:
 
@@ -313,7 +580,7 @@ neither needs changing.
 > `ICertificateStoreProvider` instances[^determinestore]. Either extend it, or require an explicit
 > `<StoreType>` (recommended, and document it).
 
-#### 4.3.2 Key generation in hardware
+#### 4.6.2 Key generation in hardware
 
 Two entry points generate keys today:
 
@@ -350,7 +617,7 @@ Certificate cert = CertificateBuilder.Create("CN=MyDevice")
 *startup* path gets the same treatment as the push path, rather than being the one place that hard-codes
 `RSA.Create`.
 
-#### 4.3.3 GDS Part 12 push
+#### 4.6.3 GDS Part 12 push
 
 ```mermaid
 sequenceDiagram
@@ -384,13 +651,13 @@ blocker is B11, the Directory-only pending-key store[^pendingstore].
 hardware-backed certificate group must return `Bad_NotSupported` for that argument. This should be an
 explicit, documented policy rather than an exception surfacing from deep in the stack (B10).
 
-#### 4.3.4 Certificate rotation
+#### 4.6.4 Certificate rotation
 
 `CertificateManager.UpdateApplicationCertificateAsync` swaps the live entry under a lock and publishes a
 `CertificateChanges` observable event, with the old entry disposed *after* notification[^rotation]. This works
 unchanged for hardware certificates.
 
-### 4.4 Layer 1 — replaceable algorithms (hot path)
+### 4.7 Layer 1 — replaceable algorithms (hot path)
 
 Required only for "use a different crypto library", **not** for hardware keys.
 
@@ -436,7 +703,7 @@ pre-allocated one from `ChannelToken`[^allocs]. On `#if NET6_0_OR_GREATER` these
 no behaviour change[^oneshot]. Doing this *first* also establishes a clean, span-shaped boundary for the
 provider interface.
 
-### 4.5 Layer 2 — offboard/async
+### 4.8 Layer 2 — offboard/async
 
 `ITokenIssuer` is the established precedent and its doc comment states the rationale outright:
 *"real-world issuers (HSMs, cloud KMSs, remote signing services) cannot be assumed to be in-process."*[^tokenissuer]
@@ -462,16 +729,26 @@ Registered by generic DI overload, no reflection, AOT-clean[^tokenissuer].
 > rule strictly. **This must be resolved before Phase 2.** Local hardware (TPM ~5–50 ms, PKCS#11 HSM
 > ~1–50 ms) makes (a) defensible; remote KMS makes (b) attractive.
 
-### 4.6 Capability negotiation
+### 4.9 Capability negotiation — computing the advertised policy set
 
-A hardware provider will not support every policy — e.g. Windows TPM KSPs have known RSA-PSS salt-size
-issues, and many TPMs do only RSA-2048 and ECDSA P-256[^tpmalgs]. The stack already has exactly the right
-mechanism: `SecurityPolicies.IsPlatformSupportedName` gates the advertised policy list on runtime
-capability probes such as `AesGcm.IsSupported`, `ChaCha20Poly1305.IsSupported`,
-`RsaUtils.IsSupportingRSAPssSign` and per-certificate-type support[^capprobe]. A provider should extend the
-same predicate so unsupported policies simply never appear in the endpoint list.
+A hardware provider will not support every policy — Windows TPM KSPs have known RSA-PSS salt-size
+issues, and many TPMs do only RSA-2048 and ECDSA P-256[^tpmalgs]. Equally, an operator running `FipsOnly`
+must not advertise ChaCha20 or brainpool endpoints. Both are the same computation.
 
-### 4.7 What we deliberately do **not** copy
+The stack already has the right *mechanism*: `SecurityPolicies.IsPlatformSupportedName` gates the
+advertised policy list on runtime probes such as `AesGcm.IsSupported`, `ChaCha20Poly1305.IsSupported`,
+`RsaUtils.IsSupportingRSAPssSign` and per-certificate-type support[^capprobe]. It is currently a hardcoded
+`if`-chain that returns `false` for anything it does not recognise[^policyblockers]. The design extends it into
+a three-term predicate:
+
+> **advertise(policy)** = platform supports it **AND** some registered provider can serve every purpose
+> the policy needs **AND** the capability passes the active `CryptoCompliancePolicy` filter
+
+The middle term is what lets a provider *add* a policy (A3) rather than only subtract; the third is what
+makes `FipsOnly` a filter rather than a special case. Until Phase 6 lands, the first term remains the
+hardcoded chain and only the second and third are new.
+
+### 4.10 What we deliberately do **not** copy
 
 open62541 has the most complete pluggable crypto layer of any OPC UA stack: a flat `UA_SecurityPolicy`
 struct of function pointers (`asymSignatureAlgorithm`, `symEncryptionAlgorithm`, …) with mbedTLS,
@@ -494,7 +771,7 @@ encodes *persistence* and *location*, dispatching to an opaque driver when the l
 element, so key material never enters core memory[^psa]. .NET's `RSA`/`ECDsa` subclass model is the
 managed-language equivalent, which is why we adopt it rather than reinventing it.
 
-### 4.8 Non-goals / explicit scope limits
+### 4.11 Non-goals / explicit scope limits
 
 | Excluded | Why |
 |---|---|
@@ -504,7 +781,7 @@ managed-language equivalent, which is why we adopt it rather than reinventing it
 | **PEM private-key export for hardware keys** | Physically impossible; must throw `NotSupportedException` with a clear message (B5–B9) |
 | **DTLS record protection (PubSub/UDP)** | `DtlsRecordProtection` is a concrete sealed class with no interface — out of scope for phase 1, noted for later[^dtls] |
 
-### 4.9 Other crypto surfaces (scope map)
+### 4.12 Other crypto surfaces (scope map)
 
 | Surface | Existing seam | Action |
 |---|---|---|
@@ -541,14 +818,28 @@ managed-language equivalent, which is why we adopt it rather than reinventing it
 - **Gate:** a server completes `OpenSecureChannel` + `ActivateSession` on Basic256Sha256 **and**
       ECC_nistP256 with a key that never leaves the token.
 
-### Phase 2 — Key generation seam
-- [ ] Resolve the sync/async decision from §4.5.
-- [ ] Introduce `IKeyPairGenerator` (sealed default preserving `RSA.Create`/`ECDsa.Create` exactly) and
-      route `ApplicationInstance.CreateApplicationInstanceCertificateAsync` through it.
-- [ ] DI: `services.AddOpcUa().AddKeyPairGenerator<TGenerator>()` following the
-      `WithAuthorizationService<TIssuer>()` shape[^tokenissuer]; `TryAddSingleton` so the caller wins[^diroot].
+### Phase 2 — Provider registry, resolution and provenance (A1, A2, A4, A6)
+- [ ] Resolve the sync/async decision from §4.8.
+- [ ] `ICryptoProvider` (+ `CryptoCapability`, `CryptoValidationStatus`, `CryptoPurpose`) and a sealed
+      `PlatformCryptoProvider` default declaring `FipsCapablePlatform`.
+- [ ] `ICryptoProviderRegistry` with `RegisterFor(purpose, policy)` → `RegisterFor(purpose)` →
+      `RegisterDefault` precedence, modelled directly on `IHistorianProviderRegistry`[^histregistry].
+      Resolution at binding time only — never per operation.
+- [ ] Fluent DI: `.AddCryptoProvider(b => b.UseDefault(...).For(purpose[, policy]).Use<TProvider>())`,
+      `TryAddSingleton` so the caller wins[^diroot]; explicit registration only, no scanning (AOT)[^aot].
+- [ ] **Audit (A6):** `[LoggerMessage]` `Warning` on binding any non-validated provider, following
+      `SecuredApplicationHelpersLog`[^deprecatedwarn]; `opc.ua.crypto.*` metrics[^metrics]; startup audit event
+      with `SourceName = "Security/CryptoProvider"`[^auditapi]; optional `ServerConfigurationState`
+      children reporting active providers and validation level[^serverconfignode].
+- **Gate:** the §4.3 worked example (instance key in TPM, user keys in Key Vault, rest software) runs,
+      and every uncertified binding appears in logs, metrics and the address space.
 
-### Phase 3 — Part 12 push for hardware
+### Phase 3 — Key generation seam
+- [ ] Introduce `IKeyPairGenerator` (sealed default preserving `RSA.Create`/`ECDsa.Create` exactly) and
+      route `ApplicationInstance.CreateApplicationInstanceCertificateAsync` through it, resolved per
+      `CryptoPurpose.ApplicationInstanceKey`.
+
+### Phase 4 — Part 12 push for hardware
 - [ ] Implement a hardware `IPendingCertificateKeyStore` (fixes B11)[^pendingstore].
 - [ ] Wire `IPushCertificateKeyGenerator` into the DI builder explicitly (today it is only a constructor
       parameter with a silent `?? new AdditionalEntropyCertificateKeyGenerator()` fallback)[^pushkeygen].
@@ -556,17 +847,37 @@ managed-language equivalent, which is why we adopt it rather than reinventing it
       hardware-backed groups.
 - **Gate:** full GDS pull/push certificate renewal against a hardware key, with rollback.
 
-### Phase 4 — Layer 1 symmetric/library replacement
-- [ ] First: land the allocation fixes (one-shot `Aes.EncryptCbc`/`HMACSHA256.HashData` on net6+,
+### Phase 5 — Compliance filtering (A5) and Layer 1 symmetric replacement
+- [ ] `CryptoCompliancePolicy` (`Permissive` / `WarnOnUncertified` / `FipsOnly`) applied as the third
+      term of the advertise predicate in §4.9. **Decision required on the default** (proposed:
+      `WarnOnUncertified`).
+- [ ] Document precisely what may and may not be claimed about FIPS, per platform and per TFM[^fipsclaim];
+      mark `net472`/`net48` as unable to make the claim while BouncyCastle is in the certificate path[^fipsgaps].
+- [ ] Land the allocation fixes first (one-shot `Aes.EncryptCbc`/`HMACSHA256.HashData` on net6+,
       reuse `token.*Hmac` on the decrypt side)[^allocs][^oneshot].
-- [ ] Then: `ISymmetricCryptoProvider` + `IKeyDerivationProvider` + `IRandomSource`, sealed defaults,
+- [ ] Then `ISymmetricCryptoProvider` + `IKeyDerivationProvider` + `IRandomSource`, sealed defaults,
       null-check fast path, carried on `ChannelQuotas`.
-- [ ] Extend `SecurityPolicies.IsPlatformSupportedName` for provider capability gating[^capprobe].
 
-### Phase 5 — Docs, tests, CI
-- [ ] New `docs/CryptoProvider.md`, linked from `docs/README.md` (repo rule)[^repo rules].
+### Phase 6 — Registrable security policies (A3) — SEPARATE EPIC, own design issue
+> Do **not** put this on the critical path of Phases 0–5. It is a wide refactor of the security
+> constants and needs its own costing and sign-off.
+- [ ] Replace the closed algorithm enums with an open identifier type and convert `switch (enum)`
+      dispatch to polymorphic dispatch through the resolved provider (blocker 1)[^policyblockers].
+- [ ] Replace the reflection-built frozen policy dictionaries with an explicit, DI-extensible registry
+      seeded from the built-in set (blocker 2) — also removes reflection from a trim/AOT assembly.
+- [ ] Open `SecurityPolicyInfo` construction to external assemblies (blocker 9).
+- [ ] Make `IsPlatformSupportedName`, `GetDefaultUris`, `BuildSupportedSecurityPolicies`,
+      `MapSecurityPolicyToCertificateTypes` and `GetCurveFromCertificateTypeId` table-driven
+      (blockers 3–6, 8).
+- **Acceptance test:** light up `ECC_curve25519` / `ECC_curve448` as an out-of-tree provider package
+      with **no `#if CURVE25519`**, and delete the dead conditional code[^curve25519].
+
+### Phase 7 — Docs, tests, CI
+- [ ] New `docs/CryptoProvider.md`, linked from `docs/README.md` (repo rule)[^repo rules]; must include the
+      per-platform/per-TFM FIPS claim table and the audit surfaces.
 - [ ] Update `docs/Certificates.md`, `docs/CertificateManager.md`, `docs/DependencyInjection.md`,
-      `docs/EccProfiles.md`, `docs/NativeAoT.md`, `docs/WhatsNewIn2.0.md`.
+      `docs/EccProfiles.md`, `docs/Diagnostics.md` (new audit surface), `docs/NativeAoT.md`,
+      `docs/WhatsNewIn2.0.md`.
 - [ ] `docs/MigrationGuide.md` if any API is obsoleted.
 - [ ] AOT test coverage in `tests/Opc.Ua.Aot.Tests` for every new provider path[^aot].
 
@@ -578,6 +889,9 @@ managed-language equivalent, which is why we adopt it rather than reinventing it
 |---|---|
 | Build clean | `dotnet build UA.slnx` — 0 warnings, 0 errors (`TreatWarningsAsErrors`) |
 | Non-exportable key regression | New `TestNonExportableRsa` fixture across `Opc.Ua.Core.Tests`, `Opc.Ua.Security.Certificates.Tests`, `Opc.Ua.Sessions.Tests` |
+| **Resolution matrix** | Table-driven tests over (purpose × policy × certificate type) asserting the precedence chain, including that resolution happens once per binding and not per operation |
+| **Compliance filtering** | `FipsOnly` must drop exactly the ChaCha20, brainpool, curve25519/448 and SHA-1 policies from the advertised endpoint list, and nothing else[^fipsalgs] |
+| **Audit completeness** | Binding an `Uncertified` provider must produce: a `Warning` log, a non-zero `opc.ua.crypto.*` uncertified gauge, an audit event, and the corresponding `ServerConfigurationState` value |
 | **Zero-overhead proof** | `cd tests/Opc.Ua.Sessions.Tests && dotnet run -c Release -f net10.0 -- --filter '*SecurityPolicyBenchmarks*' --job short` — 19 methods × 9 policies, `[MemoryDiagnoser]`[^bench]. Before/after must be within noise |
 | Hot-path micro-benchmark | **Gap today:** no benchmark isolates `SymmetricEncryptAndSign` from network I/O. Add one — it is the only way to defend the "no performance impact" claim[^bench] |
 | Certificate primitives | `tests/Opc.Ua.Security.Certificates.Tests/Benchmarks.cs` (RSA sign/verify/encrypt/decrypt, cert + CRL) |
@@ -591,7 +905,7 @@ managed-language equivalent, which is why we adopt it rather than reinventing it
 
 | # | Risk | Mitigation |
 |---|---|---|
-| R1 | **Sync/async tension** (§4.5) — BCL `RSA.SignHash` is synchronous; remote KMS blocks a thread, violating the no-sync-over-async rule | Decide before Phase 2. Local hardware makes blocking defensible; remote KMS may require an async asymmetric channel path |
+| R1 | **Sync/async tension** (§4.8) — BCL `RSA.SignHash` is synchronous; remote KMS blocks a thread, violating the no-sync-over-async rule | Decide before Phase 2. Local hardware makes blocking defensible; remote KMS may require an async asymmetric channel path |
 | R2 | **`CopyWithPrivateKey` with a custom `RSA` on Windows** works in memory but the association is not persisted to the Windows store[^copywith] | Hardware stores must never round-trip through `X509Store.Add`; covered by B4 |
 | R3 | **HTTPS excluded on Windows/macOS**[^tls] | Document explicitly; UA-TCP is the primary transport and is unaffected |
 | R4 | **net472/net48 BouncyCastle** — reached only for PEM export, not signing[^bcpath] | Verified; guard at the `PEMWriter` entry point. Note `AdditionalEntropyCertificateKeyGenerator` already returns `BadNotSupported` for ECC regeneration on netstandard2.1/NETFRAMEWORK (cannot import a private-only EC scalar)[^pushkeygen] |
@@ -599,15 +913,28 @@ managed-language equivalent, which is why we adopt it rather than reinventing it
 | R6 | **Layer 1 API surface creep** | Ship Layer 0 first; Layer 1 is separable and only needed for library replacement |
 | R7 | **`IPubSubSecurityPolicy` passes raw key bytes**[^pubsub] | Out of scope for phase 1; needs a handle-based variant later |
 | R8 | **No Part 7 conformance facet** for hardware key custody[^part7] | Cannot be solved here; raise with the OPC Foundation |
-| R9 | **`ChannelQuotas` as provider carrier** is a judgement call | Explicit decision required in Phase 4 review |
+| R9 | **`ChannelQuotas` as provider carrier** is a judgement call | Explicit decision required in Phase 5 review |
+| R10 | **A3 (registrable policies) is a much larger refactor than the rest** — closed enums plus reflection-built frozen tables, ten blockers[^policyblockers] | Isolated as Phase 6 with its own design issue; Phases 0–5 must not depend on it |
+| R11 | **A5 vs A3 tension** — the profiles .NET cannot do natively (curve25519, brainpool) are exactly the non-FIPS ones[^fipsalgs] | Compliance posture becomes an explicit, audited configuration choice rather than an emergent property |
+| R12 | **Making `FipsOnly` the default is a behavioural break** — it removes ChaCha20 and brainpool endpoints that are advertised today[^fipsgaps] | Proposed default `WarnOnUncertified`; `FipsOnly` documented as the regulated-deployment posture. **Needs sign-off** |
+| R13 | **Over-claiming FIPS.** .NET holds no CMVP certificate; validation belongs to the OS module and depends on operator configuration[^fipsdotnet] | Ship a precise per-platform/per-TFM claim table; never assert the stack is validated |
+| R14 | **`net472`/`net48` cannot make any FIPS claim** while `BouncyCastle.Cryptography` (not validated; BC-FNA CMVP #4416 is a different, commercial product) is in the certificate path[^fipsgaps] | Document explicitly; consider scoping the FIPS claim to net8+ only |
+| R15 | **Purpose axis modelled as a closed enum would repeat blocker 1** | Use a `readonly record struct` with well-known static instances, per the A3 lesson |
+| R16 | **Resolution on a per-operation path would erode the perf guarantee** | Contract: resolve at binding time (channel open, certificate load, keygen request) and cache, mirroring `ChannelToken.SecurityPolicy` |
 
-**Open questions for maintainers** (also asked by #4190[^4190]):
+**Open questions for maintainers** (1–3 also asked by #4190[^4190]):
 1. `Opc.Ua.Core` security layer, or a separate abstraction package? *(Research favours `Opc.Ua.Core`,
    `namespace Opc.Ua`, folder `Security/Crypto/` — consistent with `ICertificateStoreProvider` and
    `ISecretStore`.)*
-2. Is a bespoke `IOpcUaCryptoProvider` wanted at all for asymmetric operations, given `RSA`/`ECDsa`
-   polymorphism already covers it? This plan argues **no** for Layer 0 and **yes** for Layers 1–2.
+2. Is a bespoke `IOpcUaCryptoProvider` wanted at all for asymmetric *operations*, given `RSA`/`ECDsa`
+   polymorphism already covers them? This plan argues **no** for the operations and **yes** for a
+   provider abstraction that carries *selection, capability and provenance*.
 3. Accept a `Pkcs11Interop` (Apache-2.0) dependency in a **sample/optional package**, never in `Core`?
+4. **Default compliance policy** — `WarnOnUncertified` (proposed) or `FipsOnly`? See R12.
+5. **Is Phase 6 (registrable policies) wanted at all**, or is "add missing profiles" adequately served by
+   contributing them in-tree behind the existing capability probe? Lighting up the dead curve25519 code
+   is far cheaper than making the policy set open.
+6. Should the FIPS claim be **scoped to net8+ only**, given R14?
 
 ---
 
@@ -638,10 +965,11 @@ From `.github/copilot-instructions.md` and `docs/DeveloperGuide.md`[^repo rules]
 | Certificates | `src/Opc.Ua.Security.Certificates/X509Certificate/{Certificate,CertificateBuilder,ICertificateBuilder}.cs` |
 | Custody | `src/Opc.Ua.Core/Security/Certificates/{CertificateIdentifier,CertificateIdentifierResolver,DirectoryCertificateStore}.cs`, `CertificateManager/` |
 | Push (Part 12) | `src/Opc.Ua.Server/Configuration/{ConfigurationNodeManager,IPushCertificateKeyGenerator,IPendingCertificateKeyStore}.cs` |
-| Precedents | `src/Opc.Ua.Core/Security/Identity/ITokenIssuer.cs`, `src/Opc.Ua.Core/Redundancy/IRecordProtector.cs`, `src/Opc.Ua.PubSub/Security/IPubSubSecurityPolicy.cs` |
+| Precedents | `src/Opc.Ua.Core/Security/Identity/ITokenIssuer.cs`, `src/Opc.Ua.Core/Redundancy/IRecordProtector.cs`, `src/Opc.Ua.PubSub/Security/IPubSubSecurityPolicy.cs`, `src/Opc.Ua.Server/Historian/IHistorianProviderRegistry.cs` |
+| Audit / observability | `src/Opc.Ua.Server/Diagnostics/AuditEvents.cs`, `src/Opc.Ua.Core/Stack/Server/IAuditEventCallback.cs`, `src/Opc.Ua.Core/Types/Redaction/`, `src/Opc.Ua.Server/Diagnostics/DiagnosticsNodeManager.cs` |
 | Benchmarks | `tests/Opc.Ua.Sessions.Tests/SecurityPolicyBenchmarks.cs`, `tests/Opc.Ua.Security.Certificates.Tests/Benchmarks.cs` |
 | Issues | [#4190](https://github.com/OPCFoundation/UA-.NETStandard/issues/4190) · [#44](https://github.com/OPCFoundation/UA-.NETStandard/issues/44) · [#1202](https://github.com/OPCFoundation/UA-.NETStandard/issues/1202) · [#2637](https://github.com/OPCFoundation/UA-.NETStandard/issues/2637) · [PR #2761](https://github.com/OPCFoundation/UA-.NETStandard/pull/2761) · [PR #3989](https://github.com/OPCFoundation/UA-.NETStandard/pull/3989) |
-| Docs | `docs/Certificates.md`, `docs/CertificateManager.md`, `docs/DependencyInjection.md`, `docs/EccProfiles.md`, `docs/NativeAoT.md`, `docs/AuthorizationService.md` |
+| Docs | `docs/Certificates.md`, `docs/CertificateManager.md`, `docs/DependencyInjection.md`, `docs/EccProfiles.md`, `docs/Diagnostics.md`, `docs/NativeAoT.md`, `docs/AuthorizationService.md` |
 
 ---
 
@@ -658,18 +986,36 @@ From `.github/copilot-instructions.md` and `docs/DeveloperGuide.md`[^repo rules]
 - TFM constraints — `static abstract` interface members are unusable on net472/net48/netstandard2.1.
 - Repo conventions and the `plans/` document template.
 - Issue #4190 content (fetched verbatim from the GitHub REST API).
+- **The ten policy-extensibility blockers**, including the reflection-built frozen dictionaries and the
+  closed algorithm enums, each located in source.
+- **`CURVE25519` is defined in no `.csproj` or props file** — curve25519/448 are implemented but dead.
+- **The audit infrastructure inventory** — ~30 `Report*` helpers, `AuditEvents.RedactedPrivateKey`, the
+  `ServerConfigurationState` node and its `SupportedPrivateKeyFormats` precedent, the
+  `[LoggerMessage]`/`EventIds` convention, and the absence of any security/crypto meter.
+- **The repo uses no `*Managed` or `*CryptoServiceProvider` classes** (zero grep matches).
+- ChaCha20-Poly1305 and brainpool policies are advertised by default, gated only on platform support.
 
 **Medium confidence (external sources, verified but not run here):**
 - AES/HMAC throughput figures (~10–18 GB/s AES-NI, ~1–2.5 GB/s HMAC-SHA256) are community benchmarks,
   not measured on this codebase. **The 0.002–0.018 % overhead conclusion holds across any plausible
-  throughput value**, but the hot-path micro-benchmark in Phase 5 should confirm it before the claim is
+  throughput value**, but the hot-path micro-benchmark in Phase 7 should confirm it before the claim is
   made in release notes.
 - Interface dispatch costs (~1–9 ns) from published .NET benchmarks and the JIT `GuardedDevirtualization` design doc.
 - Windows TPM KSP algorithm support and the RSA-PSS salt-size caveat are hardware/firmware dependent.
 - `Pkcs11Interop.X509Store`'s `Pkcs11ECDsaProvider` was reported by search but not source-verified.
+- **CMVP certificate numbers** (Windows CNG #4825, BC-FNA #4416) are cited from NIST/Microsoft pages and
+  are version-specific — they must be re-verified against the exact OS build before any published claim.
+- **Ed25519/Ed448 approval status**: standardised in FIPS 186-5 (2023), but module validation lags, so a
+  given platform may still not offer them in an approved mode.
 
 **Inferred / needs decision (flagged, not settled):**
 - **The sync/async question (R1) is genuinely open** and is the most consequential unresolved item.
+- **The default compliance policy (R12) is a product decision**, not a technical one — `FipsOnly` by
+  default would remove endpoints that work today.
+- **Whether Phase 6 is wanted at all** (open question 5). Contributing missing profiles in-tree is far
+  cheaper than making the policy set open; the plan recommends deferring, not committing.
+- The `CryptoPurpose` list in §4.3 is a first proposal derived from the observed call sites; it has not
+  been validated against every consumer and may need splitting (e.g. channel signing vs. channel decrypt).
 - macOS `SslStream` + custom `RSA` behaviour is inferred from the Security.framework architecture rather
   than a specific `dotnet/runtime` issue; Windows behaviour *is* issue-backed.
 - `ChannelQuotas` as the provider carrier is a reasoned recommendation, not an established convention.
@@ -748,3 +1094,16 @@ From `.github/copilot-instructions.md` and `docs/DeveloperGuide.md`[^repo rules]
 [^bench]: `tests/Opc.Ua.Sessions.Tests/SecurityPolicyBenchmarks.cs` — 19 methods × 9 security policies, `[MemoryDiagnoser]`, `[DisassemblyDiagnoser]`; run with `dotnet run -c Release -f net10.0 -- --filter '*SecurityPolicyBenchmarks*' --job short`. Also `tests/Opc.Ua.Security.Certificates.Tests/Benchmarks.cs`, `tests/Opc.Ua.Core.Encoders.Tests/Binary{Encoder,Decoder}Benchmarks.cs`. **No benchmark isolates `SymmetricEncryptAndSign` from network I/O today.**
 [^tpmalgs]: Windows TPM KSP typically supports RSA 2048/3072/4096, RSA-OAEP, ECDSA P-256/P-384 and ECDH; RSA-PSS has known TLS 1.2 client-auth salt-size issues ([Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/467673/windows-10-tpm-2-0-client-authentication-in-tls-1)). Exact support is firmware-dependent.
 [^repo rules]: `.github/copilot-instructions.md` (sealed-by-default, provider model, DI + direct-construct, `ArrayOf<T>`/`ByteString`/`ReadOnlySpan<byte>`, NativeAOT, `[LoggerMessage]`, `System.Threading.Lock`, no `#region`); `docs/DeveloperGuide.md` ("Add a new doc in `docs/` when adding new features and link from `/docs/README.md`"); `CONTRIBUTING.md` (fork/PR, CLA, `/azp run`); PR template ("a design must have been discussed in the related tracking issue and signed off (which becomes the Architectural Decision Record (ADR))"); `docs/MigrationGuide.md:1-35` (obsoletion policy). No `PublicAPI.Shipped.txt` or package-validation baseline exists.
+[^histregistry]: `src/Opc.Ua.Server/Historian/IHistorianProviderRegistry.cs` — `RegisterForNode` (highest precedence) → `RegisterForNamespace` → `RegisterDefault` → `Resolve(NodeId)`, plus `IReadOnlyCollection<IHistorianProvider> Providers`. Registered via `AddHistorian(IHistorianProvider)` in `src/Opc.Ua.Server/Hosting/OpcUaServerBuilderExtensions.cs:780-800`; fluent per-variable wiring with a lazy default in `src/Opc.Ua.Server/Fluent/HistorianFluentExtensions.cs`.
+[^policyblockers]: Ten blockers enumerated in §4.5. Sources: `src/Opc.Ua.Core/Security/Constants/SecurityPolicies.cs` — 27 `public const string` policy URIs (~:46-180); `s_securityPolicyNameToUri` / `s_securityPolicyNameToInfo` built by `typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static)` then `ToFrozenDictionary()` (~:870-970); `IsPlatformSupportedName` hardcoded if-chain (~:210-320); `GetDefaultUris()` / `GetDefaultEccUris()` hardcoded arrays (~:380-440); `GetInfo()` returns `null` for unknown URIs and `Encrypt`/`Decrypt`/`CreateSignatureData`/`VerifySignatureData` throw `BadSecurityPolicyRejected` (~:490-620). `src/Opc.Ua.Core/Security/Constants/SecurityPolicyInfo.cs` — closed algorithm enums (~:1050-1350) and all properties `private set` (~:70-155). `src/Opc.Ua.Core/Security/Certificates/SecurityConfiguration.cs:~235-310` — `BuildSupportedSecurityPolicies()` switch. `src/Opc.Ua.Core/Security/Certificates/CertificateIdentifier.cs` — `MapSecurityPolicyToCertificateTypes()` switch. `src/Opc.Ua.Core/Security/Certificates/CryptoUtils.cs:~175-220` — `GetCurveFromCertificateTypeId()` if-chain.
+[^curve25519]: `#if CURVE25519` appears in `src/Opc.Ua.Core/Security/Constants/SecurityPolicies.cs`, `Security/Certificates/{Nonce,EncryptedSecret,CryptoUtils}.cs`, `src/Opc.Ua.Gds.Server.Common/{ApplicationsNodeManager.cs,Identity/GdsApplicationSelfAdminProvider.cs}`. Searching all `.csproj` and props files for `CURVE25519` returns **zero matches** — the symbol is never defined, so the code never compiles. The implementation is BouncyCastle Ed25519/Ed448 and X25519/X448, since .NET has no native support for these curves.
+[^pubsubreg]: `src/Opc.Ua.PubSub/Security/Policies/PubSubSecurityPolicyRegistry.cs` — `private static readonly IPubSubSecurityPolicy[] s_all = [ PubSubNonePolicy.Instance, PubSubAes128CtrPolicy.Instance, PubSubAes256CtrPolicy.Instance ]`, exposed as `ArrayOf<IPubSubSecurityPolicy> All` with `GetByUri` returning `null` for unknown URIs. No registration API — the right interface shape, not a usable registry.
+[^fipsdotnet]: [learn.microsoft.com — FIPS compliance](https://learn.microsoft.com/en-us/dotnet/standard/security/fips-compliance): *".NET Core passes cryptographic primitives calls through to the standard modules the underlying operating system provides. It does not enforce the use of FIPS Approved algorithms or key sizes… The system administrator is responsible for configuring the FIPS compliance for an operating system."* Windows validated module `bcryptprimitives.dll` [CMVP #4825](https://csrc.nist.gov/projects/cryptographic-module-validation-program); Linux OpenSSL 3.x [FIPS provider](https://docs.openssl.org/3.0/man7/fips_module/); macOS Apple CoreCrypto (version-specific certs, no system-wide FIPS toggle). `*Managed` classes defer to OS libraries on .NET 6+ and no longer throw in FIPS mode — see [cross-platform cryptography](https://learn.microsoft.com/en-us/dotnet/standard/security/cross-platform-cryptography) and the [Microsoft compat note](https://github.com/microsoft/dotnet/blob/main/Documentation/compatibility/cryptographicexception-not-thrown-in-fips-mode.md).
+[^fipsalgs]: FIPS 140-3 approval status. **Approved:** AES-CBC/GCM/CCM, SHA-2 family, HMAC-SHA-2, HKDF (SP 800-56C), RSA ≥2048 (PSS and PKCS1 v1.5 signatures), RSA-OAEP, ECDSA/ECDH on NIST P-256/384/521. **Not approved:** ChaCha20-Poly1305, Curve25519/X25519, brainpool curves (absent from SP 800-186), MD5. **Deprecated for new signing:** SHA-1 and therefore P-SHA1 (SP 800-131A). **Newly standardised:** Ed25519/Ed448 in [FIPS 186-5 (Feb 2023)](https://csrc.nist.gov/News/2023/nist-releases-fips-186-5-and-sp-800-186), but module validation lags.
+[^fipsgaps]: Repo state. ChaCha20-Poly1305: `src/Opc.Ua.Core/Security/Certificates/CryptoUtils.cs:814`, `src/Opc.Ua.PubSub.Udp/Dtls/DtlsRecordProtection.cs:86`, many policies in `SecurityPolicyInfo.cs`; gated only on `ChaCha20Poly1305.IsSupported` at `SecurityPolicies.cs:200-203`, with no FIPS gate. Brainpool policies at `SecurityPolicies.cs:137,152` and `src/Opc.Ua.PubSub.Udp/Dtls/DtlsProfileRegistry.cs:175-185`. `BouncyCastle.Cryptography` 2.6.2 (`Directory.Packages.props:18`) referenced only for `net472`/`net48` (`src/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj:26`), used in `Org.BouncyCastle/{X509Utils,PEMReader,PEMWriter}.cs` and `CertificateBuilder.cs:339-355`; it is **not** FIPS-validated — the validated product is the separately licensed BC-FNA, [CMVP #4416](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4416). Grep for `AesManaged`, `SHA256Managed`, `RijndaelManaged`, `*CryptoServiceProvider` returns **zero matches**. No `UseFipsCompliantAlgorithms` / `UseLegacyFipsThrow` switch exists.
+[^fipsclaim]: Defensible claim per [learn.microsoft.com](https://learn.microsoft.com/en-us/dotnet/standard/security/fips-compliance): *"If code is written for a FIPS-compliant environment, the developer is responsible for ensuring that non-compliant FIPS algorithms aren't used."* A library cannot hold a CMVP certificate — only a cryptographic module can. `net472`/`net48` cannot make any claim while BouncyCastle is in the certificate path; macOS cannot without pinning the OS and CoreCrypto version.
+[^auditapi]: `src/Opc.Ua.Core/Stack/Server/IAuditEventCallback.cs:38-73` (`ReportAuditOpenSecureChannelEvent`, `ReportAuditCloseSecureChannelEvent`, `ReportAuditCertificateEvent`); `src/Opc.Ua.Server/Diagnostics/AuditEvents.cs:38-58` (`IAuditEventServer` — `Auditing`, `DefaultAuditContext`, `ReportAuditEvent`) with ~30 `Report*` helpers (`ReportAuditCreateSessionEvent:939`, `ReportAuditOpenSecureChannelEvent:1739`, `ReportCertificateUpdatedAuditEvent:1337`, …) and `RedactedPrivateKey` at `:62` per OPC 10000-12 §7.10.3; `SourceName` convention `"Security/<area>"` (e.g. `:739`). Gate: `ServerInternalData.cs:912,1187` binds `Server.Auditing` bidirectionally in the address space. GDS adds more in `src/Opc.Ua.Gds.Server.Common/Diagnostics/AuditEvents.cs`. Redaction: `src/Opc.Ua.Core/Types/Redaction/{IRedactionStrategy,RedactionStrategies,RedactionWrapper,Redact}.cs`.
+[^deprecatedwarn]: `src/Opc.Ua.Core/Schema/SecuredApplicationHelpers.cs:551-568` — `SecuredApplicationHelpersLog` emits `[LoggerMessage(EventId = CoreEventIds.SecuredApplicationHelpers + n, Level = LogLevel.Warning, …)]` for each deprecated policy, called from `CalculateSecurityLevel` (~:376-400). Convention documented in `docs/DeveloperGuide.md:142-280`; per-assembly `EventIds` example `src/Opc.Ua.Server/EventIds.cs`.
+[^pcapwarn]: `docs/Diagnostics.md` §4 (security model): *"When any diagnostic tool is enabled the host emits a `Warning`-level log line at startup so the choice is observable in production logs."*
+[^metrics]: Existing meters: `src/Opc.Ua.Core/Stack/Client/Channels/Internal/ClientChannelManagerMetrics.cs:43-76` (`opc.ua.channel.*`), `src/Opc.Ua.Core/Stack/Client/ClientBase.cs:793-797` (`opc.ua.client.request.duration`), `src/Opc.Ua.Core/Security/Certificates/CertificateManager/CertificateCache.cs:88-101` (`opc.ua.certcache.*`), `Opc.Ua.Client` `NodeCache`. **No `opc.ua.crypto.*` or `opc.ua.security.*` instruments exist.**
+[^serverconfignode]: `src/Opc.Ua.Server/Configuration/ConfigurationNodeManager.cs:270` activates `ServerConfigurationState`; `CreateServerConfiguration` (~:528-556) populates `ServerCapabilities` (:534-537), `SupportedPrivateKeyFormats` (:539-542), `MaxTrustListSize` (:554), `MulticastDnsEnabled` (:555). `SecurityAdmin` access is enforced at ~:1113-1130. `DiagnosticsNodeManager.cs:410-448` shows the pattern for adding optional children to a capabilities node.
