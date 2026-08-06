@@ -238,33 +238,29 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// <summary>
-        /// <i>OPC UA — WoT Binding</i> §12.6 joins the portable member
-        /// identities with U+000A and does not escape it, but an ExpandedNodeId
-        /// string identifier may contain U+000A. A single member embedding a
-        /// newline therefore serializes byte-for-byte identically to the two
-        /// members it imitates, so the two memberships share a
+        /// A NodeId string identifier may contain U+000A, the separator the
+        /// <c>ViewVersion</c> encoding of <i>OPC UA — WoT Binding</i> §12.6
+        /// writes after each member, and nothing escapes it. The length prefix
+        /// the clause requires is what keeps the encoding injective: without it
+        /// a single member embedding a newline would serialize byte-for-byte as
+        /// the two members it imitates, and the two memberships would share a
         /// <c>ViewVersion</c>.
         /// </summary>
         /// <remarks>
-        /// This is a characterization test: it records what the specified
-        /// algorithm does, which this implementation follows exactly. It is not
-        /// the statistical 32-bit collision the clause knowingly accepts - it is
-        /// a structural one an author can construct deliberately - and it is
-        /// raised against the specification. When the encoding is made injective
-        /// this test flips to <c>Is.Not.EqualTo</c>.
+        /// This is a structural collision an author can construct deliberately,
+        /// which is a different thing from the 32-bit collision the clause
+        /// knowingly accepts.
         /// </remarks>
         [Test]
-        public async Task ViewVersionCollidesWhenAMemberIdentifierEmbedsTheJoinSeparator()
+        public async Task ViewVersionDoesNotCollideWhenAMemberIdentifierEmbedsTheJoinSeparator()
         {
             var twoMembers = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
             {
                 ["urn:sourceA#alpha"] = new NodeId("A", 5),
                 ["urn:sourceA#beta"] = new NodeId("B", 5)
             });
-            // The two members serialize to "nsu=urn:test:pump;s=A\n" and
-            // "nsu=urn:test:pump;s=B\n". A single member whose identifier is
-            // "A\nnsu=urn:test:pump;s=B" produces exactly the same octets.
+            // Without the length prefix the two members and this single member
+            // both encode to "nsu=urn:test:pump;s=A\nnsu=urn:test:pump;s=B\n".
             var collidingNode = new NodeId("A\nnsu=" + TestNamespaceUri + ";s=B", 5);
             var oneMember = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
             {
@@ -280,9 +276,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(one.Success, Is.True);
             Assert.That(two.Plan!.OrganizedNodeIds, Has.Count.EqualTo(2));
             Assert.That(one.Plan!.OrganizedNodeIds, Has.Count.EqualTo(1));
-            Assert.That(one.Plan!.ViewVersion, Is.EqualTo(two.Plan!.ViewVersion),
-                "The specified encoding is not injective: a member embedding the U+000A " +
-                "join separator collides with the members it imitates.");
+            Assert.That(one.Plan!.ViewVersion, Is.Not.EqualTo(two.Plan!.ViewVersion),
+                "The length prefix must keep the encoding injective, so a member embedding " +
+                "the U+000A separator cannot imitate the members it splits into.");
         }
 
         /// <summary>
@@ -328,14 +324,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// expected value is computed independently of the implementation: the
         /// two members in portable form are
         /// <c>nsu=urn:test:pump;i=1001</c> and <c>nsu=urn:test:pump;s=Alpha</c>;
-        /// sorted ascending by code point and each followed by U+000A that is
-        /// <c>"nsu=urn:test:pump;i=1001\nnsu=urn:test:pump;s=Alpha\n"</c>, whose
-        /// SHA-256 digest begins 1C A7 69 28 — 480733480 big-endian.
+        /// sorted ascending by code point and each written as its UTF-8 octet
+        /// length, a colon, the string and U+000A, that is
+        /// <c>"24:nsu=urn:test:pump;i=1001\n25:nsu=urn:test:pump;s=Alpha\n"</c>,
+        /// whose SHA-256 digest begins 87 C4 C4 9C — 2277819548 big-endian.
         /// </summary>
         [Test]
         public async Task ViewVersionMatchesTheSpecifiedAlgorithm()
         {
-            const uint expected = 480733480u;
+            const uint expected = 2277819548u;
             var index = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
             {
                 ["urn:sourceA#alpha"] = new NodeId(1001u, 5),

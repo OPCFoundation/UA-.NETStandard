@@ -420,18 +420,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Computes <c>ViewVersion</c> exactly as <i>OPC UA — WoT Binding</i>
         /// §12.6 specifies: take the ExpandedNodeId of each resolved member in
         /// the portable form of §5.1.1, sort those strings ascending by Unicode
-        /// code point, join them each followed by U+000A, encode as UTF-8, and
-        /// take the first four octets of the SHA-256 digest as a big-endian
+        /// code point, then for each write its length in UTF-8 octets as decimal
+        /// digits, a colon, the string, and U+000A; encode as UTF-8 and take the
+        /// first four octets of the SHA-256 digest as a big-endian
         /// <c>UInt32</c>. A value of zero is reported as one, because
         /// OPC 10000-3 §5.4 requires a <c>ViewVersion</c> greater than zero.
         /// </summary>
         /// <remarks>
-        /// Only the members are hashed. Groups and their names are deliberately
-        /// not: the clause states that <c>ViewVersion</c> records what a View
-        /// contains and not how it is arranged. A <c>UInt32</c> cannot separate
-        /// every membership, so the clause admits that two different memberships
-        /// may compute the same value; a client treats inequality as proof that
-        /// the membership changed and equality as evidence rather than proof.
+        /// The length prefix is what makes the encoding injective: a NodeId
+        /// string identifier may itself contain U+000A, so joining on the
+        /// separator alone would let one member embedding a newline serialize as
+        /// the two members it imitates. Only the members are hashed. Groups and
+        /// their names are deliberately not: the clause states that
+        /// <c>ViewVersion</c> records what a View contains and not how it is
+        /// arranged. A <c>UInt32</c> cannot separate every membership, so the
+        /// clause admits that two different memberships may still compute the
+        /// same value; a client treats inequality as proof that the membership
+        /// changed and equality as evidence rather than proof.
         /// </remarks>
         private uint ComputeViewVersion(Membership root)
         {
@@ -442,7 +447,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var builder = new StringBuilder();
             foreach (string member in members)
             {
-                builder.Append(member).Append('\n');
+                builder
+                    .Append(Encoding.UTF8.GetByteCount(member).ToString(CultureInfo.InvariantCulture))
+                    .Append(':')
+                    .Append(member)
+                    .Append('\n');
             }
 
             byte[] digest = Sha256(Encoding.UTF8.GetBytes(builder.ToString()));

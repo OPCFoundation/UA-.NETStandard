@@ -865,10 +865,15 @@ at it through `HasWoTProjection`, navigable back through `WoTProjectionOf`.
 
 `ViewVersion` is a deterministic function of the resolved membership alone, computed
 exactly as *WoT Binding* §12.6 specifies: each resolved member's ExpandedNodeId in the
-portable `nsu=` form, sorted ascending by Unicode code point, joined each followed by
-U+000A, UTF-8 encoded, and the first four octets of the SHA-256 digest read as a
-big-endian `UInt32`, with `0` reported as `1` because OPC 10000-3 §5.4 requires a value
-greater than zero.
+portable `nsu=` form, sorted ascending by Unicode code point, each written as its
+length in UTF-8 octets, a colon, the string and U+000A, UTF-8 encoded, and the first
+four octets of the SHA-256 digest read as a big-endian `UInt32`, with `0` reported as
+`1` because OPC 10000-3 §5.4 requires a value greater than zero.
+
+The length prefix is what makes the encoding injective. A NodeId string identifier may
+itself contain U+000A, so joining on the separator alone would let a single member that
+embeds a newline serialize byte-for-byte as the two members it imitates — a structural
+collision an author can construct deliberately, distinct from the statistical one below.
 
 Naming the function is what makes the property testable: two servers that resolved the
 same membership compute the same value, which a per-server counter could not promise
