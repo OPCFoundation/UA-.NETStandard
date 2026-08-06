@@ -248,11 +248,39 @@ Verified by trace against the v2.0 source[^trace]:
 | Server startup validation | ✅ | Validates a de-keyed copy via `Certificate.FromRawData`; `GetPublicKeySize` reads public key only[^startup] |
 | `VerifyKeyPair` on load | ✅ | Uses `SignData`+`VerifyData` / `Encrypt`+`Decrypt`, never export[^verifykp] |
 | Certificate & CSR signing | ✅ | `X509SignatureGenerator.CreateForRSA/ECDsa` call `SignHash` only — including on net472/net48[^certbuilder][^bcpath] |
+| Binding the key to the certificate | ⚠️ **corrected** | `CopyWithPrivateKey` works for `RSACng`/`RSACryptoServiceProvider` but **fails for any other `RSA`/`ECDsa` subclass on Windows** — see §3.3a[^cwpkprobe] |
 | HTTPS transport | ⚠️ graceful | `CreateCopyWithPrivateKey` is already wrapped in `catch (CryptographicException)` with a fallback[^httpsfallback] |
 | Client `ActivateSession` user-token signing | ✅ | Same `CryptoUtils.Sign` path[^eccsign] |
 
-### 3.4 What breaks — the actual work list
+### 3.3a Correction — `CopyWithPrivateKey` does not accept arbitrary key implementations
 
+**This supersedes the confidence note in §10 that said virtualising
+`Certificate.GetRSAPrivateKey()` was probably unnecessary.** That conclusion assumed
+`X509Certificate2.CopyWithPrivateKey(customRsa)` would bind a hardware key to a certificate. A probe on
+Windows / .NET 10.0.10 disproves it[^cwpkprobe]:
+
+| Probe | Result |
+|---|---|
+| `CopyWithPrivateKey(custom non-exportable `RSA` subclass)` | ❌ `CryptographicException` |
+| `CopyWithPrivateKey(RSACng, ExportPolicy=None)` | ✅ works, signs correctly |
+| Detached key held beside the certificate | ✅ works — `HasPrivateKey`, sign/verify, decrypt round-trip, correct `KeySize` |
+
+The Windows certificate pal only fast-paths `RSACng` and `RSACryptoServiceProvider`; for anything else it
+falls back to `ExportParameters(true)`, which a non-extractable key refuses by definition[^copywith].
+`CertificateRequest.CreateSelfSigned` is affected for the same reason, since it calls
+`CopyWithPrivateKey` internally.
+
+**Consequence:** the Windows CNG/TPM path is fine, but a PKCS#11 wrapper, `RSAKeyVault` and any bespoke
+offboard provider — the majority of the hardware story — cannot be bound to a certificate this way.
+
+**Resolution (implemented):** `Certificate` now supports a **detached** private key held alongside the
+`X509Certificate2` rather than owned by it (`CopyWithDetachedPrivateKey`, `HasDetachedPrivateKey`).
+It never calls `CopyWithPrivateKey`, so it behaves identically on every platform and TFM. Because callers
+own and dispose the object returned by `GetRSAPrivateKey()`, each call returns an independent non-owning
+view so the shared hardware key survives. `Export` to PKCS#12 now fails loudly for a detached key rather
+than silently producing a file without one.
+
+### 3.4 What breaks — the actual work list
 | # | File:line | Offending API | Failure | Remediation |
 |---|---|---|---|---|
 | B1 | `src/Opc.Ua.Security.Certificates/CertificateManager/DefaultCertificateFactory.cs:333` | `Export(X509ContentType.Pfx)` in `DetachFromSourceKey` | `CryptographicException` | `catch` → return `combined.AddRef()`; the detach only exists to escape ephemeral CNG handles |
@@ -906,7 +934,7 @@ managed-language equivalent, which is why we adopt it rather than reinventing it
 | # | Risk | Mitigation |
 |---|---|---|
 | R1 | **Sync/async tension** (§4.8) — BCL `RSA.SignHash` is synchronous; remote KMS blocks a thread, violating the no-sync-over-async rule | Decide before Phase 2. Local hardware makes blocking defensible; remote KMS may require an async asymmetric channel path |
-| R2 | **`CopyWithPrivateKey` with a custom `RSA` on Windows** works in memory but the association is not persisted to the Windows store[^copywith] | Hardware stores must never round-trip through `X509Store.Add`; covered by B4 |
+| R2 | **`CopyWithPrivateKey` with a custom `RSA` on Windows** — **confirmed worse than stated**: it fails outright for anything that is not `RSACng`/`RSACryptoServiceProvider`, not merely failing to persist[^cwpkprobe] | Resolved by detached-key support on `Certificate` (§3.3a); hardware stores must never round-trip through `X509Store.Add` (B4) |
 | R3 | **HTTPS excluded on Windows/macOS**[^tls] | Document explicitly; UA-TCP is the primary transport and is unaffected |
 | R4 | **net472/net48 BouncyCastle** — reached only for PEM export, not signing[^bcpath] | Verified; guard at the `PEMWriter` entry point. Note `AdditionalEntropyCertificateKeyGenerator` already returns `BadNotSupported` for ECC regeneration on netstandard2.1/NETFRAMEWORK (cannot import a private-only EC scalar)[^pushkeygen] |
 | R5 | **AOT** — no reflection-based discovery permitted[^aot] | DI-only registration, mirroring `WithAuthorizationService<TIssuer>()` |
@@ -1020,8 +1048,10 @@ From `.github/copilot-instructions.md` and `docs/DeveloperGuide.md`[^repo rules]
   than a specific `dotnet/runtime` issue; Windows behaviour *is* issue-backed.
 - `ChannelQuotas` as the provider carrier is a reasoned recommendation, not an established convention.
 - The 85 % "works unchanged" figure is a considered estimate from the call-path trace, not a measurement.
-- Whether `Certificate.GetRSAPrivateKey()` needs virtualising: the trace suggests **no**, because
-  `CopyWithPrivateKey` already causes it to return the custom subclass. `Certificate` is non-sealed with
+- Whether `Certificate.GetRSAPrivateKey()` needs virtualising: **resolved — see §3.3a.** A probe
+  disproved the original assumption. `CopyWithPrivateKey` rejects any `RSA`/`ECDsa` implementation other
+  than `RSACng`/`RSACryptoServiceProvider` on Windows, so detached-key support was added to `Certificate`
+  instead. `Certificate` remains non-sealed with
   non-virtual accessors, so subclassing remains available as a fallback if a platform rejects the
   `CopyWithPrivateKey` route.
 
@@ -1084,7 +1114,8 @@ From `.github/copilot-instructions.md` and `docs/DeveloperGuide.md`[^repo rules]
 [^nodeopcua]: [node-opcua `packages/node-opcua-secure-channel/source/security_policy.ts`](https://github.com/node-opcua/node-opcua/blob/e233d906138995583f42359831d1908e3cb005e7/packages/node-opcua-secure-channel/source/security_policy.ts) — concrete `CryptoFactory` class over `node:crypto`; `PrivateKey` is a PEM/DER buffer. Code search for `ICryptoFactory`, `HSM`, `PKCS11` returns no results.
 [^psa]: [PSA Crypto key lifetimes](https://arm-software.github.io/psa-api/crypto/1.1/api/keys/lifetimes.html) — `psa_key_lifetime_t` bits[7:0] persistence, bits[31:8] location; [opaque driver model](https://arm-software.github.io/psa-api/crypto-driver/1.0/body/opaque.html) — key material never enters core memory for opaque keys; [key attributes](https://arm-software.github.io/psa-api/crypto/1.1/api/keys/attributes.html).
 [^tls]: Windows SChannel requires keys registered in a CNG KSP/CSP; an ephemeral managed `RSA` subclass fails with `0x8009030E` ([dotnet/runtime#23749](https://github.com/dotnet/runtime/issues/23749), [#21761](https://github.com/dotnet/runtime/issues/21761), [SslStream troubleshooting](https://learn.microsoft.com/en-us/dotnet/core/extensions/sslstream-troubleshooting)). Linux/OpenSSL dispatches through the managed `RSA` and works. macOS Keychain behaviour is inferred, not issue-verified.
-[^copywith]: [`RSACertificateExtensions.CopyWithPrivateKey`](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.x509certificates.rsacertificateextensions.copywithprivatekey) accepts any `RSA` subclass and produces an in-memory certificate whose `GetRSAPrivateKey()` returns that instance; the association is not persisted through a Windows `X509Store` round-trip ([dotnet/runtime#29144](https://github.com/dotnet/runtime/issues/29144)).
+[^copywith]: [`RSACertificateExtensions.CopyWithPrivateKey`](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.x509certificates.rsacertificateextensions.copywithprivatekey) accepts any `RSA` subclass at the API level, but see §3.3a and [^cwpkprobe] for the actual platform behaviour ([dotnet/runtime#29144](https://github.com/dotnet/runtime/issues/29144)).
+[^cwpkprobe]: Empirical probe, Windows 10.0.26200 / .NET 10.0.10, 2026-08-06. `CopyWithPrivateKey` with a custom non-exportable `RSA` subclass throws `CryptographicException` from `System.Security.Cryptography.X509Certificates.CertificatePal.CopyWithPrivateKey`, which falls back to `ExportParameters(true)` when the key is neither `RSACng` nor `RSACryptoServiceProvider`. The same fallback makes `CertificateRequest.CreateSelfSigned` fail for such keys. `RSACng` created with `CngExportPolicies.None` succeeds. Reproduced in `tests/Opc.Ua.Security.Certificates.Tests/CertificateDetachedPrivateKeyTests.cs` (`CopyWithPrivateKeyRejectsNonExportableKey`).
 [^aot]: `tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj` — `net10.0`, `PublishAot=true`, `NoWarn` limited to third-party rollups IL2104/IL3053; uses TUnit (source-generated discovery) because NUnit is reflection-heavy. ~50 src projects set `IsAotCompatible` for net10.0; 254 trim annotations across 78 files. `docs/NativeAoT.md` prohibits `Type.GetType`, `Activator.CreateInstance`, `Reflection.Emit` and `Expression.Compile`.
 [^dtls]: `src/Opc.Ua.PubSub.Udp/Dtls/DtlsRecordProtection.cs` — `public sealed class` with `Seal`/`Open`/`TryOpen`, AES-GCM / ChaCha20-Poly1305 on net8+, RFC 9147 sequence-number masking, anti-replay window. No `IDtlsRecordProtection` interface exists; `IDtlsContextFactory.cs` is the only DTLS seam.
 [^pubsub]: `src/Opc.Ua.PubSub/Security/IPubSubSecurityPolicy.cs` — span-based `Sign`/`Verify`/`Encrypt`/`Decrypt` taking `ReadOnlySpan<byte>` **key material**; implementations `PubSubAes128CtrPolicy`, `PubSubAes256CtrPolicy`, `PubSubNonePolicy`; registry `PubSubSecurityPolicyRegistry.cs`; hot path `UadpSecurityWrapper.cs:143-230`. SKS seams: `ISecurityKeyService.cs`, `IPubSubKeyServiceServer.cs`, `PullSecurityKeyProvider.cs`, `PushSecurityKeyProvider.cs`.

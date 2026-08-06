@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -257,13 +258,27 @@ namespace Opc.Ua
                 byte[] data;
                 if (writePrivateKey)
                 {
-                    if (password == null || password.Length == 0)
+                    try
                     {
-                        data = certificate.Export(X509ContentType.Pkcs12);
+                        if (password == null || password.Length == 0)
+                        {
+                            data = certificate.Export(X509ContentType.Pkcs12);
+                        }
+                        else
+                        {
+                            data = certificate.Export(X509ContentType.Pkcs12, password);
+                        }
                     }
-                    else
+                    catch (CryptographicException)
                     {
-                        data = certificate.Export(X509ContentType.Pkcs12, password);
+                        // The private key is not extractable because it lives in a
+                        // TPM, an HSM, a PKCS#11 token or a remote key service. Such
+                        // a key must never be written to disk, and cannot be, so the
+                        // public certificate is stored on its own. The key stays
+                        // where it is and remains reachable through its own store.
+                        m_logger.DirectoryStoreLog24(certificate.Thumbprint);
+                        writePrivateKey = false;
+                        data = certificate.RawData;
                     }
                 }
                 else
@@ -1801,6 +1816,12 @@ namespace Opc.Ua
             this ILogger logger,
             global::Opc.Ua.Redaction.RedactionWrapper<string> path,
             int count);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 24, Level = LogLevel.Warning,
+            Message = "The private key of certificate {Thumbprint} is not exportable and was " +
+                "not written to the store. Only the public certificate was stored; the key " +
+                "remains where it resides.")]
+        public static partial void DirectoryStoreLog24(this ILogger logger, string? thumbprint);
     }
 
 }
