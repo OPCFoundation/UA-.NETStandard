@@ -81,6 +81,26 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public void ProviderAwareStoreTypeDetectionFindsRegisteredProvider()
+        {
+            // Without providers the path is unrecognised and falls back to Directory.
+            Assert.That(
+                CertificateStoreIdentifier.DetermineStoreType(m_storePath),
+                Is.EqualTo(CertificateStoreType.Directory),
+                "Auto-detection cannot see a DI registered store type.");
+
+            // With the provider supplied it resolves correctly.
+            Assert.That(
+                CertificateStoreIdentifier.DetermineStoreType(m_storePath, [m_provider]),
+                Is.EqualTo(SimulatedHardwareCertificateStore.StoreTypeName));
+
+            // A path the provider does not claim still falls through.
+            Assert.That(
+                CertificateStoreIdentifier.DetermineStoreType("/tmp/pki/own", [m_provider]),
+                Is.EqualTo(CertificateStoreType.Directory));
+        }
+
+        [Test]
         public async Task LoadPrivateKeyReturnsDetachedKeyCertificateAsync()
         {
             SimulatedHardwareCertificateStore token = m_provider.GetStore(m_storePath);
