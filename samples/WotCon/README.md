@@ -172,6 +172,24 @@ The materialized namespace is `urn:opcfoundation.org:UA:WotAggregation:PumpInsta
 
 These nodes are not compiled into `AggregationServer`. They are produced from the DI, Machinery, Pumps, and Sample Pump WoT documents at runtime.
 
+### Cross-checked against a hand-written server
+
+The list above only restates what this sample's own documents ask for, so on its own it cannot catch a document that asks for the wrong thing — and it did not: `Pump1.Identification` carried DI's `FunctionalGroupType` instead of the `PumpIdentificationType` OPC 40223 declares, and every test, the sample documents and this README agreed with each other about it.
+
+[`WotPumpAddressSpaceComparisonTests`](../../tests/Opc.Ua.WotCon.Samples.Tests/WotPumpAddressSpaceComparisonTests.cs) therefore compares this server against [`PumpDeviceIntegrationServer`](../PumpDeviceIntegrationServer), which builds the same OPC 40223 Pump by a completely different route — generated from the companion NodeSets and wired by hand. It is an independent oracle rather than a restatement.
+
+It asserts two things separately:
+
+* Every node this server materializes under its Pump also exists under the native `Pump_1` with the same BrowseName, NodeClass and type definition. Nodes the native server has and this model does not — alarms, OpenUSD, the fuller Identification, the rest of the simulation — are reported for information, because the Thing Description deliberately models a subset.
+* The DI, Machinery and Pumps *type* definitions are equal in both servers. Both derive from the same companion models, so a difference there is a defect rather than a scope decision.
+
+Comparison is on namespace URIs and browse names throughout; NodeIds, namespace indexes, modelling rules and values legitimately differ between the two servers and are ignored.
+
+Two known differences remain and are deliberate rather than accidental:
+
+* `Pump1` has no hierarchical parent, so it is reachable by NodeId but not by browsing down from `Objects`. The native server organizes `Pump_1` under `DeviceSet` and `Machines`. Adding the equivalent `Organizes` reference to `SamplePump.NodeSet2.xml` round-trips through the converter but then fails activation with `IdentifierMissing`, so it needs its own fix first.
+* The Thing Description models ten measurements and two supervision variables; the native server simulates considerably more.
+
 ## Values from both sources
 
 The Pump TD routes five properties to each source:
