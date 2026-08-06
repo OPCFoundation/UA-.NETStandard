@@ -2327,7 +2327,7 @@ namespace Opc.Ua.Server
     internal static partial class MonitoredItemLog
     {
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 0, Level = LogLevel.Error,
-            Message = "Durable subscription was create but no MonitoredItemQueueFactory that supports durable " +
+            Message = "Durable subscription was created but no MonitoredItemQueueFactory that supports durable " +
                 "queues was registered, monitored item with id {Id} could not be created, " +
                 "SubscriptionId={SubscriptionId}")]
         public static partial void DurableSubscriptionWasCreateButNoMonitoredItemQueueFactory(

@@ -1052,7 +1052,7 @@ namespace Opc.Ua.Server
         /// Logs the trace-level assignment of a queued publish request to a subscription.
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SessionPublishQueue + 1, Level = LogLevel.Trace,
-            Message = "PUBLISH: #{Id} Assigned To Subscription({SubscriptionId}), SessionId={SessionId}.")]
+            Message = "PUBLISH: #{Id} Assigned To Subscription({SubscriptionId}). SessionId={SessionId}")]
         public static partial void PUBLISHIdAssignedToSubscriptionSubscriptionId(
             this ILogger logger,
             string id,
