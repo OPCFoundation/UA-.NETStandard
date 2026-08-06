@@ -383,10 +383,23 @@ namespace Opc.Ua.Robotics.Tests
 
         private static async Task<int> DrainAsync(Task task, ManualSimulatedArmClock clock)
         {
-            DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+            // The executor runs on a manual clock precisely so these tests do not depend on
+            // machine speed, so the drain is bounded by simulated steps rather than by elapsed
+            // time. A wall-clock guard here reintroduced exactly the dependence the manual clock
+            // removes: the same force probe takes ~0.6 s locally and over 5 s on a CI agent
+            // running with coverage instrumentation, which made the bound a lottery. The elapsed
+            // deadline is kept only as a generous backstop so a genuine hang still fails the test
+            // rather than hanging the run.
+            const int kMaxCompletions = 200_000;
+            DateTime deadline = DateTime.UtcNow.AddMinutes(2);
             int completions = 0;
             while (!task.IsCompleted)
             {
+                if (completions >= kMaxCompletions)
+                {
+                    Assert.Fail(
+                        $"The simulated arm executor did not complete within {kMaxCompletions} simulated steps.");
+                }
                 if (DateTime.UtcNow >= deadline)
                 {
                     Assert.Fail("Timed out waiting for the simulated arm executor to complete.");
