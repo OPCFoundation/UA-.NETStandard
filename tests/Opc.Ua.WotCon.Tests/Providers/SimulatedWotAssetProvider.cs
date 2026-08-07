@@ -140,6 +140,83 @@ namespace Opc.Ua.WotCon.Tests.Providers
             return default;
         }
 
+        public ValueTask SubscribeEventAsync(
+            WotEventTag tag,
+            uint subscriberId,
+            OnWotEvent callback,
+            CancellationToken ct)
+        {
+            if (tag is null)
+            {
+                throw new ArgumentNullException(nameof(tag));
+            }
+            if (callback is null)
+            {
+                throw new ArgumentNullException(nameof(callback));
+            }
+
+            List<EventSubscription> bucket = m_eventSubscriptions.GetOrAdd(tag.Name, _ => []);
+            lock (bucket)
+            {
+                bucket.Add(new EventSubscription(subscriberId, tag, callback));
+            }
+            return default;
+        }
+
+        public ValueTask UnsubscribeEventAsync(
+            WotEventTag tag,
+            uint subscriberId,
+            CancellationToken ct)
+        {
+            if (m_eventSubscriptions.TryGetValue(tag.Name, out List<EventSubscription>? bucket))
+            {
+                lock (bucket)
+                {
+                    bucket.RemoveAll(s => s.Id == subscriberId);
+                }
+            }
+            return default;
+        }
+
+        /// <summary>
+        /// Drives an event occurrence to every current subscriber, so a test
+        /// can assert what the asset publishes without a real protocol.
+        /// </summary>
+        /// <returns>The number of subscribers notified.</returns>
+        public int RaiseEvent(
+            string eventName,
+            IReadOnlyList<Variant> fields,
+            LocalizedText? message = null,
+            ushort? severity = null,
+            DateTime? timestamp = null)
+        {
+            if (!m_eventSubscriptions.TryGetValue(eventName, out List<EventSubscription>? bucket))
+            {
+                return 0;
+            }
+
+            EventSubscription[] targets;
+            lock (bucket)
+            {
+                targets = [.. bucket];
+            }
+            foreach (EventSubscription subscription in targets)
+            {
+                subscription.Callback(
+                    subscription.Tag,
+                    fields,
+                    message,
+                    severity,
+                    timestamp ?? DateTime.UtcNow);
+            }
+            return targets.Length;
+        }
+
+        private sealed record EventSubscription(uint Id, WotEventTag Tag, OnWotEvent Callback);
+
+        private readonly ConcurrentDictionary<string, List<EventSubscription>> m_eventSubscriptions = new(
+            StringComparer.Ordinal);
+
         public ValueTask<ServiceResult> InvokeActionAsync(
             WotActionTag action,
             IReadOnlyList<Variant> inputs,

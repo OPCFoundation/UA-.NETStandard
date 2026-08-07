@@ -64,7 +64,7 @@ namespace Opc.Ua.WotCon.Tests
     /// </remarks>
     [TestFixture]
     [Category("WotCon")]
-    public sealed class WotConnectivityNodeManagerTests
+    public sealed partial class WotConnectivityNodeManagerTests
     {
         private string _tempFolder = null!;
 
@@ -1150,6 +1150,7 @@ namespace Opc.Ua.WotCon.Tests
                 typeTable.AddSubtype(fileType, baseObject);
                 typeTable.AddSubtype(namespaceMetadataType, baseObject);
                 typeTable.AddSubtype(baseInterfaceType, baseObject);
+                typeTable.AddSubtype(Ua.ObjectTypeIds.BaseEventType, baseObject);
 
                 typeTable.AddSubtype(baseVariable, NodeId.Null);
                 typeTable.AddSubtype(baseDataVariable, baseVariable);

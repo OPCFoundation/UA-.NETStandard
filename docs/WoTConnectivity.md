@@ -113,14 +113,60 @@ between protocols:
 ```csharp
 public sealed class MyHttpWotAssetProvider : IWotAssetProvider
 {
-    public ValueTask<(ServiceResult, object?)> ReadAsync(WotPropertyTag tag, CancellationToken ct);
-    public ValueTask<ServiceResult> WriteAsync(WotPropertyTag tag, object? value, CancellationToken ct);
+    public ValueTask<(ServiceResult, Variant)> ReadAsync(WotPropertyTag tag, CancellationToken ct);
+    public ValueTask<ServiceResult> WriteAsync(WotPropertyTag tag, Variant value, CancellationToken ct);
     public ValueTask SubscribeAsync(WotPropertyTag tag, uint id, OnWotValueChange cb, CancellationToken ct);
     public ValueTask UnsubscribeAsync(WotPropertyTag tag, uint id, CancellationToken ct);
-    public ValueTask<ServiceResult> InvokeActionAsync(WotActionTag action, IReadOnlyList<object?> inputs, IList<object?> outputs, CancellationToken ct);
+    public ValueTask<ServiceResult> InvokeActionAsync(WotActionTag action, IReadOnlyList<Variant> inputs, IList<Variant> outputs, CancellationToken ct);
+    public ValueTask SubscribeEventAsync(WotEventTag tag, uint id, OnWotEvent cb, CancellationToken ct);
+    public ValueTask UnsubscribeEventAsync(WotEventTag tag, uint id, CancellationToken ct);
     public ValueTask DisposeAsync();
 }
 ```
+
+### Event affordances
+
+A TD `events` entry (OPC 10100-1 §6.3.10) materializes as a
+non-abstract `BaseEventType` subtype whose event fields come from the
+event's `data` schema. The asset object becomes an event notifier and
+gains a `GeneratesEvent` reference to the materialized type, so a client
+subscribing to the asset — or to the Server object — receives every
+occurrence.
+
+```jsonc
+"events": {
+  "Overheating": {
+    "title": "Overheating",
+    "uav:severity": 700,          // optional; 1..1000, defaults to 500
+    "data": {
+      "type": "object",
+      "properties": { "Temperature": { "type": "number" } }
+    }
+  }
+}
+```
+
+The registry subscribes the provider once per affordance when the TD is
+applied and keeps that subscription for the lifetime of the generation;
+the server's subscription machinery decides which clients receive each
+occurrence, so a provider never tracks per-client state. The provider
+reports an occurrence by invoking the `OnWotEvent` callback with one
+value per `WotEventTag.Fields` entry, in order:
+
+```csharp
+public ValueTask SubscribeEventAsync(
+    WotEventTag tag, uint id, OnWotEvent cb, CancellationToken ct)
+{
+    m_client.Overheated += (temperature, at) =>
+        cb(tag, [new Variant(temperature)], new LocalizedText("Pump is overheating"), 700, at);
+    return default;
+}
+```
+
+`message` and `severity` are optional: a null `message` publishes the
+event name and a null `severity` falls back to the affordance's
+`uav:severity`. An authored severity outside 1..1000 is clamped rather
+than rejected, so one bad event definition cannot fail the whole asset.
 
 Pair it with an `IWotAssetProviderFactory` that advertises the WoT
 binding URIs it understands (surfaced through

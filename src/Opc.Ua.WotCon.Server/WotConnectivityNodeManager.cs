@@ -98,6 +98,51 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Registers an EventType materialised for a WoT event affordance.
+        /// </summary>
+        /// <remarks>
+        /// Synchronous because it is called from the asset-registry build
+        /// pass, which already holds that registry's write lock; taking this
+        /// manager's lock there would deadlock.
+        /// </remarks>
+        internal void AddEventTypeNode(BaseObjectTypeState eventType)
+        {
+            AddPredefinedNodeSynchronously(eventType);
+        }
+
+        /// <summary>
+        /// Removes an EventType previously registered by
+        /// <see cref="AddEventTypeNode"/>.
+        /// </summary>
+        /// <remarks>
+        /// Synchronous for the same reason as <see cref="AddEventTypeNode"/>.
+        /// A materialised event type is a childless leaf of the type
+        /// hierarchy, so dropping the index entry and marking it deleted is
+        /// the whole removal.
+        /// </remarks>
+        internal void RemoveEventTypeNode(NodeId nodeId)
+        {
+            if (!PredefinedNodes.TryRemove(nodeId, out NodeState? node))
+            {
+                return;
+            }
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+            node.ClearChangeMasks(SystemContext, includeChildren: false);
+        }
+
+        /// <summary>
+        /// Marks an asset object as an event notifier and registers it as a
+        /// root notifier so subscriptions on the Server object receive the
+        /// asset's WoT events.
+        /// </summary>
+        internal ValueTask EnableAssetEventsAsync(IWoTAssetState asset, CancellationToken ct)
+        {
+            asset.EventNotifier = EventNotifiers.SubscribeToEvents;
+            return AddRootNotifierAsync(asset, ct);
+        }
+
+        /// <summary>
         /// Builds a stable string NodeId for a dynamic child of an asset.
         /// </summary>
         internal NodeId AllocateChildNodeId(string assetName, string category, string childName)

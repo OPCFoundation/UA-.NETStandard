@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,23 +27,37 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Text.Json.Serialization;
+using System;
+using System.Collections.Generic;
 
-namespace Opc.Ua.WotCon.Server.ThingDescriptions
+namespace Opc.Ua.WotCon.Server
 {
     /// <summary>
-    /// AOT-safe <see cref="JsonSerializerContext"/> for the
-    /// <see cref="ThingDescription"/> model.
+    /// Delegate invoked by an <see cref="IWotAssetProvider"/> when an asset
+    /// emits a subscribed WoT event.
     /// </summary>
-    [JsonSourceGenerationOptions(
-        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-        WriteIndented = true)]
-    [JsonSerializable(typeof(ThingDescription))]
-    [JsonSerializable(typeof(WotProperty))]
-    [JsonSerializable(typeof(WotPropertyItems))]
-    [JsonSerializable(typeof(WotAction))]
-    [JsonSerializable(typeof(WotEvent))]
-    [JsonSerializable(typeof(WotActionSchema))]
-    [JsonSerializable(typeof(WotActionMember))]
-    internal sealed partial class ThingDescriptionJsonContext : JsonSerializerContext;
+    /// <param name="tag">The event affordance that fired.</param>
+    /// <param name="fields">
+    /// The event payload, one value per <see cref="WotEventTag.Fields"/>
+    /// entry and in the same order. A provider that has no value for a field
+    /// supplies <see cref="Variant.Null"/>.
+    /// </param>
+    /// <param name="message">
+    /// The human-readable message published as
+    /// <c>BaseEventType.Message</c>. When null the event name is used.
+    /// </param>
+    /// <param name="severity">
+    /// The OPC 10000-5 <c>BaseEventType.Severity</c> (1..1000). When null
+    /// <see cref="WotEventTag.Severity"/> is used.
+    /// </param>
+    /// <param name="timestamp">
+    /// The time the asset reported the event, published as
+    /// <c>BaseEventType.Time</c>.
+    /// </param>
+    public delegate void OnWotEvent(
+        WotEventTag tag,
+        IReadOnlyList<Variant> fields,
+        LocalizedText? message,
+        ushort? severity,
+        DateTime timestamp);
 }
