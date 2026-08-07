@@ -754,7 +754,7 @@ namespace Opc.Ua.WotCon.Tests
         /// <summary>
         /// <i>OPC UA — WoT Connectivity</i> §11 requires a Thing Description
         /// auto-generated from a caller-chosen endpoint to be treated as
-        /// untrusted input subject to the <c>WOTC-Legacy</c> format validation
+        /// untrusted input subject to the <c>Wot-Con 1.02</c> format validation
         /// of §14, and §14 requires a document that fails that validation to
         /// materialize nothing and to return <c>Bad_DecodingError</c>. The
         /// discovery provider is pluggable and the endpoint it dialled was

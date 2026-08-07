@@ -365,7 +365,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 byte[] content = ((MemoryStream)handle.Stream).ToArray();
 
-                // WOTC-Legacy requires an uploaded document to be format
+                // Wot-Con 1.02 requires an uploaded document to be format
                 // validated before any node is materialized from it, and a
                 // document that fails validation to materialize nothing.
                 // Deserializing into the Thing Description shape alone is not

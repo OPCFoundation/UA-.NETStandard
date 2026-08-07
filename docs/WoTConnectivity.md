@@ -349,7 +349,7 @@ address the policy would have refused on `ConnectionTest`.
 
 §11 of the specification requires a Thing Description auto-generated
 from a caller-chosen endpoint to be treated as untrusted input,
-subject to the same `WOTC-Legacy` format validation an uploaded
+subject to the same `Wot-Con 1.02` format validation an uploaded
 document gets. `CreateAssetForEndpoint` therefore validates what
 `IWotAssetDiscoveryProvider.CreateThingDescriptionAsync` returns before
 materialising anything from it: the document must identify itself by
@@ -843,15 +843,15 @@ Three profiles form a lattice rather than a ladder:
 
 | Profile | Covers |
 |---|---|
-| *WoT-Con Minimal* | `WOTC-Legacy` alone — the published OPC 10100-1 v1.02 shape and nothing else |
+| *WoT-Con Minimal* | `Wot-Con 1.02` alone — the published OPC 10100-1 v1.02 shape and nothing else |
 | *WoT-Con Registry Server* | the registry surface without federation, change events, projections or the atomicity modes |
-| *WoT-Con Full* | every unit, `WOTC-Legacy` included |
+| *WoT-Con Full* | every unit, `Wot-Con 1.02` included |
 
 Minimal and Registry Server are each a subset of Full, and neither is a subset of
 the other: they share no conformance unit. A server may implement either surface
 or both.
 
-`WOTC-Legacy` is implementable on its own, so it covers serving the data points of
+`Wot-Con 1.02` is implementable on its own, so it covers serving the data points of
 an uploaded Thing Description — and with it, format-validating that document
 before any Node is materialized from it. Client-supplied input never reaches the
 AddressSpace unchecked; a document that fails validation materializes nothing and

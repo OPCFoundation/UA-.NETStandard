@@ -344,7 +344,7 @@ namespace Opc.Ua.WotCon.Tests
         public void CloseAndUpdateWithWellFormedJsonThatIsNotAThingDescriptionMaterializesNothing(
             string payload)
         {
-            // WOTC-Legacy requires an uploaded document to be format validated
+            // Wot-Con 1.02 requires an uploaded document to be format validated
             // before any node is materialized, and one that fails to materialize
             // nothing and return Bad_DecodingError. Deserializing into the Thing
             // Description shape alone would accept the object cases: every member

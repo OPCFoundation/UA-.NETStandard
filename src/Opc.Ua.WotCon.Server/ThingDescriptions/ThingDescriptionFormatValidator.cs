@@ -32,7 +32,7 @@ using System.Text.Json;
 namespace Opc.Ua.WotCon.Server.ThingDescriptions
 {
     /// <summary>
-    /// The <c>WOTC-Legacy</c> format validation of <i>OPC UA — WoT
+    /// The <c>Wot-Con 1.02</c> format validation of <i>OPC UA — WoT
     /// Connectivity</i> §14, held in one place so that every path which
     /// materializes nodes from an untrusted Thing Description applies the
     /// same rule.

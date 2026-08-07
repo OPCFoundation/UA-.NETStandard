@@ -292,7 +292,7 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 // §11 requires a Thing Description auto-generated from a
                 // caller-chosen endpoint to be treated as untrusted input,
-                // subject to the same WOTC-Legacy format validation an
+                // subject to the same Wot-Con 1.02 format validation an
                 // uploaded document gets, and to materialize nothing when it
                 // fails. The provider is pluggable and the endpoint it dialled
                 // was chosen by the caller, so neither is a trusted source.
