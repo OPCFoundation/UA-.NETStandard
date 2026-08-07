@@ -49,6 +49,51 @@ namespace Opc.Ua.Server.Tests
         private static readonly DateTime s_notAfter = new(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         private static readonly string[] s_domainNames = ["localhost"];
 
+        /// <summary>
+        /// The curve orders are carried as constants because macOS cannot export explicit
+        /// curve parameters, so this checks each one against the platform's own answer
+        /// wherever explicit export does work. A wrong constant would silently produce
+        /// private scalars outside the group order, so it must not be able to drift.
+        /// </summary>
+        [TestCase("nistP256")]
+        [TestCase("nistP384")]
+        [TestCase("brainpoolP256r1")]
+        [TestCase("brainpoolP384r1")]
+        public void CurveOrderTableMatchesThePlatform(string curveName)
+        {
+            ECCurve curve = curveName switch
+            {
+                "nistP256" => ECCurve.NamedCurves.nistP256,
+                "nistP384" => ECCurve.NamedCurves.nistP384,
+                "brainpoolP256r1" => ECCurve.NamedCurves.brainpoolP256r1,
+                _ => ECCurve.NamedCurves.brainpoolP384r1
+            };
+
+            byte[] expected;
+            try
+            {
+                using ECDsa probe = ECDsa.Create(curve);
+                expected = probe.ExportExplicitParameters(false).Curve.Order!;
+            }
+            catch (PlatformNotSupportedException)
+            {
+                Assert.Ignore("This platform supports named curves only, so there is nothing to compare against.");
+                return;
+            }
+            catch (CryptographicException)
+            {
+                Assert.Ignore($"This platform does not implement {curveName}.");
+                return;
+            }
+
+            byte[] actual = AdditionalEntropyCertificateKeyGenerator.GetCurveOrder(curve);
+
+            Assert.That(
+                Convert.ToHexString(actual).TrimStart('0'),
+                Is.EqualTo(Convert.ToHexString(expected).TrimStart('0')),
+                $"the carried order for {curveName} disagrees with the platform");
+        }
+
         private static AdditionalEntropyCertificateKeyGenerator CreateGenerator(byte[] fixedServerEntropy)
         {
             return new AdditionalEntropyCertificateKeyGenerator(
