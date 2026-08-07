@@ -40,7 +40,7 @@ namespace Opc.Ua.Mcp
     /// </summary>
     /// <remarks>
     /// These are the two extension points an embedding application uses:
-    /// <see cref="AddOpcUaMcpCore(IServiceCollection, Action{McpServerOptions}?)"/>
+    /// <see cref="AddOpcUaMcpCore(IServiceCollection, Action{OpcUaMcpOptions}?)"/>
     /// contributes the OPC UA client and session manager to the service
     /// collection, and
     /// <see cref="WithOpcUaCoreTools(IMcpServerBuilder, McpToolProfile)"/>
@@ -66,7 +66,7 @@ namespace Opc.Ua.Mcp
         /// </summary>
         /// <param name="services">The service collection to add to.</param>
         /// <param name="configure">
-        /// Optional configuration of the <see cref="McpServerOptions"/> the
+        /// Optional configuration of the <see cref="OpcUaMcpOptions"/> the
         /// tools read. When omitted the options are taken from the well-known
         /// environment variables.
         /// </param>
@@ -76,7 +76,7 @@ namespace Opc.Ua.Mcp
         /// </exception>
         public static IServiceCollection AddOpcUaMcpCore(
             this IServiceCollection services,
-            Action<McpServerOptions>? configure = null)
+            Action<OpcUaMcpOptions>? configure = null)
         {
             ArgumentNullException.ThrowIfNull(services);
 
@@ -88,7 +88,7 @@ namespace Opc.Ua.Mcp
             });
             services.AddSingleton<OpcUaSessionManager>();
 
-            McpServerOptions options = McpServerOptions.FromEnvironment();
+            OpcUaMcpOptions options = OpcUaMcpOptions.FromEnvironment();
             configure?.Invoke(options);
             services.AddSingleton(options);
             return services;
@@ -106,7 +106,7 @@ namespace Opc.Ua.Mcp
         /// </exception>
         public static IServiceCollection AddOpcUaMcpCore(
             this IServiceCollection services,
-            McpServerOptions options)
+            OpcUaMcpOptions options)
         {
             ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(options);

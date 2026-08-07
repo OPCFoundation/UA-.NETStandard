@@ -42,13 +42,13 @@ using Opc.Ua.Pcap.DependencyInjection;
 namespace Opc.Ua.Pcap.Tests.McpServerTools
 {
     /// <summary>
-    /// Precedence tests for <c>McpServerOptions</c>: DI registration
+    /// Precedence tests for <c>OpcUaMcpOptions</c>: DI registration
     /// wins over the per-tool environment variable, which wins over
     /// the per-tool default. Validates both <c>NodeSetExportRoot</c>
     /// and <c>PcapBaseFolder</c> entry points.
     /// </summary>
     [TestFixture]
-    public sealed class McpServerOptionsTests
+    public sealed class OpcUaMcpOptionsTests
     {
         private const string c_nodeSetEnvVar = "OPCUA_MCP_EXPORT_ROOT";
 
@@ -96,7 +96,7 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
             string envRoot = Path.GetFullPath(Path.Combine("test-artifacts", "via-env"));
             Environment.SetEnvironmentVariable(c_nodeSetEnvVar, envRoot);
 
-            // Build a provider that has no McpServerOptions registered.
+            // Build a provider that has no OpcUaMcpOptions registered.
             using ServiceProvider sp = new ServiceCollection().BuildServiceProvider();
 
             string resolved = InvokeResolveExportRoot(sp);
@@ -127,10 +127,10 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
 
             var services = new ServiceCollection();
             services.AddSingleton(new PcapOptions { BaseFolder = pcapRoot });
-            object mcpOptions = CreateMcpServerOptions(
+            object mcpOptions = CreateOpcUaMcpOptions(
                 nodeSetExportRoot: null,
                 pcapBaseFolder: diRoot);
-            services.AddSingleton(GetMcpServerOptionsType(), mcpOptions);
+            services.AddSingleton(GetOpcUaMcpOptionsType(), mcpOptions);
             using ServiceProvider sp = services.BuildServiceProvider();
 
             string resolved = InvokeGetDecodeAllowedRoot(sp);
@@ -167,31 +167,31 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
         }
 
         [Test]
-        public void McpServerOptionsHasExpectedProperties()
+        public void OpcUaMcpOptionsHasExpectedProperties()
         {
-            Type type = GetMcpServerOptionsType();
+            Type type = GetOpcUaMcpOptionsType();
 
             Assert.That(type.GetProperty("NodeSetExportRoot"), Is.Not.Null,
-                "McpServerOptions.NodeSetExportRoot must be declared.");
+                "OpcUaMcpOptions.NodeSetExportRoot must be declared.");
             Assert.That(type.GetProperty("PcapBaseFolder"), Is.Not.Null,
-                "McpServerOptions.PcapBaseFolder must be declared.");
+                "OpcUaMcpOptions.PcapBaseFolder must be declared.");
         }
 
         private static ServiceProvider BuildProviderWithMcpOptions(
             string? nodeSetExportRoot,
             string? pcapBaseFolder)
         {
-            object mcpOptions = CreateMcpServerOptions(nodeSetExportRoot, pcapBaseFolder);
+            object mcpOptions = CreateOpcUaMcpOptions(nodeSetExportRoot, pcapBaseFolder);
             var services = new ServiceCollection();
-            services.AddSingleton(GetMcpServerOptionsType(), mcpOptions);
+            services.AddSingleton(GetOpcUaMcpOptionsType(), mcpOptions);
             return services.BuildServiceProvider();
         }
 
-        private static object CreateMcpServerOptions(
+        private static object CreateOpcUaMcpOptions(
             string? nodeSetExportRoot,
             string? pcapBaseFolder)
         {
-            Type type = GetMcpServerOptionsType();
+            Type type = GetOpcUaMcpOptionsType();
             object instance = Activator.CreateInstance(type)!;
             type.GetProperty("NodeSetExportRoot")!.SetValue(instance, nodeSetExportRoot);
             type.GetProperty("PcapBaseFolder")!.SetValue(instance, pcapBaseFolder);
@@ -218,11 +218,11 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
             return (string)method.Invoke(null, [services])!;
         }
 
-        private static Type GetMcpServerOptionsType()
+        private static Type GetOpcUaMcpOptionsType()
         {
-            Type? type = McpAssemblyProbe.ResolveType("Opc.Ua.Mcp.McpServerOptions");
+            Type? type = McpAssemblyProbe.ResolveType("Opc.Ua.Mcp.OpcUaMcpOptions");
             Assert.That(type, Is.Not.Null,
-                "Opc.Ua.Mcp.McpServerOptions type must be present in an MCP assembly.");
+                "Opc.Ua.Mcp.OpcUaMcpOptions type must be present in an MCP assembly.");
             return type!;
         }
 

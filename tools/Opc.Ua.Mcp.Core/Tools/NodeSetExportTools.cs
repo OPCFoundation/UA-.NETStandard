@@ -41,7 +41,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Mcp.Serialization;
 
 using ISession = Opc.Ua.Client.ISession;
-using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -452,7 +451,7 @@ namespace Opc.Ua.Mcp.Tools
             {
                 throw new ArgumentException(
                     $"{parameterName} '{requestedPath}' resolves outside the export root '{root}'. " +
-                    "Configure McpServerOptions.NodeSetExportRoot or set the " +
+                    "Configure OpcUaMcpOptions.NodeSetExportRoot or set the " +
                     $"{ExportRootEnvironmentVariable} environment variable to allow a different " +
                     "base directory before starting the MCP server.",
                     parameterName);
@@ -462,7 +461,7 @@ namespace Opc.Ua.Mcp.Tools
 
         /// <summary>
         /// Resolves the active export-root directory using the
-        /// precedence: <see cref="OpcUaMcpServerOptions.NodeSetExportRoot"/>
+        /// precedence: <see cref="OpcUaMcpOptions.NodeSetExportRoot"/>
         /// from DI &gt; <c>OPCUA_MCP_EXPORT_ROOT</c> environment
         /// variable &gt; per-user default. The environment variable and
         /// default are re-evaluated on every call so a host that
@@ -473,7 +472,7 @@ namespace Opc.Ua.Mcp.Tools
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            OpcUaMcpServerOptions? mcpOptions = services.GetService<OpcUaMcpServerOptions>();
+            OpcUaMcpOptions? mcpOptions = services.GetService<OpcUaMcpOptions>();
             if (mcpOptions is not null &&
                 !string.IsNullOrWhiteSpace(mcpOptions.NodeSetExportRoot))
             {

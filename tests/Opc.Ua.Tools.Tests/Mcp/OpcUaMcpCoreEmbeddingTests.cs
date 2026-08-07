@@ -30,13 +30,13 @@
 #if NET10_0
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
 using DescriptionAttribute = System.ComponentModel.DescriptionAttribute;
-using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 
 namespace Opc.Ua.Tools.Tests.Mcp
 {
@@ -125,7 +125,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             services.AddOpcUaMcpCore(options => options.NodeSetExportRoot = "/tmp/exports");
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var options = provider.GetService<OpcUaMcpServerOptions>();
+            var options = provider.GetService<OpcUaMcpOptions>();
 
             Assert.That(options, Is.Not.Null);
             Assert.That(options!.NodeSetExportRoot, Is.EqualTo("/tmp/exports"));
@@ -173,6 +173,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         /// <summary>
         /// Stands in for the application-level tools an embedding host adds.
         /// </summary>
+        [SuppressMessage(
+            "Performance",
+            "CA1812:Avoid uninstantiated internal classes",
+            Justification = "Instantiated reflectively by the MCP server when the tool is invoked.")]
         internal sealed class ApplicationSpecialtyTools
         {
             [McpServerTool(Name = "application_specialty")]

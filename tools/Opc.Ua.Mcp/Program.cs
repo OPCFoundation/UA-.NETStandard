@@ -105,17 +105,17 @@ static async Task RunStdioServerAsync(McpToolProfile? toolProfileOverride, Cance
 
     PcapOptions pcapOptions = McpHostBuilder.CreatePcapOptions(builder.Configuration);
     bool diagnosticsToolsEnabled = McpHostBuilder.AreDiagnosticsToolsEnabled(pcapOptions);
-    McpServerOptions mcpServerOptions = McpHostBuilder.CreateMcpServerOptions(
+    OpcUaMcpOptions OpcUaMcpOptions = McpHostBuilder.CreateOpcUaMcpOptions(
         builder.Configuration,
         toolProfileOverride);
-    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, mcpServerOptions);
+    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, OpcUaMcpOptions);
 
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
         .WithStdioServerTransport();
     McpHostBuilder.ConfigureMcpTools(
         mcpServerBuilder,
-        mcpServerOptions.ToolProfile,
+        OpcUaMcpOptions.ToolProfile,
         diagnosticsToolsEnabled);
 
     IHost app = builder.Build();
@@ -136,17 +136,17 @@ static async Task RunHttpServerAsync(
 
     PcapOptions pcapOptions = McpHostBuilder.CreatePcapOptions(builder.Configuration);
     bool diagnosticsToolsEnabled = McpHostBuilder.AreDiagnosticsToolsEnabled(pcapOptions);
-    McpServerOptions mcpServerOptions = McpHostBuilder.CreateMcpServerOptions(
+    OpcUaMcpOptions OpcUaMcpOptions = McpHostBuilder.CreateOpcUaMcpOptions(
         builder.Configuration,
         toolProfileOverride);
-    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, mcpServerOptions);
+    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, OpcUaMcpOptions);
 
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
         .WithHttpTransport();
     McpHostBuilder.ConfigureMcpTools(
         mcpServerBuilder,
-        mcpServerOptions.ToolProfile,
+        OpcUaMcpOptions.ToolProfile,
         diagnosticsToolsEnabled);
 
     WebApplication app = builder.Build();

@@ -50,7 +50,6 @@ using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
-using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -253,7 +252,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static string GetDecodeAllowedRoot(IServiceProvider services)
         {
-            OpcUaMcpServerOptions? mcpOptions = services.GetService<OpcUaMcpServerOptions>();
+            OpcUaMcpOptions? mcpOptions = services.GetService<OpcUaMcpOptions>();
             if (mcpOptions is not null &&
                 !string.IsNullOrWhiteSpace(mcpOptions.PcapBaseFolder))
             {

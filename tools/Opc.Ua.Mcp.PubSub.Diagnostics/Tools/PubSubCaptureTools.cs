@@ -40,7 +40,6 @@ using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.PubSub.Pcap;
 
-using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -286,7 +285,7 @@ namespace Opc.Ua.Mcp.Tools
         private static string GetPcapAllowedRoot(IServiceProvider services)
         {
             var mcpOptions =
-                services.GetService(typeof(OpcUaMcpServerOptions)) as OpcUaMcpServerOptions;
+                services.GetService(typeof(OpcUaMcpOptions)) as OpcUaMcpOptions;
             if (mcpOptions is not null &&
                 !string.IsNullOrWhiteSpace(mcpOptions.PcapBaseFolder))
             {

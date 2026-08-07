@@ -38,7 +38,7 @@ namespace Opc.Ua.Mcp
     /// Bound from the <c>McpServer</c> configuration section at host
     /// startup and consumed by the MCP host and individual tool helpers.
     /// </remarks>
-    public sealed class McpServerOptions
+    public sealed class OpcUaMcpOptions
     {
         /// <summary>
         /// Gets or sets the tool catalog exposed by the MCP server.
@@ -73,9 +73,9 @@ namespace Opc.Ua.Mcp
         /// This is the shape a host gets when it does not configure anything,
         /// so an embedded server behaves like the shipped tool by default.
         /// </remarks>
-        public static McpServerOptions FromEnvironment()
+        public static OpcUaMcpOptions FromEnvironment()
         {
-            return new McpServerOptions
+            return new OpcUaMcpOptions
             {
                 NodeSetExportRoot = Environment.GetEnvironmentVariable(
                     "OPCUA_MCP_NODESET_EXPORT_ROOT"),

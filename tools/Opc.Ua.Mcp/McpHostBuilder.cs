@@ -54,12 +54,12 @@ namespace Opc.Ua.Mcp
         public static void ConfigureServices(
             IServiceCollection services,
             PcapOptions pcapOptions,
-            McpServerOptions? mcpServerOptions = null)
+            OpcUaMcpOptions? OpcUaMcpOptions = null)
         {
             ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(pcapOptions);
 
-            services.AddOpcUaMcpCore(mcpServerOptions ?? CreateMcpServerOptions());
+            services.AddOpcUaMcpCore(OpcUaMcpOptions ?? CreateOpcUaMcpOptions());
             services.AddOpcUaMcpPubSub();
             services.AddOpcUaMcpDiagnostics(options =>
             {
@@ -71,24 +71,24 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
-        /// Creates the <see cref="McpServerOptions"/> from the well-known
+        /// Creates the <see cref="OpcUaMcpOptions"/> from the well-known
         /// environment variables consumed by the MCP server tools.
         /// </summary>
-        public static McpServerOptions CreateMcpServerOptions()
+        public static OpcUaMcpOptions CreateOpcUaMcpOptions()
         {
-            return McpServerOptions.FromEnvironment();
+            return OpcUaMcpOptions.FromEnvironment();
         }
 
         /// <summary>
-        /// Creates the <see cref="McpServerOptions"/> from configuration and an optional CLI override.
+        /// Creates the <see cref="OpcUaMcpOptions"/> from configuration and an optional CLI override.
         /// </summary>
-        public static McpServerOptions CreateMcpServerOptions(
+        public static OpcUaMcpOptions CreateOpcUaMcpOptions(
             IConfiguration configuration,
             McpToolProfile? toolProfileOverride)
         {
             ArgumentNullException.ThrowIfNull(configuration);
 
-            McpServerOptions options = CreateMcpServerOptions();
+            OpcUaMcpOptions options = CreateOpcUaMcpOptions();
             if (toolProfileOverride.HasValue)
             {
                 options.ToolProfile = toolProfileOverride.Value;
