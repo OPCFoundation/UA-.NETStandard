@@ -250,9 +250,14 @@ all**.
 - **HTTPS with a device-held key does not work on Windows or macOS.** SChannel and the macOS Security
   framework require keys registered with a platform key storage provider. It works on Linux, where the
   TLS layer dispatches through the managed key. UA-TCP is unaffected on every platform.
-- **The per-message symmetric path is not offloaded.** Session keys are symmetric and derived per channel
-  token; a device round-trip per message would destroy throughput. Hardware is used only for the
-  operations that happen when a channel opens or a session is activated.
+- **The per-message symmetric path is not offloaded, and has no provider seam.** Session keys are
+  symmetric and derived per channel token; a device round-trip per message would destroy throughput.
+  Hardware is used only for the operations that happen when a channel opens or a session is activated.
+  An `ISymmetricCryptoProvider` was considered and deliberately not added: the isolated benchmark puts a
+  full 8 KB round trip at roughly 9.8 µs and 2.2 KB, most of it in AES and HMAC themselves, and the only
+  consumer that would justify public API on that path is hardware offload, which is excluded above.
+  Adding the seam without a consumer would commit the hottest code in the stack to an interface nothing
+  implements. The measurement is reproducible with `SymmetricChannelCryptoBenchmarks`.
 - **A provider cannot yet contribute a new security policy.** The policy set is fixed at compile time.
   Adding one still requires changing the stack.
 - **Network-backed providers block a thread** for the duration of the call, because the `RSA` and `ECDsa`
