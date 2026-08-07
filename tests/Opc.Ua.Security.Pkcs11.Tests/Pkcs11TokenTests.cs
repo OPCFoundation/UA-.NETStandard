@@ -59,14 +59,14 @@ namespace Opc.Ua.Security.Pkcs11.Tests
     public class Pkcs11TokenTests
     {
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
             if (!Pkcs11TestEnvironment.IsAvailable)
             {
                 Assert.Ignore(Pkcs11TestEnvironment.SkipReason);
             }
 
-            RequireProvisionedToken();
+            await RequireProvisionedTokenAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         /// guarantees the token is there, and its setup step fails loudly if the
         /// provisioning does not work.
         /// </remarks>
-        private static void RequireProvisionedToken()
+        private static async Task RequireProvisionedTokenAsync()
         {
             if (s_provisioned.HasValue)
             {
@@ -102,9 +102,8 @@ namespace Opc.Ua.Security.Pkcs11.Tests
 
                 store.Open(Pkcs11TestEnvironment.CreateStorePath(), noPrivateKeys: false);
 
-                using CertificateCollection certificates = store.EnumerateAsync()
-                    .GetAwaiter()
-                    .GetResult();
+                using CertificateCollection certificates = await store.EnumerateAsync()
+                    .ConfigureAwait(false);
 
                 provisioned = certificates.Count > 0;
             }

@@ -276,7 +276,7 @@ namespace Opc.Ua
                         // a key must never be written to disk, and cannot be, so the
                         // public certificate is stored on its own. The key stays
                         // where it is and remains reachable through its own store.
-                        m_logger.DirectoryStoreLog24(certificate.Thumbprint);
+                        m_logger.PrivateKeyNotExportableStoringPublicOnly(certificate.Thumbprint);
                         writePrivateKey = false;
                         data = certificate.RawData;
                     }
@@ -1821,7 +1821,7 @@ namespace Opc.Ua
             Message = "The private key of certificate {Thumbprint} is not exportable and was " +
                 "not written to the store. Only the public certificate was stored; the key " +
                 "remains where it resides.")]
-        public static partial void DirectoryStoreLog24(this ILogger logger, string? thumbprint);
+        public static partial void PrivateKeyNotExportableStoringPublicOnly(this ILogger logger, string? thumbprint);
     }
 
 }

@@ -50,10 +50,16 @@ namespace Opc.Ua
         /// <param name="securityPolicyUri">The security policy to test.</param>
         /// <param name="policy">The compliance posture.</param>
         /// <returns>
-        /// <c>false</c> only when the posture forbids the policy. An unknown
-        /// policy is permitted, because this filter is not the arbiter of which
-        /// policies exist.
+        /// <c>false</c> when the posture forbids the policy, or when the policy
+        /// cannot be resolved and therefore cannot be shown to be approved.
         /// </returns>
+        /// <remarks>
+        /// Under <see cref="CryptoCompliancePolicy.FipsOnly"/> this fails closed:
+        /// a policy whose classification cannot be established is withheld rather
+        /// than allowed through. A deployment that asked for validated
+        /// cryptography is better served by losing an endpoint it cannot vouch
+        /// for than by advertising one it cannot.
+        /// </remarks>
         public static bool IsPolicyPermitted(
             string? securityPolicyUri,
             CryptoCompliancePolicy policy)
@@ -63,12 +69,15 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (string.IsNullOrEmpty(securityPolicyUri))
-            {
-                return true;
-            }
+            // The classification lives on the policy itself, so adding a policy
+            // states it next to the algorithms it follows from rather than in a
+            // list here that would silently go stale. Platform support is not
+            // consulted: whether a policy is approved is a property of its
+            // algorithms, not of whether this platform happens to implement them.
+            SecurityPolicyInfo? info = SecurityPolicies.GetInfoIgnoringPlatformSupport(
+                securityPolicyUri ?? string.Empty);
 
-            return !s_notApproved.Contains(securityPolicyUri!);
+            return info != null && info.IsFipsApproved;
         }
 
         /// <summary>
@@ -97,36 +106,5 @@ namespace Opc.Ua
 
             return new ArrayOf<string>(permitted.ToArray());
         }
-
-        /// <summary>
-        /// The security policies whose algorithms are not approved for validated
-        /// cryptography.
-        /// </summary>
-        /// <remarks>
-        /// ChaCha20-Poly1305 is not a NIST approved algorithm. The brainpool
-        /// curves are absent from SP 800-186, as is Curve25519. SHA-1, and
-        /// therefore the P-SHA1 key derivation used by the two oldest policies,
-        /// is deprecated for new signatures by SP 800-131A.
-        /// </remarks>
-        private static readonly HashSet<string> s_notApproved = new(StringComparer.Ordinal)
-        {
-            SecurityPolicies.Basic128Rsa15,
-            SecurityPolicies.Basic256,
-            SecurityPolicies.RSA_DH_ChaChaPoly,
-            SecurityPolicies.ECC_nistP256_ChaChaPoly,
-            SecurityPolicies.ECC_nistP384_ChaChaPoly,
-            SecurityPolicies.ECC_brainpoolP256r1,
-            SecurityPolicies.ECC_brainpoolP256r1_AesGcm,
-            SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly,
-            SecurityPolicies.ECC_brainpoolP384r1,
-            SecurityPolicies.ECC_brainpoolP384r1_AesGcm,
-            SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly,
-            SecurityPolicies.ECC_curve25519,
-            SecurityPolicies.ECC_curve25519_AesGcm,
-            SecurityPolicies.ECC_curve25519_ChaChaPoly,
-            SecurityPolicies.ECC_curve448,
-            SecurityPolicies.ECC_curve448_AesGcm,
-            SecurityPolicies.ECC_curve448_ChaChaPoly
-        };
     }
 }

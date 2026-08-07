@@ -1074,6 +1074,68 @@ namespace Opc.Ua
         /// <param name="lastSequenceNumber">
         /// The sequence number, used by the AEAD algorithms to derive the nonce.
         /// </param>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The signature HMAC could not be created.
+        /// </exception>
+        /// <remarks>
+        /// This overload preserves the signature that shipped before an HMAC
+        /// could be supplied, so assemblies compiled against it keep working
+        /// without a recompile. It creates and disposes an HMAC per call; pass
+        /// one to the other overload to avoid that.
+        /// </remarks>
+        public static ArraySegment<byte> SymmetricDecryptAndVerify(
+           ArraySegment<byte> data,
+           SecurityPolicyInfo securityPolicy,
+           byte[] encryptingKey,
+           byte[] iv,
+           byte[]? signingKey = null,
+           bool signOnly = false,
+           uint tokenId = 0,
+           uint lastSequenceNumber = 0)
+        {
+            return SymmetricDecryptAndVerify(
+                data,
+                securityPolicy,
+                encryptingKey,
+                iv,
+                signingKey,
+                signOnly,
+                tokenId,
+                lastSequenceNumber,
+                null);
+        }
+
+        /// <summary>
+        /// Decrypts the buffer using the algorithm specified by the security
+        /// policy, reusing a caller supplied HMAC.
+        /// </summary>
+        /// <param name="data">
+        /// The buffer to decrypt and verify, decrypted in place.
+        /// </param>
+        /// <param name="securityPolicy">
+        /// The security policy whose algorithms are applied.
+        /// </param>
+        /// <param name="encryptingKey">
+        /// The symmetric decryption key.
+        /// </param>
+        /// <param name="iv">
+        /// The initialization vector.
+        /// </param>
+        /// <param name="signingKey">
+        /// The signing key, or <see langword="null"/> when the buffer is unsigned.
+        /// </param>
+        /// <param name="signOnly">
+        /// <see langword="true"/> when the buffer is signed but not encrypted.
+        /// </param>
+        /// <param name="tokenId">
+        /// The channel token id, used by the AEAD algorithms to derive the nonce.
+        /// </param>
+        /// <param name="lastSequenceNumber">
+        /// The sequence number, used by the AEAD algorithms to derive the nonce.
+        /// </param>
         /// <param name="hmac">
         /// An HMAC to reuse for signature verification. When <see langword="null"/>
         /// one is created from the signing key and disposed before returning. The
@@ -1085,16 +1147,20 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">
         /// The signature HMAC could not be created.
         /// </exception>
+        /// <remarks>
+        /// Every parameter is required so that a call using the defaults of the
+        /// shorter overload stays unambiguous.
+        /// </remarks>
         public static ArraySegment<byte> SymmetricDecryptAndVerify(
            ArraySegment<byte> data,
            SecurityPolicyInfo securityPolicy,
            byte[] encryptingKey,
            byte[] iv,
-           byte[]? signingKey = null,
-           bool signOnly = false,
-           uint tokenId = 0,
-           uint lastSequenceNumber = 0,
-           HMAC? hmac = null)
+           byte[]? signingKey,
+           bool signOnly,
+           uint tokenId,
+           uint lastSequenceNumber,
+           HMAC? hmac)
         {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 

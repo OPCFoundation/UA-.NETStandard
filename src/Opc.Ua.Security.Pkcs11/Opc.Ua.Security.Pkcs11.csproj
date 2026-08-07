@@ -9,13 +9,7 @@
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
-    <!--
-      Deliberately not marked IsAotCompatible. Pkcs11Interop resolves the token
-      module at run time through native interop and carries no trim or AOT
-      annotations, so claiming compatibility here would be untrue. This package
-      is optional and is never referenced by Opc.Ua.Core, so the core stack's
-      AOT story is unaffected.
-    -->
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Security.Pkcs11.Tests" />

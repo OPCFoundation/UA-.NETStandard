@@ -81,7 +81,9 @@ This is a property of the interop library, not of this package, and applies to a
 
 ## NativeAOT
 
-This package is **not** validated for NativeAOT or trimming. `Pkcs11Interop` resolves the token module through native interop at run time and carries no trim or AOT annotations. The core stack's AOT support is unaffected, because `Opc.Ua.Core` never references this package.
+This package is marked `IsAotCompatible` on `net10.0` and is exercised by the `Opc.Ua.Aot.Tests` project. Despite `Pkcs11Interop` carrying no trim or AOT annotations of its own, the ILCompiler analysis produces no trim or AOT warnings for the paths this package uses.
+
+The module itself is resolved through native interop at run time, which trimming does not affect. Note that a native library that is genuinely absent fails the same way in an AOT binary as in a JIT one — see the `libdl.so` note above.
 
 ## Additional documentation
 

@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
-// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
-#pragma warning disable CA2000
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -119,6 +116,68 @@ namespace Opc.Ua.Server.Tests.Configuration
 
             Certificate second = await store.TryTakeAsync(context).ConfigureAwait(false);
             Assert.That(second, Is.Null, "The staged key must not be handed out twice.");
+        }
+
+        /// <summary>
+        /// The staged key must still be there after the process that staged it
+        /// is gone, which is what the contract requires and what an in-memory
+        /// association cannot provide.
+        /// </summary>
+        [Test]
+        public async Task StagedKeySurvivesANewStoreInstanceAsync()
+        {
+            SimulatedHardwareCertificateStore token = m_provider.GetStore(m_storePath);
+            using Certificate generated = token.CreateRsaCertificate("CN=PendingRestart");
+
+            PendingCertificateKeyContext context = CreateContext();
+
+            bool saved = await new HardwarePendingCertificateKeyStore(m_provider)
+                .SaveAsync(context, generated)
+                .ConfigureAwait(false);
+
+            Assert.That(saved, Is.True);
+
+            // A different instance stands in for the process that comes back up.
+            using Certificate recovered = await new HardwarePendingCertificateKeyStore(m_provider)
+                .TryTakeAsync(context)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                recovered,
+                Is.Not.Null,
+                "the association must live in the store, not in the instance that staged it");
+            Assert.Multiple(() =>
+            {
+                Assert.That(recovered.Thumbprint, Is.EqualTo(generated.Thumbprint));
+                Assert.That(recovered.HasDetachedPrivateKey, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Staging must not leave the active certificate store littered with
+        /// superseded entries.
+        /// </summary>
+        [Test]
+        public async Task RepeatedStagingDoesNotAccumulateEntriesAsync()
+        {
+            SimulatedHardwareCertificateStore token = m_provider.GetStore(m_storePath);
+            var store = new HardwarePendingCertificateKeyStore(m_provider);
+            PendingCertificateKeyContext context = CreateContext();
+
+            for (int ii = 0; ii < 3; ii++)
+            {
+                using Certificate generated = token.CreateRsaCertificate($"CN=PendingRepeat{ii}");
+                await store.SaveAsync(context, generated).ConfigureAwait(false);
+            }
+
+            using Certificate taken = await store.TryTakeAsync(context).ConfigureAwait(false);
+            Assert.That(taken, Is.Not.Null);
+
+            Certificate second = await store.TryTakeAsync(context).ConfigureAwait(false);
+            Assert.That(
+                second,
+                Is.Null,
+                "only the most recent staging may remain; the superseded ones must be gone");
         }
 
         [Test]

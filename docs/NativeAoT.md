@@ -18,10 +18,11 @@ executable.
 
 The crypto provider model is AOT-compatible and covered by
 `CryptoProviderAotTests`; see [CryptoProvider](CryptoProvider.md). The optional
-`OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package is the one exception:
-it resolves the token module through native interop at run time and is not
-AOT-validated. Because `Opc.Ua.Core` never references it, the core stack's AOT
-support is unaffected.
+`OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package is covered too, by
+`Pkcs11AotTests`: although `Pkcs11Interop` carries no trim or AOT annotations of
+its own, the ILCompiler analysis produces no warnings for the paths the package
+uses, so it is marked `IsAotCompatible` on `net10.0`. Resolving the token module
+is native interop, which trimming does not affect.
 
 ## Prerequisites
 

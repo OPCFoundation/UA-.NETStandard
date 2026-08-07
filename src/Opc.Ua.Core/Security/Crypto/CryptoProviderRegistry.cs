@@ -72,7 +72,18 @@ namespace Opc.Ua
                 lock (m_lock)
                 {
                     var providers = new List<ICryptoProvider>();
-                    AddDistinct(providers, m_default ?? m_fallback);
+
+                    if (m_default != null)
+                    {
+                        AddDistinct(providers, m_default);
+                    }
+
+                    // The fallback is always reachable: Resolve returns it when
+                    // nothing else declares a capability covering the request,
+                    // including when a custom default is registered. Leaving it
+                    // out here would let the auditor miss a provider that is
+                    // genuinely in use.
+                    AddDistinct(providers, m_fallback);
 
                     foreach (ICryptoProvider provider in m_byPurposeAndPolicy.Values)
                     {
