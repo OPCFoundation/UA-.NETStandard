@@ -294,6 +294,7 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector.Viewer/Opc.Ua.OpenUsd.Connector.Viewer.csproj" />
   </Folder>

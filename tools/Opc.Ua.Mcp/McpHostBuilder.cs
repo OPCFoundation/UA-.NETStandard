@@ -47,9 +47,6 @@ namespace Opc.Ua.Mcp
     /// </summary>
     internal static class McpHostBuilder
     {
-        private const string kApplicationName = "OPC UA MCP Server";
-        private const string kApplicationUri = "urn:localhost:UA:McpServer";
-        private const string kProductUri = "uri:opcfoundation.org:McpServer";
 
         /// <summary>
         /// Registers the OPC UA client, session/PubSub managers and Pcap
@@ -63,15 +60,8 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(pcapOptions);
 
-            services.AddOpcUa().AddClient(options =>
-            {
-                options.ApplicationName = kApplicationName;
-                options.ApplicationUri = kApplicationUri;
-                options.ProductUri = kProductUri;
-            });
-            services.AddSingleton<OpcUaSessionManager>();
+            services.AddOpcUaMcpCore(mcpServerOptions ?? CreateMcpServerOptions());
             services.AddSingleton<PubSubRuntimeManager>();
-            services.AddSingleton(mcpServerOptions ?? CreateMcpServerOptions());
             services.AddPcap(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -89,11 +79,7 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public static McpServerOptions CreateMcpServerOptions()
         {
-            return new McpServerOptions
-            {
-                NodeSetExportRoot = Environment.GetEnvironmentVariable("OPCUA_MCP_NODESET_EXPORT_ROOT"),
-                PcapBaseFolder = Environment.GetEnvironmentVariable("OPCUA_MCP_PCAP_BASE_FOLDER")
-            };
+            return McpServerOptions.FromEnvironment();
         }
 
         /// <summary>
@@ -191,11 +177,7 @@ namespace Opc.Ua.Mcp
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
 
-            mcpServerBuilder.WithRequestFilters(filters =>
-            {
-                filters.AddCallToolFilter(McpRequestFilters.ValidateRequiredArguments);
-                filters.AddListToolsFilter(McpSchemaFilters.AddExplicitRequiredArrays);
-            });
+            mcpServerBuilder.WithOpcUaMcpFilters();
 
             switch (toolProfile)
             {
@@ -370,7 +352,7 @@ namespace Opc.Ua.Mcp
     internal static partial class ProgramLog
     {
         [LoggerMessage(
-            EventId = McpServerEventIds.Program + 0,
+            EventId = McpHostEventIds.Program + 0,
             Level = LogLevel.Warning,
             Message =
                 "OPC UA Pcap diagnostics MCP tools (dump_keys, decode_pcap_with_keys, replay_pcap) are ENABLED. " +

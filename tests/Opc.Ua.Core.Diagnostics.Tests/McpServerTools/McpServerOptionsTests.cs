@@ -31,6 +31,7 @@
 // build output, so these tests only build and run on net10.0.
 #if NET10_0_OR_GREATER
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -52,7 +53,7 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
         private const string c_nodeSetEnvVar = "OPCUA_MCP_EXPORT_ROOT";
 
         private string? m_priorNodeSetEnv;
-        private Assembly? m_mcpAssembly;
+        private Dictionary<string, Type>? m_mcpTypes;
 
         /// <summary>
         /// Captures and clears the NodeSet env var so it cannot
@@ -199,8 +200,7 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
 
         private string InvokeResolveExportRoot(IServiceProvider services)
         {
-            Type toolsType = GetMcpAssembly().GetType("Opc.Ua.Mcp.Tools.NodeSetExportTools")
-                ?? throw new InvalidOperationException("NodeSetExportTools type not found.");
+            Type toolsType = GetRequiredMcpType("Opc.Ua.Mcp.Tools.NodeSetExportTools");
             MethodInfo method = toolsType.GetMethod(
                 "ResolveExportRoot",
                 BindingFlags.Static | BindingFlags.NonPublic)
@@ -210,8 +210,7 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
 
         private string InvokeGetDecodeAllowedRoot(IServiceProvider services)
         {
-            Type toolsType = GetMcpAssembly().GetType("Opc.Ua.Mcp.Tools.PacketDecodeTools")
-                ?? throw new InvalidOperationException("PacketDecodeTools type not found.");
+            Type toolsType = GetRequiredMcpType("Opc.Ua.Mcp.Tools.PacketDecodeTools");
             MethodInfo method = toolsType.GetMethod(
                 "GetDecodeAllowedRoot",
                 BindingFlags.Static | BindingFlags.NonPublic)
@@ -221,47 +220,101 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
 
         private static Type GetMcpServerOptionsType()
         {
-            Type? type = LoadMcpAssembly().GetType("Opc.Ua.Mcp.McpServerOptions");
+            Type? type = ResolveMcpType("Opc.Ua.Mcp.McpServerOptions");
             Assert.That(type, Is.Not.Null,
-                "Opc.Ua.Mcp.McpServerOptions type must be present in the McpServer assembly.");
+                "Opc.Ua.Mcp.McpServerOptions type must be present in an MCP assembly.");
             return type!;
         }
 
-        private Assembly GetMcpAssembly()
+        /// <summary>
+        /// Finds a type by full name across the MCP assemblies in the server's
+        /// output folder.
+        /// </summary>
+        /// <remarks>
+        /// The MCP tools are split across several assemblies - the executable
+        /// plus the library packages it composes - and which assembly owns a
+        /// given type is a packaging decision this test does not want to encode.
+        /// Probing every <c>Opc.Ua.Mcp*.dll</c> beside the server keeps the test
+        /// about behaviour rather than about the current split.
+        /// </remarks>
+        private static Type? ResolveMcpType(string fullName)
         {
-            return m_mcpAssembly ??= LoadMcpAssembly();
+            foreach (Assembly assembly in LoadMcpAssemblies())
+            {
+                Type? type = assembly.GetType(fullName);
+                if (type is not null)
+                {
+                    return type;
+                }
+            }
+            return null;
         }
 
-        private static Assembly LoadMcpAssembly()
+        private Type GetRequiredMcpType(string fullName)
         {
-            string repoRoot = FindRepositoryRoot();
-            string configuration = GetBuildConfiguration();
-            string? assemblyPath = Path.Combine(
-                repoRoot,
-                "tools",
-                "Opc.Ua.Mcp",
-                "bin",
-                configuration,
-                "net10.0",
-                "Opc.Ua.Mcp.dll");
-
-            if (!File.Exists(assemblyPath))
+            m_mcpTypes ??= [];
+            if (m_mcpTypes.TryGetValue(fullName, out Type? cached))
             {
-                string binPath = Path.Combine(repoRoot, "tools", "Opc.Ua.Mcp", "bin");
-                assemblyPath = Directory.Exists(binPath)
-                    ? Directory.EnumerateFiles(binPath, "Opc.Ua.Mcp.dll", SearchOption.AllDirectories)
-                        .FirstOrDefault()
-                    : null;
+                return cached;
+            }
+            Type type = ResolveMcpType(fullName)
+                ?? throw new InvalidOperationException($"{fullName} type not found.");
+            m_mcpTypes[fullName] = type;
+            return type;
+        }
+
+        private static List<Assembly> LoadMcpAssemblies()
+        {
+            string directory = FindMcpOutputDirectory();
+            var assemblies = new List<Assembly>();
+            foreach (string path in Directory.EnumerateFiles(directory, "Opc.Ua.Mcp*.dll"))
+            {
+                try
+                {
+                    assemblies.Add(Assembly.LoadFrom(path));
+                }
+                catch (BadImageFormatException)
+                {
+                }
             }
 
-            if (string.IsNullOrEmpty(assemblyPath) || !File.Exists(assemblyPath))
+            if (assemblies.Count == 0)
             {
                 Assert.Ignore(
-                    "The net10.0 Opc.Ua.Mcp assembly is not built for this CI leg " +
+                    "The net10.0 MCP assemblies are not built for this CI leg " +
                     "(the MCP server only targets net10.0); skipping the reflective MCP server test.");
             }
 
-            return Assembly.LoadFrom(assemblyPath!);
+            return assemblies;
+        }
+
+        private static string FindMcpOutputDirectory()
+        {
+            string repoRoot = FindRepositoryRoot();
+            string configuration = GetBuildConfiguration();
+            string directory = Path.Combine(
+                repoRoot, "tools", "Opc.Ua.Mcp", "bin", configuration, "net10.0");
+
+            if (Directory.Exists(directory))
+            {
+                return directory;
+            }
+
+            string binPath = Path.Combine(repoRoot, "tools", "Opc.Ua.Mcp", "bin");
+            string? found = Directory.Exists(binPath)
+                ? Directory.EnumerateFiles(binPath, "Opc.Ua.Mcp.dll", SearchOption.AllDirectories)
+                    .Select(Path.GetDirectoryName)
+                    .FirstOrDefault(d => d is not null)
+                : null;
+
+            if (found is null)
+            {
+                Assert.Ignore(
+                    "The net10.0 MCP assemblies are not built for this CI leg " +
+                    "(the MCP server only targets net10.0); skipping the reflective MCP server test.");
+            }
+
+            return found!;
         }
 
         private static string FindRepositoryRoot()

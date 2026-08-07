@@ -30,38 +30,16 @@
 namespace Opc.Ua.Mcp
 {
     /// <summary>
-    /// Strongly-typed options for the OPC UA MCP server.
+    /// Centrally managed event id offsets for source-generated log messages in this assembly.
     /// </summary>
     /// <remarks>
-    /// Bound from the <c>McpServer</c> configuration section at host
-    /// startup and consumed by the MCP host and individual tool helpers.
+    /// Each per-file <c>&lt;ClassName&gt;Log</c> class allocates its event ids relative to the
+    /// offset constant below, using <c>offset + &lt;zero-based message index&gt;</c>. Every block
+    /// reserves at least five spare slots for future messages and is rounded up to the next
+    /// multiple of ten so that ids can be documented and managed from this single location.
     /// </remarks>
-    public sealed class McpServerOptions
+    internal static class McpServerEventIds
     {
-        /// <summary>
-        /// Gets or sets the tool catalog exposed by the MCP server.
-        /// </summary>
-        public McpToolProfile ToolProfile { get; set; } = McpToolProfile.Full;
-
-        /// <summary>
-        /// Base directory under which the
-        /// <see cref="Tools.NodeSetExportTools"/> is
-        /// allowed to write exported NodeSet2 XML files. When
-        /// <c>null</c> or whitespace the tool falls back to the
-        /// <c>OPCUA_MCP_EXPORT_ROOT</c> environment variable and
-        /// finally to a default under the system temp folder.
-        /// </summary>
-        public string? NodeSetExportRoot { get; set; }
-
-        /// <summary>
-        /// Base directory under which
-        /// <see cref="Tools.PacketDecodeTools"/> is
-        /// allowed to read pcap and keylog files. When <c>null</c>
-        /// or whitespace the tool falls back to
-        /// <c>PcapOptions.BaseFolder</c> resolved from DI, and
-        /// finally to a default under the per-user
-        /// <c>LocalApplicationData</c> directory.
-        /// </summary>
-        public string? PcapBaseFolder { get; set; }
+        public const int OpcUaSessionManager = 0;
     }
 }

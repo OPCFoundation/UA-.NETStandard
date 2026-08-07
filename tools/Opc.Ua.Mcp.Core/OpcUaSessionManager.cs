@@ -60,6 +60,16 @@ namespace Opc.Ua.Mcp
         private ApplicationConfiguration? m_configuration;
         private bool m_disposed;
 
+        /// <summary>
+        /// Initializes the session manager.
+        /// </summary>
+        /// <param name="logger">The logger for session lifecycle messages.</param>
+        /// <param name="serviceProvider">The provider used to resolve client services.</param>
+        /// <param name="clientOptions">The OPC UA client application options.</param>
+        /// <param name="telemetry">The telemetry context sessions are created with.</param>
+        /// <exception cref="ArgumentNullException">
+        /// Any argument is <c>null</c>.
+        /// </exception>
         public OpcUaSessionManager(
             ILogger<OpcUaSessionManager> logger,
             IServiceProvider serviceProvider,
@@ -77,12 +87,36 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public sealed class SessionInfo
         {
+            /// <summary>
+            /// Gets the name the session is registered under.
+            /// </summary>
             public required string Name { get; init; }
+
+            /// <summary>
+            /// Gets the underlying session.
+            /// </summary>
             public required ISession Session { get; init; }
+
+            /// <summary>
+            /// Gets the endpoint the session is connected to.
+            /// </summary>
             public required EndpointDescription Endpoint { get; init; }
+
+            /// <summary>
+            /// Gets the user authentication kind the session was created with.
+            /// </summary>
             public required string AuthType { get; init; }
+
+            /// <summary>
+            /// Gets the time the session was established.
+            /// </summary>
             public DateTime ConnectedAt { get; init; } = DateTime.UtcNow;
+
+            /// <summary>
+            /// Gets whether the underlying session is currently connected.
+            /// </summary>
             public bool IsConnected => Session.Connected;
+
             internal ConnectionValidationContext? ValidationContext { get; init; }
         }
 
@@ -404,6 +438,9 @@ namespace Opc.Ua.Mcp
             return string.Join(Environment.NewLine, lines);
         }
 
+        /// <summary>
+        /// Disconnects and disposes every managed session.
+        /// </summary>
         public void Dispose()
         {
             if (m_disposed)
