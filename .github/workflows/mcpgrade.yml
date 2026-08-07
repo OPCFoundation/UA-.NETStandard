@@ -8,6 +8,7 @@ on:
     - '.mcpgraderc.json'
     - 'Directory.Packages.props'
     - 'tools/Opc.Ua.Mcp/**'
+    - 'tools/Opc.Ua.Mcp.*/**'
   pull_request:
     branches: [ master, main, develop/* ]
     paths:
@@ -15,6 +16,7 @@ on:
     - '.mcpgraderc.json'
     - 'Directory.Packages.props'
     - 'tools/Opc.Ua.Mcp/**'
+    - 'tools/Opc.Ua.Mcp.*/**'
   workflow_dispatch:
 
 permissions:

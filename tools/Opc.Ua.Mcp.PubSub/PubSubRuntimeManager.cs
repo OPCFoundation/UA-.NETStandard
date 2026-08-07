@@ -1239,7 +1239,7 @@ namespace Opc.Ua.Mcp
 
     internal static partial class PubSubRuntimeManagerLog
     {
-        [LoggerMessage(EventId = McpHostEventIds.PubSubRuntimeManager + 0, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = McpPubSubEventIds.PubSubRuntimeManager + 0, Level = LogLevel.Warning,
             Message = "Stopping the PubSub runtime failed.")]
         public static partial void StoppingPubSubRuntimeFailed(this ILogger logger, Exception exception);
     }

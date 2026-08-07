@@ -61,7 +61,7 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(pcapOptions);
 
             services.AddOpcUaMcpCore(mcpServerOptions ?? CreateMcpServerOptions());
-            services.AddSingleton<PubSubRuntimeManager>();
+            services.AddOpcUaMcpPubSub();
             services.AddPcap(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -249,10 +249,8 @@ namespace Opc.Ua.Mcp
             bool diagnosticsToolsEnabled)
         {
             mcpServerBuilder
-                .WithTools<PubSubActionTools>()
-                .WithTools<PubSubCaptureTools>()
-                .WithTools<PubSubDiscoveryTools>()
-                .WithTools<PubSubRuntimeTools>();
+                .WithOpcUaPubSubTools(McpToolProfile.PubSub)
+                .WithTools<PubSubCaptureTools>();
 
             if (diagnosticsToolsEnabled)
             {
@@ -293,12 +291,11 @@ namespace Opc.Ua.Mcp
                 .WithTools<NodeSetExportTools>()
                 .WithTools<PacketCaptureTools>()
                 .WithTools<PkiTools>()
-                .WithTools<PubSubActionTools>()
                 .WithTools<PubSubCaptureTools>()
-                .WithTools<PubSubDiscoveryTools>()
-                .WithTools<PubSubRuntimeTools>()
                 .WithTools<SubscriptionServiceTools>()
                 .WithTools<ViewServiceTools>();
+
+            mcpServerBuilder.WithOpcUaPubSubTools(McpToolProfile.Full);
 
             if (diagnosticsToolsEnabled)
             {
