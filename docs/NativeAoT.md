@@ -16,6 +16,13 @@ diagnostics, batch operations, node cache, complex types, GDS client operations,
 and client sample patterns — all running inside a single ahead-of-time compiled
 executable.
 
+The crypto provider model is AOT-compatible and covered by
+`CryptoProviderAotTests`; see [CryptoProvider](CryptoProvider.md). The optional
+`OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package is the one exception:
+it resolves the token module through native interop at run time and is not
+AOT-validated. Because `Opc.Ua.Core` never references it, the core stack's AOT
+support is unaffected.
+
 ## Prerequisites
 
 ### .NET SDK

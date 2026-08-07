@@ -53,6 +53,35 @@ Certificate certificate = publicOnly.CopyWithDetachedPrivateKey(deviceKey);
 // stack signs and decrypts with it exactly as it would with a software key.
 ```
 
+### Using a PKCS#11 token
+
+The optional `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package supplies a certificate store
+backed by a hardware token, smart card or HSM. It is never referenced by `Opc.Ua.Core`, so applications
+that do not use one are unaffected.
+
+```csharp
+services.AddOpcUa()
+    .AddPkcs11CertificateStore(new Pkcs11TokenOptions
+    {
+        ModulePath = "/usr/lib/softhsm/libsofthsm2.so",
+        TokenLabel = "opcua",
+        PinProvider = () => secretStore.Read("token-pin")
+    })
+    .AddPkcs11CryptoProvider(CryptoPurpose.ApplicationInstanceKey);
+```
+
+Stores are then addressed with an RFC 7512 URI, so an existing configuration moves to a token by changing
+only the store path:
+
+```
+pkcs11:token=opcua;object=server?module-path=/usr/lib/softhsm/libsofthsm2.so
+```
+
+The store binds the token key with `CopyWithDetachedPrivateKey` for the reason below. Signing supports
+PKCS#1 v1.5 and PSS, decryption supports OAEP and PKCS#1 v1.5, and ECDSA is supported on the curves the
+token implements. Revocation lists are not held on a token, and objects are provisioned with the vendor's
+tools rather than through the store.
+
 ### Why not `CopyWithPrivateKey`?
 
 `X509Certificate2.CopyWithPrivateKey` cannot be used for this. On Windows the certificate layer has fast

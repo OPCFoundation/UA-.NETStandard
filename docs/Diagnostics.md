@@ -1487,3 +1487,7 @@ unchanged.
   change required to adopt the telemetry context.
 - [Certificate Manager](CertificateManager.md) &mdash; certificate
   factories and stores all take `ITelemetryContext` on construction.
+- [CryptoProvider](CryptoProvider.md) &mdash; the `opc.ua.crypto.*`
+  metrics and the audit events that record which cryptographic module
+  performed an operation, including a warning when it carries no
+  validation.
