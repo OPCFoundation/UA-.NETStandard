@@ -205,6 +205,58 @@ jobs:
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
 
+    # SoftHSM2 stands in for a hardware token so the PKCS#11 store is exercised
+    # against a real module rather than a substitute. The tests skip themselves
+    # when no module is present, so this step only ever adds coverage - if it is
+    # unavailable on an image the suite still passes, just with less covered.
+    - name: Setup SoftHSM2
+      if: ${{ matrix.csproj == 'Security.Pkcs11' && runner.os != 'Windows' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y softhsm2 opensc
+          SOFTHSM_MODULE=$(ls /usr/lib/softhsm/libsofthsm2.so \
+            /usr/lib/*/softhsm/libsofthsm2.so 2>/dev/null | head -n1)
+        else
+          brew install softhsm opensc
+          SOFTHSM_MODULE=$(ls "$(brew --prefix)"/lib/softhsm/libsofthsm2.so | head -n1)
+        fi
+
+        # A token has to be provisioned before it can be opened, exactly as a
+        # real device would be by its vendor tooling.
+        export SOFTHSM2_CONF="$HOME/softhsm2.conf"
+        mkdir -p "$HOME/softhsm-tokens"
+        echo "directories.tokendir = $HOME/softhsm-tokens" > "$SOFTHSM2_CONF"
+
+        softhsm2-util --init-token --free --label opcua-test \
+          --pin 1234 --so-pin 123456
+
+        # Generate a key on the token and issue a self signed certificate for
+        # it. The private key never leaves the token, which is the point.
+        pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
+          --keypairgen --key-type rsa:2048 --label opcua-server --id 01
+
+        openssl req -new -x509 -days 365 -subj "/CN=Pkcs11TestServer" \
+          -engine pkcs11 -keyform engine \
+          -key "pkcs11:token=opcua-test;object=opcua-server;type=private;pin-value=1234" \
+          -out /tmp/pkcs11-cert.pem 2>/dev/null \
+          || echo "::warning::Could not issue a certificate on the token; certificate backed tests will skip."
+
+        if [ -f /tmp/pkcs11-cert.pem ]; then
+          openssl x509 -in /tmp/pkcs11-cert.pem -outform DER -out /tmp/pkcs11-cert.der
+          pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
+            --write-object /tmp/pkcs11-cert.der --type cert --label opcua-server --id 01
+        fi
+
+        {
+          echo "SOFTHSM2_CONF=$SOFTHSM2_CONF"
+          echo "OPCUA_PKCS11_MODULE=$SOFTHSM_MODULE"
+          echo "OPCUA_PKCS11_TOKEN=opcua-test"
+          echo "OPCUA_PKCS11_PIN=1234"
+        } >> "$GITHUB_ENV"
+
     - name: Build
       # Build in parallel with the shared compiler (both `dotnet build` defaults).
       # These were previously pinned to `-maxcpucount:1 /p:UseSharedCompilation=false`

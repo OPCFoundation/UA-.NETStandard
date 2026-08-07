@@ -90,6 +90,7 @@
       - Review monthly; bump within 30 days for HIGH/CRITICAL CVEs
     -->
     <PackageVersion Include="PacketDotNet" Version="1.4.8" />
+    <PackageVersion Include="Pkcs11Interop" Version="5.3.0" />
     <PackageVersion Include="SharpPcap" Version="6.3.1" />
     <PackageVersion Include="NUnit" Version="4.6.1" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.14.0" />

@@ -118,6 +118,7 @@
     <Project Path="src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj" />
     <Project Path="src/Opc.Ua.Core.Schema/Opc.Ua.Core.Schema.csproj" />
     <Project Path="src/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
+    <Project Path="src/Opc.Ua.Security.Pkcs11/Opc.Ua.Security.Pkcs11.csproj" />
     <Project Path="src/Opc.Ua.Types/Opc.Ua.Types.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
@@ -270,6 +271,7 @@
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.XRegistry.Tests/Opc.Ua.XRegistry.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
