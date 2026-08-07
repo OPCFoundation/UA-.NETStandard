@@ -2119,33 +2119,27 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with a synchronization object.
         /// </summary>
-        /// <remarks>
-        /// TODO: retype <paramref name="dataLock"/> to <see cref="System.Threading.Lock"/>.
-        /// It cannot change independently: the server passes the same instance it exposes as
-        /// <c>IServerInternal.DiagnosticsLock</c>, and a sync root cannot be viewed as both
-        /// an <c>object</c> and a <c>Lock</c> at once - <c>lock(obj)</c> uses
-        /// <c>Monitor</c> while <c>Lock</c> uses its own mechanism, so a partial conversion
-        /// would silently break mutual exclusion. This must land with the diagnostics-lock
-        /// conversion, which also updates the source-generator template that emits the
-        /// derived value classes.
-        /// </remarks>
-        public BaseVariableValue(object dataLock)
+        /// <param name="dataLock">
+        /// The lock shared by every value projecting the same underlying state, or
+        /// <c>null</c> to give this value its own.
+        /// </param>
+        public BaseVariableValue(Lock? dataLock)
         {
-            Lock = dataLock;
+            Lock = dataLock ?? new Lock();
             CopyPolicy = VariableCopyPolicy.CopyOnRead;
-
-            Lock ??= new object();
         }
 
         /// <summary>
-        /// An object used to synchronize access to the value.
+        /// The lock used to synchronize access to the value.
         /// </summary>
         /// <remarks>
         /// Deliberately shared rather than private: several generated structure variables
         /// projecting the same underlying buffer are constructed with one lock so that a
-        /// read or write spanning them is atomic.
+        /// read or write spanning them is atomic. The server likewise passes the lock that
+        /// guards its diagnostics, so server status and server diagnostics stay mutually
+        /// exclusive.
         /// </remarks>
-        public object Lock { get; }
+        public Lock Lock { get; }
 
         /// <summary>
         /// The behavior to use when reading or writing all or part of the object.

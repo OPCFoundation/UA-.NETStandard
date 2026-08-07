@@ -238,16 +238,29 @@ namespace Opc.Ua.Server
         ServerObjectState ServerObject { get; }
 
         /// <summary>
-        /// Used to synchronize access to the server diagnostics.
+        /// Applies an update to the server diagnostics while holding the server's
+        /// diagnostics lock.
         /// </summary>
-        /// <value>The diagnostics lock.</value>
-        object DiagnosticsLock { get; }
+        /// <remarks>
+        /// The server owns its lock and never exposes it, so callers cannot participate in
+        /// the server's locking order. The diagnostic nodes are marked dirty inside the
+        /// critical section.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        void UpdateServerDiagnostics(Action<ServerDiagnosticsSummaryDataType> update);
 
         /// <summary>
-        /// Used to synchronize write access to the server diagnostics.
+        /// Reads a value derived from the server diagnostics while holding the server's
+        /// diagnostics lock.
         /// </summary>
-        /// <value>The diagnostics lock.</value>
-        object DiagnosticsWriteLock { get; }
+        /// <remarks>
+        /// Do not let the diagnostics object escape the callback: once the lock is
+        /// released, any field read from it is unsynchronized.
+        /// </remarks>
+        /// <typeparam name="TResult">The type of the value produced.</typeparam>
+        /// <param name="read">The projection applied to the diagnostics.</param>
+        TResult ReadServerDiagnostics<TResult>(
+            Func<ServerDiagnosticsSummaryDataType, TResult> read);
 
         /// <summary>
         /// Returns the diagnostics structure for the server.

@@ -725,7 +725,7 @@ namespace Opc.Ua.SourceGeneration
                 public {{Tokens.ClassName}}Value(
                     {{Tokens.ClassName}}State variable,
                     {{Tokens.DataType}}? value,
-                    object dataLock)
+                    global::System.Threading.Lock? dataLock)
                     : base(dataLock)
                 {
                     m_value = value;

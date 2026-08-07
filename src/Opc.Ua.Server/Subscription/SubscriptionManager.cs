@@ -473,13 +473,12 @@ namespace Opc.Ua.Server
             // get the count for the diagnostics.
             publishingIntervalCount = GetPublishingIntervalCount();
 
-            lock (m_server.DiagnosticsWriteLock)
+            m_server.UpdateServerDiagnostics(diagnostics =>
             {
-                ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                 diagnostics.CurrentSubscriptionCount++;
                 diagnostics.CumulatedSubscriptionCount++;
                 diagnostics.PublishingIntervalCount = publishingIntervalCount;
-            }
+            });
 
             // raise subscription event.
             RaiseSubscriptionEvent(subscription, false);
@@ -560,13 +559,11 @@ namespace Opc.Ua.Server
 
                     // get the count for the diagnostics.
                     uint publishingIntervalCount = GetPublishingIntervalCount();
-                    lock (m_server.DiagnosticsWriteLock)
+                    m_server.UpdateServerDiagnostics(diagnostics =>
                     {
-                        ServerDiagnosticsSummaryDataType diagnostics = m_server
-                            .ServerDiagnostics;
                         diagnostics.CurrentSubscriptionCount--;
                         diagnostics.PublishingIntervalCount = publishingIntervalCount;
-                    }
+                    });
                 }
             }
         }
@@ -744,12 +741,11 @@ namespace Opc.Ua.Server
                 // get the count for the diagnostics.
                 uint publishingIntervalCount = GetPublishingIntervalCount();
 
-                lock (m_server.DiagnosticsWriteLock)
+                m_server.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                     diagnostics.CurrentSubscriptionCount--;
                     diagnostics.PublishingIntervalCount = publishingIntervalCount;
-                }
+                });
 
                 if (context != null && context.Session != null)
                 {
@@ -921,13 +917,12 @@ namespace Opc.Ua.Server
                 }
             }
 
-            lock (m_server.DiagnosticsWriteLock)
+            m_server.UpdateServerDiagnostics(diagnostics =>
             {
-                ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                 diagnostics.CurrentSubscriptionCount++;
                 diagnostics.CumulatedSubscriptionCount++;
                 diagnostics.PublishingIntervalCount = publishingIntervalCount;
-            }
+            });
 
             if (context.Session != null)
             {
@@ -1318,11 +1313,10 @@ namespace Opc.Ua.Server
             // get the count for the diagnostics.
             uint publishingIntervalCount = GetPublishingIntervalCount();
 
-            lock (m_server.DiagnosticsWriteLock)
+            m_server.UpdateServerDiagnostics(diagnostics =>
             {
-                ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                 diagnostics.PublishingIntervalCount = publishingIntervalCount;
-            }
+            });
         }
 
         /// <summary>

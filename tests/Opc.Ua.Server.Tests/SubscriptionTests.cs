@@ -67,8 +67,13 @@ namespace Opc.Ua.Server.Tests
             m_serverMock.Setup(s => s.DiagnosticsNodeManager).Returns(m_diagnosticsNodeManagerMock.Object);
             m_serverMock.Setup(s => s.NodeManager).Returns(m_nodeManagerMock.Object);
             m_serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactoryMock.Object);
-            m_serverMock.Setup(s => s.DiagnosticsWriteLock).Returns(new object());
-            m_serverMock.Setup(s => s.ServerDiagnostics).Returns(new ServerDiagnosticsSummaryDataType());
+            var serverDiagnostics = new ServerDiagnosticsSummaryDataType();
+            m_serverMock.Setup(s => s.ServerDiagnostics).Returns(serverDiagnostics);
+            m_serverMock
+                .Setup(s => s.UpdateServerDiagnostics(
+                    It.IsAny<Action<ServerDiagnosticsSummaryDataType>>()))
+                .Callback<Action<ServerDiagnosticsSummaryDataType>>(
+                    update => update(serverDiagnostics));
 
             var namespaceUris = new NamespaceTable();
             m_serverMock.Setup(s => s.NamespaceUris).Returns(namespaceUris);

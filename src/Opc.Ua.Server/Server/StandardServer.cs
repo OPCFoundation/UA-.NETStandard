@@ -831,11 +831,11 @@ namespace Opc.Ua.Server
                     clientNonce,
                     serverNonce);
 
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.CurrentSessionCount++;
-                    ServerInternal.ServerDiagnostics.CumulatedSessionCount++;
-                }
+                    diagnostics.CurrentSessionCount++;
+                    diagnostics.CumulatedSessionCount++;
+                });
 
                 m_logger.ServerSESSIONCREATEDSessionIdSessionId(sessionId);
 
@@ -883,17 +883,17 @@ namespace Opc.Ua.Server
                     await ServerInternal.SessionManager.CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
                 }
 
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedSessionCount++;
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedSessionCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedSessionCount++;
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedSessionCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException((DiagnosticsMasks)requestHeader.ReturnDiagnostics, [], e)!;
             }
@@ -1092,17 +1092,17 @@ namespace Opc.Ua.Server
                     session!,
                     e);
 
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedSessionCount++;
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedSessionCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedSessionCount++;
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedSessionCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(
                     (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
@@ -1216,14 +1216,14 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
                 throw TranslateException(context, e);
             }
             finally
@@ -1260,15 +1260,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -1316,15 +1316,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -1369,15 +1369,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -1427,14 +1427,14 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 ServerInternal.ReportAuditAddNodesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1491,14 +1491,14 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 ServerInternal.ReportAuditDeleteNodesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1555,14 +1555,14 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 ServerInternal.ReportAuditAddReferencesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1619,14 +1619,14 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 ServerInternal.ReportAuditDeleteReferencesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1709,15 +1709,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -1757,15 +1757,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -1818,15 +1818,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -1872,15 +1872,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
 
@@ -1942,15 +1942,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
 
@@ -1993,15 +1993,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2046,15 +2046,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2131,15 +2131,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2179,15 +2179,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2225,15 +2225,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2274,15 +2274,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2321,15 +2321,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2383,15 +2383,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2437,15 +2437,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2508,15 +2508,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2559,15 +2559,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2609,15 +2609,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2657,15 +2657,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2712,15 +2712,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }
@@ -2760,15 +2760,15 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    diagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                        diagnostics.SecurityRejectedRequestsCount++;
                     }
-                }
+                });
 
                 throw TranslateException(context, e);
             }

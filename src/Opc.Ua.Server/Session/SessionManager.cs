@@ -779,10 +779,10 @@ namespace Opc.Ua.Server
                             session.Dispose();
 
                             // update diagnostics.
-                            lock (m_server.DiagnosticsWriteLock)
+                            m_server.UpdateServerDiagnostics(diagnostics =>
                             {
-                                m_server.ServerDiagnostics.CurrentSessionCount--;
-                            }
+                                diagnostics.CurrentSessionCount--;
+                            });
                         }
                     }
                     finally
@@ -1464,10 +1464,10 @@ namespace Opc.Ua.Server
                         if (session.HasExpired)
                         {
                             // update diagnostics.
-                            lock (m_server.DiagnosticsWriteLock)
+                            m_server.UpdateServerDiagnostics(diagnostics =>
                             {
-                                m_server.ServerDiagnostics.SessionTimeoutCount++;
-                            }
+                                diagnostics.SessionTimeoutCount++;
+                            });
 
                             // raise audit event for session closed because of timeout
                             m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
