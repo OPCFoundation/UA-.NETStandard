@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Security.Cryptography;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -89,9 +90,19 @@ namespace Opc.Ua.Server.Tests
             byte[] actual = AdditionalEntropyCertificateKeyGenerator.GetCurveOrder(curve);
 
             Assert.That(
-                Convert.ToHexString(actual).TrimStart('0'),
-                Is.EqualTo(Convert.ToHexString(expected).TrimStart('0')),
+                ToHex(actual),
+                Is.EqualTo(ToHex(expected)),
                 $"the carried order for {curveName} disagrees with the platform");
+
+            static string ToHex(byte[] value)
+            {
+                var builder = new System.Text.StringBuilder(value.Length * 2);
+                foreach (byte b in value)
+                {
+                    builder.Append(b.ToString("X2", CultureInfo.InvariantCulture));
+                }
+                return builder.ToString().TrimStart('0');
+            }
         }
 
         private static AdditionalEntropyCertificateKeyGenerator CreateGenerator(byte[] fixedServerEntropy)
