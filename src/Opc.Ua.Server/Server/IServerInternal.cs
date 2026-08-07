@@ -38,7 +38,13 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The interface that a server exposes to objects that it contains.
     /// </summary>
-    public interface IServerInternal : IAuditEventServer, IDisposable
+    /// <remarks>
+    /// Components that only need to observe the server and act on it should take
+    /// <see cref="IServerContext"/> instead. This interface additionally hands out the
+    /// server's subsystems, which a component should ask for by constructor injection
+    /// rather than reach for through an ambient handle.
+    /// </remarks>
+    public interface IServerInternal : IServerContext, IAuditEventServer, IDisposable
     {
         /// <summary>
         /// The endpoint addresses used by the server.
@@ -56,7 +62,7 @@ namespace Opc.Ua.Server
         /// The default system context for the server.
         /// </summary>
         /// <value>The default system context.</value>
-        ServerSystemContext DefaultSystemContext { get; }
+        new ServerSystemContext DefaultSystemContext { get; }
 
         /// <summary>
         /// The table of namespace uris known to the server.
@@ -208,45 +214,7 @@ namespace Opc.Ua.Server
         /// Gets or sets the current state of the server.
         /// </summary>
         /// <value>The state of the current.</value>
-        ServerState CurrentState { get; set; }
-
-        /// <summary>
-        /// Returns the Server object node
-        /// </summary>
-        /// <value>The Server object node.</value>
-        ServerObjectState ServerObject { get; }
-
-        /// <summary>
-        /// Applies an update to the server diagnostics while holding the server's
-        /// diagnostics lock.
-        /// </summary>
-        /// <remarks>
-        /// The server owns its lock and never exposes it, so callers cannot participate in
-        /// the server's locking order. The diagnostic nodes are marked dirty inside the
-        /// critical section.
-        /// </remarks>
-        /// <param name="update">The mutation to apply to the diagnostics.</param>
-        void UpdateServerDiagnostics(Action<ServerDiagnosticsSummaryDataType> update);
-
-        /// <summary>
-        /// Closes the specified session.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="sessionId">The session identifier.</param>
-        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask CloseSessionAsync(
-            OperationContext context,
-            NodeId sessionId,
-            bool deleteSubscriptions,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Deletes the specified subscription.
-        /// </summary>
-        /// <param name="subscriptionId">The subscription identifier.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask DeleteSubscriptionAsync(uint subscriptionId, CancellationToken cancellationToken = default);
+        new ServerState CurrentState { get; set; }
 
         /// <summary>
         /// Called by any component to report a global event.
@@ -260,14 +228,6 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="e">The event.</param>
         void ReportEvent(ISystemContext context, IFilterTarget e);
-
-        /// <summary>
-        /// Asynchronously reports a global event, awaiting an asynchronous report sink so the caller
-        /// is never blocked.
-        /// </summary>
-        /// <param name="e">The event.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask ReportEventAsync(IFilterTarget e, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Asynchronously reports a global event, awaiting an asynchronous report sink so the caller

@@ -493,6 +493,26 @@ namespace Opc.Ua.Server
         /// <value>The default system context.</value>
         public ServerSystemContext DefaultSystemContext { get; }
 
+        /// <inheritdoc/>
+        ISystemContext IServerContext.DefaultSystemContext => DefaultSystemContext;
+
+        /// <inheritdoc/>
+        public ISystemContext CreateSystemContext(ISession session)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+
+            return DefaultSystemContext.Copy(session);
+        }
+
+        /// <inheritdoc/>
+        public T? FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
+        {
+            return DiagnosticsNodeManager?.FindPredefinedNode<T>(nodeId);
+        }
+
         /// <summary>
         /// The table of namespace uris known to the server.
         /// </summary>

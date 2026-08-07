@@ -49,6 +49,8 @@ namespace Opc.Ua.Server.Tests
         private ServiceMessageContext m_messageContext;
         private ITelemetryContext m_telemetry;
 
+        private static readonly string[] s_locales = ["de-DE"];
+
         [SetUp]
         public void SetUp()
         {
@@ -326,6 +328,56 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerInternalData data = CreateServerInternalData();
             Assert.That(data.DiagnosticsEnabled, Is.False);
+        }
+
+        [Test]
+        public void ServerContextDefaultSystemContextIsTheServerSystemContext()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(
+                ((IServerContext)data).DefaultSystemContext,
+                Is.SameAs(data.DefaultSystemContext));
+        }
+
+        [Test]
+        public void CreateSystemContextCarriesTheSessionIdentityAndLocales()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            var sessionId = new NodeId(Guid.NewGuid());
+            var identity = new UserIdentity(new AnonymousIdentityToken());
+
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(sessionId);
+            session.Setup(s => s.Identity).Returns(identity);
+            session.Setup(s => s.PreferredLocales).Returns(s_locales);
+
+            ISystemContext created = data.CreateSystemContext(session.Object);
+
+            Assert.That(created, Is.Not.SameAs(data.DefaultSystemContext));
+            Assert.That(created.PreferredLocales.ToArray(), Is.EqualTo(s_locales));
+            Assert.That(created.NamespaceUris, Is.SameAs(data.NamespaceUris));
+        }
+
+        [Test]
+        public void CreateSystemContextThrowsOnNullSession()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(
+                () => data.CreateSystemContext(null!),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void FindPredefinedNodeReturnsNullBeforeTheDiagnosticsNodeManagerExists()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            // The datastore is published before the node managers are bound, so callers
+            // must tolerate an address space that is not there yet.
+            Assert.That(data.FindPredefinedNode<BaseObjectState>(ObjectIds.Server), Is.Null);
         }
 
         [Test]
