@@ -26,6 +26,7 @@ breaking them is not in play. They are assessed separately in
   - [Cross-object lock nesting with no documented order](#cross-object-lock-nesting-with-no-documented-order)
   - [Tests cannot catch any of this](#tests-cannot-catch-any-of-this)
   - [Rules violated](#rules-violated)
+  - [The wider inventory — this leak is repo-wide](#the-wider-inventory--this-leak-is-repo-wide)
 - [Finding 2: IServerInternal is a service locator](#finding-2-iserverinternal-is-a-service-locator)
 - [Finding 3: ISubscription publishes its own state machine](#finding-3-isubscription-publishes-its-own-state-machine)
 - [Finding 4: ISubscriptionManager re-declares ISubscription](#finding-4-isubscriptionmanager-re-declares-isubscription)
@@ -144,12 +145,20 @@ public object DiagnosticsWriteLock
 ```
 
 Therefore every one of the 31 `lock (ServerInternal.DiagnosticsWriteLock)` sites in
-`StandardServer` triggers a full diagnostics rescan of the address space **before** the
+`StandardServer` performs an unsynchronised write to diagnostics-scan state **before** the
 lock is acquired — unsynchronised with respect to the very lock it is about to hand out.
+
+`ForceDiagnosticsScan()` is a single flag assignment
+(`DiagnosticsNodeManager.cs:700-703`, `m_forceDiagnosticsScan = true`); the flag is consumed
+by the attribute read paths and the periodic scan timer (`:1772`, `:1798`, `:1895-1898`),
+which run one fresh scan on demand. The comments at `:1008-1011` and `:1145-1148` show the
+flag exists precisely to *avoid* a synchronous O(N²) scan. So the cost on the lock path is a
+`bool` write, not a rescan — but it is still a side effect on a property getter, and still a
+racy write on a path whose entire purpose is synchronisation.
 
 Nothing in the type signature `object DiagnosticsWriteLock { get; }` reveals this. Under
 the definition of *interface* used here, the real interface of this member is
-"reading this property forces an address-space diagnostics rescan, then returns a lock
+"reading this property marks the diagnostics arrays for a forced rescan, then returns a lock
 aliased to the diagnostics data object" — none of which is expressible in, or visible
 from, the declaration.
 
@@ -180,7 +189,7 @@ m_sessionMock.Setup(s => s.DiagnosticsLock).Returns(new object());
 
 A mocked lock returns an object that nothing else in the system contends on. The tests
 therefore exercise **zero mutual exclusion** — and, because the mock replaces the property,
-they also never execute the `ForceDiagnosticsScan()` side effect. A diagnostics race or a
+they also never execute the `ForceDiagnosticsScan()` flag write. A diagnostics race or a
 lock-ordering deadlock cannot be reproduced by this suite.
 
 ### Rules violated
@@ -202,6 +211,51 @@ TFM, so the replacement type is in place today.
 right shape: the module owns its lock, the caller passes a delegate, and no sync root
 crosses the seam. Applying that shape to diagnostics removes all 88 lock statements, both
 side-effecting getters, and all five leaked members.
+
+### The wider inventory — this leak is repo-wide
+
+The diagnostics locks are the largest instance, not the only one. A sweep for `object`-typed
+lock members exposed as public or protected properties finds **ten across three assemblies**:
+
+| Assembly | Member | Kind |
+|---|---|---|
+| `Opc.Ua.Core` | `AsyncResultBase.Lock` (`:144`) | `public object` |
+| `Opc.Ua.Core` | `UaSCBinaryChannel.DataLock` (`:1045`) | `protected object` |
+| `Opc.Ua.Core` | `ApplicationConfiguration.PropertiesLock => m_properties` (`:104`) | **lock is the guarded data** |
+| `Opc.Ua.Types` | `BaseVariableState.Lock` (`:2122`) | `public object` |
+| `Opc.Ua.Types` | `NodeBrowser.DataLock` (`:242`) | `protected object` |
+| `Opc.Ua.Types` | `Node.DataLock => this` (`:476`) | **lock on `this`** |
+| `Opc.Ua.Server` | `ServerInternalData.DiagnosticsLock` (`:649`) | `public object` |
+| `Opc.Ua.Server` | `Subscription.DiagnosticsLock => Diagnostics` (`:415`) | **lock is the guarded data** |
+| `Opc.Ua.Server` | `Session.DiagnosticsLock => SessionDiagnostics` (`:332`) | **lock is the guarded data** |
+| `Opc.Ua.Server` | `CustomNodeManager.Lock` (`:237`) | `public object` |
+
+`Node.DataLock => this` and `ApplicationConfiguration.PropertiesLock => m_properties` are the
+same defect class as `Subscription.DiagnosticsLock => Diagnostics`: the published sync root
+is the guarded object, so a caller can contend without ever naming the lock member.
+
+The compliant pattern is also already present —
+`Opc.Ua.Redundancy.Server/Subscriptions/SharedKeyValueSubscriptionStore.cs:1467`:
+
+```csharp
+public Lock Lock { get; } = new();
+```
+
+There is a **third** lock leak beyond these ten, documented separately because it is a
+published *contract* rather than a member: `NodeState.ReadAttributeAsync` and
+`WriteAttributeAsync` take `lock (this)` under a `CA2002`/`RCS1059` suppression whose comment
+states *"external callers synchronise via `lock(source)`"*, and **19 call sites honour it**
+(`AsyncCustomNodeManager` 8, `BaseVariableState` 6, `NodeState` 4, `CustomNodeManager` 1).
+That contract cannot cross a replica and must be removed before any new node representation
+exists.
+
+Reproduce the sweep:
+
+```powershell
+Get-ChildItem src -Recurse -Filter *.cs -File |
+    Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' } |
+    Select-String -Pattern '^\s*(public|protected|internal)\s+object\s+\w*[Ll]ock\w*\s*(\{|=>)'
+```
 
 ## Finding 2: IServerInternal is a service locator
 
@@ -424,7 +478,7 @@ Every dependency in this cluster is either in-process or already behind a provid
 so **no new port is required** for any recommendation below.
 
 Testing should **replace, not layer**. The current suite mocks the diagnostics locks, which
-means it verifies neither mutual exclusion nor the `ForceDiagnosticsScan` side effect. Tests
+means it verifies neither mutual exclusion nor the `ForceDiagnosticsScan` flag write. Tests
 for the replacement should assert observable diagnostics outcomes through the owning
 module's update method, so they survive the internal change.
 
@@ -465,8 +519,10 @@ impact, and the replacement pattern already exists on the same interface.
    `UpdateServerStatus`) or as intention-revealing named methods
    (`RecordRequestCompleted`, `RecordSubscriptionTransferred`, …)? The latter is deeper but
    is a larger change.
-2. Does `ForceDiagnosticsScan()` need to run at all 88 sites, or is it a blanket safety net
-   that a narrower set of explicit invalidation points would replace?
+2. Does the `ForceDiagnosticsScan()` flag write need to happen at all 88 sites, or is it a
+   blanket safety net that a narrower set of explicit invalidation points would replace?
+   (Note it is a `bool` assignment, not a scan — see
+   [the side-effect section](#the-lock-getter-has-a-side-effect-that-runs-outside-the-lock).)
 3. Can the publish-pipeline protocol become an internal interface consumed only by
    `SubscriptionManager` and `SessionPublishQueue`, or does durable-subscription restore
    (see [DurableSubscription.md](../docs/DurableSubscription.md)) require external access?
