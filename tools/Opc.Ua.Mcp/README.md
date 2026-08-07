@@ -8,6 +8,7 @@ An MCP (Model Context Protocol) server that exposes OPC UA Part 4 service calls 
 - **Both stdio and Streamable HTTP** transports (HTTP is exposed only at `/mcp`; `--transport sse` is a deprecated alias for `--transport http`)
 - **JSON representation** of all OPC UA types for LLM-friendly interactions; scalar `Variant` values preserve typed `false` and `0` values rather than treating default values as `null`
 - **Session management** via Connect/Disconnect tools
+- **Embeddable** — the tools ship as libraries so an application can offer OPC UA tools to an LLM alongside its own, without forking or shelling out; see [Embedding](#embedding-the-tools-in-your-own-server)
 
 ### Tool Inventory (`full` profile)
 
@@ -28,6 +29,31 @@ The tables below list every tool available in the default `full` profile. Runnin
 | NodeSet Export | ExportNodeSet, ExportNodeSetPerNamespace | Export address space to NodeSet2 XML |
 | Convenience | ReadValue, ReadValues, WriteValue, BrowseAll, CallMethod, ReadNode, Cancel | Simplified operations |
 | Packet Capture | list_interfaces, start_capture, stop_capture, list_captures, get_capture, capture_now, list_active_channels, dump_keys, decode_pcap_with_keys, summarize_service_calls, replay_pcap, stop_replay, list_replays | OPC UA-aware packet capture, offline decode, service-call summaries, replay |
+
+## Embedding the tools in your own server
+
+The tools live in libraries, so an application that wants OPC UA tools *and* its
+own application-level tools composes them instead of running this executable:
+
+```csharp
+builder.Services.AddOpcUaMcpCore();
+
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithOpcUaMcpFilters()
+    .WithOpcUaCoreTools(McpToolProfile.Services)
+    .WithTools<MyApplicationTools>();
+```
+
+| Package | Tools |
+|---|---|
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Core` | Part 4 services, connection, configuration, PKI, NodeSet export |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp` | this ready-to-run `opcua-mcp` tool |
+
+See [Architecture](../../docs/McpServer.md#architecture) for the full picture.
 
 ## Documentation
 

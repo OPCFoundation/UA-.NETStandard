@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER
+#if NET10_0
 using System;
 using System.Collections.Generic;
 using System.Linq;
