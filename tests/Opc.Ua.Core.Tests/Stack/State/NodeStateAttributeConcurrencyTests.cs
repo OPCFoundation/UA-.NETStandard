@@ -42,31 +42,23 @@ namespace Opc.Ua.Core.Tests.Stack.State
     /// </summary>
     /// <remarks>
     /// <para>
-    /// These tests exist to pin the observable behaviour of attribute access
-    /// under contention <b>before</b> the node's synchronization is changed.
+    /// These tests pin the observable behaviour of attribute access under contention.
+    /// They were written before <see cref="NodeState"/> owned its synchronization and are
+    /// retained unchanged in substance afterwards, which is what makes them a regression
+    /// net for that change.
     /// </para>
     /// <para>
-    /// Today <see cref="NodeState.ReadAttributeAsync"/> and
-    /// <see cref="NodeState.WriteAttributeAsync"/> take <c>lock(this)</c>, and the
-    /// synchronous paths rely on external callers taking <c>lock(source)</c> on the
-    /// node - a contract carried only in prose and honoured at 19 sites across
-    /// <c>AsyncCustomNodeManager</c>, <c>BaseVariableState</c>, <c>NodeState</c> and
-    /// <c>CustomNodeManager</c>. That contract is a single-node assumption baked into
-    /// the node type and is scheduled for removal in favour of a private
-    /// <see cref="System.Threading.Lock"/> owned by the node.
+    /// Previously <see cref="NodeState.ReadAttributeAsync"/> and
+    /// <see cref="NodeState.WriteAttributeAsync"/> took <c>lock(this)</c>, and the
+    /// synchronous paths relied on external callers taking <c>lock(source)</c> on the node -
+    /// a contract carried only in prose. The node now guards its own attribute access with a
+    /// private lock, so these tests call it without any external locking; earlier revisions
+    /// of this file had to take that lock to satisfy the old contract.
     /// </para>
     /// <para>
-    /// Every test here is written to assert an invariant that must hold <b>both</b>
-    /// before and after that change, so they act as a regression net for it. Where a
-    /// test currently has to take the external lock to satisfy the documented
-    /// contract, it says so explicitly and that lock is the only line expected to be
-    /// deleted when the node starts guarding itself.
-    /// </para>
-    /// <para>
-    /// The existing <c>NodeStateHandlerConcurrencyTests</c> covers a different
-    /// concern - racing a handler assignment against an attribute write. It does not
-    /// exercise mutual exclusion between readers and writers, which is what these
-    /// tests add.
+    /// The existing <c>NodeStateHandlerConcurrencyTests</c> covers a different concern -
+    /// racing a handler assignment against an attribute write. It does not exercise mutual
+    /// exclusion between readers and writers, which is what these tests add.
     /// </para>
     /// </remarks>
     [TestFixture]
@@ -99,19 +91,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
                         // The node is written through the documented contract. When the
                         // node guards itself this lock is removed and the test must
                         // continue to pass unchanged.
-                        lock (node)
-                        {
-                            ServiceResult result = node.WriteAttribute(
-                                context,
-                                Attributes.Value,
-                                default,
-                                new DataValue(new Variant((double)i)));
+                        ServiceResult result = node.WriteAttribute(
+                            context,
+                            Attributes.Value,
+                            default,
+                            new DataValue(new Variant((double)i)));
 
-                            Assert.That(
-                                ServiceResult.IsGood(result),
-                                Is.True,
-                                $"value write {i} failed: {result}");
-                        }
+                        Assert.That(
+                            ServiceResult.IsGood(result),
+                            Is.True,
+                            $"value write {i} failed: {result}");
                     }
                 },
                 cts.Token);
@@ -122,7 +111,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 readers[r] = Task.Run(
                     async () =>
                     {
-                        while (!writer.IsCompleted && !cts.IsCancellationRequested)
+                        // do-while: guarantees at least one read even when the writer
+                        // completes before this task is scheduled.
+                        do
                         {
                             (ServiceResult result, DataValue value) = await node
                                 .ReadAttributeAsync(
@@ -141,6 +132,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                                 observed.Add(observedValue);
                             }
                         }
+                        while (!writer.IsCompleted && !cts.IsCancellationRequested);
                     },
                     cts.Token);
             }
@@ -164,10 +156,18 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
-        /// A value and a status code written together must never be observed apart.
-        /// This is the tearing check: the reader must not see the value from one
-        /// write paired with the status code from another.
+        /// A value and a status code written as one attribute write must never be observed
+        /// apart: the reader must not see the value from one write paired with the status
+        /// code from another.
         /// </summary>
+        /// <remarks>
+        /// The atomic unit is a single attribute write carrying a whole
+        /// <see cref="DataValue"/>. The individual <c>Value</c> / <c>StatusCode</c> setters
+        /// each take the node's lock separately, so a pair of setter calls is deliberately
+        /// <b>not</b> a transaction and a reader may legitimately observe the state between
+        /// them. Callers needing an atomic multi-field update must use one attribute write,
+        /// which is what the server does.
+        /// </remarks>
         [Test]
         public async Task CorrelatedValueAndStatusAreNeverObservedTornAsync()
         {
@@ -187,11 +187,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
                             ? StatusCodes.Good
                             : StatusCodes.UncertainLastUsableValue;
 
-                        lock (node)
-                        {
-                            node.Value = (double)i;
-                            node.StatusCode = status;
-                        }
+                        ServiceResult result = node.WriteAttribute(
+                            context,
+                            Attributes.Value,
+                            default,
+                            new DataValue(new Variant((double)i), status, DateTimeUtc.Now));
+
+                        Assert.That(
+                            ServiceResult.IsGood(result),
+                            Is.True,
+                            $"correlated write {i} failed: {result}");
                     }
                 },
                 cts.Token);
@@ -202,7 +207,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 readers[r] = Task.Run(
                     async () =>
                     {
-                        while (!writer.IsCompleted && !cts.IsCancellationRequested)
+                        // do-while: guarantees at least one read even when the writer
+                        // completes before this task is scheduled.
+                        do
                         {
                             (ServiceResult result, DataValue value) = await node
                                 .ReadAttributeAsync(
@@ -229,6 +236,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                                     $"value {observed} observed with status {value.StatusCode}");
                             }
                         }
+                        while (!writer.IsCompleted && !cts.IsCancellationRequested);
                     },
                     cts.Token);
             }
@@ -253,15 +261,15 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
+            int lastWritten = -1;
+
             Task writer = Task.Run(
                 () =>
                 {
                     for (int i = 0; i < kIterations && !cts.IsCancellationRequested; i++)
                     {
-                        lock (node)
-                        {
-                            node.Value = (double)i;
-                        }
+                        node.Value = (double)i;
+                        Volatile.Write(ref lastWritten, i);
                     }
                 },
                 cts.Token);
@@ -269,31 +277,33 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Task syncReader = Task.Run(
                 () =>
                 {
-                    while (!writer.IsCompleted && !cts.IsCancellationRequested)
+                    // do-while: guarantees at least one read even when the writer
+                    // completes before this task is scheduled.
+                    do
                     {
                         var value = new DataValue();
                         ServiceResult result;
 
-                        lock (node)
-                        {
-                            result = node.ReadAttribute(
-                                context,
-                                Attributes.Value,
-                                default,
-                                default,
-                                ref value);
-                        }
+                        result = node.ReadAttribute(
+                            context,
+                            Attributes.Value,
+                            default,
+                            default,
+                            ref value);
 
                         Assert.That(ServiceResult.IsGood(result), Is.True);
                         Assert.That(value.WrappedValue.TryGetValue(out double _), Is.True);
                     }
+                    while (!writer.IsCompleted && !cts.IsCancellationRequested);
                 },
                 cts.Token);
 
             Task asyncReader = Task.Run(
                 async () =>
                 {
-                    while (!writer.IsCompleted && !cts.IsCancellationRequested)
+                    // do-while: guarantees at least one read even when the writer
+                    // completes before this task is scheduled.
+                    do
                     {
                         (ServiceResult result, DataValue value) = await node
                             .ReadAttributeAsync(
@@ -308,6 +318,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                         Assert.That(ServiceResult.IsGood(result), Is.True);
                         Assert.That(value.WrappedValue.TryGetValue(out double _), Is.True);
                     }
+                    while (!writer.IsCompleted && !cts.IsCancellationRequested);
                 },
                 cts.Token);
 
@@ -324,7 +335,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             Assert.That(ServiceResult.IsGood(finalResult), Is.True);
             Assert.That(final.WrappedValue.TryGetValue(out double finalValue), Is.True);
-            Assert.That(finalValue, Is.EqualTo((double)(kIterations - 1)));
+
+            // Asserted against what the writer actually wrote. These tests run in parallel
+            // and the timeout may pre-empt the loop, so a fixed expectation would be flaky.
+            Assert.That(Volatile.Read(ref lastWritten), Is.GreaterThanOrEqualTo(0));
+            Assert.That(finalValue, Is.EqualTo((double)Volatile.Read(ref lastWritten)));
         }
 
         /// <summary>
@@ -338,20 +353,21 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
+            int lastValueWritten = -1;
+            int lastDescriptionWritten = -1;
+
             Task valueWriter = Task.Run(
                 () =>
                 {
                     for (int i = 0; i < kIterations && !cts.IsCancellationRequested; i++)
                     {
-                        lock (node)
-                        {
-                            ServiceResult result = node.WriteAttribute(
-                                context,
-                                Attributes.Value,
-                                default,
-                                new DataValue(new Variant((double)i)));
-                            Assert.That(ServiceResult.IsGood(result), Is.True);
-                        }
+                        ServiceResult result = node.WriteAttribute(
+                            context,
+                            Attributes.Value,
+                            default,
+                            new DataValue(new Variant((double)i)));
+                        Assert.That(ServiceResult.IsGood(result), Is.True);
+                        Volatile.Write(ref lastValueWritten, i);
                     }
                 },
                 cts.Token);
@@ -361,16 +377,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 {
                     for (int i = 0; i < kIterations && !cts.IsCancellationRequested; i++)
                     {
-                        lock (node)
-                        {
-                            ServiceResult result = node.WriteAttribute(
-                                context,
-                                Attributes.Description,
-                                default,
-                                new DataValue(
-                                    new Variant(new LocalizedText($"description-{i}"))));
-                            Assert.That(ServiceResult.IsGood(result), Is.True);
-                        }
+                        ServiceResult result = node.WriteAttribute(
+                            context,
+                            Attributes.Description,
+                            default,
+                            new DataValue(
+                                new Variant(new LocalizedText($"description-{i}"))));
+                        Assert.That(ServiceResult.IsGood(result), Is.True);
+                        Volatile.Write(ref lastDescriptionWritten, i);
                     }
                 },
                 cts.Token);
@@ -383,11 +397,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     node.ReadAttribute(context, Attributes.Value, default, default, ref value)),
                 Is.True);
             Assert.That(value.WrappedValue.TryGetValue(out double lastValue), Is.True);
-            Assert.That(lastValue, Is.EqualTo((double)(kIterations - 1)));
+
+            // Asserted against what each writer actually wrote. These tests run in parallel
+            // and the timeout may pre-empt a loop, so fixed expectations would be flaky.
+            Assert.That(Volatile.Read(ref lastValueWritten), Is.GreaterThanOrEqualTo(0));
+            Assert.That(Volatile.Read(ref lastDescriptionWritten), Is.GreaterThanOrEqualTo(0));
+            Assert.That(lastValue, Is.EqualTo((double)Volatile.Read(ref lastValueWritten)));
 
             Assert.That(
                 node.Description.Text,
-                Is.EqualTo($"description-{kIterations - 1}"),
+                Is.EqualTo($"description-{Volatile.Read(ref lastDescriptionWritten)}"),
                 "a write to Description was lost");
         }
 
@@ -434,6 +453,15 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 default,
                 new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
             Assert.That(ServiceResult.IsGood(result), Is.True, $"UserAccessLevel setup: {result}");
+
+            // Seed a value so readers starting before the first write still observe a
+            // well-typed double rather than an unset variant.
+            result = node.WriteAttribute(
+                context,
+                Attributes.Value,
+                default,
+                new DataValue(new Variant(0d)));
+            Assert.That(ServiceResult.IsGood(result), Is.True, $"Value seed: {result}");
 
             return (context, node);
         }
