@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
 using System;
 using System.Globalization;
 using System.IO;
@@ -151,7 +151,9 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             // The configuration model numbers Batch = 0 and Stream = 1, while the internal
             // ArrowIpcFraming declares Stream first. A cast between them would compile, run, and
             // select exactly the wrong framing, so the conversion is written out - and asserted.
-            Assert.That((int)ArrowIpcFormat.Batch, Is.Not.EqualTo((int)ArrowIpcFraming.Batch),
+            int configurationBatch = (int)ArrowIpcFormat.Batch;
+            int internalBatch = (int)ArrowIpcFraming.Batch;
+            Assert.That(configurationBatch, Is.Not.EqualTo(internalBatch),
                 "the two enumerations are numbered differently, which is why a cast is unsafe");
 
             Assert.That(ArrowMessageSettings.ToFraming(ArrowIpcFormat.Batch), Is.EqualTo(ArrowIpcFraming.Batch));
