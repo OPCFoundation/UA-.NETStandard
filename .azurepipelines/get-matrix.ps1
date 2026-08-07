@@ -48,6 +48,12 @@
     the matrix is fanned out across TFMs; each entry carries a
     'targetTfm' variable that downstream jobs typically pass to
     'dotnet build' as '/p:CustomTestTarget=$(targetTfm)'.
+
+ .PARAMETER AllowEmpty
+    Do not fail when discovery produces no matrix entries. Off by default,
+    because an empty matrix skips the downstream job, which rolls up as a
+    successful stage and would let the 'Tests passed' gate approve a run that
+    executed no tests.
 #>
 
 Param(
@@ -58,7 +64,8 @@ Param(
     [hashtable] $AgentTable      = $null,
     [string]    $Configurations  = '',
     [string]    $Files           = '',
-    [string]    $Tfms            = ''
+    [string]    $Tfms            = '',
+    [switch]    $AllowEmpty
 )
 
 if ([string]::IsNullOrEmpty($BuildRoot)) {
@@ -204,5 +211,15 @@ foreach ($item in $items) {
 }
 
 Write-Host ("Job matrix:`n" + ($jobMatrix | ConvertTo-Json -Depth 4))
+
+# An empty matrix silently produces a stage whose only real job is skipped, and
+# a skipped job rolls up as a *successful* stage - so a broken discovery pattern
+# would sail through the 'Tests passed' gate having run nothing at all. Fail
+# loudly instead; no caller legitimately expects zero matches.
+if ($jobMatrix.Count -eq 0 -and -not $AllowEmpty) {
+    Write-Host "##vso[task.logissue type=error]The job matrix is empty - no file matched '$FileName' beneath '$BuildRoot'. Pass -AllowEmpty if that is genuinely expected."
+    exit 1
+}
+
 Write-Host ("##vso[task.setVariable variable=jobMatrix;isOutput=true] {0}" `
     -f ($jobMatrix | ConvertTo-Json -Compress))
