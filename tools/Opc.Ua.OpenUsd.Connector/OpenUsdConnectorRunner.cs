@@ -183,6 +183,24 @@ namespace Opc.Ua.OpenUsd.Connector
                 identity: new UserIdentity(new AnonymousIdentityToken()),
                 preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
 
+            // Cross-server composition (spec 5.14) is opt-in. A component binding can
+            // name another server's endpoint, and honouring that means the connector
+            // opens an outbound session to a URL the server chose. That is a trust
+            // decision, so the library is fail-closed - no factory, no federation -
+            // and --federate is what supplies the factory. The same --insecure
+            // posture governs certificate acceptance for those sessions.
+            OpenUsdConnectorOptions? connectorOptions = null;
+            if (HasFlag(args, "--federate"))
+            {
+                connectorOptions = new OpenUsdConnectorOptions
+                {
+                    EnableCommands = enableCommands,
+                    RemoteSessionFactory = (endpointUrl, ct) =>
+                        OpenRemoteSessionAsync(config, sessionFactory, telemetry, endpointUrl, insecure, ct),
+                };
+                Console.WriteLine("--federate: composing components hosted on other servers.");
+            }
+
             var fileSink = new UsdFileSink(outPath);
             string? stagePath = stageOption;
             IUsdViewHost? viewHost = null;
@@ -203,6 +221,20 @@ namespace Opc.Ua.OpenUsd.Connector
                 {
                     List<OpenUsdConnector.FetchedAsset> fetched =
                         await fetcher.FetchServedAssetsAsync(cacheDir!, CancellationToken.None).ConfigureAwait(false);
+
+                    // A federated stage is only half fetched at this point. Composition
+                    // has authored reference arcs onto prims owned by other servers, but
+                    // the layers those arcs resolve against live on those servers, so
+                    // without this the viewport shows the primary server's shell with
+                    // empty placeholders where every subordinate's machines should be -
+                    // live values arriving onto prims that have no geometry behind them.
+                    if (connectorOptions?.RemoteSessionFactory != null)
+                    {
+                        fetched.AddRange(await FetchFederatedAssetsAsync(
+                            fetcher, config, sessionFactory, telemetry, cacheDir!, insecure)
+                            .ConfigureAwait(false));
+                    }
+
                     if (fetched.Count > 0)
                     {
                         WriteStageUsda(cacheDir!, fetched);
@@ -231,9 +263,11 @@ namespace Opc.Ua.OpenUsd.Connector
             int exit = view
                 ? await RunViewportAsync(
                     viewHost!, stagePath, renderer, pluginPath, cameraPath, session, fileSink,
-                    enableCommands, commandValueOpt, seconds, outPath).ConfigureAwait(false)
+                    enableCommands, commandValueOpt, seconds, outPath, connectorOptions, telemetry)
+                    .ConfigureAwait(false)
                 : await RunHeadlessAsync(
-                    session, fileSink, enableCommands, commandValueOpt, seconds, outPath)
+                    session, fileSink, enableCommands, commandValueOpt, seconds, outPath,
+                    connectorOptions, telemetry)
                     .ConfigureAwait(false);
 
             await CloseAsync(session, config).ConfigureAwait(false);
@@ -250,9 +284,13 @@ namespace Opc.Ua.OpenUsd.Connector
             bool enableCommands,
             string? commandValueOpt,
             int seconds,
-            string outPath)
+            string outPath,
+            OpenUsdConnectorOptions? connectorOptions,
+            ITelemetryContext telemetry)
         {
-            var connector = new OpenUsdConnector(session, sink, enableCommands);
+            var connector = connectorOptions != null
+                ? new OpenUsdConnector(session, sink, connectorOptions, telemetry)
+                : new OpenUsdConnector(session, sink, enableCommands);
             try
             {
                 await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
@@ -310,7 +348,9 @@ namespace Opc.Ua.OpenUsd.Connector
             bool enableCommands,
             string? commandValueOpt,
             int seconds,
-            string outPath)
+            string outPath,
+            OpenUsdConnectorOptions? connectorOptions,
+            ITelemetryContext telemetry)
         {
             if (string.IsNullOrEmpty(stagePath) || !File.Exists(stagePath))
             {
@@ -345,7 +385,7 @@ namespace Opc.Ua.OpenUsd.Connector
                         options,
                         (stageSink, cancellationToken) => StreamAsync(
                             session, fileSink, stageSink, enableCommands,
-                            commandValueOpt, outPath, cancellationToken),
+                            commandValueOpt, outPath, connectorOptions, telemetry, cancellationToken),
                         lifetime.Token);
                     completion.TrySetResult(0);
                 }
@@ -379,10 +419,14 @@ namespace Opc.Ua.OpenUsd.Connector
             bool enableCommands,
             string? commandValueOpt,
             string outPath,
+            OpenUsdConnectorOptions? connectorOptions,
+            ITelemetryContext telemetry,
             CancellationToken cancellationToken)
         {
             var sink = new CompositeUsdSink(fileSink, stageSink);
-            var connector = new OpenUsdConnector(session, sink, enableCommands);
+            var connector = connectorOptions != null
+                ? new OpenUsdConnector(session, sink, connectorOptions, telemetry)
+                : new OpenUsdConnector(session, sink, enableCommands);
             try
             {
                 await connector.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -441,6 +485,50 @@ namespace Opc.Ua.OpenUsd.Connector
             (config.CertificateManager as IDisposable)?.Dispose();
         }
 
+        /// <summary>
+        /// Opens a session to a server named by a cross-server component binding.
+        /// </summary>
+        /// <param name="config">The connector's application configuration.</param>
+        /// <param name="sessionFactory">Factory used for the primary session too.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="endpointUrl">Endpoint the component binding names.</param>
+        /// <param name="insecure">Whether to accept an unsecured endpoint.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>A session on the subordinate server.</returns>
+        /// <remarks>
+        /// Reuses the connector's own security posture rather than relaxing it: a
+        /// federated session is negotiated exactly the way the primary one is, so
+        /// composing a subordinate server cannot silently downgrade security. The
+        /// connector owns these sessions and closes them on disposal.
+        /// </remarks>
+        private static async Task<ISession> OpenRemoteSessionAsync(
+            ApplicationConfiguration config,
+            DefaultSessionFactory sessionFactory,
+            ITelemetryContext telemetry,
+            string endpointUrl,
+            bool insecure,
+            CancellationToken ct)
+        {
+            EndpointDescription? description = await CoreClientUtils.SelectEndpointAsync(
+                config, endpointUrl, useSecurity: !insecure, telemetry, ct).ConfigureAwait(false);
+            if (description == null)
+            {
+                throw new InvalidOperationException(
+                    $"No endpoint could be selected for federated server '{endpointUrl}'.");
+            }
+            var endpoint = new ConfiguredEndpoint(
+                null, description, EndpointConfiguration.Create(config));
+            return await sessionFactory.CreateAsync(
+                config,
+                endpoint,
+                updateBeforeConnect: false,
+                sessionName: "Opc.Ua.OpenUsd.Connector (federated)",
+                sessionTimeout: 60000,
+                identity: new UserIdentity(new AnonymousIdentityToken()),
+                preferredLocales: default,
+                ct: ct).ConfigureAwait(false);
+        }
+
         // Writes a self-contained stage.usda that composes the connector's live override
         // layer over the server-delivered root layer (both now local in the cache dir).
         /// <summary>
@@ -487,16 +575,123 @@ namespace Opc.Ua.OpenUsd.Connector
             return null;
         }
 
-        private static void WriteStageUsda(string cacheDir, List<OpenUsdConnector.FetchedAsset> fetched)
+        /// <summary>
+        /// Fetches the asset closure of every server named by a cross-server component.
+        /// </summary>
+        /// <param name="primary">Connector on the primary session, used for discovery.</param>
+        /// <param name="config">Application configuration for the outbound sessions.</param>
+        /// <param name="sessionFactory">Factory used to open the outbound sessions.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="cacheDir">Directory every layer is fetched into.</param>
+        /// <param name="insecure">Whether to accept an unsecured endpoint.</param>
+        /// <returns>The layers fetched from the subordinate servers.</returns>
+        /// <remarks>
+        /// Everything lands in the same cache directory on purpose: a component's
+        /// <c>ComponentAssetReference</c> is a plain relative identifier such as
+        /// <c>@pump.usda@</c>, so it only resolves if the subordinate's layer sits
+        /// beside the primary server's. Best-effort per server, for the same reason
+        /// federation itself is: one unreachable subordinate costs its own geometry,
+        /// not the whole scene.
+        /// </remarks>
+        private static async Task<List<OpenUsdConnector.FetchedAsset>> FetchFederatedAssetsAsync(
+            OpenUsdConnector primary,
+            ApplicationConfiguration config,
+            DefaultSessionFactory sessionFactory,
+            ITelemetryContext telemetry,
+            string cacheDir,
+            bool insecure)
         {
-            OpenUsdConnector.FetchedAsset? root = fetched.Find(a => a.Kind == OpenUsdAssetKind.RootLayer);
-            string rootName = root != null ? Path.GetFileName(root.LocalPath) : "base.usda";
-            var sb = new StringBuilder();
-            sb.Append("#usda 1.0\n(\n");
-            sb.Append("    doc = \"Self-contained OpenUSD stage: server-delivered base layers + the live OPC UA override.\"\n");
-            sb.Append("    subLayers = [\n        @./live.usda@,\n        @./").Append(rootName).Append("@\n    ]\n");
-            sb.Append(")\n");
-            File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), sb.ToString());
+            var result = new List<OpenUsdConnector.FetchedAsset>();
+            var endpoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (OpenUsdConnector.RepresentationInfo rep in
+                await primary.DiscoverAllRepresentationsAsync(CancellationToken.None).ConfigureAwait(false))
+            {
+                foreach (OpenUsdConnector.ComponentInfo component in rep.Components)
+                {
+                    if (component.Enabled && !string.IsNullOrEmpty(component.ComponentEndpointUrl))
+                    {
+                        endpoints.Add(component.ComponentEndpointUrl!);
+                    }
+                }
+            }
+
+            foreach (string endpointUrl in endpoints)
+            {
+                ISession? remote = null;
+                OpenUsdConnector? remoteFetcher = null;
+                try
+                {
+                    remote = await OpenRemoteSessionAsync(
+                        config, sessionFactory, telemetry, endpointUrl, insecure, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    remoteFetcher = new OpenUsdConnector(remote, new MockUsdSink(), enableCommands: false);
+                    List<OpenUsdConnector.FetchedAsset> got = await remoteFetcher
+                        .FetchServedAssetsAsync(cacheDir, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    result.AddRange(got);
+                    Console.WriteLine(
+                        $"Fetched {got.Count} layer(s) from the federated server {endpointUrl}.");
+                }
+#pragma warning disable CA1031 // One unreachable subordinate must not fail the stage.
+                catch (Exception ex)
+#pragma warning restore CA1031
+                {
+                    // TODO: narrow once RemoteSessionFactory documents what it may throw.
+                    Console.Error.WriteLine(
+                        $"WARNING: could not fetch assets from {endpointUrl}: {ex.Message}");
+                }
+                finally
+                {
+                    if (remoteFetcher != null)
+                    {
+                        await remoteFetcher.DisposeAsync().ConfigureAwait(false);
+                    }
+                    if (remote != null)
+                    {
+                        await remote.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+                private static void WriteStageUsda(string cacheDir, List<OpenUsdConnector.FetchedAsset> fetched)
+                {
+                    // Every server contributes its own root layer, so a federated stage has
+                    // several. Taking only the first would render the primary server's shell
+                    // and silently drop every subordinate's machines. live.usda stays first,
+                    // because the OPC UA overrides must win over every base layer.
+                    var roots = new List<string>();
+                    foreach (OpenUsdConnector.FetchedAsset asset in fetched)
+                    {
+                        if (asset.Kind != OpenUsdAssetKind.RootLayer)
+                        {
+                            continue;
+                        }
+                        string name = Path.GetFileName(asset.LocalPath);
+                        if (!roots.Contains(name))
+                        {
+                            roots.Add(name);
+                        }
+                    }
+                    if (roots.Count == 0)
+                    {
+                        roots.Add("base.usda");
+                    }
+
+                    var sb = new StringBuilder();
+                    sb.Append("#usda 1.0\n(\n");
+                    sb.Append("    doc = \"Self-contained OpenUSD stage: server-delivered base layers + the live OPC UA override.\"\n");
+                    sb.Append("    subLayers = [\n        @./live.usda@");
+                    foreach (string root in roots)
+                    {
+                        sb.Append(",\n        @./").Append(root).Append('@');
+                    }
+                    sb.Append("\n    ]\n");
+                    sb.Append(")\n");
+                    File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), sb.ToString());
 
             // The override layer is only written once the first values arrive, so seed an
             // empty one now. Without it a viewer that opens the stage first reports the

@@ -144,6 +144,13 @@ Observability is threaded through `ITelemetryContext` (resolved from DI), which 
 
 ## Server-side authoring
 
+`context.CreateRepresentation(owner, stage, primPath, openUsdNs)` attaches an `OpenUsdRepresentation` to a domain
+Object and points it at a stage and prim path. The representation is an **AddIn**, so it is mounted with
+`HasAddIn` — not plain `HasComponent`. The distinction is easy to get wrong because `HasAddIn` is a *subtype* of
+`HasComponent`: an AddIn mounted with the wrong reference type still browses, still aggregates, and still works
+end to end, so only a conformance checker notices. Prefer this helper over hand-rolling the mount; the sample
+servers assert the reference type in their E2E suites.
+
 `UsdAssetDelivery.AttachStageAssets(context, stage, openUsdNs, assets)` serves artist-authored USD layers through the
 address space as read-only Part 5 files with SHA-256 digests, so a generic connector can fetch, verify, cache, and
 render the twin with no external asset resolver. `assets` is an `ArrayOf<ServedAsset>` and the method returns the
@@ -157,7 +164,14 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
   locations drive geospatial metadata; a generic connector renders the cell
   live. See [Positioning](Positioning.md).
 * [`PumpDeviceIntegrationServer`](../samples/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
-  component composition, cross-server components, and served-asset delivery.
+  component composition and served-asset delivery.
+* [`GeneratorServer`](../samples/GeneratorServer) — the Generators companion
+  specification with a datasheet-driven simulation and one independent twin per
+  configured generating set.
+* [`SiteCompositionServer`](../samples/SiteCompositionServer) — a supervisory server that owns no devices and
+  composes the machines of the pump and generator servers into a single scene
+  through cross-server components. Render it with the connector's `--federate`
+  option. See [Samples](../samples/SiteCompositionServer/README.md).
 
 ## The connector tool
 
@@ -220,6 +234,24 @@ so the on-disk artefact and the picture never diverge.
 >
 > Publishing both into the same directory is what puts the optional assembly, its dependencies, and the native
 > plugin tree where the connector looks for them.
+
+#### Known viewport limitations
+
+Three behaviours of the OpenUSD viewer shape what a live twin can show. All are tracked upstream; none affect the
+override layer the connector writes, which always carries the full value.
+
+- **Colour cannot be animated** — [openusd-dotnet#2](https://github.com/marcschier/openusd-dotnet/issues/2).
+  `primvars:displayColor` resolves as `color3f[]` from the `UsdGeomGprim` schema whatever the layer declares, and
+  the managed API has no writer for that type. Colour-valued bindings publish correctly but do not move on screen.
+- **Bound materials are not shaded** — [openusd-dotnet#4](https://github.com/marcschier/openusd-dotnet/issues/4).
+  A `UsdPreviewSurface` network is not evaluated, so geometry renders untinted unless it *also* carries an explicit
+  `displayColor` primvar.
+- **Stage cameras are not opened automatically** — [openusd-dotnet#3](https://github.com/marcschier/openusd-dotnet/issues/3).
+  The opening shot is framed from stage bounds, so it shifts whenever the geometry changes.
+
+Prefer **visibility** bindings for anything that must be legible on screen — they carry none of these caveats. The
+[Generators sample](../samples/GeneratorServer/README.md) uses them for its run lamp, alarm beacon and fault halos
+for exactly this reason.
 
 
 ## Part 2 — scene materialization
