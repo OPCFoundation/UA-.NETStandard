@@ -53,18 +53,6 @@ namespace Opc.Ua.Server
         IEnumerable<Uri> EndpointAddresses { get; }
 
         /// <summary>
-        /// The context to use when serializing/deserializing extension objects.
-        /// </summary>
-        /// <value>The message context.</value>
-        IServiceMessageContext MessageContext { get; }
-
-        /// <summary>
-        /// The default system context for the server.
-        /// </summary>
-        /// <value>The default system context.</value>
-        new ServerSystemContext DefaultSystemContext { get; }
-
-        /// <summary>
         /// The table of namespace uris known to the server.
         /// </summary>
         /// <value>The namespace URIs.</value>
@@ -209,12 +197,6 @@ namespace Opc.Ua.Server
         /// they return from a blocking operation. If it is false the thread should clean up and terminate.
         /// </remarks>
         bool IsRunning { get; }
-
-        /// <summary>
-        /// Gets or sets the current state of the server.
-        /// </summary>
-        /// <value>The state of the current.</value>
-        new ServerState CurrentState { get; set; }
 
         /// <summary>
         /// Called by any component to report a global event.

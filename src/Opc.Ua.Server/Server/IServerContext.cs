@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -64,18 +65,29 @@ namespace Opc.Ua.Server
         ServerObjectState ServerObject { get; }
 
         /// <summary>
+        /// The context to use when serializing and deserializing extension objects.
+        /// </summary>
+        /// <remarks>
+        /// This is the server's own context and carries its configured decoding limits.
+        /// It is deliberately not derived from <see cref="DefaultSystemContext"/>:
+        /// <c>ISystemContext.AsMessageContext()</c> produces a context with default
+        /// limits, which would silently widen what a component accepts.
+        /// </remarks>
+        IServiceMessageContext MessageContext { get; }
+
+        /// <summary>
         /// The context to use for operations that are not attributable to a session.
         /// Also carries the namespace URIs, server URIs, type table, encodeable factory
         /// and telemetry context.
         /// </summary>
-        ISystemContext DefaultSystemContext { get; }
+        ServerSystemContext DefaultSystemContext { get; }
 
         /// <summary>
         /// Creates a context that attributes operations to the given session, carrying its
         /// identity and preferred locales.
         /// </summary>
         /// <param name="session">The session to attribute operations to.</param>
-        ISystemContext CreateSystemContext(ISession session);
+        ServerSystemContext CreateSystemContext(ISession session);
 
         /// <summary>
         /// Finds a node in the server's predefined address space.
@@ -87,6 +99,17 @@ namespace Opc.Ua.Server
         /// <typeparamref name="T"/>.
         /// </returns>
         T? FindPredefinedNode<T>(NodeId nodeId) where T : NodeState;
+
+        /// <summary>
+        /// Finds every registered node manager that provides the requested capability.
+        /// </summary>
+        /// <remarks>
+        /// Node managers advertise optional capabilities by implementing marker interfaces.
+        /// This asks for the capability rather than for the registry, so callers do not
+        /// have to know how node managers are stored or filter the list themselves.
+        /// </remarks>
+        /// <typeparam name="T">The capability to look for.</typeparam>
+        IEnumerable<T> FindNodeManagers<T>() where T : class;
 
         /// <summary>
         /// Reports a global event.

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
@@ -64,7 +65,7 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+        public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
         {
             if (server == null)
             {
@@ -79,7 +80,7 @@ namespace Opc.Ua.Redundancy.Server
 
             m_server = server;
             RequestServerStateChangeMethodState? requestServerStateChange =
-                server.DiagnosticsNodeManager?.FindPredefinedNode<RequestServerStateChangeMethodState>(
+                server.FindPredefinedNode<RequestServerStateChangeMethodState>(
                     MethodIds.Server_RequestServerStateChange) ??
                 serverObject.RequestServerStateChange;
             requestServerStateChange?.OnCall = OnRequestServerStateChange;
@@ -101,7 +102,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 ValidateAdminAccess(context);
 
-                IServerInternal? server = m_server;
+                IServerContext? server = m_server;
                 ServerObjectState? serverObject = server?.ServerObject;
                 if (server == null || serverObject == null)
                 {
@@ -128,7 +129,7 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
 
-            IConfigurationNodeManager? configurationNodeManager = (m_server?.ConfigurationNodeManager) ??
+            IConfigurationNodeManager? configurationNodeManager = m_server?.FindNodeManagers<IConfigurationNodeManager>().FirstOrDefault() ??
                 throw new ServiceResultException(
                     StatusCodes.BadUserAccessDenied,
                     "A configuration node manager is required to validate administrator access.");
@@ -200,6 +201,6 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly RequestServerStateChangeOptions m_options;
         private readonly IServiceLevelController? m_serviceLevelController;
-        private IServerInternal? m_server;
+        private IServerContext? m_server;
     }
 }

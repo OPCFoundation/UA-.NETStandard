@@ -353,7 +353,7 @@ namespace Opc.Ua.Server.Tests
             session.Setup(s => s.Identity).Returns(identity);
             session.Setup(s => s.PreferredLocales).Returns(s_locales);
 
-            ISystemContext created = data.CreateSystemContext(session.Object);
+            ServerSystemContext created = data.CreateSystemContext(session.Object);
 
             Assert.That(created, Is.Not.SameAs(data.DefaultSystemContext));
             Assert.That(created.PreferredLocales.ToArray(), Is.EqualTo(s_locales));

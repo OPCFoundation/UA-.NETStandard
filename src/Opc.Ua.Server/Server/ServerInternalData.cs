@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Identity;
@@ -494,10 +495,7 @@ namespace Opc.Ua.Server
         public ServerSystemContext DefaultSystemContext { get; }
 
         /// <inheritdoc/>
-        ISystemContext IServerContext.DefaultSystemContext => DefaultSystemContext;
-
-        /// <inheritdoc/>
-        public ISystemContext CreateSystemContext(ISession session)
+        public ServerSystemContext CreateSystemContext(ISession session)
         {
             if (session == null)
             {
@@ -511,6 +509,25 @@ namespace Opc.Ua.Server
         public T? FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
         {
             return DiagnosticsNodeManager?.FindPredefinedNode<T>(nodeId);
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<T> FindNodeManagers<T>() where T : class
+        {
+            IMasterNodeManager? nodeManager = NodeManager;
+            if (nodeManager == null)
+            {
+                return [];
+            }
+
+            // A node manager is registered as an asynchronous manager and surfaced again
+            // through a synchronous adapter. A manager that already implements INodeManager
+            // is its own adapter, so the two lists overlap and the capability may sit on
+            // either face; both are searched and the overlap is removed.
+            return nodeManager.AsyncNodeManagers
+                .OfType<T>()
+                .Concat(nodeManager.NodeManagers.OfType<T>())
+                .Distinct();
         }
 
         /// <summary>

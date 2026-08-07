@@ -3100,7 +3100,7 @@ namespace Opc.Ua.Server
 
                 m_logger.ServerEnterStateState(state);
 
-                ServerInternal.CurrentState = state;
+                m_serverInternal.CurrentState = state;
             }
             finally
             {
