@@ -673,34 +673,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reads a value derived from the server diagnostics while holding the server's
-        /// diagnostics lock.
-        /// </summary>
-        /// <remarks>
-        /// Do not let the diagnostics object itself escape the callback: once the lock is
-        /// released, any field read from it is unsynchronized.
-        /// </remarks>
-        /// <typeparam name="TResult">The type of the value produced.</typeparam>
-        /// <param name="read">The projection applied to the diagnostics.</param>
-        /// <exception cref="ArgumentNullException">Thrown if read is null.</exception>
-        public TResult ReadServerDiagnostics<TResult>(
-            Func<ServerDiagnosticsSummaryDataType, TResult> read)
-        {
-            if (read == null)
-            {
-                throw new ArgumentNullException(nameof(read));
-            }
-
-            lock (m_diagnosticsLock)
-            {
-                return read.Invoke(ServerDiagnostics);
-            }
-        }
-
-        /// <summary>
         /// Guards the server diagnostics. Never exposed: callers reach the diagnostics
-        /// through <see cref="UpdateServerDiagnostics"/> and
-        /// <see cref="ReadServerDiagnostics{TResult}"/>.
+        /// through <see cref="UpdateServerDiagnostics"/>.
         /// </summary>
         private readonly Lock m_diagnosticsLock = new();
 
@@ -768,22 +742,6 @@ namespace Opc.Ua.Server
         /// Status but non thread safe - internal so not part of public api
         /// </summary>
         internal ServerStatusValue NonThreadSafeStatus { get; private set; } = null!;
-
-        /// <summary>
-        /// Closes the specified session.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="sessionId">The session identifier.</param>
-        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
-        [Obsolete("Use CloseSessionAsync instead.")]
-        public void CloseSession(
-            OperationContext context,
-            NodeId sessionId,
-            bool deleteSubscriptions)
-        {
-            CloseSessionAsync(context, sessionId, deleteSubscriptions)
-                .AsTask().GetAwaiter().GetResult();
-        }
 
         /// <summary>
         /// Closes the specified session.

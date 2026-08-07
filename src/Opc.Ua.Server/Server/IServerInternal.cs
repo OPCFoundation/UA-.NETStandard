@@ -142,20 +142,6 @@ namespace Opc.Ua.Server
         AggregateManager AggregateManager { get; }
 
         /// <summary>
-        /// A manager for modelling rules supported by the server.
-        /// </summary>
-        /// <value>The modelling rules manager.</value>
-        ModellingRulesManager ModellingRulesManager { get; }
-
-        /// <summary>
-        /// A manager for the conformance units and server profiles the server
-        /// advertises, aggregated from the registered
-        /// <see cref="IConformanceContributor"/> node managers.
-        /// </summary>
-        /// <value>The conformance units manager.</value>
-        ConformanceUnitsManager ConformanceUnitsManager { get; }
-
-        /// <summary>
         /// The manager for active sessions.
         /// </summary>
         /// <value>The session manager.</value>
@@ -219,13 +205,6 @@ namespace Opc.Ua.Server
         bool IsRunning { get; }
 
         /// <summary>
-        /// Returns the status object for the server.
-        /// </summary>
-        /// <value>The status.</value>
-        [Obsolete("No longer thread safe. To read the value use CurrentState, to write use UpdateServerStatus.")]
-        ServerStatusValue Status { get; }
-
-        /// <summary>
         /// Gets or sets the current state of the server.
         /// </summary>
         /// <value>The state of the current.</value>
@@ -248,40 +227,6 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="update">The mutation to apply to the diagnostics.</param>
         void UpdateServerDiagnostics(Action<ServerDiagnosticsSummaryDataType> update);
-
-        /// <summary>
-        /// Reads a value derived from the server diagnostics while holding the server's
-        /// diagnostics lock.
-        /// </summary>
-        /// <remarks>
-        /// Do not let the diagnostics object escape the callback: once the lock is
-        /// released, any field read from it is unsynchronized.
-        /// </remarks>
-        /// <typeparam name="TResult">The type of the value produced.</typeparam>
-        /// <param name="read">The projection applied to the diagnostics.</param>
-        TResult ReadServerDiagnostics<TResult>(
-            Func<ServerDiagnosticsSummaryDataType, TResult> read);
-
-        /// <summary>
-        /// Returns the diagnostics structure for the server.
-        /// </summary>
-        /// <value>The server diagnostics.</value>
-        ServerDiagnosticsSummaryDataType ServerDiagnostics { get; }
-
-        /// <summary>
-        /// Whether the server is collecting diagnostics.
-        /// </summary>
-        /// <value><c>true</c> if diagnostics is enabled; otherwise, <c>false</c>.</value>
-        bool DiagnosticsEnabled { get; }
-
-        /// <summary>
-        /// Closes the specified session.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="sessionId">The session identifier.</param>
-        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
-        [Obsolete("Use CloseSessionAsync instead.")]
-        void CloseSession(OperationContext context, NodeId sessionId, bool deleteSubscriptions);
 
         /// <summary>
         /// Closes the specified session.

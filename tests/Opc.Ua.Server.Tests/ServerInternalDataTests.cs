@@ -322,16 +322,6 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ReadServerDiagnosticsThrowsOnNullRead()
-        {
-            using ServerInternalData data = CreateServerInternalData();
-
-            Assert.That(
-                () => data.ReadServerDiagnostics<int>(null!),
-                Throws.TypeOf<ArgumentNullException>());
-        }
-
-        [Test]
         public void DiagnosticsEnabledReturnsFalseWhenNoDiagnosticsNodeManager()
         {
             using ServerInternalData data = CreateServerInternalData();

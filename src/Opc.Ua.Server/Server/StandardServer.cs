@@ -2815,7 +2815,7 @@ namespace Opc.Ua.Server
                 {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
-                return ServerInternal.Status.Value;
+                return m_serverInternal.NonThreadSafeStatus.Value;
             }
         }
 
