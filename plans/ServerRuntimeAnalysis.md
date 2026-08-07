@@ -244,17 +244,41 @@ public Lock Lock { get; } = new();
 There is a **third** lock leak beyond these ten, documented separately because it is a
 published *contract* rather than a member: `NodeState.ReadAttributeAsync` and
 `WriteAttributeAsync` take `lock (this)` under a `CA2002`/`RCS1059` suppression whose comment
-states *"external callers synchronise via `lock(source)`"*, and **19 call sites honour it**
-(`AsyncCustomNodeManager` 8, `BaseVariableState` 6, `NodeState` 4, `CustomNodeManager` 1).
+states *"external callers synchronise via `lock(source)`"*, and **15 call sites honour it** —
+6 `lock(this)` inside the node types (`BaseVariableState` 4, `NodeState` 2) and 9 external
+`lock(source)`/`lock(node)` statements (`AsyncCustomNodeManager` 8, `CustomNodeManager` 1).
+A naive text search reports 19; ten of those matches are the TODO comments and `#pragma`
+lines that *mention* `lock(source)` rather than take it. The command below excludes them.
 That contract cannot cross a replica and must be removed before any new node representation
 exists.
 
 Reproduce the sweep:
 
 ```powershell
+# the ten object-typed lock members
 Get-ChildItem src -Recurse -Filter *.cs -File |
     Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' } |
     Select-String -Pattern '^\s*(public|protected|internal)\s+object\s+\w*[Ll]ock\w*\s*(\{|=>)'
+
+# the 15 lock-contract sites, excluding comment and pragma mentions
+$files = Get-ChildItem src -Recurse -Filter *.cs -File |
+    Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' }
+$sites = @()
+foreach ($f in $files) {
+    $n = 0
+    foreach ($line in [IO.File]::ReadAllLines($f.FullName)) {
+        $n++
+        if ($line -match 'lock\s*\(\s*(this|source|node|m_node)\s*\)') {
+            $trim = $line.TrimStart()
+            if (-not ($trim.StartsWith('//') -or $trim.StartsWith('*') -or
+                      $trim.StartsWith('#pragma'))) {
+                $sites += "$($f.Name):$n  $($line.Trim())"
+            }
+        }
+    }
+}
+$sites.Count   # 15
+$sites
 ```
 
 ## Finding 2: IServerInternal is a service locator
