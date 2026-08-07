@@ -31,6 +31,7 @@
 using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Net.Pkcs11Interop.Common;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -209,6 +210,38 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
+        public async Task DecryptWithPkcs1RoundTripsAsync()
+        {
+            using Pkcs11CertificateStore store = OpenStore();
+
+            using Certificate? certificate = await LoadFirstKeyAsync(store)
+                .ConfigureAwait(false);
+
+            Assert.That(certificate, Is.Not.Null);
+
+            using RSA? key = certificate!.GetRSAPrivateKey();
+
+            Assert.That(key, Is.Not.Null);
+
+            byte[] plaintext = [1, 2, 3, 4, 5, 6, 7, 8];
+            byte[] encrypted = key!.Encrypt(plaintext, RSAEncryptionPadding.Pkcs1);
+
+            byte[] decrypted = key.Decrypt(encrypted, RSAEncryptionPadding.Pkcs1);
+
+            Assert.That(decrypted, Is.EqualTo(plaintext));
+        }
+
+        /// <summary>
+        /// OAEP with SHA-256 is what the modern policies need, but not every
+        /// token implements it.
+        /// </summary>
+        /// <remarks>
+        /// SoftHSM2 accepts OAEP only with SHA-1 and MGF1-SHA1 and answers
+        /// anything else with <c>CKR_ARGUMENTS_BAD</c>, so this skips rather than
+        /// fails there. Which security policies a token can actually serve is a
+        /// property of the device, and this is that fact showing up in a test.
+        /// </remarks>
+        [Test]
         public async Task DecryptWithOaepRoundTripsAsync()
         {
             using Pkcs11CertificateStore store = OpenStore();
@@ -225,7 +258,20 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             byte[] plaintext = [1, 2, 3, 4, 5, 6, 7, 8];
             byte[] encrypted = key!.Encrypt(plaintext, RSAEncryptionPadding.OaepSHA256);
 
-            byte[] decrypted = key.Decrypt(encrypted, RSAEncryptionPadding.OaepSHA256);
+            byte[] decrypted;
+
+            try
+            {
+                decrypted = key.Decrypt(encrypted, RSAEncryptionPadding.OaepSHA256);
+            }
+            catch (Pkcs11Exception ex)
+            {
+                Assert.Ignore(
+                    "The token does not support RSA-OAEP with SHA-256 " +
+                    $"({ex.Method} returned {ex.RV}). SoftHSM2 accepts OAEP only " +
+                    "with SHA-1.");
+                return;
+            }
 
             Assert.That(decrypted, Is.EqualTo(plaintext));
         }

@@ -49,7 +49,7 @@ Prefer `Pkcs11TokenOptions.PinProvider` over `pin-value` so the PIN comes from a
 
 SHA-256, SHA-384 and SHA-512 are supported. SHA-1 is deliberately not.
 
-Which security policies actually work depends on the mechanisms your token implements, not only on this package.
+Which security policies actually work depends on the mechanisms your token implements, not only on this package. SoftHSM2, for instance, signs happily with PKCS#1 v1.5 and PSS but accepts OAEP only with SHA-1, so it cannot serve the policies that need OAEP with SHA-256.
 
 ## Limitations
 
