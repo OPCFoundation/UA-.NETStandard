@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 #nullable enable
+using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -63,7 +64,69 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             {
                 Assert.Ignore(Pkcs11TestEnvironment.SkipReason);
             }
+
+            RequireProvisionedToken();
         }
+
+        /// <summary>
+        /// Skips when the module is present but the token holds nothing to test
+        /// against.
+        /// </summary>
+        /// <remarks>
+        /// A module being installed is not the same as a token being usable. An
+        /// agent can easily have SoftHSM2 without a provisioned token, and that
+        /// should cost coverage rather than break the build - CI is what
+        /// guarantees the token is there, and its setup step fails loudly if the
+        /// provisioning does not work.
+        /// </remarks>
+        private static void RequireProvisionedToken()
+        {
+            if (s_provisioned.HasValue)
+            {
+                if (!s_provisioned.Value)
+                {
+                    Assert.Ignore(kUnprovisionedReason);
+                }
+
+                return;
+            }
+
+            bool provisioned = false;
+
+            try
+            {
+                using var store = new Pkcs11CertificateStore(
+                    NUnitTelemetryContext.Create(),
+                    Pkcs11TestEnvironment.CreateOptions());
+
+                store.Open(Pkcs11TestEnvironment.CreateStorePath(), noPrivateKeys: false);
+
+                using CertificateCollection certificates = store.EnumerateAsync()
+                    .GetAwaiter()
+                    .GetResult();
+
+                provisioned = certificates.Count > 0;
+            }
+            catch (Exception ex) when (ex is CryptographicException or InvalidOperationException)
+            {
+                // No matching token, or the module refused to open it.
+                provisioned = false;
+            }
+
+            s_provisioned = provisioned;
+
+            if (!provisioned)
+            {
+                Assert.Ignore(kUnprovisionedReason);
+            }
+        }
+
+        private const string kUnprovisionedReason =
+            "A PKCS#11 module is available but the token holds no certificate. " +
+            "Provision it (see the SoftHSM2 setup in .github/workflows/buildandtest.yml) " +
+            "to run the token backed tests.";
+
+        private static bool? s_provisioned;
 
         [Test]
         public async Task EnumerateReturnsTheCertificatesOnTheTokenAsync()

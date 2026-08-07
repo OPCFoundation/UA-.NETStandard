@@ -207,8 +207,9 @@ jobs:
 
     # SoftHSM2 stands in for a hardware token so the PKCS#11 store is exercised
     # against a real module rather than a substitute. The tests skip themselves
-    # when no module is present, so this step only ever adds coverage - if it is
-    # unavailable on an image the suite still passes, just with less covered.
+    # when no module is present or the token is not provisioned, so this step
+    # only ever adds coverage. It is deliberately strict: if provisioning breaks,
+    # the step fails here rather than silently reducing this job to a no-op.
     - name: Setup SoftHSM2
       if: ${{ matrix.csproj == 'Security.Pkcs11' && runner.os != 'Windows' }}
       shell: bash
@@ -223,6 +224,7 @@ jobs:
           brew install softhsm opensc
           SOFTHSM_MODULE=$(ls "$(brew --prefix)"/lib/softhsm/libsofthsm2.so | head -n1)
         fi
+        test -n "$SOFTHSM_MODULE"
 
         # A token has to be provisioned before it can be opened, exactly as a
         # real device would be by its vendor tooling.
@@ -233,22 +235,27 @@ jobs:
         softhsm2-util --init-token --free --label opcua-test \
           --pin 1234 --so-pin 123456
 
-        # Generate a key on the token and issue a self signed certificate for
-        # it. The private key never leaves the token, which is the point.
+        # Build the key and certificate in software, then import both onto the
+        # token. Generating on-token and then issuing a certificate for that key
+        # would need the OpenSSL pkcs11 engine, which OpenSSL 3.x on the hosted
+        # images no longer provides. Importing is equivalent for this test:
+        # SoftHSM stores an imported private key with CKA_SENSITIVE=true and
+        # CKA_EXTRACTABLE=false, so it is non-extractable once it is on the
+        # token, which is the property under test.
+        openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+          -subj "/CN=Pkcs11TestServer" -keyout /tmp/pkcs11-key.pem -out /tmp/pkcs11-cert.pem
+        openssl rsa  -in /tmp/pkcs11-key.pem  -outform DER -out /tmp/pkcs11-key.der
+        openssl x509 -in /tmp/pkcs11-cert.pem -outform DER -out /tmp/pkcs11-cert.der
+
         pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
-          --keypairgen --key-type rsa:2048 --label opcua-server --id 01
+          --write-object /tmp/pkcs11-key.der  --type privkey --label opcua-server --id 01
+        pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
+          --write-object /tmp/pkcs11-cert.der --type cert    --label opcua-server --id 01
 
-        openssl req -new -x509 -days 365 -subj "/CN=Pkcs11TestServer" \
-          -engine pkcs11 -keyform engine \
-          -key "pkcs11:token=opcua-test;object=opcua-server;type=private;pin-value=1234" \
-          -out /tmp/pkcs11-cert.pem 2>/dev/null \
-          || echo "::warning::Could not issue a certificate on the token; certificate backed tests will skip."
-
-        if [ -f /tmp/pkcs11-cert.pem ]; then
-          openssl x509 -in /tmp/pkcs11-cert.pem -outform DER -out /tmp/pkcs11-cert.der
-          pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
-            --write-object /tmp/pkcs11-cert.der --type cert --label opcua-server --id 01
-        fi
+        # Fail here rather than let the tests quietly skip everything.
+        pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 --list-objects | tee /tmp/pkcs11-objects.txt
+        grep -q "Certificate Object" /tmp/pkcs11-objects.txt
+        grep -q "Private Key Object" /tmp/pkcs11-objects.txt
 
         {
           echo "SOFTHSM2_CONF=$SOFTHSM2_CONF"
