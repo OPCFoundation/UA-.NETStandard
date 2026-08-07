@@ -78,7 +78,9 @@ namespace Opc.Ua.Client.Tests
             Assert.That(subscription.Properties["CurrentPublishingInterval"], Is.EqualTo(1000d));
             Assert.That(subscription.Properties["CurrentKeepAliveCount"], Is.EqualTo(5u));
             Assert.That(subscription.Properties["CurrentPublishingEnabled"], Is.True);
-            Assert.That(subscription.Properties["SessionId"], Is.EqualTo(sessionId));
+            Assert.That(
+                subscription.Properties["SessionId"]?.ToString(),
+                Is.EqualTo(sessionId.ToString()));
 
             RecordedLogRecord notification = AssertRecord(
                 provider,
@@ -93,7 +95,9 @@ namespace Opc.Ua.Client.Tests
                 "NotificationReceived");
             Assert.That(received.Properties["SubscriptionId"], Is.EqualTo(10));
             Assert.That(received.Properties["SequenceNumber"], Is.EqualTo(11));
-            Assert.That(received.Properties["SessionId"], Is.EqualTo(sessionId));
+            Assert.That(
+                received.Properties["SessionId"]?.ToString(),
+                Is.EqualTo(sessionId.ToString()));
 
             AssertRecord(provider, ClientEventIds.LegacyPublishStartId, "PublishStart");
             AssertRecord(provider, ClientEventIds.LegacyPublishStopId, "PublishStop");

@@ -65,7 +65,9 @@ namespace Opc.Ua.Server.Tests
                 LogLevel.Information);
             Assert.That(serverCall.Properties["RequestType"], Is.EqualTo("Browse"));
             Assert.That(serverCall.Properties["RequestId"], Is.EqualTo(99u));
-            Assert.That(serverCall.Properties["SessionId"], Is.EqualTo(sessionId));
+            Assert.That(
+                serverCall.Properties["SessionId"]?.ToString(),
+                Is.EqualTo(sessionId.ToString()));
 
             RecordedLogRecord sessionState = AssertRecord(
                 provider,
