@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.WotCon.Server;
@@ -160,6 +161,10 @@ namespace Opc.Ua.WotCon.Tests.Providers
             {
                 bucket.Add(new EventSubscription(subscriberId, tag, callback));
             }
+            lock (m_everSubscribedEvents)
+            {
+                m_everSubscribedEvents.Add(new EventSubscription(subscriberId, tag, callback));
+            }
             return default;
         }
 
@@ -213,6 +218,40 @@ namespace Opc.Ua.WotCon.Tests.Providers
         }
 
         private sealed record EventSubscription(uint Id, WotEventTag Tag, OnWotEvent Callback);
+
+        /// <summary>
+        /// Drives an event occurrence through every callback this provider
+        /// was ever handed, ignoring unsubscribe. Models a misbehaving or
+        /// pooled provider that keeps pushing after its Thing Description
+        /// generation was replaced, which is the case the registry's
+        /// generation guard has to survive.
+        /// </summary>
+        /// <returns>The number of callbacks invoked.</returns>
+        public int RaiseEventIgnoringUnsubscribe(
+            string eventName,
+            IReadOnlyList<Variant> fields,
+            LocalizedText? message = null,
+            ushort? severity = null,
+            DateTime? timestamp = null)
+        {
+            EventSubscription[] targets;
+            lock (m_everSubscribedEvents)
+            {
+                targets = [.. m_everSubscribedEvents.Where(s => s.Tag.Name == eventName)];
+            }
+            foreach (EventSubscription subscription in targets)
+            {
+                subscription.Callback(
+                    subscription.Tag,
+                    fields,
+                    message,
+                    severity,
+                    timestamp ?? DateTime.UtcNow);
+            }
+            return targets.Length;
+        }
+
+        private readonly List<EventSubscription> m_everSubscribedEvents = [];
 
         private readonly ConcurrentDictionary<string, List<EventSubscription>> m_eventSubscriptions = new(
             StringComparer.Ordinal);

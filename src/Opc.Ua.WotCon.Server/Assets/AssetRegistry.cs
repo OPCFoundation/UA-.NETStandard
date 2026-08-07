@@ -529,8 +529,14 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 if (entry.Provider != null)
                 {
+                    // Retire the outgoing generation before the provider goes
+                    // away so an occurrence still in flight is dropped rather
+                    // than reported against an event type about to be removed.
+                    entry.EventGeneration = new object();
+
                     try
                     {
+                        await UnsubscribeEventsAsync(entry, entry.Provider, ct).ConfigureAwait(false);
                         await entry.Provider.DisposeAsync().ConfigureAwait(false);
                     }
                     catch (Exception ex)
@@ -929,6 +935,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             foreach (KeyValuePair<NodeId, (BaseObjectTypeState _, WotEventTag Tag)> kv in entry.Events)
             {
                 WotEventTag tag = kv.Value.Tag;
+                object generation = entry.EventGeneration;
                 void OnEvent(
                     WotEventTag t,
                     IReadOnlyList<Variant> fields,
@@ -936,7 +943,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     ushort? severity,
                     DateTime timestamp)
                 {
-                    ReportWotEvent(entry, t, fields, message, severity, timestamp);
+                    ReportWotEvent(entry, generation, t, fields, message, severity, timestamp);
                 }
 
                 try
@@ -953,17 +960,51 @@ namespace Opc.Ua.WotCon.Server.Assets
         }
 
         /// <summary>
+        /// Stops the provider's event subscriptions for the outgoing Thing
+        /// Description generation. A provider that outlives the generation
+        /// (for example a pooled or shared connection) would otherwise keep
+        /// pushing occurrences for event types that no longer exist.
+        /// </summary>
+        private async ValueTask UnsubscribeEventsAsync(
+            AssetEntry entry,
+            IWotAssetProvider provider,
+            CancellationToken ct)
+        {
+            foreach (KeyValuePair<NodeId, (BaseObjectTypeState _, WotEventTag Tag)> kv in entry.Events)
+            {
+                try
+                {
+                    await provider
+                        .UnsubscribeEventAsync(kv.Value.Tag, EventSubscriberId, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+                {
+                    m_logger.EventUnsubscribeFailed(ex, entry.Name, kv.Value.Tag.Name);
+                }
+            }
+        }
+
+        /// <summary>
         /// Reports a provider-raised WoT event occurrence on the asset that
         /// notifies it.
         /// </summary>
         private void ReportWotEvent(
             AssetEntry entry,
+            object generation,
             WotEventTag tag,
             IReadOnlyList<Variant> fields,
             LocalizedText? message,
             ushort? severity,
             DateTime timestamp)
         {
+            if (!ReferenceEquals(generation, entry.EventGeneration))
+            {
+                // The Thing Description this subscription belongs to has been
+                // replaced; the event type it names no longer exists.
+                return;
+            }
+
             ISystemContext context = m_manager.SystemContext;
 
             var e = new BaseEventState(null);
@@ -1447,6 +1488,11 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 38, Level = LogLevel.Warning,
             Message = "Failed to subscribe asset {AssetName} event '{EventName}'.")]
         public static partial void EventSubscribeFailed(
+            this ILogger logger, Exception exception, string assetName, string eventName);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 39, Level = LogLevel.Warning,
+            Message = "Failed to unsubscribe asset {AssetName} event '{EventName}'.")]
+        public static partial void EventUnsubscribeFailed(
             this ILogger logger, Exception exception, string assetName, string eventName);
 
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 0, Level = LogLevel.Warning,

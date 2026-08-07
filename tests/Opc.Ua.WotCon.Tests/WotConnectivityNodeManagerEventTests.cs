@@ -242,6 +242,112 @@ namespace Opc.Ua.WotCon.Tests
                 "A stale GeneratesEvent reference would advertise a type that no longer exists.");
         }
 
+        /// <summary>
+        /// A provider whose subscription outlives its Thing Description
+        /// generation must not be able to report an occurrence against an
+        /// event type that has been removed.
+        /// </summary>
+        [Test]
+        public async Task StaleProviderCallbackFromAReplacedTdIsIgnoredAsync()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(harness).ConfigureAwait(false);
+
+            // Capture the generation's provider before the TD is replaced,
+            // then keep raising on it as a provider that ignored unsubscribe
+            // would.
+            var stale = (SimulatedWotAssetProvider)entry.Provider!;
+
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001"
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            var reported = new List<IFilterTarget>();
+            entry.Asset.OnReportEvent += (_, _, e) => reported.Add(e);
+
+            int invoked = stale.RaiseEventIgnoringUnsubscribe("Overheating", s_overheatingFields);
+
+            Assert.That(invoked, Is.EqualTo(1),
+                "The test must actually reach the retired callback, or it proves nothing.");
+            Assert.That(reported, Is.Empty,
+                "An occurrence from a replaced TD generation must not be reported.");
+        }
+
+        /// <summary>
+        /// Replacing a Thing Description must unsubscribe the outgoing
+        /// provider, not just drop the reference to it.
+        /// </summary>
+        [Test]
+        public async Task ReplacingATdUnsubscribesThePreviousProviderAsync()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(harness).ConfigureAwait(false);
+            var previous = (SimulatedWotAssetProvider)entry.Provider!;
+
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001"
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                previous.RaiseEvent("Overheating", s_overheatingFields),
+                Is.Zero,
+                "The outgoing provider must have no subscribers left.");
+        }
+
+        /// <summary>
+        /// The event type's field properties are indexed with the type, so
+        /// dropping the type has to drop them too or a re-applied Thing
+        /// Description leaks a node per field.
+        /// </summary>
+        [Test]
+        public async Task RemovingAnEventTypeAlsoRemovesItsFieldPropertiesAsync()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(harness).ConfigureAwait(false);
+
+            (BaseObjectTypeState eventType, _) = entry.Events.Values.First();
+            var fieldNodes = new List<BaseInstanceState>();
+            eventType.GetChildren(harness.Manager.SystemContext, fieldNodes);
+            NodeId fieldNodeId = fieldNodes.Single().NodeId;
+
+            Assert.That(harness.Manager.FindPredefinedNode<NodeState>(fieldNodeId), Is.Not.Null,
+                "The field property must be registered while the event type exists.");
+
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001"
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(harness.Manager.FindPredefinedNode<NodeState>(fieldNodeId), Is.Null,
+                "A leaked field property would outlive the event type that declared it.");
+        }
+
         private static async Task<AssetEntry> CreateAssetWithOverheatingEventAsync(
             ManagerHarness harness,
             ushort? severity = null)

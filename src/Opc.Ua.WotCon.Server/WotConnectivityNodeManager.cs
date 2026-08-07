@@ -112,13 +112,15 @@ namespace Opc.Ua.WotCon.Server
 
         /// <summary>
         /// Removes an EventType previously registered by
-        /// <see cref="AddEventTypeNode"/>.
+        /// <see cref="AddEventTypeNode"/>, together with the field properties
+        /// registered beneath it.
         /// </summary>
         /// <remarks>
         /// Synchronous for the same reason as <see cref="AddEventTypeNode"/>.
-        /// A materialised event type is a childless leaf of the type
-        /// hierarchy, so dropping the index entry and marking it deleted is
-        /// the whole removal.
+        /// <see cref="AddEventTypeNode"/> indexes the whole subtree, so the
+        /// per-field <c>PropertyState</c> children have their own index
+        /// entries and must be dropped here or a re-applied Thing Description
+        /// leaks them.
         /// </remarks>
         internal void RemoveEventTypeNode(NodeId nodeId)
         {
@@ -127,8 +129,15 @@ namespace Opc.Ua.WotCon.Server
                 return;
             }
 
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                PredefinedNodes.TryRemove(child.NodeId, out _);
+            }
+
             node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
-            node.ClearChangeMasks(SystemContext, includeChildren: false);
+            node.ClearChangeMasks(SystemContext, includeChildren: true);
         }
 
         /// <summary>
