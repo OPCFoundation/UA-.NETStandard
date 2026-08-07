@@ -462,6 +462,10 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                // Before the keep-alive timer and the channel go away: a publish
+                // notification already dispatched still reads session state.
+                await BackgroundWork.DisposeAsync().ConfigureAwait(false);
+
                 try
                 {
                     await StopKeepAliveTimerAsync().ConfigureAwait(false);
@@ -5465,6 +5469,14 @@ namespace Opc.Ua.Client
         /// The session telemetry context
         /// </summary>
         protected ITelemetryContext m_telemetry;
+
+        /// <summary>
+        /// Owns the work the session dispatches off its own threads — publish
+        /// notifications in particular — so a faulting subscriber is reported and
+        /// nothing is still running when the session tears itself down.
+        /// </summary>
+        internal BackgroundTaskScope BackgroundWork { get; } =
+            new(nameof(Session), AmbientMessageContext.Telemetry);
 
         /// <summary>
         /// If set to<c>true</c> then the domain in the certificate must match the endpoint used.

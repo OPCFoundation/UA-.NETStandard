@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 
@@ -63,7 +64,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(uint.MaxValue);
             int factoryCalls = 0;
             var partitions = new List<IManagedSubscription> { primary };
-            object lockObj = new();
+            Lock lockObj = new();
             var composite = new CompositeMonitoredItemCollection(
                 partitions, lockObj, policy,
                 () =>
@@ -102,7 +103,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             FakeManagedSubscription primary = NewFake(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object());
+                new Lock());
 
             Assert.DoesNotThrow(() => composite.OnPartitionCapReached(primary));
         }
@@ -114,7 +115,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(uint.MaxValue);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => NewFake(2));
 

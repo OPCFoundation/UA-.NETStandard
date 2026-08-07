@@ -362,6 +362,10 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                // Signal only: Dispose is synchronous. A deferred apply already
+                // running stops at its next await once the token trips.
+                m_backgroundWork.Dispose();
+
                 if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
                     is NamespacesState serverNamespacesNode)
                 {
@@ -860,7 +864,7 @@ namespace Opc.Ua.Server
                 m_pendingResetTask = completion.Task;
             }
 
-            _ = Task.Run(async () =>
+            m_backgroundWork.Run("DeferredApplyChanges", async _ =>
             {
                 try
                 {
@@ -3568,7 +3572,7 @@ namespace Opc.Ua.Server
                 m_pendingApplyChangesTask = completion.Task;
             }
 
-            _ = Task.Run(async () =>
+            m_backgroundWork.Run("DeferredApplyChanges", async _ =>
             {
                 try
                 {
@@ -3637,9 +3641,13 @@ namespace Opc.Ua.Server
                     // here would be needless work.
                     if (rotations.Count > 0 && m_configuration.CertificateManager != null)
                     {
+                        // Deliberately not cancellable: a rotation that has begun
+                        // must finish updating the configuration, otherwise the
+                        // server is left advertising a certificate it no longer has.
                         await m_configuration.CertificateManager.UpdateAsync(
                                 m_configuration.SecurityConfiguration,
-                                m_configuration.ApplicationUri)
+                                m_configuration.ApplicationUri,
+                                CancellationToken.None)
                             .ConfigureAwait(false);
                     }
 
@@ -3668,7 +3676,9 @@ namespace Opc.Ua.Server
                             try
                             {
                                 IReadOnlyList<string> closed
-                                    = await rotator.CloseChannelsForCertificateAsync(rotation.OldCertificate)
+                                    = await rotator.CloseChannelsForCertificateAsync(
+                                            rotation.OldCertificate,
+                                            CancellationToken.None)
                                         .ConfigureAwait(false);
                                 totalCut += closed.Count;
                             }
@@ -4473,6 +4483,8 @@ namespace Opc.Ua.Server
         private Task m_pendingApplyChangesTask = Task.CompletedTask;
         private Task m_pendingResetTask = Task.CompletedTask;
         private readonly CancellationTokenSource m_shutdownCts = new();
+        private readonly BackgroundTaskScope m_backgroundWork =
+            new(nameof(ConfigurationNodeManager), AmbientMessageContext.Telemetry);
         private readonly AsyncLocal<List<PendingCertificateRotation>?> m_activeRotationCollector = new();
 
         /// <inheritdoc/>

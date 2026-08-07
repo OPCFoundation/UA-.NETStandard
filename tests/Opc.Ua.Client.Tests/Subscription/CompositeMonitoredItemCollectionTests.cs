@@ -73,14 +73,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             Assert.That(() => new CompositeMonitoredItemCollection(
                 [],
-                new object()),
+                new Lock()),
                 Throws.TypeOf<ArgumentException>());
         }
 
         [Test]
         public void ConstructorThrowsOnNullArguments()
         {
-            Assert.That(() => new CompositeMonitoredItemCollection(null!, new object()),
+            Assert.That(() => new CompositeMonitoredItemCollection(null!, new Lock()),
                 Throws.TypeOf<ArgumentNullException>());
             Assert.That(() => new CompositeMonitoredItemCollection(
                 [NewFake(1)], null!),
@@ -98,7 +98,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object());
+                new Lock());
 
             _ = composite.Count;
             _ = composite.Items;
@@ -133,7 +133,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             int factoryInvocations = 0;
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () =>
                 {
@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             int factoryInvocations = 0;
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () =>
                 {
@@ -193,7 +193,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -222,7 +222,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(10);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var pinnedPolicy = new PartitionPlacementPolicy(1);
             var pinnedComposite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 pinnedPolicy,
                 () => secondary);
 
@@ -267,7 +267,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -294,7 +294,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -319,7 +319,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -341,7 +341,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -362,7 +362,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
             Assert.That(composite.TryAdd("a", MakeOptions(new V2Options()),

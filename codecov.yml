@@ -1,0 +1,60 @@
+# Codecov configuration
+#
+# Validate with:
+#   curl --data-binary @codecov.yml https://codecov.io/validate
+#
+# Codecov is REPORTING, not a gate. The enforced coverage rules live in
+# coverage-thresholds.json and are applied by .azurepipelines/check-coverage.ps1
+# inside the pipeline, where they can react to how much a patch actually
+# changed. Codecov is kept for what it is genuinely better at: the pull-request
+# comment, the file-by-file diff view and the coverage trend over time.
+#
+# Both status checks are therefore `informational: true`. They post a status so
+# the number is visible, but they never fail and must never be added to the
+# branch ruleset - two gates with two sets of thresholds would sooner or later
+# disagree about the same pull request, and the one that is easier to silence
+# would win. Flip `informational` to false only if you also retire the
+# in-pipeline patch gate.
+#
+# The upload itself is optional on both CI systems and is skipped when the
+# CODECOV_TOKEN secret is absent (as it is on fork pull requests). See
+# `enableCodecov` in azure-pipelines.yml and `ENABLE_CODECOV` in
+# .github/workflows/buildandtest.yml.
+coverage:
+  precision: 2
+  round: down
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
+        only_pulls: true
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+        informational: true
+        only_pulls: true
+
+# Kept in step with the "ignore" list in coverage-thresholds.json so Codecov and
+# the in-pipeline gate measure the same code. Change both together.
+ignore:
+  - "tests/**"
+  - "samples/**"
+  - "**/obj/**"
+  - "**/bin/**"
+  - "**/*.g.cs"
+
+# Each CI system uploads the report it merged, under its own flag. The two
+# matrices are deliberately different - Azure runs the Windows fast-PR legs,
+# Actions runs the full ubuntu matrix - so carrying the flags keeps the two
+# uploads from being mistaken for a coverage swing.
+flag_management:
+  default_rules:
+    carryforward: true
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false

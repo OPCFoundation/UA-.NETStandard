@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit.Analyzers">
@@ -46,5 +47,26 @@
           Link="Assets\Sample\%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\..\samples\GeneratorServer\Assets\generator.usda"
+          Link="Assets\Sample\generator.usda">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <!-- GeneratorServer matches AppTargetFrameworks, which does not include net472,
+       while the test frameworks do. Referencing it on net472 would fail to
+       restore, so the reference and every fixture that reads the sample's
+       internals are excluded there. GeneratorAssetContractTests only reads the
+       authored .usda as text, so it stays on every framework. -->
+  <ItemGroup Condition="'$(TargetFramework)' != 'net472'">
+    <ProjectReference Include="..\..\samples\GeneratorServer\GeneratorServer.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <Compile Remove="Generator\GeneratorDatasheetConformanceTests.cs" />
+    <Compile Remove="Generator\GeneratorOpenUsdE2eTests.cs" />
+    <Compile Remove="Generator\GeneratorMethodTests.cs" />
+    <Compile Remove="Generator\GeneratorProtectionAlarmNodeTests.cs" />
+    <Compile Remove="Generator\GeneratorProtectionTests.cs" />
+    <Compile Remove="Generator\GeneratorStateMachineTests.cs" />
+    <Compile Remove="Generator\SimulationHarness.cs" />
   </ItemGroup>
 </Project>

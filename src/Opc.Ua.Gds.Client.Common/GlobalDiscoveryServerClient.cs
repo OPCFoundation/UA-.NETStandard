@@ -87,6 +87,8 @@ namespace Opc.Ua.Gds.Client
             m_options = options ?? new GdsClientOptions();
             MessageContext = configuration.CreateMessageContext();
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
+            m_backgroundWork = new BackgroundTaskScope(
+                nameof(GlobalDiscoveryServerClient), MessageContext.Telemetry);
             m_sessionFactory = sessionFactory ??
                 new DefaultSessionFactory(MessageContext.Telemetry)
                 {
@@ -244,6 +246,11 @@ namespace Opc.Ua.Gds.Client
                 return;
             }
             m_disposed = true;
+
+            // A keep-alive cleanup already scheduled disposes the session this
+            // client still owns, so it must finish first.
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+
             try
             {
                 await m_disposeCts.CancelAsync().ConfigureAwait(false);
@@ -580,12 +587,13 @@ namespace Opc.Ua.Gds.Client
             }
 
             // Bad keep-alive: schedule async cleanup without blocking the keep-alive
-            // callback thread. Errors are logged; we never throw out of fire-and-forget.
-            _ = Task.Run(async () =>
+            // callback thread. Errors are logged; the scope reports anything that
+            // escapes and drains the cleanup before the client goes away.
+            m_backgroundWork.Run("KeepAliveSessionCleanup", async ct =>
             {
                 try
                 {
-                    await m_lock.WaitAsync().ConfigureAwait(false);
+                    await m_lock.WaitAsync(ct).ConfigureAwait(false);
                     try
                     {
                         if (ReferenceEquals(session, Session))
@@ -986,6 +994,7 @@ namespace Opc.Ua.Gds.Client
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private readonly GdsClientOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private readonly CancellationTokenSource m_disposeCts = new();
