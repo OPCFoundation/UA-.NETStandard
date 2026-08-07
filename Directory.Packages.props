@@ -141,7 +141,6 @@
     <PackageVersion Include="OpenUsd" Version="0.5.0-alpha" />
     <PackageVersion Include="OpenUsd.Viewer" Version="0.5.0-alpha" />
     <PackageVersion Include="OpenUsd.Rendering" Version="0.5.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk.Vulkan" Version="0.5.0-alpha" />
     <PackageVersion Include="OpenUsd.Runtime.Core" Version="0.5.0-alpha" />
     <PackageVersion Include="OpenUsd.Runtime.Imaging" Version="0.5.0-alpha" />
     <PackageVersion Include="Avalonia" Version="12.1.0" />
