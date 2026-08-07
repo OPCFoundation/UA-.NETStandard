@@ -146,7 +146,7 @@ namespace Opc.Ua.PubSub.Schema.Tests
         {
             var jsonSchema = JsonSchema.FromText(
                 schema.ToSchemaString(),
-                new BuildOptions { SchemaRegistry = new SchemaRegistry() });
+                new BuildOptions { SchemaRegistry = new Json.Schema.SchemaRegistry() });
             return jsonSchema.Evaluate(
                 JsonSerializer.SerializeToElement(instance),
                 new EvaluationOptions { OutputFormat = OutputFormat.List });

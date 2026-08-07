@@ -54,7 +54,12 @@ namespace Opc.Ua.PubSub.Transcoding
         /// <summary>
         /// JSON NetworkMessage mapping (Part 14 §7.2.5).
         /// </summary>
-        Json
+        Json,
+
+        /// <summary>
+        /// Experimental Apache Avro NetworkMessage mapping (OPC UA Part 14 draft).
+        /// </summary>
+        Avro
     }
 
     /// <summary>
@@ -80,6 +85,7 @@ namespace Opc.Ua.PubSub.Transcoding
             {
                 TranscodeEncoding.Uadp => Profiles.PubSubUdpUadpTransport,
                 TranscodeEncoding.Json => Profiles.PubSubMqttJsonTransport,
+                TranscodeEncoding.Avro => Encoding.AvroNetworkMessage.PubSubMqttAvroTransport,
                 _ => throw new ArgumentOutOfRangeException(nameof(encoding))
             };
         }
@@ -94,7 +100,15 @@ namespace Opc.Ua.PubSub.Transcoding
         /// <returns>The encoding family.</returns>
         public static TranscodeEncoding FromTransportProfileUri(this string transportProfileUri)
         {
-            return transportProfileUri?.IndexOf("Json", StringComparison.OrdinalIgnoreCase) >= 0
+            if (transportProfileUri is null)
+            {
+                return TranscodeEncoding.Uadp;
+            }
+            if (transportProfileUri.Contains("avro", StringComparison.OrdinalIgnoreCase))
+            {
+                return TranscodeEncoding.Avro;
+            }
+            return transportProfileUri.Contains("Json", StringComparison.OrdinalIgnoreCase)
                 ? TranscodeEncoding.Json
                 : TranscodeEncoding.Uadp;
         }
@@ -117,6 +131,7 @@ namespace Opc.Ua.PubSub.Transcoding
             {
                 Encoding.Uadp.UadpNetworkMessage => TranscodeEncoding.Uadp,
                 Encoding.Json.JsonNetworkMessage => TranscodeEncoding.Json,
+                Encoding.AvroNetworkMessage => TranscodeEncoding.Avro,
                 _ => FromTransportProfileUri(message.TransportProfileUri)
             };
         }
