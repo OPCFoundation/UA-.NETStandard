@@ -234,26 +234,7 @@ namespace Opc.Ua.Mcp.Tools
         /// </exception>
         internal static string ResolveAndValidateDecodePath(string filePath, string allowedRoot)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-            ArgumentException.ThrowIfNullOrWhiteSpace(allowedRoot);
-
-            string fullPath = Path.GetFullPath(filePath, allowedRoot);
-            string fullRoot = Path.GetFullPath(allowedRoot);
-
-            if (!fullRoot.EndsWith(Path.DirectorySeparatorChar))
-            {
-                fullRoot += Path.DirectorySeparatorChar;
-            }
-
-            if (!fullPath.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new ArgumentException(
-                    $"Decode path '{filePath}' resolves to '{fullPath}' which is " +
-                    $"outside the allowed root '{allowedRoot}'.",
-                    nameof(filePath));
-            }
-
-            return fullPath;
+            return McpCapturePath.ResolveAndValidate(filePath, allowedRoot);
         }
 
         private static ValueTask AuditAsync(

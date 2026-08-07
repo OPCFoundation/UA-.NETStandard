@@ -62,14 +62,12 @@ namespace Opc.Ua.Mcp
 
             services.AddOpcUaMcpCore(mcpServerOptions ?? CreateMcpServerOptions());
             services.AddOpcUaMcpPubSub();
-            services.AddPcap(options =>
+            services.AddOpcUaMcpDiagnostics(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
                 options.MaxActiveSessions = pcapOptions.MaxActiveSessions;
                 options.EnableDiagnosticsTools = pcapOptions.EnableDiagnosticsTools;
             });
-            services.AddPcapFormatters();
-            services.AddPcapReplay();
             services.AddPubSubPcap();
         }
 
@@ -124,17 +122,7 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public static PcapOptions CreatePcapOptions(IConfiguration configuration)
         {
-            ArgumentNullException.ThrowIfNull(configuration);
-
-            var options = new PcapOptions();
-
-            string? enableDiagnosticsTools = configuration["Pcap:EnableDiagnosticsTools"];
-            if (bool.TryParse(enableDiagnosticsTools, out bool parsedEnableDiagnosticsTools))
-            {
-                options.EnableDiagnosticsTools = parsedEnableDiagnosticsTools;
-            }
-
-            return options;
+            return OpcUaMcpDiagnosticsExtensions.CreatePcapOptions(configuration);
         }
 
         /// <summary>
@@ -145,17 +133,7 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public static bool AreDiagnosticsToolsEnabled(PcapOptions pcapOptions)
         {
-            ArgumentNullException.ThrowIfNull(pcapOptions);
-
-            return pcapOptions.EnableDiagnosticsTools ||
-                string.Equals(
-                    Environment.GetEnvironmentVariable("OPCUA_PCAP_ENABLE_DIAGNOSTICS"),
-                    "1",
-                    StringComparison.Ordinal) ||
-                string.Equals(
-                    Environment.GetEnvironmentVariable("OPCUA_PCAP_ENABLE_DIAGNOSTICS"),
-                    "true",
-                    StringComparison.OrdinalIgnoreCase);
+            return OpcUaMcpDiagnosticsExtensions.AreDiagnosticsToolsEnabled(pcapOptions);
         }
 
         /// <summary>
@@ -264,14 +242,7 @@ namespace Opc.Ua.Mcp
         {
             mcpServerBuilder
                 .WithTools<ConnectionTools>()
-                .WithTools<PacketCaptureTools>();
-
-            if (diagnosticsToolsEnabled)
-            {
-                mcpServerBuilder
-                    .WithTools<PacketDecodeTools>()
-                    .WithTools<PacketReplayTools>();
-            }
+                .WithOpcUaDiagnosticsTools(McpToolProfile.Diagnostics, diagnosticsToolsEnabled);
         }
 
         private static void ConfigureFullTools(
@@ -289,20 +260,18 @@ namespace Opc.Ua.Mcp
                 .WithTools<MonitoredItemServiceTools>()
                 .WithTools<NodeManagementServiceTools>()
                 .WithTools<NodeSetExportTools>()
-                .WithTools<PacketCaptureTools>()
                 .WithTools<PkiTools>()
                 .WithTools<PubSubCaptureTools>()
                 .WithTools<SubscriptionServiceTools>()
                 .WithTools<ViewServiceTools>();
 
-            mcpServerBuilder.WithOpcUaPubSubTools(McpToolProfile.Full);
+            mcpServerBuilder
+                .WithOpcUaPubSubTools(McpToolProfile.Full)
+                .WithOpcUaDiagnosticsTools(McpToolProfile.Full, diagnosticsToolsEnabled);
 
             if (diagnosticsToolsEnabled)
             {
-                mcpServerBuilder
-                    .WithTools<PacketDecodeTools>()
-                    .WithTools<PacketReplayTools>()
-                    .WithTools<PubSubDecodeTools>();
+                mcpServerBuilder.WithTools<PubSubDecodeTools>();
             }
         }
 

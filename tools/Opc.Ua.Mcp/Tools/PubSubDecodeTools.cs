@@ -111,10 +111,10 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentException.ThrowIfNullOrWhiteSpace(pcapPath);
 
             string allowedRoot = GetPcapAllowedRoot(services);
-            pcapPath = PacketDecodeTools.ResolveAndValidateDecodePath(pcapPath, allowedRoot);
+            pcapPath = McpCapturePath.ResolveAndValidate(pcapPath, allowedRoot);
             keyLogPath = string.IsNullOrWhiteSpace(keyLogPath)
                 ? null
-                : PacketDecodeTools.ResolveAndValidateDecodePath(keyLogPath, allowedRoot);
+                : McpCapturePath.ResolveAndValidate(keyLogPath, allowedRoot);
 
             using CapturedKeyLogKeyResolver? resolver = await CreateKeyResolverAsync(keyLogPath, ct)
                 .ConfigureAwait(false);
@@ -138,7 +138,7 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentException.ThrowIfNullOrWhiteSpace(keyLogPath);
 
             string allowedRoot = GetPcapAllowedRoot(services);
-            keyLogPath = PacketDecodeTools.ResolveAndValidateDecodePath(keyLogPath, allowedRoot);
+            keyLogPath = McpCapturePath.ResolveAndValidate(keyLogPath, allowedRoot);
             List<PubSubKeyMaterial> keys = await ReadKeyMaterialAsync(keyLogPath, ct).ConfigureAwait(false);
             await StoreLoadedKeyMaterialAsync(keys, ct).ConfigureAwait(false);
             return new PubSubKeyLogInfo

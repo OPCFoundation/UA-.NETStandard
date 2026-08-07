@@ -159,7 +159,7 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
             string allowedRoot = GetPcapAllowedRoot(services);
-            filePath = PacketDecodeTools.ResolveAndValidateDecodePath(filePath, allowedRoot);
+            filePath = McpCapturePath.ResolveAndValidate(filePath, allowedRoot);
             string? directory = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(directory))
             {
