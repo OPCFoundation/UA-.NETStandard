@@ -565,7 +565,7 @@ namespace Robotics
             OpenUsdRepresentationState rep = SystemContext.CreateInstanceOfOpenUsdRepresentationType(
                 tool,
                 new QualifiedName("OpenUsdRepresentation", usdNs));
-            rep.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
             tool.AddChild(rep);
             rep.CreateOrReplaceStage(SystemContext, null!).Value = m_cellStage!.NodeId;
             rep.CreateOrReplacePrimPath(SystemContext, null!).Value = s_robots[0].PrimPath + ToolSuffix;
