@@ -158,6 +158,74 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             });
         }
 
+        /// <summary>
+        /// With no thumbprint, subject or application uri there is nothing to
+        /// match on, and any key on the token would satisfy the request.
+        /// </summary>
+        /// <remarks>
+        /// This is the guard against returning the wrong identity.
+        /// <c>CertificateIdentifierResolver</c> makes a last-chance call with the
+        /// thumbprint and subject deliberately dropped, relying on the
+        /// application uri alone; a store that ignored that argument would hand
+        /// back whatever certificate it enumerated first. On a token holding more
+        /// than one identity - the reason an HSM is used at all - that is an
+        /// impersonation, not a miss.
+        /// </remarks>
+        [Test]
+        public async Task LoadPrivateKeyRefusesToGuessWithNoIdentifiersAsync()
+        {
+            using var store = new Pkcs11CertificateStore(
+                NUnitTelemetryContext.Create(),
+                Pkcs11TestEnvironment.CreateOptions());
+
+            // Returns before any token is opened, so this holds without hardware.
+            Certificate loaded = await store
+                .LoadPrivateKeyAsync(null!, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                loaded,
+                Is.Null,
+                "an unconstrained request must not select an arbitrary key");
+        }
+
+        [Test]
+        public void OpenStripsThePinFromTheReportedStorePath()
+        {
+            using var store = new Pkcs11CertificateStore(NUnitTelemetryContext.Create());
+
+            store.Open("pkcs11:token=t?module-path=/tmp/m.so&pin-value=supersecret");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    store.StorePath,
+                    Does.Not.Contain("supersecret"),
+                    "the PIN unlocks the token and must not travel with the store path");
+                Assert.That(store.StorePath, Does.Contain("token=t"));
+                Assert.That(store.StorePath, Does.Contain("module-path=/tmp/m.so"));
+            });
+        }
+
+        [Test]
+        [TestCase("pkcs11:token=t?module-path=/tmp/m.so&pin-value=1234", false)]
+        [TestCase("pkcs11:token=t?pin-value=1234&module-path=/tmp/m.so", false)]
+        [TestCase("pkcs11:token=t?module-path=/tmp/m.so", true)]
+        [TestCase("pkcs11:token=t", true)]
+        public void RedactPinRemovesOnlyThePin(string uri, bool unchanged)
+        {
+            string redacted = Pkcs11TokenOptions.RedactPin(uri);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(redacted, Does.Not.Contain("1234"));
+                Assert.That(redacted == uri, Is.EqualTo(unchanged));
+
+                // Redaction must not destroy the addressing information.
+                Assert.That(Pkcs11TokenOptions.Parse(redacted).TokenLabel, Is.EqualTo("t"));
+            });
+        }
+
         [Test]
         public void CryptoProviderDefaultsToUncertified()
         {

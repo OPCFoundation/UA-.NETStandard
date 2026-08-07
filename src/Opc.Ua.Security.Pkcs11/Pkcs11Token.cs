@@ -335,12 +335,34 @@ namespace Opc.Ua.Security.Pkcs11
                 null);
         }
 
+        /// <summary>
+        /// Takes an additional reference so a key handed out by this token
+        /// outlives the store that opened it.
+        /// </summary>
+        /// <returns>This token.</returns>
+        /// <remarks>
+        /// A caller may dispose the store as soon as it has the certificate -
+        /// <c>CertificateIdentifierResolver</c> does exactly that - while the
+        /// <see cref="Pkcs11Rsa"/> or <see cref="Pkcs11ECDsa"/> attached to that
+        /// certificate still has to sign with it. The session therefore closes
+        /// when the last of them is released, not when the first holder lets go.
+        /// </remarks>
+        public Pkcs11Token AddRef()
+        {
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+                m_references++;
+                return this;
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
             lock (m_lock)
             {
-                if (m_disposed)
+                if (m_disposed || --m_references > 0)
                 {
                     return;
                 }
@@ -435,6 +457,7 @@ namespace Opc.Ua.Security.Pkcs11
         private readonly IPkcs11Library m_library;
         private readonly ISession m_session = null!;
         private readonly bool m_loggedIn;
+        private int m_references = 1;
         private bool m_disposed;
     }
 }

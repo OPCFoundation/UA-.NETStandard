@@ -111,6 +111,60 @@ namespace Opc.Ua.Security.Pkcs11
         }
 
         /// <summary>
+        /// Removes the PIN from a PKCS#11 URI so it can be retained and shown.
+        /// </summary>
+        /// <param name="uri">The URI to redact.</param>
+        /// <returns>
+        /// The URI with any <c>pin-value</c> replaced, or the input unchanged
+        /// when it carries none.
+        /// </returns>
+        /// <remarks>
+        /// A store path is surfaced in configuration, diagnostics and the address
+        /// space, none of which should carry the credential that unlocks the
+        /// token's private keys. The PIN is kept in
+        /// <see cref="Pin"/> instead, which is not part of any of those.
+        /// </remarks>
+        public static string RedactPin(string uri)
+        {
+            if (string.IsNullOrEmpty(uri))
+            {
+                return uri;
+            }
+
+            int query = uri.IndexOf('?', StringComparison.Ordinal);
+
+            if (query < 0)
+            {
+                return uri;
+            }
+
+            var redacted = new System.Text.StringBuilder(uri.Substring(0, query + 1));
+            bool first = true;
+
+            foreach (string pair in uri.Substring(query + 1).Split('&'))
+            {
+                if (pair.Length == 0)
+                {
+                    continue;
+                }
+
+                if (!first)
+                {
+                    redacted.Append('&');
+                }
+
+                first = false;
+
+                int equals = pair.IndexOf('=', StringComparison.Ordinal);
+                string key = equals > 0 ? pair.Substring(0, equals).Trim().ToLowerInvariant() : pair;
+
+                redacted.Append(key == "pin-value" ? "pin-value=<redacted>" : pair);
+            }
+
+            return redacted.ToString();
+        }
+
+        /// <summary>
         /// Whether a store path looks like an RFC 7512 PKCS#11 URI.
         /// </summary>
         /// <param name="storePath">The store path to test.</param>

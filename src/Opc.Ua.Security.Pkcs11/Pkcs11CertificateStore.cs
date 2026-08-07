@@ -119,17 +119,22 @@ namespace Opc.Ua.Security.Pkcs11
         /// </exception>
         public void Open(string location, bool noPrivateKeys = true)
         {
-            m_storePath = location ?? string.Empty;
-
-            if (m_options == null && Pkcs11TokenOptions.IsPkcs11Uri(m_storePath))
+            if (m_options == null && Pkcs11TokenOptions.IsPkcs11Uri(location))
             {
-                m_options = Pkcs11TokenOptions.Parse(m_storePath);
+                m_options = Pkcs11TokenOptions.Parse(location);
             }
+
+            // The PIN may arrive as a pin-value attribute. It is kept in the
+            // options and stripped from the path this store then reports, so it
+            // cannot travel into configuration, diagnostics or the address space.
+            m_storePath = location == null
+                ? string.Empty
+                : Pkcs11TokenOptions.RedactPin(location);
 
             if (m_options == null)
             {
                 throw new ArgumentException(
-                    $"'{location}' is not a PKCS#11 URI and no token options were supplied.",
+                    $"'{m_storePath}' is not a PKCS#11 URI and no token options were supplied.",
                     nameof(location));
             }
         }
@@ -186,7 +191,9 @@ namespace Opc.Ua.Security.Pkcs11
             {
                 Interlocked.Increment(ref m_rejectedPrivateKeyWrites);
 
-                m_logger.Pkcs11CertificateStoreLog1(certificate.Thumbprint, m_storePath);
+                m_logger.Pkcs11CertificateStoreLog1(
+                    certificate.Thumbprint,
+                    m_options?.TokenLabel ?? "<any>");
             }
 
             return Task.CompletedTask;
@@ -234,7 +241,8 @@ namespace Opc.Ua.Security.Pkcs11
             char[]? password,
             CancellationToken ct = default)
         {
-            return Task.FromResult(LoadPrivateKey(thumbprint, subjectName));
+            return Task.FromResult(
+                LoadPrivateKey(thumbprint, subjectName, applicationUri, certificateType));
         }
 
         private CertificateCollection FindByThumbprint(string thumbprint)
@@ -270,8 +278,23 @@ namespace Opc.Ua.Security.Pkcs11
             return results;
         }
 
-        private Certificate? LoadPrivateKey(string thumbprint, string? subjectName)
+        private Certificate? LoadPrivateKey(
+            string thumbprint,
+            string? subjectName,
+            string? applicationUri,
+            NodeId certificateType)
         {
+            // Refuse to guess. With nothing to match on, any certificate on the
+            // token would satisfy the request, and a token that holds more than
+            // one identity is the normal case for an HSM or a smart card. The
+            // directory store makes the same refusal.
+            if (string.IsNullOrEmpty(thumbprint) &&
+                string.IsNullOrEmpty(subjectName) &&
+                string.IsNullOrEmpty(applicationUri))
+            {
+                return null;
+            }
+
             Pkcs11Token token = GetToken();
 
             foreach (KeyValuePair<byte[], byte[]> entry in token.FindCertificatesWithIds())
@@ -280,7 +303,7 @@ namespace Opc.Ua.Security.Pkcs11
 
                 try
                 {
-                    if (!Matches(candidate, thumbprint, subjectName))
+                    if (!Matches(candidate, thumbprint, subjectName, applicationUri, certificateType))
                     {
                         continue;
                     }
@@ -345,7 +368,12 @@ namespace Opc.Ua.Security.Pkcs11
             Close();
         }
 
-        private static bool Matches(Certificate candidate, string? thumbprint, string? subjectName)
+        private static bool Matches(
+            Certificate candidate,
+            string? thumbprint,
+            string? subjectName,
+            string? applicationUri,
+            NodeId certificateType)
         {
             if (!string.IsNullOrEmpty(thumbprint) &&
                 !string.Equals(
@@ -356,14 +384,23 @@ namespace Opc.Ua.Security.Pkcs11
                 return false;
             }
 
+            // Distinguished name comparison only. A substring test would let a
+            // request for CN=Server match CN=ServerBackup.
             if (!string.IsNullOrEmpty(subjectName) &&
-                !X509Utils.CompareDistinguishedName(candidate.Subject, subjectName) &&
-                !candidate.Subject.Contains(subjectName!, StringComparison.Ordinal))
+                !X509Utils.CompareDistinguishedName(candidate.Subject, subjectName))
             {
                 return false;
             }
 
-            return true;
+            if (!string.IsNullOrEmpty(applicationUri) &&
+                !X509Utils.CompareApplicationUriWithCertificate(candidate, applicationUri!))
+            {
+                return false;
+            }
+
+            // Fully qualified: Opc.Ua.Security also declares a CertificateIdentifier,
+            // which shadows the one carrying this check from inside this namespace.
+            return Opc.Ua.CertificateIdentifier.ValidateCertificateType(candidate, certificateType);
         }
 
         private static Certificate? AttachKey(
@@ -457,11 +494,11 @@ namespace Opc.Ua.Security.Pkcs11
             EventId = SecurityPkcs11EventIds.Pkcs11CertificateStore + 1,
             Level = LogLevel.Warning,
             Message = "Refused to write the private key of certificate {Thumbprint} to the " +
-                "PKCS#11 store {StorePath}. A token does not accept key material it did not " +
+                "PKCS#11 token '{TokenLabel}'. A token does not accept key material it did not " +
                 "generate; the public certificate is unaffected.")]
         public static partial void Pkcs11CertificateStoreLog1(
             this ILogger logger,
             string thumbprint,
-            string storePath);
+            string tokenLabel);
     }
 }

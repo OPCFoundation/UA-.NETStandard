@@ -74,7 +74,7 @@ namespace Opc.Ua.Security.Pkcs11
             IObjectHandle privateKey,
             RSAParameters publicParameters)
         {
-            m_token = token ?? throw new ArgumentNullException(nameof(token));
+            m_token = (token ?? throw new ArgumentNullException(nameof(token))).AddRef();
             m_privateKey = privateKey ?? throw new ArgumentNullException(nameof(privateKey));
             m_publicParameters = publicParameters;
 
@@ -254,6 +254,9 @@ namespace Opc.Ua.Security.Pkcs11
             if (disposing)
             {
                 m_publicKey.Dispose();
+
+                // Releases this key's reference; the session closes with the last.
+                m_token.Dispose();
             }
 
             base.Dispose(disposing);
