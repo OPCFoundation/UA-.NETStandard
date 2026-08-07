@@ -58,6 +58,23 @@ Which security policies actually work depends on the mechanisms your token imple
 - A private key offered to `AddAsync` is refused and logged: a token does not import key material it did not generate.
 - The token's validation status is reported as **uncertified** unless you assert one, because nothing in the PKCS#11 interface reports a FIPS certificate. See the crypto provider documentation for how this is audited.
 
+### Linux: `libdl.so` must be present
+
+`Pkcs11Interop` loads the token module through `DllImport("libdl")`. glibc 2.34 folded `libdl` into `libc` and many distributions now ship only the `libdl.so.2` ABI stub, which the .NET loader will not bind the name `libdl` to. On such a system the first call fails with:
+
+```
+System.DllNotFoundException: Unable to load shared library 'libdl'
+```
+
+Install your distribution's C development package (`libc6-dev` on Debian and Ubuntu), which provides the `libdl.so` name, or create the link yourself:
+
+```bash
+sudo ln -s /usr/lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
+sudo ldconfig
+```
+
+This is a property of the interop library, not of this package, and applies to any .NET application that uses `Pkcs11Interop`.
+
 ## Target frameworks
 
 `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, `net10.0`.

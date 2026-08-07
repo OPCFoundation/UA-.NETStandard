@@ -234,9 +234,20 @@ jobs:
         set -euo pipefail
         if [ "${{ runner.os }}" = "Linux" ]; then
           sudo apt-get update
-          sudo apt-get install -y softhsm2 opensc
+          sudo apt-get install -y softhsm2 opensc libc6-dev
           SOFTHSM_MODULE=$(ls /usr/lib/softhsm/libsofthsm2.so \
             /usr/lib/*/softhsm/libsofthsm2.so 2>/dev/null | head -n1)
+
+          # Pkcs11Interop reaches the module through DllImport("libdl"). glibc
+          # 2.34 folded libdl into libc and ships only the libdl.so.2 ABI stub,
+          # which the .NET loader will not bind "libdl" to, so provide the name
+          # it looks for. Consumers on a modern distribution need the same.
+          if ! ldconfig -p | grep -q "libdl\.so "; then
+            DL_STUB=$(ldconfig -p | awk '/libdl\.so\.2/ {print $NF; exit}')
+            test -n "$DL_STUB"
+            sudo ln -sf "$DL_STUB" "$(dirname "$DL_STUB")/libdl.so"
+            sudo ldconfig
+          fi
         else
           brew install softhsm opensc
           SOFTHSM_MODULE=$(ls "$(brew --prefix)"/lib/softhsm/libsofthsm2.so | head -n1)

@@ -107,6 +107,16 @@ namespace Opc.Ua.Security.Pkcs11.Tests
 
                 provisioned = certificates.Count > 0;
             }
+            catch (DllNotFoundException ex) when (!Pkcs11TestEnvironment.IsExplicitlyConfigured)
+            {
+                // Pkcs11Interop reaches the module through libdl, which glibc
+                // 2.34 folded into libc; some distributions no longer ship a
+                // libdl.so for it to bind to. On a machine that merely happened
+                // to have a module lying around, that costs coverage. Where the
+                // module was named deliberately it is a real failure and is
+                // allowed to propagate.
+                Assert.Ignore($"{kUnusableModuleReason} {ex.Message}");
+            }
             catch (Exception ex) when (ex is CryptographicException or InvalidOperationException)
             {
                 // No matching token, or the module refused to open it.
@@ -125,6 +135,9 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             "A PKCS#11 module is available but the token holds no certificate. " +
             "Provision it (see the SoftHSM2 setup in .github/workflows/buildandtest.yml) " +
             "to run the token backed tests.";
+
+        private const string kUnusableModuleReason =
+            "A PKCS#11 module was found but could not be loaded.";
 
         private static bool? s_provisioned;
 

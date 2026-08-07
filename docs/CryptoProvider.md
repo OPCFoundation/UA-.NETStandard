@@ -82,6 +82,11 @@ PKCS#1 v1.5 and PSS, decryption supports OAEP and PKCS#1 v1.5, and ECDSA is supp
 token implements. Revocation lists are not held on a token, and objects are provisioned with the vendor's
 tools rather than through the store.
 
+On Linux the module is loaded through `DllImport("libdl")`, and glibc 2.34 folded `libdl` into `libc`.
+Distributions that ship only the `libdl.so.2` ABI stub need `libc6-dev` (or an equivalent `libdl.so`
+symlink) or the first call fails with `DllNotFoundException`. That is a property of the interop library
+rather than of this package.
+
 ### Why not `CopyWithPrivateKey`?
 
 `X509Certificate2.CopyWithPrivateKey` cannot be used for this. On Windows the certificate layer has fast

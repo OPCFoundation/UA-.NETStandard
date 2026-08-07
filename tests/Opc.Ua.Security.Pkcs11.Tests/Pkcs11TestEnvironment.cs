@@ -67,6 +67,19 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             Environment.GetEnvironmentVariable("OPCUA_PKCS11_PIN") ?? "1234";
 
         /// <summary>
+        /// Whether the module was named explicitly rather than auto-discovered.
+        /// </summary>
+        /// <remarks>
+        /// CI sets <c>OPCUA_PKCS11_MODULE</c>, so an explicitly configured module
+        /// that then turns out to be unusable is a real failure there and must
+        /// not be quietly skipped. A module found by probing well known paths is
+        /// a convenience for developer machines, so an unusable one only costs
+        /// coverage.
+        /// </remarks>
+        public static bool IsExplicitlyConfigured { get; } =
+            !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OPCUA_PKCS11_MODULE"));
+
+        /// <summary>
         /// Whether a module is available to test against.
         /// </summary>
         public static bool IsAvailable => ModulePath != null;
