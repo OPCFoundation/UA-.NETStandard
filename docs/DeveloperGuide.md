@@ -260,8 +260,8 @@ From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](h
 
 Two CI systems run against this repository:
 
-- **Azure Pipelines** ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) — the all-target-framework solution build, the cross-platform test matrices, Native AoT and the coverage gate.
-- **GitHub Actions** ([`.github/workflows/`](../.github/workflows)) — CodeQL, container images, the opt-in stress and stability suites, and the macOS legs of the build/test matrix.
+- **Azure Pipelines** ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) — the fast pull-request test legs, the per-framework test matrices and the coverage gate, on the `netstandard` Managed DevOps Pool and Microsoft-hosted agents.
+- **GitHub Actions** ([`.github/workflows/`](../.github/workflows)) — the all-target-framework solution builds, the ubuntu test matrix, Native AoT, CodeQL, container images, the opt-in stress and stability suites, and the macOS legs of the build/test matrix.
 
 ### Which system runs what
 
@@ -269,15 +269,16 @@ A single conceptual switch decides who owns the all-TFM build, the cross-platfor
 
 | File | Setting | Default |
 | --- | --- | --- |
-| [`azure-pipelines.yml`](../azure-pipelines.yml) | `parameters.ciBuildBackend` | `ado` |
-| [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) | `env.CI_BUILD_BACKEND` | `ado` |
+| [`azure-pipelines.yml`](../azure-pipelines.yml) | `parameters.ciBuildBackend` | `actions` |
+| [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) | `env.CI_BUILD_BACKEND` | `actions` |
 
-With the default `ado`, Azure Pipelines runs that work on the `netstandard` Managed DevOps Pool and the equivalent GitHub Actions jobs stand down on `master`/`main`. Setting both to `actions` restores the previous split, where GitHub Actions ran the ubuntu test matrix, Native AoT and the all-TFM builds.
+With the default `actions` the load is split across both systems: GitHub Actions runs the all-TFM builds, the ubuntu test matrix and Native AoT, while Azure Pipelines runs the fast pull-request test legs on the managed pool and hosts the coverage gate. Setting both to `ado` moves that work onto the Managed DevOps Pool as well, and the equivalent GitHub Actions jobs stand down on `master`/`main`.
 
-Two things are deliberately *not* covered by the switch:
+Three things are deliberately *not* covered by the switch:
 
 - **macOS** always runs on GitHub-hosted runners, because Managed DevOps Pools provide no macOS image.
 - **`master378` and `develop/*`** keep running the GitHub Actions jobs regardless of the setting, since Azure Pipelines only builds `master`/`main` from this file.
+- **The `Tests passed` and `Code coverage` stages** always run in Azure Pipelines regardless of the switch, because they roll up whatever did run (see [Required checks and coverage](#required-checks-and-coverage)).
 
 ### Test tiers
 
@@ -290,7 +291,7 @@ The fast test stages fan every `*.Tests.csproj` out across matrix jobs and filte
 | `Opc.Ua.Stress.Tests` | [`.github/workflows/stress-test.yml`](../.github/workflows/stress-test.yml), opt-in |
 | `Opc.Ua.Aot.Tests` | `Test Native AoT` stage |
 
-Because the individual matrix jobs are generated (and are skipped outright when Azure Pipelines owns them, or when a pull request touches no build-relevant files), branch protection should require the aggregate **`build-and-test summary`** check rather than any individual job. That job runs on every pull request — the workflow deliberately carries no `paths:` filter, because a workflow filtered out by `paths` never reports its checks and a required check that never reports blocks the pull request forever. The path allow-list is applied inside the `discover` job instead, and the summary treats an intentionally skipped job as success.
+Because the individual matrix jobs are generated (and are skipped outright when Azure Pipelines owns them, or when a pull request touches no build-relevant files), branch protection requires the aggregate **`build-and-test summary`** check rather than any individual job — see [Required checks and coverage](#required-checks-and-coverage). That job runs on every pull request — the workflow deliberately carries no `paths:` filter, because a workflow filtered out by `paths` never reports its checks and a required check that never reports blocks the pull request forever. The path allow-list is applied inside the `discover` job instead, and the summary treats an intentionally skipped job as success.
 
 ### Triggering a pipeline run on a pull request
 
@@ -306,27 +307,45 @@ To start the run, a repository owner or a collaborator with `Write` permission c
 
 This setting lives in the Azure DevOps portal (pipeline → **More actions** → **Triggers** → **Pull request validation**), not in YAML.
 
-### Coverage gates
+### Required checks and coverage
 
-Every test stage ends in a **`Coverage <configuration> (<framework>)`** job. Each test matrix entry collects coverage while it runs and publishes its raw Cobertura fragment as a pipeline artifact; the coverage job then re-assembles those fragments with ReportGenerator and evaluates them. It never re-runs the tests — doing so would serialise a suite that was deliberately fanned out across matrix jobs and blow the stage timeout.
+Two concerns are deliberately kept apart, and both CI systems expose the same pair of checks:
 
-That job is the single per-(framework, configuration) signal, so it — not an individual matrix entry — is what the GitHub branch ruleset should require. It fails when:
+| Concern | Azure Pipelines | GitHub Actions | In the branch ruleset? |
+| --- | --- | --- | --- |
+| Every test passed | **`Tests passed`** stage | **`build-and-test summary`** job | **Yes — required** |
+| Coverage meets the thresholds | **`Code coverage`** stage | **`code coverage`** job | **No — advisory** |
 
-- any test job in its stage failed, was cancelled or never ran,
-- no coverage was produced at all,
-- or, on the reference leg, the merged report misses the thresholds.
+Azure Pipelines reports its checks to GitHub as `<pipeline> (<stage> <job>)`, so the two names to look for in the ruleset are `OPCFoundation.UA-.NETStandard (Tests passed Verify stage results)` and `OPCFoundation.UA-.NETStandard (Code coverage Merge and evaluate)`.
 
-Only the **net10.0 Release** leg (`enforceCoverage: true` in [`azure-pipelines.yml`](../azure-pipelines.yml)) blocks on the thresholds and publishes the merged report to the build summary and Codacy — it is the configuration [`coverage-thresholds.json`](../coverage-thresholds.json) is calibrated against. The other legs report their numbers as a warning and still block on test failures. Every leg publishes its merged report as the `coverage-report-<suffix>` artifact.
+> **`Tests passed` is fail-closed, not fail-red.** Its verdict lives in the stage `condition`, which is the one place Azure Pipelines reliably exposes stage results. When a test stage fails the condition is false, the stage is skipped, and Azure Pipelines posts **no check at all** for it — so the required check stays unfulfilled and the merge stays blocked. You will see the failing test job in red and `Tests passed` still waiting, rather than two red checks.
 
-The thresholds are enforced by [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1):
+The coverage check reports a clean failure when the thresholds are missed, so a miss is visible on the pull request, but it never blocks the merge. Do not add it to the ruleset — that would make a coverage dip unmergeable, which is not the intent.
+
+Both required checks are single rollup jobs on purpose. The jobs underneath them are matrix-generated, so their names change whenever a test project or an agent is added, and they are skipped wholesale by the CI backend switch or by the path filter. Requiring a generated job name would therefore break as soon as the matrix changed.
+
+The two rollups reach their verdict differently, and the difference matters:
+
+| | How the verdict is reached | What a failing dependency looks like |
+| --- | --- | --- |
+| `build-and-test summary` (Actions) | Runs on `always()` and inspects `needs.*.result` inside the job, calling `exit 1` itself. | The check reports **failure** — a red X. |
+| `Tests passed` (Azure) | Encoded in the stage `condition`, the one place Azure Pipelines reliably exposes stage results. | The stage is skipped and Azure posts **no check** — the required check stays unfulfilled. |
+
+The Actions job must use `always()` (rather than the implicit "all needs succeeded") precisely because a job that is *skipped* because a dependency failed surfaces to GitHub as `skipped`, and a required check reporting `skipped` is treated as **satisfied** — it would wave a red build straight through. The Azure stage is safe from that trap for a different reason: a skipped Azure *stage* posts nothing at all, so there is no `skipped` conclusion for the ruleset to accept. Verified on build 16613, where `Fast PR test` failed, `Tests passed` was skipped, and no `Tests passed` check-run reached the pull request.
+
+#### How coverage is measured
+
+Every test matrix entry collects coverage while it runs and publishes its raw Cobertura fragment as an artifact. The coverage check then downloads every fragment the run produced, merges them **once** with ReportGenerator, and evaluates the merged report. It never re-runs the tests — doing so serialises a suite that was deliberately fanned out across matrix jobs and blows the stage timeout.
+
+The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1), shared by both CI systems and driven by [`coverage-thresholds.json`](../coverage-thresholds.json):
 
 | Check | Behaviour |
 | --- | --- |
-| **Project floor** | *Blocking.* Total line and branch rates must meet the absolute floors in `coverage-thresholds.json`. The `ignore` globs are applied here too, so samples, tests and generated code do not count. |
-| **Patch coverage** | *Blocking on pull requests.* Lines you added or modified must reach `patch.target` percent, tolerating `patch.threshold` percentage points. |
-| **Baseline delta** | *Advisory only.* Reports how total coverage compares with the recorded `baselineLineRate` and never fails the build. |
+| **Project floor** | Total line and branch rates must meet the absolute floors in `coverage-thresholds.json`. The `ignore` globs are applied here too, so samples, tests and generated code do not count. |
+| **Patch coverage** | On pull requests, lines you added or modified must reach a floor that is **graduated by how much changed** — see below. The uncovered changed lines are listed by file. |
+| **Baseline delta** | Reports how total coverage compares with the recorded `baselineLineRate`. Warning only, even within this advisory check. |
 
-Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red build green.
+Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red check green.
 
 Two things about the `ignore` globs regularly catch people out. `samples/**` is ignored, so a sample can carry
 tests for its own sake — a wrong kinematics solver would make a sample lie — without those lines counting
@@ -335,13 +354,55 @@ product code, and an assembly no test project references contributes changed lin
 **uncovered** because no report mentions them. If you add code there, make sure a test project loads the
 assembly, or the patch gate will read far lower than the per-file numbers suggest.
 
-To reproduce a gate failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
+##### Patch coverage is graduated by patch size
+
+A coverage percentage over a handful of lines carries almost no information. One uncovered line in a two-line fix reads as 50%, and a flat floor would fail it — which teaches authors to ignore the check rather than act on it. So the requirement scales with how much actually changed:
+
+| Coverable changed lines | Floor | Below the floor |
+| --- | --- | --- |
+| 1 – 10 | 50 % | :warning: **warning**, check still passes |
+| 11 – 100 | 60 % | :warning: **warning**, check still passes |
+| more than 100 | `patch.target` − `patch.threshold` (75 %) | :x: **failure** |
+
+Only changes larger than the last band can fail the patch check. At that size the percentage is meaningful, and a large untested change is exactly what the check exists to catch. Below it you still get a warning naming the uncovered lines, so the signal is never silent — it just does not block.
+
+The bands live in `patch.bands` in [`coverage-thresholds.json`](../coverage-thresholds.json). They are consulted in order and the first band whose `maxChangedLines` covers the patch wins; set `enforced: true` on a band to make it blocking. Anything larger than the last band falls through to `patch.target` − `patch.threshold` and is always enforced.
+
+Remember that the coverage check as a whole is advisory and stays out of the branch ruleset — an enforced band produces a red `Code coverage` check, not a blocked merge.
+
+##### Codecov
+
+The merged report is also uploaded to [codecov.io](https://codecov.io), which is where the pull-request comment, the file-by-file diff view and the coverage trend live. **Codecov does not gate.** Both of its status checks are `informational: true` in [`codecov.yml`](../codecov.yml), because two gates with two sets of thresholds would eventually disagree about the same pull request and the easier one to silence would win. The rules that actually decide are the ones above.
+
+Each CI system uploads the report it merged, under its own flag (`azure`, `actions`), since the two matrices deliberately cover different legs.
+
+The upload is optional on both systems and never fails a build:
+
+| | Turn it off with | Also skipped when |
+| --- | --- | --- |
+| Azure Pipelines | the `enableCodecov` pipeline parameter (default `true`) | the `CODECOV_TOKEN` secret variable is unset |
+| GitHub Actions | the `ENABLE_CODECOV` workflow `env` (default `'true'`) | the `CODECOV_TOKEN` secret is unavailable, as on fork pull requests |
+
+Keep the `ignore` list in `codecov.yml` in step with the one in `coverage-thresholds.json`, or the two will report on different code.
+
+#### Where the numbers appear
+
+The script renders a markdown summary that both systems surface, so you never have to open a raw log to see why coverage moved:
+
+- **GitHub Actions** — appended to the run's job summary, and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork** the token is read-only, so the comment is skipped and only the job summary is written.
+- **Azure Pipelines** — attached to the build summary via `##vso[task.uploadsummary]`, alongside the usual Code Coverage tab and the Codacy upload.
+
+Both also publish the merged HTML report as a `coverage-report` artifact.
+
+> The two systems report **different numbers**, and that is expected. With the default `actions` backend, GitHub Actions merges every test project on ubuntu, whereas Azure Pipelines merges only the Windows fast-PR legs. The GitHub figure is the more representative one. Scheduled runs read higher still, because the Debug, .NET 8/9 and netstandard stages also contribute fragments.
+
+To reproduce a coverage failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
 
 ```powershell
-./.azurepipelines/check-coverage.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master
+./.azurepipelines/check-coverage.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master -SummaryPath ./coverage-summary.md
 ```
 
-Omit `-BaseRef` to check only the project floor.
+Omit `-BaseRef` to check only the project floor, and `-SummaryPath` to skip the markdown summary.
 
 ## Contributing and pull requests
 

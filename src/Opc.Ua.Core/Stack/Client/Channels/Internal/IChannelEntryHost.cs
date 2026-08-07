@@ -42,6 +42,7 @@ namespace Opc.Ua
         TimeProvider TimeProvider { get; }
         IChannelReconnectPolicy ReconnectPolicy { get; }
         CancellationToken ShutdownToken { get; }
+        BackgroundTaskScope BackgroundWork { get; }
         Bindings.ITransportChannelBindings? ChannelFactory { get; }
         ApplicationConfiguration Configuration { get; }
 

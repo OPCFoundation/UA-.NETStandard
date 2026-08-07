@@ -315,7 +315,9 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            _ = Task.Run(RecoverAsync);
+            m_backgroundWork.Run(
+                "RecoverAfterUnsolicitedTransfer",
+                async _ => await RecoverAsync().ConfigureAwait(false));
 
             async Task RecoverAsync()
             {
@@ -402,6 +404,10 @@ namespace Opc.Ua.Client
                 // and throw ObjectDisposedException from Cancel(), which left the
                 // publish worker stuck and surfaced as a test hang.
                 ResetPublishTimerAndWorkerState();
+
+                // Signal only: Dispose is synchronous, so it cannot await an
+                // in-flight recreate. The token stops it at its next await.
+                m_backgroundWork.Dispose();
 
                 m_disposed = true;
             }
@@ -3274,6 +3280,8 @@ namespace Opc.Ua.Client
         private long m_lastNotificationTimestamp;
         private int m_keepAliveInterval;
         private int m_publishLateCount;
+        private readonly BackgroundTaskScope m_backgroundWork =
+            new(nameof(Subscription), AmbientMessageContext.Telemetry);
         private bool m_disposed;
         private int m_recreateAfterTransferInProgress;
         private readonly Lock m_cache = new();
