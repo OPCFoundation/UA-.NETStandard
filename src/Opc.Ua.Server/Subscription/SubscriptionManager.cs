@@ -101,6 +101,10 @@ namespace Opc.Ua.Server
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
 
+            m_backgroundWork = new BackgroundTaskScope(
+                nameof(SubscriptionManager),
+                server.Telemetry);
+
             // create queue and event for condition refresh worker
             m_conditionRefreshEvent = new ManualResetEvent(false);
             m_conditionRefreshQueue = new Queue<ConditionRefreshTask>();
@@ -129,6 +133,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     SignalConditionRefreshWorkerShutdown();
+                    m_workerCts?.Cancel();
 
                     publishQueues = [.. m_publishQueues.Values];
                     m_publishQueues.Clear();
@@ -152,9 +157,12 @@ namespace Opc.Ua.Server
                     subscription?.Dispose();
                 }
 
+                m_backgroundWork.Dispose();
                 m_shutdownEvent.Dispose();
                 m_conditionRefreshEvent.Dispose();
                 m_semaphoreSlim.Dispose();
+                m_workerCts?.Dispose();
+                m_workerCts = null;
             }
         }
 
@@ -255,14 +263,12 @@ namespace Opc.Ua.Server
 
                 m_shutdownEvent.Reset();
 
-                // TODO: Ensure shutdown awaits completion and a cancellation token is passed
-                _ = Task.Factory.StartNew(
-                    () => PublishSubscriptionsAsync(m_publishingResolution),
-                    default,
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default);
+                // Recreated on every startup: a token source cannot be reset once
+                // ShutdownAsync has cancelled it, and the manager supports restart.
+                m_workerCts?.Dispose();
+                m_workerCts = new CancellationTokenSource();
 
-                // TODO: Ensure shutdown awaits completion and a cancellation token is passed
+                m_publishWorkerTask = StartPublishWorker(m_workerCts.Token);
                 m_conditionRefreshWorkerTask = StartConditionRefreshWorker();
             }
             finally
@@ -281,12 +287,32 @@ namespace Opc.Ua.Server
             {
                 // stop the publishing thread and trigger the condition refresh thread.
                 SignalConditionRefreshWorkerShutdown();
+
+                // Cancel so the publish loop's inter-cycle delay is abandoned
+                // immediately instead of running to the end of its resolution.
+                m_workerCts?.Cancel();
+
+                Task? publishWorkerTask = m_publishWorkerTask;
+                if (publishWorkerTask is not null)
+                {
+                    await publishWorkerTask.ConfigureAwait(false);
+                    m_publishWorkerTask = null;
+                }
+
                 Task? conditionRefreshWorkerTask = m_conditionRefreshWorkerTask;
                 if (conditionRefreshWorkerTask is not null)
                 {
                     await conditionRefreshWorkerTask.ConfigureAwait(false);
                     m_conditionRefreshWorkerTask = null;
                 }
+
+                m_workerCts?.Dispose();
+                m_workerCts = null;
+
+                // Expired-subscription cleanups scheduled by the publish sweep
+                // still delete subscriptions through the server, so drain them
+                // before the queues and subscriptions go away.
+                await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
 
                 // dispose of publish queues.
                 foreach (SessionPublishQueue queue in m_publishQueues.Values)
@@ -2476,7 +2502,7 @@ namespace Opc.Ua.Server
                 m_logger.SubscriptionAbandonedSubscriptionIdSubscriptionId(subscription.Id);
             }
 
-            CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
+            CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger, m_backgroundWork);
         }
 
         /// <summary>
@@ -2556,17 +2582,22 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="subscriptionsToDelete">The subscriptions to delete.</param>
         /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="backgroundWork">Owns the deletion so it is drained
+        /// before the caller that scheduled it goes away.</param>
         internal static void CleanupSubscriptions(
             IServerInternal server,
             IList<ISubscription> subscriptionsToDelete,
-            ILogger logger)
+            ILogger logger,
+            BackgroundTaskScope backgroundWork)
         {
             if (subscriptionsToDelete != null && subscriptionsToDelete.Count > 0)
             {
                 logger.ServerCountSubscriptionsScheduledForDelete(subscriptionsToDelete.Count);
 
-                _ = Task.Run(
-                    () => CleanupSubscriptionsCoreAsync(server, subscriptionsToDelete, logger));
+                backgroundWork.Run(
+                    nameof(CleanupSubscriptionsCoreAsync),
+                    async ct => await CleanupSubscriptionsCoreAsync(
+                        server, subscriptionsToDelete, logger, ct).ConfigureAwait(false));
             }
         }
 
@@ -2665,6 +2696,9 @@ namespace Opc.Ua.Server
         private readonly ManualResetEvent m_conditionRefreshEvent;
         private readonly ISubscriptionStore m_subscriptionStore;
         private Task? m_conditionRefreshWorkerTask;
+        private readonly BackgroundTaskScope m_backgroundWork;
+        private Task? m_publishWorkerTask;
+        private CancellationTokenSource? m_workerCts;
 
         private readonly Lock m_statusMessagesLock = new();
         private readonly Lock m_eventLock = new();
@@ -2678,6 +2712,34 @@ namespace Opc.Ua.Server
             return Task.Factory.StartNew(
                     static state => ((SubscriptionManager)state!).ConditionRefreshWorkerAsync(),
                     this,
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default)
+                .Unwrap();
+        }
+
+        /// <summary>
+        /// Starts the publish timer loop and returns a task that completes when the
+        /// loop has actually exited.
+        /// </summary>
+        /// <remarks>
+        /// The inner <c>AsTask</c> plus <c>Unwrap</c> matter: <see cref="Task.Factory"/>
+        /// hands back a task that completes as soon as the loop first yields, so
+        /// awaiting the raw <see cref="Task.Factory"/> result would only await the
+        /// scheduling of the loop and let shutdown race ahead of it.
+        /// </remarks>
+        private Task StartPublishWorker(CancellationToken cancellationToken)
+        {
+            return Task.Factory.StartNew(
+                    static state =>
+                    {
+                        (SubscriptionManager manager, CancellationToken ct) =
+                            ((SubscriptionManager, CancellationToken))state!;
+                        return manager
+                            .PublishSubscriptionsAsync(manager.m_publishingResolution, ct)
+                            .AsTask();
+                    },
+                    (this, cancellationToken),
                     CancellationToken.None,
                     TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default)

@@ -4242,7 +4242,9 @@ namespace Opc.Ua.Server
             {
                 shutdown.Server.SessionManager.SessionChannelKeepAlive
                     -= SessionChannelKeepAliveEvent;
-                shutdown.Server.SessionManager.Shutdown();
+                await shutdown.Server.SessionManager
+                    .ShutdownAsync(cancellationToken)
+                    .ConfigureAwait(false);
                 shutdown.SessionsStopped = true;
             }
 
