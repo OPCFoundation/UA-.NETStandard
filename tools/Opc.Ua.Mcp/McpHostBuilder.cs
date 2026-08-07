@@ -34,7 +34,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Pcap.DependencyInjection;
-using Opc.Ua.PubSub.Pcap;
 
 namespace Opc.Ua.Mcp
 {
@@ -68,7 +67,7 @@ namespace Opc.Ua.Mcp
                 options.MaxActiveSessions = pcapOptions.MaxActiveSessions;
                 options.EnableDiagnosticsTools = pcapOptions.EnableDiagnosticsTools;
             });
-            services.AddPubSubPcap();
+            services.AddOpcUaMcpPubSubDiagnostics();
         }
 
         /// <summary>
@@ -155,124 +154,22 @@ namespace Opc.Ua.Mcp
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
 
-            mcpServerBuilder.WithOpcUaMcpFilters();
+            mcpServerBuilder
+                .WithOpcUaMcpFilters()
+                .WithOpcUaCoreTools(toolProfile)
+                .WithOpcUaPubSubTools(toolProfile)
+                .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
+                .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
 
-            switch (toolProfile)
+            if (toolProfile == McpToolProfile.Diagnostics)
             {
-                case McpToolProfile.Core:
-                    ConfigureCoreTools(mcpServerBuilder);
-                    break;
-                case McpToolProfile.Services:
-                    ConfigureServiceTools(mcpServerBuilder);
-                    break;
-                case McpToolProfile.Administration:
-                    ConfigureAdministrationTools(mcpServerBuilder);
-                    break;
-                case McpToolProfile.PubSub:
-                    ConfigurePubSubTools(mcpServerBuilder, diagnosticsToolsEnabled);
-                    break;
-                case McpToolProfile.Diagnostics:
-                    ConfigureDiagnosticsTools(mcpServerBuilder, diagnosticsToolsEnabled);
-                    break;
-                case McpToolProfile.Full:
-                    ConfigureFullTools(mcpServerBuilder, diagnosticsToolsEnabled);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(
-                        nameof(toolProfile),
-                        toolProfile,
-                        "Unknown MCP tool profile.");
+                // The diagnostics profile is the one catalogue that pairs tools
+                // from two packages: capturing traffic is only useful next to
+                // the connection tools that generate it.
+                mcpServerBuilder.WithTools<ConnectionTools>();
             }
 
             mcpServerBuilder.WithResources<SessionResources>();
-        }
-
-        private static void ConfigureCoreTools(IMcpServerBuilder mcpServerBuilder)
-        {
-            mcpServerBuilder
-                .WithTools<ConfigurationReadTools>()
-                .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
-                .WithTools<ConvenienceTools>();
-        }
-
-        private static void ConfigureServiceTools(IMcpServerBuilder mcpServerBuilder)
-        {
-            mcpServerBuilder
-                .WithTools<AttributeServiceTools>()
-                .WithTools<ConfigurationReadTools>()
-                .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
-                .WithTools<ConvenienceTools>()
-                .WithTools<DiscoveryServiceTools>()
-                .WithTools<MethodServiceTools>()
-                .WithTools<MonitoredItemServiceTools>()
-                .WithTools<NodeManagementServiceTools>()
-                .WithTools<SubscriptionServiceTools>()
-                .WithTools<ViewServiceTools>();
-        }
-
-        private static void ConfigureAdministrationTools(IMcpServerBuilder mcpServerBuilder)
-        {
-            mcpServerBuilder
-                .WithTools<ConfigurationReadTools>()
-                .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
-                .WithTools<NodeSetExportTools>()
-                .WithTools<PkiTools>();
-        }
-
-        private static void ConfigurePubSubTools(
-            IMcpServerBuilder mcpServerBuilder,
-            bool diagnosticsToolsEnabled)
-        {
-            mcpServerBuilder
-                .WithOpcUaPubSubTools(McpToolProfile.PubSub)
-                .WithTools<PubSubCaptureTools>();
-
-            if (diagnosticsToolsEnabled)
-            {
-                mcpServerBuilder.WithTools<PubSubDecodeTools>();
-            }
-        }
-
-        private static void ConfigureDiagnosticsTools(
-            IMcpServerBuilder mcpServerBuilder,
-            bool diagnosticsToolsEnabled)
-        {
-            mcpServerBuilder
-                .WithTools<ConnectionTools>()
-                .WithOpcUaDiagnosticsTools(McpToolProfile.Diagnostics, diagnosticsToolsEnabled);
-        }
-
-        private static void ConfigureFullTools(
-            IMcpServerBuilder mcpServerBuilder,
-            bool diagnosticsToolsEnabled)
-        {
-            mcpServerBuilder
-                .WithTools<AttributeServiceTools>()
-                .WithTools<ConfigurationTools>()
-                .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
-                .WithTools<ConvenienceTools>()
-                .WithTools<DiscoveryServiceTools>()
-                .WithTools<MethodServiceTools>()
-                .WithTools<MonitoredItemServiceTools>()
-                .WithTools<NodeManagementServiceTools>()
-                .WithTools<NodeSetExportTools>()
-                .WithTools<PkiTools>()
-                .WithTools<PubSubCaptureTools>()
-                .WithTools<SubscriptionServiceTools>()
-                .WithTools<ViewServiceTools>();
-
-            mcpServerBuilder
-                .WithOpcUaPubSubTools(McpToolProfile.Full)
-                .WithOpcUaDiagnosticsTools(McpToolProfile.Full, diagnosticsToolsEnabled);
-
-            if (diagnosticsToolsEnabled)
-            {
-                mcpServerBuilder.WithTools<PubSubDecodeTools>();
-            }
         }
 
         /// <summary>

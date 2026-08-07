@@ -35,11 +35,11 @@
     <ProjectReference Include="..\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.Diagnostics\Opc.Ua.Mcp.Diagnostics.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.PubSub\Opc.Ua.Mcp.PubSub.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Mcp.PubSub.Diagnostics\Opc.Ua.Mcp.PubSub.Diagnostics.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Diagnostics\Opc.Ua.PubSub.Diagnostics.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Tools.Tests" />
