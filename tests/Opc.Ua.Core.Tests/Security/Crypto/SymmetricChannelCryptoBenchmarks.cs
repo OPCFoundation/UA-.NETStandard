@@ -30,6 +30,9 @@
 using System;
 using System.Security.Cryptography;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Toolchains.InProcess.Emit;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Security.Crypto
@@ -46,16 +49,22 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
     /// measured on its own.
     /// <para>
     /// Run with:
-    /// <c>dotnet run -c Release -f net10.0 -- --filter '*SymmetricChannelCryptoBenchmarks*' --job short</c>
+    /// <c>dotnet run -c Release -f net10.0 -- --filter '*SymmetricChannelCryptoBenchmarks*'</c>
     /// </para>
     /// <para>
-    /// Known limitation: that command currently fails to build the benchmark
-    /// host with <c>STACKGEN001 'Stack generation not supported for
-    /// Opc.Ua.Gds.Common assembly'</c>, which comes from a source generator in an
-    /// unrelated project that this test assembly references. The measurements
-    /// below therefore have to be taken either after that is resolved or from a
-    /// host that does not pull in that reference. The methods double as NUnit
-    /// tests so the code stays correct and compiled in the meantime.
+    /// The benchmarks run in process. BenchmarkDotNet's default toolchain
+    /// generates a host project and builds it, which fails here with
+    /// <c>STACKGEN001 'Stack generation not supported for Opc.Ua.Gds.Common
+    /// assembly'</c> - a source generator in a project this assembly references
+    /// transitively, and unrelated to the code being measured. The in process
+    /// toolchain builds no host project, so it sidesteps that entirely. The
+    /// cost is that the measurement shares a process with the test host, which
+    /// is acceptable because what matters here is the before and after
+    /// comparison, not the absolute number.
+    /// </para>
+    /// <para>
+    /// The methods double as NUnit tests so the measured code stays correct and
+    /// compiled even when nobody runs the benchmark.
     /// </para>
     /// </remarks>
     [TestFixture]
@@ -65,9 +74,29 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
     [SetUICulture("en-us")]
     [MemoryDiagnoser]
     [BenchmarkCategory("SymmetricChannelCrypto")]
+    [Config(typeof(InProcessConfig))]
     [NonParallelizable]
     public class SymmetricChannelCryptoBenchmarks
     {
+        /// <summary>
+        /// Runs the benchmarks in process so no host project has to be generated.
+        /// </summary>
+        /// <remarks>
+        /// Public because BenchmarkDotNet instantiates it reflectively from the
+        /// <c>[Config]</c> attribute, which the unused-type analyzer cannot see.
+        /// </remarks>
+        public sealed class InProcessConfig : ManualConfig
+        {
+            public InProcessConfig()
+            {
+                AddJob(Job.Default.WithToolchain(InProcessEmitToolchain.Instance));
+
+                // The assembly references nunit.framework, which is not built
+                // with optimizations enabled.
+                WithOptions(ConfigOptions.DisableOptimizationsValidator);
+            }
+        }
+
         /// <summary>
         /// The size of the message body, in bytes.
         /// </summary>
@@ -146,9 +175,37 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         /// <summary>
         /// A round trip, which is what a request and its response cost together.
         /// </summary>
+        /// <remarks>
+        /// The decrypt side is given the pre-allocated HMAC, which is what the
+        /// channel does: it keeps one per token rather than building one per
+        /// chunk.
+        /// </remarks>
         [Benchmark]
         [Test]
         public void EncryptSignThenDecryptVerify()
+        {
+            var data = new ArraySegment<byte>(m_buffer, HeaderSize, PayloadSize);
+
+            ArraySegment<byte> protectedData = CryptoUtils.SymmetricEncryptAndSign(
+                data, m_policy, m_encryptingKey, m_iv, m_signingKey, m_hmac);
+
+            var toVerify = new ArraySegment<byte>(
+                protectedData.Array!, HeaderSize, protectedData.Count - HeaderSize);
+
+            ArraySegment<byte> plain = CryptoUtils.SymmetricDecryptAndVerify(
+                toVerify, m_policy, m_encryptingKey, m_iv, m_signingKey,
+                signOnly: false, tokenId: 0, lastSequenceNumber: 0, hmac: m_hmac);
+
+            Assert.That(plain, Is.Not.Empty);
+        }
+
+        /// <summary>
+        /// The same round trip without a caller supplied HMAC, which is the
+        /// fallback path for callers outside the channel.
+        /// </summary>
+        [Benchmark]
+        [Test]
+        public void EncryptSignThenDecryptVerifyWithoutSharedHmac()
         {
             var data = new ArraySegment<byte>(m_buffer, HeaderSize, PayloadSize);
 
