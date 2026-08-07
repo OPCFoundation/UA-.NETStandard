@@ -83,7 +83,11 @@ namespace Opc.Ua.Server.Tests
             m_sessionMock.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
             m_sessionMock.Setup(s => s.Identity).Returns(identity);
             m_sessionMock.Setup(s => s.IdentityToken).Returns(identity.TokenHandler);
-            m_sessionMock.Setup(s => s.DiagnosticsLock).Returns(new object());
+            m_sessionMock
+                .Setup(s => s.UpdateDiagnostics(
+                    It.IsAny<Action<SessionDiagnosticsDataType>>()))
+                .Callback<Action<SessionDiagnosticsDataType>>(
+                    update => update(m_sessionMock.Object.SessionDiagnostics));
             m_sessionMock.Setup(s => s.SessionDiagnostics).Returns(
                 new SessionDiagnosticsDataType
                 {
@@ -363,7 +367,11 @@ namespace Opc.Ua.Server.Tests
             var identity = new UserIdentity(tokenHandler);
             session.Setup(s => s.Identity).Returns(identity);
             session.Setup(s => s.IdentityToken).Returns(tokenHandler);
-            session.Setup(s => s.DiagnosticsLock).Returns(new object());
+            session
+                .Setup(s => s.UpdateDiagnostics(
+                    It.IsAny<Action<SessionDiagnosticsDataType>>()))
+                .Callback<Action<SessionDiagnosticsDataType>>(
+                    update => update(session.Object.SessionDiagnostics));
             session.Setup(s => s.SessionDiagnostics).Returns(
                 new SessionDiagnosticsDataType
                 {
@@ -462,10 +470,14 @@ namespace Opc.Ua.Server.Tests
             destinationSession.SetupGet(session => session.Identity).Returns(identity);
             destinationSession.SetupGet(session => session.IdentityToken)
                 .Returns(identity.TokenHandler);
-            destinationSession.SetupGet(session => session.DiagnosticsLock)
-                .Returns(new object());
+            SessionDiagnosticsDataType destinationDiagnostics = CreateSessionDiagnostics();
             destinationSession.SetupGet(session => session.SessionDiagnostics)
-                .Returns(CreateSessionDiagnostics());
+                .Returns(destinationDiagnostics);
+            destinationSession
+                .Setup(session => session.UpdateDiagnostics(
+                    It.IsAny<Action<SessionDiagnosticsDataType>>()))
+                .Callback<Action<SessionDiagnosticsDataType>>(
+                    update => update(destinationDiagnostics));
             var sourceContext = new OperationContext(
                 m_sessionMock.Object,
                 DiagnosticsMasks.None);
@@ -1049,9 +1061,14 @@ namespace Opc.Ua.Server.Tests
             destinationSession.SetupGet(session => session.Identity).Returns(identity);
             destinationSession.SetupGet(session => session.IdentityToken)
                 .Returns(identity.TokenHandler);
-            destinationSession.SetupGet(session => session.DiagnosticsLock).Returns(new object());
+            SessionDiagnosticsDataType destinationDiagnostics = CreateSessionDiagnostics();
             destinationSession.SetupGet(session => session.SessionDiagnostics)
-                .Returns(CreateSessionDiagnostics());
+                .Returns(destinationDiagnostics);
+            destinationSession
+                .Setup(session => session.UpdateDiagnostics(
+                    It.IsAny<Action<SessionDiagnosticsDataType>>()))
+                .Callback<Action<SessionDiagnosticsDataType>>(
+                    update => update(destinationDiagnostics));
             var sourceContext = new OperationContext(
                 m_sessionMock.Object,
                 DiagnosticsMasks.None);
