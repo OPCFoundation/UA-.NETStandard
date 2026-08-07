@@ -227,10 +227,105 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
+        public void StoreReportsItsCapabilitiesBeforeAnyTokenIsOpened()
+        {
+            using var store = new Pkcs11CertificateStore(
+                NUnitTelemetryContext.Create(),
+                Pkcs11TestEnvironment.CreateOptions());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(store.StoreType, Is.EqualTo(Pkcs11CertificateStore.StoreTypeName));
+                Assert.That(store.SupportsLoadPrivateKey, Is.True);
+                Assert.That(store.SupportsCRLs, Is.False, "a token holds no revocation lists");
+                Assert.That(store.NoPrivateKeys, Is.False);
+                Assert.That(store.RejectedPrivateKeyWrites, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void ConstructorRejectsNullTelemetry()
+        {
+            Assert.Throws<ArgumentNullException>(() => new Pkcs11CertificateStore(null!));
+        }
+
+        [Test]
+        public async Task FindByThumbprintReturnsEmptyForAnEmptyThumbprintAsync()
+        {
+            using var store = new Pkcs11CertificateStore(
+                NUnitTelemetryContext.Create(),
+                Pkcs11TestEnvironment.CreateOptions());
+
+            // Returns before the token is reached, so this holds without hardware.
+            using CertificateCollection found = await store
+                .FindByThumbprintAsync(string.Empty)
+                .ConfigureAwait(false);
+
+            Assert.That(found, Is.Empty);
+        }
+
+        [Test]
+        public async Task AddRejectedIsAcceptedAndIgnoredAsync()
+        {
+            using var store = new Pkcs11CertificateStore(
+                NUnitTelemetryContext.Create(),
+                Pkcs11TestEnvironment.CreateOptions());
+
+            // A token is not where rejected certificates belong, but refusing
+            // would fail a trust list update for no benefit.
+            await store.AddRejectedAsync([], 10).ConfigureAwait(false);
+
+            Assert.That(store.RejectedPrivateKeyWrites, Is.Zero);
+        }
+
+        [Test]
+        public async Task RevocationIsReportedAsUnsupportedAsync()
+        {
+            using var store = new Pkcs11CertificateStore(
+                NUnitTelemetryContext.Create(),
+                Pkcs11TestEnvironment.CreateOptions());
+
+            StatusCode status = await store.IsRevokedAsync(null!, null!).ConfigureAwait(false);
+
+            X509CRLCollection crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(status, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Assert.That(crls, Is.Empty, "a token holds no revocation lists");
+            });
+        }
+
+        [Test]
+        public void CloseIsSafeBeforeAndAfterOpen()
+        {
+            var store = new Pkcs11CertificateStore(NUnitTelemetryContext.Create());
+
+            Assert.Multiple(() =>
+            {
+                Assert.DoesNotThrow(store.Close);
+                Assert.DoesNotThrow(
+                    () => store.Open("pkcs11:token=t?module-path=/tmp/none.so"));
+                Assert.DoesNotThrow(store.Close);
+                Assert.DoesNotThrow(store.Dispose);
+            });
+        }
+
+        [Test]
+        public void AddRejectsNull()
+        {
+            using var store = new Pkcs11CertificateStore(
+                NUnitTelemetryContext.Create(),
+                Pkcs11TestEnvironment.CreateOptions());
+
+            Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await store.AddAsync(null!).ConfigureAwait(false));
+        }
+
+        [Test]
         public void CryptoProviderDefaultsToUncertified()
         {
             var provider = new Pkcs11CryptoProvider();
-
             Assert.Multiple(() =>
             {
                 Assert.That(provider.Name, Is.EqualTo("PKCS11"));
