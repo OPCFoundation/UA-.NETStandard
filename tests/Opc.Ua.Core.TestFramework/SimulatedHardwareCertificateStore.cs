@@ -160,15 +160,22 @@ namespace Opc.Ua.Core.TestFramework
         /// <inheritdoc/>
         public Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
         {
+            return Task.FromResult(Enumerate());
+        }
+
+        private CertificateCollection Enumerate()
+        {
             var results = new CertificateCollection();
             lock (m_lock)
             {
                 foreach (Certificate certificate in m_certificates.Values)
                 {
-                    results.Add(Certificate.FromRawData(certificate.RawData));
+                    // Add takes its own reference, so this handle has to be released.
+                    using Certificate copy = Certificate.FromRawData(certificate.RawData);
+                    results.Add(copy);
                 }
             }
-            return Task.FromResult(results);
+            return results;
         }
 
         /// <inheritdoc/>
@@ -237,16 +244,23 @@ namespace Opc.Ua.Core.TestFramework
             string thumbprint,
             CancellationToken ct = default)
         {
+            return Task.FromResult(FindByThumbprint(thumbprint));
+        }
+
+        private CertificateCollection FindByThumbprint(string thumbprint)
+        {
             var results = new CertificateCollection();
             lock (m_lock)
             {
                 if (thumbprint != null &&
                     m_certificates.TryGetValue(thumbprint, out Certificate? certificate))
                 {
-                    results.Add(Certificate.FromRawData(certificate.RawData));
+                    // Add takes its own reference, so this handle has to be released.
+                    using Certificate copy = Certificate.FromRawData(certificate.RawData);
+                    results.Add(copy);
                 }
             }
-            return Task.FromResult(results);
+            return results;
         }
 
         /// <inheritdoc/>
@@ -367,7 +381,7 @@ namespace Opc.Ua.Core.TestFramework
     /// simulated token stays visible to every component that opens the same path,
     /// which is how a real token behaves.
     /// </remarks>
-    public sealed class SimulatedHardwareCertificateStoreProvider : ICertificateStoreProvider
+    public sealed class SimulatedHardwareCertificateStoreProvider : ICertificateStoreProvider, IDisposable
     {
         /// <inheritdoc/>
         public string StoreTypeName => SimulatedHardwareCertificateStore.StoreTypeName;
@@ -408,6 +422,28 @@ namespace Opc.Ua.Core.TestFramework
 
         private readonly Dictionary<string, SimulatedHardwareCertificateStore> m_stores = [];
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Disposes every token this provider is holding open.
+        /// </summary>
+        /// <remarks>
+        /// The provider caches a store per path so a generated key stays visible,
+        /// which means it - not the caller - owns the certificates those tokens
+        /// hold. Without this they are never released and the certificate leak
+        /// detector fails the run.
+        /// </remarks>
+        public void Dispose()
+        {
+            lock (m_lock)
+            {
+                foreach (SimulatedHardwareCertificateStore store in m_stores.Values)
+                {
+                    store.Dispose();
+                }
+
+                m_stores.Clear();
+            }
+        }
 
         /// <summary>
         /// Delegates to the shared store for whichever path it is opened with.

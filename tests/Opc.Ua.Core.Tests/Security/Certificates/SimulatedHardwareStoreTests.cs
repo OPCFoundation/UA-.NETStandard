@@ -67,6 +67,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "token/" + Guid.NewGuid().ToString("N");
         }
 
+        [TearDown]
+        public void TearDown()
+        {
+            // The provider owns the cached tokens and the certificates they hold.
+            m_provider?.Dispose();
+            m_provider = null;
+        }
+
         [Test]
         public void ProviderRecognisesItsOwnScheme()
         {

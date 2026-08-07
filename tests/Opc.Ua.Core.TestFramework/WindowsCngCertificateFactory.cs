@@ -135,8 +135,14 @@ namespace Opc.Ua.Core.TestFramework
                     subjectName, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
                 using X509Certificate2 certificate = request.CreateSelfSigned(
                     DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
-                return Certificate.From(X509CertificateLoader.LoadCertificate(certificate.RawData))
-                    .CopyWithDetachedPrivateKey(new RSACng(CngKey.Open(keyName)));
+
+                // CopyWithDetachedPrivateKey returns a new handle, so the
+                // intermediate public-only certificate has to be disposed or it
+                // is counted as a leak.
+                using Certificate publicOnly = Certificate.From(
+                    X509CertificateLoader.LoadCertificate(certificate.RawData));
+
+                return publicOnly.CopyWithDetachedPrivateKey(new RSACng(CngKey.Open(keyName)));
             }
             catch
             {

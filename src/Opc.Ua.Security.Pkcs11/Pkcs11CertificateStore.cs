@@ -156,7 +156,9 @@ namespace Opc.Ua.Security.Pkcs11
 
             foreach (byte[] encoded in GetToken().FindCertificates())
             {
-                results.Add(Certificate.FromRawData(encoded));
+                // Add takes its own reference, so this handle has to be released.
+                using Certificate candidate = Certificate.FromRawData(encoded);
+                results.Add(candidate);
             }
 
             return results;
@@ -248,14 +250,18 @@ namespace Opc.Ua.Security.Pkcs11
             {
                 Certificate candidate = Certificate.FromRawData(encoded);
 
-                if (string.Equals(
-                        candidate.Thumbprint,
-                        thumbprint,
-                        StringComparison.OrdinalIgnoreCase))
+                try
                 {
-                    results.Add(candidate);
+                    if (string.Equals(
+                            candidate.Thumbprint,
+                            thumbprint,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Add takes its own reference; this handle is released below.
+                        results.Add(candidate);
+                    }
                 }
-                else
+                finally
                 {
                     candidate.Dispose();
                 }

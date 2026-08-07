@@ -63,6 +63,14 @@ namespace Opc.Ua.Server.Tests.Configuration
                 "token/" + Guid.NewGuid().ToString("N");
         }
 
+        [TearDown]
+        public void TearDown()
+        {
+            // The provider owns the cached tokens and the certificates they hold.
+            m_provider?.Dispose();
+            m_provider = null;
+        }
+
         [Test]
         public async Task DeviceHeldKeyIsStagedAndRecoveredAsync()
         {
