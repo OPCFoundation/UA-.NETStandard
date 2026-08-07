@@ -607,7 +607,7 @@ namespace Opc.Ua.Di.Tests
             {
                 Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Impeller", "xformOp:rotateZ"), Is.True,
                     "Rotation binding produced no value.");
-                Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Body/Mat/Surface", "inputs:diffuseColor"), Is.True,
+                Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Body", "primvars:displayColor"), Is.True,
                     "DisplayColor binding produced no value.");
                 Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Discharge/Gauge/Needle", "xformOp:rotateZ"), Is.True,
                     "Discharge pressure gauge produced no value.");
