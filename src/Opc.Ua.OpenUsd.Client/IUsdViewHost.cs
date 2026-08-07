@@ -80,12 +80,11 @@ namespace Opc.Ua.OpenUsd.Client
         /// </summary>
         /// <remarks>
         /// A host resolves the operator pick with whatever mechanism it supports. The
-        /// optional OpenUSD viewer host uses renderer-backed pointer picking when it can
-        /// reach the picking backend and otherwise watches <see cref="CommandPrimPath"/>
-        /// for a <c>targetPrim</c> relationship or attribute. <see cref="PickMode"/>
-        /// selects between those mechanisms. Hosts that can do neither simply never
-        /// invoke this callback. The callback runs from a background worker, not from
-        /// the UI thread.
+        /// optional OpenUSD viewer host uses the viewer's renderer-backed pick callback
+        /// when available and otherwise watches <see cref="CommandPrimPath"/> for a
+        /// <c>targetPrim</c> relationship or attribute. <see cref="PickMode"/> selects
+        /// between those mechanisms. Hosts that can do neither simply never invoke this
+        /// callback. The callback runs from a background worker, not from the UI thread.
         /// </remarks>
         public Func<string, CancellationToken, Task>? PrimPicked { get; set; }
 
@@ -105,9 +104,9 @@ namespace Opc.Ua.OpenUsd.Client
         /// callbacks.
         /// </summary>
         /// <remarks>
-        /// The default tries renderer-backed pointer picking first and falls back to
-        /// watching <see cref="CommandPrimPath"/> if the host cannot reach the renderer's
-        /// picking backend.
+        /// The default uses renderer-backed pointer picking first and falls back to
+        /// watching <see cref="CommandPrimPath"/> only if renderer picking is not
+        /// available or reports an unsupported pick.
         /// </remarks>
         public UsdViewPickMode PickMode { get; set; } = UsdViewPickMode.Auto;
     }

@@ -99,6 +99,11 @@ namespace Opc.Ua.Robotics.Server.Builders
         IIntentControllerBuilder WithMaxQueueDepth(uint maxQueueDepth);
 
         /// <summary>
+        /// Sets the executor used by the controller host.
+        /// </summary>
+        IIntentControllerBuilder WithExecutor(IIntentExecutor executor);
+
+        /// <summary>
         /// Adds a coordinate frame under Frames.
         /// </summary>
         IIntentFrameBuilder AddFrame(
@@ -171,7 +176,7 @@ namespace Opc.Ua.Robotics.Server.Builders
         /// </typeparam>
         IIntentControllerBuilder Accepts<TIntent>(
             bool cancelSupported = true,
-            bool pauseSupported = true,
+            bool pauseSupported = false,
             bool retrySupported = false,
             ArrayOf<BufferModeEnum> supportedBufferModes = default,
             ArrayOf<BlockingModeEnum> supportedBlockingModes = default)

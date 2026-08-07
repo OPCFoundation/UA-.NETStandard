@@ -407,13 +407,13 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
-        public void ComputeFacetsClaimsInterop40010WhenControllerHasInverseHasIntentControllerReference()
+        public void ComputeFacetsRejectsInterop40010WhenControllerOnlyHasInverseHasIntentControllerReference()
         {
             AddIntentControllerOfReference();
 
             string[] facets = [.. RobotIntentFacetCalculator.Compute(m_controller)];
 
-            Assert.That(facets, Does.Contain("RI-Interop-40010"));
+            Assert.That(facets, Does.Not.Contain("RI-Interop-40010"));
         }
 
         [Test]
@@ -530,7 +530,7 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
-        public async Task RegisteredControllerReadSupportedFacetsIncludesInteropWhenRawReferenceIsAttachedAfterRegistration()
+        public async Task RegisteredControllerReadSupportedFacetsRejectsInteropWhenRawReferenceIsAttachedAfterRegistration()
         {
             await using var fixture = new IntentFacetServerFixture();
             var runner = new DelegateSetupRunner(async (context, cancellationToken) =>
@@ -557,7 +557,7 @@ namespace Opc.Ua.Robotics.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(beforeReference, Does.Not.Contain("RI-Interop-40010"));
-                Assert.That(published, Does.Contain("RI-Interop-40010"));
+                Assert.That(published, Does.Not.Contain("RI-Interop-40010"));
                 Assert.That(published, Is.EqualTo(computed));
             });
         }
@@ -926,7 +926,9 @@ namespace Opc.Ua.Robotics.Tests
                 CancellationToken cancellationToken)
             {
                 var robotIntentManager = (RobotIntentNodeManager)manager;
-                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(cancellationToken);
+                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(
+                    new TestIntentExecutor(),
+                    cancellationToken);
                 Results = await m_configure(context, cancellationToken).ConfigureAwait(false);
             }
 

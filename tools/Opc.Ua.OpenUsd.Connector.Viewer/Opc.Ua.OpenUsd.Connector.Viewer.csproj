@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- The OpenUSD rendering stack ships net10.0 assemblies and a per-RID native
-         payload, so this optional assembly is deliberately narrower than the
-         connector that loads it. The connector keeps targeting net48 through
-         net10.0 and reports a clear diagnostic when the view option is
-         unavailable. -->
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- The OpenUSD rendering stack and Avalonia support .NET 8+, so this optional
+         assembly is deliberately narrower than the connector that loads it. The
+         connector keeps targeting net48 through net10.0 and reports a clear
+         diagnostic when the view option is unavailable. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
     <OutputType>Library</OutputType>
     <AssemblyName>Opc.Ua.OpenUsd.Connector.Viewer</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer</PackageId>
@@ -18,6 +18,8 @@
     <!-- Avalonia and the OpenUSD interop layer are not trim/AOT clean, and the
          connector reaches this assembly reflectively, so AOT is not offered here. -->
     <IsAotCompatible>false</IsAotCompatible>
+    <!-- The OpenUSD/Avalonia viewport has no net48 asset, so legacy CustomTestTarget
+         solution legs build this project as a no-op shell. -->
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
@@ -30,10 +32,7 @@
     <PackageReference Include="OpenUsd" />
     <PackageReference Include="OpenUsd.Viewer" />
     <PackageReference Include="Avalonia" />
-    <!-- Brings the native OpenUSD payload and, transitively, the Core runtime. The
-         rendering path is win-x64 only today; when other RIDs are staged this becomes a
-         RID-conditional reference. -->
-    <PackageReference Include="OpenUsd.Runtime.Imaging.win-x64" />
+    <PackageReference Include="OpenUsd.Runtime.Imaging" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

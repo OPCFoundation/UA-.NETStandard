@@ -80,8 +80,20 @@ namespace Microsoft.Extensions.DependencyInjection
                     services.GetService<IRobotIntentPostSetupRunner>());
             });
             builder.Services.AddSingleton(static services =>
+            {
+                RobotIntentServerOptions options = services
+                    .GetRequiredService<IOptions<RobotIntentServerOptions>>()
+                    .Value;
+                IRobotIntentModelProvider[] providers = [.. services.GetServices<IRobotIntentModelProvider>()];
+                return new RobotIntentHostedNodeManagerFactory(
+                    providers,
+                    options,
+                    services.GetService<IRobotIntentPostSetupRunner>(),
+                    services);
+            });
+            builder.Services.AddSingleton(static services =>
                 new OpcUaServerNodeManagerRegistration(
-                    services.GetRequiredService<RobotIntentNodeManagerFactory>()));
+                    services.GetRequiredService<RobotIntentHostedNodeManagerFactory>()));
             return builder;
         }
 
@@ -133,10 +145,10 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
-        /// Registers a Robot Intent configurator for a compatible node manager.
+        /// Registers a Robot Intent configurator for the standalone Robot Intent node manager.
         /// </summary>
         /// <typeparam name="TNodeManager">
-        /// The target node manager type.
+        /// The standalone Robot Intent node manager type.
         /// </typeparam>
         public static IOpcUaServerBuilder ConfigureRobotIntentFor<TNodeManager>(
             this IOpcUaServerBuilder builder,
@@ -151,7 +163,14 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(configure));
             }
+            if (typeof(TNodeManager) != typeof(RobotIntentNodeManager))
+            {
+                throw new NotSupportedException(
+                    "ConfigureRobotIntentFor<TNodeManager> is supported only for RobotIntentNodeManager. " +
+                    "Use ConfigureRobotIntent for the standalone manager.");
+            }
             builder.Services.TryAddSingleton<IRobotIntentPostSetupRunner, RobotIntentPostSetupRunner>();
+            builder.Services.TryAddSingleton<IIntentExecutor, RobotIntentRejectingExecutor>();
             builder.Services.AddSingleton<IRobotIntentPostSetupConfigurator>(
                 new DelegateRobotIntentConfigurator(typeof(TNodeManager), configure));
             return builder;

@@ -1078,14 +1078,32 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 controller.Transport.ControllerId,
                 "OperationalMode")
                 .ConfigureAwait(false);
-            DataValue value = await context.Session.ReadValueAsync(mode).ConfigureAwait(false);
+            NodeId safetyStates = await BrowseChildByNameAsync(
+                context.Session,
+                annexFixture.MotionDeviceSystemId,
+                "SafetyStates").ConfigureAwait(false);
+            NodeId safety = await BrowseChildByNameAsync(
+                context.Session,
+                safetyStates,
+                "Safety").ConfigureAwait(false);
+            NodeId parameterSet = await BrowseChildByNameAsync(context.Session, safety, "ParameterSet")
+                .ConfigureAwait(false);
+            NodeId roboticsMode = await BrowseChildByNameAsync(context.Session, parameterSet, "OperationalMode")
+                .ConfigureAwait(false);
+            DataValue intentValue = await context.Session.ReadValueAsync(mode).ConfigureAwait(false);
+            DataValue roboticsValue = await context.Session.ReadValueAsync(roboticsMode).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(forward.IsNull, Is.False);
                 Assert.That(inverse.IsNull, Is.False);
-                Assert.That(value.WrappedValue.TryGetValue(out int actual), Is.True);
-                Assert.That(actual, Is.EqualTo((int)OperationalModeEnum.AutomaticExternal));
+                Assert.That(safetyStates.IsNull, Is.False);
+                Assert.That(safety.IsNull, Is.False);
+                Assert.That(parameterSet.IsNull, Is.False);
+                Assert.That(roboticsMode.IsNull, Is.False);
+                Assert.That(intentValue.WrappedValue.TryGetValue(out int actual), Is.True);
+                Assert.That(roboticsValue.WrappedValue.TryGetValue(out int expected), Is.True);
+                Assert.That(actual, Is.EqualTo(expected));
             });
         }
 

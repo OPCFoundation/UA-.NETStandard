@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
@@ -805,6 +806,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             SnapshotChanged?.Invoke(this, CurrentSnapshot);
         }
 
+        [MemberNotNull(nameof(CurrentSnapshot))]
         private void PublishCurrentPoseLocked()
         {
             SimulatedArmForwardPose pose = m_kinematics.Forward(m_jointAngles);

@@ -3,7 +3,7 @@
 The Robotics libraries implement the OPC UA Robotics companion specification
 ([OPC 40010-1](https://reference.opcfoundation.org/Robotics/v102/docs/), version
 1.02). Robotics builds on Industrial Automation
-([OPC 40001-1](https://reference.opcfoundation.org/IA/v400/docs/)), which in turn
+([OPC 10000-200](https://reference.opcfoundation.org/IA/v400/docs/)), which in turn
 builds on Device Integration
 ([OPC 10000-100](https://reference.opcfoundation.org/DI/v104/docs/)); all three
 models are source-generated from their released NodeSets and loaded in
@@ -11,7 +11,7 @@ dependency order.
 
 > **Status: draft companion model.** The namespace `http://opcfoundation.org/UA/RobotIntent/` and every
 > NodeId in it are **provisional**. This implements the working-group draft
-> [*OPC UA — Robot Intent*](https://github.com/marcschier/opcua-drafts/blob/robot-intent-spec/metaverse-specs/robot-intent/OPC-UA-Robot-Intent.md);
+> [*OPC UA — Robot Intent*](https://github.com/marcschier/opcua-drafts/blob/main/metaverse-specs/robot-intent/OPC-UA-Robot-Intent.md);
 > nothing here is official or endorsed by the OPC Foundation. Do not deploy it on a production robot
 > and expect the identifiers to survive.
 

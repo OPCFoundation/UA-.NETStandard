@@ -47,7 +47,7 @@ namespace Opc.Ua.Robotics.Server.Builders
         /// required intent DataTypes in <c>SupportedIntents</c>; joint axes covering <c>0..AxisCount - 1</c>;
         /// trajectory, path, force, real-time, mission, mission-horizon, mission-branching and blending capability
         /// flags; folders or nodes named by a row, including tools, locations, outputs, programs, a bound
-        /// safety-state source, description, real-time channels and mission methods; tool TCP frames and
+        /// safety-state admission gate, description, real-time channels and mission methods; tool TCP frames and
         /// tool-frame roles; description kinematic-chain coverage and limits; queue depth; accepted buffer modes;
         /// pause/resume and retry methods; palletise location patterns; and the RI-Force dependency for surface
         /// finish.
@@ -57,8 +57,9 @@ namespace Opc.Ua.Robotics.Server.Builders
         /// process execution semantics; queue
         /// position maintenance; blending being honoured and <c>Result.AchievedPose</c> reporting the blend point;
         /// pause/retry state reachability; mission execution, base immutability and transition/error-policy
-        /// behaviour; and OPC 40010 agreement semantics. The structural OPC 40010 interop link is inferred from the
-        /// inverse <c>HasIntentController</c> reference on the controller.
+        /// behaviour; and OPC 40010 geometry semantics. The structural OPC 40010 interop link is checked from the
+        /// inverse <c>HasIntentController</c> reference on the controller, bound OPC 40010 operational-mode evidence,
+        /// and loaded task-control program evidence where available.
         /// </remarks>
         public static ArrayOf<string> Compute(IntentControllerState controller)
         {
@@ -108,7 +109,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             AddIf(facets, intents, robotIntentNamespaceIndex, "RI-Process-SurfaceFinish",
                 global::Opc.Ua.RobotIntent.DataTypes.SurfaceFinishIntentDataType,
                 HasFacet(facets, "RI-Force"));
-            if (IntentControllerFacetMetadata.HasSafetySourceBound(controller))
+            if (IntentControllerFacetMetadata.HasSafetyAdmissionGate(controller))
             {
                 facets.Add("RI-Safety");
             }
@@ -424,6 +425,12 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         private static bool HasInterop40010Link(IntentControllerState controller, ushort robotIntentNamespaceIndex)
         {
+            if (!IntentControllerFacetMetadata.TryGetInterop40010Binding(
+                controller,
+                out MotionDeviceSystemState motionDeviceSystem))
+            {
+                return false;
+            }
             var references = new List<IReference>();
             controller.GetReferences(null!, references);
             for (int ii = 0; ii < references.Count; ii++)
@@ -431,12 +438,107 @@ namespace Opc.Ua.Robotics.Server.Builders
                 IReference reference = references[ii];
                 if (reference.IsInverse &&
                     IsHasIntentControllerReference(reference.ReferenceTypeId, robotIntentNamespaceIndex) &&
-                    !reference.TargetId.IsNull)
+                    reference.TargetId == motionDeviceSystem.NodeId)
+                {
+                    return OperationalModesAgree(controller, motionDeviceSystem) &&
+                        LoadedTaskProgramIsPublished(controller, motionDeviceSystem);
+                }
+            }
+            return false;
+        }
+
+        private static bool OperationalModesAgree(
+            IntentControllerState controller,
+            MotionDeviceSystemState motionDeviceSystem)
+        {
+            BaseVariableState? operationalMode = FindOperationalMode(motionDeviceSystem);
+            if (operationalMode == null)
+            {
+                return false;
+            }
+            return controller.OperationalMode?.Value == ToIntentOperationalMode(operationalMode);
+        }
+
+        private static bool LoadedTaskProgramIsPublished(
+            IntentControllerState controller,
+            MotionDeviceSystemState motionDeviceSystem)
+        {
+            foreach (TaskControlState taskControl in GetDescendants<TaskControlState>(motionDeviceSystem))
+            {
+                BaseObjectState? parameterSet = FindChild<BaseObjectState>(taskControl, "ParameterSet");
+                if (parameterSet == null)
+                {
+                    continue;
+                }
+                BaseVariableState? loaded = FindChild<BaseVariableState>(
+                    parameterSet,
+                    BrowseNames.TaskProgramLoaded);
+                BaseVariableState? name = FindChild<BaseVariableState>(
+                    parameterSet,
+                    BrowseNames.TaskProgramName);
+                bool programLoaded = loaded?.Value.GetBoolean(false) == true;
+                string? programName = name?.Value.GetString(null!);
+                if (programLoaded &&
+                    !string.IsNullOrWhiteSpace(programName) &&
+                    !HasPublishedProgram(controller, programName))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static bool HasPublishedProgram(IntentControllerState controller, string programId)
+        {
+            foreach (ProgramState program in GetChildren<ProgramState>(controller.Programs))
+            {
+                if (string.Equals(program.ProgramId?.Value, programId, System.StringComparison.Ordinal))
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        private static BaseVariableState? FindOperationalMode(
+            MotionDeviceSystemState motionDeviceSystem)
+        {
+            foreach (SafetyStateState safetyState in GetDescendants<SafetyStateState>(motionDeviceSystem))
+            {
+                BaseObjectState? parameterSet = FindChild<BaseObjectState>(safetyState, "ParameterSet");
+                if (parameterSet != null)
+                {
+                    BaseVariableState? operationalMode = FindChild<BaseVariableState>(
+                        parameterSet,
+                        BrowseNames.OperationalMode);
+                    if (operationalMode != null)
+                    {
+                        return operationalMode;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static OperationalModeEnum ToIntentOperationalMode(BaseVariableState variable)
+        {
+            if (variable.Value.TryGetValue(out OperationalModeEnumeration mode))
+            {
+                return ToIntentOperationalMode((int)mode);
+            }
+            return ToIntentOperationalMode(variable.Value.GetInt32(0));
+        }
+
+        private static OperationalModeEnum ToIntentOperationalMode(int value)
+        {
+            return value switch
+            {
+                1 => OperationalModeEnum.ManualReducedSpeed,
+                2 => OperationalModeEnum.ManualHighSpeed,
+                3 => OperationalModeEnum.Automatic,
+                4 => OperationalModeEnum.AutomaticExternal,
+                _ => OperationalModeEnum.Other
+            };
         }
 
         private static bool IsHasIntentControllerReference(NodeId referenceTypeId, ushort robotIntentNamespaceIndex)
@@ -473,6 +575,45 @@ namespace Opc.Ua.Robotics.Server.Builders
             var children = new List<BaseInstanceState>();
             folder?.GetChildren(null!, children);
             return children.OfType<T>().ToList();
+        }
+
+        private static TChild? FindChild<TChild>(NodeState parent, string browseName)
+            where TChild : BaseInstanceState
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(null!, children);
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                if (children[ii] is TChild typed &&
+                    string.Equals(children[ii].BrowseName.Name, browseName, System.StringComparison.Ordinal))
+                {
+                    return typed;
+                }
+            }
+            return null;
+        }
+
+        private static List<T> GetDescendants<T>(NodeState root)
+            where T : BaseInstanceState
+        {
+            var matches = new List<T>();
+            AddDescendants(root, matches);
+            return matches;
+        }
+
+        private static void AddDescendants<T>(NodeState node, List<T> matches)
+            where T : BaseInstanceState
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(null!, children);
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                if (children[ii] is T typed)
+                {
+                    matches.Add(typed);
+                }
+                AddDescendants(children[ii], matches);
+            }
         }
     }
 }

@@ -333,7 +333,7 @@ namespace Opc.Ua.Robotics.Tests
                 "test-channel",
                 RealTimeTransportEnum.OpcUaFx,
                 "udp://239.0.0.40:4840");
-            builder.Accepts<LinearMoveIntentDataType>(retrySupported: true);
+            builder.Accepts<LinearMoveIntentDataType>(pauseSupported: true, retrySupported: true);
             InvokeBuilderMethod(builder, "EnsureOptionalMethods");
             InvokeBuilderMethod(builder, "EnsureMethodArguments");
             return builder.State;

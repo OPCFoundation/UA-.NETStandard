@@ -238,10 +238,11 @@ namespace Robotics.IntentEnabledRobot
         {
             for (int ii = 0; ii < m_axes.Count && ii < snapshot.JointAngles.Count; ii++)
             {
-                if (m_axes[ii].Position != null)
+                global::Opc.Ua.RobotIntent.AxisState axis = m_axes[ii];
+                if (axis.Position != null)
                 {
-                    m_axes[ii].Position.Value = snapshot.JointAngles[ii] * 180.0 / Math.PI;
-                    m_axes[ii].Position.ClearChangeMasks(SystemContext, true);
+                    axis.Position.Value = snapshot.JointAngles[ii] * 180.0 / Math.PI;
+                    axis.Position.ClearChangeMasks(SystemContext, true);
                 }
             }
             if (m_gripperOpenValue != null)

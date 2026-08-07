@@ -103,7 +103,7 @@ namespace Opc.Ua.Robotics.Tests
                 CancellationToken cancellationToken)
             {
                 IRobotIntentBuildContext context = ((RobotIntentNodeManager)manager)
-                    .CreateRobotIntentBuildContext(cancellationToken);
+                    .CreateRobotIntentBuildContext(new TestIntentExecutor(), cancellationToken);
                 IIntentControllerBuilder builder = await context.AddIntentControllerAsync(
                     "Controller",
                     controller => controller

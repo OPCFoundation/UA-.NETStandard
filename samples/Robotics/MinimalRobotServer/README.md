@@ -3,11 +3,10 @@
 A minimal, self-contained .NET console OPC UA server that demonstrates the **OPC 40010
 Robotics**, **OPC 10000-210 Relative Spatial Location**, and **OPC 10000-211
 Global Positioning** companion specifications bound to **OpenUSD** through the draft
-[*OPC UA — OpenUSD Bindings*](../../../opcua-drafts/core-specs/openusd-binding/OPC-UA-OpenUSD-Bindings.md)
-companion model, so a **generic** connector renders a robot cell live with **no
-robot-specific code**. It is built on the `Opc.Ua.Robotics` and `Opc.Ua.OpenUsd`
-SDK libraries. See [`docs/Robotics.md`](../../docs/Robotics.md) for the Robotics
-developer guide and [`docs/OpenUsd.md`](../../docs/OpenUsd.md) for the OpenUSD
+[OpenUSD binding companion model](../../../docs/OpenUsd.md), so a **generic** connector renders a robot
+cell live with **no robot-specific code**. It is built on the `Opc.Ua.Robotics` and `Opc.Ua.OpenUsd`
+SDK libraries. See [`docs/Robotics.md`](../../../docs/Robotics.md) for the Robotics
+developer guide and [`docs/OpenUsd.md`](../../../docs/OpenUsd.md) for the OpenUSD
 binding.
 
 It is the Robotics counterpart of `PumpDeviceIntegrationServer` and is validated
@@ -291,10 +290,10 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
 
 That fetches this server's served asset closure, composes `stage.usda`, opens a viewport, and streams
 the same subscribed values into both the override layer and the rendered stage, so the joints move on
-screen as the simulation runs. See [`docs/OpenUsd.md`](../../docs/OpenUsd.md#rendering-the-twin-live).
+screen as the simulation runs. See [`docs/OpenUsd.md`](../../../docs/OpenUsd.md#rendering-the-twin-live).
 
 The robot motion is configured through `RobotMobilityOptions`. RSL
 Position/Orientation values author `xformOp:translate` and
 `xformOp:rotateXYZ`; GPOS longitude, latitude, and elevation author the
 `inputs:longitude`, `inputs:latitude`, and `inputs:elevation` attributes. See
-[`docs/Positioning.md`](../../docs/Positioning.md).
+[`docs/Positioning.md`](../../../docs/Positioning.md).

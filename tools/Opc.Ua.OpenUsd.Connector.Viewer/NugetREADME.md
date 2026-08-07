@@ -20,10 +20,10 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
   the connector an `IUsdSink` that authors into the scheduler-owned stage the renderer already owns.
 - `CompositeUsdSink` fans every value into both that sink and the file sink, so the override layer on disk and the
   picture on screen never diverge.
-- `UsdViewOptions.PrimPicked` is supported by renderer-backed pointer picking when the live renderer exposes a public
-  or safely discoverable pick backend. `UsdViewOptions.PickMode` defaults to that path and automatically falls back to
-  the command prim; the fallback watches `/World/IntentCommand` by default and raises the callback when its
-  `targetPrim` relationship or attribute changes.
+- `UsdViewOptions.PrimPicked` is supported by the OpenUSD viewer's renderer-backed pick callback.
+  `UsdViewOptions.PickMode` defaults to that path and automatically falls back to the command prim when renderer
+  picking is unavailable or unsupported; the fallback watches `/World/IntentCommand` by default and raises the callback
+  when its `targetPrim` relationship or attribute changes.
 
 The connector loads this assembly by name from its own directory and never references it, which is what keeps the
 connector package free of a UI framework and a native payload. Publish both projects into the same directory so the
@@ -31,8 +31,9 @@ assembly, its dependencies, and the USD plugin tree end up where the connector l
 
 ## Requirements
 
-- .NET 10 on `win-x64`.
-- The OpenUSD packages `OpenUsd`, `OpenUsd.Viewer`, and `OpenUsd.Runtime.Imaging.win-x64`.
+- .NET 8 or later.
+- A supported OpenUSD native runtime RID: `win-x64`, `linux-x64`, or `osx-arm64`.
+- The OpenUSD packages `OpenUsd`, `OpenUsd.Viewer`, and `OpenUsd.Runtime.Imaging`.
 
 See [`docs/OpenUsd.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/OpenUsd.md) for the full
 binding guide and the local-feed bootstrap.

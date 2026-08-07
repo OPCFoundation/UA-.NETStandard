@@ -81,7 +81,7 @@ namespace Opc.Ua.Robotics.Server.Hosting
                 root,
                 options,
                 cancellationToken,
-                m_services);
+                RobotIntentBuildServiceProvider.RequireExecutor(m_services));
             for (int ii = 0; ii < m_configurators.Count; ii++)
             {
                 IRobotIntentPostSetupConfigurator configurator = m_configurators[ii];

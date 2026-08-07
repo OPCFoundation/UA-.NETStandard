@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Globalization;
 using Opc.Ua;
@@ -390,7 +391,7 @@ namespace Robotics.IntentEnabledRobot.Kinematics
         public bool TrySelectNearest(
             Pose3DDataType target,
             ReadOnlySpan<double> currentJointAngles,
-            out SimulatedArmIkSolution? solution,
+            [NotNullWhen(true)] out SimulatedArmIkSolution? solution,
             out SimulatedArmKinematicFailure failure)
         {
             SimulatedArmIkResult result = Inverse(target, currentJointAngles);

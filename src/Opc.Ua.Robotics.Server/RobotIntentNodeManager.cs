@@ -33,6 +33,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Robotics.Server.Builders;
 using Opc.Ua.Robotics.Server.Hosting;
 using Opc.Ua.RobotIntent;
 using Opc.Ua.RobotIntent.Server;
@@ -44,7 +45,11 @@ namespace Opc.Ua.Robotics.Server
     /// <summary>
     /// Standalone node manager for OPC UA Robot Intent.
     /// </summary>
-    public sealed class RobotIntentNodeManager : FluentNodeManagerBase, INodeIdFactory, IAsyncDisposable
+    public sealed class RobotIntentNodeManager :
+        FluentNodeManagerBase,
+        INodeIdFactory,
+        IAsyncDisposable,
+        IConformanceContributor
     {
         /// <summary>
         /// Creates a standalone Robot Intent node manager.
@@ -66,7 +71,8 @@ namespace Opc.Ua.Robotics.Server
             ApplicationConfiguration configuration,
             ArrayOf<IRobotIntentModelProvider> providers,
             RobotIntentServerOptions options,
-            IRobotIntentPostSetupRunner? runner = null)
+            IRobotIntentPostSetupRunner? runner = null,
+            IServiceProvider? services = null)
             : base(
                 server,
                 configuration,
@@ -77,6 +83,7 @@ namespace Opc.Ua.Robotics.Server
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_options.Validate();
             m_runner = runner;
+            m_services = services;
             SystemContext.NodeIdFactory = this;
             RegisterEncodeables(SystemContext);
         }
@@ -103,6 +110,12 @@ namespace Opc.Ua.Robotics.Server
             }
         }
 
+        /// <inheritdoc/>
+        public ArrayOf<QualifiedName> ConformanceUnits => [];
+
+        /// <inheritdoc/>
+        public ArrayOf<string> ServerProfiles => ComputeServerProfiles();
+
         internal bool BaseDisposeStarted => Volatile.Read(ref m_baseDisposeStarted) != 0;
 
         /// <inheritdoc/>
@@ -127,7 +140,31 @@ namespace Opc.Ua.Robotics.Server
         public IRobotIntentBuildContext CreateRobotIntentBuildContext(
             CancellationToken cancellationToken = default)
         {
-            return new RobotIntentBuildContext(this, Root, m_options, cancellationToken);
+            return new RobotIntentBuildContext(
+                this,
+                Root,
+                m_options,
+                cancellationToken,
+                RobotIntentBuildServiceProvider.RequireExecutor(m_services));
+        }
+
+        /// <summary>
+        /// Creates a direct build context for non-DI configuration with an explicit executor.
+        /// </summary>
+        public IRobotIntentBuildContext CreateRobotIntentBuildContext(
+            IIntentExecutor executor,
+            CancellationToken cancellationToken = default)
+        {
+            if (executor == null)
+            {
+                throw new ArgumentNullException(nameof(executor));
+            }
+            return new RobotIntentBuildContext(
+                this,
+                Root,
+                m_options,
+                cancellationToken,
+                RobotIntentBuildServiceProvider.ForExecutor(executor, m_services));
         }
 
         /// <summary>
@@ -207,6 +244,7 @@ namespace Opc.Ua.Robotics.Server
                 await m_runner.RunAsync(this, m_root, m_options, cancellationToken).ConfigureAwait(false);
             }
             StartIntentControllerHosts();
+            PublishServerProfiles();
             m_logger.NodeManagerReady();
         }
 
@@ -253,6 +291,7 @@ namespace Opc.Ua.Robotics.Server
             {
                 m_hosts.Add(host);
             }
+            PublishServerProfiles();
         }
 
         internal static ArrayOf<IRobotIntentModelProvider> NormalizeProviders(
@@ -440,9 +479,121 @@ namespace Opc.Ua.Robotics.Server
             }
         }
 
+        private ArrayOf<string> ComputeServerProfiles()
+        {
+            var profiles = new List<string>();
+            ArrayOf<IntentControllerHost> hosts = IntentControllerHosts;
+            for (int ii = 0; ii < hosts.Count; ii++)
+            {
+                ArrayOf<string> facets = RobotIntentFacetCalculator.Compute(hosts[ii].Controller);
+                AddProfileIfSatisfied(
+                    profiles,
+                    facets,
+                    RobotIntentConformanceUris.Profiles.Motion,
+                    RobotIntentConformanceUris.FacetNames.Base,
+                    RobotIntentConformanceUris.FacetNames.MotionJoint,
+                    RobotIntentConformanceUris.FacetNames.MotionLinear,
+                    RobotIntentConformanceUris.FacetNames.Description,
+                    RobotIntentConformanceUris.FacetNames.Safety);
+                AddProfileIfSatisfied(
+                    profiles,
+                    facets,
+                    RobotIntentConformanceUris.Profiles.Handling,
+                    RobotIntentConformanceUris.FacetNames.Base,
+                    RobotIntentConformanceUris.FacetNames.MotionJoint,
+                    RobotIntentConformanceUris.FacetNames.MotionLinear,
+                    RobotIntentConformanceUris.FacetNames.Description,
+                    RobotIntentConformanceUris.FacetNames.Safety,
+                    RobotIntentConformanceUris.FacetNames.MotionCircular,
+                    RobotIntentConformanceUris.FacetNames.Grasp,
+                    RobotIntentConformanceUris.FacetNames.PickPlace,
+                    RobotIntentConformanceUris.FacetNames.ToolChange,
+                    RobotIntentConformanceUris.FacetNames.Output,
+                    RobotIntentConformanceUris.FacetNames.Queue);
+                AddProfileIfSatisfied(
+                    profiles,
+                    facets,
+                    RobotIntentConformanceUris.Profiles.Path,
+                    RobotIntentConformanceUris.FacetNames.Base,
+                    RobotIntentConformanceUris.FacetNames.MotionJoint,
+                    RobotIntentConformanceUris.FacetNames.MotionLinear,
+                    RobotIntentConformanceUris.FacetNames.Description,
+                    RobotIntentConformanceUris.FacetNames.Safety,
+                    RobotIntentConformanceUris.FacetNames.Trajectory,
+                    RobotIntentConformanceUris.FacetNames.Path,
+                    RobotIntentConformanceUris.FacetNames.Blending);
+                AddProfileIfSatisfied(
+                    profiles,
+                    facets,
+                    RobotIntentConformanceUris.Profiles.Mission,
+                    RobotIntentConformanceUris.FacetNames.Base,
+                    RobotIntentConformanceUris.FacetNames.MotionJoint,
+                    RobotIntentConformanceUris.FacetNames.MotionLinear,
+                    RobotIntentConformanceUris.FacetNames.Description,
+                    RobotIntentConformanceUris.FacetNames.Safety,
+                    RobotIntentConformanceUris.FacetNames.Mission,
+                    RobotIntentConformanceUris.FacetNames.Program,
+                    RobotIntentConformanceUris.FacetNames.Wait,
+                    RobotIntentConformanceUris.FacetNames.Pause,
+                    RobotIntentConformanceUris.FacetNames.Retry);
+            }
+            return profiles.ToArrayOf();
+        }
+
+        private static void AddProfileIfSatisfied(
+            List<string> profiles,
+            ArrayOf<string> facets,
+            string profileUri,
+            params string[] requiredFacets)
+        {
+            if (profiles.Contains(profileUri))
+            {
+                return;
+            }
+            for (int ii = 0; ii < requiredFacets.Length; ii++)
+            {
+                if (!facets.Contains(requiredFacets[ii]))
+                {
+                    return;
+                }
+            }
+            profiles.Add(profileUri);
+        }
+
+        private void PublishServerProfiles()
+        {
+            ArrayOf<string> profiles = ServerProfiles;
+            if (profiles.Count == 0 || Server.ServerObject.ServerCapabilities?.ServerProfileArray == null)
+            {
+                return;
+            }
+            BaseVariableState profileArray = Server.ServerObject.ServerCapabilities.ServerProfileArray;
+            var merged = new List<string>();
+            if (profileArray.Value.TryGetValue(out ArrayOf<string> existing))
+            {
+                for (int ii = 0; ii < existing.Count; ii++)
+                {
+                    if (!string.IsNullOrEmpty(existing[ii]))
+                    {
+                        merged.Add(existing[ii]);
+                    }
+                }
+            }
+            for (int ii = 0; ii < profiles.Count; ii++)
+            {
+                if (!string.IsNullOrEmpty(profiles[ii]) && !merged.Contains(profiles[ii]))
+                {
+                    merged.Add(profiles[ii]);
+                }
+            }
+            profileArray.Value = Variant.From(merged.ToArrayOf());
+            profileArray.ClearChangeMasks(SystemContext, false);
+        }
+
         private readonly ArrayOf<IRobotIntentModelProvider> m_providers;
         private readonly RobotIntentServerOptions m_options;
         private readonly IRobotIntentPostSetupRunner? m_runner;
+        private readonly IServiceProvider? m_services;
         private readonly Lock m_hostsLock = new();
         private readonly List<IntentControllerHost> m_hosts = [];
         private readonly HashSet<IntentControllerHost> m_startedHosts = [];

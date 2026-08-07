@@ -533,7 +533,9 @@ namespace Opc.Ua.Robotics.Tests
                         controller.State.Capabilities.MissionHorizonSupported!.Value = true;
                         controller.State.Capabilities.BlendingSupported!.Value = true;
                         controller.State.Capabilities.MaxTrajectoryPoints!.Value = 128;
-                        controller.Accepts<JointMoveIntentDataType>(retrySupported: true);
+                        controller.Accepts<JointMoveIntentDataType>(
+                            pauseSupported: true,
+                            retrySupported: true);
                         controller.Accepts<TrajectoryIntentDataType>(pauseSupported: false);
                         controller.Accepts<ForceIntentDataType>();
                     },
@@ -785,7 +787,9 @@ namespace Opc.Ua.Robotics.Tests
                     return;
                 }
                 var robotIntentManager = (RobotIntentNodeManager)manager;
-                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(cancellationToken);
+                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(
+                    new CompletingExecutor(),
+                    cancellationToken);
                 Builder = await context.AddIntentControllerAsync(
                     "Controller",
                     controller => controller.Accepts<WaitIntentDataType>(),
@@ -805,7 +809,9 @@ namespace Opc.Ua.Robotics.Tests
                 CancellationToken cancellationToken)
             {
                 var robotIntentManager = (RobotIntentNodeManager)manager;
-                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(cancellationToken);
+                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(
+                    new CompletingExecutor(),
+                    cancellationToken);
                 await context.AddIntentControllerAsync(
                     "Duplicate",
                     controller => controller.Accepts<WaitIntentDataType>(),
@@ -833,7 +839,9 @@ namespace Opc.Ua.Robotics.Tests
                 CancellationToken cancellationToken)
             {
                 var robotIntentManager = (RobotIntentNodeManager)manager;
-                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(cancellationToken);
+                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(
+                    new CompletingExecutor(),
+                    cancellationToken);
                 Results = await m_configure(context, cancellationToken).ConfigureAwait(false);
             }
 

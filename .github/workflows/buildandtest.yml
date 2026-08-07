@@ -617,6 +617,191 @@ jobs:
         }
         Write-Host "UA.slnx built successfully for all target frameworks."
 
+  # Provisional: exercises the OpenUSD render path on Linux via SwiftShader/Vulkan,
+  # which no CI leg has ever covered. It is deliberately NOT part of the required
+  # status check below and is allowed to fail, because it asserts behaviour of the
+  # upstream OpenUsd packages rather than of this repository, and it has not yet
+  # completed a run on CI hardware. Promote it to the required check only after it
+  # has passed unaided; until then a failure here must not block a merge.
+  openusd-render-smoke:
+    name: openusd-render-smoke-linux
+    needs: discover
+    if: ${{ needs.discover.outputs.gh_owns_build == 'true' && needs.discover.outputs.relevant_changes == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Render OpenUSD stage with SwiftShader Vulkan
+      shell: pwsh
+      run: |
+        $sourceRoot = 'artifacts/openusd-render-smoke-src'
+        $publishRoot = 'artifacts/openusd-render-smoke'
+        New-Item -ItemType Directory -Path $sourceRoot -Force | Out-Null
+        @'
+        <Project Sdk="Microsoft.NET.Sdk">
+          <PropertyGroup>
+            <OutputType>Exe</OutputType>
+            <TargetFramework>net10.0</TargetFramework>
+            <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+            <Nullable>enable</Nullable>
+            <InvariantGlobalization>true</InvariantGlobalization>
+            <NoWarn>$(NoWarn);CA1014;CA1859</NoWarn>
+          </PropertyGroup>
+          <ItemGroup>
+            <PackageReference Include="OpenUsd.Rendering.Silk.Vulkan" />
+            <PackageReference Include="OpenUsd.Runtime.Imaging" />
+          </ItemGroup>
+          <ItemGroup>
+            <None Update="minimal.usda" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+          </ItemGroup>
+        </Project>
+        '@ | Set-Content -Path (Join-Path $sourceRoot 'OpenUsdRenderSmoke.csproj') -Encoding UTF8
+        @'
+        #usda 1.0
+        (
+            defaultPrim = "World"
+        )
+
+        def Xform "World"
+        {
+            def Cube "Cube"
+            {
+                double size = 2
+            }
+        }
+        '@ | Set-Content -Path (Join-Path $sourceRoot 'minimal.usda') -Encoding UTF8
+        @'
+        using System;
+        using System.IO;
+        using OpenUsd.Rendering;
+        using OpenUsd.Rendering.Silk;
+        using OpenUsd.Rendering.Silk.Vulkan;
+
+        internal static class Program
+        {
+            public static int Main()
+            {
+                try
+                {
+                    string pluginPath = Path.Combine(AppContext.BaseDirectory, "plugin", "usd");
+                    string stagePath = Path.Combine(AppContext.BaseDirectory, "minimal.usda");
+                    if (!File.Exists(Path.Combine(pluginPath, "plugInfo.json")) || !File.Exists(stagePath))
+                    {
+                        return 2;
+                    }
+
+                    using ISilkGraphicsDevice device = VulkanSilkGraphicsDevice.Create();
+                    using var sceneResources = new SilkSceneGpuResources(device);
+                    var scene = new SilkSceneState();
+                    using OpenUsdSilkSession session = OpenUsdSilkRuntime.Create(pluginPath, stagePath);
+                    using OpenUsdSilkPage first = session.Sync(1280, 720, camera: CameraState.Default);
+                    (int firstFrames, int firstUpserts, int firstRemovals) = CountCommands(first);
+                    SilkSceneDelta firstDelta = scene.Apply(first);
+                    sceneResources.Apply(scene, firstDelta);
+                    using OpenUsdSilkPage second = session.Sync(1280, 720, camera: CameraState.Default);
+                    (int steadyFrames, int steadyUpserts, int steadyRemovals) = CountCommands(second);
+                    SilkSceneDelta secondDelta = scene.Apply(second);
+                    sceneResources.Apply(scene, secondDelta);
+                    device.WaitIdle();
+                    bool incrementalUpload =
+                        device.Backend == SilkGraphicsBackend.Vulkan &&
+                        device.Capabilities.IsSoftware &&
+                        firstFrames == 1 &&
+                        firstUpserts > 0 &&
+                        firstRemovals == 0 &&
+                        sceneResources.Meshes.Count == firstUpserts &&
+                        steadyFrames == 1 &&
+                        steadyUpserts == 0 &&
+                        steadyRemovals == 0;
+                    Console.WriteLine("PACKAGE_IMAGING_EXECUTION_OK");
+                    Console.WriteLine($"GPU_BACKEND={(device.Capabilities.IsSoftware ? "VULKAN_SWIFTSHADER" : "VULKAN")}");
+                    Console.WriteLine($"SOFTWARE_DEVICE={device.Capabilities.IsSoftware.ToString().ToLowerInvariant()}");
+                    Console.WriteLine($"INCREMENTAL_GPU_UPLOAD={incrementalUpload.ToString().ToLowerInvariant()}");
+                    return incrementalUpload ? 0 : 3;
+                }
+                catch (Exception exception)
+                {
+                    Console.Error.WriteLine(exception);
+                    return 1;
+                }
+            }
+
+            private static (int Frames, int Upserts, int Removals) CountCommands(OpenUsdSilkPage page)
+            {
+                int frames = 0;
+                int upserts = 0;
+                int removals = 0;
+                using SilkCommandEnumerator commands = page.GetEnumerator();
+                while (commands.MoveNext())
+                {
+                    switch (commands.Current.Type)
+                    {
+                        case SilkCommandType.Frame:
+                            _ = commands.Current.AsFrame().GetViewElement(0);
+                            frames++;
+                            break;
+                        case SilkCommandType.MeshUpsert:
+                            SilkMeshUpsertCommand mesh = commands.Current.AsMeshUpsert();
+                            _ = mesh.Path;
+                            _ = mesh.GetPointComponent(0, 0);
+                            _ = mesh.GetIndex(0);
+                            upserts++;
+                            break;
+                        case SilkCommandType.MeshRemove:
+                            _ = commands.Current.AsMeshRemove().Path;
+                            removals++;
+                            break;
+                        default:
+                            return (-1, -1, -1);
+                    }
+                }
+                return (frames, upserts, removals);
+            }
+        }
+        '@ | Set-Content -Path (Join-Path $sourceRoot 'Program.cs') -Encoding UTF8
+
+        dotnet publish (Join-Path $sourceRoot 'OpenUsdRenderSmoke.csproj') -c Release -r linux-x64 -o $publishRoot --nologo
+        if ($LASTEXITCODE -ne 0) {
+          exit $LASTEXITCODE
+        }
+
+        Push-Location $publishRoot
+        try {
+          $publishFullPath = (Get-Location).Path
+          $env:VK_ICD_FILENAMES = Join-Path $publishFullPath 'vk_swiftshader_icd.json'
+          $env:VK_DRIVER_FILES = $env:VK_ICD_FILENAMES
+          $env:LD_LIBRARY_PATH = $publishFullPath
+          $env:LD_PRELOAD = Join-Path $publishFullPath 'libvulkan.so'
+          $output = & ./OpenUsdRenderSmoke 2>&1
+          $exitCode = $LASTEXITCODE
+        }
+        finally {
+          Pop-Location
+        }
+        $output | ForEach-Object { Write-Host $_ }
+        if ($exitCode -ne 0) {
+          exit $exitCode
+        }
+        foreach ($expected in @(
+          'PACKAGE_IMAGING_EXECUTION_OK',
+          'GPU_BACKEND=VULKAN_SWIFTSHADER',
+          'SOFTWARE_DEVICE=true',
+          'INCREMENTAL_GPU_UPLOAD=true')) {
+          if ($output -notcontains $expected) {
+            Write-Host "::error::Missing expected render-smoke output: $expected"
+            exit 1
+          }
+        }
+
   # Single stable status check for branch protection.  The individual jobs above
   # are matrix-generated (their names change with the OS/project fan-out) and
   # they are skipped entirely on master/main while CI_BUILD_BACKEND is 'ado', or

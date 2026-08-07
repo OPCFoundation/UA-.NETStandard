@@ -11,10 +11,11 @@
     <NoWarn>$(NoWarn);CA1014;CA1822</NoWarn>
     <PublishAot>true</PublishAot>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
-    <!-- Pinned to net10.0 for the OpenUSD payload, so it cannot take part in a
-         UA.slnx build pinned to a legacy TFM via CustomTestTarget: the libraries
-         would build as net472/net48 and their public System.Threading.Lock
-         polyfill would collide with this project's own net10.0 BCL. -->
+    <!-- Pinned to net10.0, so it cannot take part directly in solution builds
+         pinned to a different CustomTestTarget. In legacy pins the referenced
+         libraries build for net472/net48/netstandard2.1 while this project would
+         otherwise keep its net10.0 BCL surface, causing public polyfills such as
+         System.Threading.Lock or nullable attributes to collide. -->
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
   <ItemGroup>

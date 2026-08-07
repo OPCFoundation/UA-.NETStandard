@@ -89,6 +89,13 @@ namespace Opc.Ua.Robotics.Server.Builders
             return this;
         }
 
+        public IIntentControllerBuilder WithExecutor(IIntentExecutor executor)
+        {
+            EnsureMutable();
+            m_executor = executor ?? throw new ArgumentNullException(nameof(executor));
+            return this;
+        }
+
         public IIntentFrameBuilder AddFrame(
             string browseName,
             string frameId,
@@ -315,7 +322,7 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         public IIntentControllerBuilder Accepts<TIntent>(
             bool cancelSupported = true,
-            bool pauseSupported = true,
+            bool pauseSupported = false,
             bool retrySupported = false,
             ArrayOf<BufferModeEnum> supportedBufferModes = default,
             ArrayOf<BlockingModeEnum> supportedBlockingModes = default)
@@ -407,11 +414,12 @@ namespace Opc.Ua.Robotics.Server.Builders
             PublishSupportedFacets();
             m_context.Root.Controllers!.AddChild(State);
             await m_context.Manager.AddPredefinedNodeAsync(State, cancellationToken).ConfigureAwait(false);
+            m_host = CreateHost();
             if (m_safetySource != null)
             {
                 BindSafetySource(m_safetySource);
+                await ReadAndPushSafetyAsync(m_safetySource, cancellationToken).ConfigureAwait(false);
             }
-            m_host = CreateHost();
             if (m_context.Manager is RobotIntentNodeManager robotIntentNodeManager)
             {
                 robotIntentNodeManager.RegisterIntentControllerHost(m_host);
@@ -438,12 +446,18 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         private IntentControllerHost CreateHost()
         {
-            IIntentExecutor executor = new RobotIntentRejectingExecutor();
-            if (m_context is RobotIntentBuildContext buildContext &&
+            IIntentExecutor? executor = m_executor;
+            if (executor == null &&
+                m_context is RobotIntentBuildContext buildContext &&
                 buildContext.TryGetService(out IIntentExecutor? registeredExecutor) &&
                 registeredExecutor != null)
             {
                 executor = registeredExecutor;
+            }
+            if (executor == null)
+            {
+                throw new InvalidOperationException(
+                    global::Opc.Ua.Robotics.Server.RobotIntentBuildServiceProvider.MissingExecutorMessage);
             }
             return new IntentControllerHost(
                 State,
@@ -478,6 +492,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             m_hostOptions.ForceControlSupported = capabilities.ForceControlSupported!.Value;
             m_hostOptions.RealTimeChannelsSupported = capabilities.RealTimeChannelsSupported!.Value;
             m_hostOptions.MaxTrajectoryPoints = capabilities.MaxTrajectoryPoints!.Value;
+            m_hostOptions.AxisCount = (uint)m_axes.Count;
             m_hostOptions.Channels.Clear();
             foreach (IntentRealTimeChannelBuilder channel in m_realTimeChannels)
             {
@@ -856,6 +871,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             State.CreateOrReplaceReady(m_context.Context, null);
             State.CreateOrReplaceControlOwner(m_context.Context, null);
             State.CreateOrReplaceActiveIntent(m_context.Context, null);
+            State.CreateOrReplaceActiveMission(m_context.Context, null);
             State.CreateOrReplaceCapabilities(m_context.Context, null);
             State.CreateOrReplaceFrames(m_context.Context, null);
             State.CreateOrReplaceTools(m_context.Context, null);
@@ -874,11 +890,13 @@ namespace Opc.Ua.Robotics.Server.Builders
             SetValue(State.MaxQueueDepth!, m_hostOptions.MaxQueueDepth);
             SetValue(State.ControlOwner!, NodeId.Null);
             SetValue(State.ActiveIntent!, NodeId.Null);
+            SetValue(State.ActiveMission!, NodeId.Null);
             MarkReadOnly(State.OperationalMode!);
             MarkReadOnly(State.Ready!);
             MarkReadOnly(State.ControlOwner!);
             MarkReadOnly(State.MaxQueueDepth!);
             MarkReadOnly(State.ActiveIntent!);
+            MarkReadOnly(State.ActiveMission!);
             MarkCommandMethod(State.RequestControl!);
             MarkCommandMethod(State.ReleaseControl!);
             MarkCommandMethod(State.SubmitIntent!);
@@ -996,28 +1014,60 @@ namespace Opc.Ua.Robotics.Server.Builders
         private void BindSafetySource(IRobotIntentSafetySource source)
         {
             global::Opc.Ua.RobotIntent.SafetyStateState safety = State.SafetyState!;
-            IntentControllerFacetMetadata.MarkSafetySourceBound(State);
+            IntentControllerFacetMetadata.MarkSafetyAdmissionGated(State);
+            m_hostOptions.SafetyStatusReader = ct => ReadSafetyStatusAsync(source, ct);
             BindRead(
                 safety.ActiveFunction!,
-                async ct => ToDataValue((int)(await source.ReadAsync(ct).ConfigureAwait(false)).ActiveFunction));
+                async ct => ToDataValue((int)(await ReadAndPushSafetyAsync(source, ct).ConfigureAwait(false)).ActiveFunction));
             BindRead(
                 safety.EmergencyStopActive!,
-                async ct => new DataValue((await source.ReadAsync(ct).ConfigureAwait(false)).EmergencyStopActive));
+                async ct => new DataValue((await ReadAndPushSafetyAsync(source, ct).ConfigureAwait(false)).EmergencyStopActive));
             BindRead(
                 safety.ProtectiveStopActive!,
-                async ct => new DataValue((await source.ReadAsync(ct).ConfigureAwait(false)).ProtectiveStopActive));
+                async ct => new DataValue((await ReadAndPushSafetyAsync(source, ct).ConfigureAwait(false)).ProtectiveStopActive));
             BindRead(
                 safety.SafeSpeedLimitActive!,
-                async ct => new DataValue((await source.ReadAsync(ct).ConfigureAwait(false)).SafeSpeedLimitActive));
+                async ct => new DataValue((await ReadAndPushSafetyAsync(source, ct).ConfigureAwait(false)).SafeSpeedLimitActive));
             BindRead(
                 safety.SafeSpeedLimit!,
-                async ct => new DataValue((await source.ReadAsync(ct).ConfigureAwait(false)).SafeSpeedLimit));
+                async ct => new DataValue((await ReadAndPushSafetyAsync(source, ct).ConfigureAwait(false)).SafeSpeedLimit));
             BindRead(
                 safety.SafetyControllerOk!,
-                async ct => new DataValue((await source.ReadAsync(ct).ConfigureAwait(false)).SafetyControllerOk));
+                async ct => new DataValue((await ReadAndPushSafetyAsync(source, ct).ConfigureAwait(false)).SafetyControllerOk));
             BindRead(
                 safety.LastStopReason!,
-                async ct => new DataValue((await source.ReadAsync(ct).ConfigureAwait(false)).LastStopReason));
+                async ct => new DataValue((await ReadAndPushSafetyAsync(source, ct).ConfigureAwait(false)).LastStopReason));
+        }
+
+        private async ValueTask<RobotIntentSafetySnapshot> ReadAndPushSafetyAsync(
+            IRobotIntentSafetySource source,
+            CancellationToken cancellationToken)
+        {
+            RobotIntentSafetySnapshot snapshot = await source.ReadAsync(cancellationToken).ConfigureAwait(false);
+            m_host?.UpdateSafetyState(m_context.Context, ToSafetyStatus(snapshot));
+            return snapshot;
+        }
+
+        private static async ValueTask<SafetyStatus> ReadSafetyStatusAsync(
+            IRobotIntentSafetySource source,
+            CancellationToken cancellationToken)
+        {
+            RobotIntentSafetySnapshot snapshot = await source.ReadAsync(cancellationToken).ConfigureAwait(false);
+            return ToSafetyStatus(snapshot);
+        }
+
+        private static SafetyStatus ToSafetyStatus(RobotIntentSafetySnapshot snapshot)
+        {
+            return new SafetyStatus
+            {
+                ActiveFunction = snapshot.ActiveFunction,
+                EmergencyStopActive = snapshot.EmergencyStopActive,
+                ProtectiveStopActive = snapshot.ProtectiveStopActive,
+                SafeSpeedLimitActive = snapshot.SafeSpeedLimitActive,
+                SafeSpeedLimit = snapshot.SafeSpeedLimit,
+                SafetyControllerOk = snapshot.SafetyControllerOk,
+                LastStopReason = snapshot.LastStopReason.Text
+            };
         }
 
         private TState AddContained<TState>(
@@ -1185,6 +1235,7 @@ namespace Opc.Ua.Robotics.Server.Builders
         private readonly List<IntentRealTimeChannelBuilder> m_realTimeChannels = [];
         private readonly List<IntentCapabilityDataType> m_capabilities = [];
         private readonly IntentControllerHostOptions m_hostOptions = new();
+        private IIntentExecutor? m_executor;
         private IRobotIntentSafetySource? m_safetySource;
         private IntentDescriptionBuilder? m_description;
         private IntentControllerHost? m_host;
@@ -1193,22 +1244,55 @@ namespace Opc.Ua.Robotics.Server.Builders
 
     internal static class IntentControllerFacetMetadata
     {
-        public static void MarkSafetySourceBound(IntentControllerState controller)
+        public static void MarkSafetyAdmissionGated(IntentControllerState controller)
         {
-            s_safetySourceBound.GetValue(controller, static _ => new SafetySourceBinding());
+            s_safetyAdmissionGated.GetValue(controller, static _ => new SafetyAdmissionGateBinding());
         }
 
-        public static bool HasSafetySourceBound(IntentControllerState controller)
+        public static bool HasSafetyAdmissionGate(IntentControllerState controller)
         {
-            return s_safetySourceBound.TryGetValue(controller, out _);
+            return s_safetyAdmissionGated.TryGetValue(controller, out _);
         }
 
-        private sealed class SafetySourceBinding
+        public static void MarkInterop40010Binding(
+            IntentControllerState controller,
+            MotionDeviceSystemState motionDeviceSystem)
+        {
+            s_interop40010Bindings.Remove(controller);
+            s_interop40010Bindings.Add(controller, new Interop40010Binding(motionDeviceSystem));
+        }
+
+        public static bool TryGetInterop40010Binding(
+            IntentControllerState controller,
+            out MotionDeviceSystemState motionDeviceSystem)
+        {
+            if (s_interop40010Bindings.TryGetValue(controller, out Interop40010Binding? binding))
+            {
+                motionDeviceSystem = binding.MotionDeviceSystem;
+                return true;
+            }
+            motionDeviceSystem = null!;
+            return false;
+        }
+
+        private sealed class SafetyAdmissionGateBinding
         {
         }
 
-        private static readonly ConditionalWeakTable<IntentControllerState, SafetySourceBinding> s_safetySourceBound =
-            new();
+        private sealed class Interop40010Binding
+        {
+            public Interop40010Binding(MotionDeviceSystemState motionDeviceSystem)
+            {
+                MotionDeviceSystem = motionDeviceSystem;
+            }
+
+            public MotionDeviceSystemState MotionDeviceSystem { get; }
+        }
+
+        private static readonly ConditionalWeakTable<IntentControllerState, SafetyAdmissionGateBinding>
+            s_safetyAdmissionGated = new();
+        private static readonly ConditionalWeakTable<IntentControllerState, Interop40010Binding>
+            s_interop40010Bindings = new();
     }
 
     internal sealed class IntentFrameBuilder : IIntentFrameBuilder

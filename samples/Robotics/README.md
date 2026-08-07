@@ -103,8 +103,8 @@ fallback is the supported sample path today, and clicking a target genuinely com
 
 * .NET SDK 10.0.
 * The `--view` option needs the optional viewer assembly and its native OpenUSD payload, which is
-  **win-x64 only** today. Everything else, including both servers and the headless client, runs on every
-  platform the stack supports.
+  supported on `win-x64`, `linux-x64`, and `osx-arm64`. Everything else, including both servers and the
+  headless client, runs on every platform the stack supports.
 
 ## See also
 

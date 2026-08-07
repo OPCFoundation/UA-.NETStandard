@@ -29,6 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.RobotIntent.Server
 {
@@ -81,6 +84,11 @@ namespace Opc.Ua.RobotIntent.Server
         /// turning it off is for single-client test hosts only.
         /// </summary>
         public bool RequireControlAuthority { get; set; } = true;
+
+        /// <summary>
+        /// Reads the current safety status before admission decisions and live readiness reads.
+        /// </summary>
+        public Func<CancellationToken, ValueTask<SafetyStatus>>? SafetyStatusReader { get; set; }
 
         /// <summary>
         /// Whether SubmitMission is implemented.
@@ -243,7 +251,7 @@ namespace Opc.Ua.RobotIntent.Server
         public IntentControllerHostOptions Accept(
             ExpandedNodeId intentType,
             bool cancelSupported = true,
-            bool pauseSupported = true,
+            bool pauseSupported = false,
             bool retrySupported = false,
             string? description = null)
         {
@@ -282,7 +290,7 @@ namespace Opc.Ua.RobotIntent.Server
         /// <summary>
         /// Whether Pause and Resume are honoured for it.
         /// </summary>
-        public bool PauseSupported { get; init; } = true;
+        public bool PauseSupported { get; init; }
 
         /// <summary>
         /// Whether it can terminate Retriable.
@@ -314,6 +322,25 @@ namespace Opc.Ua.RobotIntent.Server
         /// </summary>
         public IntentCapabilityDataType Resolve(NamespaceTable namespaceUris)
         {
+            ArrayOf<BufferModeEnum> buffers = SupportedBufferModes.IsNull || SupportedBufferModes.IsEmpty
+                ? new[] { BufferModeEnum.Aborting, BufferModeEnum.Buffered }.ToArrayOf()
+                : SupportedBufferModes;
+            if (!buffers.Contains(BufferModeEnum.Aborting))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "Every Robot Intent capability must include BufferMode Aborting.");
+            }
+            ArrayOf<BlockingModeEnum> blocking =
+                SupportedBlockingModes.IsNull || SupportedBlockingModes.IsEmpty
+                    ? new[]
+                    {
+                        BlockingModeEnum.None,
+                        BlockingModeEnum.Soft,
+                        BlockingModeEnum.Single,
+                        BlockingModeEnum.Hard
+                    }.ToArrayOf()
+                    : SupportedBlockingModes;
             return new IntentCapabilityDataType
             {
                 IntentType = ExpandedNodeId.ToNodeId(IntentType, namespaceUris),
@@ -321,8 +348,8 @@ namespace Opc.Ua.RobotIntent.Server
                 CancelSupported = CancelSupported,
                 PauseSupported = PauseSupported,
                 RetrySupported = RetrySupported,
-                SupportedBufferModes = SupportedBufferModes,
-                SupportedBlockingModes = SupportedBlockingModes
+                SupportedBufferModes = buffers,
+                SupportedBlockingModes = blocking
             };
         }
     }
@@ -1020,6 +1047,12 @@ namespace Opc.Ua.RobotIntent.Server
                         "of this mission.");
                 }
                 string from = edge.FromStepId ?? string.Empty;
+                if (edge.DivergenceKind == DivergenceKindEnum.Parallel)
+                {
+                    return Check.Fail(
+                        "Parallel mission divergence requires concurrent branch execution, which this " +
+                        "serial host does not support.");
+                }
                 if (divergence.TryGetValue(from, out DivergenceKindEnum seen))
                 {
                     if (seen != edge.DivergenceKind)
