@@ -1485,11 +1485,8 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    lock (subscription.DiagnosticsLock)
-                    {
-                        SubscriptionDiagnosticsDataType diagnostics = subscription.Diagnostics;
-                        diagnostics.TransferRequestCount++;
-                    }
+                    subscription.UpdateDiagnostics(
+                        diagnostics => diagnostics.TransferRequestCount++);
 
                     ISession ownerSession = null!;
                     var concreteSubscription = subscription as Subscription;
@@ -1884,11 +1881,8 @@ namespace Opc.Ua.Server
                     result.AvailableSequenceNumbers = subscription
                         .AvailableSequenceNumbersForRetransmission();
 
-                    lock (subscription.DiagnosticsLock)
-                    {
-                        SubscriptionDiagnosticsDataType diagnostics = subscription.Diagnostics;
-                        diagnostics.TransferredToSameClientCount++;
-                    }
+                    subscription.UpdateDiagnostics(
+                        diagnostics => diagnostics.TransferredToSameClientCount++);
 
                     // save results.
                     results.Add(result);
