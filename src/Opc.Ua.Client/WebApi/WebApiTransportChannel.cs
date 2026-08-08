@@ -583,7 +583,8 @@ namespace Opc.Ua.Client.WebApi
         {
             try
             {
-                using CertificateCollection validationCollection = BuildValidationChain(certificate, chain);
+                using CertificateCollection validationCollection = CertificateValidationHelpers
+                    .BuildValidationCertificateCollection(certificate, chain);
                 ICertificateValidatorEx? validator = m_quotas?.CertificateValidator;
                 if (validator != null)
                 {
@@ -629,37 +630,6 @@ namespace Opc.Ua.Client.WebApi
             }
         }
 
-        private static CertificateCollection BuildValidationChain(
-            X509Certificate2? certificate,
-            X509Chain? chain)
-        {
-            var validationChain = new CertificateCollection();
-            try
-            {
-                if (chain?.ChainElements != null && chain.ChainElements.Count > 0)
-                {
-                    foreach (X509ChainElement element in chain.ChainElements)
-                    {
-                        using Certificate chainCertificate = Certificate.FromRawData(
-                            element.Certificate.RawData);
-                        validationChain.Add(chainCertificate);
-                    }
-                }
-                else if (certificate != null)
-                {
-                    using Certificate serverCertificate = Certificate.FromRawData(
-                        certificate.RawData);
-                    validationChain.Add(serverCertificate);
-                }
-
-                return validationChain;
-            }
-            catch
-            {
-                validationChain.Dispose();
-                throw;
-            }
-        }
 
         private static Uri NormalizeUrl(Uri url)
         {

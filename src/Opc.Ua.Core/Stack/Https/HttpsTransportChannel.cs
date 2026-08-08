@@ -646,7 +646,6 @@ namespace Opc.Ua.Bindings
                     {
                         try
                         {
-                            using var validationCollection = new CertificateCollection();
                             if (chain != null && chain.ChainElements != null)
                             {
                                 int i = 0;
@@ -661,9 +660,6 @@ namespace Opc.Ua.Bindings
                                         .HttpsChannelLog10(
                                             i,
                                             element.Certificate.Subject);
-                                    using Certificate chainCertificate = Certificate.FromRawData(
-                                        element.Certificate.RawData);
-                                    validationCollection.Add(chainCertificate);
                                     i++;
                                 }
                             }
@@ -673,10 +669,15 @@ namespace Opc.Ua.Bindings
                                     .HttpsChannelLog11(
                                         nameof(HttpsTransportChannel),
                                         cert.Subject);
-                                using Certificate serverCertificate = Certificate.FromRawData(
-                                    cert.RawData);
-                                validationCollection.Add(serverCertificate);
                             }
+
+                            // Preserve the master branch behavior for a non-null empty chain:
+                            // validate an empty collection rather than falling back to the leaf.
+                            using CertificateCollection validationCollection = CertificateValidationHelpers
+                                .BuildValidationCertificateCollection(
+                                    cert,
+                                    chain,
+                                    CertificateValidationHelpers.EmptyChainHandling.PreserveEmptyChain);
 
                             if (m_quotas.CertificateValidator != null)
                             {

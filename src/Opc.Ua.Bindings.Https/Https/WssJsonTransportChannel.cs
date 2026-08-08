@@ -359,7 +359,8 @@ namespace Opc.Ua.Bindings
             }
             try
             {
-                using CertificateCollection validation = BuildValidationChain(cert, chain);
+                using CertificateCollection validation = CertificateValidationHelpers
+                    .BuildValidationCertificateCollection(cert, chain);
 #pragma warning disable CA2025
                 CertificateValidationResult result = validator
                     .ValidateAsync(validation, ct: default)
@@ -375,37 +376,6 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private static CertificateCollection BuildValidationChain(
-            System.Security.Cryptography.X509Certificates.X509Certificate2 cert,
-            System.Security.Cryptography.X509Certificates.X509Chain? chain)
-        {
-            var validation = new CertificateCollection();
-            try
-            {
-                if (chain?.ChainElements != null && chain.ChainElements.Count > 0)
-                {
-                    foreach (System.Security.Cryptography.X509Certificates.X509ChainElement element
-                        in chain.ChainElements)
-                    {
-                        using Certificate certificate = Certificate.FromRawData(
-                            element.Certificate.RawData);
-                        validation.Add(certificate);
-                    }
-                }
-                else
-                {
-                    using Certificate certificate = Certificate.FromRawData(cert.RawData);
-                    validation.Add(certificate);
-                }
-
-                return validation;
-            }
-            catch
-            {
-                validation.Dispose();
-                throw;
-            }
-        }
 #endif
 
         private static ServiceResultException BadNotConnected()
