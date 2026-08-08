@@ -277,16 +277,18 @@ namespace Quickstarts
         /// </summary>
         private void LogSessionStatusLastContact(ISession session, string reason)
         {
-            lock (session.DiagnosticsLock)
+            if (!m_logger.IsEnabled(LogLevel.Information))
             {
-                if (m_logger.IsEnabled(LogLevel.Information))
-                {
-                    m_logger.SessionStatusLastContact(
-                        reason,
-                        session.SessionDiagnostics.SessionName,
-                        session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
-                }
+                return;
             }
+
+            // Snapshot the fields under the session's lock, then log outside it.
+            (string? name, DateTime lastContact) = session.ReadDiagnostics(
+                diagnostics => (
+                    diagnostics.SessionName,
+                    (DateTime)diagnostics.ClientLastContactTime));
+
+            m_logger.SessionStatusLastContact(reason, name, lastContact.ToLocalTime());
         }
 
         /// <summary>
@@ -294,18 +296,22 @@ namespace Quickstarts
         /// </summary>
         private void LogSessionStatusFull(ISession session, string reason)
         {
-            lock (session.DiagnosticsLock)
+            if (!m_logger.IsEnabled(LogLevel.Information))
             {
-                if (m_logger.IsEnabled(LogLevel.Information))
-                {
-                    m_logger.SessionStatusFull(
-                        reason,
-                        session.SessionDiagnostics.SessionName,
-                        session.SessionDiagnostics.ClientLastContactTime.ToLocalTime(),
-                        session.Identity?.DisplayName ?? "Anonymous",
-                        session.Id);
-                }
+                return;
             }
+
+            (string? name, DateTime lastContact) = session.ReadDiagnostics(
+                diagnostics => (
+                    diagnostics.SessionName,
+                    (DateTime)diagnostics.ClientLastContactTime));
+
+            m_logger.SessionStatusFull(
+                reason,
+                name,
+                lastContact.ToLocalTime(),
+                session.Identity?.DisplayName ?? "Anonymous",
+                session.Id);
         }
 
         /// <summary>

@@ -2396,10 +2396,7 @@ namespace Opc.Ua.Server
             {
                 NodeState source = kvp.Value;
                 var references = new List<IReference>();
-                lock (source)
-                {
-                    source.GetReferences(SystemContext, references);
-                }
+                source.GetReferences(SystemContext, references);
 
                 for (int ii = 0; ii < references.Count; ii++)
                 {
@@ -2548,10 +2545,7 @@ namespace Opc.Ua.Server
             foreach (NodeState node in PredefinedNodes.Values)
             {
                 var references = new List<IReference>();
-                lock (node)
-                {
-                    node.GetReferences(SystemContext, references);
-                }
+                node.GetReferences(SystemContext, references);
                 foreach (IReference reference in references)
                 {
                     if (reference.IsInverse &&
@@ -3080,6 +3074,10 @@ namespace Opc.Ua.Server
             if (continuationPoint.Data is not BrowserContext browserContext)
             {
                 INodeBrowser browser;
+                // NOTE: CreateBrowser is not internally synchronized - unlike
+                // GetReferences/GetChildren/ReferenceExists/SetAreEventsMonitored, which
+                // guard themselves - so this lock is retained until browser creation owns
+                // its own synchronization. Tracked as part of the node-lock cleanup.
                 lock (source)
                 {
                     // create a new browser.
@@ -3357,6 +3355,8 @@ namespace Opc.Ua.Server
 
             INodeBrowser browser;
             // get list of references that relative path.
+            // NOTE: CreateBrowser is not internally synchronized; see the sibling note in
+            // the Browse path. Retained until browser creation owns its own lock.
             lock (source)
             {
                 browser = source.CreateBrowser(
@@ -4008,15 +4008,12 @@ namespace Opc.Ua.Server
 
                         var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
-                        lock (node)
-                        {
-                            node.ReadAttribute(
-                                systemContext,
-                                Attributes.Value,
-                                monitoredItem.IndexRange,
-                                default,
-                                ref value);
-                        }
+                        node.ReadAttribute(
+                            systemContext,
+                            Attributes.Value,
+                            monitoredItem.IndexRange,
+                            default,
+                            ref value);
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
 
@@ -5541,10 +5538,7 @@ namespace Opc.Ua.Server
             }
 
             MethodState? method;
-            lock (source)
-            {
-                method = source.FindMethod(systemContext, methodToCall.MethodId);
-            }
+            method = source.FindMethod(systemContext, methodToCall.MethodId);
 
             if (method != null)
             {
@@ -5552,13 +5546,10 @@ namespace Opc.Ua.Server
             }
 
             bool referenceExists;
-            lock (source)
-            {
-                referenceExists = source.ReferenceExists(
-                    ReferenceTypeIds.HasComponent,
-                    false,
-                    methodToCall.MethodId);
-            }
+            referenceExists = source.ReferenceExists(
+                ReferenceTypeIds.HasComponent,
+                false,
+                methodToCall.MethodId);
 
             if (referenceExists)
             {
@@ -6039,10 +6030,7 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsGood(serviceResult) &&
                     wasSubscribed == unsubscribe)
                 {
-                    lock (source)
-                    {
-                        source.SetAreEventsMonitored(context, !unsubscribe, true);
-                    }
+                    source.SetAreEventsMonitored(context, !unsubscribe, true);
                 }
 
                 // signal update.

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -237,9 +238,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Thr synchronization lock used by the browser.
+        /// The synchronization lock used by the browser.
         /// </summary>
-        protected object DataLock { get; } = new object();
+        /// <remarks>
+        /// Exposed to derived browsers because a subclass that extends <see cref="Next"/>
+        /// must be able to make its own enumeration state atomic with the base browser's.
+        /// <see cref="System.Threading.Lock"/> is re-entrant, so a derived
+        /// <c>Next</c> that acquires this lock and then calls <c>base.Next()</c> is safe.
+        /// </remarks>
+        protected Lock DataLock { get; } = new();
 
         /// <summary>
         /// The table of types known to the UA server.

@@ -2312,7 +2312,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly SemaphoreSlim m_modifyAddressSpaceSemaphoreSlim = new(1, 1);
-        private readonly object m_diagnosticsLock = new();
+        private readonly Lock m_diagnosticsLock = new();
         private readonly TimeProvider m_timeProvider;
         private readonly ushort m_namespaceIndex;
         private uint m_lastUsedId;
