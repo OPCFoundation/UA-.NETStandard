@@ -645,7 +645,7 @@ jobs:
     - name: Install the OpenGL runtime the native payload links against
       run: |
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends libgl1 libglx0 libegl1 libglvnd0
+        sudo apt-get install -y --no-install-recommends libopengl0 libglx0 libgl1 libegl1 libglvnd0
 
     - name: Render OpenUSD stage with SwiftShader Vulkan
       shell: pwsh
