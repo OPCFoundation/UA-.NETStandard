@@ -733,10 +733,10 @@ namespace Opc.Ua.Server.Tests.Historian
                 var mockTelemetry = new Mock<ITelemetryContext>();
                 var mockSession = new Mock<ISession>();
 
-                var continuationStore = new Dictionary<Guid, object>();
+                var continuationStore = new Dictionary<Guid, IHistoryContinuationPoint>();
                 mockSession
-                    .Setup(s => s.SaveHistoryContinuationPoint(It.IsAny<Guid>(), It.IsAny<object>()))
-                    .Callback<Guid, object>((id, cp) => continuationStore[id] = cp);
+                    .Setup(s => s.SaveHistoryContinuationPoint(It.IsAny<IHistoryContinuationPoint>()))
+                    .Callback<IHistoryContinuationPoint>(cp => continuationStore[cp.Id] = cp);
                 mockSession
                     .Setup(s => s.RestoreHistoryContinuationPoint(It.IsAny<ByteString>()))
                     .Returns<ByteString>(bs =>
@@ -746,7 +746,7 @@ namespace Opc.Ua.Server.Tests.Historian
                             return null;
                         }
                         var id = new Guid(bs.ToArray());
-                        return continuationStore.TryGetValue(id, out object? s) ? s : null;
+                        return continuationStore.TryGetValue(id, out IHistoryContinuationPoint? s) ? s : null;
                     });
 
                 var mockServer = new Mock<IServerInternal>();

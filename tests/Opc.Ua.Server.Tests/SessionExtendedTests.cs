@@ -248,11 +248,11 @@ namespace Opc.Ua.Server.Tests
                 await CreateAndActivateAsync("SaveRestoreHistory").ConfigureAwait(false);
 
             var id = Guid.NewGuid();
-            object value = new();
-            session.SaveHistoryContinuationPoint(id, value);
+            var value = new TestHistoryContinuationPoint(id);
+            session.SaveHistoryContinuationPoint(value);
 
             byte[] idBytes = id.ToByteArray();
-            object restored = session.RestoreHistoryContinuationPoint(idBytes.ToByteString());
+            IHistoryContinuationPoint restored = session.RestoreHistoryContinuationPoint(idBytes.ToByteString());
 
             Assert.That(restored, Is.SameAs(value));
         }
@@ -264,7 +264,7 @@ namespace Opc.Ua.Server.Tests
                 await CreateAndActivateAsync("RestoreUnknownHistory").ConfigureAwait(false);
 
             byte[] unknownId = Guid.NewGuid().ToByteArray();
-            object result = session.RestoreHistoryContinuationPoint(unknownId.ToByteString());
+            IHistoryContinuationPoint result = session.RestoreHistoryContinuationPoint(unknownId.ToByteString());
 
             Assert.That(result, Is.Null);
         }
@@ -277,7 +277,7 @@ namespace Opc.Ua.Server.Tests
 
             // Must be 16 bytes (Guid size); shorter returns null
             byte[] shortBytes = [0xAB, 0xCD];
-            object result = session.RestoreHistoryContinuationPoint(shortBytes.ToByteString());
+            IHistoryContinuationPoint result = session.RestoreHistoryContinuationPoint(shortBytes.ToByteString());
 
             Assert.That(result, Is.Null);
         }
@@ -289,15 +289,15 @@ namespace Opc.Ua.Server.Tests
                 await CreateAndActivateAsync("RestoreRemovesHistory").ConfigureAwait(false);
 
             var id = Guid.NewGuid();
-            session.SaveHistoryContinuationPoint(id, new object());
+            session.SaveHistoryContinuationPoint(new TestHistoryContinuationPoint(id));
             byte[] idBytes = id.ToByteArray();
 
             // First restore retrieves
-            object first = session.RestoreHistoryContinuationPoint(idBytes.ToByteString());
+            IHistoryContinuationPoint first = session.RestoreHistoryContinuationPoint(idBytes.ToByteString());
             Assert.That(first, Is.Not.Null);
 
             // Second restore returns null
-            object second = session.RestoreHistoryContinuationPoint(idBytes.ToByteString());
+            IHistoryContinuationPoint second = session.RestoreHistoryContinuationPoint(idBytes.ToByteString());
             Assert.That(second, Is.Null);
         }
 
@@ -308,7 +308,7 @@ namespace Opc.Ua.Server.Tests
                 await CreateAndActivateAsync("SaveNullHistory").ConfigureAwait(false);
 
             Assert.That(
-                () => session.SaveHistoryContinuationPoint(Guid.NewGuid(), continuationPoint: null),
+                () => session.SaveHistoryContinuationPoint(continuationPoint: null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 

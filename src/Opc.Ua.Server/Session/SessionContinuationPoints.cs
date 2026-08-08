@@ -262,16 +262,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Saves a history continuation point, dropping the oldest when the limit is reached. A point that implements
-        /// <see cref="IDisposable"/> is disposed when it is dropped or the session is cleared.
+        /// Saves a history continuation point, dropping the oldest when the limit is reached. The
+        /// dropped point is disposed, as is every point still held when the session is cleared.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
-        public void SaveHistory(Guid id, object continuationPoint)
+        public void SaveHistory(IHistoryContinuationPoint continuationPoint)
         {
             if (continuationPoint == null)
             {
                 throw new ArgumentNullException(nameof(continuationPoint));
             }
+
+            Guid id = continuationPoint.Id;
 
             lock (m_lock)
             {
@@ -283,7 +285,7 @@ namespace Opc.Ua.Server
                     HistoryContinuationPoint oldCP = m_history[0];
                     m_history.RemoveAt(0);
                     m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.History, oldCP.Id);
-                    (oldCP.Value as IDisposable)?.Dispose();
+                    oldCP.Value.Dispose();
                 }
 
                 // create the cp.
@@ -303,7 +305,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restores (and removes) a previously saved history continuation point, or <c>null</c> when not found.
         /// </summary>
-        public object? RestoreHistory(ByteString continuationPoint)
+        public IHistoryContinuationPoint? RestoreHistory(ByteString continuationPoint)
         {
             lock (m_lock)
             {
@@ -410,7 +412,7 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < historyCPs.Count; ii++)
                 {
                     m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.History, historyCPs[ii].Id);
-                    (historyCPs[ii].Value as IDisposable)?.Dispose();
+                    historyCPs[ii].Value.Dispose();
                 }
             }
         }
@@ -456,7 +458,7 @@ namespace Opc.Ua.Server
         private sealed class HistoryContinuationPoint
         {
             public Guid Id;
-            public object? Value;
+            public IHistoryContinuationPoint Value = null!;
             public DateTime Timestamp;
         }
 

@@ -615,7 +615,7 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
+            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.
@@ -1154,7 +1154,7 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
+            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.
@@ -1562,7 +1562,7 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
+            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.
@@ -1594,7 +1594,7 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadContinuationPointInvalid;
             }
 
-            object? state = systemContext.OperationContext?.Session?.RestoreHistoryContinuationPoint(
+            IHistoryContinuationPoint? state = systemContext.OperationContext?.Session?.RestoreHistoryContinuationPoint(
                 nodeToRead.ContinuationPoint);
             if (state is HistorianContinuationState cont)
             {
@@ -1802,7 +1802,7 @@ namespace Opc.Ua.Server.Historian
             {
                 return null;
             }
-            object? raw = systemContext.OperationContext?.Session?.RestoreHistoryContinuationPoint(
+            IHistoryContinuationPoint? raw = systemContext.OperationContext?.Session?.RestoreHistoryContinuationPoint(
                 nodeToRead.ContinuationPoint);
             if (raw is not HistorianContinuationState state)
             {
@@ -1885,7 +1885,7 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
+            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.

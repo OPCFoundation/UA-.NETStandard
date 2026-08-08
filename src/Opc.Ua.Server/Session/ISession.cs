@@ -235,11 +235,11 @@ namespace Opc.Ua.Server
         ContinuationPoint? RestoreContinuationPoint(ByteString continuationPoint);
 
         /// <summary>
-        /// Restores a previously saves history continuation point.
+        /// Restores a previously saved history continuation point.
         /// </summary>
         /// <param name="continuationPoint">The identifier for the continuation point.</param>
-        /// <returns>The save continuation point. null if not found.</returns>
-        object? RestoreHistoryContinuationPoint(ByteString continuationPoint);
+        /// <returns>The saved continuation point, or <c>null</c> if not found.</returns>
+        IHistoryContinuationPoint? RestoreHistoryContinuationPoint(ByteString continuationPoint);
 
         /// <summary>
         /// Saves a continuation point for a session.
@@ -252,13 +252,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Saves a continuation point used for historical reads.
         /// </summary>
-        /// <param name="id">The identifier for the continuation point.</param>
-        /// <param name="continuationPoint">The continuation point.</param>
         /// <remarks>
-        /// If the continuationPoint implements IDisposable it will be disposed when
-        /// the Session is closed or discarded.
+        /// The point is identified by its own <see cref="IHistoryContinuationPoint.Id"/>.
+        /// If the session has too many history continuation points the oldest one is
+        /// dropped and disposed; the session disposes the rest when it is cleared.
         /// </remarks>
-        void SaveHistoryContinuationPoint(Guid id, object continuationPoint);
+        /// <param name="continuationPoint">The continuation point.</param>
+        void SaveHistoryContinuationPoint(IHistoryContinuationPoint continuationPoint);
 
         /// <summary>
         /// Set the ECC security policy URI

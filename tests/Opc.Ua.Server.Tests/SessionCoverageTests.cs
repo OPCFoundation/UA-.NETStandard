@@ -412,10 +412,10 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerSession session = CreateSession(CreateEndpoint());
             var id = Guid.NewGuid();
-            object payload = new();
+            var payload = new TestHistoryContinuationPoint(id);
 
-            session.SaveHistoryContinuationPoint(id, payload);
-            object? restored = session.RestoreHistoryContinuationPoint(new ByteString(id.ToByteArray()));
+            session.SaveHistoryContinuationPoint(payload);
+            IHistoryContinuationPoint? restored = session.RestoreHistoryContinuationPoint(new ByteString(id.ToByteArray()));
 
             Assert.That(restored, Is.SameAs(payload));
         }
@@ -426,7 +426,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
 
             Assert.That(
-                () => session.SaveHistoryContinuationPoint(Guid.NewGuid(), null!),
+                () => session.SaveHistoryContinuationPoint(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -434,7 +434,7 @@ namespace Opc.Ua.Server.Tests
         public void RestoreHistoryContinuationPointReturnsNullForBadLength()
         {
             using ServerSession session = CreateSession(CreateEndpoint());
-            session.SaveHistoryContinuationPoint(Guid.NewGuid(), new object());
+            session.SaveHistoryContinuationPoint(new TestHistoryContinuationPoint());
 
             Assert.That(session.RestoreHistoryContinuationPoint(new ByteString(new byte[] { 1, 2 })), Is.Null);
         }
@@ -537,10 +537,10 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
             var first = Guid.NewGuid();
 
-            session.SaveHistoryContinuationPoint(first, new object());
+            session.SaveHistoryContinuationPoint(new TestHistoryContinuationPoint(first));
             for (int i = 0; i < 11; i++)
             {
-                session.SaveHistoryContinuationPoint(Guid.NewGuid(), new object());
+                session.SaveHistoryContinuationPoint(new TestHistoryContinuationPoint());
             }
 
             Assert.That(

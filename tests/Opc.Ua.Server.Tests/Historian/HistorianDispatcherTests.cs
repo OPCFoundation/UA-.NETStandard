@@ -734,8 +734,8 @@ namespace Opc.Ua.Server.Tests.Historian
 
                 var mockSession = new Mock<ISession>();
                 mockSession
-                    .Setup(s => s.SaveHistoryContinuationPoint(It.IsAny<Guid>(), It.IsAny<object>()))
-                    .Callback<Guid, object>((id, cp) => m_continuationStore[id] = cp);
+                    .Setup(s => s.SaveHistoryContinuationPoint(It.IsAny<IHistoryContinuationPoint>()))
+                    .Callback<IHistoryContinuationPoint>(cp => m_continuationStore[cp.Id] = cp);
                 mockSession
                     .Setup(s => s.RestoreHistoryContinuationPoint(It.IsAny<ByteString>()))
                     .Returns<ByteString>(bs =>
@@ -745,7 +745,7 @@ namespace Opc.Ua.Server.Tests.Historian
                             return null;
                         }
                         var id = new Guid(bs.ToArray());
-                        if (m_continuationStore.TryGetValue(id, out object? state))
+                        if (m_continuationStore.TryGetValue(id, out IHistoryContinuationPoint? state))
                         {
                             m_continuationStore.Remove(id);
                             return state;
@@ -801,7 +801,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     HistoryUpdateType.Insert);
             }
 
-            private readonly Dictionary<Guid, object> m_continuationStore;
+            private readonly Dictionary<Guid, IHistoryContinuationPoint> m_continuationStore;
         }
     }
 }
