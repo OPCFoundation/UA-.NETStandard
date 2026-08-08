@@ -67,45 +67,6 @@ for the before/after and
 [Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
 for the runtime rules.
 
-## Migrating IServerStartupTask implementations to IServerContext
-
-`IServerStartupTask.OnServerStartedAsync` now receives an `IServerContext`
-instead of an `IServerInternal`. `IServerInternal` derives from
-`IServerContext`, so the host still passes the same object; only the
-declared parameter type changes and an implementation fails to compile
-(`CS0535`) until its signature is updated.
-
-`IServerContext` is the ambient view of a running server. It carries what
-is genuinely server-wide and nothing else — it deliberately does not hand
-out the server's subsystems. A startup task that needs a subsystem takes it
-as a constructor dependency, which every implementation in this repository
-already did for its other dependencies.
-
-Rewrite the member reads that no longer resolve:
-
-| Was | Now |
-| --- | --- |
-| `server.Telemetry` | `server.DefaultSystemContext.Telemetry` |
-| `server.NamespaceUris` | `server.DefaultSystemContext.NamespaceUris` |
-| `server.ServerUris` | `server.DefaultSystemContext.ServerUris` |
-| `server.TypeTree` | `server.DefaultSystemContext.TypeTable` |
-| `server.Factory` | `server.DefaultSystemContext.EncodeableFactory` |
-| `server.DiagnosticsNodeManager.FindPredefinedNode<T>(id)` | `server.FindPredefinedNode<T>(id)` |
-| `server.NodeManager.NodeManagers` + a type test | `server.FindNodeManagers<TCapability>()` |
-| `server.SessionManager`, `server.SubscriptionManager`, `server.RequestManager`, `server.AggregateManager`, `server.RoleManager`, `server.IdentityRegistry`, … | constructor injection |
-
-`server.MessageContext` is unchanged and remains on `IServerContext`. Do
-**not** substitute `server.DefaultSystemContext.AsMessageContext()` for it:
-that conversion produces a context with *default* decoding limits rather
-than the server's configured `MaxStringLength`, `MaxArrayLength` and
-`MaxByteStringLength`, which silently widens what your component accepts.
-
-Tests that hand a `Mock<IServerInternal>` to a startup task keep compiling,
-because the mock still satisfies `IServerContext`. Stub the members the task
-actually reads now — typically `DefaultSystemContext` and any
-`FindNodeManagers<T>()` — or the mock returns `null` and the task fails at
-run time rather than at build time.
-
 ## Removed members on IServerInternal
 
 The following members had no consumer anywhere in the stack, its samples or
@@ -121,9 +82,11 @@ its tests, and have been removed. Each has a direct replacement:
 
 `MessageContext`, `DefaultSystemContext`, `CurrentState`, `ServerObject`,
 `ReportEventAsync`, `CloseSessionAsync`, `DeleteSubscriptionAsync` and
-`UpdateServerDiagnostics` all moved *down* to `IServerContext`. They remain
-reachable through `IServerInternal` unchanged. `CurrentState` is read-only
-on the ambient interface; the server itself still sets it.
+`UpdateServerDiagnostics` all moved *down* to `IServerContext`, the ambient
+view of a running server that `IServerInternal` now derives from. They remain
+reachable through `IServerInternal` unchanged, so no call site has to move.
+`CurrentState` is read-only on the ambient interface; the server itself still
+sets it.
 
 ## Migrating servers that relied on unserved history advertisement
 
