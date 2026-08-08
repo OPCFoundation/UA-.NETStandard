@@ -1709,7 +1709,12 @@ namespace Opc.Ua.RobotIntent.Server
                         next = m_queue.First.Value;
                         m_queue.RemoveFirst();
                         var progress = new ProgressSink(this, context, next);
-                        next.Execution = new IntentExecution(next.IntentId, next.Intent, progress)
+                        next.Execution = new IntentExecution(
+                            next.IntentId,
+                            next.Intent,
+                            progress,
+                            m_controller.NodeId,
+                            m_controller.BrowseName.Name ?? string.Empty)
                         {
                             MissionId = next.MissionId
                         };
