@@ -29,13 +29,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.OpenUsd.Client;
 using Opc.Ua.OpenUsdScene.Conversion;
@@ -57,28 +57,119 @@ namespace Opc.Ua.OpenUsd.Connector
     /// </summary>
     public static class OpenUsdConnectorRunner
     {
+        internal sealed class ConnectorRunOptions
+        {
+            public string Server { get; private set; } = string.Empty;
+
+            public string OutPath { get; private set; } = string.Empty;
+
+            public int Seconds { get; private set; }
+
+            public bool View { get; private set; }
+
+            public string? Renderer { get; private set; }
+
+            public string? StagePath { get; private set; }
+
+            public string? PluginPath { get; private set; }
+
+            public string? CameraPath { get; private set; }
+
+            public bool PrintPickCommands { get; private set; }
+
+            public string? CommandPrimPath { get; private set; }
+
+            public UsdViewPickMode PickMode { get; private set; }
+
+            public string? FetchAssetsPath { get; private set; }
+
+            public bool Insecure { get; private set; }
+
+            public bool EnableCommands { get; private set; }
+
+            public string? CommandValue { get; private set; }
+
+            public static bool TryParse(
+                string[] args,
+                string currentDirectory,
+                out ConnectorRunOptions options)
+            {
+                options = new ConnectorRunOptions
+                {
+                    Server = GetOption(args, "--server") ??
+                        "opc.tcp://localhost:62542/PumpDeviceIntegrationServer",
+                    OutPath = GetOption(args, "--out") ?? Path.Combine(currentDirectory, "live.usda"),
+                    Seconds = int.TryParse(GetOption(args, "--seconds"), out int seconds) ? seconds : 0,
+                    View = HasFlag(args, "--view"),
+                    Renderer = GetOption(args, "--renderer"),
+                    StagePath = GetOption(args, "--stage"),
+                    PluginPath = GetOption(args, "--plugins"),
+                    CameraPath = GetOption(args, "--camera"),
+                    PrintPickCommands = HasFlag(args, "--pick-command"),
+                    CommandPrimPath = GetOptionalOption(args, "--pick-command"),
+                    FetchAssetsPath = GetOption(args, "--fetch-assets"),
+                    Insecure = HasFlag(args, "--insecure"),
+                    EnableCommands = HasFlag(args, "--enable-commands"),
+                    CommandValue = GetOption(args, "--command-value")
+                };
+                string? pickMode = GetOption(args, "--pick-mode");
+                if (!TryParsePickMode(pickMode, out UsdViewPickMode parsedPickMode))
+                {
+                    return false;
+                }
+                options.PickMode = parsedPickMode;
+                return true;
+            }
+
+            private static bool TryParsePickMode(string? pickMode, out UsdViewPickMode parsedPickMode)
+            {
+                parsedPickMode = UsdViewPickMode.Auto;
+                if (string.IsNullOrWhiteSpace(pickMode))
+                {
+                    return true;
+                }
+
+                string normalized = pickMode.Replace("-", string.Empty, StringComparison.Ordinal);
+                if (!Enum.TryParse(normalized, ignoreCase: true, out parsedPickMode))
+                {
+                    return false;
+                }
+#if NET5_0_OR_GREATER
+                return Enum.IsDefined(parsedPickMode);
+#else
+                // Enum.IsDefined<T>(T) is .NET 5+; .NET Framework only has the non-generic overload.
+                return Enum.IsDefined(typeof(UsdViewPickMode), parsedPickMode);
+#endif
+            }
+        }
+
+        // Excluded because this opens a live OPC UA Session against a running server and the parser decisions are tested.
+        [ExcludeFromCodeCoverage]
         public static async Task<int> RunAsync(string[] args)
         {
-            string server = GetOption(args, "--server")
-                ?? "opc.tcp://localhost:62542/PumpDeviceIntegrationServer";
-            string outPath = GetOption(args, "--out") ?? Path.Combine(Environment.CurrentDirectory, "live.usda");
-            int seconds = int.TryParse(GetOption(args, "--seconds"), out int s) ? s : 0;
+            if (!ConnectorRunOptions.TryParse(args, Environment.CurrentDirectory, out ConnectorRunOptions options))
+            {
+                Console.Error.WriteLine("ERROR: --pick-mode must be Auto, Renderer, or CommandPrim.");
+                return 1;
+            }
 
-            // Opens a viewport on the composed stage and streams the same values into it.
-            // The renderer lives in the optional Opc.Ua.OpenUsd.Connector.Viewer assembly,
-            // so the connector itself stays free of Avalonia and the native USD payload.
-            bool view = HasFlag(args, "--view");
-            string? renderer = GetOption(args, "--renderer");
-            string? stageOption = GetOption(args, "--stage");
-            string? pluginPath = GetOption(args, "--plugins");
-            string? cameraPath = GetOption(args, "--camera");
+            string server = options.Server;
+            string outPath = options.OutPath;
+            int seconds = options.Seconds;
+            bool view = options.View;
+            string? renderer = options.Renderer;
+            string? stageOption = options.StagePath;
+            string? pluginPath = options.PluginPath;
+            string? cameraPath = options.CameraPath;
+            bool printPickCommands = options.PrintPickCommands;
+            string? commandPrimPath = options.CommandPrimPath;
 
             // §5.15 asset content delivery (OU-AssetDelivery): when set, the connector
             // downloads the server's served USD layer closure into this cache directory
             // (verifying each digest) and writes a self-contained stage.usda there, so a
             // viewer renders the twin with no external asset resolver. live.usda is
             // written into the same directory.
-            string? cacheDir = GetOption(args, "--fetch-assets");
+            string? cacheDir = options.FetchAssetsPath;
             if (view && string.IsNullOrEmpty(cacheDir) && string.IsNullOrEmpty(stageOption))
             {
                 // Rendering needs a resolvable asset closure. Without an explicit stage the
@@ -95,14 +186,14 @@ namespace Opc.Ua.OpenUsd.Connector
             // with server-certificate trust is required). The --insecure flag opts into
             // an unsecured endpoint and blanket certificate acceptance, which is only
             // appropriate for a localhost demo with self-signed certificates.
-            bool insecure = HasFlag(args, "--insecure");
+            bool insecure = options.Insecure;
 
             // Command bindings (UsdToUaCommand) are opt-in and disabled by default
             // (fail-closed). --enable-commands lets the connector actuate the single
             // controllable command binding; --command-value <double> supplies the
             // setpoint to write once at start (demo).
-            bool enableCommands = HasFlag(args, "--enable-commands");
-            string? commandValueOpt = GetOption(args, "--command-value");
+            bool enableCommands = options.EnableCommands;
+            string? commandValueOpt = options.CommandValue;
 
             ITelemetryContext telemetry = DefaultTelemetry.Create(b => b.SetMinimumLevel(LogLevel.Warning));
 
@@ -151,7 +242,8 @@ namespace Opc.Ua.OpenUsd.Connector
             {
                 // Demo-only: accept any server certificate.
                 config.CertificateManager.AcceptError = static (cert, err) => true;
-                Console.WriteLine("WARNING: --insecure: using an unsecured endpoint and accepting any server certificate.");
+                Console.WriteLine(
+                    "WARNING: --insecure: using an unsecured endpoint and accepting any server certificate.");
             }
 
             Console.WriteLine($"Connecting to {server} ...");
@@ -251,7 +343,8 @@ namespace Opc.Ua.OpenUsd.Connector
                     else
                     {
                         Console.WriteLine(
-                            "Server does not advertise served assets (OU-AssetDelivery); using the external base asset.");
+                            "Server does not advertise served assets (OU-AssetDelivery); " +
+                            "using the external base asset.");
                     }
                 }
                 finally
@@ -263,7 +356,8 @@ namespace Opc.Ua.OpenUsd.Connector
             int exit = view
                 ? await RunViewportAsync(
                     viewHost!, stagePath, renderer, pluginPath, cameraPath, session, fileSink,
-                    enableCommands, commandValueOpt, seconds, outPath, connectorOptions, telemetry)
+                    enableCommands, commandValueOpt, printPickCommands, commandPrimPath, options.PickMode,
+                    seconds, outPath, connectorOptions, telemetry)
                     .ConfigureAwait(false)
                 : await RunHeadlessAsync(
                     session, fileSink, enableCommands, commandValueOpt, seconds, outPath,
@@ -275,9 +369,147 @@ namespace Opc.Ua.OpenUsd.Connector
             return exit;
         }
 
+        internal static Task PrintPickedPrimAsync(
+            string primPath,
+            CancellationToken cancellationToken)
+        {
+            return PrintPickedPrimAsync(primPath, Console.Out, cancellationToken);
+        }
+
+        internal static Task PrintPickedPrimAsync(
+            string primPath,
+            TextWriter output,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            output.WriteLine($"Picked prim: {primPath}");
+            return Task.CompletedTask;
+        }
+
+        internal static UsdViewOptions CreateViewOptions(
+            string stagePath,
+            string? renderer,
+            string? pluginPath,
+            string? cameraPath,
+            bool printPickCommands,
+            string? commandPrimPath,
+            UsdViewPickMode pickMode,
+            ITelemetryContext? telemetry = null,
+            TextWriter? pickOutput = null)
+        {
+            var options = new UsdViewOptions
+            {
+                StagePath = stagePath,
+                PluginPath = pluginPath,
+                Renderer = renderer,
+                CameraPath = cameraPath,
+                Title = $"OPC UA - OpenUSD Connector - {Path.GetFileName(stagePath)}",
+                Telemetry = telemetry,
+                PrimPicked = printPickCommands
+                    ? (primPath, cancellationToken) => PrintPickedPrimAsync(
+                        primPath, pickOutput ?? Console.Out, cancellationToken)
+                    : null,
+                PickMode = pickMode
+            };
+            if (!string.IsNullOrWhiteSpace(commandPrimPath))
+            {
+                options.CommandPrimPath = commandPrimPath!;
+            }
+            return options;
+        }
+
+        internal static async Task WaitForShutdownAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The window closed or the duration elapsed; both are ordinary shutdowns.
+            }
+        }
+
+        internal static bool TryParseCommandValue(
+            bool enableCommands,
+            string? commandValueOpt,
+            out double commandValue)
+        {
+            commandValue = 0;
+            return enableCommands &&
+                commandValueOpt != null &&
+                double.TryParse(
+                    commandValueOpt,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out commandValue);
+        }
+
+        // Writes a self-contained stage.usda that composes the connector's live override
+        // layer over the server-delivered root layer (both now local in the cache dir).
+        internal static void WriteStageUsda(string cacheDir, List<OpenUsdConnector.FetchedAsset> fetched)
+        {
+            OpenUsdConnector.FetchedAsset? root = fetched.Find(a => a.Kind == OpenUsdAssetKind.RootLayer);
+            string rootName = root != null ? Path.GetFileName(root.LocalPath) : "base.usda";
+            var sb = new StringBuilder();
+            sb.Append("#usda 1.0\n(\n");
+            sb.Append("    doc = \"Self-contained OpenUSD stage: server-delivered base layers " +
+                "+ the live OPC UA override.\"\n");
+            sb.Append("    subLayers = [\n        @./live.usda@,\n        @./").Append(rootName).Append("@\n    ]\n");
+            sb.Append(")\n");
+            File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), sb.ToString());
+
+            // The override layer is only written once the first values arrive, so seed an
+            // empty one now. Without it a viewer that opens the stage first reports the
+            // sublayer as missing before the connector has had anything to say.
+            string livePath = Path.Combine(cacheDir, "live.usda");
+            if (!File.Exists(livePath))
+            {
+                File.WriteAllText(
+                    livePath,
+                    "#usda 1.0\n(\n    doc = \"OPC UA -> OpenUSD live bindings (override layer)\"\n)\n");
+            }
+        }
+
+        /// <summary>
+        /// Returns the per-user directory the connector keeps its asset cache
+        /// and PKI stores in, creating it if needed.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately not under <see cref="Path.GetTempPath"/>: on POSIX that
+        /// is the shared, world-writable <c>/tmp</c>, so a fixed sub-path there
+        /// can be pre-created by another local user as a symlink. Everything the
+        /// connector writes into the asset cache is server-supplied content at
+        /// server-supplied relative paths, and the PKI root holds the client's
+        /// own private key plus its trusted-issuer store - redirecting either
+        /// would be serious. LocalApplicationData is per-user on every supported
+        /// platform.
+        /// </remarks>
+        /// <returns>The private state directory.</returns>
+        internal static string GetPrivateStateRoot()
+        {
+            return GetPrivateStateRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        }
+
+        internal static string GetPrivateStateRoot(string? baseDirectory)
+        {
+            if (string.IsNullOrEmpty(baseDirectory))
+            {
+                // A headless POSIX account may have neither XDG_DATA_HOME nor
+                // HOME; fall back to a directory beside the executable rather
+                // than to a shared temp path.
+                baseDirectory = AppContext.BaseDirectory;
+            }
+            string root = Path.Combine(baseDirectory, "Opc.Ua.OpenUsd.Connector");
+            Directory.CreateDirectory(root);
+            return root;
+        }
+
         /// <summary>
         /// Streams into the override layer only, until Ctrl+C or the requested duration.
         /// </summary>
+        // Excluded because this starts a live connector session and waits for console cancellation or elapsed duration.
+        [ExcludeFromCodeCoverage]
         private static async Task<int> RunHeadlessAsync(
             ISession session,
             IUsdSink sink,
@@ -300,7 +532,11 @@ namespace Opc.Ua.OpenUsd.Connector
                     .ConfigureAwait(false);
 
                 using var stop = new SemaphoreSlim(0, 1);
-                ConsoleCancelEventHandler handler = (_, e) => { e.Cancel = true; stop.Release(); };
+                ConsoleCancelEventHandler handler = (_, e) =>
+                {
+                    e.Cancel = true;
+                    stop.Release();
+                };
                 Console.CancelKeyPress += handler;
                 try
                 {
@@ -337,6 +573,8 @@ namespace Opc.Ua.OpenUsd.Connector
         /// process main thread keeps this method genuinely asynchronous, so no caller ever
         /// blocks waiting on the window.
         /// </remarks>
+        // Excluded because this runs the Avalonia event loop on an STA UI thread and requires the native OpenUSD payload.
+        [ExcludeFromCodeCoverage]
         private static Task<int> RunViewportAsync(
             IUsdViewHost host,
             string? stagePath,
@@ -347,6 +585,9 @@ namespace Opc.Ua.OpenUsd.Connector
             IUsdSink fileSink,
             bool enableCommands,
             string? commandValueOpt,
+            bool printPickCommands,
+            string? commandPrimPath,
+            UsdViewPickMode pickMode,
             int seconds,
             string outPath,
             OpenUsdConnectorOptions? connectorOptions,
@@ -360,14 +601,8 @@ namespace Opc.Ua.OpenUsd.Connector
                 return Task.FromResult(4);
             }
 
-            var options = new UsdViewOptions
-            {
-                StagePath = stagePath!,
-                PluginPath = pluginPath,
-                Renderer = renderer,
-                CameraPath = cameraPath,
-                Title = $"OPC UA - OpenUSD Connector - {Path.GetFileName(stagePath)}"
-            };
+            UsdViewOptions options = CreateViewOptions(
+                stagePath!, renderer, pluginPath, cameraPath, printPickCommands, commandPrimPath, pickMode, telemetry);
 
             var completion = new TaskCompletionSource<int>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -412,6 +647,8 @@ namespace Opc.Ua.OpenUsd.Connector
         /// <summary>
         /// Runs the connector against both sinks until the viewport shuts down.
         /// </summary>
+        // Excluded because this starts a live connector against two sinks and then waits for viewport shutdown.
+        [ExcludeFromCodeCoverage]
         private static async Task StreamAsync(
             ISession session,
             IUsdSink fileSink,
@@ -447,27 +684,15 @@ namespace Opc.Ua.OpenUsd.Connector
             }
         }
 
-        private static async Task WaitForShutdownAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // The window closed or the duration elapsed; both are ordinary shutdowns.
-            }
-        }
-
+        // Excluded because issuing the command requires a live connector binding; command-value parsing is tested.
+        [ExcludeFromCodeCoverage]
         private static async Task IssueCommandIfRequestedAsync(
             OpenUsdConnector connector,
             bool enableCommands,
             string? commandValueOpt,
             CancellationToken cancellationToken)
         {
-            if (!enableCommands || commandValueOpt == null
-                || !double.TryParse(commandValueOpt, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out double commandValue))
+            if (!TryParseCommandValue(enableCommands, commandValueOpt, out double commandValue))
             {
                 return;
             }
@@ -478,6 +703,8 @@ namespace Opc.Ua.OpenUsd.Connector
                 : "Command binding not found or write rejected.");
         }
 
+        // Excluded because this closes and disposes a live OPC UA Session plus its certificate manager.
+        [ExcludeFromCodeCoverage]
         private static async Task CloseAsync(ISession session, ApplicationConfiguration config)
         {
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
@@ -528,9 +755,6 @@ namespace Opc.Ua.OpenUsd.Connector
                 preferredLocales: default,
                 ct: ct).ConfigureAwait(false);
         }
-
-        // Writes a self-contained stage.usda that composes the connector's live override
-        // layer over the server-delivered root layer (both now local in the cache dir).
         /// <summary>
         /// The prim path of the camera a served stage wants a viewer to open on.
         /// </summary>
@@ -657,90 +881,24 @@ namespace Opc.Ua.OpenUsd.Connector
             return result;
         }
 
-                private static void WriteStageUsda(string cacheDir, List<OpenUsdConnector.FetchedAsset> fetched)
-                {
-                    // Every server contributes its own root layer, so a federated stage has
-                    // several. Taking only the first would render the primary server's shell
-                    // and silently drop every subordinate's machines. live.usda stays first,
-                    // because the OPC UA overrides must win over every base layer.
-                    var roots = new List<string>();
-                    foreach (OpenUsdConnector.FetchedAsset asset in fetched)
-                    {
-                        if (asset.Kind != OpenUsdAssetKind.RootLayer)
-                        {
-                            continue;
-                        }
-                        string name = Path.GetFileName(asset.LocalPath);
-                        if (!roots.Contains(name))
-                        {
-                            roots.Add(name);
-                        }
-                    }
-                    if (roots.Count == 0)
-                    {
-                        roots.Add("base.usda");
-                    }
-
-                    var sb = new StringBuilder();
-                    sb.Append("#usda 1.0\n(\n");
-                    sb.Append("    doc = \"Self-contained OpenUSD stage: server-delivered base layers + the live OPC UA override.\"\n");
-                    sb.Append("    subLayers = [\n        @./live.usda@");
-                    foreach (string root in roots)
-                    {
-                        sb.Append(",\n        @./").Append(root).Append('@');
-                    }
-                    sb.Append("\n    ]\n");
-                    sb.Append(")\n");
-                    File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), sb.ToString());
-
-            // The override layer is only written once the first values arrive, so seed an
-            // empty one now. Without it a viewer that opens the stage first reports the
-            // sublayer as missing before the connector has had anything to say.
-            string livePath = Path.Combine(cacheDir, "live.usda");
-            if (!File.Exists(livePath))
-            {
-                File.WriteAllText(
-                    livePath,
-                    "#usda 1.0\n(\n    doc = \"OPC UA -> OpenUSD live bindings (override layer)\"\n)\n");
-            }
-        }
-
-        /// <summary>
-        /// Returns the per-user directory the connector keeps its asset cache
-        /// and PKI stores in, creating it if needed.
-        /// </summary>
-        /// <remarks>
-        /// Deliberately not under <see cref="Path.GetTempPath"/>: on POSIX that
-        /// is the shared, world-writable <c>/tmp</c>, so a fixed sub-path there
-        /// can be pre-created by another local user as a symlink. Everything the
-        /// connector writes into the asset cache is server-supplied content at
-        /// server-supplied relative paths, and the PKI root holds the client's
-        /// own private key plus its trusted-issuer store - redirecting either
-        /// would be serious. LocalApplicationData is per-user on every supported
-        /// platform.
-        /// </remarks>
-        /// <returns>The private state directory.</returns>
-        private static string GetPrivateStateRoot()
-        {
-            string baseDirectory = Environment.GetFolderPath(
-                Environment.SpecialFolder.LocalApplicationData);
-            if (string.IsNullOrEmpty(baseDirectory))
-            {
-                // A headless POSIX account may have neither XDG_DATA_HOME nor
-                // HOME; fall back to a directory beside the executable rather
-                // than to a shared temp path.
-                baseDirectory = AppContext.BaseDirectory;
-            }
-            string root = Path.Combine(baseDirectory, "Opc.Ua.OpenUsd.Connector");
-            Directory.CreateDirectory(root);
-            return root;
-        }
-
         private static string? GetOption(string[] args, string name)
         {
             for (int i = 0; i < args.Length - 1; i++)
             {
                 if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return args[i + 1];
+                }
+            }
+            return null;
+        }
+
+        private static string? GetOptionalOption(string[] args, string name)
+        {
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase) &&
+                    !args[i + 1].StartsWith("--", StringComparison.Ordinal))
                 {
                     return args[i + 1];
                 }

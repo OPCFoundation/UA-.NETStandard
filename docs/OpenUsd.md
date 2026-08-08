@@ -158,11 +158,14 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
 
 ## Samples
 
-* [`MinimalRobotServer`](../samples/MinimalRobotServer) — a self-contained server exposing an OPC 40010
+* [`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) — a self-contained server exposing an OPC 40010
   MotionDeviceSystem with two independently mobile robots. OPC 10000-210 RSL
   frames drive live `double3` translation/rotation, and OPC 10000-211 GPOS
   locations drive geospatial metadata; a generic connector renders the cell
   live. See [Positioning](Positioning.md).
+* The Robotics samples also include a Robot Intent flow where an OpenUSD viewport prim pick becomes a robot command
+  through `UsdViewOptions.PrimPicked`. See [Robot Intent](Robotics.md#robot-intent) and the
+  [Robotics samples](../samples/Robotics/README.md).
 * [`PumpDeviceIntegrationServer`](../samples/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition and served-asset delivery.
 * [`GeneratorServer`](../samples/GeneratorServer) — the Generators companion
@@ -198,6 +201,7 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
 | `--renderer <Auto\|Storm\|D3D12\|Vulkan>` | Renderer preference for `--view`. |
 | `--stage <stage.usda>` | Render an existing local stage instead of a fetched one. |
 | `--plugins <dir>` | Directory holding the staged USD plugin tree, when it is not beside the connector. |
+| `--pick-command [<prim path>]` | With `--view`, print picked target prim paths. |
 
 ### Rendering the twin live
 
@@ -223,9 +227,20 @@ Internally the viewport supplies a sink that authors into the scheduler-owned st
 connector never opens the stage a second time. `CompositeUsdSink` fans values out to that sink and to `UsdFileSink`,
 so the on-disk artefact and the picture never diverge.
 
-> The viewport requires .NET 10 on `win-x64` and the OpenUSD packages
-> (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging.win-x64`), which are published on nuget.org, so a plain
-> restore is enough. Publish the connector and the viewport into the *same* directory:
+The connector client API also exposes `UsdViewOptions.PrimPicked`, a callback that receives picked USD prim paths.
+Renderer-backed pointer picking works: the OpenUSD viewer owns input handling, DPI scaling, physical-pixel conversion
+and stale-revision retry, and reports hits through the host callback. `Auto` uses the renderer first and falls back to
+the command-prim watcher only when renderer picking is unavailable, `Renderer` requires renderer-backed picks, and
+`CommandPrim` uses the fallback directly. Misses do not submit intents. For the fallback, set a `targetPrim`
+relationship, string attribute, or token attribute on `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`)
+and the callback fires when that target changes.
+The gaps this used to work around were tracked in `marcschier/openusd-dotnet` issues #1, #5, #8, #9, #10 and #11, all
+of which are fixed in `0.5.0-alpha`.
+
+> The viewport requires .NET 10 and the OpenUSD packages (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
+> which are published on nuget.org, so a plain restore is enough. The RID-agnostic runtime metapackages resolve the
+> correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. Publish the connector and
+> the viewport into the *same* directory, substituting your own RID:
 >
 > ```
 > dotnet publish tools/Opc.Ua.OpenUsd.Connector -c Release -f net10.0 -r win-x64 --self-contained false -o out
@@ -235,23 +250,19 @@ so the on-disk artefact and the picture never diverge.
 > Publishing both into the same directory is what puts the optional assembly, its dependencies, and the native
 > plugin tree where the connector looks for them.
 
-#### Known viewport limitations
+#### Viewport colour, materials and cameras
 
-Three behaviours of the OpenUSD viewer shape what a live twin can show. All are tracked upstream; none affect the
-override layer the connector writes, which always carries the full value.
+Current OpenUSD packages support the live viewport features the connector samples rely on:
 
-- **Colour cannot be animated** — [openusd-dotnet#2](https://github.com/marcschier/openusd-dotnet/issues/2).
-  `primvars:displayColor` resolves as `color3f[]` from the `UsdGeomGprim` schema whatever the layer declares, and
-  the managed API has no writer for that type. Colour-valued bindings publish correctly but do not move on screen.
-- **Bound materials are not shaded** — [openusd-dotnet#4](https://github.com/marcschier/openusd-dotnet/issues/4).
-  A `UsdPreviewSurface` network is not evaluated, so geometry renders untinted unless it *also* carries an explicit
-  `displayColor` primvar.
-- **Stage cameras are not opened automatically** — [openusd-dotnet#3](https://github.com/marcschier/openusd-dotnet/issues/3).
-  The opening shot is framed from stage bounds, so it shifts whenever the geometry changes.
+- `primvars:displayColor` is authored through the managed `color3f[]` API, so DisplayColor bindings animate in the
+  viewport instead of only appearing in the override layer.
+- Bound `UsdPreviewSurface` material networks are shaded, so material colour inputs can be used for scalar shader
+  colour targets without requiring a duplicate displayColor fallback.
+- Authored stage cameras are opened automatically, so samples can frame their intended operator view.
 
-Prefer **visibility** bindings for anything that must be legible on screen — they carry none of these caveats. The
-[Generators sample](../samples/GeneratorServer/README.md) uses them for its run lamp, alarm beacon and fault halos
-for exactly this reason.
+**Visibility** bindings remain a good fit for binary state such as run lamps, alarm beacons and fault halos. Use them
+when an on/off condition should be unmistakable; they are no longer needed as a workaround for colour or material
+limitations.
 
 
 ## Part 2 — scene materialization

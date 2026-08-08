@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading.Tasks;
 using Opc.Ua.OpenUsd.Connector;
 
 // Standalone OPC UA -> OpenUSD connector client.
@@ -36,7 +35,7 @@ using Opc.Ua.OpenUsd.Connector;
 //            [--seconds N] [--fetch-assets <dir>] [--insecure]
 //            [--enable-commands] [--command-value <double>] [--federate]
 //            [--view] [--renderer <Auto|Storm|D3D12|Vulkan>] [--stage <stage.usda>]
-//            [--plugins <plugin/usd dir>]
+//            [--plugins <plugin/usd dir>] [--pick-command [<prim path>]]
 //
 // --federate honours component bindings that name another server, opening a session
 // to each and composing it into the same stage. It is opt-in because the endpoint

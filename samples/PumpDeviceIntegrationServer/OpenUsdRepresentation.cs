@@ -444,7 +444,7 @@ namespace Pumps
             // bearing-temperature range, so the binding declares the Kelvin shift.
             CreateBinding(rep, ns, "BearingTempColor",
                 GuidFor("BearingTempColor"),
-                bearingTemp, primPath + "/Body/Mat/Surface", "inputs:diffuseColor", "color3f",
+                bearingTemp, primPath + "/Body", "primvars:displayColor", "color3f[]",
                 OpenUsdRenderTargetKindEnum.DisplayColor, 1.0,
                 offset: -KelvinOffset);
 

@@ -230,7 +230,7 @@ diagnostics.
 
 ## Robot and OpenUSD sample
 
-[`MinimalRobotServer`](../samples/MinimalRobotServer) composes RSL and GPOS into
+[`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) composes RSL and GPOS into
 its Robotics node manager. Both robots publish `GlobalLocation` values and
 derived local RSL frames. Each robot independently selects `Fixed`,
 `FigureEight`, `Circle`, or `Shuttle` motion. RSL position/orientation drive

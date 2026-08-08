@@ -66,6 +66,7 @@ Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
+- **Integration tests.** Client/server and pub/sub features need integration tests as well as unit tests. A feature library's integration tests normally live with its unit tests in `<Component>.Tests`, for example `Opc.Ua.Robotics.Tests`, and every test project name ends in `.Tests`. Split integration tests into a separate project only when they run long, destabilise the unit tests, or the suite needs further division. Keep them deterministic: allocate a free port per fixture rather than hard-coding one, wait on the actual signal instead of using `Thread.Sleep` as a synchronisation primitive, and dispose every session, subscription and server in teardown including on failure. A flaky integration test is worse than none.
 - **Before a pull request** the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**.
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
 - **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8, .NET Framework 4.7.2, netstandard) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
@@ -345,6 +346,13 @@ The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/chec
 | **Baseline delta** | Reports how total coverage compares with the recorded `baselineLineRate`. Warning only, even within this advisory check. |
 
 Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red check green.
+
+Two things about the `ignore` globs regularly catch people out. `samples/**` is ignored, so a sample can carry
+tests for its own sake — a wrong kinematics solver would make a sample lie — without those lines counting
+toward the patch gate. `tools/**` is **not** ignored, so anything you change under `tools/` is measured like
+product code, and an assembly no test project references contributes changed lines that are counted as
+**uncovered** because no report mentions them. If you add code there, make sure a test project loads the
+assembly, or the patch gate will read far lower than the per-file numbers suggest.
 
 ##### Patch coverage is graduated by patch size
 

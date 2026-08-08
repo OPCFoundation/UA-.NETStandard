@@ -248,15 +248,12 @@ same reason: as a decal on the floor it was hidden by the skid and by the
 neighbouring machines from any operator-height camera, so it is now a beacon ring
 *above* the set, at the one height nothing else occupies.
 
-> **Colour changes may not be visible in every viewer.** Several bindings publish
-> colour (radiator, exhaust, manifold glow, alternator heat band). Whether those
-> land depends on the renderer: `primvars:displayColor` resolves as `color3f[]`
-> from the `UsdGeomGprim` schema whatever the layer declares, and a client that
-> cannot write that exact type cannot animate it — which is the case for the
-> viewer this sample ships against, tracked upstream as
-> [openusd-dotnet#2](https://github.com/marcschier/openusd-dotnet/issues/2). The
-> **visibility** bindings — run lamp, alarm beacon, fault halos — carry no such
-> caveat and are the reliable way to see state change in a viewport.
+> **Colour and visibility changes are both live viewport signals.** Thermal
+> bindings publish `primvars:displayColor` (`color3f[]`) for the radiator,
+> exhaust, manifold glow and alternator heat band, and current OpenUSD packages
+> animate those authored colours in the shipped viewer. The **visibility**
+> bindings — run lamp, alarm beacon, fault halos — remain useful for binary
+> state that must be unmistakable at a glance.
 
 The operating-state readout is what makes an idle machine legible: without it the
 3D view shows *that* a set is not turning but not *why* — `Cooldown` and

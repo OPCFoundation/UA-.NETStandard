@@ -48,7 +48,7 @@
                       Condition="'$(TargetFramework)' != 'net472'" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />
-    <ProjectReference Include="..\..\samples\MinimalRobotServer\MinimalRobotServer.csproj"
+    <ProjectReference Include="..\..\samples\Robotics\MinimalRobotServer\MinimalRobotServer.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />
     <ProjectReference Include="..\..\samples\SiteCompositionServer\SiteCompositionServer.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />

@@ -192,7 +192,8 @@ server- and client-side implementations:
   providers, and validated fluent topology builders that assemble motion
   device systems, controllers, motion devices, axes, power trains, motors,
   gears, drives, safety states, and task controls with the correct
-  companion-spec references. See [Robotics](Robotics.md).
+  companion-spec references. See [Robotics](Robotics.md), including the draft
+  Robot Intent task-level command model.
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a
