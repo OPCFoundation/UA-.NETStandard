@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// them for cross-replica takeover. Keeping this here lets <see cref="Session"/> delegate through a small surface
     /// (save/restore/load/clear) instead of managing the store, lists, and dictionaries inline.
     /// </summary>
-    internal sealed class SessionContinuationPoints
+    internal sealed class SessionContinuationPoints : ISessionContinuationPoints
     {
         /// <summary>
         /// Creates the continuation-point holder for a session.
@@ -139,6 +139,13 @@ namespace Opc.Ua.Server
 
                 return null;
             }
+        }
+
+        /// <inheritdoc/>
+        public void RemoveForManager(IAsyncNodeManager nodeManager)
+        {
+            RemoveBrowseForManager(nodeManager);
+            RemoveHistoryForManager(nodeManager);
         }
 
         public void RemoveBrowseForManager(IAsyncNodeManager nodeManager)

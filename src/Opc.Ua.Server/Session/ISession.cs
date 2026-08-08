@@ -52,12 +52,10 @@ namespace Opc.Ua.Server
         bool IsClosing { get; }
 
         /// <summary>
-        /// Removes and disposes the saved continuation points that retain the NodeManager, so it
-        /// can be torn down without a Client being able to resume a Browse or a history read into
-        /// it.
+        /// The continuation points this session is holding for its client, for browses and
+        /// for historical reads.
         /// </summary>
-        /// <param name="nodeManager">The NodeManager being retired.</param>
-        void InvalidateContinuationPoints(IAsyncNodeManager nodeManager);
+        ISessionContinuationPoints ContinuationPoints { get; }
 
         /// <summary>
         /// The server application instance certificate used by this session.
@@ -225,40 +223,6 @@ namespace Opc.Ua.Server
         /// Checks if the secure channel is currently valid.
         /// </summary>
         bool IsSecureChannelValid(string secureChannelId);
-
-        /// <summary>
-        /// Restores a continuation point for a session.
-        /// </summary>
-        /// <remarks>
-        /// The caller is responsible for disposing the continuation point returned.
-        /// </remarks>
-        ContinuationPoint? RestoreContinuationPoint(ByteString continuationPoint);
-
-        /// <summary>
-        /// Restores a previously saved history continuation point.
-        /// </summary>
-        /// <param name="continuationPoint">The identifier for the continuation point.</param>
-        /// <returns>The saved continuation point, or <c>null</c> if not found.</returns>
-        IHistoryContinuationPoint? RestoreHistoryContinuationPoint(ByteString continuationPoint);
-
-        /// <summary>
-        /// Saves a continuation point for a session.
-        /// </summary>
-        /// <remarks>
-        /// If the session has too many continuation points the oldest one is dropped.
-        /// </remarks>
-        void SaveContinuationPoint(ContinuationPoint continuationPoint);
-
-        /// <summary>
-        /// Saves a continuation point used for historical reads.
-        /// </summary>
-        /// <remarks>
-        /// The point is identified by its own <see cref="IHistoryContinuationPoint.Id"/>.
-        /// If the session has too many history continuation points the oldest one is
-        /// dropped and disposed; the session disposes the rest when it is cleared.
-        /// </remarks>
-        /// <param name="continuationPoint">The continuation point.</param>
-        void SaveHistoryContinuationPoint(IHistoryContinuationPoint continuationPoint);
 
         /// <summary>
         /// Set the ECC security policy URI
