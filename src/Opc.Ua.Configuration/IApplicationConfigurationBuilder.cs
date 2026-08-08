@@ -225,10 +225,6 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerOptions SetMaxNotificationsPerPublish(
             int maxNotificationsPerPublish);
 
-        /// <inheritdoc cref="ServerConfiguration.MinMetadataSamplingInterval"/>
-        IApplicationConfigurationBuilderServerOptions SetMinMetadataSamplingInterval(
-            int minMetadataSamplingInterval);
-
         /// <inheritdoc cref="ServerConfiguration.AvailableSamplingRates"/>
         IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(
             ArrayOf<SamplingRateGroup> availableSampleRates);

@@ -1376,23 +1376,6 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task ServerOptionsSetMinMetadataSamplingIntervalAsync()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            await using (appInstance.ConfigureAwait(false))
-            {
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl])
-                    .SetMinMetadataSamplingInterval(100);
-
-                Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MinMetadataSamplingInterval,
-                    Is.EqualTo(100));
-            }
-        }
-
-        [Test]
         public async Task ServerOptionsSetAvailableSamplingRatesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2151,7 +2134,6 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxNotificationQueueSize(1000)
                     .SetMaxNotificationsPerPublish(5000)
                     .SetMaxEventQueueSize(10000)
-                    .SetMinMetadataSamplingInterval(100)
                     .SetMaxRegistrationInterval(30000)
                     .SetNodeManagerSaveFile("nodes.xml")
                     .SetMaxPublishRequestCount(20)
