@@ -97,7 +97,21 @@ answer to be stated next to the algorithms it follows from.
 
 ## 6. Unrelated, but found on the way
 
+Three pre-existing defects surfaced while validating this work. None belongs in this change, and all
+three are reproducible on `master` with no part of this feature present.
+
 `STACKGEN001 'Stack generation not supported for <assembly>'` breaks BenchmarkDotNet host generation for
 any project with `Opc.Ua.Gds.Common` in its closure — the Stack source generator errors for assemblies
 outside its three-name allow-list. It is pre-existing and repo-wide, and was routed around here by
 running the benchmark in process. It deserves its own issue.
+
+`MonitoredNode.OnReportEvent` blocks on `report.AsTask().GetAwaiter().GetResult()`. Under thread-pool
+starvation that stall is what makes `Remove_EventMonitoredItem_DropsCacheEntries` time out on a loaded
+runner; the timeout is the symptom and the blocking wait is the cause. Confirmed a flake by re-running
+with no code change.
+
+`ServerFluentApiHostingTests.ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync` fails
+on `master` — verified by running the single test in a clean worktree at `master`, where the hosted
+server never reaches `Start` within its 30-second budget. The `CryptographicException: The system
+cannot find the path specified.` entries in its log are benign PEM-probe fallbacks that precede a
+successful PFX import, not the cause.
