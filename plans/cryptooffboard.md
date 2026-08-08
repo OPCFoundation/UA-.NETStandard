@@ -95,23 +95,33 @@ answer to be stated next to the algorithms it follows from.
 
 ---
 
-## 6. Unrelated, but found on the way
+## 6. Pre-existing defects, found on the way and fixed here
 
-Three pre-existing defects surfaced while validating this work. None belongs in this change, and all
-three are reproducible on `master` with no part of this feature present.
+Three defects surfaced while validating this work. All three reproduce on `master` with no part of
+this feature present, and all three are fixed in this change.
 
-`STACKGEN001 'Stack generation not supported for <assembly>'` breaks BenchmarkDotNet host generation for
-any project with `Opc.Ua.Gds.Common` in its closure — the Stack source generator errors for assemblies
-outside its three-name allow-list. It is pre-existing and repo-wide, and was routed around here by
-running the benchmark in process. It deserves its own issue.
+**`STACKGEN001` broke every compilation the generator was merely loaded into.** The Stack source
+generator switched on the compilation's assembly name and reported a hard error for anything outside a
+three-name allow list, so BenchmarkDotNet's generated host project failed to build and the benchmark
+had to run in process. Keying behaviour on an assembly *name* was the deeper problem: renaming a
+project silently changed what was generated. Projects now opt in through `StackSourceGeneratorMode`;
+absent, the generator emits nothing and no diagnostic. The benchmark runs on the default toolchain
+again.
 
-`MonitoredNode.OnReportEvent` blocks on `report.AsTask().GetAwaiter().GetResult()`. Under thread-pool
-starvation that stall is what makes `Remove_EventMonitoredItem_DropsCacheEntries` time out on a loaded
-runner; the timeout is the symptom and the blocking wait is the cause. Confirmed a flake by re-running
-with no code change.
+**Certificates could not be loaded from paths past `MAX_PATH`.** Files were handed to the platform
+loader by path, which reaches CryptoAPI on Windows and is not long-path aware, so a certificate
+deeper than 260 characters failed with `CryptographicException: The system cannot find the path
+specified` even though the enumeration that produced the path had just succeeded. Reading the file
+first — which the PEM branch beside it already did — removes the limit. This is what made
+`ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync` fail on `master`: a
+`ClientAndServer` application provisions ECC certificates whose file names carry the curve
+(`... [BrainpoolP256r1] [<40 hex>].pfx`), which pushed the PFX over the limit. .NET Framework cannot
+open such a path at all, so that test also got a shorter PKI root.
 
-`ServerFluentApiHostingTests.ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync` fails
-on `master` — verified by running the single test in a clean worktree at `master`, where the hosted
-server never reaches `Start` within its 30-second budget. The `CryptographicException: The system
-cannot find the path specified.` entries in its log are benign PEM-probe fallbacks that precede a
-successful PFX import, not the cause.
+**The `MonitoredNode2` tests starved the thread pool.** `Remove_EventMonitoredItem_DropsCacheEntries`
+timed out on loaded runners and passed on re-run. The blocking wait was real but test-side: the
+fixture is `[Parallelizable]`, and 27 tests blocked a thread-pool thread on
+`ManualResetEventSlim.Wait` while waiting for a consumer task that needs a thread-pool thread of its
+own. They now await instead, and the fixture runs in about a quarter of a second. `MonitoredNode2`'s
+synchronous `OnReportEvent` and `OnMonitoredNodeChanged` turned out to have no production callers at
+all, so they are marked `[Obsolete]` rather than removed.
