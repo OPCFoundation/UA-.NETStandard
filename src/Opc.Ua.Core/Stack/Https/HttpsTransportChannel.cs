@@ -646,7 +646,7 @@ namespace Opc.Ua.Bindings
                     {
                         try
                         {
-                            var validationChain = new X509Certificate2Collection();
+                            using var validationCollection = new CertificateCollection();
                             if (chain != null && chain.ChainElements != null)
                             {
                                 int i = 0;
@@ -661,7 +661,9 @@ namespace Opc.Ua.Bindings
                                         .HttpsChannelLog10(
                                             i,
                                             element.Certificate.Subject);
-                                    validationChain.Add(element.Certificate);
+                                    using Certificate chainCertificate = Certificate.FromRawData(
+                                        element.Certificate.RawData);
+                                    validationCollection.Add(chainCertificate);
                                     i++;
                                 }
                             }
@@ -671,10 +673,11 @@ namespace Opc.Ua.Bindings
                                     .HttpsChannelLog11(
                                         nameof(HttpsTransportChannel),
                                         cert.Subject);
-                                validationChain.Add(cert);
+                                using Certificate serverCertificate = Certificate.FromRawData(
+                                    cert.RawData);
+                                validationCollection.Add(serverCertificate);
                             }
 
-                            using var validationCollection = CertificateCollection.From(validationChain);
                             if (m_quotas.CertificateValidator != null)
                             {
                                 // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's

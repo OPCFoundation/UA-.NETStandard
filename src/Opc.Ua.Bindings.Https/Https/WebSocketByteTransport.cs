@@ -474,19 +474,7 @@ namespace Opc.Ua.Bindings
             }
             try
             {
-                var collection = new X509Certificate2Collection();
-                if (chain != null && chain.ChainElements != null)
-                {
-                    foreach (X509ChainElement element in chain.ChainElements)
-                    {
-                        collection.Add(element.Certificate);
-                    }
-                }
-                else
-                {
-                    collection.Add(cert);
-                }
-                using var validation = CertificateCollection.From(collection);
+                using CertificateCollection validation = BuildValidationChain(cert, chain);
                 // Run the async validator from the sync TLS callback; the
                 // BCL TLS handshake plumbing is itself synchronous here so
                 // there is no easier way to bridge it.
@@ -502,6 +490,37 @@ namespace Opc.Ua.Bindings
             {
                 m_logger.WebSocketClientFailedToValidateServerTlsCertificate(ex);
                 return false;
+            }
+        }
+
+        private static CertificateCollection BuildValidationChain(
+            X509Certificate2 cert,
+            X509Chain? chain)
+        {
+            var validation = new CertificateCollection();
+            try
+            {
+                if (chain?.ChainElements != null && chain.ChainElements.Count > 0)
+                {
+                    foreach (X509ChainElement element in chain.ChainElements)
+                    {
+                        using Certificate certificate = Certificate.FromRawData(
+                            element.Certificate.RawData);
+                        validation.Add(certificate);
+                    }
+                }
+                else
+                {
+                    using Certificate certificate = Certificate.FromRawData(cert.RawData);
+                    validation.Add(certificate);
+                }
+
+                return validation;
+            }
+            catch
+            {
+                validation.Dispose();
+                throw;
             }
         }
 #endif
