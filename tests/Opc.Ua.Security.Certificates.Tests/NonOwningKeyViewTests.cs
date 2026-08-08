@@ -239,6 +239,126 @@ namespace Opc.Ua.Security.Certificates.Tests
             });
         }
 
+        /// <summary>
+        /// The views forward every member to the shared key, including the
+        /// import and generate paths that no signing test reaches. A view that
+        /// quietly dropped one of these would corrupt the device key rather
+        /// than fail loudly.
+        /// </summary>
+        [Test]
+        public void RsaViewForwardsParameterImportToTheSharedKey()
+        {
+            using Certificate certificate = CreateDetachedRsa(out RSA deviceKey);
+            using RSA view = certificate.GetRSAPrivateKey();
+
+            using RSA replacement = RSA.Create(2048);
+            RSAParameters parameters = replacement.ExportParameters(true);
+
+            view.ImportParameters(parameters);
+
+            Assert.That(
+                deviceKey.ExportParameters(false).Modulus,
+                Is.EqualTo(replacement.ExportParameters(false).Modulus),
+                "the import must reach the shared key, not a copy");
+        }
+
+        [Test]
+        public void EcdsaViewForwardsParameterImportAndKeyGenerationToTheSharedKey()
+        {
+            using Certificate certificate = CreateDetachedEcdsa(out ECDsa deviceKey);
+            using ECDsa view = certificate.GetECDsaPrivateKey();
+
+            using ECDsa replacement = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            view.ImportParameters(replacement.ExportParameters(true));
+
+            Assert.That(
+                deviceKey.ExportParameters(false).Q.X,
+                Is.EqualTo(replacement.ExportParameters(false).Q.X));
+
+            view.GenerateKey(ECCurve.NamedCurves.nistP384);
+
+            Assert.That(deviceKey.KeySize, Is.EqualTo(384));
+        }
+
+        [Test]
+        public void EcdsaViewReportsTheSharedKeyExchangeAlgorithm()
+        {
+            using Certificate certificate = CreateDetachedEcdsa(out ECDsa deviceKey);
+            using ECDsa view = certificate.GetECDsaPrivateKey();
+
+            Assert.That(view.KeyExchangeAlgorithm, Is.EqualTo(deviceKey.KeyExchangeAlgorithm));
+            Assert.That(view.SignatureAlgorithm, Is.EqualTo(deviceKey.SignatureAlgorithm));
+        }
+
+        /// <summary>
+        /// The views hash on the caller's behalf because the base
+        /// implementations are not usable on every supported framework. Every
+        /// policy-relevant digest has to work, and an unsupported one has to be
+        /// refused rather than silently producing a wrong signature.
+        /// </summary>
+        [TestCase("SHA256")]
+        [TestCase("SHA384")]
+        [TestCase("SHA512")]
+        [TestCase("SHA1")]
+        public void RsaViewSignsDataWithEverySupportedDigest(string algorithmName)
+        {
+            var hashAlgorithm = new HashAlgorithmName(algorithmName);
+
+            using Certificate certificate = CreateDetachedRsa(out RSA deviceKey);
+            using RSA view = certificate.GetRSAPrivateKey();
+
+            byte[] data = [4, 5, 6, 7];
+            byte[] signature = view.SignData(data, hashAlgorithm, RSASignaturePadding.Pkcs1);
+
+            Assert.That(
+                deviceKey.VerifyData(data, signature, hashAlgorithm, RSASignaturePadding.Pkcs1),
+                Is.True);
+        }
+
+        [Test]
+        public void RsaViewRefusesAnUnsupportedDigest()
+        {
+            using Certificate certificate = CreateDetachedRsa(out _);
+            using RSA view = certificate.GetRSAPrivateKey();
+
+            Assert.Throws<CryptographicException>(
+                () => view.SignData(
+                    [1, 2, 3],
+                    new HashAlgorithmName("MD5"),
+                    RSASignaturePadding.Pkcs1));
+        }
+
+        [TestCase("SHA256")]
+        [TestCase("SHA384")]
+        [TestCase("SHA512")]
+        public void EcdsaViewSignsDataWithEverySupportedDigest(string algorithmName)
+        {
+            var hashAlgorithm = new HashAlgorithmName(algorithmName);
+
+            using Certificate certificate = CreateDetachedEcdsa(out ECDsa deviceKey);
+            using ECDsa view = certificate.GetECDsaPrivateKey();
+
+            byte[] data = [8, 9, 10];
+            byte[] signature = view.SignData(data, hashAlgorithm);
+
+            Assert.That(deviceKey.VerifyData(data, signature, hashAlgorithm), Is.True);
+        }
+
+        [Test]
+        public void EcdsaViewSignsAStreamThroughTheSharedKey()
+        {
+            using Certificate certificate = CreateDetachedEcdsa(out ECDsa deviceKey);
+            using ECDsa view = certificate.GetECDsaPrivateKey();
+
+            byte[] data = [11, 12, 13, 14];
+            using var stream = new MemoryStream(data);
+            byte[] signature = view.SignData(stream, HashAlgorithmName.SHA256);
+
+            Assert.That(
+                deviceKey.VerifyData(data, signature, HashAlgorithmName.SHA256),
+                Is.True);
+        }
+
         private static byte[] Hash(byte[] data)
         {
 #if NET6_0_OR_GREATER

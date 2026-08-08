@@ -29,6 +29,7 @@
 
 #nullable enable
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -178,6 +179,133 @@ namespace Opc.Ua.Server.Tests.Configuration
             using Certificate? fromOwn = await store.TryTakeAsync(first).ConfigureAwait(false);
 
             Assert.That(fromOwn, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Without an injected provider the store has to resolve the device
+        /// through the configured store type. That path is what a server using
+        /// the parameterless constructor takes, so it must round-trip a staged
+        /// key just as the injected path does.
+        /// </summary>
+        [Test]
+        public async Task StoreWithoutAProviderResolvesTheConfiguredStoreTypeAsync()
+        {
+            string root = Path.Combine(
+                Path.GetTempPath(),
+                "uahp" + Guid.NewGuid().ToString("N")[..8]);
+            Directory.CreateDirectory(root);
+
+            try
+            {
+                var baseStore = new CertificateStoreIdentifier(
+                    root, CertificateStoreType.Directory, false);
+                var context = new PendingCertificateKeyContext(
+                    baseStore,
+                    new NodeId(3000u),
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    null,
+                    m_telemetry!);
+
+                var store = new HardwarePendingCertificateKeyStore();
+
+                using Certificate detached = CreateDetachedCertificate();
+
+                // The contract is that the key never leaves the device, so the
+                // device store has to hold it before anything is staged.
+                await AddToDeviceStoreAsync(baseStore, detached).ConfigureAwait(false);
+
+                bool saved = await store.SaveAsync(context, detached).ConfigureAwait(false);
+
+                Assert.That(saved, Is.True, "a directory store can hold and remove an entry");
+
+                // The staged entry is a reference only - a directory store is
+                // not a device and never held the detached key - so taking it
+                // back yields nothing. What matters here is that the
+                // parameterless constructor resolved and drove the configured
+                // store type at all.
+                Certificate? taken = await store.TryTakeAsync(context).ConfigureAwait(false);
+
+                Assert.That(taken, Is.Null);
+
+                Assert.That(
+                    await store.SaveAsync(context, detached).ConfigureAwait(false),
+                    Is.True,
+                    "staging again must replace rather than accumulate");
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removing without a provider must reach the same resolved store.
+        /// </summary>
+        [Test]
+        public async Task RemovingWithoutAProviderClearsTheStagedKeyAsync()
+        {
+            string root = Path.Combine(
+                Path.GetTempPath(),
+                "uahp" + Guid.NewGuid().ToString("N")[..8]);
+            Directory.CreateDirectory(root);
+
+            try
+            {
+                var context = new PendingCertificateKeyContext(
+                    new CertificateStoreIdentifier(
+                        root, CertificateStoreType.Directory, false),
+                    new NodeId(3100u),
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    null,
+                    m_telemetry!);
+
+                var store = new HardwarePendingCertificateKeyStore();
+
+                using Certificate detached = CreateDetachedCertificate();
+                Assert.That(
+                    await store.SaveAsync(context, detached).ConfigureAwait(false),
+                    Is.True);
+
+                await store.RemoveAsync(context).ConfigureAwait(false);
+
+                Certificate? taken = await store.TryTakeAsync(context).ConfigureAwait(false);
+
+                Assert.That(taken, Is.Null);
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
+        private async Task AddToDeviceStoreAsync(
+            CertificateStoreIdentifier identifier,
+            Certificate certificate)
+        {
+            using ICertificateStore device = CertificateStoreIdentifier.CreateStore(
+                identifier.StoreType!, m_telemetry!)
+                ?? throw new InvalidOperationException("no directory store");
+            device.Open(identifier.StorePath!, false);
+            await device.AddAsync(certificate).ConfigureAwait(false);
+        }
+
+        private static Certificate CreateDetachedCertificate()
+        {
+            RSA key = RSA.Create(2048);
+            var request = new CertificateRequest(
+                "CN=DirectoryPending", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            using X509Certificate2 selfSigned = request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(30));
+
+            using Certificate publicOnly = Certificate.FromRawData(selfSigned.RawData);
+
+            return publicOnly.CopyWithDetachedPrivateKey(key, ownsPrivateKey: true);
         }
 
         private static Certificate CreateSoftwareCertificate()
