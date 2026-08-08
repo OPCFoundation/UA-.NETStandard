@@ -122,6 +122,15 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <inheritdoc/>
+        protected override UserManagement.IUserManagement? CreateUserManagement(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return m_services.GetService<UserManagement.IUserManagement>() ??
+                base.CreateUserManagement(server, configuration);
+        }
+
+        /// <inheritdoc/>
         protected override IMainNodeManagerFactory CreateMainNodeManagerFactory(
             IServerInternal server,
             ApplicationConfiguration configuration)

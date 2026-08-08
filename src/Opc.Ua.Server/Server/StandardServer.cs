@@ -3728,6 +3728,11 @@ namespace Opc.Ua.Server
 
                 ServerInternal.SetRoleManager(CreateRoleManager(m_serverInternal, configuration));
 
+                if (CreateUserManagement(m_serverInternal, configuration) is { } userManagement)
+                {
+                    ServerInternal.SetUserManagement(userManagement);
+                }
+
                 // create the manager responsible for providing localized string resources.
                 m_logger.ServerCreateResourceManager();
                 ResourceManager resourceManager = CreateResourceManager(
@@ -4995,6 +5000,25 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration)
         {
             return server.RoleManager;
+        }
+
+        /// <summary>
+        /// Creates the user management model for the server before the address space is bound.
+        /// </summary>
+        /// <remarks>
+        /// Returns <c>null</c> when the server does not expose the OPC UA Part 18 §5
+        /// user-management model. Override to supply a concrete implementation, or register
+        /// an <see cref="UserManagement.IUserManagement"/> in the service container when
+        /// hosting through dependency injection.
+        /// </remarks>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>Returns the user management model, or <c>null</c>.</returns>
+        protected virtual UserManagement.IUserManagement? CreateUserManagement(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return null;
         }
 
         /// <summary>
