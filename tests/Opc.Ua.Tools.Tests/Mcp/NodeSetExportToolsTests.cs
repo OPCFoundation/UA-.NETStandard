@@ -228,7 +228,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         private static ServiceProvider CreateProvider(string exportRoot)
         {
             var services = new ServiceCollection();
-            services.AddSingleton(new McpServerOptions
+            services.AddSingleton(new OpcUaMcpOptions
             {
                 NodeSetExportRoot = exportRoot
             });

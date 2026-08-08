@@ -406,31 +406,103 @@ runtime and collect publisher responses):
 
 ## Architecture
 
+The MCP tools ship as four libraries plus the executable that composes them.
+The executable owns only transport, logging and CLI plumbing; every tool lives
+in a library that an application can reference on its own.
+
 ```
-tools/Opc.Ua.Mcp/
-├── Opc.Ua.Mcp.csproj                    # .NET 10 project, packaged as dotnet tool
-├── Program.cs                           # Entry point, stdio + Streamable HTTP transport (/mcp)
-├── OpcUaSessionManager.cs               # OPC UA client session lifecycle
-├── Opc.Ua.Mcp.Config.xml                # OPC UA client application config
-├── .mcp/server.json                     # MCP server manifest for NuGet discovery
-├── Tools/
-│   ├── ConnectionTools.cs               # GetEndpoints, Connect, Disconnect, GetConnectionStatus
-│   ├── AttributeServiceTools.cs         # Read, Write, HistoryRead, HistoryUpdate
-│   ├── ViewServiceTools.cs              # Browse, BrowseNext, TranslateBrowsePaths, etc.
-│   ├── NodeManagementServiceTools.cs    # AddNodes, AddReferences, DeleteNodes, etc.
-│   ├── MethodServiceTools.cs            # Call
-│   ├── SubscriptionServiceTools.cs      # CreateSubscription, Publish, etc.
-│   ├── MonitoredItemServiceTools.cs     # CreateMonitoredItems, etc.
-│   ├── DiscoveryServiceTools.cs         # FindServers, RegisterServer, etc.
-│   ├── PkiTools.cs                      # ListCertificates, TrustCertificate, etc.
-│   ├── ConfigurationTools.cs            # Full-profile compatibility configuration tools
-│   ├── ConfigurationReadTools.cs        # Profile-safe configuration reader
-│   ├── ConfigurationUpdateTools.cs      # Focused transport/client/security setters
-│   ├── NodeSetExportTools.cs            # ExportNodeSet, ExportNodeSetPerNamespace
-│   └── ConvenienceTools.cs              # ReadValue, BrowseAll, CallMethod, etc.
-└── Serialization/
-    └── OpcUaJsonHelper.cs               # OPC UA ↔ JSON type conversion
+tools/
+├── Opc.Ua.Mcp.Core/                     # Part 4 service tools, session manager, options, filters
+│   ├── OpcUaMcpCoreExtensions.cs        # AddOpcUaMcpCore, WithOpcUaCoreTools, WithOpcUaMcpFilters
+│   ├── OpcUaSessionManager.cs           # OPC UA client session lifecycle
+│   ├── McpCapturePath.cs                # Path-traversal guard shared by the capture packages
+│   ├── Tools/
+│   │   ├── ConnectionTools.cs           # GetEndpoints, Connect, Disconnect, GetConnectionStatus
+│   │   ├── AttributeServiceTools.cs     # Read, Write, HistoryRead, HistoryUpdate
+│   │   ├── ViewServiceTools.cs          # Browse, BrowseNext, TranslateBrowsePaths, etc.
+│   │   ├── NodeManagementServiceTools.cs# AddNodes, AddReferences, DeleteNodes, etc.
+│   │   ├── MethodServiceTools.cs        # Call
+│   │   ├── SubscriptionServiceTools.cs  # CreateSubscription, Publish, etc.
+│   │   ├── MonitoredItemServiceTools.cs # CreateMonitoredItems, etc.
+│   │   ├── DiscoveryServiceTools.cs     # FindServers, RegisterServer, etc.
+│   │   ├── PkiTools.cs                  # ListCertificates, TrustCertificate, etc.
+│   │   ├── ConfigurationTools.cs        # Full-profile compatibility configuration tools
+│   │   ├── ConfigurationReadTools.cs    # Profile-safe configuration reader
+│   │   ├── ConfigurationUpdateTools.cs  # Focused transport/client/security setters
+│   │   ├── NodeSetExportTools.cs        # ExportNodeSet, ExportNodeSetPerNamespace
+│   │   └── ConvenienceTools.cs          # ReadValue, BrowseAll, CallMethod, etc.
+│   └── Serialization/
+│       └── OpcUaJsonHelper.cs           # OPC UA ↔ JSON type conversion
+├── Opc.Ua.Mcp.PubSub/                   # PubSub runtime, actions and discovery
+│   ├── PubSubRuntimeManager.cs
+│   └── Tools/{PubSubRuntime,PubSubAction,PubSubDiscovery}Tools.cs
+├── Opc.Ua.Mcp.Diagnostics/              # UA-TCP capture, decode and replay
+│   └── Tools/{PacketCapture,PacketDecode,PacketReplay}Tools.cs
+├── Opc.Ua.Mcp.PubSub.Diagnostics/       # PubSub capture and decode
+│   └── Tools/{PubSubCapture,PubSubDecode}Tools.cs
+└── Opc.Ua.Mcp/                          # .NET 10 project, packaged as dotnet tool
+    ├── Program.cs                       # Entry point, stdio + Streamable HTTP transport (/mcp)
+    ├── McpHostBuilder.cs                # Composes the four libraries
+    ├── Opc.Ua.Mcp.Config.xml            # OPC UA client application config
+    └── .mcp/server.json                 # MCP server manifest for NuGet discovery
 ```
+
+### Packages
+
+| Package | Tools | Depends on |
+|---|---|---|
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Core` | Part 4 services, connection, configuration, PKI, NodeSet export | `Opc.Ua.Core`, `.Configuration`, `.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery | Core + `Opc.Ua.PubSub` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay | Core + `Opc.Ua.Core.Diagnostics` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode | Core + `Opc.Ua.PubSub.Diagnostics` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` tool | all of the above |
+
+The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
+`net10.0`.
+
+### Embedding the tools in your own MCP server
+
+An application that wants OPC UA tools *and* its own application-level tools
+composes them rather than shelling out to `opcua-mcp`:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Mcp;
+
+builder.Services.AddOpcUaMcpCore();
+
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithOpcUaMcpFilters()
+    .WithOpcUaCoreTools(McpToolProfile.Services)
+    .WithTools<MyApplicationTools>();
+```
+
+Add any of the other packages the same way — each contributes a service
+registration and a tool registration:
+
+```csharp
+builder.Services.AddOpcUaMcpPubSub();
+builder.Services.AddOpcUaMcpDiagnostics();
+builder.Services.AddOpcUaMcpPubSubDiagnostics();
+
+mcp.WithOpcUaPubSubTools(profile)
+   .WithOpcUaDiagnosticsTools(profile, diagnosticsEnabled)
+   .WithOpcUaPubSubDiagnosticsTools(profile, diagnosticsEnabled);
+```
+
+`WithOpcUaMcpFilters` registers the request and schema filters that make tool
+errors actionable and tool schemas explicit. Call it once per server, even when
+several OPC UA tool packages are composed.
+
+`McpToolProfile` is shared vocabulary that lives in Core, and each package maps
+the profile to its own tools. A profile a package does not own contributes
+nothing rather than failing, so the same profile value can be passed to every
+package a host references — `Full` in a host that never referenced
+`Opc.Ua.Mcp.Diagnostics` simply yields no capture tools.
+
+The capture tool classes stay `internal` and are reachable only through their
+registration extensions.
 
 ## Security Notes
 

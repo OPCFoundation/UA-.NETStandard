@@ -31,6 +31,7 @@
 // build output, so these tests only build and run on net10.0.
 #if NET10_0_OR_GREATER
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -41,18 +42,18 @@ using Opc.Ua.Pcap.DependencyInjection;
 namespace Opc.Ua.Pcap.Tests.McpServerTools
 {
     /// <summary>
-    /// Precedence tests for <c>McpServerOptions</c>: DI registration
+    /// Precedence tests for <c>OpcUaMcpOptions</c>: DI registration
     /// wins over the per-tool environment variable, which wins over
     /// the per-tool default. Validates both <c>NodeSetExportRoot</c>
     /// and <c>PcapBaseFolder</c> entry points.
     /// </summary>
     [TestFixture]
-    public sealed class McpServerOptionsTests
+    public sealed class OpcUaMcpOptionsTests
     {
         private const string c_nodeSetEnvVar = "OPCUA_MCP_EXPORT_ROOT";
 
         private string? m_priorNodeSetEnv;
-        private Assembly? m_mcpAssembly;
+        private Dictionary<string, Type>? m_mcpTypes;
 
         /// <summary>
         /// Captures and clears the NodeSet env var so it cannot
@@ -95,7 +96,7 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
             string envRoot = Path.GetFullPath(Path.Combine("test-artifacts", "via-env"));
             Environment.SetEnvironmentVariable(c_nodeSetEnvVar, envRoot);
 
-            // Build a provider that has no McpServerOptions registered.
+            // Build a provider that has no OpcUaMcpOptions registered.
             using ServiceProvider sp = new ServiceCollection().BuildServiceProvider();
 
             string resolved = InvokeResolveExportRoot(sp);
@@ -126,10 +127,10 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
 
             var services = new ServiceCollection();
             services.AddSingleton(new PcapOptions { BaseFolder = pcapRoot });
-            object mcpOptions = CreateMcpServerOptions(
+            object mcpOptions = CreateOpcUaMcpOptions(
                 nodeSetExportRoot: null,
                 pcapBaseFolder: diRoot);
-            services.AddSingleton(GetMcpServerOptionsType(), mcpOptions);
+            services.AddSingleton(GetOpcUaMcpOptionsType(), mcpOptions);
             using ServiceProvider sp = services.BuildServiceProvider();
 
             string resolved = InvokeGetDecodeAllowedRoot(sp);
@@ -166,31 +167,31 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
         }
 
         [Test]
-        public void McpServerOptionsHasExpectedProperties()
+        public void OpcUaMcpOptionsHasExpectedProperties()
         {
-            Type type = GetMcpServerOptionsType();
+            Type type = GetOpcUaMcpOptionsType();
 
             Assert.That(type.GetProperty("NodeSetExportRoot"), Is.Not.Null,
-                "McpServerOptions.NodeSetExportRoot must be declared.");
+                "OpcUaMcpOptions.NodeSetExportRoot must be declared.");
             Assert.That(type.GetProperty("PcapBaseFolder"), Is.Not.Null,
-                "McpServerOptions.PcapBaseFolder must be declared.");
+                "OpcUaMcpOptions.PcapBaseFolder must be declared.");
         }
 
         private static ServiceProvider BuildProviderWithMcpOptions(
             string? nodeSetExportRoot,
             string? pcapBaseFolder)
         {
-            object mcpOptions = CreateMcpServerOptions(nodeSetExportRoot, pcapBaseFolder);
+            object mcpOptions = CreateOpcUaMcpOptions(nodeSetExportRoot, pcapBaseFolder);
             var services = new ServiceCollection();
-            services.AddSingleton(GetMcpServerOptionsType(), mcpOptions);
+            services.AddSingleton(GetOpcUaMcpOptionsType(), mcpOptions);
             return services.BuildServiceProvider();
         }
 
-        private static object CreateMcpServerOptions(
+        private static object CreateOpcUaMcpOptions(
             string? nodeSetExportRoot,
             string? pcapBaseFolder)
         {
-            Type type = GetMcpServerOptionsType();
+            Type type = GetOpcUaMcpOptionsType();
             object instance = Activator.CreateInstance(type)!;
             type.GetProperty("NodeSetExportRoot")!.SetValue(instance, nodeSetExportRoot);
             type.GetProperty("PcapBaseFolder")!.SetValue(instance, pcapBaseFolder);
@@ -199,8 +200,7 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
 
         private string InvokeResolveExportRoot(IServiceProvider services)
         {
-            Type toolsType = GetMcpAssembly().GetType("Opc.Ua.Mcp.Tools.NodeSetExportTools")
-                ?? throw new InvalidOperationException("NodeSetExportTools type not found.");
+            Type toolsType = GetRequiredMcpType("Opc.Ua.Mcp.Tools.NodeSetExportTools");
             MethodInfo method = toolsType.GetMethod(
                 "ResolveExportRoot",
                 BindingFlags.Static | BindingFlags.NonPublic)
@@ -210,8 +210,7 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
 
         private string InvokeGetDecodeAllowedRoot(IServiceProvider services)
         {
-            Type toolsType = GetMcpAssembly().GetType("Opc.Ua.Mcp.Tools.PacketDecodeTools")
-                ?? throw new InvalidOperationException("PacketDecodeTools type not found.");
+            Type toolsType = GetRequiredMcpType("Opc.Ua.Mcp.Tools.PacketDecodeTools");
             MethodInfo method = toolsType.GetMethod(
                 "GetDecodeAllowedRoot",
                 BindingFlags.Static | BindingFlags.NonPublic)
@@ -219,85 +218,25 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
             return (string)method.Invoke(null, [services])!;
         }
 
-        private static Type GetMcpServerOptionsType()
+        private static Type GetOpcUaMcpOptionsType()
         {
-            Type? type = LoadMcpAssembly().GetType("Opc.Ua.Mcp.McpServerOptions");
+            Type? type = McpAssemblyProbe.ResolveType("Opc.Ua.Mcp.OpcUaMcpOptions");
             Assert.That(type, Is.Not.Null,
-                "Opc.Ua.Mcp.McpServerOptions type must be present in the McpServer assembly.");
+                "Opc.Ua.Mcp.OpcUaMcpOptions type must be present in an MCP assembly.");
             return type!;
         }
 
-        private Assembly GetMcpAssembly()
+        private Type GetRequiredMcpType(string fullName)
         {
-            return m_mcpAssembly ??= LoadMcpAssembly();
-        }
-
-        private static Assembly LoadMcpAssembly()
-        {
-            string repoRoot = FindRepositoryRoot();
-            string configuration = GetBuildConfiguration();
-            string? assemblyPath = Path.Combine(
-                repoRoot,
-                "tools",
-                "Opc.Ua.Mcp",
-                "bin",
-                configuration,
-                "net10.0",
-                "Opc.Ua.Mcp.dll");
-
-            if (!File.Exists(assemblyPath))
+            m_mcpTypes ??= [];
+            if (m_mcpTypes.TryGetValue(fullName, out Type? cached))
             {
-                string binPath = Path.Combine(repoRoot, "tools", "Opc.Ua.Mcp", "bin");
-                assemblyPath = Directory.Exists(binPath)
-                    ? Directory.EnumerateFiles(binPath, "Opc.Ua.Mcp.dll", SearchOption.AllDirectories)
-                        .FirstOrDefault()
-                    : null;
+                return cached;
             }
 
-            if (string.IsNullOrEmpty(assemblyPath) || !File.Exists(assemblyPath))
-            {
-                Assert.Ignore(
-                    "The net10.0 Opc.Ua.Mcp assembly is not built for this CI leg " +
-                    "(the MCP server only targets net10.0); skipping the reflective MCP server test.");
-            }
-
-            return Assembly.LoadFrom(assemblyPath!);
-        }
-
-        private static string FindRepositoryRoot()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-
-            while (directory != null)
-            {
-                if (File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            Assert.Fail("Unable to locate repository root.");
-            throw new InvalidOperationException("Unable to locate repository root.");
-        }
-
-        private static string GetBuildConfiguration()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-
-            while (directory != null)
-            {
-                if (string.Equals(directory.Name, "Debug", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(directory.Name, "Release", StringComparison.OrdinalIgnoreCase))
-                {
-                    return directory.Name;
-                }
-
-                directory = directory.Parent;
-            }
-
-            return "Debug";
+            Type type = McpAssemblyProbe.GetRequiredType(fullName);
+            m_mcpTypes[fullName] = type;
+            return type;
         }
     }
 }

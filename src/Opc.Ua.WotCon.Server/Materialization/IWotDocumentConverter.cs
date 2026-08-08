@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -112,8 +113,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         ValueTask<WotConversionOutput> ConvertAsync(
             WotResource resource,
-            ReadOnlyMemory<byte> content,
+            ByteString content,
             WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents,
             CancellationToken cancellationToken);
     }
 
@@ -133,14 +135,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <inheritdoc/>
         public async ValueTask<WotConversionOutput> ConvertAsync(
             WotResource resource,
-            ReadOnlyMemory<byte> content,
+            ByteString content,
             WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents,
             CancellationToken cancellationToken)
         {
             try
             {
-                using var document = WotDocument.Parse(content, m_options);
-                var resolver = new SnapshotThingResolver(snapshot);
+                using var document = WotDocument.Parse(content.Span.ToArray(), m_options);
+                var resolver = new SnapshotThingResolver(snapshot, contents);
                 // One resolution context per top-level conversion, seeded from
                 // the configured converter options, so depth/document/byte
                 // bounds and cycle detection apply across every link resolved

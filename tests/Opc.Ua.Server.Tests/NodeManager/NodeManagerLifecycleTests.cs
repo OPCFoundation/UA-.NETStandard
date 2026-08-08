@@ -6356,6 +6356,75 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// A commit that fails after the NodeManager's external references have
+        /// been retained must not leave those references behind.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <c>CommitAddAsync</c> records the NodeManager's external references in
+        /// the dynamic-reference table and then replays the retained references
+        /// of every other registration into it. That replay runs arbitrary
+        /// NodeManager code, so it can throw, and the rollback that follows takes
+        /// the NodeManager back out of the routing table. If the recorded
+        /// references stayed behind, the master would hold a NodeManager it does
+        /// not route.
+        /// </para>
+        /// <para>
+        /// That state is not merely a leak. <c>PublishAsync</c> treats presence in
+        /// the table as "already registered", so the instance could never be
+        /// registered again; and every later add replays the dead references into
+        /// the NodeManager being added, which is the opposite of what the replay
+        /// exists to do.
+        /// </para>
+        /// </remarks>
+        [Test]
+        public async Task FailedCommitDoesNotRetainExternalReferencesForARolledBackNodeManagerAsync()
+        {
+            var host = (IDynamicNodeManagerHost)m_server.CurrentInstance.NodeManager;
+            Mock<IAsyncNodeManager> candidate = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:FailedCommitRetention");
+
+            // The first call is the commit publishing this NodeManager's own
+            // external references; the replay that follows is the one that must
+            // fail, because that is the only point after the references are
+            // recorded at which anything can throw.
+            int addReferencesCalls = 0;
+            candidate
+                .Setup(manager => manager.AddReferencesAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (++addReferencesCalls > 1)
+                    {
+                        throw new InvalidOperationException(
+                            "Injected replay failure.");
+                    }
+                    return default;
+                });
+
+            PreparedNodeManager prepared = await host
+                .PrepareAsync(candidate.Object)
+                .ConfigureAwait(false);
+            await host.PublishAsync(prepared).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await host
+                    .CommitAsync(prepared, null, null, null)
+                    .ConfigureAwait(false));
+            Assert.That(addReferencesCalls, Is.GreaterThan(1),
+                "The replay must have been reached, otherwise this test proves nothing.");
+
+            // Probing PublishAsync with the same instance is what reads the
+            // dynamic-reference table directly: it rejects a NodeManager that is
+            // already recorded there.
+            var probe = new PreparedNodeManager(candidate.Object, []);
+            Assert.DoesNotThrowAsync(
+                async () => await host.PublishAsync(probe).ConfigureAwait(false),
+                "The rolled-back NodeManager must not still be recorded as registered.");
+        }
+
         [Test]
         public async Task DynamicHostGuardsRejectInvalidArgumentsAndStateAsync()
         {

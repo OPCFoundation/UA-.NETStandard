@@ -27,41 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Mcp
+using Opc.Ua.XRegistry.Server;
+
+namespace Opc.Ua.WotCon.Server.Registry
 {
     /// <summary>
-    /// Strongly-typed options for the OPC UA MCP server.
+    /// Exposes the resource store that holds WoT document bytes for a registry store.
     /// </summary>
-    /// <remarks>
-    /// Bound from the <c>McpServer</c> configuration section at host
-    /// startup and consumed by the MCP host and individual tool helpers.
-    /// </remarks>
-    public sealed class McpServerOptions
+    internal interface IWotRegistryResourceStoreProvider
     {
         /// <summary>
-        /// Gets or sets the tool catalog exposed by the MCP server.
+        /// Gets the content-addressed resource store used for document bytes.
         /// </summary>
-        public McpToolProfile ToolProfile { get; set; } = McpToolProfile.Full;
-
-        /// <summary>
-        /// Base directory under which the
-        /// <see cref="Tools.NodeSetExportTools"/> is
-        /// allowed to write exported NodeSet2 XML files. When
-        /// <c>null</c> or whitespace the tool falls back to the
-        /// <c>OPCUA_MCP_EXPORT_ROOT</c> environment variable and
-        /// finally to a default under the system temp folder.
-        /// </summary>
-        public string? NodeSetExportRoot { get; set; }
-
-        /// <summary>
-        /// Base directory under which
-        /// <see cref="Tools.PacketDecodeTools"/> is
-        /// allowed to read pcap and keylog files. When <c>null</c>
-        /// or whitespace the tool falls back to
-        /// <c>PcapOptions.BaseFolder</c> resolved from DI, and
-        /// finally to a default under the per-user
-        /// <c>LocalApplicationData</c> directory.
-        /// </summary>
-        public string? PcapBaseFolder { get; set; }
+        IXRegistryResourceStore ResourceStore { get; }
     }
 }

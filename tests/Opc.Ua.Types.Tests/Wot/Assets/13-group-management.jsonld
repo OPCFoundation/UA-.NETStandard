@@ -1,0 +1,28 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing", "uav:projection"],
+  "id": "urn:dev:opcua:asset:pump-01:management",
+  "title": "Management",
+  "description": "An action group: the three methods that operate the pump. Each projects to an OPC UA Method, and the group materializes to the Object that Organizes them.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": "nosec_sc",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pump",
+      "href": "./01-opcua-td-pump.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:select": [
+        { "uav:affordanceKind": "action" }
+      ]
+    }
+  ]
+}

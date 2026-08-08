@@ -37,11 +37,11 @@ namespace Opc.Ua.Mcp
     /// offset constant below, using <c>offset + &lt;zero-based message index&gt;</c>. Every block
     /// reserves at least five spare slots for future messages and is rounded up to the next
     /// multiple of ten so that ids can be documented and managed from this single location.
+    /// Each assembly owns its own offsets; the library packages carry their own copy of this
+    /// class rather than sharing one.
     /// </remarks>
-    internal static class McpServerEventIds
+    internal static class McpHostEventIds
     {
-        public const int OpcUaSessionManager = 0;
-        public const int Program = 10;
-        public const int PubSubRuntimeManager = 20;
+        public const int Program = 0;
     }
 }

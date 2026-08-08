@@ -228,7 +228,6 @@ namespace Opc.Ua.WotCon.Server
                 .AddDelete(m_manager.SystemContext)
                 .AddXid(m_manager.SystemContext)
                 .AddEpoch(m_manager.SystemContext)
-                .AddName(m_manager.SystemContext)
                 .AddDescription(m_manager.SystemContext)
                 .AddCreatedAt(m_manager.SystemContext)
                 .AddModifiedAt(m_manager.SystemContext)
@@ -315,7 +314,6 @@ namespace Opc.Ua.WotCon.Server
                 .AddContentType(m_manager.SystemContext)
                 .AddXid(m_manager.SystemContext)
                 .AddEpoch(m_manager.SystemContext)
-                .AddName(m_manager.SystemContext)
                 .AddDescription(m_manager.SystemContext)
                 .AddCreatedAt(m_manager.SystemContext)
                 .AddModifiedAt(m_manager.SystemContext);
@@ -337,8 +335,7 @@ namespace Opc.Ua.WotCon.Server
 
             if (node is ThingDescriptionFileState td)
             {
-                td.AddThingId(m_manager.SystemContext)
-                    .AddThingTitle(m_manager.SystemContext)
+                td.AddThingTitle(m_manager.SystemContext)
                     .AddBaseUri(m_manager.SystemContext);
             }
             else if (node is ThingModelFileState tmNode)
@@ -370,6 +367,7 @@ namespace Opc.Ua.WotCon.Server
                 m_options.Bounds.MaxOpenFileHandles,
                 m_options.Bounds.MaxDocumentBytes,
                 m_manager.CheckManagementAccess,
+                (key, offset, count, token) => m_registry.ReadContentChunkAsync(key, offset, count, token),
                 (bytes, session, token) => CommitDocumentAsync(groupId, resourceId, kind, bytes, token));
 
             ApplyResourceProperties(new ResourceEntry(node, file, groupId, resourceId, kind), resource);
@@ -416,7 +414,7 @@ namespace Opc.Ua.WotCon.Server
             SetValue(node.ActiveVersionId, resource.ActiveVersionId ?? string.Empty);
             SetValue(node.IsDefault, version is not null &&
                 string.Equals(version.VersionId, resource.DefaultVersionId, StringComparison.Ordinal));
-            SetValue(node.ContentDigest, (ByteString)(version?.Digest ?? []));
+            SetValue(node.ContentDigest, version is null ? ByteString.Empty : version.Digest);
             if (resource.Validation is not null)
             {
                 SetValue(node.ValidationOutcome, resource.Validation);
@@ -437,8 +435,7 @@ namespace Opc.Ua.WotCon.Server
                 SetValue(tmNode.DerivedTypeNodeId, resource.RootNodeId);
             }
 
-            byte[] content = active?.Content.ToArray() ?? [];
-            entry.File?.UpdatePersistedContent(content, version?.ContentType);
+            entry.File?.UpdatePersistedContent(active, version?.ContentType);
         }
 
         private async ValueTask RemoveResourceNodeAsync(
@@ -713,7 +710,7 @@ namespace Opc.Ua.WotCon.Server
                 GroupId = groupId,
                 ResourceId = resourceId,
                 Kind = kind,
-                Content = content,
+                Content = ByteString.From(content),
                 ContentType = kind == WoTDocumentKindEnum.ThingModel
                     ? "application/tm+json"
                     : "application/td+json",

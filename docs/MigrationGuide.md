@@ -44,7 +44,6 @@ changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
 ## Migrating node types that override FindChild or CreateChild
-
 `NodeState.FindChild` and `NodeState.CreateChild` take
 `assignInstanceNodeIds` as their last parameter, and the four argument
 `FindChild` / two argument `CreateChild` virtuals are gone. The parameter

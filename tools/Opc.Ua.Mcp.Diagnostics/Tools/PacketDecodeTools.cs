@@ -50,7 +50,6 @@ using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
-using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -234,26 +233,7 @@ namespace Opc.Ua.Mcp.Tools
         /// </exception>
         internal static string ResolveAndValidateDecodePath(string filePath, string allowedRoot)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-            ArgumentException.ThrowIfNullOrWhiteSpace(allowedRoot);
-
-            string fullPath = Path.GetFullPath(filePath, allowedRoot);
-            string fullRoot = Path.GetFullPath(allowedRoot);
-
-            if (!fullRoot.EndsWith(Path.DirectorySeparatorChar))
-            {
-                fullRoot += Path.DirectorySeparatorChar;
-            }
-
-            if (!fullPath.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new ArgumentException(
-                    $"Decode path '{filePath}' resolves to '{fullPath}' which is " +
-                    $"outside the allowed root '{allowedRoot}'.",
-                    nameof(filePath));
-            }
-
-            return fullPath;
+            return McpCapturePath.ResolveAndValidate(filePath, allowedRoot);
         }
 
         private static ValueTask AuditAsync(
@@ -272,7 +252,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static string GetDecodeAllowedRoot(IServiceProvider services)
         {
-            OpcUaMcpServerOptions? mcpOptions = services.GetService<OpcUaMcpServerOptions>();
+            OpcUaMcpOptions? mcpOptions = services.GetService<OpcUaMcpOptions>();
             if (mcpOptions is not null &&
                 !string.IsNullOrWhiteSpace(mcpOptions.PcapBaseFolder))
             {

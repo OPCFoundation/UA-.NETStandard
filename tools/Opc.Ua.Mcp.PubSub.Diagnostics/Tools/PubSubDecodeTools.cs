@@ -48,7 +48,6 @@ using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Pcap;
 using Opc.Ua.PubSub.Pcap.KeyLog;
-using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -111,10 +110,10 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentException.ThrowIfNullOrWhiteSpace(pcapPath);
 
             string allowedRoot = GetPcapAllowedRoot(services);
-            pcapPath = PacketDecodeTools.ResolveAndValidateDecodePath(pcapPath, allowedRoot);
+            pcapPath = McpCapturePath.ResolveAndValidate(pcapPath, allowedRoot);
             keyLogPath = string.IsNullOrWhiteSpace(keyLogPath)
                 ? null
-                : PacketDecodeTools.ResolveAndValidateDecodePath(keyLogPath, allowedRoot);
+                : McpCapturePath.ResolveAndValidate(keyLogPath, allowedRoot);
 
             using CapturedKeyLogKeyResolver? resolver = await CreateKeyResolverAsync(keyLogPath, ct)
                 .ConfigureAwait(false);
@@ -138,7 +137,7 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentException.ThrowIfNullOrWhiteSpace(keyLogPath);
 
             string allowedRoot = GetPcapAllowedRoot(services);
-            keyLogPath = PacketDecodeTools.ResolveAndValidateDecodePath(keyLogPath, allowedRoot);
+            keyLogPath = McpCapturePath.ResolveAndValidate(keyLogPath, allowedRoot);
             List<PubSubKeyMaterial> keys = await ReadKeyMaterialAsync(keyLogPath, ct).ConfigureAwait(false);
             await StoreLoadedKeyMaterialAsync(keys, ct).ConfigureAwait(false);
             return new PubSubKeyLogInfo
@@ -359,7 +358,7 @@ namespace Opc.Ua.Mcp.Tools
         private static string GetPcapAllowedRoot(IServiceProvider services)
         {
             var mcpOptions =
-                services.GetService(typeof(OpcUaMcpServerOptions)) as OpcUaMcpServerOptions;
+                services.GetService(typeof(OpcUaMcpOptions)) as OpcUaMcpOptions;
             if (mcpOptions is not null &&
                 !string.IsNullOrWhiteSpace(mcpOptions.PcapBaseFolder))
             {

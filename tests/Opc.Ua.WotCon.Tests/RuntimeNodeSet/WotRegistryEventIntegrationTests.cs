@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -193,7 +194,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "sensor",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = SelectiveConverter.ValidTd("sensor")
+                Content = ByteString.From(SelectiveConverter.ValidTd("sensor"))
             }).ConfigureAwait(false);
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -238,7 +239,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "bad-thing",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = SelectiveConverter.ValidTd("bad-thing")
+                Content = ByteString.From(SelectiveConverter.ValidTd("bad-thing"))
             }).ConfigureAwait(false);
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -460,8 +461,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             public ValueTask<WotConversionOutput> ConvertAsync(
                 WotResource resource,
-                ReadOnlyMemory<byte> content,
+                ByteString content,
                 WotRegistrySnapshot snapshot,
+                IReadOnlyDictionary<string, ByteString> contents,
                 CancellationToken cancellationToken)
             {
                 cancellationToken.ThrowIfCancellationRequested();

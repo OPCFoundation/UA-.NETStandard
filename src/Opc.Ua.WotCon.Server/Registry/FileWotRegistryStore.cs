@@ -35,6 +35,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -72,7 +73,8 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// cannot lose referenced content.
     /// </para>
     /// </remarks>
-    public sealed class FileWotRegistryStore : IWotRegistryStore
+    public sealed class FileWotRegistryStore
+        : IWotRegistryStore, IWotRegistryResourceStoreProvider, IDisposable
     {
         /// <summary>
         /// Initializes a new file-backed store rooted at <paramref name="rootFolder"/>.
@@ -122,10 +124,49 @@ namespace Opc.Ua.WotCon.Server.Registry
             m_root = Path.GetFullPath(
                 rootFolder ?? throw new ArgumentNullException(nameof(rootFolder)));
             m_blobsFolder = Path.Combine(m_root, "blobs");
+            m_stagingFolder = Path.Combine(m_root, "staging");
             m_lockPath = Path.Combine(m_root, LockFile);
-            m_resourceStore = resourceStore;
+            if (resourceStore is null)
+            {
+                // Writes land in staging and are promoted into blobs/ by the
+                // commit, so that bytes are durable before the manifest names
+                // them without a blobs/ directory ever existing without one.
+                FileSystemResourceStore? staging = null;
+                try
+                {
+                    staging = new FileSystemResourceStore(m_stagingFolder);
+                    m_stagedStore = new StagedResourceStore(
+                        new BlobDirectoryResourceStore(m_blobsFolder), staging);
+                    staging = null;
+                }
+                finally
+                {
+                    staging?.Dispose();
+                }
+                m_resourceStore = m_stagedStore;
+            }
+            else
+            {
+                // An injected store owns the durability of the bytes it holds
+                // and does not use this root's blob directory, so there is
+                // nothing to stage or promote.
+                m_stagedStore = null;
+                m_resourceStore = resourceStore;
+            }
             m_directorySyncFailureInjector = directorySyncFailureInjector;
             m_manifestReplace = manifestReplace;
+        }
+
+        /// <inheritdoc/>
+        public IXRegistryResourceStore ResourceStore => m_resourceStore;
+
+        /// <summary>
+        /// Releases the resource-store areas this store created. An injected
+        /// resource store is owned by its provider and is left alone.
+        /// </summary>
+        public void Dispose()
+        {
+            m_stagedStore?.Dispose();
         }
 
         /// <inheritdoc/>
@@ -216,6 +257,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
 
             PristineCommitArtifacts? pristineArtifacts = null;
+            List<string> promoted = [];
             LoadedGeneration? current = await ReadGenerationAsync(cancellationToken)
                 .ConfigureAwait(false);
             if (current is null && !expected.Exists)
@@ -260,29 +302,26 @@ namespace Opc.Ua.WotCon.Server.Registry
                 // versions/resources.
                 foreach (KeyValuePair<string, byte[]> blob in intended.Blobs)
                 {
-                    if (m_resourceStore is not null)
+                    // An injected store owns the durability of the bytes it holds, so the
+                    // directory fsync below does not apply to it. Content addressing makes
+                    // matching blobs immutable, so never rewrite one that already verifies.
+                    if (!await ResourceStoreBlobMatchesAsync(
+                            m_resourceStore, blob.Key, blob.Value, cancellationToken)
+                        .ConfigureAwait(false))
                     {
-                        // An injected store owns the durability of the bytes it holds, so the
-                        // directory fsync below does not apply to it. Content addressing makes
-                        // matching blobs immutable, so never rewrite one that already verifies.
-                        if (!await ResourceStoreBlobMatchesAsync(
-                                m_resourceStore, blob.Key, blob.Value, cancellationToken)
-                            .ConfigureAwait(false))
-                        {
-                            await m_resourceStore
-                                .WriteAsync(blob.Key, 0, ByteString.From(blob.Value), cancellationToken)
-                                .ConfigureAwait(false);
-                        }
-                        continue;
+                        await m_resourceStore
+                            .WriteAsync(blob.Key, 0, ByteString.From(blob.Value), cancellationToken)
+                            .ConfigureAwait(false);
                     }
-                    await EnsureBlobAsync(
-                            BlobPath(blob.Key),
-                            blob.Value,
-                            blob.Key,
-                            pristineArtifacts,
-                            cancellationToken)
-                        .ConfigureAwait(false);
                 }
+
+                // 1b. Promote the staged bytes this snapshot references into the
+                // blob directory as artifacts this commit owns. The writer made
+                // them durable in staging before asking for the commit, which is
+                // what lets the manifest switch below name them safely.
+                promoted = await PromoteStagedBlobsAsync(
+                        snapshot, pristineArtifacts, cancellationToken)
+                    .ConfigureAwait(false);
                 SyncDirectory(m_blobsFolder, DirectorySyncPhase.BlobsBeforeManifest);
                 SyncDirectory(m_root, DirectorySyncPhase.RootBeforeManifest);
             }
@@ -329,6 +368,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 TryDelete(replaceBackupPath);
             }
+            await SweepPromotedStagingAsync(promoted, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private async ValueTask<ValidatedCommit> ValidateIntendedSnapshotAsync(
@@ -341,7 +382,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     $"WoT registry snapshot generation {snapshot.Generation} cannot be negative.");
             }
 
-            var blobs = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+            var contentLengths = new Dictionary<string, long>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, WotResourceGroup> groupEntry in snapshot.Groups)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -381,32 +422,30 @@ namespace Opc.Ua.WotCon.Server.Registry
 
                     foreach (WotResourceVersion version in resource.Versions)
                     {
-                        byte[] content = version.Content.ToArray();
-                        string digestHex = WotContentDigest.ToHex(version.Digest);
-                        string actualDigest = WotContentDigest.ToHex(
-                            WotContentDigest.Compute(content));
-                        if (!string.Equals(
-                            digestHex,
-                            actualDigest,
-                            StringComparison.Ordinal))
+                        string digestHex = version.DigestHex;
+                        if (!IsSha256Hex(digestHex))
                         {
                             throw new InvalidDataException(
                                 $"Registry snapshot version '{version.VersionId}' has " +
-                                $"digest '{digestHex}', but its content hashes to " +
-                                $"'{actualDigest}'.");
+                                "an invalid SHA-256 digest.");
                         }
-                        if (blobs.TryGetValue(digestHex, out byte[]? existing))
+                        if (contentLengths.TryGetValue(digestHex, out long existingLength))
                         {
-                            if (!existing.AsSpan().SequenceEqual(content))
+                            if (existingLength != version.ContentLength)
                             {
                                 throw new InvalidDataException(
                                     $"Registry snapshot digest '{digestHex}' identifies " +
-                                    "different content.");
+                                    "different content lengths.");
                             }
                         }
                         else
                         {
-                            blobs.Add(digestHex, content);
+                            // Content presence and integrity are checked only
+                            // after every structural rule has passed, so that a
+                            // malformed snapshot is reported for what is wrong
+                            // with it rather than for content it was never
+                            // entitled to reference.
+                            contentLengths.Add(digestHex, version.ContentLength);
                         }
                     }
                 }
@@ -428,10 +467,12 @@ namespace Opc.Ua.WotCon.Server.Registry
                     $"{roundTripped.SchemaVersion}; expected {CurrentSchemaVersion}.");
             }
 
+            var deferredVerifications = new List<string>();
             WotRegistrySnapshot validated = await LoadSnapshotAsync(
                     roundTripped,
                     "intended snapshot manifest",
-                    blobs,
+                    suppliedBlobs: null,
+                    deferredVerifications,
                     cancellationToken)
                 .ConfigureAwait(false);
             if (validated.Generation != snapshot.Generation)
@@ -441,13 +482,30 @@ namespace Opc.Ua.WotCon.Server.Registry
                     $"cover contained epoch {validated.Generation}.");
             }
 
+            // Every structural rule has passed, so a content failure now is
+            // genuinely about the content and not a symptom of a malformed
+            // snapshot that should have been rejected first.
+            foreach (string digestHex in deferredVerifications)
+            {
+                long storedLength = await VerifyBlobFromResourceStoreAsync(
+                        digestHex, "intended snapshot manifest", cancellationToken)
+                    .ConfigureAwait(false);
+                if (contentLengths.TryGetValue(digestHex, out long recordedLength) &&
+                    storedLength != recordedLength)
+                {
+                    throw new InvalidDataException(
+                        $"Registry snapshot records length {recordedLength} for document " +
+                        $"'{digestHex}', but the document has length {storedLength}.");
+                }
+            }
+
             return new ValidatedCommit(
                 manifestBytes,
                 new ManifestStamp(
                     exists: true,
                     roundTripped.Generation,
                     WotContentDigest.ToHex(WotContentDigest.Compute(manifestBytes))),
-                blobs);
+                []);
         }
 
         private async ValueTask ResolvePostSwitchFailureAsync(
@@ -563,6 +621,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     manifest,
                     manifestRole,
                     suppliedBlobs: null,
+                    deferredVerifications: null,
                     cancellationToken)
                 .ConfigureAwait(false);
             return new LoadedGeneration(
@@ -574,16 +633,33 @@ namespace Opc.Ua.WotCon.Server.Registry
                 manifestBytes);
         }
 
+        /// <summary>
+        /// Materializes a snapshot from a manifest.
+        /// </summary>
+        /// <param name="manifest">The manifest to materialize.</param>
+        /// <param name="manifestRole">The manifest's role, used in diagnostics.</param>
+        /// <param name="suppliedBlobs">
+        /// Content supplied by the caller instead of read from the store.
+        /// </param>
+        /// <param name="deferredVerifications">
+        /// When supplied, referenced documents are recorded here instead of
+        /// being verified in place, so that the caller can run every structural
+        /// rule before touching content. When null, each document is verified as
+        /// it is encountered, which is what loading a committed generation from
+        /// disk wants.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         private async ValueTask<WotRegistrySnapshot> LoadSnapshotAsync(
             ManifestDto manifest,
             string manifestRole,
             IReadOnlyDictionary<string, byte[]>? suppliedBlobs,
+            List<string>? deferredVerifications,
             CancellationToken cancellationToken)
         {
             ImmutableSortedDictionary<string, string> registryLabels =
                 ToLabels(manifest.RegistryLabels);
             long generation = manifest.Generation;
-            var loadedBlobs = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+            var loadedBlobs = new Dictionary<string, long>(StringComparer.Ordinal);
             ImmutableDictionary<string, WotResourceGroup>.Builder groups =
                 ImmutableDictionary.CreateBuilder<string, WotResourceGroup>();
             var identities = new HashSet<string>(StringComparer.Ordinal)
@@ -655,6 +731,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                                     loadedBlobs,
                                     manifestRole,
                                     suppliedBlobs,
+                                    deferredVerifications,
                                     cancellationToken)
                                 .ConfigureAwait(false);
                             resources[resource.ResourceId] = resource;
@@ -681,9 +758,10 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private async ValueTask<WotResource> LoadResourceAsync(
             ResourceDto dto,
-            Dictionary<string, byte[]> loadedBlobs,
+            Dictionary<string, long> loadedBlobs,
             string manifestRole,
             IReadOnlyDictionary<string, byte[]>? suppliedBlobs,
+            List<string>? deferredVerifications,
             CancellationToken cancellationToken)
         {
             ImmutableArray<WotResourceVersion>.Builder versions =
@@ -709,18 +787,24 @@ namespace Opc.Ua.WotCon.Server.Registry
                             $"'{version.VersionId}' has an invalid SHA-256 DigestHex.");
                     }
                     string digestHex = version.DigestHex!.ToLowerInvariant();
-                    if (!loadedBlobs.TryGetValue(digestHex, out byte[]? content))
+                    if (version.ContentLength < 0)
+                    {
+                        throw new InvalidDataException(
+                            $"Registry resource '{dto.GroupId}/{dto.ResourceId}' version " +
+                            $"'{version.VersionId}' has an invalid ContentLength.");
+                    }
+                    if (!loadedBlobs.TryGetValue(digestHex, out long contentLength))
                     {
                         if (suppliedBlobs is not null)
                         {
-                            if (!suppliedBlobs.TryGetValue(digestHex, out content))
+                            if (!suppliedBlobs.TryGetValue(digestHex, out byte[]? content))
                             {
                                 throw new InvalidDataException(
                                     $"WoT registry blob '{digestHex}' referenced by the " +
                                     $"{manifestRole} is missing.");
                             }
                             string suppliedDigest = WotContentDigest.ToHex(
-                                WotContentDigest.Compute(content));
+                                WotContentDigest.Compute(content.AsSpan()));
                             if (!string.Equals(
                                 digestHex,
                                 suppliedDigest,
@@ -730,25 +814,35 @@ namespace Opc.Ua.WotCon.Server.Registry
                                     $"WoT registry blob supplied for the {manifestRole} " +
                                     $"has SHA-256 '{suppliedDigest}', not '{digestHex}'.");
                             }
+                            contentLength = content.Length;
+                        }
+                        else if (deferredVerifications is not null)
+                        {
+                            // Structural validation is still running; record the
+                            // reference and trust the recorded length until every
+                            // rule has passed.
+                            deferredVerifications.Add(digestHex);
+                            contentLength = version.ContentLength;
                         }
                         else
                         {
-                            content = m_resourceStore is not null
-                                ? await ReadFromResourceStoreAsync(
-                                        digestHex, manifestRole, cancellationToken)
-                                    .ConfigureAwait(false)
-                                : await ReadBlobAsync(
-                                        BlobPath(digestHex),
-                                        digestHex,
-                                        manifestRole,
-                                        cancellationToken)
-                                    .ConfigureAwait(false);
+                            contentLength = await VerifyBlobFromResourceStoreAsync(
+                                    digestHex, manifestRole, cancellationToken)
+                                .ConfigureAwait(false);
                         }
-                        loadedBlobs.Add(digestHex, content);
+                        if (contentLength != version.ContentLength)
+                        {
+                            throw new InvalidDataException(
+                                $"Registry resource '{dto.GroupId}/{dto.ResourceId}' version " +
+                                $"'{version.VersionId}' records length {version.ContentLength}, " +
+                                $"but document '{digestHex}' has length {contentLength}.");
+                        }
+                        loadedBlobs.Add(digestHex, contentLength);
                     }
                     versions.Add(new WotResourceVersion(
                         version.VersionId,
-                        content,
+                        FromHexDigest(digestHex),
+                        contentLength,
                         version.ContentType ?? string.Empty,
                         version.Format ?? string.Empty,
                         ParseDate(version.CreatedAt),
@@ -825,7 +919,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     Format = v.Format,
                     CreatedAt = FormatDate(v.CreatedAt),
                     ModifiedAt = FormatDate(v.ModifiedAt),
-                    DigestHex = v.DigestHex
+                    DigestHex = v.DigestHex,
+                    ContentLength = v.ContentLength
                 };
             }
             return new ResourceDto
@@ -1017,42 +1112,90 @@ namespace Opc.Ua.WotCon.Server.Registry
             return error is 4 or 11 or 13 or 16 or 32 or 33 or 35;
         }
 
-        private async ValueTask<byte[]> ReadFromResourceStoreAsync(
+        /// <summary>
+        /// Streams the document stored under <paramref name="expectedDigest"/>
+        /// and verifies that its content hashes to that digest, returning its
+        /// length.
+        /// </summary>
+        /// <remarks>
+        /// Content addressing is only an integrity guarantee if something
+        /// checks it. Comparing the recorded length alone would accept a blob
+        /// whose bytes were altered without changing its size, and would not
+        /// notice a blob that cannot be read at all, because a length can be
+        /// taken from a directory entry without opening the file. The digest is
+        /// computed incrementally over streamed chunks so that verifying a
+        /// document never requires holding it in memory - which is the point of
+        /// keeping bytes out of the snapshot in the first place.
+        /// </remarks>
+        private async ValueTask<long> VerifyBlobFromResourceStoreAsync(
             string expectedDigest,
             string manifestRole,
             CancellationToken cancellationToken)
         {
-            long length = await m_resourceStore!.GetLengthAsync(expectedDigest, cancellationToken)
+            long length = await m_resourceStore.GetLengthAsync(expectedDigest, cancellationToken)
                 .ConfigureAwait(false);
             if (length < 0)
             {
                 throw new InvalidDataException(
                     $"WoT registry document '{expectedDigest}' referenced by the {manifestRole} " +
-                    "is missing from the resource store. The registry was left unchanged.");
+                    "is missing.");
             }
 
-            ByteString document = await m_resourceStore
-                .ReadAsync(expectedDigest, 0, checked((int)length), cancellationToken)
-                .ConfigureAwait(false);
-            if (document.IsNull)
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            long offset = 0;
+            while (offset < length)
             {
-                // A null ByteString is how the contract reports an unknown key, which can only
-                // happen here if the document was removed between the two calls.
-                throw new InvalidDataException(
-                    $"WoT registry document '{expectedDigest}' referenced by the {manifestRole} " +
-                    "is missing from the resource store. The registry was left unchanged.");
+                cancellationToken.ThrowIfCancellationRequested();
+                int take = (int)Math.Min(BlobVerifyChunkSize, length - offset);
+                ByteString chunk;
+                try
+                {
+                    chunk = await m_resourceStore
+                        .ReadAsync(expectedDigest, offset, take, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    throw new IOException(
+                        $"Access to WoT registry blob '{expectedDigest}' referenced by " +
+                        $"the {manifestRole} was denied. The registry was left unchanged.",
+                        ex);
+                }
+                catch (IOException ex)
+                {
+                    throw new IOException(
+                        $"WoT registry blob '{expectedDigest}' referenced by the " +
+                        $"{manifestRole} could not be read. The registry was left unchanged.",
+                        ex);
+                }
+                if (chunk.IsNull || chunk.Length == 0)
+                {
+                    throw new InvalidDataException(
+                        $"WoT registry document '{expectedDigest}' referenced by the " +
+                        $"{manifestRole} ended after {offset} of {length} bytes.");
+                }
+                AppendToHash(hash, chunk);
+                offset += chunk.Length;
             }
 
-            byte[] content = document.Span.ToArray();
-            string actualDigest = WotContentDigest.ToHex(WotContentDigest.Compute(content));
+            string actualDigest = WotContentDigest.ToHex(hash.GetHashAndReset());
             if (!string.Equals(expectedDigest, actualDigest, StringComparison.Ordinal))
             {
                 throw new InvalidDataException(
-                    $"WoT registry document '{expectedDigest}' has SHA-256 '{actualDigest}', " +
-                    $"but the {manifestRole} requires '{expectedDigest}'. " +
-                    "The registry was left unchanged.");
+                    $"WoT registry blob '{expectedDigest}' has SHA-256 '{actualDigest}', " +
+                    $"but the {manifestRole} requires '{expectedDigest}'; its content " +
+                    $"hashes to '{actualDigest}'. The registry was left unchanged.");
             }
-            return content;
+            return length;
+        }
+
+        private static void AppendToHash(IncrementalHash hash, ByteString chunk)
+        {
+#if NETFRAMEWORK || NETSTANDARD2_0
+            hash.AppendData(chunk.Span.ToArray());
+#else
+            hash.AppendData(chunk.Span);
+#endif
         }
 
         private async ValueTask<byte[]> ReadBlobAsync(
@@ -1124,6 +1267,25 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
             return true;
+        }
+
+        private static ByteString FromHexDigest(string digestHex)
+        {
+            var bytes = new byte[Sha256HexLength / 2];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                // TODO: the span overload of byte.Parse is only available on
+                // .NET Core; this project also targets net472/net48, where the
+                // string overload is the portable equivalent. Revisit if the
+                // minimum TFM floor is ever raised to drop those targets.
+#pragma warning disable CA1846
+                bytes[i] = byte.Parse(
+                    digestHex.Substring(i * 2, 2),
+                    NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture);
+#pragma warning restore CA1846
+            }
+            return ByteString.From(bytes);
         }
 
         private static void ValidateSegment(string value, string description)
@@ -1379,6 +1541,92 @@ namespace Opc.Ua.WotCon.Server.Registry
                 UnauthorizedAccessException or InvalidDataException or IOException;
         }
 
+        /// <summary>
+        /// Copies every blob the snapshot references from the staging area into
+        /// the blob directory, and returns the keys promoted so the caller can
+        /// unstage them once the commit succeeds.
+        /// </summary>
+        /// <remarks>
+        /// Content addressing makes a matching blob immutable, so a digest
+        /// already present in the blob directory is left alone rather than
+        /// rewritten. Promotion goes through <see cref="EnsureBlobAsync"/> so
+        /// that a corrupted or unwritable existing blob is reported exactly as
+        /// it is on every other path into the blob directory.
+        /// </remarks>
+        private async ValueTask<List<string>> PromoteStagedBlobsAsync(
+            WotRegistrySnapshot snapshot,
+            PristineCommitArtifacts? pristineArtifacts,
+            CancellationToken cancellationToken)
+        {
+            var promoted = new List<string>();
+            if (m_stagedStore is null)
+            {
+                return promoted;
+            }
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (WotResource resource in snapshot.AllResources())
+            {
+                foreach (WotResourceVersion version in resource.Versions)
+                {
+                    string digestHex = version.DigestHex;
+                    if (!seen.Add(digestHex))
+                    {
+                        continue;
+                    }
+                    if (await m_stagedStore
+                            .IsCommittedAsync(digestHex, cancellationToken)
+                            .ConfigureAwait(false))
+                    {
+                        continue;
+                    }
+                    ByteString staged = await m_stagedStore
+                        .ReadStagedAsync(digestHex, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (staged.IsNull)
+                    {
+                        throw new InvalidDataException(
+                            $"WoT registry blob '{digestHex}' referenced by the intended " +
+                            "snapshot manifest is missing.");
+                    }
+                    await EnsureBlobAsync(
+                            BlobPath(digestHex),
+                            staged.ToArray(),
+                            digestHex,
+                            pristineArtifacts,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    promoted.Add(digestHex);
+                }
+            }
+            return promoted;
+        }
+
+        /// <summary>
+        /// Removes the staged copies of blobs that a successful commit promoted.
+        /// A failure here costs disk space and nothing else, because a staged
+        /// entry no manifest names can never be read.
+        /// </summary>
+        private async ValueTask SweepPromotedStagingAsync(
+            List<string> promoted,
+            CancellationToken cancellationToken)
+        {
+            if (m_stagedStore is null || promoted.Count == 0)
+            {
+                return;
+            }
+            try
+            {
+                await m_stagedStore.UnstageAsync(promoted, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (
+                ex is IOException or UnauthorizedAccessException)
+            {
+                // Orphaned staging entries are inert. Losing the sweep must not
+                // turn a committed generation into a reported failure.
+            }
+        }
+
         private static async ValueTask EnsureBlobAsync(
             string path,
             byte[] content,
@@ -1455,7 +1703,7 @@ namespace Opc.Ua.WotCon.Server.Registry
 
             return string.Equals(
                 resourceKey,
-                WotContentDigest.ToHex(WotContentDigest.Compute(existing.Span.ToArray())),
+                WotContentDigest.ToHex(WotContentDigest.Compute(existing.Span)),
                 StringComparison.Ordinal);
         }
 
@@ -2137,8 +2385,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         private const string LockFile = ".wot-registry.lock";
         private const string RegistryXid = "/";
         private const string RegistryNodeIdPath = "WoTRegistry";
-        private const int CurrentSchemaVersion = 2;
+        private const int CurrentSchemaVersion = 3;
         private const int Sha256HexLength = 64;
+        private const int BlobVerifyChunkSize = 64 * 1024;
         private const int OpenReadOnly = 0;
         private const uint GenericWrite = 0x40000000;
         private const uint FileShareRead = 0x00000001;
@@ -2154,7 +2403,9 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private readonly string m_root;
         private readonly string m_blobsFolder;
-        private readonly IXRegistryResourceStore? m_resourceStore;
+        private readonly string m_stagingFolder;
+        private readonly StagedResourceStore? m_stagedStore;
+        private readonly IXRegistryResourceStore m_resourceStore;
         private readonly string m_lockPath;
         private readonly Action<DirectorySyncPhase>? m_directorySyncFailureInjector;
         private readonly Action<string, string, string>? m_manifestReplace;
@@ -2263,6 +2514,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the SHA-256 digest of the version blob as hexadecimal text.
             /// </summary>
             public string? DigestHex { get; set; }
+
+            /// <summary>
+            /// Gets or sets the version blob length in bytes.
+            /// </summary>
+            public long ContentLength { get; set; }
         }
 
         /// <summary>

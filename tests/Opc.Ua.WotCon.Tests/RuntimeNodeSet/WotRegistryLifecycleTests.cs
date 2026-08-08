@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -672,7 +673,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = SensorConverter.BuildContent(generation)
+                Content = ByteString.From(SensorConverter.BuildContent(generation))
             }).ConfigureAwait(false);
         }
 
@@ -702,12 +703,13 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             public ValueTask<WotConversionOutput> ConvertAsync(
                 WotResource resource,
-                ReadOnlyMemory<byte> content,
+                ByteString content,
                 WotRegistrySnapshot snapshot,
+                IReadOnlyDictionary<string, ByteString> contents,
                 CancellationToken cancellationToken)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                return new ValueTask<WotConversionOutput>(Convert(content));
+                return new ValueTask<WotConversionOutput>(Convert(content.Span.ToArray()));
             }
 
             private static WotConversionOutput Convert(ReadOnlyMemory<byte> content)

@@ -185,7 +185,89 @@ namespace Opc.Ua.Wot
         /// A readable QualifiedName or BrowsePath persisted a numeric namespace
         /// index instead of a NamespaceUri-qualified form.
         /// </summary>
-        NonPortableQualifiedName = 6005
+        NonPortableQualifiedName = 6005,
+
+        /// <summary>
+        /// A model or platform vocabulary term (WoT Binding Section 6) carried a
+        /// value outside its allowed range, for example a non-boolean
+        /// <c>uav:isComposite</c>, a <c>uav:scaleFactor</c> that is not a
+        /// non-zero number, or a <c>uav:decimalPlaces</c> that is not an
+        /// integer greater than or equal to zero.
+        /// </summary>
+        InvalidModelVocabularyValue = 6006,
+
+        /// <summary>
+        /// An absolute-IRI term (WoT Binding Section 6), such as
+        /// <c>uav:semanticId</c> or <c>uav:nameNamespace</c>, did not carry an
+        /// absolute IRI with a scheme.
+        /// </summary>
+        NonAbsoluteIri = 6007,
+
+        /// <summary>
+        /// A <c>uav:unitProperty</c> value was not a non-empty RFC 6901 JSON
+        /// Pointer resolving, within the same document, to a string-valued
+        /// property (WoT Binding Section 6.5).
+        /// </summary>
+        InvalidUnitPointer = 6008,
+
+        /// <summary>
+        /// A containment term (WoT Binding Section 6.3) was inconsistent: a
+        /// <c>uav:contains</c> entry did not name a declared link, or a
+        /// <c>uav:containedIn</c> value was malformed or named the type itself.
+        /// </summary>
+        InvalidContainment = 6009,
+
+        /// <summary>
+        /// A projection document does not declare <c>uav:scenario</c>, or
+        /// declares one that is not an absolute IRI.
+        /// </summary>
+        ProjectionScenarioMissing = 6010,
+
+        /// <summary>
+        /// A projection document's <c>uav:projects</c> manifest is absent,
+        /// empty or structurally invalid.
+        /// </summary>
+        ProjectionManifestInvalid = 6011,
+
+        /// <summary>
+        /// A <c>uav:select</c> filter is malformed or carries a key outside the
+        /// closed predicate set.
+        /// </summary>
+        ProjectionSelectorInvalid = 6012,
+
+        /// <summary>
+        /// A projection document defines an affordance instead of declaring one
+        /// through <c>tm:ref</c>.
+        /// </summary>
+        ProjectionDefinesAffordance = 6013,
+
+        /// <summary>
+        /// A projection source could not be resolved.
+        /// </summary>
+        ProjectionSourceUnresolved = 6014,
+
+        /// <summary>
+        /// The projection source graph contains a cycle.
+        /// </summary>
+        ProjectionCycle = 6015,
+
+        /// <summary>
+        /// A projection source's <c>uav:sourceDigest</c> does not match the
+        /// retrieved bytes.
+        /// </summary>
+        ProjectionDigestMismatch = 6016,
+
+        /// <summary>
+        /// A context prefix is bound to two different URIs across the sources
+        /// of a projection.
+        /// </summary>
+        ProjectionContextConflict = 6017,
+
+        /// <summary>
+        /// A selection names an affordance that was already selected, so the
+        /// later selection is dropped.
+        /// </summary>
+        ProjectionSelectionDropped = 6018
     }
 
     /// <summary>

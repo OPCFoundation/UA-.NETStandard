@@ -41,7 +41,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Mcp.Serialization;
 
 using ISession = Opc.Ua.Client.ISession;
-using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -416,29 +415,15 @@ namespace Opc.Ua.Mcp.Tools
         /// <see cref="Path.GetFullPath(string)"/> so directory-traversal
         /// sequences (<c>..</c>) cannot escape.
         /// </summary>
+        /// <param name="services">
+        /// DI service provider used to look up the configured export root.
+        /// </param>
         /// <param name="requestedPath">The path supplied by the MCP tool caller.</param>
         /// <param name="parameterName">Tool parameter name used in error messages.</param>
         /// <returns>An absolute path inside <see cref="ExportRoot"/>.</returns>
         /// <exception cref="ArgumentException">
         /// <paramref name="requestedPath"/> is empty, white-space, or
         /// resolves outside <see cref="ExportRoot"/>.
-        /// </exception>
-        /// <summary>
-        /// Resolves <paramref name="requestedPath"/> against the
-        /// configured export root and rejects any path that would
-        /// escape it.
-        /// </summary>
-        /// <param name="services">DI service provider used to look
-        /// up <see cref="OpcUaMcpServerOptions.NodeSetExportRoot"/>.
-        /// </param>
-        /// <param name="requestedPath">Caller-supplied path.</param>
-        /// <param name="parameterName">Tool parameter name used in
-        /// error messages.</param>
-        /// <returns>An absolute path inside the resolved export
-        /// root.</returns>
-        /// <exception cref="ArgumentException">
-        /// <paramref name="requestedPath"/> is empty, white-space, or
-        /// resolves outside the export root.
         /// </exception>
         internal static string ResolveExportPath(
             IServiceProvider services,
@@ -466,7 +451,7 @@ namespace Opc.Ua.Mcp.Tools
             {
                 throw new ArgumentException(
                     $"{parameterName} '{requestedPath}' resolves outside the export root '{root}'. " +
-                    "Configure McpServerOptions.NodeSetExportRoot or set the " +
+                    "Configure OpcUaMcpOptions.NodeSetExportRoot or set the " +
                     $"{ExportRootEnvironmentVariable} environment variable to allow a different " +
                     "base directory before starting the MCP server.",
                     parameterName);
@@ -476,7 +461,7 @@ namespace Opc.Ua.Mcp.Tools
 
         /// <summary>
         /// Resolves the active export-root directory using the
-        /// precedence: <see cref="OpcUaMcpServerOptions.NodeSetExportRoot"/>
+        /// precedence: <see cref="OpcUaMcpOptions.NodeSetExportRoot"/>
         /// from DI &gt; <c>OPCUA_MCP_EXPORT_ROOT</c> environment
         /// variable &gt; per-user default. The environment variable and
         /// default are re-evaluated on every call so a host that
@@ -487,7 +472,7 @@ namespace Opc.Ua.Mcp.Tools
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            OpcUaMcpServerOptions? mcpOptions = services.GetService<OpcUaMcpServerOptions>();
+            OpcUaMcpOptions? mcpOptions = services.GetService<OpcUaMcpOptions>();
             if (mcpOptions is not null &&
                 !string.IsNullOrWhiteSpace(mcpOptions.NodeSetExportRoot))
             {

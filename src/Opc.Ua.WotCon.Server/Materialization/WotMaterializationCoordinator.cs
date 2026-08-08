@@ -35,6 +35,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Export;
@@ -67,7 +68,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotNodeSetConverterOptions? converterOptions = null,
             IWotDocumentConverter? documentConverter = null,
             IEnumerable<IWotNodeSetContributor>? nodeSetContributors = null,
-            IWotNodeSetResolver? nodeSetResolver = null)
+            IWotNodeSetResolver? nodeSetResolver = null,
+            IWotViewProjectionHost? viewProjectionHost = null)
         {
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             m_host = projectionHost ?? throw new ArgumentNullException(nameof(projectionHost));
@@ -79,6 +81,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ? []
                 : [.. nodeSetContributors];
             m_nodeSetResolver = nodeSetResolver;
+            m_viewHost = viewProjectionHost ?? new InMemoryWotViewProjectionHost();
         }
 
         /// <summary>
@@ -132,9 +135,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     var enabled = snapshot.AllResources()
                         .Where(r => r.Enabled && r.DefaultVersion is not null)
                         .ToList();
+                    var contentCache = new Dictionary<string, ByteString>(StringComparer.Ordinal);
                     ImmutableArray<WotDependencyClosure> closures =
-                        WotDependencyGraph.BuildClosures(
-                            snapshot, enabled, m_converterOptions.MaxJsonDepth);
+                        await WotDependencyGraph.BuildClosuresAsync(
+                                snapshot,
+                                enabled,
+                                m_converterOptions.MaxJsonDepth,
+                                (version, token) => ReadCachedContentAsync(
+                                    contentCache, version, token),
+                                cancellationToken)
+                            .ConfigureAwait(false);
 
                     var targetKeys = new HashSet<string>(
                         closures.Select(c => c.Key), StringComparer.Ordinal);
@@ -167,7 +177,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                         ClosureOutcome outcome = await ProcessClosureAsync(
                             snapshot, closure, newGeneration, force && inScope,
-                            dryRun, strict, cancellationToken).ConfigureAwait(false);
+                            dryRun, strict, contentCache, cancellationToken).ConfigureAwait(false);
 
                         foreach (WoTResourceLoadResultDataType result in outcome.Results)
                         {
@@ -272,6 +282,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         foreach (WotBindingPlan plan in state.BindingPlans)
                         {
                             await m_binders.DeactivateAsync(plan, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        foreach (WotViewProjectionHandle viewHandle in state.ViewHandles)
+                        {
+                            await m_viewHost.RemoveAsync(viewHandle, cancellationToken)
                                 .ConfigureAwait(false);
                         }
                         if (state.Handle is not null)
@@ -384,7 +399,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private static ByteString DigestOf(WotResource resource)
         {
-            return (ByteString)(resource.DefaultVersion?.Digest ?? []);
+            return resource.DefaultVersion is null ? ByteString.Empty : resource.DefaultVersion.Digest;
         }
 
         private async ValueTask<ClosureOutcome> ProcessClosureAsync(
@@ -394,6 +409,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool force,
             bool dryRun,
             bool strict,
+            Dictionary<string, ByteString> contentCache,
             CancellationToken cancellationToken)
         {
             ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
@@ -441,6 +457,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var perMemberNodeCount = new Dictionary<string, int>(StringComparer.Ordinal);
             var perMemberRoot = new Dictionary<string, ExpandedNodeId>(StringComparer.Ordinal);
             var bindingPlans = new List<WotBindingPlan>();
+            var projectionMembers = new List<WotResource>();
             bool degraded = false;
             var requiredNamespaces = new HashSet<string>(StringComparer.Ordinal);
             var ownedNamespaces = new HashSet<string>(StringComparer.Ordinal);
@@ -457,8 +474,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return new ClosureOutcome(results.ToImmutable(), projections);
                 }
 
+                // A projection document declares affordances instead of defining
+                // them: it materializes as a View that Organizes the Nodes of its
+                // sources (Section 12.6), never as affordance Nodes of its own. It
+                // is deferred here and materialized after its sources, whose
+                // materialized roots the View resolves against.
+                ByteString memberContent = await ReadCachedContentAsync(
+                        contentCache, version, cancellationToken)
+                    .ConfigureAwait(false);
+                if (IsProjectionResource(memberContent))
+                {
+                    projectionMembers.Add(member);
+                    continue;
+                }
+
                 (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError) =
-                    await TryConvertAsync(member, snapshot, cancellationToken)
+                    await TryConvertAsync(member, snapshot, contentCache, cancellationToken)
                         .ConfigureAwait(false);
                 if (nodeSet is not null && m_nodeSetContributors.Length > 0)
                 {
@@ -482,7 +513,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return new ClosureOutcome(results.ToImmutable(), projections);
                 }
 
-                WotBindingPlan plan = m_binders.Prepare(BuildPlanRequest(member, version));
+                WotBindingPlan plan = m_binders.Prepare(BuildPlanRequest(member, version, memberContent));
                 bindingPlans.Add(plan);
                 if (!plan.FullySupported)
                 {
@@ -570,45 +601,64 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             var document = new WotProjectionDocument(
                 closure.Key, sources.ToImmutable(), bindingPlans.ToArrayOf());
-            WotProjectionHandle handle;
-            try
+            WotProjectionHandle? handle = tracked?.Handle;
+            if (sources.Count > 0)
             {
-                if (tracked?.Handle is null)
+                try
                 {
-                    handle = await m_host.AddAsync(document, cancellationToken)
-                        .ConfigureAwait(false);
+                    if (tracked?.Handle is null)
+                    {
+                        handle = await m_host.AddAsync(document, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    else if (RetirementPolicy == WotProjectionRetirementPolicy.Immediate)
+                    {
+                        handle = await m_host.ImmediateReloadAsync(
+                            tracked.Handle, document, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        handle = await m_host.ShadowReloadAsync(
+                            tracked.Handle, document, cancellationToken).ConfigureAwait(false);
+                    }
                 }
-                else if (RetirementPolicy == WotProjectionRetirementPolicy.Immediate)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    handle = await m_host.ImmediateReloadAsync(
-                        tracked.Handle, document, cancellationToken).ConfigureAwait(false);
+                    // Projection failed: retain the previous active generation and its
+                    // tracked binding plans. The shadow switch never happened, so the
+                    // old plans remain active and no deactivation is performed
+                    // (rollback: old plans survive when the new switch fails).
+                    foreach (WotResource member in members)
+                    {
+                        results.Add(FailResult(
+                            member, generation, WoTPhaseEnum.Activation, ex.Message));
+                        projections.Add(FailProjection(member, ex.Message));
+                        RaiseLoadFailure(member, generation, ex.Message);
+                    }
+                    return new ClosureOutcome(results.ToImmutable(), projections);
                 }
-                else
-                {
-                    handle = await m_host.ShadowReloadAsync(
-                        tracked.Handle, document, cancellationToken).ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // Projection failed: retain the previous active generation and its
-                // tracked binding plans. The shadow switch never happened, so the
-                // old plans remain active and no deactivation is performed
-                // (rollback: old plans survive when the new switch fails).
-                foreach (WotResource member in members)
-                {
-                    results.Add(FailResult(
-                        member, generation, WoTPhaseEnum.Activation, ex.Message));
-                    projections.Add(FailProjection(member, ex.Message));
-                    RaiseLoadFailure(member, generation, ex.Message);
-                }
-                return new ClosureOutcome(results.ToImmutable(), projections);
             }
 
-            string projectionWarning = handle.Warning;
+            string projectionWarning = handle?.Warning ?? string.Empty;
             if (projectionWarning.Length != 0)
             {
                 degraded = true;
+            }
+
+            // Materialize a View for each deferred projection-document member now
+            // that its sources are in the address space. The View Organizes the
+            // already-materialized source Nodes (Section 12.6) and creates no
+            // affordance Node of its own.
+            var projectionXids = new HashSet<string>(StringComparer.Ordinal);
+            var viewResults = new List<WoTResourceLoadResultDataType>();
+            var viewProjections = new List<WotResourceProjection>();
+            var viewHandles = new List<WotViewProjectionHandle>();
+            if (projectionMembers.Count > 0)
+            {
+                await MaterializeProjectionViewsAsync(
+                    snapshot, projectionMembers, perMemberRoot, generation,
+                    projectionXids, viewResults, viewProjections, viewHandles,
+                    contentCache, cancellationToken).ConfigureAwait(false);
             }
 
             // The shadow switch (or first add) succeeded. On an update, retire the
@@ -622,6 +672,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 foreach (WotBindingPlan plan in tracked.BindingPlans)
                 {
                     await m_binders.DeactivateAsync(plan, cancellationToken).ConfigureAwait(false);
+                }
+                foreach (WotViewProjectionHandle viewHandle in tracked.ViewHandles)
+                {
+                    await m_viewHost.RemoveAsync(viewHandle, cancellationToken)
+                        .ConfigureAwait(false);
                 }
             }
 
@@ -642,7 +697,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     ContentDigest = DigestOf(m)
                 })],
                 ModelNamespaceUris = [.. sources.SelectMany(s => s.ModelNamespaceUris)],
-                BindingPlans = [.. bindingPlans]
+                BindingPlans = [.. bindingPlans],
+                ViewHandles = [.. viewHandles]
             };
             foreach (string namespaceUri in sources.SelectMany(s => s.ModelNamespaceUris))
             {
@@ -657,6 +713,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WoTOutcomeEnum memberOutcome = degraded ? WoTOutcomeEnum.Warning : WoTOutcomeEnum.Success;
             foreach (WotResource member in members)
             {
+                if (projectionXids.Contains(member.Xid))
+                {
+                    // A projection-document member is reported by the View
+                    // materialization below, not as a NodeSet projection.
+                    continue;
+                }
                 int nodeCount = perMemberNodeCount.TryGetValue(member.Xid, out int c) ? c : 0;
                 NodeId rootNodeId = perMemberRoot.TryGetValue(member.Xid, out ExpandedNodeId root)
                     ? ResolveRootNodeId(root)
@@ -695,6 +757,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     DateTime.UtcNow));
                 RaiseResource(member, generation, memberOutcome, WoTLoadStateEnum.Active);
             }
+
+            results.AddRange(viewResults);
+            projections.AddRange(viewProjections);
 
             return new ClosureOutcome(results.ToImmutable(), projections);
         }
@@ -735,6 +800,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     if (!dryRun)
                     {
+                        foreach (WotViewProjectionHandle viewHandle in state.ViewHandles)
+                        {
+                            await m_viewHost.RemoveAsync(viewHandle, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
                         m_closures.Remove(key);
                     }
                 }
@@ -743,15 +813,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private async ValueTask<(UANodeSet? NodeSet, ExpandedNodeId Root, string? Error)> TryConvertAsync(
-            WotResource resource, WotRegistrySnapshot snapshot, CancellationToken cancellationToken)
+            WotResource resource,
+            WotRegistrySnapshot snapshot,
+            Dictionary<string, ByteString> contentCache,
+            CancellationToken cancellationToken)
         {
             WotResourceVersion? version = resource.DefaultVersion;
             if (version is null)
             {
                 return (null, default, "Resource has no default version.");
             }
+            ByteString content = await ReadCachedContentAsync(contentCache, version, cancellationToken)
+                .ConfigureAwait(false);
             WotConversionOutput output = await m_converter
-                .ConvertAsync(resource, version.Content, snapshot, cancellationToken)
+                .ConvertAsync(resource, content, snapshot, contentCache, cancellationToken)
                 .ConfigureAwait(false);
             if (!output.Succeeded)
             {
@@ -784,11 +859,279 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return resolved.IsNull ? NodeId.Null : resolved;
         }
 
+        /// <summary>
+        /// Determines whether a stored resource version is a projection document
+        /// (WoT Binding Section 12): a Thing Description or Thing Model that
+        /// carries the <c>uav:projection</c> marker and therefore materializes as
+        /// a View rather than as affordance Nodes.
+        /// </summary>
+        private bool IsProjectionResource(ByteString content)
+        {
+            WotDocument? document = TryParseDocument(content);
+            if (document is null)
+            {
+                return false;
+            }
+            using (document)
+            {
+                return WotProjection.IsProjection(document);
+            }
+        }
+
+        private WotDocument? TryParseDocument(ByteString content)
+        {
+            try
+            {
+                return WotDocument.Parse(content.Span.ToArray(), m_converterOptions);
+            }
+            catch (Exception ex) when (ex is FormatException or JsonException)
+            {
+                return null;
+            }
+        }
+
+        private async ValueTask<ByteString> ReadCachedContentAsync(
+            Dictionary<string, ByteString> contentCache,
+            WotResourceVersion version,
+            CancellationToken cancellationToken)
+        {
+            if (contentCache.TryGetValue(version.DigestHex, out ByteString content))
+            {
+                return content;
+            }
+            content = await m_registry.ReadContentAsync(version, cancellationToken)
+                .ConfigureAwait(false);
+            contentCache[version.DigestHex] = content;
+            return content;
+        }
+
+        /// <summary>
+        /// Materializes a View for every deferred projection-document member of a
+        /// closure. Each View <c>Organizes</c> the Nodes already materialized from
+        /// the projection's sources (located through the closure's per-member
+        /// roots) and never recreates them; a source not present in this address
+        /// space is omitted and reported, and the resource still reaches
+        /// <c>Active</c> (WoT Binding Section 12.6).
+        /// </summary>
+        private async ValueTask MaterializeProjectionViewsAsync(
+            WotRegistrySnapshot snapshot,
+            List<WotResource> projectionMembers,
+            Dictionary<string, ExpandedNodeId> perMemberRoot,
+            uint generation,
+            HashSet<string> projectionXids,
+            List<WoTResourceLoadResultDataType> viewResults,
+            List<WotResourceProjection> viewProjections,
+            List<WotViewProjectionHandle> viewHandles,
+            Dictionary<string, ByteString> contentCache,
+            CancellationToken cancellationToken)
+        {
+            // Map each already-materialized source resource to its server root
+            // NodeId so the View can Organize the exact Nodes. A source absent
+            // from this map is treated as not in this address space.
+            var sourceRoots = new Dictionary<string, NodeId>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, ExpandedNodeId> entry in perMemberRoot)
+            {
+                NodeId nodeId = ResolveRootNodeId(entry.Value);
+                if (!nodeId.IsNull)
+                {
+                    sourceRoots[entry.Key] = nodeId;
+                }
+            }
+
+            NamespaceTable namespaces = ServerNamespaceUris ?? new NamespaceTable();
+            var index = new WotMaterializedNodeIndex(snapshot, namespaces, sourceRoots);
+            var thingResolver = new SnapshotThingResolver(snapshot, contentCache);
+            var builder = new WotProjectionViewBuilder(
+                thingResolver, index, m_converterOptions, namespaces);
+
+            foreach (WotResource member in projectionMembers)
+            {
+                projectionXids.Add(member.Xid);
+                WotResourceVersion? version = member.DefaultVersion;
+                if (version is null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await MaterializeProjectionViewAsync(
+                        builder, member, version, generation, contentCache,
+                        viewResults, viewProjections, viewHandles, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Contain the failure to this member. Letting it escape would
+                    // abort the loop with the Views applied so far held only in the
+                    // local list, which the caller publishes into ClosureState only
+                    // on the success path - so those Nodes would stay in the address
+                    // space with no handle recorded and nothing could ever remove
+                    // them. Reporting the member failed keeps every applied handle
+                    // reachable for the next refresh to retire.
+                    string reason = "The projection View could not be materialized: " +
+                        ex.Message;
+                    viewResults.Add(FailResult(
+                        member, generation, WoTPhaseEnum.Activation, reason));
+                    viewProjections.Add(FailProjection(member, reason));
+                    RaiseLoadFailure(member, generation, reason);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Materializes the View for one projection-document member. Expected
+        /// failures are reported through the result lists; anything unexpected is
+        /// contained by the caller.
+        /// </summary>
+        private async ValueTask MaterializeProjectionViewAsync(
+            WotProjectionViewBuilder builder,
+            WotResource member,
+            WotResourceVersion version,
+            uint generation,
+            Dictionary<string, ByteString> contentCache,
+            List<WoTResourceLoadResultDataType> viewResults,
+            List<WotResourceProjection> viewProjections,
+            List<WotViewProjectionHandle> viewHandles,
+            CancellationToken cancellationToken)
+        {
+            ByteString content = await ReadCachedContentAsync(contentCache, version, cancellationToken)
+                .ConfigureAwait(false);
+            WotDocument? document = TryParseDocument(content);
+            if (document is null)
+            {
+                const string reason = "The projection document could not be parsed.";
+                viewResults.Add(FailResult(
+                    member, generation, WoTPhaseEnum.FormatValidation, reason));
+                viewProjections.Add(FailProjection(member, reason, FormatFailure(reason)));
+                RaiseValidationFailure(member, generation, FormatFailure(reason), reason);
+                return;
+            }
+
+            WotViewProjectionResult build;
+            using (document)
+            {
+                build = await builder
+                    .BuildAsync(document, null, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (!build.Success || build.Plan is null)
+            {
+                string reason = FormatDiagnostics(build.Diagnostics,
+                    "The projection document could not be materialized as a View.");
+                viewResults.Add(FailResult(member, generation, WoTPhaseEnum.Projection, reason));
+                viewProjections.Add(FailProjection(member, reason));
+                RaiseLoadFailure(member, generation, reason);
+                return;
+            }
+
+            WotViewProjectionPlan plan = build.Plan;
+            NodeId viewNodeId = ComputeViewNodeId(member);
+            var request = new WotViewProjectionRequest(
+                member.Xid, member.Xid, ComputeResourceNodeId(member), viewNodeId, plan);
+            WotViewProjectionHandle viewHandle = await m_viewHost
+                .ApplyAsync(request, cancellationToken)
+                .ConfigureAwait(false);
+            viewHandles.Add(viewHandle);
+
+            string message = viewHandle.Message.Length != 0
+                ? viewHandle.Message
+                : "Materialized projection View organizing " +
+                    plan.OrganizedNodeIds.Count.ToString(CultureInfo.InvariantCulture) +
+                    " Node(s).";
+            viewResults.Add(new WoTResourceLoadResultDataType
+            {
+                Xid = member.Xid,
+                GroupId = member.GroupId,
+                ResourceId = member.ResourceId,
+                VersionId = member.DefaultVersionId ?? string.Empty,
+                Kind = member.Kind,
+                Outcome = WoTOutcomeEnum.Success,
+                Phase = WoTPhaseEnum.Activation,
+                LoadState = WoTLoadStateEnum.Active,
+                Generation = generation,
+                MaterializedNodeCount = (uint)plan.MaterializedNodeCount,
+                RootNodeId = viewNodeId,
+                ContentDigest = DigestOf(member),
+                Message = message
+            });
+            viewProjections.Add(new WotResourceProjection(
+                member.GroupId,
+                member.ResourceId,
+                WoTLoadStateEnum.Active,
+                member.DefaultVersionId,
+                generation,
+                plan.MaterializedNodeCount,
+                viewNodeId,
+                SuccessValidation(),
+                OmissionDiagnostics(plan.Omissions),
+                DateTime.UtcNow));
+            RaiseResource(member, generation, WoTOutcomeEnum.Success, WoTLoadStateEnum.Active);
+        }
+
+        private NodeId ComputeResourceNodeId(WotResource member)
+        {
+            return new NodeId(
+                $"WoTRegistry/groups/{member.GroupId}/resources/{member.ResourceId}",
+                WotConNamespaceIndex());
+        }
+
+        private NodeId ComputeViewNodeId(WotResource member)
+        {
+            return new NodeId(
+                $"WoTRegistry/groups/{member.GroupId}/resources/{member.ResourceId}/View",
+                WotConNamespaceIndex());
+        }
+
+        private ushort WotConNamespaceIndex()
+        {
+            NamespaceTable? namespaces = ServerNamespaceUris;
+            if (namespaces is null)
+            {
+                return 0;
+            }
+            int index = namespaces.GetIndex(Namespaces.WotCon);
+            return index > 0 ? (ushort)index : (ushort)0;
+        }
+
+        private static ImmutableArray<string> OmissionDiagnostics(ArrayOf<string> omissions)
+        {
+            if (omissions.Count == 0)
+            {
+                return [];
+            }
+            ImmutableArray<string>.Builder builder =
+                ImmutableArray.CreateBuilder<string>(omissions.Count);
+            for (int i = 0; i < omissions.Count; i++)
+            {
+                builder.Add(omissions[i]);
+            }
+            return builder.ToImmutable();
+        }
+
+        private static string FormatDiagnostics(ArrayOf<WotDiagnostic> diagnostics, string fallback)
+        {
+            if (diagnostics.Count == 0)
+            {
+                return fallback;
+            }
+            var parts = new List<string>(diagnostics.Count);
+            for (int i = 0; i < diagnostics.Count; i++)
+            {
+                if (diagnostics[i].Severity == WotDiagnosticSeverity.Error)
+                {
+                    parts.Add(diagnostics[i].Message);
+                }
+            }
+            return parts.Count == 0 ? fallback : string.Join("; ", parts);
+        }
+
         private WotBindingPlanRequest BuildPlanRequest(
-            WotResource resource, WotResourceVersion version)
+            WotResource resource, WotResourceVersion version, ByteString content)
         {
             return WotBindingPlanRequest.FromDocument(
-                resource.Xid, resource.Kind, version.Content, m_converterOptions.MaxJsonDepth);
+                resource.Xid, resource.Kind, content.Span.ToArray(), m_converterOptions.MaxJsonDepth);
         }
 
         private byte[] ComputeAggregateDigest(IReadOnlyList<WotResource> members)
@@ -802,9 +1145,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     writer.Write(member.Xid);
                     writer.Write(member.DefaultVersionId ?? string.Empty);
-                    byte[] digest = member.DefaultVersion?.Digest ?? [];
+                    ByteString digest = member.DefaultVersion is null
+                        ? ByteString.Empty
+                        : member.DefaultVersion.Digest;
                     writer.Write(digest.Length);
-                    writer.Write(digest);
+                    writer.Write(digest.Span.ToArray());
                 }
                 writer.Write(m_converterOptions.MaxJsonDepth);
                 writer.Write(BinderVersion);
@@ -1348,6 +1693,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             public ImmutableArray<WotBindingPlan> BindingPlans { get; set; }
                 = [];
+
+            public ImmutableArray<WotViewProjectionHandle> ViewHandles { get; set; }
+                = [];
         }
 
         private sealed class ClosureOutcome
@@ -1366,6 +1714,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly IWotRegistryService m_registry;
         private readonly IWotProjectionHost m_host;
+        private readonly IWotViewProjectionHost m_viewHost;
         private readonly IWotBinderRegistry m_binders;
         private readonly IWotDocumentConverter m_converter;
         private readonly ImmutableArray<IWotNodeSetContributor> m_nodeSetContributors;

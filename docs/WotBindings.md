@@ -808,3 +808,99 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 * [WoT aggregation sample](../samples/WotCon/README.md) - exercises the complete generic projection runtime with two OPC UA source servers, runtime-loaded DI/Machinery/Pumps models, local monitored items, and shadow-generation replacement.
 * [Dependency injection](DependencyInjection.md)
 * [Runtime NodeSets](RuntimeNodeSets.md)
+
+## Conformance to WoT Binding 1.1
+
+The specification defines ten conformance units and four recommended profiles
+(Section 11). This is where the implementation stands against them.
+
+| Unit | Status | Where |
+|---|---|---|
+| **WoT-ProtocolBinding** | covered | URI/base/href handling, the four service mappings, access levels and the security schemes, in `Opc.Ua.WotCon.Bindings` and its planners |
+| **WoT-NativeMapping** | covered | `WotNodeSetConverter`, including the proof that `uav:nodes` is omitted when the readable mapping is complete |
+| **WoT-StructuredFallback** | covered | the structured `uav:nodes` projection in `WotNativeProjection` |
+| **WoT-JsonResidue** | covered | `WotJsonResidue`, pointer-addressed preservation through the NodeSet Extension |
+| **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
+| **WoT-ExactRoundtrip** | covered | the envelope-free roundtrip invariants, including residue |
+| **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems |
+| **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary`, all Section 6 terms with their validation rules |
+| **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
+| **WoT-Projection** | covered | `WotProjection`, `WotProjectionResolver` and, for materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost` |
+
+All four profiles - **WoT-Reader**, **WoT-Modeller**, **WoT-Converter** and
+**WoT-ArchivalConverter** - are therefore satisfied by the units above.
+
+### How this is checked
+
+The specification publishes twenty worked examples, and two of them are a golden
+pair: a projection document and the resolved view it is defined to resolve to.
+`WotSpecExampleTests` embeds all twenty and runs the pair through the resolver,
+asserting against the specification's own expected output rather than against our
+reading of the prose. That covers, in one document, all three selection forms, the
+bulk naming rule, the security closure naming and the provenance term.
+
+### Compatibility switch for non-portable identifiers
+
+Release 1.1 rejects two identifier forms that OPC 10101 v1.00 permitted. Both are
+session-local: a document carrying either binds to the wrong namespace as soon as
+the server's namespace table is reordered, which is exactly what a document meant
+to be stored and re-read must not do.
+
+| Rejected in release 1.1 | Permitted in v1.00 | Portable form to use instead |
+| --- | --- | --- |
+| `ns=<index>` in any NodeId-valued term | § 6.2 | `nsu=<NamespaceUri>;<idtype>=<id>` |
+| a numeric namespace prefix in `uav:browseName` / `uav:browsePath` | § 6.5.3 | a context-bound non-numeric prefix, or `nsu=<NamespaceUri>;<Name>` |
+
+The NodeId rule applies to every NodeId-valued term: `uav:id`, `uav:hasComponent`,
+`uav:componentOf`, `uav:mapToNodeId`, `uav:mapToType`, `uav:refId`, and the `href`
+of a form.
+
+So a v1.00 document written like this:
+
+```jsonc
+{
+  "uav:id": "ns=3;i=1005",
+  "uav:browseName": "3:Identification",
+  "forms": [{ "href": "/?id=ns=3;s=Pump1.Temperature" }]
+}
+```
+
+is rewritten for 1.1 as:
+
+```jsonc
+{
+  "uav:id": "nsu=http://example.com/UA/Pumps/;i=1005",
+  "uav:browseName": "nsu=http://opcfoundation.org/UA/DI/;Identification",
+  "forms": [{ "href": "/?id=nsu=http://example.com/UA/Pumps/;s=Pump1.Temperature" }]
+}
+```
+
+The namespace URI is written out, so the meaning no longer depends on the order of
+the table the reader happens to hold.
+
+A document carrying either form fails to convert, reporting `NonPortableIdentity`
+or `NonPortableQualifiedName` as an error. Rewriting the document is the fix. While
+that is in progress, `WotNodeSetConverterOptions.AllowNonPortableIdentifiers`
+downgrades both errors to warnings, so the non-portable values stay visible rather
+than being silently accepted, and each is interpreted exactly as v1.00 defined it:
+
+```csharp
+var options = new WotNodeSetConverterOptions
+{
+    AllowNonPortableIdentifiers = true
+};
+
+WotConversionResult<UANodeSet> result =
+    WotNodeSetConverter.ToNodeSetResult(document, options);
+
+foreach (WotDiagnostic diagnostic in result.Diagnostics)
+{
+    // NonPortableIdentity / NonPortableQualifiedName arrive as warnings here
+    // instead of errors, naming the term and the value that has to be rewritten.
+    Console.WriteLine($"{diagnostic.Severity}: {diagnostic.Code} {diagnostic.Message}");
+}
+```
+
+The option defaults to `false`, which matches the release 1.1 validator. Leave it at
+the default once the documents are rewritten; it exists to keep a v1.00 corpus
+readable during migration, not as a supported long-term mode.

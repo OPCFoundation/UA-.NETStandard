@@ -179,8 +179,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public ValueTask<WotConversionOutput> ConvertAsync(
             WotResource resource,
-            ReadOnlyMemory<byte> content,
+            ByteString content,
             WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

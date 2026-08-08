@@ -87,6 +87,16 @@ namespace Opc.Ua.Mcp.Tools
 
             ReplayMode replayMode = ParseReplayMode(mode);
             PcapOptions pcapOptions = services.GetService<PcapOptions>() ?? new PcapOptions();
+
+            // Confine the caller-supplied paths the same way the decode tools
+            // do, so replay cannot be used to read a pcap or key log from
+            // outside the capture folder.
+            string allowedRoot = GetReplayAllowedRoot(services);
+            pcapPath = McpCapturePath.ResolveAndValidate(pcapPath, allowedRoot);
+            keyLogPath = string.IsNullOrWhiteSpace(keyLogPath)
+                ? null
+                : McpCapturePath.ResolveAndValidate(keyLogPath, allowedRoot);
+
             if (replayMode == ReplayMode.MockClient && !pcapOptions.AllowMockClientReplay)
             {
                 throw new PcapDiagnosticsException(
@@ -169,6 +179,28 @@ namespace Opc.Ua.Mcp.Tools
             return services.GetService<ReplaySessionManager>()
                 ?? throw new NotSupportedException(
                     "Replay support is not yet wired - replay agent has not completed.");
+        }
+
+        /// <summary>
+        /// Resolves the folder a replay may read from, using the same
+        /// precedence as the decode tools: the MCP option, then the Pcap
+        /// option, then the per-user default capture folder.
+        /// </summary>
+        private static string GetReplayAllowedRoot(IServiceProvider services)
+        {
+            OpcUaMcpOptions? mcpOptions = services.GetService<OpcUaMcpOptions>();
+            if (mcpOptions is not null &&
+                !string.IsNullOrWhiteSpace(mcpOptions.PcapBaseFolder))
+            {
+                return System.IO.Path.GetFullPath(mcpOptions.PcapBaseFolder!);
+            }
+
+            PcapOptions? options = services.GetService<PcapOptions>();
+            return options?.BaseFolder ??
+                System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "OPCFoundation",
+                    "opcua-pcap");
         }
 
         private static ValueTask AuditAsync(
