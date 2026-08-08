@@ -30,6 +30,8 @@
 #nullable enable
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
@@ -359,8 +361,8 @@ namespace Opc.Ua.Server.Tests
             var id = Guid.NewGuid();
             var cp = new ContinuationPoint { Id = id };
 
-            session.SaveContinuationPoint(cp);
-            ContinuationPoint? restored = session.RestoreContinuationPoint(
+            session.ContinuationPoints.SaveBrowse(cp);
+            ContinuationPoint? restored = session.ContinuationPoints.RestoreBrowse(
                 new ByteString(id.ToByteArray()));
 
             Assert.That(restored, Is.Not.Null);
@@ -374,7 +376,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
 
             Assert.That(
-                () => session.SaveContinuationPoint(null!),
+                () => session.ContinuationPoints.SaveBrowse(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -382,10 +384,10 @@ namespace Opc.Ua.Server.Tests
         public void RestoreContinuationPointReturnsNullForUnknownAndBadLength()
         {
             using ServerSession session = CreateSession(CreateEndpoint());
-            session.SaveContinuationPoint(new ContinuationPoint { Id = Guid.NewGuid() });
+            session.ContinuationPoints.SaveBrowse(new ContinuationPoint { Id = Guid.NewGuid() });
 
-            Assert.That(session.RestoreContinuationPoint(new ByteString(new byte[] { 1, 2, 3 })), Is.Null);
-            Assert.That(session.RestoreContinuationPoint(new ByteString(Guid.NewGuid().ToByteArray())), Is.Null);
+            Assert.That(session.ContinuationPoints.RestoreBrowse(new ByteString(new byte[] { 1, 2, 3 })), Is.Null);
+            Assert.That(session.ContinuationPoints.RestoreBrowse(new ByteString(Guid.NewGuid().ToByteArray())), Is.Null);
         }
 
         [Test]
@@ -395,14 +397,14 @@ namespace Opc.Ua.Server.Tests
 
             // Capacity is 10 (maxBrowseContinuationPoints); adding 12 evicts the oldest.
             var first = new ContinuationPoint { Id = Guid.NewGuid() };
-            session.SaveContinuationPoint(first);
+            session.ContinuationPoints.SaveBrowse(first);
             for (int i = 0; i < 11; i++)
             {
-                session.SaveContinuationPoint(new ContinuationPoint { Id = Guid.NewGuid() });
+                session.ContinuationPoints.SaveBrowse(new ContinuationPoint { Id = Guid.NewGuid() });
             }
 
             Assert.That(
-                session.RestoreContinuationPoint(new ByteString(first.Id.ToByteArray())),
+                session.ContinuationPoints.RestoreBrowse(new ByteString(first.Id.ToByteArray())),
                 Is.Null,
                 "The oldest continuation point should have been evicted.");
         }
@@ -412,10 +414,10 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerSession session = CreateSession(CreateEndpoint());
             var id = Guid.NewGuid();
-            object payload = new();
+            var payload = new TestHistoryContinuationPoint(id);
 
-            session.SaveHistoryContinuationPoint(id, payload);
-            object? restored = session.RestoreHistoryContinuationPoint(new ByteString(id.ToByteArray()));
+            session.ContinuationPoints.SaveHistory(payload);
+            IHistoryContinuationPoint? restored = session.ContinuationPoints.RestoreHistory(new ByteString(id.ToByteArray()));
 
             Assert.That(restored, Is.SameAs(payload));
         }
@@ -426,7 +428,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
 
             Assert.That(
-                () => session.SaveHistoryContinuationPoint(Guid.NewGuid(), null!),
+                () => session.ContinuationPoints.SaveHistory(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -434,9 +436,9 @@ namespace Opc.Ua.Server.Tests
         public void RestoreHistoryContinuationPointReturnsNullForBadLength()
         {
             using ServerSession session = CreateSession(CreateEndpoint());
-            session.SaveHistoryContinuationPoint(Guid.NewGuid(), new object());
+            session.ContinuationPoints.SaveHistory(new TestHistoryContinuationPoint());
 
-            Assert.That(session.RestoreHistoryContinuationPoint(new ByteString(new byte[] { 1, 2 })), Is.Null);
+            Assert.That(session.ContinuationPoints.RestoreHistory(new ByteString(new byte[] { 1, 2 })), Is.Null);
         }
 
         [Test]
@@ -466,7 +468,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidateDiagnosticInfoGrantsUserPermissionInfoForSecurityAdmin()
+        public async Task ValidateDiagnosticInfoGrantsUserPermissionInfoForSecurityAdminAsync()
         {
             UserTokenPolicy[] tokens =
             [
@@ -476,13 +478,12 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(endpoint, channelId: "channel-1");
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
 
-            session.ValidateBeforeActivate(
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? _) = await session.ValidateBeforeActivateAsync(
                 context,
                 new SignatureData(),
                 default,
                 new SignatureData(),
-                out IUserIdentityTokenHandler? handler,
-                out _);
+                CancellationToken.None).ConfigureAwait(false);
 
             var effectiveIdentity = new Mock<IUserIdentity>();
             effectiveIdentity.Setup(i => i.TokenType).Returns(UserTokenType.Anonymous);
@@ -520,14 +521,13 @@ namespace Opc.Ua.Server.Tests
                 endpoint, channelId: "channel-1", clientCertificate: clientCertificate);
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
 
-            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
-                () => session.ValidateBeforeActivate(
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
                     default,
                     new SignatureData(),
-                    out _,
-                    out _));
+                    CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
         }
 
@@ -537,14 +537,14 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
             var first = Guid.NewGuid();
 
-            session.SaveHistoryContinuationPoint(first, new object());
+            session.ContinuationPoints.SaveHistory(new TestHistoryContinuationPoint(first));
             for (int i = 0; i < 11; i++)
             {
-                session.SaveHistoryContinuationPoint(Guid.NewGuid(), new object());
+                session.ContinuationPoints.SaveHistory(new TestHistoryContinuationPoint());
             }
 
             Assert.That(
-                session.RestoreHistoryContinuationPoint(new ByteString(first.ToByteArray())),
+                session.ContinuationPoints.RestoreHistory(new ByteString(first.ToByteArray())),
                 Is.Null,
                 "The oldest history continuation point should have been evicted.");
         }
@@ -556,14 +556,13 @@ namespace Opc.Ua.Server.Tests
             OperationContext context = CreateContext(
                 CreateEndpoint(SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign));
 
-            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
-                () => session.ValidateBeforeActivate(
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
                     default,
                     new SignatureData(),
-                    out _,
-                    out _));
+                    CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
         }
 
@@ -573,19 +572,18 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint(), channelId: "channel-1");
             OperationContext context = CreateContext(CreateEndpoint(), channelId: "other-channel");
 
-            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
-                () => session.ValidateBeforeActivate(
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
                     default,
                     new SignatureData(),
-                    out _,
-                    out _));
+                    CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
         }
 
         [Test]
-        public void ValidateBeforeActivateWithAnonymousTokenSucceeds()
+        public async Task ValidateBeforeActivateWithAnonymousTokenSucceedsAsync()
         {
             var tokens = new UserTokenPolicy[]
             {
@@ -595,13 +593,13 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(endpoint);
             OperationContext context = CreateContext(endpoint);
 
-            session.ValidateBeforeActivate(
-                context,
-                new SignatureData(),
-                default,
-                new SignatureData(),
-                out IUserIdentityTokenHandler? handler,
-                out UserTokenPolicy? policy);
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? policy) =
+                await session.ValidateBeforeActivateAsync(
+                    context,
+                    new SignatureData(),
+                    default,
+                    new SignatureData(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(handler, Is.Not.Null);
             Assert.That(policy, Is.Not.Null);
@@ -619,19 +617,18 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(endpoint);
             OperationContext context = CreateContext(endpoint);
 
-            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
-                () => session.ValidateBeforeActivate(
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
                     default,
                     new SignatureData(),
-                    out _,
-                    out _));
+                    CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
-        public void ValidateBeforeActivateWithUserNameTokenResolvesPolicy()
+        public async Task ValidateBeforeActivateWithUserNameTokenResolvesPolicyAsync()
         {
             var tokens = new UserTokenPolicy[]
             {
@@ -652,13 +649,13 @@ namespace Opc.Ua.Server.Tests
                 Password = new ByteString(new byte[] { 1, 2, 3 })
             };
 
-            session.ValidateBeforeActivate(
-                context,
-                new SignatureData(),
-                new ExtensionObject(userToken),
-                new SignatureData(),
-                out IUserIdentityTokenHandler? handler,
-                out UserTokenPolicy? policy);
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? policy) =
+                await session.ValidateBeforeActivateAsync(
+                    context,
+                    new SignatureData(),
+                    new ExtensionObject(userToken),
+                    new SignatureData(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(handler, Is.Not.Null);
             Assert.That(policy, Is.Not.Null);
@@ -666,7 +663,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ActivateFirstThenReactivateSwitchesChannel()
+        public async Task ActivateFirstThenReactivateSwitchesChannelAsync()
         {
             var tokens = new UserTokenPolicy[]
             {
@@ -676,13 +673,12 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(endpoint, channelId: "channel-1");
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
 
-            session.ValidateBeforeActivate(
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? _) = await session.ValidateBeforeActivateAsync(
                 context,
                 new SignatureData(),
                 default,
                 new SignatureData(),
-                out IUserIdentityTokenHandler? handler,
-                out _);
+                CancellationToken.None).ConfigureAwait(false);
 
             bool changed = session.Activate(
                 context,
