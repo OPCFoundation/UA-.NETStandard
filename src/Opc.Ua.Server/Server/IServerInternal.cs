@@ -153,8 +153,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The registry that validates user identity tokens before falling back
         /// to the legacy <c>SessionManager.ImpersonateUser</c> event. Integrators
-        /// may replace the default empty registry by calling
-        /// <see cref="SetIdentityRegistry"/> before sessions are activated.
+        /// add authenticators to the default registry rather than replacing it;
+        /// see <c>ServerIdentityRegistryExtensions.RegisterDefaultAuthenticators</c>.
         /// </summary>
         IServerIdentityRegistry IdentityRegistry { get; }
 
@@ -294,15 +294,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="roleManager">The role manager to use.</param>
         void SetRoleManager(IRoleManager roleManager);
-
-        /// <summary>
-        /// Replaces the identity registry with a custom
-        /// <see cref="IServerIdentityRegistry"/> implementation. Must be
-        /// called before sessions are activated so authenticators can run
-        /// ahead of the legacy impersonation event.
-        /// </summary>
-        /// <param name="registry">The identity registry to use.</param>
-        void SetIdentityRegistry(IServerIdentityRegistry registry);
 
         /// <summary>
         /// Replaces the user-management facade with a custom

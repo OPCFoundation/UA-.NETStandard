@@ -316,7 +316,7 @@ namespace Opc.Ua.Server
         public IRoleManager RoleManager { get; private set; } = new RoleManager();
 
         /// <inheritdoc/>
-        public IServerIdentityRegistry IdentityRegistry { get; private set; } = new ServerIdentityRegistry();
+        public IServerIdentityRegistry IdentityRegistry { get; } = new ServerIdentityRegistry();
 
         /// <inheritdoc/>
         public UserManagement.IUserManagement? UserManagement { get; private set; }
@@ -432,12 +432,6 @@ namespace Opc.Ua.Server
         public void SetRoleManager(IRoleManager roleManager)
         {
             RoleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
-        }
-
-        /// <inheritdoc/>
-        public void SetIdentityRegistry(IServerIdentityRegistry registry)
-        {
-            IdentityRegistry = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
         /// <inheritdoc/>
