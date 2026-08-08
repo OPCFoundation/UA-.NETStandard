@@ -30,6 +30,8 @@
 #nullable enable
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
@@ -466,7 +468,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidateDiagnosticInfoGrantsUserPermissionInfoForSecurityAdmin()
+        public async Task ValidateDiagnosticInfoGrantsUserPermissionInfoForSecurityAdminAsync()
         {
             UserTokenPolicy[] tokens =
             [
@@ -476,13 +478,12 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(endpoint, channelId: "channel-1");
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
 
-            session.ValidateBeforeActivate(
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? _) = await session.ValidateBeforeActivateAsync(
                 context,
                 new SignatureData(),
                 default,
                 new SignatureData(),
-                out IUserIdentityTokenHandler? handler,
-                out _);
+                CancellationToken.None).ConfigureAwait(false);
 
             var effectiveIdentity = new Mock<IUserIdentity>();
             effectiveIdentity.Setup(i => i.TokenType).Returns(UserTokenType.Anonymous);
@@ -520,14 +521,13 @@ namespace Opc.Ua.Server.Tests
                 endpoint, channelId: "channel-1", clientCertificate: clientCertificate);
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
 
-            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
-                () => session.ValidateBeforeActivate(
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
                     default,
                     new SignatureData(),
-                    out _,
-                    out _));
+                    CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
         }
 
@@ -556,14 +556,13 @@ namespace Opc.Ua.Server.Tests
             OperationContext context = CreateContext(
                 CreateEndpoint(SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign));
 
-            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
-                () => session.ValidateBeforeActivate(
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
                     default,
                     new SignatureData(),
-                    out _,
-                    out _));
+                    CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
         }
 
@@ -573,19 +572,18 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint(), channelId: "channel-1");
             OperationContext context = CreateContext(CreateEndpoint(), channelId: "other-channel");
 
-            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
-                () => session.ValidateBeforeActivate(
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
                     default,
                     new SignatureData(),
-                    out _,
-                    out _));
+                    CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
         }
 
         [Test]
-        public void ValidateBeforeActivateWithAnonymousTokenSucceeds()
+        public async Task ValidateBeforeActivateWithAnonymousTokenSucceedsAsync()
         {
             var tokens = new UserTokenPolicy[]
             {
@@ -595,13 +593,13 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(endpoint);
             OperationContext context = CreateContext(endpoint);
 
-            session.ValidateBeforeActivate(
-                context,
-                new SignatureData(),
-                default,
-                new SignatureData(),
-                out IUserIdentityTokenHandler? handler,
-                out UserTokenPolicy? policy);
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? policy) =
+                await session.ValidateBeforeActivateAsync(
+                    context,
+                    new SignatureData(),
+                    default,
+                    new SignatureData(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(handler, Is.Not.Null);
             Assert.That(policy, Is.Not.Null);
@@ -619,19 +617,18 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(endpoint);
             OperationContext context = CreateContext(endpoint);
 
-            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
-                () => session.ValidateBeforeActivate(
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
                     default,
                     new SignatureData(),
-                    out _,
-                    out _));
+                    CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
-        public void ValidateBeforeActivateWithUserNameTokenResolvesPolicy()
+        public async Task ValidateBeforeActivateWithUserNameTokenResolvesPolicyAsync()
         {
             var tokens = new UserTokenPolicy[]
             {
@@ -652,13 +649,13 @@ namespace Opc.Ua.Server.Tests
                 Password = new ByteString(new byte[] { 1, 2, 3 })
             };
 
-            session.ValidateBeforeActivate(
-                context,
-                new SignatureData(),
-                new ExtensionObject(userToken),
-                new SignatureData(),
-                out IUserIdentityTokenHandler? handler,
-                out UserTokenPolicy? policy);
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? policy) =
+                await session.ValidateBeforeActivateAsync(
+                    context,
+                    new SignatureData(),
+                    new ExtensionObject(userToken),
+                    new SignatureData(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(handler, Is.Not.Null);
             Assert.That(policy, Is.Not.Null);
@@ -666,7 +663,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ActivateFirstThenReactivateSwitchesChannel()
+        public async Task ActivateFirstThenReactivateSwitchesChannelAsync()
         {
             var tokens = new UserTokenPolicy[]
             {
@@ -676,13 +673,12 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(endpoint, channelId: "channel-1");
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
 
-            session.ValidateBeforeActivate(
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? _) = await session.ValidateBeforeActivateAsync(
                 context,
                 new SignatureData(),
                 default,
                 new SignatureData(),
-                out IUserIdentityTokenHandler? handler,
-                out _);
+                CancellationToken.None).ConfigureAwait(false);
 
             bool changed = session.Activate(
                 context,

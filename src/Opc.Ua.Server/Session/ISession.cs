@@ -290,22 +290,6 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Validates the application signature and user identity token before activation.
-        /// </summary>
-        /// <remarks>
-        /// Retained for compatibility with 1.5.378 implementations. New code should use
-        /// <see cref="ValidateBeforeActivateAsync"/>.
-        /// </remarks>
-        [Obsolete("Use ValidateBeforeActivateAsync instead.")]
-        void ValidateBeforeActivate(
-            OperationContext context,
-            SignatureData clientSignature,
-            ExtensionObject userIdentityToken,
-            SignatureData userTokenSignature,
-            out IUserIdentityTokenHandler? identityToken,
-            out UserTokenPolicy? userTokenPolicy);
-
-        /// <summary>
         /// Validate the diagnostic info.
         /// </summary>
         void ValidateDiagnosticInfo(RequestHeader requestHeader);
