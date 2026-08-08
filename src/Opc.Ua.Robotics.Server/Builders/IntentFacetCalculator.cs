@@ -479,10 +479,11 @@ namespace Opc.Ua.Robotics.Server.Builders
                     return false;
                 }
                 string? programName = name.Value.GetString(null!);
-                if (!string.IsNullOrWhiteSpace(programName))
+                if (string.IsNullOrWhiteSpace(programName))
                 {
-                    taskControlPrograms.Add(programName);
+                    return false;
                 }
+                taskControlPrograms.Add(programName);
             }
             return TryGetPublishedPrograms(controller, out HashSet<string> publishedPrograms) &&
                 taskControlPrograms.SetEquals(publishedPrograms);
