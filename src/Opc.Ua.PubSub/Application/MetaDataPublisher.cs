@@ -87,6 +87,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly IReadOnlyDictionary<string, INetworkMessageEncoder> m_encoders;
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly ITelemetryContext m_telemetry;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<MetaDataPublisher> m_logger;
         private readonly Lock m_gate = new();
@@ -148,6 +149,7 @@ namespace Opc.Ua.PubSub.Application
             m_encoders = encoders;
             m_diagnostics = diagnostics;
             m_telemetry = telemetry;
+            m_backgroundWork = new BackgroundTaskScope(nameof(MetaDataPublisher), telemetry);
             m_timeProvider = timeProvider;
             m_logger = telemetry.CreateLogger<MetaDataPublisher>();
         }
@@ -206,11 +208,11 @@ namespace Opc.Ua.PubSub.Application
         }
 
         /// <inheritdoc/>
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             if (Interlocked.Exchange(ref m_disposed, 1) != 0)
             {
-                return default;
+                return;
             }
             lock (m_gate)
             {
@@ -222,7 +224,10 @@ namespace Opc.Ua.PubSub.Application
                 }
             }
             UnsubscribeFromDataSets();
-            return default;
+
+            // A metadata publish already scheduled still writes through the
+            // connection, so it must not outlive this publisher.
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -342,7 +347,7 @@ namespace Opc.Ua.PubSub.Application
             }
             // Scheduled on the thread pool for the same reason as the registry
             // handler: the caller may still hold a lock.
-            _ = Task.Run(async () =>
+            m_backgroundWork.Run("PublishMetaDataChange", async _ =>
             {
                 try
                 {
@@ -419,7 +424,7 @@ namespace Opc.Ua.PubSub.Application
             // Schedule on the thread pool to avoid running async work
             // on the registry caller's thread; the caller may still be
             // holding the registry write lock.
-            _ = Task.Run(async () =>
+            m_backgroundWork.Run("PublishMetaDataChange", async _ =>
             {
                 try
                 {

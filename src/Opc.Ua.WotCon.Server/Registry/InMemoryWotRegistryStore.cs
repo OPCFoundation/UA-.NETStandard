@@ -29,6 +29,7 @@
 
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
@@ -42,8 +43,11 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// registry. Useful for tests and for servers whose documents are
     /// re-populated programmatically at start-up.
     /// </summary>
-    public sealed class InMemoryWotRegistryStore : IWotRegistryStore
+    public sealed class InMemoryWotRegistryStore : IWotRegistryStore, IWotRegistryResourceStoreProvider
     {
+        /// <inheritdoc/>
+        public IXRegistryResourceStore ResourceStore { get; } = new InMemoryResourceStore();
+
         /// <inheritdoc/>
         public ValueTask<WotRegistrySnapshot> LoadAsync(
             CancellationToken cancellationToken = default)

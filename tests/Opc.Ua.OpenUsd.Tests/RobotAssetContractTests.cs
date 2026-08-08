@@ -46,7 +46,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
     /// </summary>
     /// <remarks>
     /// These are the files the server embeds, linked in from
-    /// <c>samples/MinimalRobotServer/Assets</c>. They are deliberately separate from the
+    /// <c>samples/Robotics/MinimalRobotServer/Assets</c>. They are deliberately separate from the
     /// frozen reader/materializer fixtures in <c>Assets</c>.
     /// </remarks>
     [TestFixture]
@@ -67,24 +67,32 @@ namespace Opc.Ua.OpenUsdScene.Tests
             ("/Robot/Base/J1/J2/J3/J4/J5/J6", "xformOp:rotateX")
         ];
 
-        private static string SamplePath(string name) =>
-            Path.Combine(AppContext.BaseDirectory, "Assets", "Sample", name);
+        private static string SamplePath(string name)
+        {
+            return Path.Combine(AppContext.BaseDirectory, "Assets", "Sample", name);
+        }
 
-        private static UsdStage LoadSample(string name) => UsdaReader.ParseFile(SamplePath(name));
+        private static UsdStage LoadSample(string name)
+        {
+            return UsdaReader.ParseFile(SamplePath(name));
+        }
 
         /// <summary>
         /// Renders a parsed attribute value as text regardless of how the reader models
         /// arrays, so an assertion does not depend on that representation.
         /// </summary>
-        private static string Flatten(object? value) => value switch
+        private static string Flatten(object? value)
         {
-            null => string.Empty,
-            UsdValue usdValue => Flatten(usdValue),
-            string text => text,
-            System.Collections.IEnumerable items =>
-                string.Join(",", items.Cast<object?>().Select(Flatten)),
-            _ => value.ToString() ?? string.Empty
-        };
+            return value switch
+            {
+                null => string.Empty,
+                UsdValue usdValue => Flatten(usdValue),
+                string text => text,
+                System.Collections.IEnumerable items =>
+                    string.Join(",", items.Cast<object?>().Select(Flatten)),
+                _ => value.ToString() ?? string.Empty
+            };
+        }
 
         private static string Flatten(UsdValue value)
         {

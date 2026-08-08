@@ -50,7 +50,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Computes the SHA-256 digest of the supplied document bytes.
         /// </summary>
-        public static byte[] Compute(ReadOnlyMemory<byte> content)
+        public static ByteString Compute(ReadOnlySpan<byte> content)
         {
             using var sha = SHA256.Create();
             // TODO: SHA256.HashData is only available on .NET 5+; this project also
@@ -58,30 +58,42 @@ namespace Opc.Ua.WotCon.Server.Registry
             // is the portable equivalent. Revisit if the minimum TFM floor is ever
             // raised to drop those targets.
 #pragma warning disable CA1850
-            if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(
-                    content, out ArraySegment<byte> segment) &&
-                segment.Array is not null)
-            {
-                return sha.ComputeHash(segment.Array, segment.Offset, segment.Count);
-            }
-            return sha.ComputeHash(content.ToArray());
+            return ByteString.From(sha.ComputeHash(content.ToArray()));
 #pragma warning restore CA1850
         }
 
         /// <summary>
-        /// Formats a digest as a lowercase hexadecimal string, or the empty
-        /// string when <paramref name="digest"/> is <c>null</c> or empty.
+        /// Computes the SHA-256 digest of the supplied document bytes.
         /// </summary>
-        public static string ToHex(byte[]? digest)
+        public static ByteString Compute(ByteString content)
+            => Compute(content.IsNull ? default : content.Span);
+
+        /// <summary>
+        /// Formats a digest as a lowercase hexadecimal string, or the empty
+        /// string when <paramref name="digest"/> is null or empty.
+        /// </summary>
+        public static string ToHex(ByteString digest)
         {
-            if (digest is null || digest.Length == 0)
+            if (digest.IsNull || digest.Length == 0)
             {
                 return string.Empty;
             }
-            char[] chars = new char[digest.Length * 2];
-            for (int i = 0; i < digest.Length; i++)
+            return ToHex(digest.Span);
+        }
+
+        /// <summary>
+        /// Formats a digest as a lowercase hexadecimal string.
+        /// </summary>
+        public static string ToHex(ReadOnlySpan<byte> bytes)
+        {
+            if (bytes.Length == 0)
             {
-                byte b = digest[i];
+                return string.Empty;
+            }
+            char[] chars = new char[bytes.Length * 2];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                byte b = bytes[i];
                 chars[i * 2] = GetHexChar(b >> 4);
                 chars[(i * 2) + 1] = GetHexChar(b & 0xF);
             }
@@ -96,24 +108,28 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Determines whether two digests are byte-for-byte equal.
         /// </summary>
-        public static bool Equal(byte[]? left, byte[]? right)
+        public static bool Equal(ByteString left, ByteString right)
         {
-            if (ReferenceEquals(left, right))
+            if (left.IsNull || right.IsNull)
             {
-                return true;
+                return left.IsNull && right.IsNull;
             }
-            if (left is null || right is null)
-            {
-                return false;
-            }
-            return left.AsSpan().SequenceEqual(right);
+            return Equal(left.Span, right.Span);
+        }
+
+        /// <summary>
+        /// Determines whether two digests are byte-for-byte equal.
+        /// </summary>
+        public static bool Equal(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
+        {
+            return left.SequenceEqual(right);
         }
     }
 
     /// <summary>
     /// An immutable snapshot of a single stored document version (an xRegistry
-    /// Version under a Resource). The raw <see cref="Content"/> bytes are the
-    /// authoritative source and are never mutated.
+    /// Version under a Resource). The immutable snapshot carries only metadata;
+    /// the raw document bytes live in the content-addressed resource store.
     /// </summary>
     public sealed class WotResourceVersion
     {
@@ -122,20 +138,22 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public WotResourceVersion(
             string versionId,
-            ReadOnlyMemory<byte> content,
+            ByteString digest,
+            long contentLength,
             string contentType,
             string format,
             DateTime createdAt,
-            DateTime modifiedAt,
-            byte[]? digest = null)
+            DateTime modifiedAt)
         {
             VersionId = versionId ?? throw new ArgumentNullException(nameof(versionId));
-            Content = content;
+            Digest = digest.IsNull ? throw new ArgumentException("A digest is required.", nameof(digest)) : digest;
+            ContentLength = contentLength >= 0
+                ? contentLength
+                : throw new ArgumentOutOfRangeException(nameof(contentLength));
             ContentType = contentType ?? string.Empty;
             Format = format ?? string.Empty;
             CreatedAt = createdAt;
             ModifiedAt = modifiedAt;
-            Digest = digest ?? WotContentDigest.Compute(content);
         }
 
         /// <summary>
@@ -144,9 +162,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string VersionId { get; }
 
         /// <summary>
-        /// Gets the raw, authoritative document source bytes.
+        /// Gets the SHA-256 content digest used as the resource-store key.
         /// </summary>
-        public ReadOnlyMemory<byte> Content { get; }
+        public ByteString Digest { get; }
+
+        /// <summary>
+        /// Gets the document byte length in the resource store.
+        /// </summary>
+        public long ContentLength { get; }
 
         /// <summary>
         /// Gets the media type of the document (for example application/td+json).
@@ -167,11 +190,6 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the UTC modification time.
         /// </summary>
         public DateTime ModifiedAt { get; }
-
-        /// <summary>
-        /// Gets the SHA-256 content digest of <see cref="Content"/>.
-        /// </summary>
-        public byte[] Digest { get; }
 
         /// <summary>
         /// Gets the content digest as a lowercase hexadecimal string.

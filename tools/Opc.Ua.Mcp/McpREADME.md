@@ -36,6 +36,28 @@ Tools in the `full` profile cover all OPC UA Part 4 service sets:
 - **Discovery**: FindServers, FindServersOnNetwork, GetEndpoints, RegisterServer, RegisterServer2
 - **Convenience**: ReadValue, ReadValues, WriteValue, BrowseAll, CallMethod, ReadNode, Cancel
 
+## Embedding
+
+The tools also ship as libraries, so an application can offer OPC UA tools to an
+LLM alongside its own without forking this server:
+
+```csharp
+builder.Services.AddOpcUaMcpCore();
+
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithOpcUaMcpFilters()
+    .WithOpcUaCoreTools(McpToolProfile.Services)
+    .WithTools<MyApplicationTools>();
+```
+
+| Package | Tools |
+|---|---|
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Core` | Part 4 services, connection, configuration, PKI, NodeSet export |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
+
 ## Documentation
 
 See the [full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md).

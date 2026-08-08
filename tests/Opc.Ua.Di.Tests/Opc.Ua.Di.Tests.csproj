@@ -48,7 +48,9 @@
                       Condition="'$(TargetFramework)' != 'net472'" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />
-    <ProjectReference Include="..\..\samples\MinimalRobotServer\MinimalRobotServer.csproj"
+    <ProjectReference Include="..\..\samples\Robotics\MinimalRobotServer\MinimalRobotServer.csproj"
+                      Condition="'$(TargetFramework)' != 'net472'" />
+    <ProjectReference Include="..\..\samples\SiteCompositionServer\SiteCompositionServer.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
@@ -63,6 +65,7 @@
     <Compile Remove="PumpTypeInstanceTests.cs" />
     <Compile Remove="PumpsNodeSetLoadingTests.cs" />
     <Compile Remove="PumpOpenUsdE2eTests.cs" />
+    <Compile Remove="SiteFederationE2eTests.cs" />
     <Compile Remove="RobotOpenUsdE2eTests.cs" />
     <Compile Remove="RobotMobilityTests.cs" />
     <Compile Remove="RobotKinematicsTests.cs" />

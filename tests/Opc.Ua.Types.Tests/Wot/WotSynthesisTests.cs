@@ -45,22 +45,27 @@ namespace Opc.Ua.Types.Tests.Wot
             "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
             "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
             "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-            "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+            "\"title\":\"PumpType\"," +
+            "\"uav:browseName\":\"nsu=http://example.com/demo/pump;PumpType\"," +
             "\"uav:id\":\"nsu=http://example.com/demo/pump;i=1001\"," +
             "\"properties\":{\"pumpSpeed\":{\"@type\":\"uav:variableType\"," +
-            "\"uav:browseName\":\"1:PumpSpeed\",\"type\":\"number\"," +
+            "\"uav:browseName\":\"nsu=http://example.com/demo/pump;PumpSpeed\"," +
+            "\"type\":\"number\"," +
             "\"uav:modellingRule\":\"Mandatory\",\"readOnly\":true}}," +
             "\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
-            "\"uav:browseName\":\"1:Reset\",\"uav:modellingRule\":\"Optional\"}}," +
-            "\"events\":{\"overTemp\":{\"uav:isEvent\":true,\"uav:browseName\":\"1:OverTemp\"}}}";
+            "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Reset\"," +
+            "\"uav:modellingRule\":\"Optional\"}}," +
+            "\"events\":{\"overTemp\":{\"uav:isEvent\":true," +
+            "\"uav:browseName\":\"nsu=http://example.com/demo/pump;OverTemp\"}}}";
 
         private const string ThingDescription =
             "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
             "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
             "\"@type\":\"uav:object\",\"title\":\"Pump01\"," +
-            "\"uav:browseName\":\"1:Pump\"," +
+            "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;Pump\"," +
             "\"properties\":{\"speed\":{\"@type\":\"uav:variable\"," +
-            "\"uav:browseName\":\"1:Speed\",\"type\":\"number\",\"readOnly\":true}}}";
+            "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;Speed\"," +
+            "\"type\":\"number\",\"readOnly\":true}}}";
 
         [Test]
         public void ThingModelSynthesizesObjectTypeWithMembers()

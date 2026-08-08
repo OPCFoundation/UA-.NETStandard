@@ -33,7 +33,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Client;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Client.Subscriptions.Streaming;
-using Opc.Ua.Robotics.Client.Operations;
+using Opc.Ua.RobotIntent;
 
 namespace Opc.Ua.Robotics.Client
 {
@@ -75,23 +75,18 @@ namespace Opc.Ua.Robotics.Client
         }
 
         /// <summary>
-        /// Opens the non-normative operation convention client for a motion device.
+        /// Opens the OPC UA - Robot Intent surface for a robot.
         /// </summary>
-        /// <param name="motionDevice">
-        /// The motion device carrying the application-owned operations object.
-        /// </param>
-        /// <param name="cancellationToken">
-        /// Cancels the operation.
-        /// </param>
-        public async Task<RoboticsOperationsClient> OperationsAsync(
-            NodeId motionDevice,
-            CancellationToken cancellationToken = default)
+        /// <remarks>
+        /// This is where task-level commanding lives. OPC 40010-1 describes the robot
+        /// and defines no motion verbs; the intent controller supplies them, and the
+        /// two are joined by a HasIntentController reference rather than by either
+        /// model depending on the other.
+        /// </remarks>
+        /// <param name="intentController">The IntentController object.</param>
+        public IntentControllerTypeClient IntentController(NodeId intentController)
         {
-            NodeId operationsId = await ResolveChildAsync(
-                motionDevice,
-                "Operations",
-                cancellationToken).ConfigureAwait(false);
-            return new RoboticsOperationsClient(Session, operationsId, Telemetry);
+            return new IntentControllerTypeClient(Session, intentController, Telemetry);
         }
 
         internal static IStreamingSubscription GetDefaultStreaming(ISession session)

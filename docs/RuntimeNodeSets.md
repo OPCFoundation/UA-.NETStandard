@@ -199,6 +199,14 @@ The factory reads the `Models/Model/RequiredModel` entries from each parsed Node
 
 Dependencies on models **not included in the group** — for example the OPC UA base namespace or a third-party model hosted by a generated NodeManager — are silently allowed and treated as external. The server resolves cross-manager references through the normal `AddReverseReferencesAsync` mechanism.
 
+### Referencing a Node another NodeManager owns
+
+A NodeSet may declare a Reference whose other endpoint belongs to a different NodeManager — an inverse `Organizes` placing an Object under a folder some other model defines, for instance. OPC 10000-3 requires such a Reference to be visible from both ends, so the forward edge has to appear on a Node this NodeManager does not own.
+
+That works in both registration orders. At startup the master collects every NodeManager's external references first and applies them afterwards, so creation order does not matter. A NodeManager added **after** startup has no such second phase, so the master retains the startup references and each dynamic NodeManager's references, and **replays** them to any NodeManager registered later. Without that replay a Reference into a NodeManager that did not exist yet would simply be dropped — a reference to an absent Node is discarded rather than queued — leaving the two ends permanently disagreeing: the target browses to the source, the source does not list the target.
+
+Both orders are pinned by `RuntimeNodeSetCrossSourceReferenceTests`.
+
 Cycles among the included sources cause `InvalidOperationException` at startup with an error message that lists the participating sources.
 
 ## Complex types
