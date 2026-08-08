@@ -68,7 +68,6 @@ namespace Opc.Ua.Server.Tests
             m_serverMock.Setup(s => s.NodeManager).Returns(m_nodeManagerMock.Object);
             m_serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactoryMock.Object);
             var serverDiagnostics = new ServerDiagnosticsSummaryDataType();
-            m_serverMock.Setup(s => s.ServerDiagnostics).Returns(serverDiagnostics);
             m_serverMock
                 .Setup(s => s.UpdateServerDiagnostics(
                     It.IsAny<Action<ServerDiagnosticsSummaryDataType>>()))

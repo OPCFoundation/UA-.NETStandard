@@ -1026,9 +1026,9 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             public int InvocationCount => Volatile.Read(ref m_invocationCount);
 
-            public IServerInternal? ObservedServer { get; private set; }
+            public IServerContext? ObservedServer { get; private set; }
 
-            public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+            public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_invocationCount);
                 ObservedServer = server;

@@ -61,8 +61,7 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask OnServerStartedAsync(
-            IServerInternal server,
+        public async ValueTask OnServerStartedAsync(IServerContext server,
             CancellationToken cancellationToken = default)
         {
             if (server == null)
@@ -75,14 +74,14 @@ namespace Opc.Ua.Redundancy.Server
             await m_controller.AttachAsync(server, cancellationToken).ConfigureAwait(false);
         }
 
-        private void WarnIfServiceLevelProviderMissing(IServerInternal server)
+        private void WarnIfServiceLevelProviderMissing(IServerContext server)
         {
             if (!m_warnIfServiceLevelProviderMissing || !m_controller.Options.IsNonTransparentMode)
             {
                 return;
             }
 
-            ILogger logger = server.Telemetry.CreateLogger<ServerRedundancyStartupTask>();
+            ILogger logger = server.DefaultSystemContext.Telemetry.CreateLogger<ServerRedundancyStartupTask>();
             logger.NonTransparentServerRedundancyModeWithoutServiceLevelProvider(m_controller.Mode);
         }
 

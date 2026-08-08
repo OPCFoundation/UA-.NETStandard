@@ -73,7 +73,6 @@ namespace Opc.Ua.Server.Tests
             m_server.Setup(s => s.MessageContext).Returns(
                 ServiceMessageContext.CreateEmpty(m_telemetry));
             var serverDiagnostics = new ServerDiagnosticsSummaryDataType();
-            m_server.Setup(s => s.ServerDiagnostics).Returns(serverDiagnostics);
             m_server
                 .Setup(s => s.UpdateServerDiagnostics(
                     It.IsAny<Action<ServerDiagnosticsSummaryDataType>>()))
