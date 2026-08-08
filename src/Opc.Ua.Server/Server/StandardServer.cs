@@ -3726,11 +3726,11 @@ namespace Opc.Ua.Server
                     MessageContext,
                     TimeProvider);
 
-                ServerInternal.SetRoleManager(CreateRoleManager(m_serverInternal, configuration));
+                m_serverInternal.SetRoleManager(CreateRoleManager(m_serverInternal, configuration));
 
                 if (CreateUserManagement(m_serverInternal, configuration) is { } userManagement)
                 {
-                    ServerInternal.SetUserManagement(userManagement);
+                    m_serverInternal.SetUserManagement(userManagement);
                 }
 
                 // create the manager responsible for providing localized string resources.
@@ -3749,7 +3749,7 @@ namespace Opc.Ua.Server
                 //create the main node manager factory
                 IMainNodeManagerFactory mainNodeManagerFactory = CreateMainNodeManagerFactory(m_serverInternal, configuration);
 
-                ServerInternal.SetMainNodeManagerFactory(mainNodeManagerFactory);
+                m_serverInternal.SetMainNodeManagerFactory(mainNodeManagerFactory);
 
                 // create the master node manager.
                 m_logger.ServerCreateMasterNodeManager();
@@ -3758,7 +3758,7 @@ namespace Opc.Ua.Server
                     configuration);
 
                 // add the node manager to the datastore.
-                ServerInternal.SetNodeManager(masterNodeManager);
+                m_serverInternal.SetNodeManager(masterNodeManager);
 
                 // put the node manager into a state that allows it to be used by other objects.
                 await masterNodeManager.StartupAsync(cancellationToken)
@@ -3769,7 +3769,7 @@ namespace Opc.Ua.Server
                 EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                 // creates the server object.
-                await ServerInternal.CreateServerObjectAsync(
+                await m_serverInternal.CreateServerObjectAsync(
                     eventManager,
                     resourceManager,
                     requestManager,
@@ -3785,17 +3785,17 @@ namespace Opc.Ua.Server
 
                 // create the manager responsible for aggregates.
                 m_logger.ServerCreateAggregateManager();
-                ServerInternal.SetAggregateManager(
+                m_serverInternal.SetAggregateManager(
                     await CreateAggregateManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // create the manager responsible for modelling rules.
                 m_logger.ServerCreateModellingRulesManager();
-                ServerInternal.SetModellingRulesManager(
+                m_serverInternal.SetModellingRulesManager(
                     await CreateModellingRulesManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // create the manager responsible for conformance units / server profiles.
                 m_logger.ServerCreateConformanceUnitsManager();
-                ServerInternal.SetConformanceUnitsManager(
+                m_serverInternal.SetConformanceUnitsManager(
                     await CreateConformanceUnitsManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // describe every namespace the server exposes with a
@@ -3822,7 +3822,7 @@ namespace Opc.Ua.Server
                     configuration);
 
                 //add the MonitoredItemQueueFactory to the datastore.
-                ServerInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory!);
+                m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory!);
 
                 //create the SubscriptionStore
                 ISubscriptionStore? subscriptionStore = CreateSubscriptionStore(
@@ -3830,7 +3830,7 @@ namespace Opc.Ua.Server
                     configuration);
 
                 //add the SubscriptionStore to the datastore
-                ServerInternal.SetSubscriptionStore(subscriptionStore!);
+                m_serverInternal.SetSubscriptionStore(subscriptionStore!);
 
                 // start the subscription manager.
                 m_logger.ServerCreateSubscriptionManager();
@@ -3841,7 +3841,7 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 // add the session manager to the datastore.
-                ServerInternal.SetSessionManager(sessionManager, subscriptionManager);
+                m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
 
                 ServerError = null!;
 
