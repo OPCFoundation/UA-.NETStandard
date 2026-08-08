@@ -1162,6 +1162,12 @@ namespace Opc.Ua.RobotIntent.Server
                     return IntentAdmission.Refused(IntentFailureEnum.CapabilityNotSupported,
                         $"BlockingMode {intent.BlockingMode} is not accepted for this intent type.");
                 }
+                if (ReferencesUnsupportedFastenJoint(intent))
+                {
+                    return IntentAdmission.Refused(
+                        IntentFailureEnum.CapabilityNotSupported,
+                        UnsupportedFastenJointMessage);
+                }
 
                 // Last, and deliberately so: a caller that holds no authority must not
                 // learn from the answer whether its parameters would have been valid.
@@ -1436,6 +1442,10 @@ namespace Opc.Ua.RobotIntent.Server
                 {
                     return Check.Fail($"BlockingMode {intent.BlockingMode} is not accepted for this intent type.");
                 }
+                if (ReferencesUnsupportedFastenJoint(intent))
+                {
+                    return Check.Fail(UnsupportedFastenJointMessage);
+                }
             }
             return Check.Pass;
         }
@@ -1556,9 +1566,7 @@ namespace Opc.Ua.RobotIntent.Server
                 ],
                 FastenIntentDataType fasten when !fasten.Joint.IsNull =>
                 [
-                    Check.Fail(
-                        "FastenIntent.Joint references from OPC 40450/40451 are not supported by " +
-                        "this controller model; omit Joint and provide the fastening parameters directly.")
+                    Check.Fail(UnsupportedFastenJointMessage)
                 ],
                 ToolChangeIntentDataType toolChange =>
                 [
@@ -1585,6 +1593,11 @@ namespace Opc.Ua.RobotIntent.Server
                 _ => []
             };
             return FirstFailureOrPass(checks);
+        }
+
+        private static bool ReferencesUnsupportedFastenJoint(IntentDataType intent)
+        {
+            return intent is FastenIntentDataType fasten && !fasten.Joint.IsNull;
         }
 
         private static Check FirstFailureOrPass(IEnumerable<Check> checks)
@@ -2123,13 +2136,21 @@ namespace Opc.Ua.RobotIntent.Server
                 }
                 if (edge == null)
                 {
-                    FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                    FinishMissionLocked(
+                        context,
+                        mission,
+                        ExecutionStateEnum.Failed,
+                        IntentFailureEnum.NoTransition);
                     return MissionAdvanceResult.Refused;
                 }
                 int next = MissionRules.IndexOfStep(mission.Mission.Steps, edge.ToStepId ?? string.Empty);
                 if (next < 0)
                 {
-                    FinishMissionLocked(context, mission, ExecutionStateEnum.Failed);
+                    FinishMissionLocked(
+                        context,
+                        mission,
+                        ExecutionStateEnum.Failed,
+                        IntentFailureEnum.NoTransition);
                     return MissionAdvanceResult.Refused;
                 }
                 mission.NextIndex = next;
@@ -2204,12 +2225,16 @@ namespace Opc.Ua.RobotIntent.Server
         }
 
         private void FinishMissionLocked(
-            ISystemContext context, MissionEntry mission, ExecutionStateEnum state)
+            ISystemContext context,
+            MissionEntry mission,
+            ExecutionStateEnum state,
+            IntentFailureEnum failure = IntentFailureEnum.None)
         {
             if (IntentOutcome.IsTerminal(mission.State))
             {
                 return;
             }
+            mission.Failure = state == ExecutionStateEnum.Failed ? failure : IntentFailureEnum.None;
             SetMissionStateLocked(context, mission, state);
             mission.CurrentStepId = string.Empty;
             PublishMissionLocked(context, mission);
@@ -3220,6 +3245,9 @@ namespace Opc.Ua.RobotIntent.Server
         private const uint StateSuspended = 3;
         private const uint StateHalted = 4;
         private const StopModeEnum SupersededStopMode = StopModeEnum.QuickStop;
+        private const string UnsupportedFastenJointMessage =
+            "FastenIntent.Joint references from OPC 40450/40451 are not supported by this controller model; " +
+            "omit Joint and provide the fastening parameters directly.";
 
         private readonly Lock m_lock = new();
         private readonly IntentControllerState m_controller;
@@ -3394,6 +3422,7 @@ namespace Opc.Ua.RobotIntent.Server
             public MissionDataType Mission { get; } = mission;
             public MissionObjectState? Node { get; set; }
             public ExecutionStateEnum State { get; set; } = ExecutionStateEnum.Accepted;
+            public IntentFailureEnum Failure { get; set; }
             public int NextIndex { get; set; }
             public uint RetriesUsed { get; set; }
             public bool Compensating { get; set; }
