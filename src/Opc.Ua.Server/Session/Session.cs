@@ -874,24 +874,22 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Saves a continuation point used for historical reads.
         /// </summary>
-        /// <param name="id">The identifier for the continuation point.</param>
         /// <param name="continuationPoint">The continuation point.</param>
         /// <remarks>
-        /// If the continuationPoint implements IDisposable it will be disposed when
-        /// the Session is closed or discarded.
+        /// The point is disposed when it is dropped or the Session is closed.
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
-        public void SaveHistoryContinuationPoint(Guid id, object continuationPoint)
+        public void SaveHistoryContinuationPoint(IHistoryContinuationPoint continuationPoint)
         {
-            m_continuationPoints.SaveHistory(id, continuationPoint);
+            m_continuationPoints.SaveHistory(continuationPoint);
         }
 
         /// <summary>
-        /// Restores a previously saves history continuation point.
+        /// Restores a previously saved history continuation point.
         /// </summary>
         /// <param name="continuationPoint">The identifier for the continuation point.</param>
-        /// <returns>The save continuation point. null if not found.</returns>
-        public object? RestoreHistoryContinuationPoint(ByteString continuationPoint)
+        /// <returns>The saved continuation point, or <c>null</c> if not found.</returns>
+        public IHistoryContinuationPoint? RestoreHistoryContinuationPoint(ByteString continuationPoint)
         {
             return m_continuationPoints.RestoreHistory(continuationPoint);
         }

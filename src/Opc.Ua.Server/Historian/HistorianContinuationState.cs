@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Historian
     /// disposal — the framework guarantees the call.
     /// </para>
     /// </remarks>
-    internal sealed class HistorianContinuationState : IDisposable
+    internal sealed class HistorianContinuationState : IHistoryContinuationPoint
     {
         public required Guid Id { get; set; }
 
