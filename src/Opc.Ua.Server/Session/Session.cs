@@ -816,58 +816,8 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Saves a continuation point for a session.
-        /// </summary>
-        /// <remarks>
-        /// If the session has too many continuation points the oldest one is dropped.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
-        public void SaveContinuationPoint(ContinuationPoint continuationPoint)
-        {
-            m_continuationPoints.SaveBrowse(continuationPoint);
-        }
-
-        /// <summary>
-        /// Restores a continuation point for a session.
-        /// </summary>
-        /// <remarks>
-        /// The caller is responsible for disposing the continuation point returned.
-        /// </remarks>
-        public ContinuationPoint? RestoreContinuationPoint(ByteString continuationPoint)
-        {
-            return m_continuationPoints.RestoreBrowse(continuationPoint);
-        }
-
         /// <inheritdoc/>
-        public void InvalidateContinuationPoints(IAsyncNodeManager nodeManager)
-        {
-            m_continuationPoints.RemoveBrowseForManager(nodeManager);
-            m_continuationPoints.RemoveHistoryForManager(nodeManager);
-        }
-
-        /// <summary>
-        /// Saves a continuation point used for historical reads.
-        /// </summary>
-        /// <param name="continuationPoint">The continuation point.</param>
-        /// <remarks>
-        /// The point is disposed when it is dropped or the Session is closed.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
-        public void SaveHistoryContinuationPoint(IHistoryContinuationPoint continuationPoint)
-        {
-            m_continuationPoints.SaveHistory(continuationPoint);
-        }
-
-        /// <summary>
-        /// Restores a previously saved history continuation point.
-        /// </summary>
-        /// <param name="continuationPoint">The identifier for the continuation point.</param>
-        /// <returns>The saved continuation point, or <c>null</c> if not found.</returns>
-        public IHistoryContinuationPoint? RestoreHistoryContinuationPoint(ByteString continuationPoint)
-        {
-            return m_continuationPoints.RestoreHistory(continuationPoint);
-        }
+        public ISessionContinuationPoints ContinuationPoints => m_continuationPoints;
 
         /// <summary>
         /// Loads mirrored continuation point envelopes for a session restored on a backup replica.

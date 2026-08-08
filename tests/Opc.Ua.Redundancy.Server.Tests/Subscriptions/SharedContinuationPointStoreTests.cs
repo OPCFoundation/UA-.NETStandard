@@ -107,7 +107,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var session = new Mock<ISession>();
             ByteString continuationPoint = Guid.NewGuid().ToByteArray().ToByteString();
             session
-                .Setup(s => s.RestoreContinuationPoint(continuationPoint))
+                .Setup(s => s.ContinuationPoints.RestoreBrowse(continuationPoint))
                 .Returns((ContinuationPoint?)null);
             var context = new OperationContext(session.Object, DiagnosticsMasks.None);
 

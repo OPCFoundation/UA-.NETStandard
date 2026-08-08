@@ -733,25 +733,13 @@ namespace Opc.Ua.Server.Tests.Historian
                 m_continuationStore = [];
 
                 var mockSession = new Mock<ISession>();
-                mockSession
-                    .Setup(s => s.SaveHistoryContinuationPoint(It.IsAny<IHistoryContinuationPoint>()))
-                    .Callback<IHistoryContinuationPoint>(cp => m_continuationStore[cp.Id] = cp);
-                mockSession
-                    .Setup(s => s.RestoreHistoryContinuationPoint(It.IsAny<ByteString>()))
-                    .Returns<ByteString>(bs =>
-                    {
-                        if (bs.Length != 16)
-                        {
-                            return null;
-                        }
-                        var id = new Guid(bs.ToArray());
-                        if (m_continuationStore.TryGetValue(id, out IHistoryContinuationPoint? state))
-                        {
-                            m_continuationStore.Remove(id);
-                            return state;
-                        }
-                        return null;
-                    });
+
+                // The real holder, not a stand-in dictionary: the dispatcher then meets the
+                // same eviction and disposal rules a live session applies.
+                var continuationPoints = new SessionContinuationPoints(
+                    () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null);
+                mockSession.Setup(s => s.ContinuationPoints).Returns(continuationPoints);
+
 
                 var mockServer = new Mock<IServerInternal>();
                 mockServer.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());

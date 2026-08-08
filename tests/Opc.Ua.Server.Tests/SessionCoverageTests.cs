@@ -361,8 +361,8 @@ namespace Opc.Ua.Server.Tests
             var id = Guid.NewGuid();
             var cp = new ContinuationPoint { Id = id };
 
-            session.SaveContinuationPoint(cp);
-            ContinuationPoint? restored = session.RestoreContinuationPoint(
+            session.ContinuationPoints.SaveBrowse(cp);
+            ContinuationPoint? restored = session.ContinuationPoints.RestoreBrowse(
                 new ByteString(id.ToByteArray()));
 
             Assert.That(restored, Is.Not.Null);
@@ -376,7 +376,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
 
             Assert.That(
-                () => session.SaveContinuationPoint(null!),
+                () => session.ContinuationPoints.SaveBrowse(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -384,10 +384,10 @@ namespace Opc.Ua.Server.Tests
         public void RestoreContinuationPointReturnsNullForUnknownAndBadLength()
         {
             using ServerSession session = CreateSession(CreateEndpoint());
-            session.SaveContinuationPoint(new ContinuationPoint { Id = Guid.NewGuid() });
+            session.ContinuationPoints.SaveBrowse(new ContinuationPoint { Id = Guid.NewGuid() });
 
-            Assert.That(session.RestoreContinuationPoint(new ByteString(new byte[] { 1, 2, 3 })), Is.Null);
-            Assert.That(session.RestoreContinuationPoint(new ByteString(Guid.NewGuid().ToByteArray())), Is.Null);
+            Assert.That(session.ContinuationPoints.RestoreBrowse(new ByteString(new byte[] { 1, 2, 3 })), Is.Null);
+            Assert.That(session.ContinuationPoints.RestoreBrowse(new ByteString(Guid.NewGuid().ToByteArray())), Is.Null);
         }
 
         [Test]
@@ -397,14 +397,14 @@ namespace Opc.Ua.Server.Tests
 
             // Capacity is 10 (maxBrowseContinuationPoints); adding 12 evicts the oldest.
             var first = new ContinuationPoint { Id = Guid.NewGuid() };
-            session.SaveContinuationPoint(first);
+            session.ContinuationPoints.SaveBrowse(first);
             for (int i = 0; i < 11; i++)
             {
-                session.SaveContinuationPoint(new ContinuationPoint { Id = Guid.NewGuid() });
+                session.ContinuationPoints.SaveBrowse(new ContinuationPoint { Id = Guid.NewGuid() });
             }
 
             Assert.That(
-                session.RestoreContinuationPoint(new ByteString(first.Id.ToByteArray())),
+                session.ContinuationPoints.RestoreBrowse(new ByteString(first.Id.ToByteArray())),
                 Is.Null,
                 "The oldest continuation point should have been evicted.");
         }
@@ -416,8 +416,8 @@ namespace Opc.Ua.Server.Tests
             var id = Guid.NewGuid();
             var payload = new TestHistoryContinuationPoint(id);
 
-            session.SaveHistoryContinuationPoint(payload);
-            IHistoryContinuationPoint? restored = session.RestoreHistoryContinuationPoint(new ByteString(id.ToByteArray()));
+            session.ContinuationPoints.SaveHistory(payload);
+            IHistoryContinuationPoint? restored = session.ContinuationPoints.RestoreHistory(new ByteString(id.ToByteArray()));
 
             Assert.That(restored, Is.SameAs(payload));
         }
@@ -428,7 +428,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
 
             Assert.That(
-                () => session.SaveHistoryContinuationPoint(null!),
+                () => session.ContinuationPoints.SaveHistory(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -436,9 +436,9 @@ namespace Opc.Ua.Server.Tests
         public void RestoreHistoryContinuationPointReturnsNullForBadLength()
         {
             using ServerSession session = CreateSession(CreateEndpoint());
-            session.SaveHistoryContinuationPoint(new TestHistoryContinuationPoint());
+            session.ContinuationPoints.SaveHistory(new TestHistoryContinuationPoint());
 
-            Assert.That(session.RestoreHistoryContinuationPoint(new ByteString(new byte[] { 1, 2 })), Is.Null);
+            Assert.That(session.ContinuationPoints.RestoreHistory(new ByteString(new byte[] { 1, 2 })), Is.Null);
         }
 
         [Test]
@@ -537,14 +537,14 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
             var first = Guid.NewGuid();
 
-            session.SaveHistoryContinuationPoint(new TestHistoryContinuationPoint(first));
+            session.ContinuationPoints.SaveHistory(new TestHistoryContinuationPoint(first));
             for (int i = 0; i < 11; i++)
             {
-                session.SaveHistoryContinuationPoint(new TestHistoryContinuationPoint());
+                session.ContinuationPoints.SaveHistory(new TestHistoryContinuationPoint());
             }
 
             Assert.That(
-                session.RestoreHistoryContinuationPoint(new ByteString(first.ToByteArray())),
+                session.ContinuationPoints.RestoreHistory(new ByteString(first.ToByteArray())),
                 Is.Null,
                 "The oldest history continuation point should have been evicted.");
         }
