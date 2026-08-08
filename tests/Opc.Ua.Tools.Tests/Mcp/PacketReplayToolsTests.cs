@@ -179,7 +179,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task ReplayStartListStopMockServerRoundTripsAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("replay-round-trip");
+            string folder = CreateCaptureFolderUnderPcapRoot("replay-round-trip");
             m_tempFolders.Add(folder);
             (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
                 folder,
@@ -216,7 +216,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task ReplayPcapAsyncAcceptsAlternateModeSpellingAndExplicitPortAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("replay-alt-mode");
+            string folder = CreateCaptureFolderUnderPcapRoot("replay-alt-mode");
             m_tempFolders.Add(folder);
             (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
                 folder,
@@ -231,6 +231,61 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(started.Mode, Is.EqualTo("MockServer"));
             Assert.That(started.TargetEndpointUrl, Is.Null);
+        }
+
+        /// <summary>
+        /// Creates a capture folder inside the environment's configured Pcap
+        /// base folder. Replay confines caller-supplied paths to that root, so
+        /// a capture written anywhere else is correctly rejected — which is
+        /// also where a real host writes captures.
+        /// </summary>
+        private static string CreateCaptureFolderUnderPcapRoot(string suffix)
+        {
+            string folder = System.IO.Path.Combine(
+                McpTestEnvironment.PcapBaseFolder,
+                suffix + "-" + Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(folder);
+            return folder;
+        }
+
+        /// <summary>
+        /// Replay reads a pcap and a key log from caller-supplied paths, so it
+        /// must confine them to the capture root exactly like the decode tools
+        /// do; otherwise it is an arbitrary-file-read primitive.
+        /// </summary>
+        [Test]
+        public async Task ReplayPcapAsyncRejectsAPathOutsideTheCaptureRootAsync()
+        {
+            string outside = PcapMcpTestHelpers.CreateTempFolder("replay-outside-root");
+            m_tempFolders.Add(outside);
+            (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
+                outside,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                () => PacketReplayTools.ReplayPcapAsync(
+                    McpTestEnvironment.Services,
+                    pcapPath,
+                    keyLogPath,
+                    mode: "mock-server"),
+                Throws.ArgumentException,
+                "A capture outside the configured root must not be replayable.");
+        }
+
+        /// <summary>
+        /// Traversal out of the root must be rejected even when the prefix
+        /// looks contained.
+        /// </summary>
+        [Test]
+        public void ReplayPcapAsyncRejectsParentTraversal()
+        {
+            Assert.That(
+                () => PacketReplayTools.ReplayPcapAsync(
+                    McpTestEnvironment.Services,
+                    System.IO.Path.Combine("..", "..", "escaped.pcap"),
+                    keyLogPath: null,
+                    mode: "mock-server"),
+                Throws.ArgumentException);
         }
 
         [Test]

@@ -98,6 +98,60 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Registers an EventType materialised for a WoT event affordance.
+        /// </summary>
+        /// <remarks>
+        /// Synchronous because it is called from the asset-registry build
+        /// pass, which already holds that registry's write lock; taking this
+        /// manager's lock there would deadlock.
+        /// </remarks>
+        internal void AddEventTypeNode(BaseObjectTypeState eventType)
+        {
+            AddPredefinedNodeSynchronously(eventType);
+        }
+
+        /// <summary>
+        /// Removes an EventType previously registered by
+        /// <see cref="AddEventTypeNode"/>, together with the field properties
+        /// registered beneath it.
+        /// </summary>
+        /// <remarks>
+        /// Synchronous for the same reason as <see cref="AddEventTypeNode"/>.
+        /// <see cref="AddEventTypeNode"/> indexes the whole subtree, so the
+        /// per-field <c>PropertyState</c> children have their own index
+        /// entries and must be dropped here or a re-applied Thing Description
+        /// leaks them.
+        /// </remarks>
+        internal void RemoveEventTypeNode(NodeId nodeId)
+        {
+            if (!PredefinedNodes.TryRemove(nodeId, out NodeState? node))
+            {
+                return;
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                PredefinedNodes.TryRemove(child.NodeId, out _);
+            }
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+            node.ClearChangeMasks(SystemContext, includeChildren: true);
+        }
+
+        /// <summary>
+        /// Marks an asset object as an event notifier and registers it as a
+        /// root notifier so subscriptions on the Server object receive the
+        /// asset's WoT events.
+        /// </summary>
+        internal ValueTask EnableAssetEventsAsync(IWoTAssetState asset, CancellationToken ct)
+        {
+            asset.EventNotifier = EventNotifiers.SubscribeToEvents;
+            return AddRootNotifierAsync(asset, ct);
+        }
+
+        /// <summary>
         /// Builds a stable string NodeId for a dynamic child of an asset.
         /// </summary>
         internal NodeId AllocateChildNodeId(string assetName, string category, string childName)

@@ -380,7 +380,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             NodeId registry = AddRegistry();
             NodeId rep = m_space.AddObject(registry, "Robot", RepresentationTypeId);
             m_space.AddObject(representedObject, "Robot", RepresentationTypeId,
-                ReferenceTypeIds.HasComponent, 0, rep);
+                ReferenceTypeIds.HasAddIn, 0, rep);
             m_space.AddVariable(rep, "PrimPath", new Variant("/World/Robot"));
             binding = m_space.AddObject(rep, "SpeedBinding", ValueChangeBindingTypeId);
             m_space.AddVariable(binding, "TargetPropertyName", new Variant("speed"));

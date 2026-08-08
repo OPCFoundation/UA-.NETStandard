@@ -74,6 +74,23 @@ namespace Opc.Ua.Wot
             WotNodeSetPreservationMode.WhenRequired;
 
         /// <summary>
+        /// Gets or sets whether session-local identifiers are tolerated instead
+        /// of rejected.
+        /// </summary>
+        /// <remarks>
+        /// WoT Binding Section 5.1.1 forbids the session-local
+        /// <c>ns=&lt;index&gt;</c> form in NodeId-valued terms, and Section 5.1.3
+        /// forbids a numeric namespace prefix in <c>uav:browseName</c> and
+        /// <c>uav:browsePath</c>. Both were permitted by OPC 10101 v1.00, so a
+        /// document authored against that release can still carry them. The
+        /// default is <c>false</c>, which reports each occurrence as an error and
+        /// matches the release 1.1 validator. Set it to <c>true</c> to downgrade
+        /// those errors to warnings while migrating such a document; the value
+        /// is then interpreted exactly as v1.00 defined it.
+        /// </remarks>
+        public bool AllowNonPortableIdentifiers { get; set; }
+
+        /// <summary>
         /// Gets or sets the maximum accepted WoT JSON document size in bytes.
         /// </summary>
         public int MaxJsonDocumentSize { get; set; } = 16 * 1024 * 1024;

@@ -300,7 +300,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         public void VariantToObjectPreservesBooleanArrayElementTypes()
         {
             object? result = OpcUaJsonHelper.VariantToObject(
-                Variant.From(new ArrayOf<bool>(new bool[] { false, true })));
+                Variant.From(new ArrayOf<bool>(s_booleanArrayElements)));
 
             var list = (System.Collections.Generic.IReadOnlyList<object?>)result!;
             Assert.That(list, Is.EqualTo(new object[] { false, true }));
@@ -310,7 +310,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         public void VariantToObjectPreservesDoubleArrayElementTypes()
         {
             object? result = OpcUaJsonHelper.VariantToObject(
-                Variant.From(new ArrayOf<double>(new double[] { 0.0, 1.5 })));
+                Variant.From(new ArrayOf<double>(s_doubleArrayElements)));
 
             var list = (System.Collections.Generic.IReadOnlyList<object?>)result!;
             Assert.That(list, Is.EqualTo(new object[] { 0.0, 1.5 }));
@@ -653,6 +653,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 document.RootElement,
                 dataType);
         }
+
+        private static readonly bool[] s_booleanArrayElements = [false, true];
+        private static readonly double[] s_doubleArrayElements = [0.0, 1.5];
     }
 }
 #endif

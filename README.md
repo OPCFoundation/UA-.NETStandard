@@ -102,9 +102,16 @@ Each sample has its own `README.md` with build and run instructions.
 - [Pump Device Integration Server](samples/PumpDeviceIntegrationServer/README.md) —
   minimal Device Integration (Part 100) server using
   `Opc.Ua.Di.Server`'s fluent builder.
-- [Minimal Robot Server](samples/MinimalRobotServer/README.md) — OPC 40010
+- [Minimal Robot Server](samples/Robotics/MinimalRobotServer/README.md) — OPC 40010
   Robotics with independently configurable RSL/GPOS motion and live OpenUSD
   transforms.
+- [Intent Enabled Robot](samples/Robotics/IntentEnabledRobot/README.md) —
+  one collaborative arm exposing the draft Robot Intent command surface: task-level
+  motion verbs tracked on a Part 10 program lifecycle, with missions, command
+  authority and safety-aware refusal.
+- [Intent Viewer Client](samples/Robotics/IntentViewerClient/README.md) — click a
+  target in an OpenUSD viewport and watch the arm execute the resulting intent;
+  also runs headless.
 - [Minimal ISA-95 Server](samples/MinimalIsa95Server/README.md) —
   minimal server hosting the OPC-10030 ISA-95 Common Model together
   with OPC-10031-4 Job Control V1 and V2, using the typed common-model
@@ -116,7 +123,7 @@ repository.
 
 ### Developer tools
 
-- [OPC UA MCP Server](tools/Opc.Ua.Mcp/README.md) — installable .NET tool and container that exposes OPC UA client operations as MCP tools for LLMs and Copilot.
+- [OPC UA MCP Server](tools/Opc.Ua.Mcp/README.md) — installable .NET tool and container that exposes OPC UA client operations as MCP tools for LLMs and Copilot. The tools also ship as libraries (`…Opc.Ua.Mcp.Core`, `.PubSub`, `.Diagnostics`, `.PubSub.Diagnostics`) so an application can embed them next to its own MCP tools.
 
 ## 🔧 Migrating from 1.5.378 to 2.0
 

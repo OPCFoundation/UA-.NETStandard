@@ -1244,6 +1244,7 @@ namespace Opc.Ua.Export
             }
 
             // lookup alias.
+            bool aliasRequested = lookupAlias;
             if (lookupAlias && Aliases != null)
             {
                 for (int ii = 0; ii < Aliases.Length; ii++)
@@ -1251,13 +1252,34 @@ namespace Opc.Ua.Export
                     if (Aliases[ii].Alias == source)
                     {
                         source = Aliases[ii].Value;
+                        aliasRequested = false;
                         break;
                     }
                 }
             }
 
             // parse the string.
-            var nodeId = NodeId.Parse(source!);
+            NodeId nodeId;
+            try
+            {
+                nodeId = NodeId.Parse(source!);
+            }
+            catch (Exception exception) when (aliasRequested &&
+                exception is ArgumentException or ServiceResultException)
+            {
+                // A name that is not a NodeId and not in <Aliases> is almost always
+                // an alias the document forgot to declare. Parsing it reports only
+                // that an identifier is missing, which names neither the value nor
+                // the fact that an alias was expected, so say so here. Parse throws
+                // ArgumentException for that case and ServiceResultException for
+                // others, and both mean the same thing to the document's author.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    exception,
+                    "'{0}' is neither a NodeId nor a declared alias. A NodeSet that " +
+                        "uses an alias shall declare it in <Aliases>.",
+                    source!);
+            }
 
             if (nodeId.NamespaceIndex > 0)
             {

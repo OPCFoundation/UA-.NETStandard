@@ -76,6 +76,46 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
         }
 
+        /// <summary>
+        /// Mutating one resource must not rewrite the stored bytes of an
+        /// unrelated one.
+        /// </summary>
+        /// <remarks>
+        /// This is the property the content-addressed byte store exists to
+        /// provide. While document bytes travelled inside the snapshot, every
+        /// commit rewrote every referenced blob, so editing one small document
+        /// rewrote the whole corpus. Now the snapshot carries only metadata and
+        /// a blob is written once per digest, so an untouched document's file is
+        /// never reopened. Both the content and the last-write time are checked:
+        /// content alone would pass even if the file were rewritten with
+        /// identical bytes, which is exactly the work this removes.
+        /// </remarks>
+        [Test]
+        public async Task MutatingOneResourceDoesNotRewriteAnotherResourceBytes()
+        {
+            using var service = new WotRegistryService(new FileWotRegistryStore(m_root));
+            await service.InitializeAsync();
+            WotRegistryMutationResult untouched = await service
+                .UpsertResourceAsync(TdRequest("stable", "urn:stable"));
+            await service.UpsertResourceAsync(TdRequest("edited", "urn:edited:v1"));
+
+            string untouchedBlob = BlobPath(untouched);
+            Assert.That(File.Exists(untouchedBlob), Is.True,
+                "The unrelated resource must have been persisted to its own blob.");
+            byte[] before = File.ReadAllBytes(untouchedBlob);
+            DateTime writtenAt = File.GetLastWriteTimeUtc(untouchedBlob);
+
+            // Move the clock past the file system's timestamp resolution so a
+            // rewrite would be visible rather than indistinguishable.
+            await Task.Delay(50).ConfigureAwait(false);
+            await service.UpsertResourceAsync(TdRequest("edited", "urn:edited:v2"));
+
+            Assert.That(File.ReadAllBytes(untouchedBlob), Is.EqualTo(before),
+                "An unrelated document's bytes must not change.");
+            Assert.That(File.GetLastWriteTimeUtc(untouchedBlob), Is.EqualTo(writtenAt),
+                "An unrelated document's blob must not be rewritten at all.");
+        }
+
         [Test]
         public async Task PersistAndReloadRoundTripsResource()
         {
@@ -88,14 +128,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "a",
                     Kind = WoTDocumentKindEnum.ThingDescription,
-                    Content = TestMaterialization.Td("urn:a")
+                    Content = ByteString.From(TestMaterialization.Td("urn:a"))
                 });
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = WotRegistryGroups.ThingModels,
                     ResourceId = "m",
                     Kind = WoTDocumentKindEnum.ThingModel,
-                    Content = TestMaterialization.Tm("urn:m")
+                    Content = ByteString.From(TestMaterialization.Tm("urn:m"))
                 });
             }
 
@@ -108,8 +148,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(td, Is.Not.Null);
             Assert.That(td!.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingDescription));
             Assert.That(td.Versions, Has.Length.EqualTo(1));
+            ByteString tdContent = await reloaded.ReadContentAsync(td.Versions[0]);
             Assert.That(
-                Encoding.UTF8.GetString(td.Versions[0].Content.ToArray()),
+                Encoding.UTF8.GetString(tdContent.Span.ToArray()),
                 Does.Contain("urn:a"));
             Assert.That(
                 reloaded.Current.FindResource(WotRegistryGroups.ThingModels, "m"), Is.Not.Null);
@@ -130,7 +171,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "a",
                     Kind = WoTDocumentKindEnum.ThingDescription,
-                    Content = TestMaterialization.Td("urn:a")
+                    Content = ByteString.From(TestMaterialization.Td("urn:a"))
                 });
             }
 
@@ -145,6 +186,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await reloaded.InitializeAsync();
             WotResource? td = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "a");
+            ByteString tdContent = await reloaded.ReadContentAsync(td!.Versions[0]);
 
             Assert.Multiple(() =>
             {
@@ -155,7 +197,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     "The registry folder must no longer hold blobs once a store is injected.");
                 Assert.That(td, Is.Not.Null);
                 Assert.That(
-                    Encoding.UTF8.GetString(td!.Versions[0].Content.ToArray()),
+                    Encoding.UTF8.GetString(tdContent.Span.ToArray()),
                     Does.Contain("urn:a"),
                     "A reload must read the document back out of the injected store.");
             });
@@ -206,7 +248,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "bad",
                     Kind = WoTDocumentKindEnum.ThingDescription,
-                    Content = TestMaterialization.InvalidJson()
+                    Content = ByteString.From(TestMaterialization.InvalidJson())
                 });
             }
 
@@ -232,14 +274,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "a",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td("urn:a", "v1")
+                Content = ByteString.From(TestMaterialization.Td("urn:a", "v1"))
             });
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "a",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td("urn:a", "v2")
+                Content = ByteString.From(TestMaterialization.Td("urn:a", "v2"))
             });
 
             var reloadStore = new FileWotRegistryStore(m_root);
@@ -632,6 +674,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "version id");
         }
 
+        /// <summary>
+        /// A version whose recorded digest does not describe its content must be
+        /// rejected before anything is written.
+        /// </summary>
+        /// <remarks>
+        /// The digest is the store key, so a version claiming a digest that does
+        /// not name its content is a version pointing at a document that was
+        /// never stored, and that is how the store reports it. The property
+        /// under test - rejected, and rejected before any file is created - is
+        /// unchanged; only the diagnostic tracks content addressing.
+        /// </remarks>
         [Test]
         public Task PublicSnapshotDigestMismatchFailsBeforeDiskMutation()
         {
@@ -644,12 +697,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotResourceVersion version = resource.Versions[0];
                     var tampered = new WotResourceVersion(
                         version.VersionId,
-                        version.Content,
+                        ByteString.From(new byte[32]),
+                        version.ContentLength,
                         version.ContentType,
                         version.Format,
                         version.CreatedAt,
-                        version.ModifiedAt,
-                        new byte[32]);
+                        version.ModifiedAt);
                     WotResource malformed = CloneResource(
                         resource,
                         versions: ImmutableArray.Create(tampered));
@@ -659,7 +712,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                             group.Epoch),
                         snapshot.Generation);
                 },
-                "content hashes");
+                "is missing");
         }
 
         [Test]
@@ -729,12 +782,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotResourceVersion version = resource.Versions[0];
                     var unsafeVersion = new WotResourceVersion(
                         "version/path",
-                        version.Content,
+                        version.Digest,
+                        version.ContentLength,
                         version.ContentType,
                         version.Format,
                         version.CreatedAt,
-                        version.ModifiedAt,
-                        version.Digest);
+                        version.ModifiedAt);
                     WotResource malformed = CloneResource(
                         resource,
                         versions: ImmutableArray.Create(unsafeVersion));
@@ -1617,17 +1670,38 @@ namespace Opc.Ua.WotCon.Tests.Registry
             File.Copy(ManifestPath, BackupPath, overwrite: true);
         }
 
+        /// <summary>
+        /// Captures the durable data files of the registry root: the manifests
+        /// and the committed blobs.
+        /// </summary>
+        /// <remarks>
+        /// The lock file and the staging directory are excluded because neither
+        /// is durable state. Staging holds bytes a writer made durable before
+        /// asking for a commit, so a commit that fails closed necessarily leaves
+        /// an entry there - that is the cost of writing content before the
+        /// manifest that names it. Such an entry is inert: nothing can reference
+        /// a document until a manifest names it, and only promoted entries are
+        /// ever named. What must not change when a commit is refused is the
+        /// committed data, which is what this captures.
+        /// </remarks>
         private Dictionary<string, byte[]> CaptureDataFiles()
         {
             return Directory.GetFiles(m_root, "*", SearchOption.AllDirectories)
                 .Where(path => !string.Equals(
-                    Path.GetFileName(path),
-                    ".wot-registry.lock",
-                    StringComparison.Ordinal))
+                        Path.GetFileName(path),
+                        ".wot-registry.lock",
+                        StringComparison.Ordinal) &&
+                    !IsUnderStaging(path))
                 .ToDictionary(
                     RelativePath,
                     File.ReadAllBytes,
                     StringComparer.Ordinal);
+        }
+
+        private bool IsUnderStaging(string path)
+        {
+            return RelativePath(path).StartsWith(
+                "staging" + Path.DirectorySeparatorChar, StringComparison.Ordinal);
         }
 
         private void AssertDataFilesEqual(Dictionary<string, byte[]> expected)
@@ -1689,7 +1763,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static byte[] WithSchemaVersion(byte[] manifest, int schemaVersion)
         {
             string json = Encoding.UTF8.GetString(manifest);
-            const string current = "\"SchemaVersion\": 2";
+            const string current = "\"SchemaVersion\": 3";
             Assert.That(json, Does.Contain(current));
             int index = json.IndexOf(current, StringComparison.Ordinal);
             return Encoding.UTF8.GetBytes(
@@ -1706,7 +1780,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td(thingId)
+                Content = ByteString.From(TestMaterialization.Td(thingId))
             };
         }
 

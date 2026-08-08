@@ -464,6 +464,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             { ReferenceTypeIds.HasComponent, ReferenceTypeIds.Aggregates },
             { ReferenceTypeIds.HasProperty, ReferenceTypeIds.Aggregates },
             { ReferenceTypeIds.HasOrderedComponent, ReferenceTypeIds.HasComponent },
+            { ReferenceTypeIds.HasAddIn, ReferenceTypeIds.HasComponent },
             { ReferenceTypeIds.HasNotifier, ReferenceTypeIds.HasEventSource },
             { ReferenceTypeIds.HasDictionaryEntry, ReferenceTypeIds.NonHierarchicalReferences },
             { ReferenceTypeIds.HasTypeDefinition, ReferenceTypeIds.NonHierarchicalReferences }

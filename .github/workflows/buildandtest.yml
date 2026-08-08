@@ -31,11 +31,13 @@ permissions:
 # switch - the other half is the ciBuildBackend parameter in
 # azure-pipelines.yml.  BOTH MUST BE FLIPPED TOGETHER.
 #
-#   ado     - (default) Azure Pipelines owns the work on master/main: the jobs
-#             below stand down there and run only on the branches Azure
-#             Pipelines does not cover (master378, develop/*).
-#   actions - restores the previous behaviour: every job below runs here on
-#             GitHub-hosted runners for every triggering branch.
+#   ado     - Azure Pipelines owns the work on master/main: the jobs below stand
+#             down there and run only on the branches Azure Pipelines does not
+#             cover (master378, develop/*).
+#   actions - (default) the work is split with Azure Pipelines: every job below
+#             runs here on GitHub-hosted runners for every triggering branch,
+#             while Azure Pipelines keeps the fast PR test legs and the coverage
+#             gate.
 #
 # The macOS legs are deliberately exempt from this switch: Managed DevOps Pools
 # provide no macOS image, so macOS coverage has to stay on GitHub-hosted
@@ -45,7 +47,14 @@ permissions:
 # conditions, so the switch is resolved once in the `discover` job below and
 # re-exported as job outputs.
 env:
-  CI_BUILD_BACKEND: ado
+  CI_BUILD_BACKEND: actions
+  # Upload the merged coverage report to codecov.io. Reporting only - the
+  # enforced rules live in coverage-thresholds.json and are applied by
+  # check-coverage.ps1 in the `code-coverage` job below, so a codecov outage can
+  # never fail a build. Set to 'false' to turn the upload off; it is skipped
+  # anyway when the CODECOV_TOKEN secret is unavailable, which is the case for
+  # pull requests from forks.
+  ENABLE_CODECOV: 'true'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -165,6 +174,14 @@ jobs:
     needs: discover
     name: test-${{matrix.os}}-${{matrix.csproj}}
     runs-on: ${{ matrix.os }}
+    # Bound the job well below the 360-minute default. These entries normally
+    # take 3-15 minutes, so anything approaching an hour is a hang, and letting
+    # it run for six hours blocks the pull-request gate with no diagnostic
+    # information (observed on run 30988867402, where the Core and Client
+    # entries sat for ~6 hours). --blame-hang-timeout below turns the common
+    # case into a named test failure long before this fires; this is the
+    # backstop for a hang outside the test host itself.
+    timeout-minutes: 60
     # test_os is empty when Azure Pipelines owns the Linux matrix and macOS is
     # not included for this event; skip rather than fan out to nothing.
     if: ${{ needs.discover.outputs.test_os != '[]' }}
@@ -233,6 +250,17 @@ jobs:
           '--collect:XPlat Code Coverage',
           '--settings',
           './tests/coverlet.runsettings.xml',
+          # Kill (and name) any single test that exceeds 10 minutes, so a silent
+          # hang surfaces as "Test <Name> exceeded the configured timeout"
+          # instead of burning the whole job timeout with nothing to go on. The
+          # LongRunning and Stress tiers do not run here, so 10 minutes is well
+          # above any legitimate test. This mirrors what the Azure Pipelines
+          # test template already does; the mini dump captures every thread's
+          # stack, which is what a teardown/shutdown hang needs to diagnose.
+          '--blame-hang-timeout',
+          '10m',
+          '--blame-hang-dump-type',
+          'mini',
           '--results-directory',
           '${{ env.TESTRESULTS }}')
 
@@ -250,6 +278,188 @@ jobs:
         path: ${{ env.TESTRESULTS }}
       # Use always() to always run this step to publish test results when there are test failures
       if: ${{ always() }}
+
+  # Advisory coverage check. Mirrors the Azure Pipelines 'Code coverage' stage:
+  # it merges the Cobertura fragments the matrix above already collects, runs the
+  # same check-coverage.ps1 against the same coverage-thresholds.json, and
+  # surfaces the numbers in the run summary and on the pull request.
+  #
+  # It reports a clean failure when the thresholds are missed so the miss is
+  # visible, but it is deliberately NOT in `build-and-test summary`'s `needs`,
+  # so it can never block the required check. Do not add it to the branch
+  # ruleset.
+  code-coverage:
+    name: code coverage
+    needs: [discover, build-and-test]
+    runs-on: ubuntu-latest
+    # always(): the coverage of a run whose tests failed is still worth
+    # reporting. Gated on the same test_os condition build-and-test itself uses,
+    # rather than on gh_owns_build - a push or scheduled run under the 'ado'
+    # backend still executes the macOS legs here, and their coverage would
+    # otherwise be uploaded and then discarded.
+    if: ${{ always() && needs.discover.outputs.test_os != '[]' && needs.discover.outputs.relevant_changes == 'true' }}
+    permissions:
+      contents: read
+      # Required to upsert the sticky coverage comment. Note that on a
+      # pull_request from a fork the token is read-only regardless of what this
+      # block says, which the comment step below handles.
+      pull-requests: write
+    env:
+      # The `secrets` context is not available to a step's `if`, so the presence
+      # of the token is resolved once here (job-level `env` can read `secrets`)
+      # and tested as a plain string below. Fork pull requests get no secrets,
+      # so this is 'false' there and the upload is skipped rather than failing.
+      HAS_CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN != '' }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # Full history: the changed-lines (patch) gate diffs against the base
+        # branch, which a shallow clone cannot do.
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Download test results
+      uses: actions/download-artifact@v8
+      with:
+        pattern: dotnet-results-*
+        path: coverage-artifacts
+
+    - name: Detect coverage
+      id: probe
+      shell: pwsh
+      env:
+        TESTS_RESULT: ${{ needs.build-and-test.result }}
+      run: |
+        $reports = @(Get-ChildItem -Path coverage-artifacts -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue)
+        Write-Host "Found $($reports.Count) Cobertura report(s)."
+        "has_reports=$(($reports.Count -gt 0).ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        if ($reports.Count -gt 0) {
+            exit 0
+        }
+
+        # Nothing to evaluate. Whether that is expected depends on whether the
+        # test matrix actually ran: if it was skipped there is genuinely no
+        # coverage to collect, but a matrix that completed and published nothing
+        # means the collector is broken, and silently reporting green would hide
+        # that indefinitely.
+        if ($env:TESTS_RESULT -eq 'success') {
+            Write-Host '::error title=Code coverage::The test matrix completed but published no coverage at all; the collector is not working.'
+            exit 1
+        }
+
+        Write-Host "::warning title=Code coverage::The test matrix did not complete (result: $($env:TESTS_RESULT)), so there is no coverage to evaluate."
+
+    - name: Merge coverage report
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        dotnet tool install --tool-path tools dotnet-reportgenerator-globaltool
+        ./tools/reportgenerator `
+            '-reports:coverage-artifacts/**/*.cobertura.xml' `
+            '-targetdir:CodeCoverage' `
+            '-reporttypes:Cobertura;HtmlSummary' `
+            '-title:UA .Net Standard Test Coverage' `
+            '-assemblyfilters:-*.Tests'
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error title=Code coverage::ReportGenerator failed with exit code $LASTEXITCODE."
+            exit $LASTEXITCODE
+        }
+
+    - name: Upload merged coverage report
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: coverage-report
+        path: CodeCoverage
+
+    # Reporting only, and deliberately continue-on-error: the verdict comes from
+    # the gate below, never from codecov.io being reachable. Skipped when the
+    # secret is unavailable, which is how fork pull requests behave.
+    - name: Upload to codecov.io
+      if: ${{ steps.probe.outputs.has_reports == 'true' && env.ENABLE_CODECOV == 'true' && env.HAS_CODECOV_TOKEN == 'true' }}
+      continue-on-error: true
+      uses: codecov/codecov-action@v7
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: CodeCoverage/Cobertura.xml
+        flags: actions
+        disable_search: true
+        fail_ci_if_error: false
+
+    # Writes the markdown summary even when the gate fails, so the numbers reach
+    # the summary and the pull request either way. The gate's exit code is
+    # captured here and replayed by the last step.
+    - name: Evaluate coverage
+      id: gate
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      shell: pwsh
+      env:
+        # Empty on push/schedule, in which case check-coverage.ps1 enforces the
+        # project floor only and skips the changed-lines gate.
+        BASE_REF: ${{ github.base_ref }}
+      run: |
+        ./.azurepipelines/check-coverage.ps1 `
+            -CoberturaPath CodeCoverage/Cobertura.xml `
+            -ThresholdsPath coverage-thresholds.json `
+            -RepoRoot . `
+            -BaseRef $env:BASE_REF `
+            -SummaryPath coverage-summary.md
+        "outcome=$LASTEXITCODE" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+        if (Test-Path coverage-summary.md) {
+            Get-Content coverage-summary.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+        }
+        exit 0
+
+    # Sticky comment: upsert a single comment keyed on an HTML marker rather
+    # than adding one per run. Uses actions/github-script rather than a
+    # community action to keep this workflow on first-party actions only.
+    - name: Comment coverage on the pull request
+      if: ${{ steps.probe.outputs.has_reports == 'true' && github.event_name == 'pull_request' }}
+      # A pull_request from a fork gets a read-only GITHUB_TOKEN no matter what
+      # `permissions:` says, so commenting fails there. The step summary still
+      # carries the numbers, so a failure here must not fail the job.
+      continue-on-error: true
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const fs = require('fs');
+          const marker = '<!-- ua-coverage-report -->';
+          if (!fs.existsSync('coverage-summary.md')) {
+            core.info('No coverage summary to post.');
+            return;
+          }
+          const body = marker + '\n' + fs.readFileSync('coverage-summary.md', 'utf8');
+          const { owner, repo } = context.repo;
+          const issue_number = context.issue.number;
+
+          const comments = await github.paginate(github.rest.issues.listComments, {
+            owner, repo, issue_number, per_page: 100,
+          });
+          const existing = comments.find(c => c.body && c.body.includes(marker));
+
+          if (existing) {
+            await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            core.info(`Updated coverage comment ${existing.id}.`);
+          } else {
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            core.info('Created the coverage comment.');
+          }
+
+    - name: Report coverage gate result
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      shell: pwsh
+      run: |
+        if ('${{ steps.gate.outputs.outcome }}' -ne '0') {
+            Write-Host '::error title=Code coverage::Coverage thresholds were not met. This check is advisory and does not block the merge - see the job summary for the numbers.'
+            exit 1
+        }
+        Write-Host 'Coverage gate passed.'
 
   aot-test:
     needs: discover

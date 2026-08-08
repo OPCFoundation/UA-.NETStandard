@@ -50,6 +50,7 @@ namespace Opc.Ua.Client.Tests
                     .AddProvider(provider));
             ILogger logger = telemetry.CreateLogger(ClientEventIds.LegacyCategoryName);
             var lastNotificationTime = new DateTime(2026, 7, 19, 8, 30, 0, DateTimeKind.Utc);
+            var sessionId = new NodeId(4711u);
 
             logger.ClientEventSubscriptionState(
                 "Publishing",
@@ -59,11 +60,12 @@ namespace Opc.Ua.Client.Tests
                 1000,
                 5,
                 true,
-                8);
+                8,
+                sessionId);
             logger.ClientEventNotification(42, "123");
-            logger.ClientEventNotificationReceived(10, 11);
-            logger.ClientEventPublishStart(12);
-            logger.ClientEventPublishStop(12);
+            logger.ClientEventNotificationReceived(10, 11, sessionId);
+            logger.ClientEventPublishStart(12, sessionId);
+            logger.ClientEventPublishStop(12, sessionId);
 
             RecordedLogRecord subscription = AssertRecord(
                 provider,
@@ -76,6 +78,9 @@ namespace Opc.Ua.Client.Tests
             Assert.That(subscription.Properties["CurrentPublishingInterval"], Is.EqualTo(1000d));
             Assert.That(subscription.Properties["CurrentKeepAliveCount"], Is.EqualTo(5u));
             Assert.That(subscription.Properties["CurrentPublishingEnabled"], Is.True);
+            Assert.That(
+                subscription.Properties["SessionId"]?.ToString(),
+                Is.EqualTo(sessionId.ToString()));
 
             RecordedLogRecord notification = AssertRecord(
                 provider,
@@ -90,6 +95,9 @@ namespace Opc.Ua.Client.Tests
                 "NotificationReceived");
             Assert.That(received.Properties["SubscriptionId"], Is.EqualTo(10));
             Assert.That(received.Properties["SequenceNumber"], Is.EqualTo(11));
+            Assert.That(
+                received.Properties["SessionId"]?.ToString(),
+                Is.EqualTo(sessionId.ToString()));
 
             AssertRecord(provider, ClientEventIds.LegacyPublishStartId, "PublishStart");
             AssertRecord(provider, ClientEventIds.LegacyPublishStopId, "PublishStop");

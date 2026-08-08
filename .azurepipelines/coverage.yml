@@ -1,0 +1,259 @@
+#
+# Advisory code coverage check.
+#
+# Collects the raw Cobertura fragments every test job of the run published,
+# merges them once with ReportGenerator and evaluates coverage-thresholds.json
+# against the merged report.
+#
+# This check is ADVISORY: it reports a clean failure when the thresholds are
+# missed so the miss is visible, but it must NOT be added to the GitHub branch
+# ruleset. The required check is the 'Tests passed' stage in azure-pipelines.yml.
+#
+# It deliberately does not re-run any tests. The previous design re-ran the
+# whole suite in a single job with the collector attached, which serialised a
+# suite that is deliberately fanned out across matrix jobs and always exceeded
+# the stage timeout.
+#
+parameters:
+# Stages to depend on. Their results decide whether missing coverage is
+# expected (nothing ran) or a real problem (a stage ran but published nothing).
+- name: stages
+  type: object
+  default: []
+- name: stagename
+  type: string
+  default: 'coverage'
+- name: poolName
+  type: string
+  default: ''
+# The check only merges XML and diffs git, so it is independent of any framework
+# under test and always runs on Linux.
+- name: poolImage
+  type: string
+  default: 'ubuntu-24.04'
+# Publish the merged report to the build's Code Coverage tab and to Codacy.
+- name: publishCoverage
+  type: boolean
+  default: true
+# Upload the merged report to codecov.io. Reporting only - the enforced rules
+# live in coverage-thresholds.json and are applied by the gate below. Set to
+# false to turn the upload off entirely; it is skipped anyway when the
+# CODECOV_TOKEN secret variable is not set, which is the case on fork pull
+# requests.
+- name: enableCodecov
+  type: boolean
+  default: true
+stages:
+- stage: ${{ parameters.stagename }}
+  displayName: 'Code coverage'
+  dependsOn: ${{ parameters.stages }}
+  # Evaluate whatever coverage the run did produce even when a test stage
+  # failed: a partial report is still worth publishing, and the 'Tests passed'
+  # stage already carries the failure signal.
+  condition: not(canceled())
+  jobs:
+  - job: coverage
+    displayName: Merge and evaluate
+    timeoutInMinutes: 30
+    variables:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+      disable.coverage.autogenerate: true
+    pool:
+      ${{ if ne(parameters.poolName, '') }}:
+        name: ${{ parameters.poolName }}
+        demands:
+          - ImageOverride -equals ${{ parameters.poolImage }}
+      ${{ else }}:
+        vmImage: ${{ parameters.poolImage }}
+    steps:
+    # Full history: the changed-lines (patch) check diffs the pull request
+    # against its base branch, which a shallow clone cannot do.
+    - checkout: self
+      fetchDepth: 0
+    - task: UseDotNet@2
+      displayName: 'Install .NET 10.0'
+      inputs:
+        packageType: 'sdk'
+        version: '10.0.x'
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download code coverage'
+      inputs:
+        buildType: current
+        # Every test job of every stage publishes 'coverage-<suffix>-<jobid>'.
+        patterns: 'coverage-*/**/*.cobertura.xml'
+        path: '$(Agent.TempDirectory)/coverage'
+      continueOnError: true
+    - task: PowerShell@2
+      name: reportProbe
+      displayName: 'Detect code coverage'
+      inputs:
+        pwsh: true
+        targetType: inline
+        script: |
+          $source = '$(Agent.TempDirectory)/coverage'
+          $artifacts = @(Get-ChildItem -Path $source -Directory -ErrorAction SilentlyContinue)
+          $reports = @(Get-ChildItem -Path $source -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue)
+          Write-Host "Downloaded $($reports.Count) Cobertura report(s) from $($artifacts.Count) test job(s)."
+          $found = $reports.Count -gt 0
+          Write-Host "##vso[task.setvariable variable=HAS_REPORTS;isOutput=true]$($found.ToString().ToLowerInvariant())"
+          if ($found) {
+              exit 0
+          }
+
+          # Nothing to evaluate. That is expected when every test stage was
+          # skipped or failed before publishing anything, and it is the 'Tests
+          # passed' stage that owns the failure signal for those, so warn rather
+          # than manufacture a red coverage check with no data behind it.
+          #
+          # A broken collector on an otherwise green run is caught on the
+          # GitHub Actions side instead, where the test matrix result is
+          # available cheaply; the equivalent here would need the stage
+          # dependency context, which is too large to serialise in an
+          # expression (see the 'Tests passed' stage in azure-pipelines.yml).
+          Write-Host "##vso[task.logissue type=warning]No coverage was published by any test job; there is nothing to evaluate."
+          exit 0
+    - task: DotNetCoreCLI@2
+      displayName: Install ReportGenerator tool
+      condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
+      inputs:
+        command: custom
+        custom: tool
+        arguments: install --tool-path tools dotnet-reportgenerator-globaltool
+    - task: PowerShell@2
+      displayName: 'Merge Code Coverage Report'
+      condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
+      inputs:
+        pwsh: true
+        targetType: inline
+        workingDirectory: '$(Build.SourcesDirectory)'
+        script: |
+          $ErrorActionPreference = 'Stop'
+          $source = '$(Agent.TempDirectory)/coverage'
+          & '$(Build.SourcesDirectory)/tools/reportgenerator' `
+              "-reports:$source/**/*.cobertura.xml" `
+              '-targetdir:$(Build.SourcesDirectory)/CodeCoverage' `
+              '-reporttypes:Cobertura;HtmlSummary' `
+              '-title:UA .Net Standard Test Coverage' `
+              '-assemblyfilters:-*.Tests'
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "##vso[task.logissue type=error]ReportGenerator failed with exit code $LASTEXITCODE."
+              exit $LASTEXITCODE
+          }
+          $summary = '$(Build.SourcesDirectory)/CodeCoverage/summary.htm'
+          if (Test-Path $summary) {
+              Move-Item -Force $summary '$(Build.SourcesDirectory)/CodeCoverage/index.htm'
+          }
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish merged coverage report'
+      condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
+      continueOnError: true
+      inputs:
+        targetPath: '$(Build.SourcesDirectory)/CodeCoverage'
+        artifact: 'coverage-report'
+    - ${{ if parameters.publishCoverage }}:
+      - task: PublishCodeCoverageResults@2
+        displayName: 'Publish code coverage'
+        condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
+        continueOnError: true
+        inputs:
+          summaryFileLocation: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
+      - script: |
+          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit-uuid $COMMIT_UUID
+
+        condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'), ne(variables['CODACY_PROJECT_TOKEN'], ''))
+        env:
+          CODACY_PROJECT_TOKEN: $(CODACY_PROJECT_TOKEN)
+          REPORT_LOCATION: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
+          COMMIT_UUID: '$(Build.SourceVersion)'
+        continueOnError: true
+        displayName: 'Upload to Codacy'
+    - ${{ if parameters.enableCodecov }}:
+      - script: |
+          set -euo pipefail
+          # The bash uploader (codecov.io/bash) was sunset; this is the current
+          # Codecov CLI. Fetched as the platform binary rather than via pip so
+          # the step does not depend on a Python toolchain being present.
+          curl -Os https://cli.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          # On a pull request validation build Build.SourceVersion is the
+          # *merge* commit Azure created, which Codecov cannot match to the pull
+          # request. Report the head of the source branch instead when there is
+          # one.
+          SHA="${PR_SHA:-}"
+          if [ -z "$SHA" ]; then
+            SHA="$BUILD_SHA"
+          fi
+          # Resolve owner/repo. Build.Repository.Name is empty on this pipeline
+          # (Azure puts the slug in Build.Repository.ID for a GitHub-backed
+          # repository), so fall back to parsing the clone URI, which is always
+          # populated. Passing an empty slug is what made the CLI report
+          # "Repository not found".
+          SLUG="${REPO_SLUG:-}"
+          if [ -z "$SLUG" ]; then
+            SLUG=$(printf '%s' "$REPO_URI" | sed -E 's#^.*://[^/]+/##; s#\.git$##')
+          fi
+          echo "Uploading coverage for slug '$SLUG' at commit '$SHA'."
+          ./codecov upload-process \
+            --disable-search \
+            --file "$REPORT_LOCATION" \
+            --flag azure \
+            --git-service github \
+            --slug "$SLUG" \
+            --sha "$SHA"
+        # continueOnError: reporting must never be able to fail the run. The
+        # verdict comes from the gate below, not from codecov.io being
+        # reachable.
+        continueOnError: true
+        condition: >-
+          and(succeeded(),
+              eq(variables['reportProbe.HAS_REPORTS'], 'true'),
+              ne(variables['CODECOV_TOKEN'], ''))
+        env:
+          CODECOV_TOKEN: $(CODECOV_TOKEN)
+          REPORT_LOCATION: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
+          BUILD_SHA: '$(Build.SourceVersion)'
+          PR_SHA: '$(System.PullRequest.SourceCommitId)'
+          # The CLI cannot infer owner/repo from an Azure DevOps pipeline that
+          # builds a GitHub repository - it looks for an Azure Repos project and
+          # reports "Repository not found".
+          REPO_SLUG: '$(Build.Repository.ID)'
+          REPO_URI: '$(Build.Repository.Uri)'
+        displayName: 'Upload to codecov.io'
+    # Runs last so the report is published and downloadable even when the
+    # thresholds are missed.
+    - task: PowerShell@2
+      displayName: 'Coverage gate'
+      condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
+      inputs:
+        pwsh: true
+        targetType: inline
+        workingDirectory: '$(Build.SourcesDirectory)'
+        script: |
+          # Empty on anything that is not a pull request validation build, in
+          # which case check-coverage.ps1 checks the project floor only.
+          $baseRef = $env:SYSTEM_PULLREQUEST_TARGETBRANCH
+          if ([string]::IsNullOrWhiteSpace($baseRef)) {
+              Write-Host 'Not a pull request build; the changed-lines check is skipped.'
+          }
+          else {
+              Write-Host "Pull request targets '$baseRef'."
+          }
+
+          $summaryPath = '$(Agent.TempDirectory)/coverage-summary.md'
+          & ./.azurepipelines/check-coverage.ps1 `
+              -CoberturaPath '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml' `
+              -ThresholdsPath '$(Build.SourcesDirectory)/coverage-thresholds.json' `
+              -RepoRoot '$(Build.SourcesDirectory)' `
+              -BaseRef $baseRef `
+              -SummaryPath $summaryPath
+          $gate = $LASTEXITCODE
+
+          # Attach the markdown to the build summary so the numbers are visible
+          # without opening this log.
+          if (Test-Path $summaryPath) {
+              Write-Host "##vso[task.uploadsummary]$summaryPath"
+          }
+
+          exit $gate
+

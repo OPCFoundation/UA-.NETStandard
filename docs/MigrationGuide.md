@@ -44,7 +44,6 @@ changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
 ## Migrating node types that override FindChild or CreateChild
-
 `NodeState.FindChild` and `NodeState.CreateChild` take
 `assignInstanceNodeIds` as their last parameter, and the four argument
 `FindChild` / two argument `CreateChild` virtuals are gone. The parameter
@@ -84,6 +83,47 @@ provider through the server-wide historian registry, or override
 `GetHistorianProvider(NodeState)` in the node manager. See
 [Server address-space metadata](NodeManagers.md#server-address-space-metadata) and
 [Historical Access](HistoricalAccess.md).
+
+## Migrating custom ISessionManager implementations to ShutdownAsync
+
+`ISessionManager.Shutdown()` is **gone**, replaced by
+`ShutdownAsync(CancellationToken)`. `SessionManager` previously started its
+session monitor loop with a discarded `Task.Factory.StartNew(...)`, so
+`Shutdown()` only *signalled* the loop and returned: the server could
+finish tearing down while the monitor was still closing expired sessions
+and raising keep-alive events against half-disposed state. There is no
+correct synchronous way to wait for that loop — blocking on it would be
+sync-over-async — so the synchronous overload was removed rather than
+kept as a trap. `ShutdownAsync` cancels the loop and awaits it before
+disposing the sessions, matching `ISubscriptionManager.ShutdownAsync`.
+
+**Callers** await instead of calling:
+
+```csharp
+// before
+server.SessionManager.Shutdown();
+
+// after
+await server.SessionManager.ShutdownAsync(cancellationToken)
+    .ConfigureAwait(false);
+```
+
+**Implementers** of `ISessionManager` (for example a manager registered
+through `services.AddSessionManager<T>()`) replace `Shutdown` with
+`ShutdownAsync`. If your implementation has no background work, return a
+completed task:
+
+```csharp
+public ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
+{
+    CloseAllSessions();
+    return default;
+}
+```
+
+Deriving from `SessionManager` requires no change beyond renaming any
+`Shutdown` override: `ShutdownAsync` is `virtual` and the base
+implementation already awaits the monitor loop.
 
 ## Migrating from 1.05.377 to 1.05.378
 

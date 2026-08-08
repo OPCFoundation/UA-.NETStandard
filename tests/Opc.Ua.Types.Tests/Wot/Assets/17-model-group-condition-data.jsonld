@@ -1,0 +1,33 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:projection"],
+  "id": "urn:example:model:pump-asset:condition-data",
+  "title": "Condition data",
+  "description": "The type-level condition data set. One of its members is Optional in the Thing Model, so an instance that omits it simply has a smaller group; the group does not have to be authored twice.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pumpType",
+      "href": "./02-thing-model-pump.jsonld",
+      "type": "application/tm+json",
+      "uav:routing": "source"
+    }
+  ],
+  "properties": {
+    "motorTemperature": {
+      "tm:ref": "./02-thing-model-pump.jsonld#/properties/motorTemperature",
+      "uav:semanticId": "http://example.com/ontology/ConditionSignal"
+    },
+    "vibration": {
+      "tm:ref": "./02-thing-model-pump.jsonld#/properties/vibration",
+      "uav:semanticId": "http://example.com/ontology/ConditionSignal"
+    }
+  }
+}

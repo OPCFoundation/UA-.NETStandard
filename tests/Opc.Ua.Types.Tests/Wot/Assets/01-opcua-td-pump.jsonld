@@ -1,0 +1,187 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "pump": "http://example.com/demo/pump"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": "uav:object",
+  "id": "urn:dev:opcua:pump-01",
+  "title": "Pump 01",
+  "description": "A Thing Description of a single OPC UA Object using only the preserved OPC 10101 vocabulary: Read, Write, Observe (Monitor) and Call, plus the explicit OPC UA security schemes.",
+  "uav:browseName": "pump:Pump",
+  "uav:id": "nsu=http://example.com/demo/pump;s=Pump",
+  "links": [
+    { "rel": "uav:componentOf", "href": "nsu=http://example.com/demo/pump;s=Line01" }
+  ],
+  "securityDefinitions": {
+    "opcua_channel_sc": {
+      "scheme": "uav:channelsec",
+      "uav:securityMode": "SignAndEncrypt",
+      "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+    },
+    "opcua_authentication_sc": {
+      "scheme": "uav:authentication",
+      "uav:userIdentityToken": "UserName"
+    },
+    "opcua_sc": {
+      "scheme": "combo",
+      "allOf": ["opcua_channel_sc", "opcua_authentication_sc"]
+    }
+  },
+  "security": "opcua_sc",
+  "base": "opc.tcp://opcuademo.com:4840",
+  "properties": {
+    "pumpSpeed": {
+      "@type": "uav:variable",
+      "title": "Pump Speed",
+      "uav:browseName": "pump:PumpSpeed",
+      "uav:browsePath": "/Objects/pump:Pump/pump:PumpSpeed",
+      "type": "number",
+      "unit": "rpm",
+      "readOnly": true,
+      "observable": true,
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=PumpSpeed",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty", "observeproperty"]
+        }
+      ]
+    },
+    "speedSetpoint": {
+      "@type": "uav:variable",
+      "title": "Speed Setpoint",
+      "uav:browseName": "pump:SpeedSetpoint",
+      "uav:browsePath": "/Objects/pump:Pump/pump:SpeedSetpoint",
+      "type": "number",
+      "unit": "rpm",
+      "readOnly": false,
+      "observable": true,
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=SpeedSetpoint",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty", "writeproperty", "observeproperty"]
+        }
+      ]
+    },
+    "dischargePressure": {
+      "@type": "uav:variable",
+      "title": "Discharge Pressure",
+      "uav:browseName": "pump:DischargePressure",
+      "uav:browsePath": "/Objects/pump:Pump/pump:DischargePressure",
+      "type": "number",
+      "unit": "bar",
+      "readOnly": true,
+      "observable": true,
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=DischargePressure",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty", "observeproperty"]
+        }
+      ]
+    },
+    "motorTemperature": {
+      "@type": "uav:variable",
+      "title": "Motor Temperature",
+      "uav:browseName": "pump:MotorTemperature",
+      "uav:browsePath": "/Objects/pump:Pump/pump:MotorTemperature",
+      "type": "number",
+      "unit": "Cel",
+      "readOnly": true,
+      "observable": true,
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=MotorTemperature",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty", "observeproperty"]
+        }
+      ]
+    }
+  },
+  "actions": {
+    "reset": {
+      "@type": "uav:method",
+      "title": "Reset",
+      "uav:browseName": "pump:Reset",
+      "uav:browsePath": "/Objects/pump:Pump/pump:Reset",
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=Reset",
+          "contentType": "application/octet-stream",
+          "op": ["invokeaction"]
+        }
+      ]
+    },
+    "start": {
+      "@type": "uav:method",
+      "title": "Start",
+      "uav:browseName": "pump:Start",
+      "uav:browsePath": "/Objects/pump:Pump/pump:Start",
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=Start",
+          "contentType": "application/octet-stream",
+          "op": ["invokeaction"]
+        }
+      ]
+    },
+    "stop": {
+      "@type": "uav:method",
+      "title": "Stop",
+      "uav:browseName": "pump:Stop",
+      "uav:browsePath": "/Objects/pump:Pump/pump:Stop",
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=Stop",
+          "contentType": "application/octet-stream",
+          "op": ["invokeaction"]
+        }
+      ]
+    }
+  },
+  "events": {
+    "overTemperature": {
+      "@type": "uav:eventType",
+      "title": "Over Temperature",
+      "uav:isEvent": true,
+      "uav:browseName": "pump:OverTemperatureEventType",
+      "data": {
+        "type": "object",
+        "properties": {
+          "temperature": { "type": "number", "unit": "Cel" }
+        }
+      },
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump",
+          "contentType": "application/octet-stream",
+          "op": ["subscribeevent"]
+        }
+      ]
+    },
+    "sealLeak": {
+      "@type": "uav:eventType",
+      "title": "Seal Leak",
+      "uav:isEvent": true,
+      "uav:browseName": "pump:SealLeakEventType",
+      "data": {
+        "type": "object",
+        "properties": {
+          "leakRate": { "type": "number", "unit": "L/min" }
+        }
+      },
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump",
+          "contentType": "application/octet-stream",
+          "op": ["subscribeevent"]
+        }
+      ]
+    }
+  }
+}

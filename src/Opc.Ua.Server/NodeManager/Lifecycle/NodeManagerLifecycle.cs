@@ -95,6 +95,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
+            // Signal only: Dispose is synchronous. A drain already running
+            // finishes retiring the generations it captured.
+            m_backgroundWork.Dispose();
+
             bool disposeSemaphore;
             lock (m_operationLifetimeLock)
             {
@@ -3115,7 +3119,9 @@ namespace Opc.Ua.Server
                     ExecutionContext.SuppressFlow();
                     restoreFlow = true;
                 }
-                _ = Task.Run(DrainRetiredGenerationsAsync);
+                m_backgroundWork.Run(
+                    nameof(DrainRetiredGenerationsAsync),
+                    async _ => await DrainRetiredGenerationsAsync().ConfigureAwait(false));
                 scheduled = true;
             }
             finally
@@ -4019,6 +4025,8 @@ namespace Opc.Ua.Server
         private readonly Lock m_operationLifetimeLock = new();
         private readonly Dictionary<Guid, RegistrationState> m_registrations = [];
         private readonly List<RetiredNodeManager> m_retiredNodeManagers = [];
+        private readonly BackgroundTaskScope m_backgroundWork =
+            new(nameof(NodeManagerLifecycle), AmbientMessageContext.Telemetry);
         private TaskCompletionSource<bool>? m_operationsDrained;
         private int m_activeLifecycleOperations;
         private int m_activeShutdownMethods;
