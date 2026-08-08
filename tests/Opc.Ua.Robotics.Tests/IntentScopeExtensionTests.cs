@@ -489,7 +489,7 @@ namespace Opc.Ua.Robotics.Tests
             IntentAdmission admission = host.SubmitIntent(m_context, null,
                 new FastenIntentDataType { Joint = new NodeId("joint", 1) });
 
-            Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.ParameterInvalid));
+            Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.CapabilityNotSupported));
         }
 
         [Test]
@@ -723,7 +723,11 @@ namespace Opc.Ua.Robotics.Tests
                         IntentDataType intent = factory();
                         property.SetValue(intent, arbitrary);
                         IntentAdmission admission = host.SubmitIntent(m_context, null, intent);
-                        Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.ParameterInvalid),
+                        IntentFailureEnum expected = item.Type == typeof(FastenIntentDataType) &&
+                            property.Name == nameof(FastenIntentDataType.Joint)
+                                ? IntentFailureEnum.CapabilityNotSupported
+                                : IntentFailureEnum.ParameterInvalid;
+                        Assert.That(admission.Failure, Is.EqualTo(expected),
                             $"{item.Type.Name}.{property.Name} must be rejected when outside the controller scope");
                     }
                 }

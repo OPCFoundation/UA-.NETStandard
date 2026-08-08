@@ -202,6 +202,37 @@ namespace Opc.Ua.Robotics.Client.Intent
         }
 
         /// <summary>
+        /// Requests command authority and throws when the Server refuses it.
+        /// </summary>
+        /// <remarks>
+        /// Use <see cref="RequestAuthorityAsync"/> when refusal is expected and the caller wants to branch on the
+        /// lease.
+        /// </remarks>
+        public async ValueTask<CommandAuthorityLease> RequireAuthorityAsync(
+            CancellationToken cancellationToken = default)
+        {
+            CommandAuthorityLease lease = await RequestAuthorityAsync(cancellationToken).ConfigureAwait(false);
+            if (lease.Granted)
+            {
+                return lease;
+            }
+
+            NodeId currentOwner = lease.CurrentOwner;
+            await lease.DisposeAsync().ConfigureAwait(false);
+            if (!currentOwner.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadRequestNotAllowed,
+                    "Command authority refused. CurrentOwner={0}.",
+                    currentOwner);
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadRequestNotAllowed,
+                "Command authority refused. No current owner was reported.");
+        }
+
+        /// <summary>
         /// Submits a mission and records its update id for local stale-update checks.
         /// </summary>
         public async ValueTask<MissionSubmissionResult> SubmitMissionAsync(

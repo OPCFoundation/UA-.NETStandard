@@ -124,7 +124,6 @@ namespace Opc.Ua.Tests
         }
 
         /// <summary>
-        /// <summary>
         /// Arms a background watchdog that force-exits the test host
         /// process if it has not exited within <paramref name="timeout"/>.
         /// </summary>
@@ -251,14 +250,17 @@ namespace Opc.Ua.Tests
         /// for <b>quiescence</b> instead: progress resets the clock, and the count is only
         /// reported once it has stopped moving. A real leak is therefore reported sooner than
         /// a fixed budget would, and a slow drain is given as long as it keeps making progress.
+        /// The Sessions WSS fixtures can leave the final TLS callback cleanup queued slightly
+        /// longer on loaded Linux CI agents, so the steady-count window is deliberately a few
+        /// seconds rather than a sub-second race against that transport teardown.
         /// </remarks>
         /// <param name="maxAttempts">Hard cap on polls, so the wait always terminates.</param>
         /// <param name="delayMilliseconds">Delay between polls.</param>
         /// <param name="stableReadsRequired">Consecutive unchanged reads that count as settled.</param>
         public static long WaitForOutstandingDisposals(
-            int maxAttempts = 100,
+            int maxAttempts = 600,
             int delayMilliseconds = 100,
-            int stableReadsRequired = 5)
+            int stableReadsRequired = 50)
         {
             long leaked = Certificate.InstancesLeaked;
             if (leaked <= 0)

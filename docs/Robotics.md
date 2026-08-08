@@ -1233,6 +1233,7 @@ if (!submission.Accepted)
             await Task.Delay(TimeSpan.FromSeconds(1), ct);
             break;
         case IntentFailureEnum.ParameterInvalid:
+        case IntentFailureEnum.NoTransition:
         case IntentFailureEnum.JointLimit:
         case IntentFailureEnum.WorkspaceLimit:
             Console.WriteLine("Re-plan with a reachable target.");
@@ -1409,6 +1410,9 @@ it, because `Queued`, `Cancelling` and the three distinct terminal outcomes cann
 `Cancelling` is **not** terminal. A client that treats acceptance of a cancel as the end of motion acts
 too early.
 
+`ActiveIntent` and, on servers with `MissionsSupported` true, `ActiveMission` summarize the currently executing work.
+`ActiveMission` is null when no executing intent belongs to a mission; servers without mission support omit it.
+
 #### Refusal is an ordinary outcome
 
 `SubmitIntent` refuses in a fixed order, and the order matters — a caller that lacks authority must be
@@ -1487,6 +1491,10 @@ grammar, reused rather than invented — and `DivergenceKind` says whether exact
 (`Parallel`). Per-step `ErrorPolicy` covers `Abort`, `Retry`, `Skip`, `Fallback` and `Compensate`. An
 empty `Transitions` array leaves the mission the flat sequence it was, which is what makes the graph an
 addition rather than a replacement.
+
+Where a step has outgoing transitions and none of their conditions holds, the mission terminates `Failed` with
+`NoTransition`. The same outcome is reported if the selected transition target no longer resolves to a step of the
+mission, rather than reporting success while leaving requested work unexecuted.
 
 ### Command authority
 
@@ -1583,11 +1591,15 @@ to no node at all, is never acted on.
 | `SetOutputIntentDataType.Output` | an `OutputSignalType` under the controller; `Value` must match that signal's own DataType |
 | `CallProgramIntentDataType.Program`, `ProcessIntentDataType.ProcessProgram` | a `ProgramType` under the controller |
 | `WaitIntentDataType.Signal` | an `OutputSignalType` under the controller, or a Boolean Variable under it |
-| `FastenIntentDataType.Joint` | a joint in an OPC 40450/40451 model where one is implemented |
+| `FastenIntentDataType.Joint` | a joint in an OPC 40450/40451 model under the controller where one is implemented; otherwise the member is null and the intent's own parameters stand alone |
 
 `CallProgramIntentDataType` deserves particular care because it runs code the server holds: it is
 restricted to programs published as `ProgramType` instances, and a program identifier naming anything
 else is refused.
+
+For `FastenIntentDataType.Joint`, absence of an OPC 40450/40451 joining or tightening model under the controller is
+the structural statement that non-null `Joint` values are not supported. The stock host refuses such values with
+`CapabilityNotSupported`.
 
 Commanding is a privileged operation. Every Method here moves a machine that can injure people and
 destroy property, so the server requires an authenticated Session and restricts the Methods of
@@ -1649,7 +1661,7 @@ statement in exactly the sense the honesty rules forbid, whatever `BlendingSuppo
 | **RI-Queue** | `MaxQueueDepth` greater than zero and `Buffered` accepted; `QueuePosition` maintained *(attested)* |
 | **RI-Blending** | `BlendingSupported` true and the four blending modes accepted; the modes honoured and `Result.AchievedPose` at the blend point *(attested)* |
 | **RI-Pause** / **RI-Retry** | `Pause` and `Resume`; `Retry` with `Retriable` reachable |
-| **RI-Mission** | `MissionsSupported` true, `SubmitMission`, `CancelMission`, `MissionType` instances |
+| **RI-Mission** | `MissionsSupported` true, `ActiveMission`, `SubmitMission`, `CancelMission`, `MissionType` instances |
 | **RI-Mission-Horizon** | RI-Mission plus `MissionHorizonSupported` and `UpdateMission`; base immutability *(attested)* |
 | **RI-Mission-Branching** | RI-Mission plus `MissionBranchingSupported`; transitions evaluated and error policies honoured *(attested)* |
 | **RI-Interop-40010** | inverse `HasIntentController` from the `MotionDeviceSystemType` instance to the `IntentControllerType` instance; operational-mode agreement with OPC 40010, `ProgramType` instances exactly matching the programs the OPC 40010 task control can load, pose/frame consistency and safety consistency *(attested)* |
