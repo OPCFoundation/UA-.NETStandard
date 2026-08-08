@@ -638,7 +638,7 @@ namespace Opc.Ua.SourceGeneration
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::Opc.Ua.DateTimeUtc timestamp)
             {
-                lock (Lock)
+                using (Lock.EnterScope())
                 {
                     DoBeforeReadProcessing(context, node);
 
@@ -691,7 +691,7 @@ namespace Opc.Ua.SourceGeneration
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::Opc.Ua.DateTimeUtc timestamp)
             {
-                lock (Lock)
+                using (Lock.EnterScope())
                 {
                     if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.ChildDataType}} newValue))
                     {
@@ -757,7 +757,7 @@ namespace Opc.Ua.SourceGeneration
                 /// </summary>
                 private void Initialize({{Tokens.ClassName}}State variable)
                 {
-                    lock (Lock)
+                    using (Lock.EnterScope())
                     {
                         m_variable = variable;
 
@@ -787,7 +787,7 @@ namespace Opc.Ua.SourceGeneration
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
-                    lock (Lock)
+                    using (Lock.EnterScope())
                     {
                         DoBeforeReadProcessing(context, node);
 
@@ -810,7 +810,7 @@ namespace Opc.Ua.SourceGeneration
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
-                    lock (Lock)
+                    using (Lock.EnterScope())
                     {
                         if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.DataType}} newValue))
                         {

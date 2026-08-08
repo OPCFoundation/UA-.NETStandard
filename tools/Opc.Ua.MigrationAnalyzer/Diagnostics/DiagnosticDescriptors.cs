@@ -196,5 +196,12 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "'{0}' was replaced in 2.0 — use the new IPubSubApplication / PubSubApplicationBuilder surface (or AddPubSub() / AddUdpTransport() / AddMqttTransport() on IOpcUaBuilder)",
             DiagnosticSeverity.Warning,
             "The 1.04-era PubSub top-level types (UaPubSubApplication, IUaPubSubConnection, IUaPublisher, UaPubSubDataStore, UaPubSubConfigurator) ship as obsolete shims in 2.0; the new top-level surface uses provider-model abstractions wired via PubSubApplicationBuilder or Microsoft.Extensions.DependencyInjection extensions (docs/migrate/2.0.x/pubsub.md).");
+
+        public static readonly DiagnosticDescriptor UA0024_RemovedDiagnosticsLock = Create(
+            DiagnosticIds.UA0024,
+            "Diagnostics locks are no longer exposed",
+            "'{0}.{1}' was removed in 2.0 — apply the change through '{0}.{2}' instead of taking the lock yourself",
+            DiagnosticSeverity.Warning,
+            "IServerInternal, ISession and ISubscription no longer expose DiagnosticsLock / DiagnosticsWriteLock. A caller could not see what else took those locks, in what order, or for how long, and holding one across a call back into the stack could deadlock. Each owner now applies the mutation itself through UpdateDiagnostics / UpdateServerDiagnostics, with ReadDiagnostics / ReadServerDiagnostics for projections. Do not let the diagnostics object escape the callback: once it returns the lock is released. This rule reports rather than fixes, because turning a lock statement body into a lambda depends on what the body captures and returns.");
     }
 }

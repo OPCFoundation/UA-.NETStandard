@@ -43,6 +43,61 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
+## Migrating code that used the exposed diagnostics locks
+
+`IServerInternal`, `ISession` and `ISubscription` no longer expose their
+synchronization primitives. The removed members are:
+
+| Interface | Removed |
+| --- | --- |
+| `IServerInternal` | `DiagnosticsLock`, `DiagnosticsWriteLock` |
+| `ISession` | `DiagnosticsLock` |
+| `ISubscription` | `DiagnosticsLock`, `DiagnosticsWriteLock` |
+
+A caller could not reason about these locks: it could not see what else took
+them, in what order, or for how long, and holding one across a call back into
+the stack could deadlock. Each owner now applies the mutation itself, so the
+critical section stays inside the object that understands it.
+
+```csharp
+// was
+lock (server.DiagnosticsLock)
+{
+    server.ServerDiagnostics.RejectedSessionCount++;
+}
+
+// now
+server.UpdateServerDiagnostics(diagnostics => diagnostics.RejectedSessionCount++);
+```
+
+The same shape applies to sessions and subscriptions:
+
+```csharp
+session.UpdateDiagnostics(diagnostics => diagnostics.ClientLastContactTime = now);
+subscription.UpdateDiagnostics(diagnostics => diagnostics.NextSequenceNumber = next);
+```
+
+To read a value derived from the diagnostics, use the read counterpart, which
+holds the same lock for the duration of the projection:
+
+```csharp
+uint count = session.ReadDiagnostics(diagnostics => diagnostics.RepublishRequestCount);
+```
+
+**Do not let the diagnostics object escape the callback.** Once the callback
+returns the lock is released, so any field read from a captured reference is
+unsynchronized. Project the values you need inside the callback and return
+those.
+
+`IServerInternal.ServerDiagnostics` was removed for the same reason: it handed
+out the mutable structure that the lock protects. `UpdateServerDiagnostics` and
+the diagnostic node manager are the supported paths.
+
+Analyzers `UA0024`, `UA0025` and `UA0026` flag each removed member and name its
+replacement. They report rather than auto-fix: turning a `lock` statement body
+into a lambda is not a transformation that can be applied safely without
+understanding what the body captures and returns.
+
 ## Migrating node types that override FindChild or CreateChild
 
 `NodeState.FindChild` and `NodeState.CreateChild` take
