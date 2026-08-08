@@ -619,31 +619,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Activates the session and binds it to the current secure channel.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void ValidateBeforeActivate(
-            OperationContext context,
-            SignatureData clientSignature,
-            ExtensionObject userIdentityToken,
-            SignatureData userTokenSignature,
-            out IUserIdentityTokenHandler? identityToken,
-            out UserTokenPolicy? userTokenPolicy)
-        {
-            lock (m_lock)
-            {
-                ValidateChannelBeforeActivate(context, clientSignature);
-
-                // validate the user identity token.
-                identityToken = ValidateUserIdentityToken(
-                    userIdentityToken,
-                    out userTokenPolicy);
-
-                TraceState("VALIDATED");
-            }
-        }
-
         /// <inheritdoc/>
         public async ValueTask<(
             IUserIdentityTokenHandler IdentityToken,

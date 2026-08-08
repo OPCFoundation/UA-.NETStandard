@@ -67,6 +67,45 @@ for the before/after and
 [Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
 for the runtime rules.
 
+## Removed members on ISession
+
+`ISession.ValidateBeforeActivate` — the synchronous overload with
+`out IUserIdentityTokenHandler?` and `out UserTokenPolicy?` parameters — is
+removed. It had no caller anywhere in the stack, its samples or its tests other
+than tests written for it, and it had been `[Obsolete]` since 1.5.378.
+
+Use `ValidateBeforeActivateAsync`, which returns the same two values as a tuple:
+
+```csharp
+(IUserIdentityTokenHandler identityToken, UserTokenPolicy? userTokenPolicy) =
+    await session.ValidateBeforeActivateAsync(
+        context, clientSignature, userIdentityToken, userTokenSignature, ct)
+    .ConfigureAwait(false);
+```
+
+The synchronous overload could not verify a user token that required
+decryption, so on a secure endpoint it failed closed and directed callers to
+the asynchronous path anyway.
+
+`ISession.SaveHistoryContinuationPoint` and
+`ISession.RestoreHistoryContinuationPoint` no longer pass `object`. They use
+`IHistoryContinuationPoint`, which carries the point's own `Guid Id` and
+extends `IDisposable`:
+
+```csharp
+// was
+session.SaveHistoryContinuationPoint(state.Id, state);
+object? restored = session.RestoreHistoryContinuationPoint(bytes);
+
+// now
+session.SaveHistoryContinuationPoint(state);          // the point carries its Id
+IHistoryContinuationPoint? restored = session.RestoreHistoryContinuationPoint(bytes);
+```
+
+Implement `IHistoryContinuationPoint` on whatever type you store. The session
+previously disposed only those points that happened to implement `IDisposable`
+and silently leaked the rest; every point is now disposed.
+
 ## Migrating code that called IServerInternal.Set* mutators
 
 `IServerInternal` no longer exposes the twelve `Set*` binding methods or
