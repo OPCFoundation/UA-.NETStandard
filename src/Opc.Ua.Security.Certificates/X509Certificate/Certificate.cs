@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
@@ -90,10 +91,18 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="fileName">
         /// The path to a file containing DER or PEM encoded certificate data.
         /// </param>
+        /// <remarks>
+        /// The file is read before it is parsed rather than handing the path to
+        /// the platform loader. On Windows that loader reaches CryptoAPI, which
+        /// is not long-path aware, so a certificate sitting deeper than
+        /// <c>MAX_PATH</c> fails with <c>CryptographicException: The system
+        /// cannot find the path specified</c> even though the directory
+        /// enumeration that produced the path succeeded.
+        /// </remarks>
         public Certificate(string fileName)
         {
             m_core = new CertificateCore(
-                X509CertificateLoader.LoadCertificateFromFile(fileName));
+                X509CertificateLoader.LoadCertificate(File.ReadAllBytes(fileName)));
             Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
@@ -129,13 +138,18 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="keyStorageFlags">
         /// The storage flags to use when loading the certificate.
         /// </param>
+        /// <remarks>
+        /// Reads the file rather than passing the path to the platform loader,
+        /// for the same long-path reason described on
+        /// <see cref="Certificate(string)"/>.
+        /// </remarks>
         public Certificate(
             string fileName,
             ReadOnlySpan<char> password,
             X509KeyStorageFlags keyStorageFlags = default)
         {
-            m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12FromFile(
-                fileName, password, keyStorageFlags));
+            m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12(
+                File.ReadAllBytes(fileName), password, keyStorageFlags));
             Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();

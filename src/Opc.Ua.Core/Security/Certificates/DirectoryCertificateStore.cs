@@ -678,7 +678,8 @@ namespace Opc.Ua
                         {
                             certificatesInFile = CertificateCollection.From(
                                 [
-                                    X509CertificateLoader.LoadCertificateFromFile(file.FullName)
+                                    X509CertificateLoader.LoadCertificate(
+                                        File.ReadAllBytes(file.FullName))
                                 ]);
                         }
 
@@ -765,8 +766,9 @@ namespace Opc.Ua
                                         try
                                         {
                                             certificate = Certificate.From(
-                                                X509CertificateLoader.LoadPkcs12FromFile(
-                                                    privateKeyFilePfx.FullName,
+                                                X509CertificateLoader.LoadPkcs12(
+                                                    File.ReadAllBytes(
+                                                        privateKeyFilePfx.FullName),
                                                     password,
                                                     flag));
                                             if (X509PfxUtils.VerifyKeyPair(
@@ -1301,7 +1303,8 @@ namespace Opc.Ua
                     {
                         loaded.Add(
                             Certificate.From(
-                                X509CertificateLoader.LoadCertificateFromFile(file.FullName)));
+                                X509CertificateLoader.LoadCertificate(
+                                    File.ReadAllBytes(file.FullName))));
                     }
 
                     for (int ii = 0; ii < loaded.Count; ii++)
