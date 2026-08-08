@@ -79,10 +79,30 @@ namespace Opc.Ua.Security.Pkcs11
         public Pkcs11CertificateStore(
             ITelemetryContext telemetry,
             Pkcs11TokenOptions? options = null)
+            : this(telemetry, options, DefaultPkcs11LibraryLoader.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a store that binds its module through a loader.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context, used for logging.</param>
+        /// <param name="options">
+        /// The token to open, or <c>null</c> to take it from the store path.
+        /// </param>
+        /// <param name="loader">Binds the PKCS#11 module.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="telemetry"/> or <paramref name="loader"/> is <c>null</c>.
+        /// </exception>
+        internal Pkcs11CertificateStore(
+            ITelemetryContext telemetry,
+            Pkcs11TokenOptions? options,
+            IPkcs11LibraryLoader loader)
         {
             m_logger = (telemetry ?? throw new ArgumentNullException(nameof(telemetry)))
                 .CreateLogger<Pkcs11CertificateStore>();
             m_options = options;
+            m_loader = loader ?? throw new ArgumentNullException(nameof(loader));
         }
 
         /// <inheritdoc/>
@@ -458,7 +478,7 @@ namespace Opc.Ua.Security.Pkcs11
                         "pkcs11: URI, or supply Pkcs11TokenOptions.");
                 }
 
-                m_token = new Pkcs11Token(m_options);
+                m_token = new Pkcs11Token(m_options, m_loader);
 
                 m_logger.Pkcs11CertificateStoreLog0(
                     m_options.ModulePath ?? string.Empty,
@@ -470,6 +490,7 @@ namespace Opc.Ua.Security.Pkcs11
 
         private readonly System.Threading.Lock m_lock = new();
         private readonly ILogger m_logger;
+        private readonly IPkcs11LibraryLoader m_loader;
         private Pkcs11TokenOptions? m_options;
         private Pkcs11Token? m_token;
         private string m_storePath = string.Empty;

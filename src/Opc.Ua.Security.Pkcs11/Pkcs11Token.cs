@@ -69,8 +69,37 @@ namespace Opc.Ua.Security.Pkcs11
         /// No matching token was present.
         /// </exception>
         public Pkcs11Token(Pkcs11TokenOptions options)
+            : this(options, DefaultPkcs11LibraryLoader.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Opens and logs in to the token, binding the module through a loader.
+        /// </summary>
+        /// <param name="options">Identifies the module, token and PIN.</param>
+        /// <param name="loader">Binds the PKCS#11 module.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="options"/> or <paramref name="loader"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// The module path is missing.
+        /// </exception>
+        /// <exception cref="CryptographicException">
+        /// No matching token was present.
+        /// </exception>
+        /// <remarks>
+        /// The loader is the one place a native module is bound, which is what
+        /// makes everything below it reachable without one. The default performs
+        /// exactly the load the token would otherwise do inline.
+        /// </remarks>
+        public Pkcs11Token(Pkcs11TokenOptions options, IPkcs11LibraryLoader loader)
         {
             Options = options ?? throw new ArgumentNullException(nameof(options));
+
+            if (loader == null)
+            {
+                throw new ArgumentNullException(nameof(loader));
+            }
 
             if (string.IsNullOrEmpty(options.ModulePath))
             {
@@ -82,10 +111,7 @@ namespace Opc.Ua.Security.Pkcs11
 
             m_factories = new Pkcs11InteropFactories();
 
-            m_library = m_factories.Pkcs11LibraryFactory.LoadPkcs11Library(
-                m_factories,
-                options.ModulePath,
-                AppType.MultiThreaded);
+            m_library = loader.Load(m_factories, options.ModulePath!);
 
             try
             {

@@ -23,6 +23,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="Moq" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />

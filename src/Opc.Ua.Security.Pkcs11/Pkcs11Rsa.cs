@@ -78,11 +78,41 @@ namespace Opc.Ua.Security.Pkcs11
             m_privateKey = privateKey ?? throw new ArgumentNullException(nameof(privateKey));
             m_publicParameters = publicParameters;
 
-            m_publicKey = Create();
-            m_publicKey.ImportParameters(publicParameters);
+            m_publicKey = CreatePublicKey(publicParameters);
 
             KeySizeValue = m_publicKey.KeySize;
             LegalKeySizesValue = [new KeySizes(1024, 8192, 8)];
+        }
+
+        /// <summary>
+        /// Creates the local key used for verification and encryption.
+        /// </summary>
+        /// <param name="parameters">The public key.</param>
+        /// <returns>An implementation that supports the modern paddings.</returns>
+        /// <remarks>
+        /// On .NET Framework <c>RSA.Create()</c> yields
+        /// <c>RSACryptoServiceProvider</c>, which rejects PSS and OAEP with
+        /// SHA-2 outright. Since those are exactly the paddings the modern
+        /// security policies use, the CNG implementation is chosen there instead;
+        /// everywhere else the default is already capable.
+        /// </remarks>
+        private static RSA CreatePublicKey(RSAParameters parameters)
+        {
+#if NETFRAMEWORK
+            RSA key = new RSACng();
+#else
+            RSA key = Create();
+#endif
+            try
+            {
+                key.ImportParameters(parameters);
+                return key;
+            }
+            catch
+            {
+                key.Dispose();
+                throw;
+            }
         }
 
         /// <inheritdoc/>
