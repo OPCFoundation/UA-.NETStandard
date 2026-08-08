@@ -30,9 +30,6 @@
 using System;
 using System.Security.Cryptography;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Jobs;
-using BenchmarkDotNet.Toolchains.InProcess.Emit;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Security.Crypto
@@ -52,17 +49,6 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
     /// <c>dotnet run -c Release -f net10.0 -- --filter '*SymmetricChannelCryptoBenchmarks*'</c>
     /// </para>
     /// <para>
-    /// The benchmarks run in process. BenchmarkDotNet's default toolchain
-    /// generates a host project and builds it, which fails here with
-    /// <c>STACKGEN001 'Stack generation not supported for Opc.Ua.Gds.Common
-    /// assembly'</c> - a source generator in a project this assembly references
-    /// transitively, and unrelated to the code being measured. The in process
-    /// toolchain builds no host project, so it sidesteps that entirely. The
-    /// cost is that the measurement shares a process with the test host, which
-    /// is acceptable because what matters here is the before and after
-    /// comparison, not the absolute number.
-    /// </para>
-    /// <para>
     /// The methods double as NUnit tests so the measured code stays correct and
     /// compiled even when nobody runs the benchmark.
     /// </para>
@@ -74,29 +60,9 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
     [SetUICulture("en-us")]
     [MemoryDiagnoser]
     [BenchmarkCategory("SymmetricChannelCrypto")]
-    [Config(typeof(InProcessConfig))]
     [NonParallelizable]
     public class SymmetricChannelCryptoBenchmarks
     {
-        /// <summary>
-        /// Runs the benchmarks in process so no host project has to be generated.
-        /// </summary>
-        /// <remarks>
-        /// Public because BenchmarkDotNet instantiates it reflectively from the
-        /// <c>[Config]</c> attribute, which the unused-type analyzer cannot see.
-        /// </remarks>
-        public sealed class InProcessConfig : ManualConfig
-        {
-            public InProcessConfig()
-            {
-                AddJob(Job.Default.WithToolchain(InProcessEmitToolchain.Instance));
-
-                // The assembly references nunit.framework, which is not built
-                // with optimizations enabled.
-                WithOptions(ConfigOptions.DisableOptimizationsValidator);
-            }
-        }
-
         /// <summary>
         /// The size of the message body, in bytes.
         /// </summary>

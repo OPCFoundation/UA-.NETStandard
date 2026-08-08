@@ -123,9 +123,20 @@ namespace Opc.Ua.SourceGeneration
         /// <returns></returns>
         private bool CheckCompilationOptions(out StackGenerationType type)
         {
+            type = StackGenerationType.None;
+
+            // A generator must never fail a compilation it was not meant for.
+            // The stack generator is loaded into every compilation that
+            // references it transitively - a BenchmarkDotNet host project
+            // being the case that surfaced this - so an absent opt-in means
+            // "not my compilation", not "misconfigured".
+            if (string.IsNullOrEmpty(m_options.Mode))
+            {
+                return false;
+            }
+
             if (!m_compilationOptions.IsCSharp13OrLater)
             {
-                type = StackGenerationType.None;
                 m_context.ReportDiagnostic(
                     Diagnostic.Create(
                         SourceGenerator.GenericError,
@@ -134,26 +145,18 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            // Check that we are running with opc ua core production only
-            switch (m_compilationOptions.AssemblyName)
+            if (!Enum.TryParse(m_options.Mode, ignoreCase: true, out type) ||
+                type == StackGenerationType.None)
             {
-                case "Opc.Ua.Core.Types":
-                    type = StackGenerationType.Models;
-                    break;
-                case "Opc.Ua.Core":
-                    type = StackGenerationType.Stack;
-                    break;
-                case "Opc.Ua.Test":
-                    type = StackGenerationType.All;
-                    break;
-                default:
-                    type = StackGenerationType.None;
-                    m_context.ReportDiagnostic(
-                        Diagnostic.Create(
-                            SourceGenerator.GenericError,
-                            Location.None,
-                            $"Stack generation not supported for {m_compilationOptions.AssemblyName} assembly."));
-                    return false;
+                type = StackGenerationType.None;
+                m_context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        SourceGenerator.GenericError,
+                        Location.None,
+                        $"'{m_options.Mode}' is not a valid {SourceGenerator.Name}Mode. " +
+                            $"Use one of {StackGenerationType.Stack}, " +
+                            $"{StackGenerationType.Models} or {StackGenerationType.All}."));
+                return false;
             }
             return true;
         }
