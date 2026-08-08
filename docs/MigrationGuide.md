@@ -67,6 +67,46 @@ for the before/after and
 [Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
 for the runtime rules.
 
+## Migrating code that called IServerInternal.Set* mutators
+
+`IServerInternal` no longer exposes the twelve `Set*` binding methods or
+`CreateServerObjectAsync`. They were startup plumbing: `StandardServer` calls
+each exactly once, in one block, to carry a `Create*` factory result into the
+datastore. Publishing them on the interface let any holder rewire a running
+server, which would leave every component that had already resolved a subsystem
+holding the previous instance.
+
+The supported seam is the factory seam, which already existed for every
+subsystem here:
+
+| Instead of | Override | Or register in DI |
+| --- | --- | --- |
+| `SetRoleManager` | `StandardServer.CreateRoleManager` | `IRoleManager` |
+| `SetUserManagement` | `StandardServer.CreateUserManagement` (new) | `IUserManagement` |
+| `SetMonitoredItemQueueFactory` | `StandardServer.CreateMonitoredItemQueueFactory` | `IMonitoredItemQueueFactory` |
+| `SetSubscriptionStore` | `StandardServer.CreateSubscriptionStore` | `ISubscriptionStore` |
+| `SetMainNodeManagerFactory` | `StandardServer.CreateMainNodeManagerFactory` | — |
+| `SetNodeManager` | `StandardServer.CreateMasterNodeManager` | — |
+| `SetSessionManager` | `StandardServer.CreateSessionManager` / `CreateSubscriptionManager` | `ISessionManager`, `ISubscriptionManager` |
+| `SetAggregateManager` | `StandardServer.CreateAggregateManagerAsync` | — |
+| `SetModellingRulesManager` | `StandardServer.CreateModellingRulesManagerAsync` | — |
+| `SetConformanceUnitsManager` | `StandardServer.CreateConformanceUnitsManagerAsync` | — |
+
+`CreateUserManagement` is new in this release, because user management was the
+one subsystem with no factory seam. Registering an `IUserManagement` in the
+container also switches on the username/password authenticator; override
+`CreateUserManagement` if you want the Part 18 §5 model without that.
+
+`SetIdentityRegistry` is **removed with no replacement**. Nothing ever called
+it: the supported route has always been
+`ServerIdentityRegistryExtensions.RegisterDefaultAuthenticators`, which adds
+authenticators to the default registry rather than replacing it.
+
+The methods remain on the concrete `ServerInternalData`, so code that already
+held that type keeps compiling. Binding is now refused once the server has
+finished starting — a late `Set*` throws `ServiceResultException` with
+`BadInvalidState` naming the operation.
+
 ## Migrating IServerStartupTask implementations to IServerContext
 
 `IServerStartupTask.OnServerStartedAsync` now receives an `IServerContext`

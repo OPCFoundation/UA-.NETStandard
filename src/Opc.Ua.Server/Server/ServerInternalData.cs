@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Identity;
@@ -328,8 +329,26 @@ namespace Opc.Ua.Server
         public ISubscriptionManager SubscriptionManager { get; private set; } = null!;
 
         /// <summary>
+        /// Closes the bind phase. Subsystems are bound once, while the server starts;
+        /// every attempt to bind one after this fails.
+        /// </summary>
+        /// <remarks>
+        /// Calling this more than once is harmless. It is deliberately not on
+        /// <see cref="IServerInternal"/>: only the server that owns the startup sequence
+        /// decides when binding is over.
+        /// </remarks>
+        public void CompleteBindPhase()
+        {
+            m_bindPhaseComplete = true;
+        }
+
+        /// <summary>
         /// Stores the MasterNodeManager, the DiagnosticsNodeManager and the CoreNodeManager
         /// </summary>
+        /// <remarks>
+        /// Binding the master node manager also binds the three managers it owns, because
+        /// they are reached through it and have no independent lifetime.
+        /// </remarks>
         /// <param name="nodeManager">The node manager.</param>
         [MemberNotNull(
             nameof(NodeManager),
@@ -338,6 +357,7 @@ namespace Opc.Ua.Server
             nameof(CoreNodeManager))]
         public void SetNodeManager(IMasterNodeManager nodeManager)
         {
+            ThrowIfBindPhaseComplete();
             NodeManager = nodeManager;
             DiagnosticsNodeManager = nodeManager.DiagnosticsNodeManager!;
             ConfigurationNodeManager = nodeManager.ConfigurationNodeManager!;
@@ -351,6 +371,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(MainNodeManagerFactory))]
         public void SetMainNodeManagerFactory(IMainNodeManagerFactory mainNodeManagerFactory)
         {
+            ThrowIfBindPhaseComplete();
             MainNodeManagerFactory = mainNodeManagerFactory;
         }
 
@@ -374,6 +395,7 @@ namespace Opc.Ua.Server
             RequestManager requestManager,
             CancellationToken cancellationToken = default)
         {
+            ThrowIfBindPhaseComplete();
             EventManager = eventManager;
             ResourceManager = resourceManager;
             RequestManager = requestManager;
@@ -393,6 +415,7 @@ namespace Opc.Ua.Server
             ISessionManager sessionManager,
             ISubscriptionManager subscriptionManager)
         {
+            ThrowIfBindPhaseComplete();
             if (SessionManager != null)
             {
                 SessionManager.SessionCreated -= OnSessionCountChanged;
@@ -415,6 +438,7 @@ namespace Opc.Ua.Server
         public void SetMonitoredItemQueueFactory(
             IMonitoredItemQueueFactory monitoredItemQueueFactory)
         {
+            ThrowIfBindPhaseComplete();
             MonitoredItemQueueFactory = monitoredItemQueueFactory;
         }
 
@@ -425,19 +449,42 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(SubscriptionStore))]
         public void SetSubscriptionStore(ISubscriptionStore subscriptionStore)
         {
+            ThrowIfBindPhaseComplete();
             SubscriptionStore = subscriptionStore;
         }
 
         /// <inheritdoc/>
         public void SetRoleManager(IRoleManager roleManager)
         {
+            ThrowIfBindPhaseComplete();
             RoleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
         }
 
         /// <inheritdoc/>
         public void SetUserManagement(UserManagement.IUserManagement userManagement)
         {
+            ThrowIfBindPhaseComplete();
             UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
+        }
+
+        /// <summary>
+        /// Refuses a bind once the server has finished starting. A subsystem that could be
+        /// swapped underneath a running server would leave every component that already
+        /// resolved it holding the previous instance.
+        /// </summary>
+        /// <param name="member">The bind operation being attempted.</param>
+        /// <exception cref="ServiceResultException">The bind phase is over.</exception>
+        private void ThrowIfBindPhaseComplete([CallerMemberName] string member = "")
+        {
+            if (m_bindPhaseComplete)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "{0} ran after the server finished starting. Subsystems are bound once, " +
+                    "during startup; supply one through the matching StandardServer.Create* " +
+                    "override or by registering it in the service container.",
+                    member);
+            }
         }
 
         /// <summary>
@@ -447,6 +494,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(AggregateManager))]
         public void SetAggregateManager(AggregateManager aggregateManager)
         {
+            ThrowIfBindPhaseComplete();
             AggregateManager = aggregateManager;
         }
 
@@ -457,6 +505,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(ModellingRulesManager))]
         public void SetModellingRulesManager(ModellingRulesManager modellingRulesManager)
         {
+            ThrowIfBindPhaseComplete();
             ModellingRulesManager = modellingRulesManager;
         }
 
@@ -467,6 +516,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(ConformanceUnitsManager))]
         public void SetConformanceUnitsManager(ConformanceUnitsManager conformanceUnitsManager)
         {
+            ThrowIfBindPhaseComplete();
             ConformanceUnitsManager = conformanceUnitsManager;
         }
 
@@ -708,6 +758,11 @@ namespace Opc.Ua.Server
         /// through <see cref="UpdateServerDiagnostics"/>.
         /// </summary>
         private readonly Lock m_diagnosticsLock = new();
+
+        /// <summary>
+        /// Whether the startup sequence has finished binding subsystems.
+        /// </summary>
+        private volatile bool m_bindPhaseComplete;
 
         /// <summary>
         /// Returns the diagnostics structure for the server.

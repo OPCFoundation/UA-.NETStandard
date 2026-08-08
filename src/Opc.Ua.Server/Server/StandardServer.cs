@@ -3843,6 +3843,10 @@ namespace Opc.Ua.Server
                 // add the session manager to the datastore.
                 m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
 
+                // every subsystem is bound; refuse any further binding so nothing can
+                // rewire a running server.
+                m_serverInternal.CompleteBindPhase();
+
                 ServerError = null!;
 
                 // setup registration information.
