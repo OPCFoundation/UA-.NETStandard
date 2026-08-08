@@ -1413,7 +1413,7 @@ namespace Opc.Ua.Client
                 base.SessionCreated(sessionId, sessionCookie);
             }
 
-            m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout);
+            m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout, SessionId);
             m_logger.MaxResponseMessageSizeValueMaxMessageSize(
                 maxMessageSize,
                 m_maxRequestMessageSize);
@@ -1548,7 +1548,8 @@ namespace Opc.Ua.Client
                 {
                     m_logger.ActivateSessionResultIndexResult(
                         i,
-                        certificateResults[i]);
+                        certificateResults[i],
+                        SessionId);
                 }
 
                 // fetch namespaces.
@@ -2109,7 +2110,9 @@ namespace Opc.Ua.Client
                                 .TransferAsync(this, subscriptionIds[ii], [], ct)
                                 .ConfigureAwait(false))
                         {
-                            m_logger.SubscriptionIdSubscriptionIdFailedReactivate(subscriptionIds[ii]);
+                            m_logger.SubscriptionIdSubscriptionIdFailedReactivate(
+                                subscriptionIds[ii],
+                                SessionId);
                             failedSubscriptions++;
                         }
                     }
@@ -2126,7 +2129,9 @@ namespace Opc.Ua.Client
                                 // no need to try for subscriptions which do not exist
                                 if (StatusCode.IsNotGood(resendResults[ii].StatusCode))
                                 {
-                                    m_logger.SubscriptionIdSubscriptionIdFailedResendData(subscriptionIds[ii]);
+                                    m_logger.SubscriptionIdSubscriptionIdFailedResendData(
+                                        subscriptionIds[ii],
+                                        SessionId);
                                 }
                             }
                         }
@@ -2138,7 +2143,8 @@ namespace Opc.Ua.Client
 
                     m_logger.SessionREACTIVATECountSubscriptionsCompletedFailCount(
                         subscriptions.Count,
-                        failedSubscriptions);
+                        failedSubscriptions,
+                        SessionId);
                 }
                 finally
                 {
@@ -2187,7 +2193,9 @@ namespace Opc.Ua.Client
 
                     if (!StatusCode.IsGood(responseHeader.ServiceResult))
                     {
-                        m_logger.TransferSubscriptionFailedServiceResult(responseHeader.ServiceResult);
+                        m_logger.TransferSubscriptionFailedServiceResult(
+                            responseHeader.ServiceResult,
+                            SessionId);
                         return false;
                     }
 
@@ -2219,20 +2227,25 @@ namespace Opc.Ua.Client
                             }
                             else
                             {
-                                m_logger.SubscriptionIdSubscriptionIdCouldNotBeMoved(subscriptionIds[ii]);
+                                m_logger.SubscriptionIdSubscriptionIdCouldNotBeMoved(
+                                    subscriptionIds[ii],
+                                    SessionId);
                                 failedSubscriptions++;
                             }
                         }
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
                         {
-                            m_logger.SubscriptionIdSubscriptionIdAlreadyMemberSession(subscriptionIds[ii]);
+                            m_logger.SubscriptionIdSubscriptionIdAlreadyMemberSession(
+                                subscriptionIds[ii],
+                                SessionId);
                             failedSubscriptions++;
                         }
                         else
                         {
                             m_logger.SubscriptionIdSubscriptionIdFailedTransferStatusCodeStatusCode(
                                 subscriptionIds[ii],
-                                results[ii].StatusCode);
+                                results[ii].StatusCode,
+                                SessionId);
                             failedSubscriptions++;
                         }
                     }
@@ -2241,7 +2254,8 @@ namespace Opc.Ua.Client
                 {
                     m_logger.SessionTRANSFERASYNCCountSubscriptionsFailed(
                         ex,
-                        subscriptions.Count);
+                        subscriptions.Count,
+                        SessionId);
                     failedSubscriptions++;
                 }
                 finally
@@ -3632,7 +3646,8 @@ namespace Opc.Ua.Client
 
                     m_logger.ACTIVATESESSIONASYNCTimedOutGoodRequestCount(
                         GoodPublishRequestCount,
-                        OutstandingRequestCount);
+                        OutstandingRequestCount,
+                        SessionId);
                     throw new ServiceResultException(error);
                 }
             }
@@ -3678,7 +3693,8 @@ namespace Opc.Ua.Client
             {
                 m_logger.RequestingRepublishAsyncSubscriptionIdSequenceNumber(
                     subscriptionId,
-                    sequenceNumber);
+                    sequenceNumber,
+                    SessionId);
 
                 // request republish.
                 RepublishResponse response = await RepublishAsync(
@@ -3693,7 +3709,8 @@ namespace Opc.Ua.Client
                 m_logger.ReceivedRepublishAsyncSubscriptionIdSequenceNumberServiceResult(
                     subscriptionId,
                     sequenceNumber,
-                    responseHeader.ServiceResult);
+                    responseHeader.ServiceResult,
+                    SessionId);
 
                 // process response.
                 classicEngine.ProcessPublishResponse(
@@ -4076,14 +4093,15 @@ namespace Opc.Ua.Client
 
                         await CancelAsync(requestHeader, requestHandle, ct).ConfigureAwait(false);
 
-                        m_logger.CancelledPublishRequestHandleHandle(requestHandle);
+                        m_logger.CancelledPublishRequestHandleHandle(requestHandle, SessionId);
                     }
                     catch (Exception ex)
                     {
                         // Log but don't throw - we're closing anyway
                         m_logger.ErrorCancellingPublishRequestHandleHandle(
                             ex,
-                            requestHandle);
+                            requestHandle,
+                            SessionId);
                     }
                 }
             }
@@ -4266,7 +4284,8 @@ namespace Opc.Ua.Client
                             error,
                             Endpoint?.EndpointUrl,
                             GoodPublishRequestCount,
-                            OutstandingRequestCount);
+                            OutstandingRequestCount,
+                            SessionId);
                         throw new ServiceResultException(error);
                     }
 
@@ -4294,7 +4313,8 @@ namespace Opc.Ua.Client
                 {
                     m_logger.CouldNotSendKeepAliveRequest(
                         e.GetType().FullName,
-                        e.Message);
+                        e.Message,
+                        SessionId);
                 }
             }
         }
@@ -4375,7 +4395,8 @@ namespace Opc.Ua.Client
                     elapsed.TotalMilliseconds,
                     Endpoint?.EndpointUrl,
                     GoodPublishRequestCount,
-                    OutstandingRequestCount);
+                    OutstandingRequestCount,
+                    SessionId);
             }
 
             KeepAliveEventHandler? callback = m_KeepAlive;
@@ -4985,7 +5006,7 @@ namespace Opc.Ua.Client
         {
             try
             {
-                m_logger.DeletingServerSubscriptionSubscriptionIdSubscriptionId(subscriptionId);
+                m_logger.DeletingServerSubscriptionSubscriptionIdSubscriptionId(subscriptionId, SessionId);
 
                 // delete the subscription.
                 ArrayOf<uint> subscriptionIds = [subscriptionId];
@@ -5013,7 +5034,8 @@ namespace Opc.Ua.Client
             {
                 m_logger.SessionUnexpectedErrorWhileDeletingSubscription(
                     e,
-                    subscriptionId);
+                    subscriptionId,
+                    SessionId);
             }
         }
 
@@ -5765,10 +5787,11 @@ namespace Opc.Ua.Client
         public static partial void CreateSessionFailedClientCertificateNULL(this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 8, Level = LogLevel.Information,
-            Message = "Revised session timeout value: {SessionTimeout}.")]
+            Message = "Revised session timeout value: {SessionTimeout}, SessionId={SessionId}.")]
         public static partial void RevisedSessionTimeoutValueSessionTimeout(
             this ILogger logger,
-            double sessionTimeout);
+            double sessionTimeout,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 9, Level = LogLevel.Information,
             Message = "Max response message size value: {MaxMessageSize}. Max request message size:" +
@@ -5779,8 +5802,12 @@ namespace Opc.Ua.Client
             uint maxRequestSize);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 10, Level = LogLevel.Information,
-            Message = "ActivateSession result[{Index}] = {Result}")]
-        public static partial void ActivateSessionResultIndexResult(this ILogger logger, int index, StatusCode result);
+            Message = "ActivateSession result[{Index}] = {Result}, SessionId={SessionId}")]
+        public static partial void ActivateSessionResultIndexResult(
+            this ILogger logger,
+            int index,
+            StatusCode result,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 11, Level = LogLevel.Error,
             Message = "Failed to activate session - closing.")]
@@ -5808,61 +5835,74 @@ namespace Opc.Ua.Client
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 15, Level = LogLevel.Error,
-            Message = "SubscriptionId {SubscriptionId} failed to reactivate.")]
+            Message = "SubscriptionId {SubscriptionId} failed to reactivate, SessionId={SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdFailedReactivate(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 16, Level = LogLevel.Error,
-            Message = "SubscriptionId {SubscriptionId} failed to resend data.")]
+            Message = "SubscriptionId {SubscriptionId} failed to resend data, SessionId={SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdFailedResendData(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 17, Level = LogLevel.Error,
             Message = "Failed to call resend data for subscriptions.")]
         public static partial void FailedCallResendDataSubscriptions(this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 18, Level = LogLevel.Information,
-            Message = "Session REACTIVATE of {Count} subscriptions completed. {FailCount} failed.")]
+            Message = "Session REACTIVATE of {Count} subscriptions completed. {FailCount} failed." +
+                " SessionId={SessionId}")]
         public static partial void SessionREACTIVATECountSubscriptionsCompletedFailCount(
             this ILogger logger,
             int count,
-            int failCount);
+            int failCount,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 19, Level = LogLevel.Information,
             Message = "No subscriptions. TransferSubscription skipped.")]
         public static partial void NoSubscriptionsTransferSubscriptionSkipped(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 20, Level = LogLevel.Error,
-            Message = "TransferSubscription failed: {ServiceResult}")]
-        public static partial void TransferSubscriptionFailedServiceResult(this ILogger logger, StatusCode serviceResult);
+            Message = "TransferSubscription failed: {ServiceResult}, SessionId={SessionId}")]
+        public static partial void TransferSubscriptionFailedServiceResult(
+            this ILogger logger,
+            StatusCode serviceResult,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 21, Level = LogLevel.Information,
-            Message = "SubscriptionId {SubscriptionId} could not be moved to session.")]
+            Message = "SubscriptionId {SubscriptionId} could not be moved to session {SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdCouldNotBeMoved(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 22, Level = LogLevel.Information,
-            Message = "SubscriptionId {SubscriptionId} is already member of the session.")]
+            Message = "SubscriptionId {SubscriptionId} is already member of the session {SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdAlreadyMemberSession(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 23, Level = LogLevel.Error,
-            Message = "SubscriptionId {SubscriptionId} failed to transfer, StatusCode={StatusCode}")]
+            Message = "SubscriptionId {SubscriptionId} failed to transfer, StatusCode={StatusCode}," +
+                " SessionId={SessionId}")]
         public static partial void SubscriptionIdSubscriptionIdFailedTransferStatusCodeStatusCode(
             this ILogger logger,
             uint subscriptionId,
-            StatusCode statusCode);
+            StatusCode statusCode,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 24, Level = LogLevel.Error,
-            Message = "Session TRANSFER ASYNC of {Count} subscriptions Failed due to unexpected Exception")]
+            Message = "Session TRANSFER ASYNC of {Count} subscriptions Failed due to unexpected Exception," +
+                " SessionId={SessionId}")]
         public static partial void SessionTRANSFERASYNCCountSubscriptionsFailed(
             this ILogger logger,
             Exception? exception,
-            int count);
+            int count,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 25, Level = LogLevel.Information,
             Message = "Session RECREATE-IN-PLACE {SessionId} starting...")]
@@ -5933,26 +5973,31 @@ namespace Opc.Ua.Client
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 39, Level = LogLevel.Warning,
-            Message = "ACTIVATE SESSION ASYNC timed out. {GoodRequestCount}/{OutstandingRequestCount}")]
+            Message = "ACTIVATE SESSION ASYNC timed out. {GoodRequestCount}/{OutstandingRequestCount}," +
+                " SessionId={SessionId}")]
         public static partial void ACTIVATESESSIONASYNCTimedOutGoodRequestCount(
             this ILogger logger,
             int goodRequestCount,
-            int outstandingRequestCount);
+            int outstandingRequestCount,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 40, Level = LogLevel.Information,
-            Message = "Requesting RepublishAsync for {SubscriptionId}-{SequenceNumber}")]
+            Message = "Requesting RepublishAsync for {SubscriptionId}-{SequenceNumber}, SessionId={SessionId}")]
         public static partial void RequestingRepublishAsyncSubscriptionIdSequenceNumber(
             this ILogger logger,
             uint subscriptionId,
-            uint sequenceNumber);
+            uint sequenceNumber,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 41, Level = LogLevel.Information,
-            Message = "Received RepublishAsync for {SubscriptionId}-{SequenceNumber}-{ServiceResult}")]
+            Message = "Received RepublishAsync for {SubscriptionId}-{SequenceNumber}-{ServiceResult}," +
+                " SessionId={SessionId}")]
         public static partial void ReceivedRepublishAsyncSubscriptionIdSequenceNumberServiceResult(
             this ILogger logger,
             uint subscriptionId,
             uint sequenceNumber,
-            StatusCode serviceResult);
+            StatusCode serviceResult,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 42, Level = LogLevel.Error,
             Message = "Transfer subscriptions failed.")]
@@ -5991,15 +6036,19 @@ namespace Opc.Ua.Client
         public static partial void CancellingCountOutstandingPublishRequests(this ILogger logger, int count);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 51, Level = LogLevel.Debug,
-            Message = "Cancelled publish request with handle {Handle}.")]
-        public static partial void CancelledPublishRequestHandleHandle(this ILogger logger, uint handle);
+            Message = "Cancelled publish request with handle {Handle}, SessionId={SessionId}.")]
+        public static partial void CancelledPublishRequestHandleHandle(
+            this ILogger logger,
+            uint handle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 52, Level = LogLevel.Warning,
-            Message = "Error cancelling publish request with handle {Handle}.")]
+            Message = "Error cancelling publish request with handle {Handle}, SessionId={SessionId}.")]
         public static partial void ErrorCancellingPublishRequestHandleHandle(
             this ILogger logger,
             Exception? exception,
-            uint handle);
+            uint handle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 53, Level = LogLevel.Warning,
             Message = "Session {SessionId}: KeepAlive ignored while reconnecting.")]
@@ -6009,20 +6058,22 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.Session + 54, Level = LogLevel.Error,
             Message = "Keep alive read failed: {ServiceResult}, EndpointUrl={EndpointUrl}," +
-                " RequestCount={Good}/{Outstanding}")]
+                " RequestCount={Good}/{Outstanding}, SessionId={SessionId}")]
         public static partial void KeepAliveReadFailedServiceResultEndpointUrl(
             this ILogger logger,
             ServiceResult serviceResult,
             string? endpointUrl,
             int good,
-            int outstanding);
+            int outstanding,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 55, Level = LogLevel.Error,
-            Message = "Could not send keep alive request: {RequestType} {Message}")]
+            Message = "Could not send keep alive request: {RequestType} {Message}, SessionId={SessionId}")]
         public static partial void CouldNotSendKeepAliveRequest(
             this ILogger logger,
             string? requestType,
-            string message);
+            string message,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 56, Level = LogLevel.Error,
             Message = "Session: Unexpected error invoking KeepAliveCallback.")]
@@ -6031,13 +6082,15 @@ namespace Opc.Ua.Client
             Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 57, Level = LogLevel.Information,
-            Message = "KEEP ALIVE LATE: {Duration}ms, EndpointUrl={EndpointUrl}, RequestCount={Good}/{Outstanding}")]
+            Message = "KEEP ALIVE LATE: {Duration}ms, EndpointUrl={EndpointUrl}," +
+                " RequestCount={Good}/{Outstanding}, SessionId={SessionId}")]
         public static partial void KEEPALIVELATEDurationMsEndpointUrl(
             this ILogger logger,
             double duration,
             string? endpointUrl,
             int good,
-            int outstanding);
+            int outstanding,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 58, Level = LogLevel.Error,
             Message = "Cannot read ServerArray node: {StatusCode} - skipping.")]
@@ -6048,17 +6101,20 @@ namespace Opc.Ua.Client
         public static partial void ServerSignatureNullEmpty(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 60, Level = LogLevel.Information,
-            Message = "Deleting server subscription for SubscriptionId={SubscriptionId}")]
+            Message = "Deleting server subscription for SubscriptionId={SubscriptionId}, SessionId={SessionId}")]
         public static partial void DeletingServerSubscriptionSubscriptionIdSubscriptionId(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 61, Level = LogLevel.Error,
-            Message = "Session: Unexpected error while deleting subscription for SubscriptionId={SubscriptionId}.")]
+            Message = "Session: Unexpected error while deleting subscription for" +
+                " SubscriptionId={SubscriptionId}, SessionId={SessionId}.")]
         public static partial void SessionUnexpectedErrorWhileDeletingSubscription(
             this ILogger logger,
             Exception? exception,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 62, Level = LogLevel.Error,
             Message = "Unexpected error calling SessionConfigurationChanged event handler.")]

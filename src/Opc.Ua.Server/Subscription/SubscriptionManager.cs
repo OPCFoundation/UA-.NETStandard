@@ -682,7 +682,9 @@ namespace Opc.Ua.Server
         {
             try
             {
-                m_logger.SubscriptionConditionRefreshStartedIdSubscriptionId(subscription.Id);
+                m_logger.SubscriptionConditionRefreshStartedIdSubscriptionId(
+                    subscription.Id,
+                    subscription.SessionId);
                 await subscription.ConditionRefreshAsync(cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -699,7 +701,10 @@ namespace Opc.Ua.Server
         {
             try
             {
-                m_logger.SubscriptionConditionRefresh2StartedIdSubscriptionId(subscription.Id, monitoredItemId);
+                m_logger.SubscriptionConditionRefresh2StartedIdSubscriptionId(
+                    subscription.Id,
+                    subscription.SessionId,
+                    monitoredItemId);
                 await subscription.ConditionRefresh2Async(monitoredItemId, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -1003,7 +1008,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    m_logger.ErrorOccurredInDeleteSubscriptions(e);
+                    m_logger.ErrorOccurredInDeleteSubscriptions(e, context.SessionId, subscriptionId);
 
                     var result = ServiceResult.Create(
                         e,
@@ -1190,7 +1195,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                m_logger.PublishClientHandleReceivedFromClient(context.ClientHandle);
+                m_logger.PublishClientHandleReceivedFromClient(context.ClientHandle, context.SessionId);
 
                 // check for any pending status messages that need to be sent.
                 if (ReturnPendingStatusMessage(context, out NotificationMessage statusMessage, out uint statusSubscriptionId))
@@ -1269,7 +1274,10 @@ namespace Opc.Ua.Server
                         }
 
                         requeue = true;
-                        m_logger.PublishFalseAlarmRequestClientHandleRequeued(context.ClientHandle);
+                        m_logger.PublishFalseAlarmRequestClientHandleRequeued(
+                            context.ClientHandle,
+                            context.SessionId,
+                            subscription.Id);
                     }
                     finally
                     {
@@ -1452,7 +1460,7 @@ namespace Opc.Ua.Server
                 {
                     if (e is not ServiceResultException)
                     {
-                        m_logger.ErrorOccurredInSetPublishingMode(e);
+                        m_logger.ErrorOccurredInSetPublishingMode(e, context.SessionId, subscriptionIds[ii]);
                     }
 
                     var result = ServiceResult.Create(
@@ -2789,10 +2797,11 @@ namespace Opc.Ua.Server
         public static partial void SubscriptionABANDONEDIdSubscriptionId(this ILogger logger, uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 6, Level = LogLevel.Trace,
-            Message = "Subscription ConditionRefresh started, Id={SubscriptionId}.")]
+            Message = "Subscription ConditionRefresh started, Id={SubscriptionId}, SessionId={SessionId}.")]
         public static partial void SubscriptionConditionRefreshStartedIdSubscriptionId(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 7, Level = LogLevel.Error,
             Message = "Subscription - DoConditionRefresh Exited Unexpectedly")]
@@ -2800,10 +2809,11 @@ namespace Opc.Ua.Server
 
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 8, Level = LogLevel.Trace,
             Message = "Subscription ConditionRefresh2 started, Id={SubscriptionId}, " +
-                "MonitoredItemId={MonitoredItemId}.")]
+                "SessionId={SessionId}, MonitoredItemId={MonitoredItemId}.")]
         public static partial void SubscriptionConditionRefresh2StartedIdSubscriptionId(
             this ILogger logger,
             uint subscriptionId,
+            NodeId? sessionId,
             uint monitoredItemId);
 
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 9, Level = LogLevel.Error,
@@ -2817,20 +2827,38 @@ namespace Opc.Ua.Server
             uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 11, Level = LogLevel.Error,
-            Message = "Error occurred in DeleteSubscriptions")]
-        public static partial void ErrorOccurredInDeleteSubscriptions(this ILogger logger, Exception ex);
+            Message = "Error occurred in DeleteSubscriptions, SessionId={SessionId}, " +
+                "SubscriptionId={SubscriptionId}")]
+        public static partial void ErrorOccurredInDeleteSubscriptions(
+            this ILogger logger,
+            Exception ex,
+            NodeId? sessionId,
+            uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 12, Level = LogLevel.Trace,
-            Message = "Publish #{ClientHandle} ReceivedFromClient")]
-        public static partial void PublishClientHandleReceivedFromClient(this ILogger logger, uint clientHandle);
+            Message = "Publish #{ClientHandle} ReceivedFromClient, SessionId={SessionId}")]
+        public static partial void PublishClientHandleReceivedFromClient(
+            this ILogger logger,
+            uint clientHandle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 13, Level = LogLevel.Trace,
-            Message = "Publish False Alarm - Request #{ClientHandle} Requeued.")]
-        public static partial void PublishFalseAlarmRequestClientHandleRequeued(this ILogger logger, uint clientHandle);
+            Message = "Publish False Alarm - Request #{ClientHandle} Requeued, " +
+                "SessionId={SessionId}, SubscriptionId={SubscriptionId}.")]
+        public static partial void PublishFalseAlarmRequestClientHandleRequeued(
+            this ILogger logger,
+            uint clientHandle,
+            NodeId? sessionId,
+            uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 14, Level = LogLevel.Error,
-            Message = "Error occurred in SetPublishingMode")]
-        public static partial void ErrorOccurredInSetPublishingMode(this ILogger logger, Exception ex);
+            Message = "Error occurred in SetPublishingMode, SessionId={SessionId}, " +
+                "SubscriptionId={SubscriptionId}")]
+        public static partial void ErrorOccurredInSetPublishingMode(
+            this ILogger logger,
+            Exception ex,
+            NodeId? sessionId,
+            uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 15, Level = LogLevel.Information,
             Message = "TransferSubscriptions to SessionId={SessionId}, Count={Count}, " +

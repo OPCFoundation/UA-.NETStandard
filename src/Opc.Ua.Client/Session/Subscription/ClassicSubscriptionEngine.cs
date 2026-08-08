@@ -225,13 +225,13 @@ namespace Opc.Ua.Client
 
             if (m_context.Reconnecting)
             {
-                m_logger.PublishSkippedSessionReconnect();
+                m_logger.PublishSkippedSessionReconnect(m_context.SessionId);
                 return false;
             }
 
             if (m_context.Closing)
             {
-                m_logger.PublishCancelledSessionClosed();
+                m_logger.PublishCancelledSessionClosed(m_context.SessionId);
                 return false;
             }
 
@@ -278,7 +278,9 @@ namespace Opc.Ua.Client
                     Utils.IncrementIdentifier(ref PublishCounter)
             };
 
-            m_eventLogger.ClientEventPublishStart((int)requestHeader.RequestHandle);
+            m_eventLogger.ClientEventPublishStart(
+                (int)requestHeader.RequestHandle,
+                m_context.SessionId);
 
             try
             {
@@ -327,7 +329,9 @@ namespace Opc.Ua.Client
                 requestHeader.RequestHandle,
                 DataTypes.PublishRequest);
 
-            m_eventLogger.ClientEventPublishStop((int)requestHeader.RequestHandle);
+            m_eventLogger.ClientEventPublishStop(
+                (int)requestHeader.RequestHandle,
+                sessionId);
 
             // Bail out early if the session has been disposed.
             if (m_context.Disposed)
@@ -383,9 +387,10 @@ namespace Opc.Ua.Client
                             m_logger.Log(
                                 logLevel,
                                 "Publish Ack Response. ResultCode={StatusCode}; " +
-                                "SubscriptionId={SubscriptionId}",
+                                "SubscriptionId={SubscriptionId}; SessionId={SessionId}",
                                 code,
-                                subscriptionId);
+                                subscriptionId,
+                                sessionId);
                         }
                         // only show the first error as warning
                         logLevel = LogLevel.Trace;
@@ -409,7 +414,8 @@ namespace Opc.Ua.Client
 
                 m_eventLogger.ClientEventNotificationReceived(
                     (int)subscriptionId,
-                    (int)notificationMessage.SequenceNumber);
+                    (int)notificationMessage.SequenceNumber,
+                    sessionId);
 
                 // process response.
                 ProcessPublishResponse(
@@ -435,14 +441,16 @@ namespace Opc.Ua.Client
                 {
                     m_logger.PublishRequestHandleSubscriptionCountErrorMessage(
                         requestHeader.RequestHandle,
-                        e.Message);
+                        e.Message,
+                        sessionId);
                 }
                 else
                 {
                     m_logger.PublishRequestHandleReconnectingReconnectingErrorMessage(
                         requestHeader.RequestHandle,
                         m_context.Reconnecting,
-                        e.Message);
+                        e.Message,
+                        sessionId);
                 }
 
                 // raise an error event.
@@ -508,7 +516,9 @@ namespace Opc.Ua.Client
                     {
                         m_tooManyPublishRequests =
                             tooManyPublishRequests;
-                        m_logger.PUBLISHTooManyRequestsSetLimit(m_tooManyPublishRequests);
+                        m_logger.PUBLISHTooManyRequestsSetLimit(
+                            m_tooManyPublishRequests,
+                            sessionId);
                     }
                     return;
                 }
@@ -554,7 +564,8 @@ namespace Opc.Ua.Client
                         m_logger.PUBLISHRequestHandleUnhandledErrorStatusCodeDuring(
                             e,
                             requestHeader.RequestHandle,
-                            error.StatusCode);
+                            error.StatusCode,
+                            sessionId);
                     }
 
                     // throttle the next publish to reduce
@@ -755,7 +766,9 @@ namespace Opc.Ua.Client
                 !subscriptionCreationInProgress)
             {
                 // Delete abandoned subscription from server.
-                m_logger.ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId(subscriptionId);
+                m_logger.ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId(
+                    subscriptionId,
+                    m_context.SessionId);
 
                 m_backgroundWork.Run(
                     "DeleteOrphanedSubscription",
@@ -767,7 +780,9 @@ namespace Opc.Ua.Client
             {
                 // Do not delete publish requests of stale
                 // subscriptions
-                m_logger.ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId2(subscriptionId);
+                m_logger.ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId2(
+                    subscriptionId,
+                    m_context.SessionId);
             }
         }
 
@@ -793,7 +808,8 @@ namespace Opc.Ua.Client
             {
                 m_logger.PUBLISHDidNotSendAnotherPublish(
                     requestCount,
-                    minPublishRequestCount);
+                    minPublishRequestCount,
+                    m_context.SessionId);
             }
         }
 
@@ -991,14 +1007,16 @@ namespace Opc.Ua.Client
             {
                 m_logger.MessageSubscriptionIdSequenceNumberNoLongerAvailable(
                     subscriptionId,
-                    sequenceNumber);
+                    sequenceNumber,
+                    m_context.SessionId);
             }
             else if (error.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
             {
                 m_logger.MessageSubscriptionIdSequenceNumberExceededSizeLimits(
                     e,
                     subscriptionId,
-                    sequenceNumber);
+                    sequenceNumber,
+                    m_context.SessionId);
                 lock (m_acknowledgementsToSendLock)
                 {
                     AddAcknowledgementToSend(
@@ -1049,12 +1067,12 @@ namespace Opc.Ua.Client
         public static partial void PublishSkippedSessionNotConnected(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 1, Level = LogLevel.Warning,
-            Message = "Publish skipped due to session reconnect")]
-        public static partial void PublishSkippedSessionReconnect(this ILogger logger);
+            Message = "Publish skipped due to session reconnect, SessionId={SessionId}")]
+        public static partial void PublishSkippedSessionReconnect(this ILogger logger, NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 2, Level = LogLevel.Warning,
-            Message = "Publish cancelled due to session closed")]
-        public static partial void PublishCancelledSessionClosed(this ILogger logger);
+            Message = "Publish cancelled due to session closed, SessionId={SessionId}")]
+        public static partial void PublishCancelledSessionClosed(this ILogger logger, NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 3, Level = LogLevel.Warning,
             Message = "Publish skipped due to session lost connection. Last successful keepalive: {LastKeepAlive}")]
@@ -1064,8 +1082,11 @@ namespace Opc.Ua.Client
             EventId = ClientEventIds.LegacyPublishStartId,
             EventName = "PublishStart",
             Level = LogLevel.Trace,
-            Message = "PUBLISH #{RequestHandle} SENT")]
-        public static partial void ClientEventPublishStart(this ILogger logger, int requestHandle);
+            Message = "PUBLISH #{RequestHandle} SENT, SessionId={SessionId}")]
+        public static partial void ClientEventPublishStart(
+            this ILogger logger,
+            int requestHandle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 5, Level = LogLevel.Error,
             Message = "Unexpected error sending publish request.")]
@@ -1075,8 +1096,11 @@ namespace Opc.Ua.Client
             EventId = ClientEventIds.LegacyPublishStopId,
             EventName = "PublishStop",
             Level = LogLevel.Trace,
-            Message = "PUBLISH #{RequestHandle} RECEIVED")]
-        public static partial void ClientEventPublishStop(this ILogger logger, int requestHandle);
+            Message = "PUBLISH #{RequestHandle} RECEIVED, SessionId={SessionId}")]
+        public static partial void ClientEventPublishStop(
+            this ILogger logger,
+            int requestHandle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 7, Level = LogLevel.Warning,
             Message = "Publish response discarded because session id changed: Old {PreviousSessionId} != New" +
@@ -1090,30 +1114,36 @@ namespace Opc.Ua.Client
             EventId = ClientEventIds.LegacyNotificationReceivedId,
             EventName = "NotificationReceived",
             Level = LogLevel.Trace,
-            Message = "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}")]
+            Message = "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}," +
+                " SessionId={SessionId}")]
         public static partial void ClientEventNotificationReceived(
             this ILogger logger,
             int subscriptionId,
-            int sequenceNumber);
+            int sequenceNumber,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 9, Level = LogLevel.Warning,
             Message = "No new publish sent because of reconnect in progress.")]
         public static partial void NoNewPublishSentReconnectProgress(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 10, Level = LogLevel.Warning,
-            Message = "Publish #{RequestHandle}, Subscription count = 0, Error: {Message}")]
+            Message = "Publish #{RequestHandle}, Subscription count = 0, Error: {Message}," +
+                " SessionId={SessionId}")]
         public static partial void PublishRequestHandleSubscriptionCountErrorMessage(
             this ILogger logger,
             uint requestHandle,
-            string message);
+            string message,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 11, Level = LogLevel.Error,
-            Message = "Publish #{RequestHandle}, Reconnecting={Reconnecting}, Error: {Message}")]
+            Message = "Publish #{RequestHandle}, Reconnecting={Reconnecting}, Error: {Message}," +
+                " SessionId={SessionId}")]
         public static partial void PublishRequestHandleReconnectingReconnectingErrorMessage(
             this ILogger logger,
             uint requestHandle,
             bool reconnecting,
-            string message);
+            string message,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 12, Level = LogLevel.Information,
             Message = "Publish abandoned after error {Message} due to session {SessionId} reconnecting")]
@@ -1139,16 +1169,22 @@ namespace Opc.Ua.Client
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 15, Level = LogLevel.Information,
-            Message = "PUBLISH - Too many requests, set limit to GoodPublishRequestCount={GoodRequestCount}.")]
-        public static partial void PUBLISHTooManyRequestsSetLimit(this ILogger logger, int goodRequestCount);
+            Message = "PUBLISH - Too many requests, set limit to GoodPublishRequestCount={GoodRequestCount}." +
+                " SessionId={SessionId}")]
+        public static partial void PUBLISHTooManyRequestsSetLimit(
+            this ILogger logger,
+            int goodRequestCount,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 16, Level = LogLevel.Error,
-            Message = "PUBLISH #{RequestHandle} - Unhandled error {StatusCode} during Publish.")]
+            Message = "PUBLISH #{RequestHandle} - Unhandled error {StatusCode} during Publish." +
+                " SessionId={SessionId}")]
         public static partial void PUBLISHRequestHandleUnhandledErrorStatusCodeDuring(
             this ILogger logger,
             Exception? exception,
             uint requestHandle,
-            StatusCode statusCode);
+            StatusCode statusCode,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 17, Level = LogLevel.Warning,
             Message = "SessionId {SessionId}, SubscriptionId {SubscriptionId}, Sequence number={SequenceNumber}" +
@@ -1193,39 +1229,47 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 22, Level = LogLevel.Warning,
             Message = "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Deleting abandoned" +
-                " subscription from server.")]
+                " subscription from server. SessionId={SessionId}")]
         public static partial void ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 23, Level = LogLevel.Warning,
-            Message = "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Ignored.")]
+            Message = "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Ignored." +
+                " SessionId={SessionId}")]
         public static partial void ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId2(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 24, Level = LogLevel.Debug,
             Message = "PUBLISH - Did not send another publish request. " +
-                "GoodPublishRequestCount={GoodRequestCount}, MinPublishRequestCount={MinRequestCount}")]
+                "GoodPublishRequestCount={GoodRequestCount}, MinPublishRequestCount={MinRequestCount}," +
+                " SessionId={SessionId}")]
         public static partial void PUBLISHDidNotSendAnotherPublish(
             this ILogger logger,
             int goodRequestCount,
-            int minRequestCount);
+            int minRequestCount,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 25, Level = LogLevel.Warning,
-            Message = "Message {SubscriptionId}-{SequenceNumber} no longer available.")]
+            Message = "Message {SubscriptionId}-{SequenceNumber} no longer available. SessionId={SessionId}")]
         public static partial void MessageSubscriptionIdSequenceNumberNoLongerAvailable(
             this ILogger logger,
             uint subscriptionId,
-            uint sequenceNumber);
+            uint sequenceNumber,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 26, Level = LogLevel.Error,
-            Message = "Message {SubscriptionId}-{SequenceNumber} exceeded size limits, ignored.")]
+            Message = "Message {SubscriptionId}-{SequenceNumber} exceeded size limits, ignored." +
+                " SessionId={SessionId}")]
         public static partial void MessageSubscriptionIdSequenceNumberExceededSizeLimits(
             this ILogger logger,
             Exception? exception,
             uint subscriptionId,
-            uint sequenceNumber);
+            uint sequenceNumber,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 27, Level = LogLevel.Error,
             Message = "Unexpected error sending republish request.")]
