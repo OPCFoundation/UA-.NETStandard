@@ -2324,11 +2324,28 @@ namespace Opc.Ua.Server
                                 // cannot track disposal through the
                                 // conditional (?:) assignment.
 #pragma warning disable CA2000
-                                exportableKey = previousCertificateWithKey != null
-                                    ? X509Utils.CreateCopyWithPrivateKey(previousCertificateWithKey, false)
-                                    : throw new ServiceResultException(
+                                if (previousCertificateWithKey == null)
+                                {
+                                    throw new ServiceResultException(
                                         StatusCodes.BadSecurityChecksFailed,
                                         "A private key was not found");
+                                }
+
+                                try
+                                {
+                                    exportableKey = X509Utils.CreateCopyWithPrivateKey(
+                                        previousCertificateWithKey, false);
+                                }
+                                catch (CryptographicException ex)
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadSecurityChecksFailed,
+                                        "The existing private key is not extractable, so it " +
+                                        "cannot be carried over to the new certificate. Request " +
+                                        "a new key with CreateSigningRequest and " +
+                                        "RegeneratePrivateKey set to true instead.",
+                                        ex);
+                                }
 #pragma warning restore CA2000
                             }
 
