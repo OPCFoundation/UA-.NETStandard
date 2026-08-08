@@ -474,7 +474,8 @@ namespace Opc.Ua.Bindings
             }
             try
             {
-                using CertificateCollection validation = BuildValidationChain(cert, chain);
+                using CertificateCollection validation = CertificateValidationHelpers
+                    .BuildValidationCertificateCollection(cert, chain);
                 // Run the async validator from the sync TLS callback; the
                 // BCL TLS handshake plumbing is itself synchronous here so
                 // there is no easier way to bridge it.
@@ -493,36 +494,6 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private static CertificateCollection BuildValidationChain(
-            X509Certificate2 cert,
-            X509Chain? chain)
-        {
-            var validation = new CertificateCollection();
-            try
-            {
-                if (chain?.ChainElements != null && chain.ChainElements.Count > 0)
-                {
-                    foreach (X509ChainElement element in chain.ChainElements)
-                    {
-                        using Certificate certificate = Certificate.FromRawData(
-                            element.Certificate.RawData);
-                        validation.Add(certificate);
-                    }
-                }
-                else
-                {
-                    using Certificate certificate = Certificate.FromRawData(cert.RawData);
-                    validation.Add(certificate);
-                }
-
-                return validation;
-            }
-            catch
-            {
-                validation.Dispose();
-                throw;
-            }
-        }
 #endif
 
         private static Uri NormalizeUrl(Uri url)
