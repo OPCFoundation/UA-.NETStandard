@@ -3827,13 +3827,13 @@ namespace Opc.Ua
         /// Reads an attribute.
         /// </summary>
         /// <remarks>
-        /// Deliberately does not hold <see cref="m_attributeLock"/>. Reading an attribute
-        /// dispatches to caller-supplied handlers (<c>OnReadValue</c> and its siblings), and
-        /// a handler may take locks of its own. Holding the node's lock across one puts the
-        /// node into an unknown lock order and deadlocks against any caller that takes that
-        /// lock first and then touches the node. The asynchronous read path has always
-        /// snapshotted under the lock and released before dispatching; this matches it. The
-        /// individual attribute fields guard themselves.
+        /// Deliberately takes no node-wide lock. Reading an attribute dispatches to
+        /// caller-supplied handlers (<c>OnReadValue</c> and its siblings), and a handler may
+        /// take locks of its own. Holding a lock on the node across one puts the node into
+        /// an unknown lock order and deadlocks against any caller that takes that lock first
+        /// and then touches the node. The asynchronous read path has always snapshotted
+        /// under a lock and released before dispatching; this matches it. The individual
+        /// attribute fields guard themselves.
         /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>
@@ -4188,11 +4188,11 @@ namespace Opc.Ua
         /// Writes an attribute.
         /// </summary>
         /// <remarks>
-        /// Deliberately does not hold <see cref="m_attributeLock"/>, for the same reason as
-        /// the read path: writing dispatches to caller-supplied handlers
-        /// (<c>OnWriteValue</c> and its siblings) which may take locks of their own, and
-        /// holding the node's lock across one gives the node no fixed place in the lock
-        /// order. The individual attribute fields guard themselves.
+        /// Deliberately takes no node-wide lock, for the same reason as the read path:
+        /// writing dispatches to caller-supplied handlers (<c>OnWriteValue</c> and its
+        /// siblings) which may take locks of their own, and holding a lock on the node
+        /// across one gives the node no fixed place in the lock order. The individual
+        /// attribute fields guard themselves.
         /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>
@@ -5506,30 +5506,6 @@ namespace Opc.Ua
         private readonly Lock m_notifiersLock = new();
         private readonly Lock m_referencesLock = new();
         private readonly Lock m_childrenLock = new();
-
-        /// <summary>
-        /// Guards attribute reads and writes so the node synchronizes itself rather than
-        /// relying on callers to take a lock on the node instance.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Declared <c>private protected</c> rather than <c>private</c> because
-        /// <see cref="BaseVariableState"/> overrides the asynchronous attribute paths and
-        /// mutates its own value fields there. Those mutations must be mutually exclusive
-        /// with the synchronous paths on this class, which read the same fields through
-        /// <see cref="ReadAttribute(ISystemContext, uint, NumericRange, QualifiedName, ref DataValue)"/>,
-        /// so both must take the same lock. A separate lock per class would leave the value
-        /// unsynchronized between a base-class synchronous read and a derived asynchronous
-        /// write.
-        /// </para>
-        /// <para>
-        /// <c>private protected</c> restricts visibility to derived types declared in this
-        /// assembly, so it is not reachable from any consumer of the library, including
-        /// external types deriving from <see cref="NodeState"/>. It is deliberately not
-        /// <c>protected</c> or <c>internal</c>, both of which would be broader.
-        /// </para>
-        /// </remarks>
-        private protected readonly Lock m_attributeLock = new();
         private NodeId m_nodeId;
         private QualifiedName m_browseName;
         private LocalizedText m_displayName;
