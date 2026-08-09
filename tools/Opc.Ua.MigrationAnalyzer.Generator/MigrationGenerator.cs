@@ -40,7 +40,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace Opc.Ua.MigrationAnalyzer.Generator
 {
     /// <summary>
-    /// Emits an <code>internal sealed [Obsolete] class &lt;Name&gt;Collection :
+    /// Emits a <code>public sealed [Obsolete] class &lt;Name&gt;Collection :
     /// List&lt;TElement&gt;</code> shim into the consumer's compilation for every
     /// <c>&lt;Name&gt;Collection</c> reference that fails to bind, so 1.5.378-style
     /// call sites compile against the 2.0 stack while UA0002 still guides the
@@ -302,7 +302,7 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
                     [global::System.Obsolete(
                         "'{{shortName}}' was removed in 2.0. Use 'List<{{elementDisplayShort}}>' " +
                         "or 'ArrayOf<{{elementDisplayShort}}>' instead. (UA0002)")]
-                    internal sealed class {{shortName}} : global::System.Collections.Generic.List<{{elementDisplay}}>
+                    public sealed class {{shortName}} : global::System.Collections.Generic.List<{{elementDisplay}}>
                     {
                         public {{shortName}}() { }
                         public {{shortName}}(int capacity) : base(capacity) { }

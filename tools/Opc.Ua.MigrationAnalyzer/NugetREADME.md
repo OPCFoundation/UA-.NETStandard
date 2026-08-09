@@ -11,7 +11,7 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
   [2.0 migration guide](../../docs/migrate/2.0.x/README.md)
   and, where safe, applies the fix automatically;
 - a Roslyn **source generator** (`Opc.Ua.MigrationAnalyzer.Generator.dll`) that
-  emits per-consumer `internal sealed [Obsolete] class <Name>Collection : List<TElement>`
+  emits per-consumer `public sealed [Obsolete] class <Name>Collection : List<TElement>`
   shims for every `<Type>Collection` wrapper the consumer references but that
   2.0 removed — **including** model-compiled `<UserType>Collection` patterns,
   not just the built-in ones. Element types renamed across the
@@ -24,12 +24,9 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
   re-supplies the obsolete extension surface 2.0 moved or removed, so most
   consumer projects still compile after the upgrade.
 
-> ℹ **The generator emits `internal` types by design** — they never leak through
-> the consumer's public API surface. If your consumer has *public* methods or
-> properties that return / accept a `<Type>Collection`, you'll hit `CS0050:
-> Inconsistent accessibility`. That's the intended signal that your **public
-> API** has to migrate to `List<T>` / `ArrayOf<T>` first; internal call sites
-> keep compiling under the shim so you can iterate at your own pace.
+> ℹ **The generator emits `public` shim types** so legacy `<Type>Collection` usage
+> can continue compiling while you migrate incrementally. Keep treating each
+> `[Obsolete]` + `UA0002` site as a migration step to `List<T>` / `ArrayOf<T>`.
 
 ## How to migrate
 
