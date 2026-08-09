@@ -106,5 +106,65 @@ namespace Opc.Ua
 
             return new ArrayOf<string>(permitted.ToArray());
         }
+
+        /// <summary>
+        /// The purposes whose registered provider cannot actually perform the
+        /// operations they cover.
+        /// </summary>
+        /// <param name="registry">The registry to inspect.</param>
+        /// <returns>
+        /// The purposes that resolve to a provider carrying no matching
+        /// operation facet, in a stable order. Empty when everything a provider
+        /// was bound to it can also perform.
+        /// </returns>
+        /// <remarks>
+        /// The asymmetric purposes are served through
+        /// <see cref="System.Security.Cryptography.RSA"/> and
+        /// <see cref="System.Security.Cryptography.ECDsa"/>, which arrive with the
+        /// key rather than with the provider, so there is nothing to check for
+        /// them. The symmetric, key derivation and random purposes are different:
+        /// they are served through <see cref="ISymmetricCryptoProvider"/>,
+        /// <see cref="IKeyDerivationProvider"/> and <see cref="IRandomSource"/>,
+        /// and a provider bound to one of them without the matching facet is
+        /// silently bypassed in favour of the platform.
+        /// <para>
+        /// That silence is the failure worth catching. A deployment that put a
+        /// validated module behind every operation would otherwise believe the
+        /// module performed the per message cryptography while the platform did.
+        /// </para>
+        /// </remarks>
+        public static ArrayOf<CryptoPurpose> GetUnservedOperationPurposes(
+            ICryptoProviderRegistry registry)
+        {
+            if (registry is null)
+            {
+                throw new ArgumentNullException(nameof(registry));
+            }
+
+            var unserved = new List<CryptoPurpose>();
+
+            AddIfUnserved<ISymmetricCryptoProvider>(
+                registry, CryptoPurpose.ChannelSymmetric, unserved);
+            AddIfUnserved<IKeyDerivationProvider>(
+                registry, CryptoPurpose.KeyDerivation, unserved);
+            AddIfUnserved<IRandomSource>(
+                registry, CryptoPurpose.RandomNumberGeneration, unserved);
+
+            return new ArrayOf<CryptoPurpose>(unserved.ToArray());
+        }
+
+        private static void AddIfUnserved<TFacet>(
+            ICryptoProviderRegistry registry,
+            CryptoPurpose purpose,
+            List<CryptoPurpose> unserved)
+            where TFacet : class
+        {
+            ICryptoProvider provider = registry.Resolve(purpose);
+
+            if (provider is not TFacet)
+            {
+                unserved.Add(purpose);
+            }
+        }
     }
 }

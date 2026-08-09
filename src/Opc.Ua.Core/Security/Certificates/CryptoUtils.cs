@@ -659,6 +659,13 @@ namespace Opc.Ua
         /// <exception cref="NotSupportedException"></exception>
         /// <exception cref="CryptographicException"></exception>
         /// <exception cref="ArgumentNullException"></exception>
+        /// <remarks>
+        /// This overload preserves the signature that shipped before a symmetric
+        /// crypto provider could be supplied, so assemblies compiled against it
+        /// keep working without a recompile. It performs the operations with the
+        /// platform, which is what the other overload does when no provider is
+        /// resolved.
+        /// </remarks>
         public static ArraySegment<byte> SymmetricEncryptAndSign(
             ArraySegment<byte> data,
             SecurityPolicyInfo securityPolicy,
@@ -670,6 +677,67 @@ namespace Opc.Ua
             uint tokenId = 0,
             uint lastSequenceNumber = 0)
         {
+            return SymmetricEncryptAndSign(
+                data,
+                securityPolicy,
+                encryptingKey,
+                iv,
+                signingKey,
+                hmac,
+                signOnly,
+                tokenId,
+                lastSequenceNumber,
+                null);
+        }
+
+        /// <summary>
+        /// Encrypts the buffer using the algorithm specified by the security
+        /// policy, optionally through a symmetric crypto provider.
+        /// </summary>
+        /// <param name="data">The buffer to encrypt and sign, in place.</param>
+        /// <param name="securityPolicy">
+        /// The security policy whose algorithms are applied.
+        /// </param>
+        /// <param name="encryptingKey">The symmetric encryption key.</param>
+        /// <param name="iv">The initialization vector.</param>
+        /// <param name="signingKey">
+        /// The signing key, or <see langword="null"/> when the buffer is unsigned.
+        /// </param>
+        /// <param name="hmac">
+        /// An HMAC to reuse for signing. The channel keeps one per token, which
+        /// avoids allocating one per chunk. Ignored when
+        /// <paramref name="provider"/> is supplied.
+        /// </param>
+        /// <param name="signOnly">
+        /// <see langword="true"/> when the buffer is signed but not encrypted.
+        /// </param>
+        /// <param name="tokenId">
+        /// The channel token id, used by the AEAD algorithms to derive the nonce.
+        /// </param>
+        /// <param name="lastSequenceNumber">
+        /// The sequence number, used by the AEAD algorithms to derive the nonce.
+        /// </param>
+        /// <param name="provider">
+        /// The symmetric crypto provider to perform the operations, or
+        /// <see langword="null"/> to use the platform directly. Resolve it once
+        /// where the channel token is computed; this is the per message path and
+        /// must not consult a registry.
+        /// </param>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static ArraySegment<byte> SymmetricEncryptAndSign(
+            ArraySegment<byte> data,
+            SecurityPolicyInfo securityPolicy,
+            byte[] encryptingKey,
+            byte[] iv,
+            byte[]? signingKey,
+            HMAC? hmac,
+            bool signOnly,
+            uint tokenId,
+            uint lastSequenceNumber,
+            ISymmetricCryptoProvider? provider)
+        {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
             if (algorithm == SymmetricEncryptionAlgorithm.None)
@@ -680,7 +748,8 @@ namespace Opc.Ua
             if (algorithm is SymmetricEncryptionAlgorithm.Aes128Gcm or SymmetricEncryptionAlgorithm.Aes256Gcm)
             {
 #if NET8_0_OR_GREATER
-                return EncryptWithAesGcm(data, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber);
+                return EncryptWithAesGcm(
+                    data, algorithm, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber, provider);
 #else
                 throw new NotSupportedException("AES-GCM requires .NET 8 or greater.");
 #endif
@@ -691,26 +760,41 @@ namespace Opc.Ua
 #if NET8_0_OR_GREATER
                 return EncryptWithChaCha20Poly1305(
                     data,
+                    algorithm,
                     encryptingKey,
                     iv,
                     signOnly,
                     tokenId,
-                    lastSequenceNumber);
+                    lastSequenceNumber,
+                    provider);
 #else
                 throw new NotSupportedException("ChaCha20Poly1305 requires .NET 8 or greater.");
 #endif
             }
 
+            SymmetricSignatureAlgorithm signatureAlgorithm =
+                securityPolicy.SymmetricSignatureAlgorithm;
+            ISymmetricCryptoProvider? signer =
+                provider != null && provider.Supports(signatureAlgorithm) ? provider : null;
+            ISymmetricCryptoProvider? cipher =
+                provider != null && provider.Supports(algorithm) ? provider : null;
+
             int hashLength = 0;
 
             if (signingKey != null)
             {
-                if (hmac == null)
+                if (signer != null)
+                {
+                    hashLength = signer.GetSignatureLength(signatureAlgorithm);
+                }
+                else if (hmac != null)
+                {
+                    hashLength = hmac.HashSize / 8;
+                }
+                else
                 {
                     throw new CryptographicException("Missing HMAC for symmetric signing.");
                 }
-
-                hashLength = hmac.HashSize / 8;
             }
 
             if (!signOnly)
@@ -723,27 +807,39 @@ namespace Opc.Ua
 
             if (signingKey != null)
             {
-#if NET6_0_OR_GREATER
-                // Write the signature straight into the space reserved for it
-                // instead of allocating a hash array and copying it across.
-                if (!hmac!.TryComputeHash(
-                        dataArray.AsSpan(0, data.Offset + data.Count),
-                        dataArray.AsSpan(data.Offset + data.Count, hashLength),
-                        out int written) ||
-                    written != hashLength)
+                if (signer != null)
                 {
-                    throw new CryptographicException("Could not compute the symmetric signature.");
+                    signer.Sign(
+                        signatureAlgorithm,
+                        signingKey,
+                        dataArray.AsSpan(0, data.Offset + data.Count),
+                        dataArray.AsSpan(data.Offset + data.Count, hashLength));
                 }
+                else
+                {
+#if NET6_0_OR_GREATER
+                    // Write the signature straight into the space reserved for it
+                    // instead of allocating a hash array and copying it across.
+                    if (!hmac!.TryComputeHash(
+                            dataArray.AsSpan(0, data.Offset + data.Count),
+                            dataArray.AsSpan(data.Offset + data.Count, hashLength),
+                            out int written) ||
+                        written != hashLength)
+                    {
+                        throw new CryptographicException(
+                            "Could not compute the symmetric signature.");
+                    }
 #else
-                byte[] hash = hmac!.ComputeHash(dataArray, 0, data.Offset + data.Count);
+                    byte[] hash = hmac!.ComputeHash(dataArray, 0, data.Offset + data.Count);
 
-                Buffer.BlockCopy(
-                    hash,
-                    0,
-                    dataArray,
-                    data.Offset + data.Count,
-                    hash.Length);
+                    Buffer.BlockCopy(
+                        hash,
+                        0,
+                        dataArray,
+                        data.Offset + data.Count,
+                        hash.Length);
 #endif
+                }
 
                 data = new ArraySegment<byte>(
                     dataArray,
@@ -753,23 +849,35 @@ namespace Opc.Ua
 
             if (!signOnly)
             {
+                if (cipher != null)
+                {
+                    cipher.Encrypt(
+                        algorithm,
+                        encryptingKey,
+                        iv,
+                        dataArray.AsSpan(data.Offset, data.Count),
+                        dataArray.AsSpan(data.Offset, data.Count));
+                }
+                else
+                {
 #pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
-                using var aes = Aes.Create();
+                    using var aes = Aes.Create();
 
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.None;
-                aes.Key = encryptingKey;
-                aes.IV = iv;
+                    aes.Mode = CipherMode.CBC;
+                    aes.Padding = PaddingMode.None;
+                    aes.Key = encryptingKey;
+                    aes.IV = iv;
 
-                using ICryptoTransform encryptor = aes.CreateEncryptor();
+                    using ICryptoTransform encryptor = aes.CreateEncryptor();
 #pragma warning restore CA5401
 
-                encryptor.TransformBlock(
-                    dataArray,
-                    data.Offset,
-                    data.Count,
-                    dataArray,
-                    data.Offset);
+                    encryptor.TransformBlock(
+                        dataArray,
+                        data.Offset,
+                        data.Count,
+                        dataArray,
+                        data.Offset);
+                }
             }
 
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
@@ -798,11 +906,13 @@ namespace Opc.Ua
 
         private static ArraySegment<byte> EncryptWithChaCha20Poly1305(
             ArraySegment<byte> data,
+            SymmetricEncryptionAlgorithm algorithm,
             byte[] encryptingKey,
             byte[] iv,
             bool signOnly,
             uint tokenId,
-            uint lastSequenceNumber)
+            uint lastSequenceNumber,
+            ISymmetricCryptoProvider? provider)
         {
             if (encryptingKey == null || encryptingKey.Length != 32)
             {
@@ -824,16 +934,30 @@ namespace Opc.Ua
                 0,
                 signOnly ? data.Offset + data.Count : data.Offset);
 
-            using var chacha = new ChaCha20Poly1305(encryptingKey);
-
             iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
 
-            chacha.Encrypt(
-                iv,
-                signOnly ? Array.Empty<byte>() : data,
-                ciphertext,
-                tag,
-                extraData);
+            if (provider != null && provider.Supports(algorithm))
+            {
+                provider.EncryptAuthenticated(
+                    algorithm,
+                    encryptingKey,
+                    iv,
+                    signOnly ? ReadOnlySpan<byte>.Empty : data.AsSpan(),
+                    ciphertext,
+                    tag,
+                    extraData);
+            }
+            else
+            {
+                using var chacha = new ChaCha20Poly1305(encryptingKey);
+
+                chacha.Encrypt(
+                    iv,
+                    signOnly ? Array.Empty<byte>() : data,
+                    ciphertext,
+                    tag,
+                    extraData);
+            }
 
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
@@ -851,11 +975,13 @@ namespace Opc.Ua
 
         private static ArraySegment<byte> DecryptWithChaCha20Poly1305(
            ArraySegment<byte> data,
+           SymmetricEncryptionAlgorithm algorithm,
            byte[] encryptingKey,
            byte[] iv,
            bool signOnly,
            uint tokenId,
-           uint lastSequenceNumber)
+           uint lastSequenceNumber,
+           ISymmetricCryptoProvider? provider)
         {
             if (encryptingKey == null || encryptingKey.Length != 32)
             {
@@ -897,16 +1023,34 @@ namespace Opc.Ua
                 0,
                 signOnly ? data.Offset + data.Count - kChaChaPolyTagLength : data.Offset);
 
-            using var chacha = new ChaCha20Poly1305(encryptingKey);
-
             iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
 
-            chacha.Decrypt(
-                iv,
-                encryptedData,
-                tag,
-                signOnly ? [] : plaintext,
-                extraData);
+            if (provider != null && provider.Supports(algorithm))
+            {
+                if (!provider.DecryptAuthenticated(
+                        algorithm,
+                        encryptingKey,
+                        iv,
+                        encryptedData.AsSpan(),
+                        tag.AsSpan(),
+                        signOnly ? Span<byte>.Empty : plaintext,
+                        extraData))
+                {
+                    throw new CryptographicException(
+                        "The ChaCha20-Poly1305 authentication tag did not verify.");
+                }
+            }
+            else
+            {
+                using var chacha = new ChaCha20Poly1305(encryptingKey);
+
+                chacha.Decrypt(
+                    iv,
+                    encryptedData,
+                    tag,
+                    signOnly ? [] : plaintext,
+                    extraData);
+            }
 
             // Return layout: [associated data | plaintext]
             if (!signOnly)
@@ -922,11 +1066,13 @@ namespace Opc.Ua
 
         private static ArraySegment<byte> EncryptWithAesGcm(
             ArraySegment<byte> data,
+            SymmetricEncryptionAlgorithm algorithm,
             byte[] encryptingKey,
             byte[] iv,
             bool signOnly,
             uint tokenId,
-            uint lastSequenceNumber)
+            uint lastSequenceNumber,
+            ISymmetricCryptoProvider? provider)
         {
             if (encryptingKey == null)
             {
@@ -948,16 +1094,30 @@ namespace Opc.Ua
                 0,
                 signOnly ? data.Offset + data.Count : data.Offset);
 
-            using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
-
             iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
 
-            aesGcm.Encrypt(
-                iv,
-                signOnly ? Array.Empty<byte>() : data,
-                ciphertext,
-                tag,
-                extraData);
+            if (provider != null && provider.Supports(algorithm))
+            {
+                provider.EncryptAuthenticated(
+                    algorithm,
+                    encryptingKey,
+                    iv,
+                    signOnly ? ReadOnlySpan<byte>.Empty : data.AsSpan(),
+                    ciphertext,
+                    tag,
+                    extraData);
+            }
+            else
+            {
+                using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
+
+                aesGcm.Encrypt(
+                    iv,
+                    signOnly ? Array.Empty<byte>() : data,
+                    ciphertext,
+                    tag,
+                    extraData);
+            }
 
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
@@ -975,11 +1135,13 @@ namespace Opc.Ua
 
         private static ArraySegment<byte> DecryptWithAesGcm(
             ArraySegment<byte> data,
+            SymmetricEncryptionAlgorithm algorithm,
             byte[] encryptingKey,
             byte[] iv,
             bool signOnly,
             uint tokenId,
-            uint lastSequenceNumber)
+            uint lastSequenceNumber,
+            ISymmetricCryptoProvider? provider)
         {
             if (encryptingKey == null)
             {
@@ -1019,16 +1181,34 @@ namespace Opc.Ua
                 0,
                 signOnly ? data.Offset + data.Count - kAesGcmTagLength : data.Offset);
 
-            using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
-
             iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
 
-            aesGcm.Decrypt(
-                iv,
-                encryptedData,
-                tag,
-                signOnly ? [] : plaintext,
-                extraData);
+            if (provider != null && provider.Supports(algorithm))
+            {
+                if (!provider.DecryptAuthenticated(
+                        algorithm,
+                        encryptingKey,
+                        iv,
+                        encryptedData.AsSpan(),
+                        tag.AsSpan(),
+                        signOnly ? Span<byte>.Empty : plaintext,
+                        extraData))
+                {
+                    throw new CryptographicException(
+                        "The AES-GCM authentication tag did not verify.");
+                }
+            }
+            else
+            {
+                using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
+
+                aesGcm.Decrypt(
+                    iv,
+                    encryptedData,
+                    tag,
+                    signOnly ? [] : plaintext,
+                    extraData);
+            }
 
             // Return layout: [associated data | plaintext]
             if (!signOnly)
@@ -1148,8 +1328,9 @@ namespace Opc.Ua
         /// The signature HMAC could not be created.
         /// </exception>
         /// <remarks>
-        /// Every parameter is required so that a call using the defaults of the
-        /// shorter overload stays unambiguous.
+        /// This overload preserves the signature that shipped before a symmetric
+        /// crypto provider could be supplied, so assemblies compiled against it
+        /// keep working without a recompile.
         /// </remarks>
         public static ArraySegment<byte> SymmetricDecryptAndVerify(
            ArraySegment<byte> data,
@@ -1162,6 +1343,82 @@ namespace Opc.Ua
            uint lastSequenceNumber,
            HMAC? hmac)
         {
+            return SymmetricDecryptAndVerify(
+                data,
+                securityPolicy,
+                encryptingKey,
+                iv,
+                signingKey,
+                signOnly,
+                tokenId,
+                lastSequenceNumber,
+                hmac,
+                null);
+        }
+
+        /// <summary>
+        /// Decrypts the buffer using the algorithm specified by the security
+        /// policy, reusing a caller supplied HMAC and optionally performing the
+        /// operations through a symmetric crypto provider.
+        /// </summary>
+        /// <param name="data">
+        /// The buffer to decrypt and verify, decrypted in place.
+        /// </param>
+        /// <param name="securityPolicy">
+        /// The security policy whose algorithms are applied.
+        /// </param>
+        /// <param name="encryptingKey">
+        /// The symmetric decryption key.
+        /// </param>
+        /// <param name="iv">
+        /// The initialization vector.
+        /// </param>
+        /// <param name="signingKey">
+        /// The signing key, or <see langword="null"/> when the buffer is unsigned.
+        /// </param>
+        /// <param name="signOnly">
+        /// <see langword="true"/> when the buffer is signed but not encrypted.
+        /// </param>
+        /// <param name="tokenId">
+        /// The channel token id, used by the AEAD algorithms to derive the nonce.
+        /// </param>
+        /// <param name="lastSequenceNumber">
+        /// The sequence number, used by the AEAD algorithms to derive the nonce.
+        /// </param>
+        /// <param name="hmac">
+        /// An HMAC to reuse for signature verification. When <see langword="null"/>
+        /// one is created from the signing key and disposed before returning. The
+        /// channel keeps one per token, which avoids allocating one per chunk.
+        /// Ignored when <paramref name="provider"/> is supplied.
+        /// </param>
+        /// <param name="provider">
+        /// The symmetric crypto provider to perform the operations, or
+        /// <see langword="null"/> to use the platform directly. Resolve it once
+        /// where the channel token is computed; this is the per message path and
+        /// must not consult a registry.
+        /// </param>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The signature HMAC could not be created.
+        /// </exception>
+        /// <remarks>
+        /// Every parameter is required so that a call using the defaults of the
+        /// shorter overload stays unambiguous.
+        /// </remarks>
+        public static ArraySegment<byte> SymmetricDecryptAndVerify(
+           ArraySegment<byte> data,
+           SecurityPolicyInfo securityPolicy,
+           byte[] encryptingKey,
+           byte[] iv,
+           byte[]? signingKey,
+           bool signOnly,
+           uint tokenId,
+           uint lastSequenceNumber,
+           HMAC? hmac,
+           ISymmetricCryptoProvider? provider)
+        {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
             if (algorithm == SymmetricEncryptionAlgorithm.None)
@@ -1172,7 +1429,8 @@ namespace Opc.Ua
             if (algorithm is SymmetricEncryptionAlgorithm.Aes128Gcm or SymmetricEncryptionAlgorithm.Aes256Gcm)
             {
 #if NET8_0_OR_GREATER
-                return DecryptWithAesGcm(data, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber);
+                return DecryptWithAesGcm(
+                    data, algorithm, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber, provider);
 #else
                 throw new NotSupportedException("AES-GCM requires .NET 8 or greater.");
 #endif
@@ -1183,41 +1441,81 @@ namespace Opc.Ua
 #if NET8_0_OR_GREATER
                 return DecryptWithChaCha20Poly1305(
                     data,
+                    algorithm,
                     encryptingKey,
                     iv,
                     signOnly,
                     tokenId,
-                    lastSequenceNumber);
+                    lastSequenceNumber,
+                    provider);
 #else
                 throw new NotSupportedException("ChaCha20Poly1305 requires .NET 8 or greater.");
 #endif
             }
+
+            SymmetricSignatureAlgorithm signatureAlgorithm =
+                securityPolicy.SymmetricSignatureAlgorithm;
+            ISymmetricCryptoProvider? verifier =
+                provider != null && provider.Supports(signatureAlgorithm) ? provider : null;
+            ISymmetricCryptoProvider? cipher =
+                provider != null && provider.Supports(algorithm) ? provider : null;
 
             // The buffer originates from BufferManager so the backing array is non-null.
             byte[] dataArray = data.GetArray();
 
             if (!signOnly)
             {
-                using var aes = Aes.Create();
+                if (cipher != null)
+                {
+                    cipher.Decrypt(
+                        algorithm,
+                        encryptingKey,
+                        iv,
+                        dataArray.AsSpan(data.Offset, data.Count),
+                        dataArray.AsSpan(data.Offset, data.Count));
+                }
+                else
+                {
+                    using var aes = Aes.Create();
 
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.None;
-                aes.Key = encryptingKey;
-                aes.IV = iv;
+                    aes.Mode = CipherMode.CBC;
+                    aes.Padding = PaddingMode.None;
+                    aes.Key = encryptingKey;
+                    aes.IV = iv;
 
-                using ICryptoTransform decryptor = aes.CreateDecryptor();
+                    using ICryptoTransform decryptor = aes.CreateDecryptor();
 
-                decryptor.TransformBlock(
-                    dataArray,
-                    data.Offset,
-                    data.Count,
-                    dataArray,
-                    data.Offset);
+                    decryptor.TransformBlock(
+                        dataArray,
+                        data.Offset,
+                        data.Count,
+                        dataArray,
+                        data.Offset);
+                }
             }
 
             int isNotValid = 0;
 
-            if (signingKey != null)
+            if (signingKey != null && verifier != null)
+            {
+                int hashLength = verifier.GetSignatureLength(signatureAlgorithm);
+                int signedLength = data.Offset + data.Count - hashLength;
+
+                if (!verifier.Verify(
+                        signatureAlgorithm,
+                        signingKey,
+                        dataArray.AsSpan(0, signedLength),
+                        dataArray.AsSpan(signedLength, hashLength)))
+                {
+                    isNotValid = 1;
+                }
+
+                data = new ArraySegment<byte>(
+                    dataArray,
+                    data.Offset,
+                    data.Count - hashLength);
+            }
+            else if (signingKey != null)
             {
                 // Only create and own an HMAC when the caller did not supply one.
                 HMAC? ownedHmac = hmac != null

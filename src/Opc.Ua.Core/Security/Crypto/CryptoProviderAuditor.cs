@@ -176,21 +176,42 @@ namespace Opc.Ua
             }
 
             ArrayOf<ICryptoProvider> uncertified = UncertifiedProviders;
-            if (uncertified.Count == 0)
+            if (uncertified.Count > 0)
             {
-                return;
+                var names = new List<string>();
+                foreach (ICryptoProvider provider in uncertified)
+                {
+                    names.Add(provider.Name);
+                }
+
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The compliance policy requires validated cryptography but these " +
+                    $"providers carry none: {string.Join(", ", names)}.");
             }
 
-            var names = new List<string>();
-            foreach (ICryptoProvider provider in uncertified)
-            {
-                names.Add(provider.Name);
-            }
+            // A provider bound to a symmetric, key derivation or random purpose
+            // without the matching facet is bypassed in favour of the platform.
+            // Under this policy that would mean the validated module performs the
+            // asymmetric operations only, while a deployment believes it performs
+            // all of them, so it is refused rather than reported.
+            ArrayOf<CryptoPurpose> unserved =
+                CryptoCompliance.GetUnservedOperationPurposes(m_registry);
 
-            throw new ServiceResultException(
-                StatusCodes.BadConfigurationError,
-                "The compliance policy requires validated cryptography but these " +
-                $"providers carry none: {string.Join(", ", names)}.");
+            if (unserved.Count > 0)
+            {
+                var purposes = new List<string>();
+                foreach (CryptoPurpose purpose in unserved)
+                {
+                    purposes.Add(purpose.Name);
+                }
+
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The compliance policy requires validated cryptography to perform every " +
+                    "operation, but the provider resolved for these purposes cannot perform " +
+                    $"them and the platform would be used instead: {string.Join(", ", purposes)}.");
+            }
         }
 
         /// <inheritdoc/>

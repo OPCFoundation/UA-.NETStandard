@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Security.Cryptography;
+
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
@@ -105,6 +107,78 @@ namespace Opc.Ua.Aot.Tests
                 CryptoCompliance.IsPolicyPermitted(
                     SecurityPolicies.Basic256Sha256, CryptoCompliancePolicy.FipsOnly))
                 .IsTrue();
+        }
+
+        /// <summary>
+        /// The operation facets are found by type test rather than by reflection,
+        /// so a trimmed binary must still discover them.
+        /// </summary>
+        [Test]
+        public async Task PlatformCarriesEveryOperationFacetAsync()
+        {
+            var registry = new CryptoProviderRegistry();
+
+            await Assert.That(CryptoCompliance.GetUnservedOperationPurposes(registry).Count)
+                .IsEqualTo(0);
+        }
+
+        /// <summary>
+        /// A provider bound to an operation purpose it cannot perform must be
+        /// caught, not silently replaced by the platform.
+        /// </summary>
+        [Test]
+        public async Task ProviderWithoutTheFacetIsReportedAsUnservedAsync()
+        {
+            var registry = new CryptoProviderRegistry();
+            registry.RegisterFor(
+                CryptoPurpose.ChannelSymmetric,
+                new AotStubProvider(
+                    "Facetless", new CryptoCapability(CryptoPurpose.ChannelSymmetric)));
+
+            await Assert.That(CryptoCompliance.GetUnservedOperationPurposes(registry).Count)
+                .IsEqualTo(1);
+            await Assert.That(CryptoProviderFacets.ResolveSymmetric(registry)).IsNull();
+        }
+
+        /// <summary>
+        /// The default configuration must not take the seam at all.
+        /// </summary>
+        [Test]
+        public async Task FacetResolutionYieldsNothingForThePlatformAsync()
+        {
+            var registry = new CryptoProviderRegistry();
+
+            await Assert.That(CryptoProviderFacets.ResolveSymmetric(registry)).IsNull();
+            await Assert.That(CryptoProviderFacets.ResolveKeyDerivation(registry)).IsNull();
+            await Assert.That(CryptoProviderFacets.ResolveRandom(registry)).IsNull();
+        }
+
+        /// <summary>
+        /// The platform facets must work in a trimmed binary, since a validated
+        /// module is compared against them.
+        /// </summary>
+        [Test]
+        public async Task PlatformSymmetricFacetRoundTripsAsync()
+        {
+            byte[] key = new byte[32];
+            byte[] iv = new byte[16];
+            byte[] plaintext = new byte[32];
+            RandomNumberGenerator.Fill(key);
+            RandomNumberGenerator.Fill(iv);
+            RandomNumberGenerator.Fill(plaintext);
+
+            byte[] ciphertext = new byte[plaintext.Length];
+            byte[] recovered = new byte[plaintext.Length];
+
+            PlatformSymmetricCryptoProvider provider = PlatformSymmetricCryptoProvider.Instance;
+            provider.Encrypt(
+                SymmetricEncryptionAlgorithm.Aes256Cbc, key, iv, plaintext, ciphertext);
+            provider.Decrypt(
+                SymmetricEncryptionAlgorithm.Aes256Cbc, key, iv, ciphertext, recovered);
+
+            // Compared elementwise rather than with a collection assertion, which
+            // uses structural comparison and is not trim safe.
+            await Assert.That(recovered.AsSpan().SequenceEqual(plaintext)).IsTrue();
         }
 
         /// <summary>

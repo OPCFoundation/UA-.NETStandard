@@ -17,6 +17,7 @@ exactly as it did before the provider model existed.
 - [Certificate renewal with a device held key](#certificate-renewal-with-a-device-held-key)
 - [Validation status, compliance and audit](#validation-status-compliance-and-audit)
 - [What can and cannot be claimed about FIPS](#what-can-and-cannot-be-claimed-about-fips)
+- [Substituting the symmetric primitives](#substituting-the-symmetric-primitives)
 - [Limitations](#limitations)
 
 ## The short version
@@ -32,6 +33,7 @@ What the provider model adds is the part the platform does not express:
 |---|---|
 | Which operations a provider can serve | `ICryptoProvider`, `CryptoCapability` |
 | Which provider serves which operation | `ICryptoProviderRegistry`, `CryptoPurpose` |
+| The symmetric, derivation and random operations themselves | `ISymmetricCryptoProvider`, `IKeyDerivationProvider`, `IRandomSource` |
 | What may be said about the module behind it | `CryptoValidationStatus` |
 | How strictly that is enforced | `CryptoCompliancePolicy` |
 | Where a new key comes from | `IKeyPairGenerator` |
@@ -141,6 +143,7 @@ Purposes:
 | `KeyAgreement` | Ephemeral key agreement for the elliptic curve policies |
 | `CertificateIssuance` | Signing certificates, certificate requests and revocation lists |
 | `ChannelSymmetric` | Per-message symmetric encryption and signing |
+| `KeyDerivation` | Deriving the channel and session key material from a shared secret |
 | `RandomNumberGeneration` | Nonces and other random material |
 
 `CryptoPurpose` is a value type with well-known instances, not an enum, so you can define your own.
@@ -250,19 +253,79 @@ certificate building. That package is **not** validated — the validated Bouncy
 separate, commercially licensed distribution — so **those target frameworks cannot make a FIPS claim at
 all**.
 
+## Substituting the symmetric primitives
+
+The asymmetric operations are pluggable because `RSA` and `ECDsa` are already the right abstraction. The
+symmetric ones are not: the platform offers nothing that covers the block cipher, the authenticated
+cipher and the message authentication code together, so three interfaces declare those operations
+directly.
+
+| Facet | Covers |
+|---|---|
+| `ISymmetricCryptoProvider` | AES-CBC, AES-GCM, ChaCha20-Poly1305 and the HMAC signatures |
+| `IKeyDerivationProvider` | P_SHA1, P_SHA256, HKDF-SHA256, HKDF-SHA384 |
+| `IRandomSource` | Nonces and other random material |
+
+A provider opts in by implementing one alongside `ICryptoProvider` and declaring the matching purpose.
+They are separate interfaces rather than members of `ICryptoProvider`, so a provider written before they
+existed still compiles, and a provider that can serve only some of them says so.
+
+```csharp
+public sealed class ValidatedModule : ICryptoProvider, ISymmetricCryptoProvider
+{
+    public string Name => "AcmeFIPS";
+
+    public CryptoValidationStatus Validation => new(
+        CryptoValidationLevel.FipsValidated, "Acme Cryptographic Module", "CMVP #1234");
+
+    public ArrayOf<CryptoCapability> Capabilities { get; } =
+        new(new[] { new CryptoCapability(CryptoPurpose.ChannelSymmetric) });
+
+    // ... the operations
+}
+
+services.AddOpcUa()
+    .AddCryptoProvider(crypto => crypto
+        .For(CryptoPurpose.ChannelSymmetric).Use(module)
+        .For(CryptoPurpose.KeyDerivation).Use(module)
+        .For(CryptoPurpose.RandomNumberGeneration).Use(module));
+```
+
+**The consumer this exists for is a validated software module that must perform every operation, not
+hardware offload.** A device round trip per message would destroy throughput, and nothing here makes that
+viable.
+
+### What it costs when you do not use it
+
+Nothing, by construction. `CryptoProviderFacets` returns `null` both when no registry is configured and
+when resolution lands on the platform provider, because the platform facets perform exactly the code the
+channel would otherwise run inline. A `null` facet tells the channel to take its existing path, so the
+per-message code has no interface dispatch at all unless a provider was registered.
+
+Resolution happens once, in `CalculateSymmetricKeySizes`, and the result is held for the life of the
+channel. `SymmetricChannelCryptoBenchmarks` measures both paths — `EncryptSignThenDecryptVerify` is the
+baseline and `EncryptSignThenDecryptVerifyThroughProvider` is the same work through the seam — so the
+cost of the indirection is measured rather than assumed.
+
+### A provider that cannot do what it was bound to
+
+Binding a provider to `ChannelSymmetric` without implementing `ISymmetricCryptoProvider` would otherwise
+be silent: resolution falls through to the platform and the channel keeps working, while a deployment
+believes its validated module performed the per-message cryptography.
+
+`CryptoCompliance.GetUnservedOperationPurposes` reports exactly that case, and under `FipsOnly`
+`CryptoProviderAuditor.ThrowIfNotCompliant()` refuses to start rather than run on cryptography the
+operator did not ask for.
+
 ## Limitations
 
 - **HTTPS with a device-held key does not work on Windows or macOS.** SChannel and the macOS Security
   framework require keys registered with a platform key storage provider. It works on Linux, where the
   TLS layer dispatches through the managed key. UA-TCP is unaffected on every platform.
-- **The per-message symmetric path is not offloaded, and has no provider seam.** Session keys are
-  symmetric and derived per channel token; a device round-trip per message would destroy throughput.
-  Hardware is used only for the operations that happen when a channel opens or a session is activated.
-  An `ISymmetricCryptoProvider` was considered and deliberately not added: the isolated benchmark puts a
-  full 8 KB round trip at roughly 9.8 µs and 2.2 KB, most of it in AES and HMAC themselves, and the only
-  consumer that would justify public API on that path is hardware offload, which is excluded above.
-  Adding the seam without a consumer would commit the hottest code in the stack to an interface nothing
-  implements. The measurement is reproducible with `SymmetricChannelCryptoBenchmarks`.
+- **The per-message symmetric path is not offloaded to hardware.** Session keys are symmetric and derived
+  per channel token; a device round trip per message would destroy throughput. Hardware is used only for
+  the operations that happen when a channel opens or a session is activated. Substituting a *software*
+  implementation is supported — see above.
 - **A provider cannot yet contribute a new security policy.** The policy set is fixed at compile time.
   Adding one still requires changing the stack.
 - **Network-backed providers block a thread** for the duration of the call, because the `RSA` and `ECDsa`

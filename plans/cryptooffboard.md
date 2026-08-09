@@ -13,7 +13,7 @@ what would have to be true to change that. Each section is tracked by its own is
 | Section | Issue |
 |---|---|
 | 1. Registrable security policies | [#4206](https://github.com/OPCFoundation/UA-.NETStandard/issues/4206) |
-| 2. Symmetric, key-derivation and RNG provider seams | [#4207](https://github.com/OPCFoundation/UA-.NETStandard/issues/4207) |
+| 2. ~~Symmetric, key-derivation and RNG provider seams~~ **done** | [#4207](https://github.com/OPCFoundation/UA-.NETStandard/issues/4207) |
 | 3. Offboard providers block a thread | [#4208](https://github.com/OPCFoundation/UA-.NETStandard/issues/4208) |
 | 4. Platform and protocol gaps | [#4209](https://github.com/OPCFoundation/UA-.NETStandard/issues/4209) (HTTPS), [#4210](https://github.com/OPCFoundation/UA-.NETStandard/issues/4210) (PubSub), [#4211](https://github.com/OPCFoundation/UA-.NETStandard/issues/4211) (Part 7 facet) |
 | 5. FIPS posture that is still open | [#4212](https://github.com/OPCFoundation/UA-.NETStandard/issues/4212) |
@@ -48,23 +48,32 @@ capability probe is far less work than opening the policy set, and may serve the
 
 ---
 
-## 2. Symmetric, key-derivation and RNG provider seams
+## 2. Symmetric, key-derivation and RNG provider seams — **done**
 
 Tracked by [#4207](https://github.com/OPCFoundation/UA-.NETStandard/issues/4207).
 
-`ISymmetricCryptoProvider`, `IKeyDerivationProvider` and `IRandomSource` were considered and
-**deliberately not added**. The measurement is the reason, not a guess: an isolated 8 KB round trip on
-`net10.0`/Basic256Sha256 costs roughly 9.8 µs and 2.2 KB, nearly all of it inside AES and HMAC
-(`SymmetricChannelCryptoBenchmarks` reproduces it).
+`ISymmetricCryptoProvider`, `IKeyDerivationProvider` and `IRandomSource` were originally left out because
+the only consumer that would have justified them was hardware offload, and a device round trip per
+message would destroy throughput. The consumer that does justify them has since been accepted: a
+**validated software module that must perform every operation**, not only the asymmetric ones.
 
-The only consumer that would justify public API on that path is hardware offload, and a device round
-trip per message would destroy throughput. Adding the seam with nothing implementing it would commit the
-hottest code in the stack to an unused interface.
+They are now implemented, on the terms this section set:
 
-**What would change this:** a concrete requirement to substitute a *software* implementation of the
-symmetric primitives — for example a validated module that must perform every operation, not only the
-asymmetric ones. That is a real FIPS scenario, and if it arrives the seam should be added then, behind a
-null-check fast path, with the benchmark as the gate.
+- Declared as optional **facets** discovered by type test, not as members of `ICryptoProvider`, so
+  providers written against the shipped interface still compile.
+- Behind a **null fast path**. `CryptoProviderFacets` returns `null` when no registry is configured *and*
+  when resolution lands on the platform, because the platform facets run exactly the inline code. The
+  default configuration therefore has no interface dispatch on the per message path.
+- Resolved **once**, in `CalculateSymmetricKeySizes`, and held for the life of the channel.
+- Gated by the benchmark this section named. `SymmetricChannelCryptoBenchmarks` now measures both paths:
+  `EncryptSignThenDecryptVerify` is the baseline and `EncryptSignThenDecryptVerifyThroughProvider` is the
+  same work through the seam.
+
+`CryptoCompliance.GetUnservedOperationPurposes` closes the failure the seam otherwise introduces: a
+provider bound to a symmetric purpose without the matching facet would be silently replaced by the
+platform. Under `FipsOnly` that now refuses to start.
+
+Documented in [`docs/CryptoProvider.md`](../docs/CryptoProvider.md#substituting-the-symmetric-primitives).
 
 ---
 
@@ -81,7 +90,6 @@ For a *remote* service it is noticeable. Fixing it means an async asymmetric pat
 which is a much larger change than the provider model and was excluded from it.
 
 ---
-
 ## 4. Platform and protocol gaps
 
 | Gap | Tracked by | Why |

@@ -124,6 +124,15 @@ namespace Opc.Ua
                 m_builder.Registry.RegisterFor(m_purpose, m_securityPolicyUri, provider);
             }
 
+            if (m_purpose.Equals(CryptoPurpose.RandomNumberGeneration) &&
+                provider is IRandomSource randomSource)
+            {
+                // Nonces are created from many places that have no container in
+                // scope, so the source is published to the process here rather
+                // than resolved per call site.
+                Nonce.SetRandomSource(randomSource);
+            }
+
             return m_builder;
         }
 
