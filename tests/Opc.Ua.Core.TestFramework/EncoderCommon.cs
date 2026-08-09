@@ -99,9 +99,7 @@ namespace Opc.Ua.Core.TestFramework
         /// writing them only when they are actually read - on a failure - keeps
         /// the diagnostics without the flood.
         /// </remarks>
-        protected TextWriter TestOutput => new StringWriter(
-            m_testOutput,
-            CultureInfo.CurrentCulture);
+        protected TextWriter TestOutput { get; private set; }
 
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
@@ -135,6 +133,9 @@ namespace Opc.Ua.Core.TestFramework
         [SetUp]
         protected void SetUp()
         {
+            // One writer per fixture over the reused buffer; the buffer, not the
+            // writer, carries the per-test state.
+            TestOutput ??= new StringWriter(m_testOutput, CultureInfo.CurrentCulture);
             m_testOutput.Clear();
             // ensure tests are reproducible, reset for every test
             RandomSource = new RandomSource(kRandomStart);
