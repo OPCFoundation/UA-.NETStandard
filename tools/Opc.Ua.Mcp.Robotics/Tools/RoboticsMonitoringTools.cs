@@ -63,23 +63,31 @@ namespace Opc.Ua.Mcp.Tools
         /// Lists outstanding intent operations.
         /// </summary>
         [McpServerTool(Name = "robotics_list_operations")]
-        [Description("Lists outstanding Robot Intent operations published by the controller. It reports server " +
-            "state only and never tracks or invents outstanding work in the MCP layer.")]
+        [Description("Lists Robot Intent operation snapshots published by the controller: active, queued, " +
+            "completed-retained, or failed intent-operation snapshots with their IntentId and operation NodeId. Use " +
+            "this after submitting or retrying one intent, or before robotics_wait_operation. Use " +
+            "robotics_list_missions instead when you need mission containers and MissionIds rather than per-intent " +
+            "operations. It reports server state only, never invents work, and never requests command authority. " +
+            "Returns an array of IntentOperationSnapshot.")]
         public static async Task<ArrayOf<IntentOperationSnapshot>> ListOperationsAsync(
             RoboticsIntentManager manager,
             [Description("Controller NodeId.")] string controllerId,
             [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            return await manager.OpenController(controllerId, sessionName).ListOperationsAsync(ct).ConfigureAwait(false);
+            return await manager.OpenController(controllerId, sessionName).ListOperationsAsync(ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
         /// Lists outstanding missions.
         /// </summary>
         [McpServerTool(Name = "robotics_list_missions")]
-        [Description("Lists outstanding Robot Intent missions published by the controller. It reports server state " +
-            "only and never tracks or invents mission state in the MCP layer.")]
+        [Description("Lists outstanding Robot Intent mission containers from the controller, including MissionId, " +
+            "update state, and mission-level progress when the server exposes it. Use this after submitting, " +
+            "updating, or cancelling a mission. Use robotics_list_operations instead to inspect the individual " +
+            "intent operations spawned by a mission or single-intent submission. It reports server state only, " +
+            "never invents mission state, and never requests command authority. Returns an array of MissionSnapshot.")]
         public static async Task<ArrayOf<MissionSnapshot>> ListMissionsAsync(
             RoboticsIntentManager manager,
             [Description("Controller NodeId.")] string controllerId,
