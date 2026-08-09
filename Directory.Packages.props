@@ -50,7 +50,7 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(RoslynApiVersionVS2026)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="$(RoslynApiVersionVS2026)" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
@@ -61,12 +61,22 @@
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.9" />
+    <!-- 10.0.10 rather than 10.0.9 because the ModelContextProtocol 2.x SDK requires it, and
+         CentralPackageTransitivePinningEnabled makes the central pin win over the transitive
+         requirement - a lower pin here silently downgrades the SDK's dependency. -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
+    <!-- Introduced as a dependency by the ModelContextProtocol 2.x SDK. Central package management
+         requires an entry for every transitive package, so restore fails without this. -->
+    <PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.7.0" />
-    <PackageVersion Include="ModelContextProtocol" Version="1.4.0" />
-    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="1.4.0" />
+    <!-- The 2.x line tracks the 2026-07-28 MCP specification revision, which is stateless by default:
+         the initialize handshake and the Mcp-Session-Id header are gone. ModelContextProtocol.Core is
+         pinned by the SDK to an exact version, so all three move together. -->
+    <PackageVersion Include="ModelContextProtocol" Version="2.1.0" />
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.1.0" />
+    <PackageVersion Include="ModelContextProtocol.Core" Version="2.1.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.300" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
@@ -124,7 +134,7 @@
     <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
     <PackageVersion Include="System.Collections.Immutable" Version="$(RoslynRuntimeVersion)" />
     <PackageVersion Include="System.Reflection.Metadata" Version="$(RoslynRuntimeVersion)" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.9" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.10" />
     <PackageVersion Include="System.Private.Uri" Version="4.3.2" />
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="System.Security.Cryptography.Cng" Version="5.0.0" />
