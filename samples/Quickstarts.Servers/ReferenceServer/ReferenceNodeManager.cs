@@ -5591,8 +5591,20 @@ namespace Quickstarts.ReferenceServer
                 ? CreateFixedArrayDimensions(variable.ValueRank)
                 : [DefaultArrayLength];
 
+            // For variables whose DataType is Variant (BaseDataType) the CTT
+            // only accepts values whose concrete BuiltInType is a simple type
+            // (< XmlElement, i.e. BuiltInType value 16). The DataGenerator can
+            // return any BuiltInType, so keep retrying until it produces an
+            // acceptable one alongside the existing null-value retry.
+            bool isVariantDataType = TypeInfo.GetBuiltInType(variable.DataType, Server.TypeTree)
+                == BuiltInType.Variant;
+
             Variant value = default;
-            for (int retryCount = 0; value.IsNull && retryCount < 10; retryCount++)
+            for (int retryCount = 0;
+                (value.IsNull
+                 || (isVariantDataType && value.TypeInfo.BuiltInType >= BuiltInType.XmlElement)) &&
+                retryCount < 10;
+                retryCount++)
             {
                 value = m_generator!.GetRandom(
                     variable.DataType,
