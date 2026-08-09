@@ -137,6 +137,82 @@ namespace Opc.Ua.Robotics.Tests
             {
                 Assert.That(m_executor.Started.ToArray(), Is.EqualTo(new[] { "s1" }));
                 Assert.That(mission.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Failed));
+                Assert.That(MissionFailure(mission), Is.EqualTo(IntentFailureEnum.NoTransition));
+            });
+        }
+
+        [Test]
+        public async Task GraphedMissionSucceedsWhenFinalStepHasNoOutgoingTransition()
+        {
+            IntentControllerHostOptions options = Options();
+            options.MissionBranchingSupported = true;
+            using IntentControllerHost host = NewHost(options);
+
+            MissionAdmission admission = host.SubmitMission(m_context, null, new MissionDataType
+            {
+                MissionId = "m1",
+                Steps = new[] { Step("s1", 1, Move("s1")), Step("s2", 2, Move("s2")) },
+                Transitions = new[] { Transition("s1", "s2") }
+            });
+
+            Assert.That(admission.Accepted, Is.True, admission.Message);
+            await WaitAsync(() => MissionReached(ExecutionStateEnum.Succeeded)).ConfigureAwait(false);
+
+            MissionObjectState mission = m_executor.Added.OfType<MissionObjectState>().Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(new[] { "s1", "s2" }));
+                Assert.That(mission.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(MissionFailure(mission), Is.EqualTo(IntentFailureEnum.None));
+            });
+        }
+
+        [Test]
+        public async Task BranchPointFailsWithNoTransitionWhenNoConditionMatches()
+        {
+            IntentControllerHostOptions options = Options();
+            options.MissionBranchingSupported = true;
+            using IntentControllerHost host = NewHost(options);
+
+            MissionAdmission admission = host.SubmitMission(m_context, null, new MissionDataType
+            {
+                MissionId = "m1",
+                Steps = new[] { Step("s1", 1, Move("s1")), Step("s2", 2, Move("s2")) },
+                Transitions = new[] { Transition("s1", "s2", NonEmptyFilter()) }
+            });
+
+            Assert.That(admission.Accepted, Is.True, admission.Message);
+            await WaitAsync(() => MissionReached(ExecutionStateEnum.Failed)).ConfigureAwait(false);
+
+            MissionObjectState mission = m_executor.Added.OfType<MissionObjectState>().Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(new[] { "s1" }));
+                Assert.That(mission.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Failed));
+                Assert.That(MissionFailure(mission), Is.EqualTo(IntentFailureEnum.NoTransition));
+            });
+        }
+
+        [Test]
+        public async Task UngraphedMissionStillSucceedsSequentially()
+        {
+            using IntentControllerHost host = NewHost();
+
+            MissionAdmission admission = host.SubmitMission(m_context, null, new MissionDataType
+            {
+                MissionId = "m1",
+                Steps = new[] { Step("s1", 1, Move("s1")), Step("s2", 2, Move("s2")) }
+            });
+
+            Assert.That(admission.Accepted, Is.True, admission.Message);
+            await WaitAsync(() => MissionReached(ExecutionStateEnum.Succeeded)).ConfigureAwait(false);
+
+            MissionObjectState mission = m_executor.Added.OfType<MissionObjectState>().Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(new[] { "s1", "s2" }));
+                Assert.That(mission.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
+                Assert.That(MissionFailure(mission), Is.EqualTo(IntentFailureEnum.None));
             });
         }
 
@@ -207,14 +283,40 @@ namespace Opc.Ua.Robotics.Tests
             };
         }
 
-        private static MissionTransitionDataType Transition(string from, string to)
+        private static MissionTransitionDataType Transition(
+            string from,
+            string to,
+            ContentFilter? condition = null)
         {
             return new MissionTransitionDataType
             {
                 FromStepId = from,
                 ToStepId = to,
                 DivergenceKind = DivergenceKindEnum.Alternative,
-                Condition = new ContentFilter()
+                Condition = condition ?? new ContentFilter()
+            };
+        }
+
+        private IntentFailureEnum MissionFailure(MissionObjectState mission)
+        {
+            Assert.That(mission.FinalResultData, Is.Not.Null);
+            NodeState? child = mission.FinalResultData!.FindChild(
+                m_context,
+                new QualifiedName(nameof(IntentResultDataType.Failure), mission.BrowseName.NamespaceIndex));
+            Assert.That(child, Is.InstanceOf<BaseDataVariableState>());
+            BaseDataVariableState failure = (BaseDataVariableState)child!;
+            Assert.That(failure, Is.Not.Null);
+            Assert.That(failure.Value, Is.TypeOf<Variant>());
+            var value = (Variant)failure.Value;
+            Assert.That(value.TryGetValue(out int result), Is.True);
+            return (IntentFailureEnum)result;
+        }
+
+        private static ContentFilter NonEmptyFilter()
+        {
+            return new ContentFilter
+            {
+                Elements = new[] { new ContentFilterElement { FilterOperator = FilterOperator.IsNull } }
             };
         }
 
@@ -268,6 +370,3 @@ namespace Opc.Ua.Robotics.Tests
         }
     }
 }
-
-
-

@@ -163,8 +163,9 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
   frames drive live `double3` translation/rotation, and OPC 10000-211 GPOS
   locations drive geospatial metadata; a generic connector renders the cell
   live. See [Positioning](Positioning.md).
-* The Robotics samples also include a Robot Intent flow where an OpenUSD viewport prim pick becomes a robot command
-  through `UsdViewOptions.PrimPicked`. See [Robot Intent](Robotics.md#robot-intent) and the
+* The Robotics samples also include an agent-plus-viewer Robot Intent flow: the OpenUSD viewport shows the same robot
+  that the MCP tools command, and a viewport prim pick can become a robot command through
+  `UsdViewOptions.PrimPicked`. See [Robot Intent](Robotics.md#robot-intent) and the
   [Robotics samples](../samples/Robotics/README.md).
 * [`PumpDeviceIntegrationServer`](../samples/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition and served-asset delivery.

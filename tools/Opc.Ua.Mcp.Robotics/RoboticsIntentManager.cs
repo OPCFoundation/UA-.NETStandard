@@ -27,46 +27,44 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using Opc.Ua.Client;
+using Opc.Ua.Robotics.Client.Intent;
+
 namespace Opc.Ua.Mcp
 {
     /// <summary>
-    /// Selects a bounded catalog of OPC UA MCP tools.
+    /// Creates Robot Intent clients from active MCP OPC UA sessions.
     /// </summary>
-    public enum McpToolProfile
+    public sealed class RoboticsIntentManager
     {
         /// <summary>
-        /// Common connection, browse, read, write, call, and configuration workflows.
+        /// Initializes the manager.
         /// </summary>
-        Core,
+        public RoboticsIntentManager(OpcUaSessionManager sessionManager)
+        {
+            m_sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+        }
 
         /// <summary>
-        /// OPC UA Part 4 service-set and convenience tools.
+        /// Creates a discovery client over the named or sole active session.
         /// </summary>
-        Services,
+        public RobotIntentClient CreateClient(string? sessionName = null)
+        {
+            ISession session = m_sessionManager.GetSessionOrThrow(sessionName);
+            return new RobotIntentClient(session, m_sessionManager.Telemetry);
+        }
 
         /// <summary>
-        /// Configuration, PKI, and NodeSet administration tools.
+        /// Creates a controller client over the named or sole active session.
         /// </summary>
-        Administration,
+        public RobotIntentControllerClient OpenController(string controllerId, string? sessionName = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(controllerId);
 
-        /// <summary>
-        /// PubSub runtime, discovery, action, capture, and decode tools.
-        /// </summary>
-        PubSub,
+            return CreateClient(sessionName).Controller(Serialization.OpcUaJsonHelper.ParseNodeId(controllerId));
+        }
 
-        /// <summary>
-        /// OPC UA packet capture, decode, and replay tools.
-        /// </summary>
-        Diagnostics,
-
-        /// <summary>
-        /// Robot Intent discovery, monitoring, control, and mission tools.
-        /// </summary>
-        Robotics,
-
-        /// <summary>
-        /// Every available tool, preserving the current-major default catalog.
-        /// </summary>
-        Full
+        private readonly OpcUaSessionManager m_sessionManager;
     }
 }

@@ -35,53 +35,25 @@ using Opc.Ua.Mcp.Tools;
 namespace Opc.Ua.Mcp
 {
     /// <summary>
-    /// Registers the OPC UA PubSub MCP tools and the runtime they need on a
-    /// host that is building its own MCP server.
+    /// Registers the OPC UA Robot Intent MCP tools and the runtime they need on a host.
     /// </summary>
-    /// <remarks>
-    /// These tools cover the PubSub runtime - starting and stopping publishers
-    /// and subscribers - together with PubSub actions and discovery. Packet
-    /// capture of PubSub traffic lives in
-    /// <c>Opc.Ua.Mcp.PubSub.Diagnostics</c> so that a host wanting the runtime
-    /// does not also take a dependency on the capture stack.
-    /// </remarks>
-    public static class OpcUaMcpPubSubExtensions
+    public static class OpcUaMcpRoboticsExtensions
     {
         /// <summary>
-        /// Registers the PubSub runtime manager the PubSub tools resolve.
+        /// Registers the Robot Intent controller manager the Robotics tools resolve.
         /// </summary>
-        /// <param name="services">The service collection to add to.</param>
-        /// <returns>The service collection, for chaining.</returns>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="services"/> is <c>null</c>.
-        /// </exception>
-        public static IServiceCollection AddOpcUaMcpPubSub(this IServiceCollection services)
+        public static IServiceCollection AddOpcUaMcpRobotics(this IServiceCollection services)
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            services.AddSingleton<PubSubRuntimeManager>();
+            services.AddSingleton<RoboticsIntentManager>();
             return services;
         }
 
         /// <summary>
-        /// Registers the PubSub tools when <paramref name="toolProfile"/>
-        /// selects them.
+        /// Registers the Robot Intent tools when <paramref name="toolProfile"/> selects them.
         /// </summary>
-        /// <remarks>
-        /// A profile that does not name PubSub contributes nothing rather than
-        /// failing, so a host can pass one profile to every OPC UA tool package
-        /// it references.
-        /// </remarks>
-        /// <param name="mcpServerBuilder">The MCP server builder.</param>
-        /// <param name="toolProfile">The profile selecting the tool set.</param>
-        /// <returns>The builder, for chaining.</returns>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="mcpServerBuilder"/> is <c>null</c>.
-        /// </exception>
-        /// <exception cref="ArgumentOutOfRangeException">
-        /// <paramref name="toolProfile"/> is not a defined profile.
-        /// </exception>
-        public static IMcpServerBuilder WithOpcUaPubSubTools(
+        public static IMcpServerBuilder WithOpcUaRoboticsTools(
             this IMcpServerBuilder mcpServerBuilder,
             McpToolProfile toolProfile = McpToolProfile.Full)
         {
@@ -89,18 +61,19 @@ namespace Opc.Ua.Mcp
 
             switch (toolProfile)
             {
-                case McpToolProfile.PubSub:
+                case McpToolProfile.Robotics:
                 case McpToolProfile.Full:
                     mcpServerBuilder
-                        .WithTools<PubSubActionTools>()
-                        .WithTools<PubSubDiscoveryTools>()
-                        .WithTools<PubSubRuntimeTools>();
+                        .WithTools<RoboticsDiscoveryTools>()
+                        .WithTools<RoboticsMonitoringTools>()
+                        .WithTools<RoboticsControlTools>()
+                        .WithTools<RoboticsMissionTools>();
                     break;
                 case McpToolProfile.Core:
                 case McpToolProfile.Services:
                 case McpToolProfile.Administration:
+                case McpToolProfile.PubSub:
                 case McpToolProfile.Diagnostics:
-                case McpToolProfile.Robotics:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

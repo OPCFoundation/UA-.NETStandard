@@ -30,43 +30,10 @@
 namespace Opc.Ua.Mcp
 {
     /// <summary>
-    /// Selects a bounded catalog of OPC UA MCP tools.
+    /// Centrally managed event id offsets for source-generated log messages in this assembly.
     /// </summary>
-    public enum McpToolProfile
+    internal static class McpRoboticsEventIds
     {
-        /// <summary>
-        /// Common connection, browse, read, write, call, and configuration workflows.
-        /// </summary>
-        Core,
-
-        /// <summary>
-        /// OPC UA Part 4 service-set and convenience tools.
-        /// </summary>
-        Services,
-
-        /// <summary>
-        /// Configuration, PKI, and NodeSet administration tools.
-        /// </summary>
-        Administration,
-
-        /// <summary>
-        /// PubSub runtime, discovery, action, capture, and decode tools.
-        /// </summary>
-        PubSub,
-
-        /// <summary>
-        /// OPC UA packet capture, decode, and replay tools.
-        /// </summary>
-        Diagnostics,
-
-        /// <summary>
-        /// Robot Intent discovery, monitoring, control, and mission tools.
-        /// </summary>
-        Robotics,
-
-        /// <summary>
-        /// Every available tool, preserving the current-major default catalog.
-        /// </summary>
-        Full
+        public const int RoboticsIntentManager = 0;
     }
 }

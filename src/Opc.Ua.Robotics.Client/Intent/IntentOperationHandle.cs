@@ -174,6 +174,51 @@ namespace Opc.Ua.Robotics.Client.Intent
             return m_controller.Transport.RetryAsync(IntentId, cancellationToken);
         }
 
+        /// <summary>
+        /// Waits up to the timeout for completion, returning the current state on timeout.
+        /// </summary>
+        public async ValueTask<IntentOperationWaitResult> WaitForCompletionAsync(
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+        {
+            if (timeout < TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+
+            if (Completion.IsCompleted)
+            {
+                return new IntentOperationWaitResult
+                {
+                    Completed = true,
+                    Result = await Completion.ConfigureAwait(false),
+                    Current = Current
+                };
+            }
+
+            Task delay = timeout == Timeout.InfiniteTimeSpan
+                ? Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
+                : Task.Delay(timeout, cancellationToken);
+            Task completed = await Task.WhenAny(Completion, delay).ConfigureAwait(false);
+            if (ReferenceEquals(completed, Completion))
+            {
+                return new IntentOperationWaitResult
+                {
+                    Completed = true,
+                    Result = await Completion.ConfigureAwait(false),
+                    Current = Current
+                };
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await RefreshAsync(cancellationToken).ConfigureAwait(false);
+            return new IntentOperationWaitResult
+            {
+                Completed = false,
+                Current = Current
+            };
+        }
+
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
@@ -351,6 +396,10 @@ namespace Opc.Ua.Robotics.Client.Intent
             {
                 merged = merged with { Operation = update.Operation };
             }
+            if (update.IntentId.Length != 0)
+            {
+                merged = merged with { IntentId = update.IntentId };
+            }
             if (stateObserved)
             {
                 if (!RobotIntentRules.IsTerminal(current.ExecutionState) ||
@@ -370,6 +419,14 @@ namespace Opc.Ua.Robotics.Client.Intent
             if (resultObserved)
             {
                 merged = merged with { Result = update.Result };
+            }
+            if (update.MissionId.Length != 0)
+            {
+                merged = merged with { MissionId = update.MissionId };
+            }
+            if (update.QueuePosition != 0)
+            {
+                merged = merged with { QueuePosition = update.QueuePosition };
             }
             return merged;
         }

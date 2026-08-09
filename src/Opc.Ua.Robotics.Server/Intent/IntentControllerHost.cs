@@ -2128,22 +2128,31 @@ namespace Opc.Ua.RobotIntent.Server
             if (graphed)
             {
                 string fromStepId = mission.CurrentStepId;
-                MissionTransitionDataType? edge = SelectTransitionUnlocked(transitions, fromStepId);
+                MissionTransitionSelection selection = SelectTransitionUnlocked(transitions, fromStepId);
                 if (IntentOutcome.IsTerminal(mission.State) ||
                     !string.Equals(mission.CurrentStepId, fromStepId, StringComparison.Ordinal))
                 {
                     return MissionAdvanceResult.Refused;
                 }
-                if (edge == null)
+                if (selection.Transition == null)
                 {
-                    FinishMissionLocked(
-                        context,
-                        mission,
-                        ExecutionStateEnum.Failed,
-                        IntentFailureEnum.NoTransition);
+                    if (selection.HasOutgoingTransitions)
+                    {
+                        FinishMissionLocked(
+                            context,
+                            mission,
+                            ExecutionStateEnum.Failed,
+                            IntentFailureEnum.NoTransition);
+                    }
+                    else
+                    {
+                        FinishMissionLocked(context, mission, ExecutionStateEnum.Succeeded);
+                    }
                     return MissionAdvanceResult.Refused;
                 }
-                int next = MissionRules.IndexOfStep(mission.Mission.Steps, edge.ToStepId ?? string.Empty);
+                int next = MissionRules.IndexOfStep(
+                    mission.Mission.Steps,
+                    selection.Transition.ToStepId ?? string.Empty);
                 if (next < 0)
                 {
                     FinishMissionLocked(
@@ -2162,7 +2171,7 @@ namespace Opc.Ua.RobotIntent.Server
             return StartNextStepLocked(context, mission, ControlOwner);
         }
 
-        private MissionTransitionDataType? SelectTransitionUnlocked(
+        private MissionTransitionSelection SelectTransitionUnlocked(
             ArrayOf<MissionTransitionDataType> transitions,
             string fromStepId)
         {
@@ -2235,6 +2244,7 @@ namespace Opc.Ua.RobotIntent.Server
                 return;
             }
             mission.Failure = state == ExecutionStateEnum.Failed ? failure : IntentFailureEnum.None;
+            PublishMissionFinalResultLocked(context, mission);
             SetMissionStateLocked(context, mission, state);
             mission.CurrentStepId = string.Empty;
             PublishMissionLocked(context, mission);
@@ -2457,13 +2467,15 @@ namespace Opc.Ua.RobotIntent.Server
         private void SetMissionStateLocked(
             ISystemContext context, MissionEntry entry, ExecutionStateEnum state)
         {
+            ExecutionStateEnum previous = entry.State;
             entry.State = state;
             if (entry.Node is not { } node)
             {
                 return;
             }
             SetValue(node.ExecutionState, state);
-            node.SetState(context, MapToProgramState(state));
+            DriveProgramState(context, node, previous, state);
+            UpdateProgramDiagnosticTransition(context, node, DateTime.UtcNow);
             node.ClearChangeMasks(context, true);
         }
 
@@ -2537,24 +2549,41 @@ namespace Opc.Ua.RobotIntent.Server
         private static void PublishFinalResult(
             ISystemContext context, IntentOperationState node, IntentResultDataType result)
         {
-            BaseObjectState? final = node.FinalResultData;
-            if (final == null)
-            {
-                return;
-            }
             var value = new Variant(new ExtensionObject(result));
-            BaseDataVariableState existing = EnsureFinalResultVariable(context, node);
+            BaseDataVariableState existing = EnsureFinalResultVariable(
+                context,
+                node,
+                nameof(IntentOperationState.Result),
+                DataTypeIds.IntentResultDataType);
             existing.Value = value;
             existing.ClearChangeMasks(context, false);
         }
 
+        private static void PublishMissionFinalResultLocked(ISystemContext context, MissionEntry entry)
+        {
+            if (entry.Node is not { } node)
+            {
+                return;
+            }
+            BaseDataVariableState failure = EnsureFinalResultVariable(
+                context,
+                node,
+                nameof(IntentResultDataType.Failure),
+                DataTypeIds.IntentFailureEnum);
+            failure.Value = Variant.From((int)entry.Failure);
+            failure.ClearChangeMasks(context, false);
+            node.ClearChangeMasks(context, true);
+        }
+
         private static BaseDataVariableState EnsureFinalResultVariable(
-            ISystemContext context, IntentOperationState node)
+            ISystemContext context,
+            ProgramStateMachineState node,
+            string browseNameText,
+            ExpandedNodeId dataType)
         {
             BaseObjectState final = node.FinalResultData
                 ?? node.CreateOrReplaceFinalResultData(context, null);
-            var browseName = new QualifiedName(
-                nameof(IntentOperationState.Result), node.BrowseName.NamespaceIndex);
+            var browseName = new QualifiedName(browseNameText, node.BrowseName.NamespaceIndex);
             if (final.FindChild(context, browseName) is BaseDataVariableState existing)
             {
                 return existing;
@@ -2567,12 +2596,21 @@ namespace Opc.Ua.RobotIntent.Server
                 SymbolicName = browseName.Name ?? "Result",
                 ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,
                 TypeDefinitionId = global::Opc.Ua.VariableTypeIds.BaseDataVariableType,
-                DataType = ExpandedNodeId.ToNodeId(
-                    DataTypeIds.IntentResultDataType, context.NamespaceUris),
+                DataType = ExpandedNodeId.ToNodeId(dataType, context.NamespaceUris),
                 ValueRank = global::Opc.Ua.ValueRanks.Scalar
             };
             final.AddChild(variable);
             return variable;
+        }
+
+        private static BaseDataVariableState EnsureFinalResultVariable(
+            ISystemContext context, IntentOperationState node)
+        {
+            return EnsureFinalResultVariable(
+                context,
+                node,
+                nameof(IntentOperationState.Result),
+                DataTypeIds.IntentResultDataType);
         }
 
         private void RenumberQueueLocked(ISystemContext context)

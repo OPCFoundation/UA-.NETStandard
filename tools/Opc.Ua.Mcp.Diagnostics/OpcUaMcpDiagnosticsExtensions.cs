@@ -122,6 +122,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Services:
                 case McpToolProfile.Administration:
                 case McpToolProfile.PubSub:
+                case McpToolProfile.Robotics:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
