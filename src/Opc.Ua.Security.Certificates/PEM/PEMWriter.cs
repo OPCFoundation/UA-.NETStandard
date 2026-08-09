@@ -93,7 +93,15 @@ namespace Opc.Ua.Security.Certificates
             using RSA rsaPrivateKey = certificate.GetRSAPrivateKey()
                 ?? throw new CryptographicException("RSA private key not found.");
             // write private key as PKCS#1
-            byte[] exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
+            byte[] exportedRSAPrivateKey;
+            try
+            {
+                exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
+            }
+            catch (CryptographicException ex)
+            {
+                throw NotExportable(ex);
+            }
             return EncodeAsPEM(exportedRSAPrivateKey, "RSA PRIVATE KEY");
         }
 
@@ -106,8 +114,36 @@ namespace Opc.Ua.Security.Certificates
             using ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey()
                 ?? throw new CryptographicException("ECDsa private key not found.");
             // write private key as PKCS#1
-            byte[] exportedECPrivateKey = ecdsaPrivateKey.ExportECPrivateKey();
+            byte[] exportedECPrivateKey;
+            try
+            {
+                exportedECPrivateKey = ecdsaPrivateKey.ExportECPrivateKey();
+            }
+            catch (CryptographicException ex)
+            {
+                throw NotExportable(ex);
+            }
             return EncodeAsPEM(exportedECPrivateKey, "EC PRIVATE KEY");
+        }
+
+        /// <summary>
+        /// Builds the exception reported when a private key cannot leave its store.
+        /// </summary>
+        /// <param name="inner">The underlying failure.</param>
+        /// <returns>An exception explaining that the key is not exportable.</returns>
+        /// <remarks>
+        /// A key held in a TPM, an HSM, a PKCS#11 token or a remote key service is
+        /// non extractable by design, so PEM export can never succeed for it. The
+        /// raw platform error is unhelpful, so it is replaced with a statement of
+        /// the actual constraint.
+        /// </remarks>
+        private static NotSupportedException NotExportable(CryptographicException inner)
+        {
+            return new NotSupportedException(
+                "The private key cannot be exported to PEM because it is not extractable. " +
+                "Keys held in a TPM, an HSM, a PKCS#11 token or a remote key service never " +
+                "leave their store.",
+                inner);
         }
 
         /// <summary>
@@ -119,36 +155,43 @@ namespace Opc.Ua.Security.Certificates
             ReadOnlySpan<char> password = default)
         {
             byte[]? exportedPkcs8PrivateKey = null;
-            using (RSA? rsaPrivateKey = certificate.GetRSAPrivateKey())
+            try
             {
-                if (rsaPrivateKey != null)
+                using (RSA? rsaPrivateKey = certificate.GetRSAPrivateKey())
                 {
-                    // write private key as PKCS#8
-                    exportedPkcs8PrivateKey = password.IsEmpty || password.IsWhiteSpace()
-                        ? rsaPrivateKey.ExportPkcs8PrivateKey()
-                        : rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(
-                            password.ToArray(),
-                            new PbeParameters(
-                                PbeEncryptionAlgorithm.TripleDes3KeyPkcs12,
-                                HashAlgorithmName.SHA1,
-                                2000));
-                }
-                else
-                {
-                    using ECDsa? ecdsaPrivateKey = certificate.GetECDsaPrivateKey();
-                    if (ecdsaPrivateKey != null)
+                    if (rsaPrivateKey != null)
                     {
                         // write private key as PKCS#8
                         exportedPkcs8PrivateKey = password.IsEmpty || password.IsWhiteSpace()
-                            ? ecdsaPrivateKey.ExportPkcs8PrivateKey()
-                            : ecdsaPrivateKey.ExportEncryptedPkcs8PrivateKey(
+                            ? rsaPrivateKey.ExportPkcs8PrivateKey()
+                            : rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(
                                 password.ToArray(),
                                 new PbeParameters(
                                     PbeEncryptionAlgorithm.TripleDes3KeyPkcs12,
                                     HashAlgorithmName.SHA1,
                                     2000));
                     }
+                    else
+                    {
+                        using ECDsa? ecdsaPrivateKey = certificate.GetECDsaPrivateKey();
+                        if (ecdsaPrivateKey != null)
+                        {
+                            // write private key as PKCS#8
+                            exportedPkcs8PrivateKey = password.IsEmpty || password.IsWhiteSpace()
+                                ? ecdsaPrivateKey.ExportPkcs8PrivateKey()
+                                : ecdsaPrivateKey.ExportEncryptedPkcs8PrivateKey(
+                                    password.ToArray(),
+                                    new PbeParameters(
+                                        PbeEncryptionAlgorithm.TripleDes3KeyPkcs12,
+                                        HashAlgorithmName.SHA1,
+                                        2000));
+                        }
+                    }
                 }
+            }
+            catch (CryptographicException ex)
+            {
+                throw NotExportable(ex);
             }
 
             // TODO: returns null content if neither RSA nor ECDsa private key is present.
