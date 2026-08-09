@@ -36,19 +36,19 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-#if NET8_0_OR_GREATER
+#if INTENT_VIEWER_MCP
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 #endif
 using Microsoft.Extensions.Logging;
-#if NET8_0_OR_GREATER
+#if INTENT_VIEWER_MCP
 using Microsoft.Extensions.Logging.Console;
 using ModelContextProtocol.Server;
 #endif
 using Opc.Ua;
 using Opc.Ua.Client;
-#if NET8_0_OR_GREATER
+#if INTENT_VIEWER_MCP
 using Opc.Ua.Mcp;
 #endif
 using Opc.Ua.OpenUsd.Client;
@@ -234,7 +234,7 @@ namespace IntentViewerClient
             IntentViewerMcpTransportSelection mcpTransport = options.SelectMcpTransport();
             if (options.Mcp)
             {
-#if NET8_0_OR_GREATER
+#if INTENT_VIEWER_MCP
                 Console.Error.WriteLine(mcpTransport.Message);
 #else
                 Console.Error.WriteLine(
@@ -276,7 +276,7 @@ namespace IntentViewerClient
 
                 bool commandAllowed = false;
                 CommandAuthorityLease? authority = null;
-#if NET8_0_OR_GREATER
+#if INTENT_VIEWER_MCP
                 IHost? mcpHost = null;
 #endif
                 try
@@ -303,7 +303,7 @@ namespace IntentViewerClient
 
                 try
                 {
-#if NET8_0_OR_GREATER
+#if INTENT_VIEWER_MCP
                     if (options.Mcp)
                     {
                         mcpHost = await StartMcpHostAsync(
@@ -375,7 +375,7 @@ namespace IntentViewerClient
                                     "Headless keyboard control is disabled while MCP stdio is active because " +
                                     "both would read from standard input. Use --transport http for the headless " +
                                     "menu, or drive the robot through the MCP client.");
-#if NET8_0_OR_GREATER
+#if INTENT_VIEWER_MCP
                                 await WaitForMcpServerAsync(mcpHost!, lifetime.Token).ConfigureAwait(false);
 #endif
                             }
@@ -389,7 +389,7 @@ namespace IntentViewerClient
                 }
                 finally
                 {
-#if NET8_0_OR_GREATER
+#if INTENT_VIEWER_MCP
                     if (mcpHost is not null)
                     {
                         await StopMcpHostAsync(mcpHost).ConfigureAwait(false);
@@ -413,7 +413,7 @@ namespace IntentViewerClient
             return ReadLocationPoseAsync(session, locationNodeId, cancellationToken);
         }
 
-#if NET8_0_OR_GREATER
+#if INTENT_VIEWER_MCP
         private static async Task<IHost> StartMcpHostAsync(
             IntentViewerMcpTransportSelection transport,
             IntentViewerOptions options,
