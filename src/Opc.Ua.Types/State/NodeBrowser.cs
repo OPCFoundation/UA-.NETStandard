@@ -245,6 +245,9 @@ namespace Opc.Ua
         /// must be able to make its own enumeration state atomic with the base browser's.
         /// <see cref="System.Threading.Lock"/> is re-entrant, so a derived
         /// <c>Next</c> that acquires this lock and then calls <c>base.Next()</c> is safe.
+        /// Handing the lock to subclasses is nevertheless a locking contract in the
+        /// inheritance surface; replacing it with a base-owned acquisition is tracked by
+        /// https://github.com/OPCFoundation/UA-.NETStandard/issues/4215.
         /// </remarks>
         protected Lock DataLock { get; } = new();
 

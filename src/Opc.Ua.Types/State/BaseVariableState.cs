@@ -2109,6 +2109,17 @@ namespace Opc.Ua
             return Value.ToString();
         }
 
+        /// <summary>
+        /// Guards the value attribute fields so the variable synchronizes itself rather
+        /// than relying on callers to take a lock on the node instance.
+        /// </summary>
+        /// <remarks>
+        /// Fully private: the lock never leaves this class, so no derived type - inside or
+        /// outside this assembly - can take it, hold it across a call back into the stack,
+        /// or otherwise participate in an ordering it cannot see. Every critical section it
+        /// guards is a field read or write in this file.
+        /// </remarks>
+        private readonly Lock m_attributeLock = new();
         private Variant m_value;
         private DateTimeUtc m_timestamp;
         private bool m_valueTouched;
@@ -2138,21 +2149,9 @@ namespace Opc.Ua
         /// </param>
         public BaseVariableValue(Lock? dataLock)
         {
-            Lock = dataLock ?? new Lock();
+            m_lock = dataLock ?? new Lock();
             CopyPolicy = VariableCopyPolicy.CopyOnRead;
         }
-
-        /// <summary>
-        /// The lock used to synchronize access to the value.
-        /// </summary>
-        /// <remarks>
-        /// Deliberately shared rather than private: several generated structure variables
-        /// projecting the same underlying buffer are constructed with one lock so that a
-        /// read or write spanning them is atomic. The server likewise passes the lock that
-        /// guards its diagnostics, so server status and server diagnostics stay mutually
-        /// exclusive.
-        /// </remarks>
-        public Lock Lock { get; }
 
         /// <summary>
         /// The behavior to use when reading or writing all or part of the object.
@@ -2174,7 +2173,7 @@ namespace Opc.Ua
         /// </summary>
         public void ChangesComplete(ISystemContext context)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 if (m_updateList != null)
                 {
@@ -2213,6 +2212,34 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Enters the lock guarding the value.
+        /// </summary>
+        /// <remarks>
+        /// The lock object itself is private, so a derived value can make its own read or
+        /// write atomic with the base class without being able to share the lock, pass it
+        /// to another component, or take it in a <c>lock</c> statement somewhere the base
+        /// class cannot see. A callback-based helper would be tighter still, but the
+        /// generated value classes wrap bodies that pass <c>ref</c> arguments, and those
+        /// cannot be captured by a lambda. Pair every call with
+        /// <see cref="ExitLock"/> in a <c>finally</c> block.
+        /// </remarks>
+        protected void EnterLock()
+        {
+            m_lock.Enter();
+        }
+
+        /// <summary>
+        /// Exits the lock guarding the value.
+        /// </summary>
+        /// <remarks>
+        /// Must be called from a <c>finally</c> block paired with <see cref="EnterLock"/>.
+        /// </remarks>
+        protected void ExitLock()
+        {
+            m_lock.Exit();
+        }
+
+        /// <summary>
         /// Reads the value or a component of the value.
         /// </summary>
         protected ServiceResult Read(
@@ -2224,7 +2251,7 @@ namespace Opc.Ua
             ref StatusCode statusCode,
             ref DateTimeUtc timestamp)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 // ensure a value timestamp exists.
                 if (Timestamp == DateTimeUtc.MinValue)
@@ -2277,7 +2304,7 @@ namespace Opc.Ua
         /// </summary>
         protected void SetUpdateList(IList<BaseInstanceState> updateList)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 m_updateList = null;
 
@@ -2301,6 +2328,19 @@ namespace Opc.Ua
         }
 
         private BaseInstanceState[]? m_updateList;
+
+        /// <summary>
+        /// The lock guarding the value.
+        /// </summary>
+        /// <remarks>
+        /// Never handed out. It may be shared through the constructor - several generated
+        /// structure variables projecting the same underlying buffer are constructed with
+        /// one lock so that a read or write spanning them is atomic, and the server passes
+        /// the lock that guards its diagnostics so server status and server diagnostics
+        /// stay mutually exclusive - but sharing is the caller's decision, made once, with
+        /// a lock the caller already owns.
+        /// </remarks>
+        private readonly Lock m_lock;
     }
 
     /// <summary>
