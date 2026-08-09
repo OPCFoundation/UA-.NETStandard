@@ -203,5 +203,12 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "'{0}.{1}' was removed in 2.0 — apply the change through '{0}.{2}' instead of taking the lock yourself",
             DiagnosticSeverity.Warning,
             "IServerInternal, ISession and ISubscription no longer expose DiagnosticsLock / DiagnosticsWriteLock. A caller could not see what else took those locks, in what order, or for how long, and holding one across a call back into the stack could deadlock. Each owner now applies the mutation itself through UpdateDiagnostics / UpdateServerDiagnostics, with ReadDiagnostics / ReadServerDiagnostics for projections. Do not let the diagnostics object escape the callback: once it returns the lock is released. This rule reports rather than fixes, because turning a lock statement body into a lambda depends on what the body captures and returns.");
+
+        public static readonly DiagnosticDescriptor UA0025_RemovedNodeBrowserDataLock = Create(
+            DiagnosticIds.UA0025,
+            "NodeBrowser no longer exposes a synchronization lock",
+            "'NodeBrowser.DataLock' was removed in 2.0 — a browser is single-consumer, so drop the lock instead of replacing it",
+            DiagnosticSeverity.Warning,
+            "NodeBrowser no longer exposes a protected DataLock. A browser is single-consumer: it belongs to whoever created it, and both server browse paths already serialize access on the owning side (BrowserContext for the async node manager, a lock around the continuation point's browser for CustomNodeManager2). The exposed lock therefore only added an inheritance-level locking contract that a derived browser could not reason about — it could be held across a call into another module with nothing in the type system saying for how long. A derived browser that took DataLock inside its Next() override should simply remove the lock statement and keep the body. If a browser really is shared between threads, serialize it where it is owned, not inside the browser. See docs/migrate/2.0.x/node-states.md.");
     }
 }

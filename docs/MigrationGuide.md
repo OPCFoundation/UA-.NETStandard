@@ -93,10 +93,63 @@ those.
 out the mutable structure that the lock protects. `UpdateServerDiagnostics` and
 the diagnostic node manager are the supported paths.
 
-Analyzers `UA0024`, `UA0025` and `UA0026` flag each removed member and name its
-replacement. They report rather than auto-fix: turning a `lock` statement body
-into a lambda is not a transformation that can be applied safely without
-understanding what the body captures and returns.
+Analyzer `UA0024` flags each removed member and names its replacement. It
+reports rather than auto-fixes: turning a `lock` statement body into a lambda is
+not a transformation that can be applied safely without understanding what the
+body captures and returns.
+
+## Migrating code that locked on a NodeState or a NodeBrowser
+
+A `NodeState` guards its own attributes, children, notifiers and references, and
+`NodeState.CreateBrowser` guards the browser it builds. Nothing in the stack
+takes a lock on a node instance any more, so neither should a caller:
+
+```csharp
+// was — the node manager reached for the node's monitor from outside the node
+lock (source)
+{
+    browser = source.CreateBrowser(context, view, referenceType, includeSubtypes,
+        browseDirection, default, null, false);
+}
+
+// now
+INodeBrowser browser = source.CreateBrowser(context, view, referenceType,
+    includeSubtypes, browseDirection, default, null, false);
+```
+
+`lock (node)` was also the only way to make a check-then-act pair atomic. Use
+`NodeState.AddReferenceIfMissing` instead, which does the check and the insert
+under the node's own lock:
+
+```csharp
+// was
+lock (node)
+{
+    if (!node.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
+    {
+        node.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+    }
+}
+
+// now
+node.AddReferenceIfMissing(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+```
+
+`NodeBrowser.DataLock` is gone with it. A browser is **single-consumer**: it
+belongs to whoever created it and performs no synchronization of its own. A
+derived browser that took `DataLock` inside its `Next()` override drops the
+`lock` statement and keeps the body. Where a browser genuinely outlives one
+service call — the instance parked in a continuation point for `BrowseNext` —
+its owner serializes it, as the stack does for its own continuation points.
+
+A node type that overrides `CreateBrowser` and builds its own browser instead of
+delegating to the base implementation must fill it through
+`PopulateBrowserSynchronized` rather than calling `PopulateBrowser` directly,
+otherwise its browser is assembled from separately locked reads and can observe
+a node halfway through a change.
+
+Analyzer `UA0025` flags `NodeBrowser.DataLock`. See
+[migrate/2.0.x/node-states.md](migrate/2.0.x/node-states.md).
 
 ## Migrating node types that override FindChild or CreateChild
 `NodeState.FindChild` and `NodeState.CreateChild` take
