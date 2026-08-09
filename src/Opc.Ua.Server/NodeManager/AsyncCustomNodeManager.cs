@@ -3077,7 +3077,8 @@ namespace Opc.Ua.Server
                 // NOTE: CreateBrowser is not internally synchronized - unlike
                 // GetReferences/GetChildren/ReferenceExists/SetAreEventsMonitored, which
                 // guard themselves - so this lock is retained until browser creation owns
-                // its own synchronization. Tracked as part of the node-lock cleanup.
+                // its own synchronization. Tracked by
+                // https://github.com/OPCFoundation/UA-.NETStandard/issues/4216.
                 lock (source)
                 {
                     // create a new browser.
@@ -3356,7 +3357,8 @@ namespace Opc.Ua.Server
             INodeBrowser browser;
             // get list of references that relative path.
             // NOTE: CreateBrowser is not internally synchronized; see the sibling note in
-            // the Browse path. Retained until browser creation owns its own lock.
+            // the Browse path. Retained until browser creation owns its own lock, tracked
+            // by https://github.com/OPCFoundation/UA-.NETStandard/issues/4216.
             lock (source)
             {
                 browser = source.CreateBrowser(

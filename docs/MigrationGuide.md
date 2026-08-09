@@ -93,10 +93,85 @@ those.
 out the mutable structure that the lock protects. `UpdateServerDiagnostics` and
 the diagnostic node manager are the supported paths.
 
-Analyzers `UA0024`, `UA0025` and `UA0026` flag each removed member and name its
-replacement. They report rather than auto-fix: turning a `lock` statement body
-into a lambda is not a transformation that can be applied safely without
-understanding what the body captures and returns.
+Analyzer `UA0024` flags each removed member and names its replacement. It
+reports rather than auto-fixes: turning a `lock` statement body into a lambda is
+not a transformation that can be applied safely without understanding what the
+body captures and returns.
+
+### Why there is no `[Obsolete]` shim
+
+Every other removal in this guide keeps an `[Obsolete]` member for a release.
+These do not, and deliberately so. A lock is only useful if it is *the* lock the
+owner takes. A shim would have to hand back either a lock nobody else takes -
+silently turning a working critical section into no synchronization at all - or
+the real lock, which is exactly the coupling being removed. A missing member is
+a compile error the analyzer explains; a shim would be a race that shows up in
+production. `ISession` and `ISubscription` are also implemented by downstream
+code, and re-adding an interface member would break every implementer.
+
+## Migrating code that used ILocalNode.DataLock
+
+`ILocalNode.DataLock` (implemented by `Node`) was removed. It returned the node
+instance itself, so `lock (node.DataLock)` was `lock (node)`: one lock shared
+between the stack, the node and every caller, taken in an order none of them
+could see.
+
+```csharp
+// was
+lock (node.DataLock)
+{
+    value = node.Value;
+}
+
+// now - the node guards its own state
+value = node.Value;
+```
+
+If the surrounding operation has to stay atomic across several calls, take a
+lock the calling component owns. Do not reach for one that is reachable from a
+shared node. Analyzer `UA0025` flags the removed member.
+
+## Migrating code that used BaseVariableValue.Lock
+
+`BaseVariableValue.Lock` was removed, and the constructor now takes a
+`System.Threading.Lock` instead of an `object`.
+
+A derived value class - which is what the source generator emits for every
+structure variable - synchronizes through the protected `EnterLock()` /
+`ExitLock()` pair:
+
+```csharp
+EnterLock();
+try
+{
+    // read or write the value fields
+}
+finally
+{
+    ExitLock();
+}
+```
+
+A component that has to make its own state atomic with the value passes a lock
+it already owns to the constructor and takes that one directly. This is how the
+server keeps its status and its diagnostics mutually exclusive:
+
+```csharp
+private readonly Lock m_diagnosticsLock = new();
+
+// the value is constructed with the lock its owner already holds elsewhere
+m_status = new ServerStatusValue(statusNode, status, m_diagnosticsLock);
+
+// so the owner synchronizes against the value without the value handing anything out
+lock (m_diagnosticsLock)
+{
+    ...
+}
+```
+
+Analyzer `UA0026` flags the removed member. Note that regenerating the model
+sources with the 2.0 generator produces the `EnterLock()` / `ExitLock()` form
+already, so this only affects hand-written derived value classes and callers.
 
 ## Migrating node types that override FindChild or CreateChild
 `NodeState.FindChild` and `NodeState.CreateChild` take

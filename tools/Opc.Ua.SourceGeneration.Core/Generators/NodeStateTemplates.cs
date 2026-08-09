@@ -638,7 +638,7 @@ namespace Opc.Ua.SourceGeneration
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::Opc.Ua.DateTimeUtc timestamp)
             {
-                Lock.Enter();
+                EnterLock();
                 try
                 {
                     DoBeforeReadProcessing(context, node);
@@ -680,7 +680,7 @@ namespace Opc.Ua.SourceGeneration
                 }
                 finally
                 {
-                    Lock.Exit();
+                    ExitLock();
                 }
             }
 
@@ -696,7 +696,7 @@ namespace Opc.Ua.SourceGeneration
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::Opc.Ua.DateTimeUtc timestamp)
             {
-                Lock.Enter();
+                EnterLock();
                 try
                 {
                     if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.ChildDataType}} newValue))
@@ -709,7 +709,7 @@ namespace Opc.Ua.SourceGeneration
                 }
                 finally
                 {
-                    Lock.Exit();
+                    ExitLock();
                 }
 
                 return global::Opc.Ua.ServiceResult.Good;
@@ -767,7 +767,7 @@ namespace Opc.Ua.SourceGeneration
                 /// </summary>
                 private void Initialize({{Tokens.ClassName}}State variable)
                 {
-                    Lock.Enter();
+                    EnterLock();
                     try
                     {
                         m_variable = variable;
@@ -788,7 +788,7 @@ namespace Opc.Ua.SourceGeneration
                     }
                     finally
                     {
-                        Lock.Exit();
+                        ExitLock();
                     }
                 }
 
@@ -802,7 +802,7 @@ namespace Opc.Ua.SourceGeneration
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
-                    Lock.Enter();
+                    EnterLock();
                     try
                     {
                         DoBeforeReadProcessing(context, node);
@@ -816,7 +816,7 @@ namespace Opc.Ua.SourceGeneration
                     }
                     finally
                     {
-                        Lock.Exit();
+                        ExitLock();
                     }
                 }
 
@@ -830,7 +830,7 @@ namespace Opc.Ua.SourceGeneration
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
-                    Lock.Enter();
+                    EnterLock();
                     try
                     {
                         if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.DataType}} newValue))
@@ -848,7 +848,7 @@ namespace Opc.Ua.SourceGeneration
                     }
                     finally
                     {
-                        Lock.Exit();
+                        ExitLock();
                     }
 
                     return global::Opc.Ua.ServiceResult.Good;
