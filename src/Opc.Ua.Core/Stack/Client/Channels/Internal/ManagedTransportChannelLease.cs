@@ -381,17 +381,9 @@ namespace Opc.Ua
                 return;
             }
             ChannelEntry entry = Entry;
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await entry.ReleaseLeaseAsync(this).ConfigureAwait(false);
-                }
-                catch
-                {
-                    // best effort — sync Dispose cannot surface async failures
-                }
-            });
+            entry.OwnerManager.BackgroundWork.Run(
+                nameof(ChannelEntry.ReleaseLeaseAsync),
+                async _ => await entry.ReleaseLeaseAsync(this).ConfigureAwait(false));
         }
 
         private async ValueTask DisposeAsyncCore()

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
 using System.Threading;
@@ -95,7 +96,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             var version = new WotResourceVersion(
                 versionId: "v1",
-                content: content,
+                digest: WotContentDigest.Compute(content),
+                contentLength: content.Length,
                 contentType: "application/tm+json",
                 format: "WoT-TM/1.0",
                 createdAt: default,
@@ -111,7 +113,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistrySnapshot snapshot = service.Current;
 
             WotConversionOutput output = await converter
-                .ConvertAsync(resource, content, snapshot, CancellationToken.None)
+                .ConvertAsync(
+                    resource,
+                    ByteString.From(content),
+                    snapshot,
+                    new Dictionary<string, ByteString> { [version.DigestHex] = ByteString.From(content) },
+                    CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(output, Is.Not.Null);
@@ -125,7 +132,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             var version = new WotResourceVersion(
                 versionId: "v1",
-                content: invalidContent,
+                digest: WotContentDigest.Compute(invalidContent),
+                contentLength: invalidContent.Length,
                 contentType: "application/td+json",
                 format: "WoT-TD/1.1",
                 createdAt: default,
@@ -141,7 +149,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistrySnapshot snapshot = service.Current;
 
             WotConversionOutput output = await converter
-                .ConvertAsync(resource, invalidContent, snapshot, CancellationToken.None)
+                .ConvertAsync(
+                    resource,
+                    ByteString.From(invalidContent),
+                    snapshot,
+                    new Dictionary<string, ByteString> { [version.DigestHex] = ByteString.From(invalidContent) },
+                    CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(output.Succeeded, Is.False);

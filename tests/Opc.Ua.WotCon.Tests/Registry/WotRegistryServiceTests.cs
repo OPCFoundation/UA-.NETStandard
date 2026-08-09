@@ -49,7 +49,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = content,
+                Content = ByteString.From(content),
                 SetAsDefault = setDefault
             };
         }
@@ -185,7 +185,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     GroupId = "sensors",
                     ResourceId = "r",
                     Kind = WoTDocumentKindEnum.ThingDescription,
-                    Content = TestMaterialization.Td("urn:r")
+                    Content = ByteString.From(TestMaterialization.Td("urn:r"))
                 });
 
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));

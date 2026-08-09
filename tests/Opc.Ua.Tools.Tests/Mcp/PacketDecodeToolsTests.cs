@@ -317,7 +317,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 CancellationToken.None).ConfigureAwait(false);
 
             var services = new ServiceCollection();
-            services.AddSingleton(new McpServerOptions { PcapBaseFolder = root });
+            services.AddSingleton(new OpcUaMcpOptions { PcapBaseFolder = root });
             using ServiceProvider provider = services.BuildServiceProvider();
 
             IList<ContentBlock> result = await PacketDecodeTools.DecodePcapWithKeysAsync(
@@ -340,7 +340,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             string missingKeys = Path.Combine(root, "missing.uakeys.json");
 
             var services = new ServiceCollection();
-            services.AddSingleton(new McpServerOptions { PcapBaseFolder = root });
+            services.AddSingleton(new OpcUaMcpOptions { PcapBaseFolder = root });
             using ServiceProvider provider = services.BuildServiceProvider();
 
             Assert.That(
@@ -362,7 +362,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 CancellationToken.None).ConfigureAwait(false);
 
             var services = new ServiceCollection();
-            services.AddSingleton(new McpServerOptions { PcapBaseFolder = root });
+            services.AddSingleton(new OpcUaMcpOptions { PcapBaseFolder = root });
             using ServiceProvider provider = services.BuildServiceProvider();
 
             Assert.That(
@@ -396,7 +396,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 CancellationToken.None).ConfigureAwait(false);
 
             var services = new ServiceCollection();
-            services.AddSingleton(new McpServerOptions { PcapBaseFolder = root });
+            services.AddSingleton(new OpcUaMcpOptions { PcapBaseFolder = root });
             using ServiceProvider provider = services.BuildServiceProvider();
 
             foreach (string format in new[] { "service-timeline", "json", "text" })
@@ -452,7 +452,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 CancellationToken.None).ConfigureAwait(false);
 
             var services = new ServiceCollection();
-            services.AddSingleton(new McpServerOptions { PcapBaseFolder = root });
+            services.AddSingleton(new OpcUaMcpOptions { PcapBaseFolder = root });
             using ServiceProvider provider = services.BuildServiceProvider();
 
             ServiceCallSummary summary = await PacketDecodeTools.SummarizeServiceCallsAsync(

@@ -3819,20 +3819,21 @@ namespace Opc.Ua
             QualifiedName dataEncoding,
             ref DataValue value)
         {
-            lock (m_attributeLock)
-            {
-                return ReadAttributeCore(
-                    context, attributeId, indexRange, dataEncoding, ref value);
-            }
+            return ReadAttributeCore(
+                context, attributeId, indexRange, dataEncoding, ref value);
         }
 
         /// <summary>
-        /// Reads an attribute with <see cref="m_attributeLock"/> already held.
+        /// Reads an attribute.
         /// </summary>
         /// <remarks>
-        /// Split out so the locked and unlocked bodies are not duplicated. Callers must
-        /// hold the attribute lock; the lock is re-entrant, so nested acquisition from a
-        /// caller that already holds it is safe.
+        /// Deliberately does not hold <see cref="m_attributeLock"/>. Reading an attribute
+        /// dispatches to caller-supplied handlers (<c>OnReadValue</c> and its siblings), and
+        /// a handler may take locks of its own. Holding the node's lock across one puts the
+        /// node into an unknown lock order and deadlocks against any caller that takes that
+        /// lock first and then touches the node. The asynchronous read path has always
+        /// snapshotted under the lock and released before dispatching; this matches it. The
+        /// individual attribute fields guard themselves.
         /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>
@@ -4180,19 +4181,18 @@ namespace Opc.Ua
             NumericRange indexRange,
             DataValue value)
         {
-            lock (m_attributeLock)
-            {
-                return WriteAttributeCore(context, attributeId, indexRange, value);
-            }
+            return WriteAttributeCore(context, attributeId, indexRange, value);
         }
 
         /// <summary>
-        /// Writes an attribute with <see cref="m_attributeLock"/> already held.
+        /// Writes an attribute.
         /// </summary>
         /// <remarks>
-        /// Split out so the locked and unlocked bodies are not duplicated. Callers must
-        /// hold the attribute lock; the lock is re-entrant, so nested acquisition from a
-        /// caller that already holds it is safe.
+        /// Deliberately does not hold <see cref="m_attributeLock"/>, for the same reason as
+        /// the read path: writing dispatches to caller-supplied handlers
+        /// (<c>OnWriteValue</c> and its siblings) which may take locks of their own, and
+        /// holding the node's lock across one gives the node no fixed place in the lock
+        /// order. The individual attribute fields guard themselves.
         /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>

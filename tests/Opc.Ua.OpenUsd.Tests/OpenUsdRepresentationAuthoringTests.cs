@@ -57,7 +57,10 @@ namespace Opc.Ua.OpenUsd.Server.Tests
 
             Assert.That(rep.BrowseName.Name, Is.EqualTo("OpenUsdRepresentation"));
             Assert.That(rep.BrowseName.NamespaceIndex, Is.EqualTo(ns));
-            Assert.That(rep.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
+            Assert.That(
+                rep.ReferenceTypeId,
+                Is.EqualTo(ReferenceTypeIds.HasAddIn),
+                "The representation is an AddIn and must be mounted with HasAddIn.");
             Assert.That(rep.NodeId.IsNull, Is.False);
             Assert.That(rep.Stage!.Value, Is.EqualTo(stage.NodeId));
             Assert.That(rep.PrimPath!.Value, Is.EqualTo("/Cell/Robots/R1"));

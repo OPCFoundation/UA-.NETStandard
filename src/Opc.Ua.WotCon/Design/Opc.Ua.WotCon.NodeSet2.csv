@@ -305,3 +305,6 @@ WoTRegistry_Refresh_InputArguments,64602,Variable
 WoTRegistry_Refresh_OutputArguments,64603,Variable
 WoTRegistry_RegistryId,64604,Variable
 WoTRegistry_RefreshGeneration,64605,Variable
+ThingDescriptionGroupType_CatalogUri,64606,Variable
+ThingModelGroupType_CatalogUri,64607,Variable
+ThingModelFileType_ModelId,64608,Variable

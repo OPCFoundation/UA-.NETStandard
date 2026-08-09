@@ -12,10 +12,14 @@
     <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalClient/MinimalClient.csproj" />
     <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
+    <Project Path="samples/GeneratorServer/GeneratorServer.csproj" />
+    <Project Path="samples/SiteCompositionServer/SiteCompositionServer.csproj" />
     <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
     <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
     <Project Path="samples/WotCon/FlatTagServer/FlatTagServer.csproj" />
-    <Project Path="samples/MinimalRobotServer/MinimalRobotServer.csproj" />
+    <Project Path="samples/Robotics/MinimalRobotServer/MinimalRobotServer.csproj" />
+    <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
+    <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
   </Folder>
@@ -245,6 +249,7 @@
     <Project Path="tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
     <Project Path="tests/Opc.Ua.OpenUsd.Tests/Opc.Ua.OpenUsd.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Robotics.Intent.Tests/Opc.Ua.Robotics.Intent.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Diagnostics.Tests/Opc.Ua.Core.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Bindings.Https.WebApi.Tests/Opc.Ua.Bindings.Https.WebApi.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
@@ -294,6 +299,10 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Diagnostics/Opc.Ua.Mcp.Diagnostics.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.PubSub/Opc.Ua.Mcp.PubSub.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.PubSub.Diagnostics/Opc.Ua.Mcp.PubSub.Diagnostics.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector.Viewer/Opc.Ua.OpenUsd.Connector.Viewer.csproj" />
   </Folder>

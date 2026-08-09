@@ -120,6 +120,7 @@ namespace Opc.Ua.Server
             m_readAccess = readAccess ?? throw new ArgumentNullException(nameof(readAccess));
             m_writeAccess = writeAccess ?? throw new ArgumentNullException(nameof(writeAccess));
             m_logger = telemetry.CreateLogger<ApplicationConfigurationFile>();
+            m_backgroundWork = new BackgroundTaskScope(nameof(ApplicationConfigurationFile), telemetry);
             m_coordinator = coordinator;
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_activityTimeout = activityTimeout;
@@ -213,6 +214,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
+            // Signal only: Dispose is synchronous. The revert window stops at
+            // its delay as soon as the token trips.
+            m_backgroundWork.Dispose();
+
             CancelPendingRevert();
             lock (m_lock)
             {
@@ -807,7 +812,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            _ = Task.Run(async () =>
+            m_backgroundWork.Run("RevertWindow", async _ =>
             {
                 try
                 {
@@ -944,6 +949,7 @@ namespace Opc.Ua.Server
         private readonly SecureAccess m_readAccess;
         private readonly SecureAccess m_writeAccess;
         private readonly ILogger m_logger;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
         private readonly TimeProvider m_timeProvider;
         private readonly double m_activityTimeout;

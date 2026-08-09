@@ -84,13 +84,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
             Task writer = Task.Run(
-                async () =>
+                () =>
                 {
                     for (int i = 0; i < kIterations && !cts.IsCancellationRequested; i++)
                     {
-                        // The node is written through the documented contract. When the
-                        // node guards itself this lock is removed and the test must
-                        // continue to pass unchanged.
+                        // The node is written through the documented contract, with no
+                        // external locking: the node guards its own attributes.
                         ServiceResult result = node.WriteAttribute(
                             context,
                             Attributes.Value,

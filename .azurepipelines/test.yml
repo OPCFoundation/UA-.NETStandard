@@ -53,51 +53,28 @@ parameters:
 - name: windowsImage
   type: string
   default: 'windows-2025-vs2026'
-# Optional job-level condition forwarded to the testprep…, testall… and
-# coverage… jobs.
+# Optional job-level condition forwarded to the testprep… and testall… jobs.
 # When unset (the overwhelming majority of callers) no `condition:` line is
-# emitted - preserves today's "always run" behaviour exactly.  When set, all
+# emitted - preserves today's "always run" behaviour exactly.  When set, both
 # jobs receive the same condition so the entire test invocation is gated
 # together (used by the root pipeline to skip macOS test invocations on draft
 # GitHub PRs).  Pass the condition *bare*, without a succeeded() wrapper: the
-# test jobs wrap it in succeeded() so a build cancellation still propagates to
-# them - without the wrapper an Azure Pipelines `condition:` re-evaluates to
-# true during cancel and the job keeps running (see "Job will continue running
-# after cancellation was requested because its condition re-evaluated to true"
-# warnings) - while the coverage gate wraps it in not(canceled()) because it has
-# to report a failed status check when the tests failed.
+# jobs wrap it in succeeded() so a build cancellation still propagates to them -
+# without the wrapper an Azure Pipelines `condition:` re-evaluates to true during
+# cancel and the job keeps running (see "Job will continue running after
+# cancellation was requested because its condition re-evaluated to true"
+# warnings).
 - name: condition
   type: string
   default: ''
-# Collect code coverage in every test job of this invocation and append a
-# 'Coverage ...' job that merges the per-project Cobertura reports published by
-# those jobs and runs check-coverage.ps1 against the merged result.  The gate
-# job is the single per-(framework, configuration) signal used as the required
-# GitHub status check: it fails when any test job failed, and when the merged
-# coverage misses the thresholds, so the tests never have to be re-run.
+# Collect code coverage in every test job of this invocation and publish each
+# matrix entry's raw Cobertura fragment as a pipeline artifact.  The 'Code
+# coverage' stage (.azurepipelines/coverage.yml) collects every fragment the run
+# produced, merges them once and evaluates the thresholds - this template only
+# produces the inputs, it does not gate anything.
 - name: coverage
   type: boolean
   default: true
-# Blocking (true) vs advisory (false) coverage thresholds.  Test failures always
-# block regardless of this switch.
-- name: enforceCoverage
-  type: boolean
-  default: false
-# Publish the merged report to the build's Code Coverage tab and to Codacy.
-# Exactly one invocation per pipeline run may set this - Azure DevOps keeps a
-# single code-coverage summary per build, so a second publish overwrites the
-# first.
-- name: publishCoverage
-  type: boolean
-  default: false
-# Pool for the coverage gate job.  The gate only merges XML and diffs git, so it
-# is deliberately decoupled from the framework under test and runs on Linux.
-- name: coveragePoolName
-  type: string
-  default: ''
-- name: coverageImage
-  type: string
-  default: 'ubuntu-24.04'
 jobs:
 - job: testprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
@@ -348,12 +325,12 @@ jobs:
         }
         Write-Host "No test failures recorded across $total test(s); treating the run as successful (tolerating any non-zero test-host exit after a fully green run)."
         exit 0
-  # Hand the raw per-project Cobertura report to the Coverage gate job below
-  # instead of letting that job re-run the whole suite with coverage enabled.
+  # Hand the raw per-project Cobertura report to the 'Code coverage' stage
+  # instead of letting a gate job re-run the whole suite with coverage enabled.
   # Re-running defeats the point of fanning the suite out across matrix jobs and
   # reliably blew the stage timeout.  The artifact name is unique per matrix
-  # entry (System.JobId) and prefixed with this invocation's job-name suffix so
-  # the gate job downloads only the reports for its own framework/configuration.
+  # entry (System.JobId); the coverage stage collects 'coverage-*' across every
+  # stage of the run and merges them once.
   - ${{ if and(parameters.coverage, not(startsWith(parameters.framework, 'net4')), not(startsWith(parameters.customtestarget, 'net4'))) }}:
     - task: CopyFiles@2
       displayName: 'Stage code coverage'
@@ -446,209 +423,3 @@ jobs:
     inputs:
       targetPath: '$(Build.ArtifactStagingDirectory)/dumps'
       artifact: 'dumps-$(System.JobId)'
-# Per-(framework, configuration) gate.  Runs once every test job of this
-# invocation has finished, re-assembles the Cobertura fragments those jobs
-# published into a single report and evaluates the coverage thresholds on it.
-# This job - not the fan-out matrix - is the status check to require in the
-# GitHub branch ruleset: it fails when any test job failed and, on the leg that
-# sets enforceCoverage, when the merged report is missing or misses the
-# thresholds in coverage-thresholds.json.
-- ${{ if parameters.coverage }}:
-  - job: coverage${{ parameters.jobnamesuffix }}
-    displayName: Coverage ${{ parameters.configuration }} (${{ parameters.framework }})
-    dependsOn:
-    - testprep${{ parameters.jobnamesuffix }}
-    - testall${{ parameters.jobnamesuffix }}
-    timeoutInMinutes: 30
-    # not(canceled()) rather than the default succeeded(): the job has to report
-    # a *failed* status check when the tests failed, and a job that is skipped
-    # because its dependency failed surfaces to GitHub as 'skipped', which a
-    # required check treats as satisfied.
-    ${{ if ne(parameters.condition, '') }}:
-      condition: and(not(canceled()), ${{ parameters.condition }})
-    ${{ else }}:
-      condition: not(canceled())
-    variables:
-      DOTNET_CLI_TELEMETRY_OPTOUT: true
-      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
-      disable.coverage.autogenerate: true
-      testsResult: $[ dependencies.testall${{ parameters.jobnamesuffix }}.result ]
-      testMatrix: $[ dependencies.testprep${{ parameters.jobnamesuffix }}.outputs['testmatrix.jobMatrix'] ]
-    # The gate merges XML and diffs git, so it is independent of the framework
-    # under test and always runs on Linux.
-    pool:
-      ${{ if ne(parameters.coveragePoolName, '') }}:
-        name: ${{ parameters.coveragePoolName }}
-        demands:
-          - ImageOverride -equals ${{ parameters.coverageImage }}
-      ${{ else }}:
-        vmImage: ${{ parameters.coverageImage }}
-    steps:
-    # Full history: the coverage gate diffs the pull request against its base branch
-    # to compute changed-line (patch) coverage, which a shallow clone cannot do.
-    - checkout: self
-      fetchDepth: 0
-    - task: PowerShell@2
-      displayName: 'Verify test results ${{ parameters.configuration }} (${{ parameters.framework }})'
-      inputs:
-        pwsh: true
-        targetType: inline
-        script: |
-          # Aggregated result of every matrix entry of the test job. Anything
-          # other than a (possibly warning-decorated) success means at least one
-          # test job failed, was cancelled or never ran - fail here so this
-          # single check reflects the health of the whole framework leg.
-          $result = '$(testsResult)'
-          Write-Host "Test jobs for ${{ parameters.framework }} ${{ parameters.configuration }} reported '$result'."
-          if ($result -eq 'Succeeded' -or $result -eq 'SucceededWithIssues') {
-              exit 0
-          }
-          Write-Host "##vso[task.logissue type=error]Tests for ${{ parameters.framework }} ${{ parameters.configuration }} did not succeed (result: $result)."
-          exit 1
-    - task: UseDotNet@2
-      displayName: 'Install .NET 10.0'
-      inputs:
-        packageType: 'sdk'
-        version: '10.0.x'
-    - task: DownloadPipelineArtifact@2
-      displayName: 'Download code coverage'
-      inputs:
-        buildType: current
-        # One artifact per matrix entry; the '-' after the suffix keeps sibling
-        # invocations apart (for example net100 does not pick up net100mac).
-        patterns: 'coverage-${{ parameters.jobnamesuffix }}-*/**/*.cobertura.xml'
-        path: '$(Agent.TempDirectory)/coverage'
-    - task: PowerShell@2
-      name: reportProbe
-      displayName: 'Detect code coverage'
-      inputs:
-        pwsh: true
-        targetType: inline
-        script: |
-          $source = '$(Agent.TempDirectory)/coverage'
-          $artifacts = @(Get-ChildItem -Path $source -Directory -ErrorAction SilentlyContinue)
-          $reports = @(Get-ChildItem -Path $source -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue)
-          Write-Host "Downloaded $($reports.Count) Cobertura report(s) from $($artifacts.Count) test job(s)."
-          $found = $reports.Count -gt 0
-          Write-Host "##vso[task.setvariable variable=HAS_REPORTS;isOutput=true]$($found.ToString().ToLowerInvariant())"
-          if ($found) {
-              # One artifact per matrix entry. Fewer means a test job passed but
-              # published nothing, which silently shrinks the merged report - the
-              # project floor only gets stricter, but the changed-lines gate can
-              # pass vacuously for files whose assembly went missing. Surface it.
-              $expected = 0
-              try {
-                  $expected = @(($env:TEST_MATRIX | ConvertFrom-Json).PSObject.Properties).Count
-              }
-              catch {
-                  Write-Host "Could not read the test job matrix: $($_.Exception.Message)"
-              }
-              if ($expected -gt 0 -and $artifacts.Count -lt $expected) {
-                  Write-Host "##vso[task.logissue type=warning]Only $($artifacts.Count) of $expected test job(s) published coverage; the merged report is incomplete."
-              }
-              exit 0
-          }
-          # Expected on the .NET Framework legs: coverlet.collector 10.x has no
-          # net4x build asset, so those jobs never emit a report and this gate
-          # degrades to the test-result check. Where the thresholds are enforced
-          # a missing report is a hard failure instead - it would otherwise let
-          # a silently broken collector pass the gate.
-          if ('${{ parameters.enforceCoverage }}' -eq 'true') {
-              Write-Host "##vso[task.logissue type=error]No coverage was published by the test jobs; the gate has nothing to evaluate."
-              exit 1
-          }
-          Write-Host "##vso[task.logissue type=warning]No coverage was published by the test jobs; only the test results are checked for this leg."
-          exit 0
-      env:
-        TEST_MATRIX: $(testMatrix)
-    - task: DotNetCoreCLI@2
-      displayName: Install ReportGenerator tool
-      condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
-      inputs:
-        command: custom
-        custom: tool
-        arguments: install --tool-path tools dotnet-reportgenerator-globaltool
-    - task: PowerShell@2
-      displayName: 'Merge Code Coverage Report'
-      condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
-      inputs:
-        pwsh: true
-        targetType: inline
-        workingDirectory: '$(Build.SourcesDirectory)'
-        script: |
-          $ErrorActionPreference = 'Stop'
-          $source = '$(Agent.TempDirectory)/coverage'
-          & '$(Build.SourcesDirectory)/tools/reportgenerator' `
-              "-reports:$source/**/*.cobertura.xml" `
-              '-targetdir:$(Build.SourcesDirectory)/CodeCoverage' `
-              '-reporttypes:Cobertura;HtmlSummary' `
-              '-title:UA .Net Standard Test Coverage' `
-              '-assemblyfilters:-*.Tests'
-          if ($LASTEXITCODE -ne 0) {
-              Write-Host "##vso[task.logissue type=error]ReportGenerator failed with exit code $LASTEXITCODE."
-              exit $LASTEXITCODE
-          }
-          $summary = '$(Build.SourcesDirectory)/CodeCoverage/summary.htm'
-          if (Test-Path $summary) {
-              Move-Item -Force $summary '$(Build.SourcesDirectory)/CodeCoverage/index.htm'
-          }
-    - task: PublishPipelineArtifact@1
-      displayName: 'Publish merged coverage report'
-      condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
-      continueOnError: true
-      inputs:
-        targetPath: '$(Build.SourcesDirectory)/CodeCoverage'
-        artifact: 'coverage-report-${{ parameters.jobnamesuffix }}'
-    # Azure DevOps keeps a single code-coverage summary per build and Codacy
-    # accepts a single report per commit, so only the invocation flagged as the
-    # publishing one uploads - the remaining legs keep their report as the
-    # pipeline artifact published above.
-    - ${{ if parameters.publishCoverage }}:
-      - task: PublishCodeCoverageResults@2
-        displayName: 'Publish code coverage'
-        condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
-        inputs:
-          summaryFileLocation: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
-        continueOnError: true
-      - script: |
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit-uuid $COMMIT_UUID
-
-        condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'), ne(variables['CODACY_PROJECT_TOKEN'], ''))
-        env:
-          CODACY_PROJECT_TOKEN: $(CODACY_PROJECT_TOKEN)
-          REPORT_LOCATION: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
-          COMMIT_UUID: '$(Build.SourceVersion)'
-        continueOnError: true
-        displayName: 'Upload to Codacy'
-    # Coverage gate. Replaces the codecov/project and codecov/patch status checks:
-    # a blocking absolute floor over the whole report, a blocking changed-lines
-    # check on pull requests, and an advisory comparison against the recorded
-    # baseline. Runs last so the report is published even when the gate fails.
-    - task: PowerShell@2
-      displayName: 'Coverage gate'
-      condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
-      # Advisory unless the caller opted in: only the leg whose thresholds are
-      # calibrated blocks the build; the others still fail on test failures.
-      ${{ if not(parameters.enforceCoverage) }}:
-        continueOnError: true
-      inputs:
-        pwsh: true
-        targetType: inline
-        workingDirectory: '$(Build.SourcesDirectory)'
-        script: |
-          # Empty on anything that is not a pull request validation build, in which
-          # case check-coverage.ps1 enforces the project floor only.
-          $baseRef = $env:SYSTEM_PULLREQUEST_TARGETBRANCH
-          if ([string]::IsNullOrWhiteSpace($baseRef)) {
-              Write-Host 'Not a pull request build; the changed-lines gate is skipped.'
-          }
-          else {
-              Write-Host "Pull request targets '$baseRef'."
-          }
-
-          & ./.azurepipelines/check-coverage.ps1 `
-              -CoberturaPath '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml' `
-              -ThresholdsPath '$(Build.SourcesDirectory)/coverage-thresholds.json' `
-              -RepoRoot '$(Build.SourcesDirectory)' `
-              -BaseRef $baseRef
-          exit $LASTEXITCODE

@@ -47,7 +47,6 @@ namespace Opc.Ua.Wot
         public const string NodeSetContentType = "application/opcua-nodeset+xml";
         public const string Base64Encoding = "base64";
         public const string EnvelopeType = "uav:nodeSet";
-        public const string EnvelopePreservationType = "uav:NodeSet2Preservation";
         public const string ProfileVersion = "1.0";
         public const string ThingModelType = "tm:ThingModel";
         public const string WotContext = "https://www.w3.org/2022/wot/td/v1.1";
@@ -64,6 +63,16 @@ namespace Opc.Ua.Wot
 
         // Type-annotation term for an event affordance projecting a UA EventType.
         public const string EventTypeAnnotation = "uav:eventType";
+
+        // Type-annotation term marking a document as a projection document,
+        // which declares rather than defines its affordances (Section 12.1).
+        public const string ProjectionAnnotation = "uav:projection";
+
+        // Link relation naming an organized projection group (Section 12.7).
+        public const string OrganizesRel = "ua:Organizes";
+
+        // Term naming the group an organizing link reaches (Section 12.7).
+        public const string RefNameAnnotation = "uav:refName";
 
         private static readonly Dictionary<string, string> s_referenceTypeNameToNodeId =
             new(StringComparer.Ordinal)

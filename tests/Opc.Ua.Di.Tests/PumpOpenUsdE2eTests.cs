@@ -359,6 +359,47 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public async Task RepresentationsAreMountedWithHasAddInAsync()
+        {
+            // The representation is an AddIn (§5.2), so every represented Object must
+            // reference it with HasAddIn, not plain HasComponent. Both browse the same
+            // way - HasAddIn is a subtype of HasComponent - so a wrong reference type
+            // is invisible to every functional test and only shows up against a
+            // conformance checker. Hence this assertion.
+            //
+            // Every representation is checked, not just the pump's: an earlier version
+            // of this test looked at Pump #1 alone and would have waved through the
+            // plant-aggregation representation that arrived later on a separate branch
+            // still carrying HasComponent.
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
+            System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> reps =
+                await connector.DiscoverAllRepresentationsAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+            Assert.That(reps, Is.Not.Empty, "No representations discovered.");
+
+            foreach (OpenUsdConnector.RepresentationInfo rep in reps)
+            {
+                var browseOwner = new BrowseDescription
+                {
+                    NodeId = rep.NodeId,
+                    BrowseDirection = BrowseDirection.Inverse,
+                    ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasAddIn,
+                    IncludeSubtypes = false,
+                    NodeClassMask = (uint)NodeClass.Object,
+                    ResultMask = (uint)BrowseResultMask.All
+                };
+                BrowseResponse owners = await m_session!.BrowseAsync(
+                    null!, null!, 0, new BrowseDescription[] { browseOwner }, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    owners.Results[0].References,
+                    Has.Count.EqualTo(1),
+                    $"{rep.PrimPath} is not mounted on its represented Object with HasAddIn.");
+            }
+        }
+
+        [Test]
         public async Task SemanticIdAndSignalRoleAreSurfacedAsync()
         {
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
@@ -566,7 +607,7 @@ namespace Opc.Ua.Di.Tests
             {
                 Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Impeller", "xformOp:rotateZ"), Is.True,
                     "Rotation binding produced no value.");
-                Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Body/Mat/Surface", "inputs:diffuseColor"), Is.True,
+                Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Body", "primvars:displayColor"), Is.True,
                     "DisplayColor binding produced no value.");
                 Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Discharge/Gauge/Needle", "xformOp:rotateZ"), Is.True,
                     "Discharge pressure gauge produced no value.");

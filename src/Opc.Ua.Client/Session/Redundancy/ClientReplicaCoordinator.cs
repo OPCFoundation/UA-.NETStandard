@@ -81,6 +81,7 @@ namespace Opc.Ua.Client.Redundancy
 
             m_logger = telemetry.CreateLogger<ClientReplicaCoordinator>();
             m_telemetry = telemetry;
+            m_backgroundWork = new BackgroundTaskScope(nameof(ClientReplicaCoordinator), telemetry);
             m_election.LeadershipChanged += OnLeadershipChanged;
         }
 
@@ -113,7 +114,9 @@ namespace Opc.Ua.Client.Redundancy
 
         private void OnLeadershipChanged(bool isLeader)
         {
-            _ = Task.Run(() => HandleRoleChangeAsync(isLeader));
+            m_backgroundWork.Run(
+                nameof(HandleRoleChangeAsync),
+                async _ => await HandleRoleChangeAsync(isLeader).ConfigureAwait(false));
         }
 
         private async Task HandleRoleChangeAsync(bool isLeader)
@@ -254,6 +257,11 @@ namespace Opc.Ua.Client.Redundancy
         {
             m_election.LeadershipChanged -= OnLeadershipChanged;
             m_cts.Cancel();
+
+            // Before the session and the election go away: a role change already
+            // in flight promotes or demotes through both of them.
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+
             await m_election.DisposeAsync().ConfigureAwait(false);
             if (m_session != null)
             {
@@ -270,6 +278,7 @@ namespace Opc.Ua.Client.Redundancy
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private readonly CancellationTokenSource m_cts = new();
+        private readonly BackgroundTaskScope m_backgroundWork;
         private ManagedSession? m_session;
     }
 

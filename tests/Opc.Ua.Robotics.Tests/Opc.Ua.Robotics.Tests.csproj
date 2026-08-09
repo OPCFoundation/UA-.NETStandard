@@ -31,6 +31,16 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
+  </ItemGroup>
+  <!-- The simulated-arm tests exercise types from IntentEnabledRobot, which the
+       OpenUSD rendering stack pins to net10.0. The reference above is conditional, so
+       the tests that consume it have to be excluded on the other target frameworks or
+       they would not compile there. -->
+  <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+    <Compile Remove="SimulatedArmExecutorTests.cs" />
+    <Compile Remove="SimulatedArmKinematicsTests.cs" />
   </ItemGroup>
 </Project>
