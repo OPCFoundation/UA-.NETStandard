@@ -313,7 +313,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(robotics, Does.Contain("robotics_list_controllers"));
             Assert.That(robotics, Does.Contain("robotics_submit_linear_move"));
-            Assert.That(robotics, Does.Not.Contain("Connect"));
+            Assert.That(robotics, Does.Contain("Connect"));
 
             Assert.That(full, Does.Contain("Browse"));
             Assert.That(full, Does.Contain("ListCertificates"));
@@ -339,6 +339,30 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(disabledPubSub, Does.Not.Contain("pubsub_decode_pcap"));
             Assert.That(enabledPubSub, Does.Contain("pubsub_decode_pcap"));
+        }
+
+        [Test]
+        public void ConfigureMcpToolsPairsSessionScopedProfilesWithConnectionTools()
+        {
+            foreach (McpToolProfile toolProfile in Enum.GetValues<McpToolProfile>())
+            {
+                HashSet<string> tools = GetToolNames(toolProfile, false);
+
+                bool needsSession = tools.Any(
+                    name => name.StartsWith("robotics_", StringComparison.Ordinal));
+
+                if (!needsSession)
+                {
+                    continue;
+                }
+
+                Assert.That(
+                    tools,
+                    Does.Contain("Connect"),
+                    $"Profile '{toolProfile}' exposes tools that resolve a named OPC UA session, " +
+                    "so it must also expose the connection tools that open one.");
+                Assert.That(tools, Does.Contain("Disconnect"));
+            }
         }
 
         [Test]
