@@ -638,7 +638,8 @@ namespace Opc.Ua.SourceGeneration
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::Opc.Ua.DateTimeUtc timestamp)
             {
-                lock (Lock)
+                Lock.Enter();
+                try
                 {
                     DoBeforeReadProcessing(context, node);
 
@@ -677,6 +678,10 @@ namespace Opc.Ua.SourceGeneration
 
                     return result;
                 }
+                finally
+                {
+                    Lock.Exit();
+                }
             }
 
             /// <summary>
@@ -691,7 +696,8 @@ namespace Opc.Ua.SourceGeneration
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::Opc.Ua.DateTimeUtc timestamp)
             {
-                lock (Lock)
+                Lock.Enter();
+                try
                 {
                     if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.ChildDataType}} newValue))
                     {
@@ -700,6 +706,10 @@ namespace Opc.Ua.SourceGeneration
                     UpdateChildVariableStatus(m_variable.{{Tokens.ChildPath}}, ref statusCode, ref timestamp);
                     m_value.{{Tokens.ChildPath}} = {{Tokens.ValueWrite}};
                     UpdateParent(context, ref statusCode, ref timestamp);
+                }
+                finally
+                {
+                    Lock.Exit();
                 }
 
                 return global::Opc.Ua.ServiceResult.Good;
@@ -757,7 +767,8 @@ namespace Opc.Ua.SourceGeneration
                 /// </summary>
                 private void Initialize({{Tokens.ClassName}}State variable)
                 {
-                    lock (Lock)
+                    Lock.Enter();
+                    try
                     {
                         m_variable = variable;
 
@@ -775,6 +786,10 @@ namespace Opc.Ua.SourceGeneration
 
                         SetUpdateList(updateList);
                     }
+                    finally
+                    {
+                        Lock.Exit();
+                    }
                 }
 
                 /// <inheritdoc/>
@@ -787,7 +802,8 @@ namespace Opc.Ua.SourceGeneration
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
-                    lock (Lock)
+                    Lock.Enter();
+                    try
                     {
                         DoBeforeReadProcessing(context, node);
 
@@ -797,6 +813,10 @@ namespace Opc.Ua.SourceGeneration
                         }
 
                         return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                    }
+                    finally
+                    {
+                        Lock.Exit();
                     }
                 }
 
@@ -810,7 +830,8 @@ namespace Opc.Ua.SourceGeneration
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
-                    lock (Lock)
+                    Lock.Enter();
+                    try
                     {
                         if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.DataType}} newValue))
                         {
@@ -824,6 +845,10 @@ namespace Opc.Ua.SourceGeneration
                             m_value = {{Tokens.ValueWrite}};
                             m_variable.UpdateChangeMasks(global::Opc.Ua.NodeStateChangeMasks.Value);
                         }
+                    }
+                    finally
+                    {
+                        Lock.Exit();
                     }
 
                     return global::Opc.Ua.ServiceResult.Good;
