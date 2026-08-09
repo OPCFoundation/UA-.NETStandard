@@ -15,7 +15,19 @@
   <ItemGroup>
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="BitFaster.Caching" Version="2.6.0" />
-    <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
+    <!-- Held at 2.6.2 deliberately. BouncyCastle is referenced only on net472/net48
+         (see src/Opc.Ua.Security.Certificates), where it backs PEMReader/PEMWriter.
+         2.7.0 tightened Asn1.X509.TbsCertificateStructure to throw
+         "certificate issuer is an empty distinguished name", so OpenSsl.PemReader
+         now aborts on a PEM chain whose first entry has an empty issuer DN and
+         ImportPublicKeysFromPEM returns nothing at all.
+
+         That is a runtime behaviour change, not just a test one: .NET's own PEM
+         support on net8.0+ still accepts such a certificate, so taking 2.7.0 would
+         make the same trusted-peer store load on net8.0+ and come back empty on
+         .NET Framework. Revisit together with a decision on whether the stack
+         should reject those certificates on every TFM. -->
+    <PackageVersion Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageVersion Include="Confluent.Kafka" Version="2.15.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="Crdt" Version="1.1.2" />
