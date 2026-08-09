@@ -49,14 +49,14 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (DataLock)
+                using (Gate.Enter())
                 {
                     return m_selectedEndpoint;
                 }
             }
             protected set
             {
-                lock (DataLock)
+                using (Gate.Enter())
                 {
                     m_selectedEndpoint = value;
                 }

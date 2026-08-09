@@ -433,21 +433,39 @@ namespace Opc.Ua.Bindings
             {
                 if (doNotBlock)
                 {
-                    // Same contract as the inline branch below: the callback is
-                    // user code and may throw. Without this the exception is
-                    // swallowed by the unobserved-task machinery and the failure
-                    // is invisible.
-                    _ = Task.Run(() =>
-                    {
-                        try
+                    // Queued without flowing the execution context, so the
+                    // callback does not inherit the logical context of whoever
+                    // completed the operation. That context may hold a channel's
+                    // gate, and an inherited entitlement to re-enter it would let
+                    // this callback run inside the guarded region alongside the
+                    // holder. UnsafeQueueUserWorkItem is used rather than
+                    // ExecutionContext.SuppressFlow because it cannot fail when
+                    // flow is already suppressed.
+                    ThreadPool.UnsafeQueueUserWorkItem(
+                        static state =>
                         {
-                            callback(this);
-                        }
-                        catch (Exception e)
-                        {
-                            m_logger.ChannelAsyncOperationLogMessage0(e);
-                        }
-                    });
+                            var operation = (ChannelAsyncOperation<T>)state!;
+                            AsyncCallback? cb = operation.m_callback;
+
+                            if (cb == null)
+                            {
+                                return;
+                            }
+
+                            // Same contract as the inline branch below: the
+                            // callback is user code and may throw. Without this
+                            // the exception reaches the thread pool and takes the
+                            // process down.
+                            try
+                            {
+                                cb(operation);
+                            }
+                            catch (Exception e)
+                            {
+                                operation.m_logger.ChannelAsyncOperationLogMessage0(e);
+                            }
+                        },
+                        this);
                 }
                 else
                 {

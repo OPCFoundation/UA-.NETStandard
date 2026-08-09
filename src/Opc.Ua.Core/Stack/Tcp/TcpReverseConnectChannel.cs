@@ -132,7 +132,7 @@ namespace Opc.Ua.Bindings
             uint messageType,
             ArraySegment<byte> messageChunk)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 SetResponseRequired(true);
 
@@ -191,6 +191,10 @@ namespace Opc.Ua.Bindings
 
                 var t = Task.Run(async () =>
                 {
+                    // Started while the gate is held, and ForceChannelFault takes
+                    // it, so the inherited entitlement has to be dropped first.
+                    Gate.LeaveInheritedContext();
+
                     try
                     {
                         if (!await Listener

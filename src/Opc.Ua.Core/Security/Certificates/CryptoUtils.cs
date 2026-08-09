@@ -13,6 +13,8 @@
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
@@ -471,6 +473,187 @@ namespace Opc.Ua
                     dataToSign.Count,
                     hashAlgorithm);
             }
+        }
+
+        /// <summary>
+        /// Computes a signature without occupying the calling thread when the
+        /// private key is served over a network.
+        /// </summary>
+        /// <param name="dataToSign">The data to sign.</param>
+        /// <param name="signingCertificate">
+        /// The certificate whose private key signs.
+        /// </param>
+        /// <param name="algorithm">The signature algorithm to apply.</param>
+        /// <param name="ct">Cancels the operation.</param>
+        /// <returns>
+        /// The signature, or <see langword="null"/> when the algorithm is
+        /// <see cref="AsymmetricSignatureAlgorithm.None"/>.
+        /// </returns>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <remarks>
+        /// The returned task completes synchronously unless the private key
+        /// declares <see cref="IAsyncRsaKey"/> or <see cref="IAsyncEcdsaKey"/>.
+        /// A software key therefore behaves exactly as it does through
+        /// <see cref="Sign(ArraySegment{byte}, Certificate, AsymmetricSignatureAlgorithm)"/>,
+        /// including the order in which everything around the call happens.
+        /// </remarks>
+        public static ValueTask<byte[]?> SignAsync(
+            ArraySegment<byte> dataToSign,
+            Certificate signingCertificate,
+            AsymmetricSignatureAlgorithm algorithm,
+            CancellationToken ct = default)
+        {
+            if (signingCertificate is null)
+            {
+                throw new ArgumentNullException(nameof(signingCertificate));
+            }
+
+            if (algorithm == AsymmetricSignatureAlgorithm.None)
+            {
+                return new ValueTask<byte[]?>((byte[]?)null);
+            }
+
+            if (TryGetAsymmetricSignatureParameters(
+                    algorithm, out HashAlgorithmName hashAlgorithm, out RSASignaturePadding? padding))
+            {
+                if (padding != null)
+                {
+                    RSA? rsa = signingCertificate.GetRSAPrivateKey();
+
+                    if (rsa is IAsyncRsaKey asyncRsa)
+                    {
+                        return SignWithAsyncRsaAsync(
+                            rsa, asyncRsa, dataToSign, hashAlgorithm, padding, ct);
+                    }
+
+                    rsa?.Dispose();
+                }
+                else
+                {
+                    ECDsa? ecdsa = signingCertificate.GetECDsaPrivateKey();
+
+                    if (ecdsa is IAsyncEcdsaKey asyncEcdsa)
+                    {
+                        return SignWithAsyncEcdsaAsync(
+                            ecdsa, asyncEcdsa, dataToSign, hashAlgorithm, ct);
+                    }
+
+                    ecdsa?.Dispose();
+                }
+            }
+
+            // No asynchronous path is available, so the operation is performed
+            // inline and the task is already complete. Nothing about the caller's
+            // sequencing changes.
+            return new ValueTask<byte[]?>(Sign(dataToSign, signingCertificate, algorithm));
+        }
+
+        private static async ValueTask<byte[]?> SignWithAsyncRsaAsync(
+            RSA owned,
+            IAsyncRsaKey key,
+            ArraySegment<byte> dataToSign,
+            HashAlgorithmName hashAlgorithm,
+            RSASignaturePadding padding,
+            CancellationToken ct)
+        {
+            using (owned)
+            {
+                byte[] hash = ComputeHash(dataToSign, hashAlgorithm);
+                return await key.SignHashAsync(hash, hashAlgorithm, padding, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private static async ValueTask<byte[]?> SignWithAsyncEcdsaAsync(
+            ECDsa owned,
+            IAsyncEcdsaKey key,
+            ArraySegment<byte> dataToSign,
+            HashAlgorithmName hashAlgorithm,
+            CancellationToken ct)
+        {
+            using (owned)
+            {
+                byte[] hash = ComputeHash(dataToSign, hashAlgorithm);
+                return await key.SignHashAsync(hash, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Maps a signature algorithm onto the hash it uses and, for the RSA
+        /// algorithms, the padding.
+        /// </summary>
+        /// <returns>
+        /// <c>false</c> when the algorithm signs nothing, in which case there is
+        /// no asynchronous path to look for.
+        /// </returns>
+        private static bool TryGetAsymmetricSignatureParameters(
+            AsymmetricSignatureAlgorithm algorithm,
+            out HashAlgorithmName hashAlgorithm,
+            out RSASignaturePadding? padding)
+        {
+            switch (algorithm)
+            {
+                case AsymmetricSignatureAlgorithm.RsaPkcs15Sha1:
+                    hashAlgorithm = HashAlgorithmName.SHA1;
+                    padding = RSASignaturePadding.Pkcs1;
+                    return true;
+                case AsymmetricSignatureAlgorithm.RsaPkcs15Sha256:
+                    hashAlgorithm = HashAlgorithmName.SHA256;
+                    padding = RSASignaturePadding.Pkcs1;
+                    return true;
+                case AsymmetricSignatureAlgorithm.RsaPssSha256:
+                    hashAlgorithm = HashAlgorithmName.SHA256;
+                    padding = RSASignaturePadding.Pss;
+                    return true;
+                case AsymmetricSignatureAlgorithm.EcdsaSha256:
+                    hashAlgorithm = HashAlgorithmName.SHA256;
+                    padding = null;
+                    return true;
+                case AsymmetricSignatureAlgorithm.EcdsaSha384:
+                    hashAlgorithm = HashAlgorithmName.SHA384;
+                    padding = null;
+                    return true;
+                default:
+                    hashAlgorithm = default;
+                    padding = null;
+                    return false;
+            }
+        }
+
+        private static byte[] ComputeHash(
+            ArraySegment<byte> data,
+            HashAlgorithmName hashAlgorithm)
+        {
+            byte[] array = data.Array
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument, "Data to hash must not be empty.");
+
+#if NET5_0_OR_GREATER
+            if (hashAlgorithm == HashAlgorithmName.SHA256)
+            {
+                return SHA256.HashData(array.AsSpan(data.Offset, data.Count));
+            }
+
+            if (hashAlgorithm == HashAlgorithmName.SHA384)
+            {
+                return SHA384.HashData(array.AsSpan(data.Offset, data.Count));
+            }
+
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+            return SHA1.HashData(array.AsSpan(data.Offset, data.Count));
+#pragma warning restore CA5350
+#else
+            using HashAlgorithm hash = hashAlgorithm == HashAlgorithmName.SHA256
+                ? SHA256.Create()
+                : hashAlgorithm == HashAlgorithmName.SHA384
+                    ? SHA384.Create()
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+                    : SHA1.Create();
+#pragma warning restore CA5350
+
+            return hash.ComputeHash(array, data.Offset, data.Count);
+#endif
         }
 
         /// <summary>

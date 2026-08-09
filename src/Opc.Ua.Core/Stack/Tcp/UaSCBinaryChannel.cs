@@ -376,7 +376,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void SetStateChangedCallback(TcpChannelStateEventHandler callback)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 m_stateChanged = callback;
             }
@@ -673,7 +673,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void OnTransportError(ServiceResult result)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 HandleSocketError(result);
             }
@@ -728,6 +728,11 @@ namespace Opc.Ua.Bindings
             m_receiveLoopTask = Task.Run(
                 async () =>
                 {
+                    // Started from Attach, which holds the gate. Without this the
+                    // loop would inherit the right to re-enter and would run
+                    // inside the guarded region alongside whatever started it.
+                    Gate.LeaveInheritedContext();
+
                     try
                     {
                         await loopBody(transport, ct).ConfigureAwait(false);
@@ -863,6 +868,10 @@ namespace Opc.Ua.Bindings
             byte[] backingBuffer,
             object? state)
         {
+            // Started while the gate may be held, and completes by calling
+            // HandleWriteComplete, which takes it.
+            Gate.LeaveInheritedContext();
+
             ServiceResult result = ServiceResult.Good;
             int sent = chunk.Length;
             try
@@ -904,6 +913,10 @@ namespace Opc.Ua.Bindings
             BufferCollection buffers,
             object? state)
         {
+            // Started while the gate may be held, and completes by calling
+            // HandleWriteComplete, which takes it.
+            Gate.LeaveInheritedContext();
+
             ServiceResult result = ServiceResult.Good;
             int sent = buffers.TotalSize;
             try
@@ -1062,8 +1075,31 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Serialises access to the channel's state.
+        /// </summary>
+        /// <remarks>
+        /// This replaces the monitor that <see cref="DataLock"/> used to be taken
+        /// on. A monitor cannot be held across an <see langword="await"/>, and the
+        /// secure channel open path has to await once a private key may be served
+        /// over a network.
+        /// <para>
+        /// It is re-entrant, so the paths that take it while already holding it
+        /// behave as they did. Work started with fire-and-forget semantics from a
+        /// path that may hold it must call
+        /// <see cref="ChannelGate.LeaveInheritedContext"/> first.
+        /// </para>
+        /// </remarks>
+        internal ChannelGate Gate { get; } = new();
+
+        /// <summary>
         /// The synchronization object for the channel.
         /// </summary>
+        [Obsolete(
+            "The channel no longer serialises its state on this monitor, so taking " +
+            "it excludes nothing. Derived types outside this assembly that guarded " +
+            "channel state with it must be reviewed; there is no replacement that " +
+            "can be offered across an assembly boundary, because the gate that " +
+            "replaced it has to be entered asynchronously on the open path.")]
         protected object DataLock { get; } = new();
 
         /// <summary>

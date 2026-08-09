@@ -177,7 +177,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void SetRequestReceivedCallback(TcpChannelRequestEventHandler callback)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 RequestReceived = callback;
             }
@@ -189,7 +189,7 @@ namespace Opc.Ua.Bindings
         public void SetReportOpenSecureChannelAuditCallback(
             ReportAuditOpenSecureChannelEventHandler callback)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 ReportAuditOpenSecureChannelEvent = callback;
             }
@@ -201,7 +201,7 @@ namespace Opc.Ua.Bindings
         public void SetReportCloseSecureChannelAuditCallback(
             ReportAuditCloseSecureChannelEventHandler callback)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 ReportAuditCloseSecureChannelEvent = callback;
             }
@@ -212,7 +212,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void SetReportCertificateAuditCallback(ReportAuditCertificateEventHandler callback)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 ReportAuditCertificateEvent = callback;
             }
@@ -250,7 +250,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(transport));
             }
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (Transport != null)
                 {
@@ -278,7 +278,7 @@ namespace Opc.Ua.Bindings
         {
             TcpChannelState state;
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 state = State;
                 if (state is TcpChannelState.Open or TcpChannelState.Connecting)
@@ -376,7 +376,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
                 {
@@ -428,7 +428,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal Certificate? SnapshotClientCertificateForRevalidation()
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
                 {
@@ -467,7 +467,7 @@ namespace Opc.Ua.Bindings
         {
             globalChannelId = null;
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
                 {
@@ -505,7 +505,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected override void HandleSocketError(ServiceResult result)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // channel fault.
                 if (ServiceResult.IsBad(result))
@@ -554,7 +554,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ForceChannelFault(ServiceResult reason)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 CompleteReverseHello(new ServiceResultException(reason));
 
@@ -623,7 +623,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnCleanup(object state)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // nothing to do if the channel is now open or closed.
                 if (State is TcpChannelState.Closed or TcpChannelState.Open)

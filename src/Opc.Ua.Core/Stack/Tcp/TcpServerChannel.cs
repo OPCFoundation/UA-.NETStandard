@@ -102,7 +102,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                lock (DataLock)
+                using (Gate.Enter())
                 {
                     ClientCertificate?.Dispose();
                     ClientCertificate = null;
@@ -200,6 +200,9 @@ namespace Opc.Ua.Bindings
             Uri endpointUrl,
             ReverseConnectAsyncResult ar)
         {
+            // Detached from the caller, which may hold the gate.
+            Gate.LeaveInheritedContext();
+
             try
             {
                 await transport.ConnectAsync(endpointUrl, CancellationToken.None).ConfigureAwait(false);
@@ -306,7 +309,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(transport));
             }
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
@@ -366,7 +369,7 @@ namespace Opc.Ua.Bindings
             uint messageType,
             ArraySegment<byte> messageChunk)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 SetResponseRequired(true);
 
@@ -1369,7 +1372,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(response));
             }
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // must queue the response if the channel is in the faulted state.
                 if (State == TcpChannelState.Faulted)

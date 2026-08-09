@@ -203,7 +203,7 @@ namespace Opc.Ua.Bindings
 
             WriteOperation operation;
             IUaSCByteTransport? transport;
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (State != TcpChannelState.Closed)
                 {
@@ -349,7 +349,7 @@ namespace Opc.Ua.Bindings
 
             using Activity? activity = m_telemetry.StartActivity();
             WriteOperation? operation = null;
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // Queue the operation while connecting and it will be played once connected.
                 if (State == TcpChannelState.Connecting)
@@ -860,7 +860,7 @@ namespace Opc.Ua.Bindings
             int bytesWritten,
             ServiceResult result)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (state is WriteOperation operation && ServiceResult.IsBad(result))
                 {
@@ -886,7 +886,7 @@ namespace Opc.Ua.Bindings
                 return ProcessResponseMessage(messageType, messageChunk);
             }
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // check for acknowledge.
                 if (messageType == TcpMessageType.Acknowledge)
@@ -980,7 +980,7 @@ namespace Opc.Ua.Bindings
 
         private void CompleteConnect(WriteOperation operation)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 try
                 {
@@ -1015,6 +1015,10 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private async void OnScheduledHandshakeAsync(object? state)
         {
+            // A timer callback, which runs on the context the timer was created
+            // in. That may have been holding the gate.
+            Gate.LeaveInheritedContext();
+
             if (m_via == null)
             {
                 throw ServiceResultException.Unexpected("Endpoint not defined.");
@@ -1025,7 +1029,7 @@ namespace Opc.Ua.Bindings
 
                 IUaSCByteTransport? transport = null;
                 WriteOperation? operation = null;
-                lock (DataLock)
+                using (Gate.Enter())
                 {
                     // check if renewing a token.
                     var token = state as ChannelToken;
@@ -1170,7 +1174,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnHandshakeComplete(IAsyncResult? result)
         {
-            lock (DataLock)
+            // No disclaimer here: this callback is invoked inline as well as from
+            // a detached task, and disclaiming on the inline path would make the
+            // gate below deadlock against the frame that already holds it. The
+            // detached path drops the inherited context where it detaches, in
+            // ChannelAsyncOperation.
+            using (Gate.Enter())
             {
                 ServiceResult? error = null;
                 try
@@ -1294,7 +1303,7 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // channel may already be closed
                 if (State == TcpChannelState.Closed)
@@ -1359,7 +1368,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void ForceReconnect(ServiceResult reason)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // check if reconnect already started.
                 if (m_reconnecting)
@@ -1549,7 +1558,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void SendQueuedOperations()
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (m_queuedOperations == null)
                 {
@@ -1587,7 +1596,7 @@ namespace Opc.Ua.Bindings
         private WriteOperation? InternalClose(int timeout)
         {
             WriteOperation? operation = null;
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // nothing to do if the connection is already closed.
                 if (State == TcpChannelState.Closed)

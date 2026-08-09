@@ -18,6 +18,7 @@ exactly as it did before the provider model existed.
 - [Validation status, compliance and audit](#validation-status-compliance-and-audit)
 - [What can and cannot be claimed about FIPS](#what-can-and-cannot-be-claimed-about-fips)
 - [Substituting the symmetric primitives](#substituting-the-symmetric-primitives)
+- [Using a key served over a network](#using-a-key-served-over-a-network)
 - [Limitations](#limitations)
 
 ## The short version
@@ -317,6 +318,44 @@ believes its validated module performed the per-message cryptography.
 `CryptoProviderAuditor.ThrowIfNotCompliant()` refuses to start rather than run on cryptography the
 operator did not ask for.
 
+## Using a key served over a network
+
+`RSA` and `ECDsa` are synchronous contracts, and they are .NET's rather than this stack's, so a key
+backed by a cloud key service occupies a thread for the whole of every call. Rather than replace those
+contracts — which would make every ready-made hardware and cloud implementation unusable — an
+implementation may **also** declare an asynchronous path:
+
+```csharp
+public sealed class KmsRsa : RSA, IAsyncRsaKey
+{
+    // The synchronous members are still implemented, and are what the paths
+    // that are not yet asynchronous will use.
+
+    public async ValueTask<byte[]> SignHashAsync(
+        ReadOnlyMemory<byte> hash,
+        HashAlgorithmName hashAlgorithm,
+        RSASignaturePadding padding,
+        CancellationToken ct = default)
+        => await m_kms.SignAsync(hash, hashAlgorithm, padding, ct);
+
+    public async ValueTask<byte[]> DecryptAsync(
+        ReadOnlyMemory<byte> data,
+        RSAEncryptionPadding padding,
+        CancellationToken ct = default)
+        => await m_kms.DecryptAsync(data, padding, ct);
+}
+```
+
+The stack finds the facet by type test, so a key that does not implement it is unaffected and the
+asynchronous paths complete synchronously for it — ordering, and everything that depends on it, is
+unchanged.
+
+| Path | Asynchronous? |
+|---|---|
+| User identity token signing and decryption, session activation | ✅ |
+| Secure channel open and renew | ❌ not yet |
+| Certificate, certificate request and revocation list signing | ❌ by construction — `X509SignatureGenerator.SignData` is called by .NET internals |
+
 ## Limitations
 
 - **HTTPS with a device-held key does not work on Windows or macOS.** SChannel and the macOS Security
@@ -328,9 +367,15 @@ operator did not ask for.
   implementation is supported — see above.
 - **A provider cannot yet contribute a new security policy.** The policy set is fixed at compile time.
   Adding one still requires changing the stack.
-- **Network-backed providers block a thread** for the duration of the call, because the `RSA` and `ECDsa`
-  contracts are synchronous. This is acceptable for a local device, where an operation takes single-digit
-  milliseconds, and noticeable for a remote key service.
+- **Network-backed providers still block a thread while a channel opens.** `RSA` and `ECDsa` are
+  synchronous contracts, so an implementation opts into an asynchronous path by also implementing
+  `IAsyncRsaKey` or `IAsyncEcdsaKey`. The stack takes that path where it can: user identity token
+  signing and decryption, and session activation, no longer occupy a thread. The UASC open path does not
+  take it yet, so opening and renewing a channel against a remote key service still does. A software key
+  declares neither facet and the asynchronous paths complete synchronously, so nothing changes for it.
+- **Certificate issuance cannot be made asynchronous at all.** `X509SignatureGenerator.SignData` is
+  called by .NET's own `CertificateRequest` and CRL builders, so signing a certificate, a certificate
+  request or a revocation list with a remote key occupies a thread by construction.
 
 ## Related
 

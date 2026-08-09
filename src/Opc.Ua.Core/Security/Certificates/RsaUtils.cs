@@ -30,6 +30,8 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -326,6 +328,112 @@ namespace Opc.Ua
             Array.Clear(buffer, 0, buffer.Length);
 
             return decryptedData;
+        }
+
+        /// <summary>
+        /// Decrypts the message using RSA encryption without occupying the
+        /// calling thread when the private key is served over a network.
+        /// </summary>
+        /// <param name="dataToDecrypt">The cipher text.</param>
+        /// <param name="encryptingCertificate">
+        /// The certificate whose private key decrypts.
+        /// </param>
+        /// <param name="padding">The padding that was applied.</param>
+        /// <param name="logger">Records a block size mismatch.</param>
+        /// <param name="ct">Cancels the operation.</param>
+        /// <returns>The plain text.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <remarks>
+        /// The returned task completes synchronously unless the private key
+        /// declares <see cref="IAsyncRsaKey"/>, so a software key behaves exactly
+        /// as it does through the synchronous overload.
+        /// </remarks>
+        internal static ValueTask<byte[]> DecryptAsync(
+            ArraySegment<byte> dataToDecrypt,
+            Certificate encryptingCertificate,
+            Padding padding,
+            ILogger logger,
+            CancellationToken ct = default)
+        {
+            RSA? rsa = encryptingCertificate.GetRSAPrivateKey();
+
+            if (rsa is IAsyncRsaKey asyncRsa)
+            {
+                return DecryptWithAsyncRsaAsync(
+                    rsa, asyncRsa, dataToDecrypt, encryptingCertificate, padding, logger, ct);
+            }
+
+            rsa?.Dispose();
+
+            return new ValueTask<byte[]>(
+                Decrypt(dataToDecrypt, encryptingCertificate, padding, logger));
+        }
+
+        private static async ValueTask<byte[]> DecryptWithAsyncRsaAsync(
+            RSA owned,
+            IAsyncRsaKey key,
+            ArraySegment<byte> dataToDecrypt,
+            Certificate encryptingCertificate,
+            Padding padding,
+            ILogger logger,
+            CancellationToken ct)
+        {
+            using (owned)
+            {
+                int inputBlockSize = GetCipherTextBlockSize(owned);
+                int outputBlockSize = GetPlainTextBlockSize(encryptingCertificate, padding);
+
+                if (dataToDecrypt.Count % inputBlockSize != 0)
+                {
+                    logger.RsaUtilsLogMessage1(dataToDecrypt.Count, inputBlockSize);
+                }
+
+                RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
+                byte[] buffer = new byte[dataToDecrypt.Count / inputBlockSize * outputBlockSize];
+
+                try
+                {
+                    int written = 0;
+                    byte[] input = new byte[inputBlockSize];
+
+                    for (int ii = dataToDecrypt.Offset;
+                        ii < dataToDecrypt.Offset + dataToDecrypt.Count;
+                        ii += inputBlockSize)
+                    {
+                        Array.Copy(dataToDecrypt.GetArray(), ii, input, 0, input.Length);
+
+                        byte[] plainTextBlock = await key
+                            .DecryptAsync(input, rsaPadding, ct)
+                            .ConfigureAwait(false);
+
+                        Array.Copy(plainTextBlock, 0, buffer, written, plainTextBlock.Length);
+                        written += plainTextBlock.Length;
+                        Array.Clear(plainTextBlock, 0, plainTextBlock.Length);
+                    }
+
+                    // decode length.
+                    int length = buffer[0];
+                    length += buffer[1] << 8;
+                    length += buffer[2] << 16;
+                    length += buffer[3] << 24;
+
+                    if (length > written - 4)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEndOfStream,
+                            "Could not decrypt data. Invalid total length.");
+                    }
+
+                    byte[] decryptedData = new byte[length];
+                    Array.Copy(buffer, 4, decryptedData, 0, length);
+
+                    return decryptedData;
+                }
+                finally
+                {
+                    Array.Clear(buffer, 0, buffer.Length);
+                }
+            }
         }
 
         /// <summary>

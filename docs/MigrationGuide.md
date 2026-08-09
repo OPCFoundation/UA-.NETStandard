@@ -149,6 +149,44 @@ await monitoredNode.OnReportEventAsync(context, node, e, cancellationToken)
 The wrappers still work and are unchanged in behaviour, so this is a
 warning to act on rather than a break.
 
+## Migrating channel subclasses that guarded state with DataLock
+
+`UaSCBinaryChannel.DataLock` is `[Obsolete]`. The channel no longer
+serialises any of its own state on it, so taking it excludes nothing.
+
+A monitor cannot be held across an `await`, and the secure channel open
+path has to be able to await once a private key may be served over a
+network — see [Crypto provider](CryptoProvider.md). The channel now uses
+an internal gate that can be entered from a synchronous or an
+asynchronous path and that is re-entrant, which the code it replaces
+relies on.
+
+There is no drop-in replacement to offer across an assembly boundary,
+because the gate has to be entered asynchronously on the open path and
+its correctness depends on rules that only hold inside the channel
+implementation. A subclass outside this stack that guarded **its own**
+state with `DataLock` should introduce its own synchronisation:
+
+```csharp
+// before
+lock (DataLock)
+{
+    m_myState = value;
+}
+
+// after
+private readonly System.Threading.Lock m_myLock = new();
+
+using (m_myLock.EnterScope())
+{
+    m_myState = value;
+}
+```
+
+A subclass that took `DataLock` in order to be mutually exclusive with
+the **channel's** state transitions was already relying on an
+implementation detail, and can no longer do so.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

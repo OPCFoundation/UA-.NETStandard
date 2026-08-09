@@ -237,11 +237,9 @@ namespace Opc.Ua
                 };
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityTokenHandler>();
-                byte[]? decryptedPassword = SecurityPolicies.Decrypt(
-                    certificate,
-                    securityPolicyUri,
-                    encryptedData,
-                    logger);
+                byte[]? decryptedPassword = await SecurityPolicies
+                    .DecryptAsync(certificate, securityPolicyUri, encryptedData, logger, ct)
+                    .ConfigureAwait(false);
 
                 if (decryptedPassword == null)
                 {

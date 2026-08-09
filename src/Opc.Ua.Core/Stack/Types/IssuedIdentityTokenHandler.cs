@@ -208,7 +208,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ValueTask DecryptAsync(
+        public async ValueTask DecryptAsync(
             Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
@@ -224,7 +224,7 @@ namespace Opc.Ua
                 securityPolicyUri == SecurityPolicies.None)
             {
                 DecryptedTokenData = m_token.TokenData.ToArray();
-                return default;
+                return;
             }
 
             var encryptedData = new EncryptedData
@@ -234,11 +234,9 @@ namespace Opc.Ua
             };
 
             ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityTokenHandler>();
-            byte[]? decryptedTokenData = SecurityPolicies.Decrypt(
-                certificate,
-                securityPolicyUri,
-                encryptedData,
-                logger);
+            byte[]? decryptedTokenData = await SecurityPolicies
+                .DecryptAsync(certificate, securityPolicyUri, encryptedData, logger, ct)
+                .ConfigureAwait(false);
 
             // verify the sender's nonce.
             int startOfNonce = decryptedTokenData!.Length;
@@ -260,7 +258,6 @@ namespace Opc.Ua
             m_decryptedTokenData = new byte[startOfNonce];
             Array.Copy(decryptedTokenData, m_decryptedTokenData, startOfNonce);
             Array.Clear(decryptedTokenData, 0, decryptedTokenData.Length);
-            return default;
         }
 
         /// <inheritdoc/>

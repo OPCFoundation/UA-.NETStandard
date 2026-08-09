@@ -271,6 +271,15 @@ deployment that registers nothing keeps the inline platform code, with no
 interface dispatch on the per-message path. A provider bound to a symmetric
 purpose it cannot actually perform is reported rather than silently replaced by
 the platform, and under `FipsOnly` it refuses to start.
+A key served over a network no longer has to occupy a thread. `RSA` and `ECDsa`
+are synchronous contracts belonging to .NET, so an implementation opts in by
+also implementing `IAsyncRsaKey` or `IAsyncEcdsaKey`, which the stack finds by
+type test and uses where it can — user identity token signing and decryption,
+and session activation. A software key implements neither, so those paths
+complete synchronously and nothing about their ordering changes. As the
+prerequisite for extending this to the channel handshake, the secure channel no
+longer serialises its state on a monitor, and `UaSCBinaryChannel.DataLock` is
+`[Obsolete]`.
 
 ## By layer
 

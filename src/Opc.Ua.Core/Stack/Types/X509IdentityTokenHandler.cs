@@ -209,7 +209,9 @@ namespace Opc.Ua
             {
                 using (cached)
                 {
-                    return SecurityPolicies.CreateSignatureData(info, cached, dataToSign);
+                    return await SecurityPolicies
+                        .CreateSignatureDataAsync(info, cached, dataToSign, ct)
+                        .ConfigureAwait(false);
                 }
             }
 
@@ -221,7 +223,9 @@ namespace Opc.Ua
                     StatusCodes.BadIdentityTokenInvalid,
                     "Cannot resolve private-key certificate for X509 identity token.");
 
-            return SecurityPolicies.CreateSignatureData(info, loaded, dataToSign);
+            return await SecurityPolicies
+                .CreateSignatureDataAsync(info, loaded, dataToSign, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

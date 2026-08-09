@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -657,6 +659,112 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Decrypts the CipherText without occupying the calling thread when the
+        /// private key is served over a network.
+        /// </summary>
+        /// <param name="certificate">
+        /// The certificate whose private key decrypts.
+        /// </param>
+        /// <param name="securityPolicyUri">The security policy in play.</param>
+        /// <param name="dataToDecrypt">The data to decrypt.</param>
+        /// <param name="logger">Records a block size mismatch.</param>
+        /// <param name="ct">Cancels the operation.</param>
+        /// <returns>The plain text.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <remarks>
+        /// The returned task completes synchronously unless the private key
+        /// declares <see cref="IAsyncRsaKey"/>, so a software key behaves exactly
+        /// as it does through
+        /// <see cref="Decrypt(Certificate, string, EncryptedData, ILogger)"/>.
+        /// </remarks>
+        public static ValueTask<byte[]?> DecryptAsync(
+            Certificate certificate,
+            string securityPolicyUri,
+            EncryptedData? dataToDecrypt,
+            ILogger logger,
+            CancellationToken ct = default)
+        {
+            if (dataToDecrypt == null)
+            {
+                return new ValueTask<byte[]?>((byte[]?)null);
+            }
+
+            if (string.IsNullOrEmpty(securityPolicyUri))
+            {
+                return new ValueTask<byte[]?>(dataToDecrypt.Data);
+            }
+
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    securityPolicyUri);
+
+            if (info.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None &&
+                TryGetDecryptionPadding(
+                    info.AsymmetricEncryptionAlgorithm,
+                    dataToDecrypt.Algorithm,
+                    out RsaUtils.Padding padding))
+            {
+                return RsaUtils.DecryptAsync(
+                    new ArraySegment<byte>(dataToDecrypt.Data!),
+                    certificate,
+                    padding,
+                    logger,
+                    ct)!;
+            }
+
+            if (string.IsNullOrEmpty(dataToDecrypt.Algorithm))
+            {
+                return new ValueTask<byte[]?>(dataToDecrypt.Data);
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadIdentityTokenInvalid,
+                "Unexpected encryption algorithm : {0}",
+                dataToDecrypt.Algorithm!);
+        }
+
+        /// <summary>
+        /// Maps the policy's encryption algorithm and the algorithm named on the
+        /// data onto the padding to undo.
+        /// </summary>
+        /// <returns>
+        /// <c>false</c> when the two do not agree, in which case the caller falls
+        /// through to its existing handling rather than decrypting with the wrong
+        /// padding.
+        /// </returns>
+        private static bool TryGetDecryptionPadding(
+            AsymmetricEncryptionAlgorithm policyAlgorithm,
+            string? dataAlgorithm,
+            out RsaUtils.Padding padding)
+        {
+            switch (policyAlgorithm)
+            {
+                case AsymmetricEncryptionAlgorithm.RsaOaepSha1
+                    when dataAlgorithm == SecurityAlgorithms.RsaOaep:
+                    padding = RsaUtils.Padding.OaepSHA1;
+                    return true;
+                case AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1
+                    when dataAlgorithm == SecurityAlgorithms.Rsa15:
+                    padding = RsaUtils.Padding.Pkcs1;
+                    return true;
+                case AsymmetricEncryptionAlgorithm.RsaOaepSha1:
+                case AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1:
+                    padding = default;
+                    return false;
+                default:
+                    if (dataAlgorithm == SecurityAlgorithms.RsaOaepSha256)
+                    {
+                        padding = RsaUtils.Padding.OaepSHA256;
+                        return true;
+                    }
+                    padding = default;
+                    return false;
+            }
+        }
+
+        /// <summary>
         /// Creates a signature using the security enhancements if required by the SecurityPolicy.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -770,6 +878,76 @@ namespace Opc.Ua
                 new ArraySegment<byte>(dataToSign),
                 localCertificate,
                 securityPolicy.AsymmetricSignatureAlgorithm).ToByteString();
+
+            return signatureData;
+        }
+
+        /// <summary>
+        /// Creates a signature on the data provided without occupying the calling
+        /// thread when the private key is served over a network.
+        /// </summary>
+        /// <param name="securityPolicy">The security policy in play.</param>
+        /// <param name="localCertificate">
+        /// The certificate whose private key signs.
+        /// </param>
+        /// <param name="dataToSign">The data to sign.</param>
+        /// <param name="ct">Cancels the operation.</param>
+        /// <returns>The signature.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <remarks>
+        /// The returned task completes synchronously unless the private key
+        /// declares <see cref="IAsyncRsaKey"/> or <see cref="IAsyncEcdsaKey"/>,
+        /// so a software key behaves exactly as it does through
+        /// <see cref="CreateSignatureData(SecurityPolicyInfo, Certificate, byte[])"/>.
+        /// </remarks>
+        public static async ValueTask<SignatureData> CreateSignatureDataAsync(
+            SecurityPolicyInfo securityPolicy,
+            Certificate localCertificate,
+            byte[] dataToSign,
+            CancellationToken ct = default)
+        {
+            if (securityPolicy is null)
+            {
+                throw new ArgumentNullException(nameof(securityPolicy));
+            }
+
+            var signatureData = new SignatureData();
+
+            switch (securityPolicy.AsymmetricSignatureAlgorithm)
+            {
+                case AsymmetricSignatureAlgorithm.RsaPkcs15Sha1:
+                    signatureData.Algorithm = SecurityAlgorithms.RsaSha1;
+                    break;
+                case AsymmetricSignatureAlgorithm.RsaPkcs15Sha256:
+                    signatureData.Algorithm = SecurityAlgorithms.RsaSha256;
+                    break;
+                case AsymmetricSignatureAlgorithm.RsaPssSha256:
+                    signatureData.Algorithm = SecurityAlgorithms.RsaPssSha256;
+                    break;
+                case AsymmetricSignatureAlgorithm.EcdsaSha256:
+                case AsymmetricSignatureAlgorithm.EcdsaSha384:
+                    signatureData.Algorithm = null;
+                    break;
+                case AsymmetricSignatureAlgorithm.None:
+                    signatureData.Algorithm = null;
+                    signatureData.Signature = default;
+                    return signatureData;
+                default:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Unsupported security policy: {0}",
+                        securityPolicy.Uri);
+            }
+
+            byte[]? signature = await CryptoUtils
+                .SignAsync(
+                    new ArraySegment<byte>(dataToSign),
+                    localCertificate,
+                    securityPolicy.AsymmetricSignatureAlgorithm,
+                    ct)
+                .ConfigureAwait(false);
+
+            signatureData.Signature = signature.ToByteString();
 
             return signatureData;
         }
