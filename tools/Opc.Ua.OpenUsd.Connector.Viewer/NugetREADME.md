@@ -32,7 +32,8 @@ assembly, its dependencies, and the USD plugin tree end up where the connector l
 ## Requirements
 
 - .NET 8 or later.
-- A supported OpenUSD native runtime RID: `win-x64`, `linux-x64`, or `osx-arm64`.
+- A supported OpenUSD native runtime payload: `win-x64`, `linux-x64`, or `osx-arm64`. A RID-less build or publish on a
+  supported host uses that host's payload; use an explicit RID when publishing for another platform.
 - The OpenUSD packages `OpenUsd`, `OpenUsd.Viewer`, and `OpenUsd.Runtime.Imaging`.
 
 See [`docs/OpenUsd.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/OpenUsd.md) for the full
