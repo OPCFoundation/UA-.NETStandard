@@ -32,7 +32,7 @@ namespace Quickstarts.ReferenceServer
     /// <summary>
     /// Defines constants for namespaces used by the servers.
     /// </summary>
-    public static class Namespaces
+    public static partial class Namespaces
     {
         /// <summary>
         /// The namespace for the nodes provided by the reference server.

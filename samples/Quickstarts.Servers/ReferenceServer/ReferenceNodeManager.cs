@@ -39,6 +39,7 @@ using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 using Opc.Ua.Test;
@@ -50,7 +51,8 @@ namespace Quickstarts.ReferenceServer
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
-    public class ReferenceNodeManager : AsyncCustomNodeManager, IConformanceContributor
+    [NodeManager(NamespaceUri = Namespaces.ReferenceServer)]
+    public partial class ReferenceNodeManager : IConformanceContributor
     {
         /// <summary>
         /// Initializes the node manager.
@@ -58,7 +60,7 @@ namespace Quickstarts.ReferenceServer
         public ReferenceNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            bool useSamplingGroups = false)
+            bool useSamplingGroups)
             : base(
                   server,
                   configuration,
@@ -204,24 +206,16 @@ namespace Quickstarts.ReferenceServer
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
         /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
-        public override async ValueTask CreateAddressSpaceAsync(
+        protected override async ValueTask AddReverseReferencesAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
+            await base.AddReverseReferencesAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+
             await m_semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (!externalReferences.TryGetValue(
-                    ObjectIds.ObjectsFolder,
-                    out IList<IReference>? references))
-                {
-                    externalReferences[ObjectIds.ObjectsFolder] = references = [];
-                }
-
                 FolderState root = CreateFolder(null, "CTT", "CTT");
-                root.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
-                references.Add(
-                    new NodeStateReference(ReferenceTypeIds.Organizes, false, root.NodeId));
                 root.EventNotifier = EventNotifiers.SubscribeToEvents;
                 await AddRootNotifierAsync(root, cancellationToken).ConfigureAwait(false);
 
@@ -2270,7 +2264,8 @@ namespace Quickstarts.ReferenceServer
                         referencesFolder,
                         referencesPrefix + "HasForwardReference",
                         "HasForwardReference");
-                    hasForwardReference.AddReference(
+                    AddReferenceIfMissing(
+                        hasForwardReference,
                         ReferenceTypeIds.HasCause,
                         false,
                         variables[0].NodeId);
@@ -2280,7 +2275,8 @@ namespace Quickstarts.ReferenceServer
                         referencesFolder,
                         referencesPrefix + "HasInverseReference",
                         "HasInverseReference");
-                    hasInverseReference.AddReference(
+                    AddReferenceIfMissing(
+                        hasInverseReference,
                         ReferenceTypeIds.HasCause,
                         true,
                         variables[0].NodeId);
@@ -2298,15 +2294,18 @@ namespace Quickstarts.ReferenceServer
                             referencesFolder,
                             referencesPrefix + referenceString,
                             referenceString);
-                        has3ForwardReferences.AddReference(
+                        AddReferenceIfMissing(
+                            has3ForwardReferences,
                             ReferenceTypeIds.HasCause,
                             false,
                             variables[0].NodeId);
-                        has3ForwardReferences.AddReference(
+                        AddReferenceIfMissing(
+                            has3ForwardReferences,
                             ReferenceTypeIds.HasCause,
                             false,
                             variables[1].NodeId);
-                        has3ForwardReferences.AddReference(
+                        AddReferenceIfMissing(
+                            has3ForwardReferences,
                             ReferenceTypeIds.HasCause,
                             false,
                             variables[2].NodeId);
@@ -2321,15 +2320,18 @@ namespace Quickstarts.ReferenceServer
                         referencesFolder,
                         referencesPrefix + "Has3InverseReferences",
                         "Has3InverseReferences");
-                    has3InverseReferences.AddReference(
+                    AddReferenceIfMissing(
+                        has3InverseReferences,
                         ReferenceTypeIds.HasEffect,
                         true,
                         variables[0].NodeId);
-                    has3InverseReferences.AddReference(
+                    AddReferenceIfMissing(
+                        has3InverseReferences,
                         ReferenceTypeIds.HasEffect,
                         true,
                         variables[1].NodeId);
-                    has3InverseReferences.AddReference(
+                    AddReferenceIfMissing(
+                        has3InverseReferences,
                         ReferenceTypeIds.HasEffect,
                         true,
                         variables[2].NodeId);
@@ -2353,11 +2355,13 @@ namespace Quickstarts.ReferenceServer
                         referencesFolder,
                         referencesPrefix + "HasReferenceTypeAndSubType",
                         "HasReferenceTypeAndSubType");
-                    hasReferenceTypeAndSubType.AddReference(
+                    AddReferenceIfMissing(
+                        hasReferenceTypeAndSubType,
                         ReferenceTypeIds.HasComponent,
                         false,
                         variables[0].NodeId);
-                    hasReferenceTypeAndSubType.AddReference(
+                    AddReferenceIfMissing(
+                        hasReferenceTypeAndSubType,
                         ReferenceTypeIds.HasOrderedComponent,
                         false,
                         variables[1].NodeId);
@@ -2559,7 +2563,7 @@ namespace Quickstarts.ReferenceServer
                         // allow access to users with Anonymous role
                         new RolePermissionType
                         {
-                            RoleId = ObjectIds.WellKnownRole_Anonymous,
+                            RoleId = Opc.Ua.ObjectIds.WellKnownRole_Anonymous,
                             Permissions = (uint)(
                                 PermissionType.Browse |
                                 PermissionType.Read |
@@ -2582,7 +2586,7 @@ namespace Quickstarts.ReferenceServer
                         // allow access to users with AuthenticatedUser role
                         new RolePermissionType
                         {
-                            RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                            RoleId = Opc.Ua.ObjectIds.WellKnownRole_AuthenticatedUser,
                             Permissions = (uint)(
                                 PermissionType.Browse |
                                 PermissionType.Read |
@@ -2607,7 +2611,7 @@ namespace Quickstarts.ReferenceServer
                         // allow access to users with SecurityAdmin role
                         new RolePermissionType
                         {
-                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                            RoleId = Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin,
                             Permissions = (uint)(
                                 PermissionType.Browse |
                                 PermissionType.Read |
@@ -2631,7 +2635,7 @@ namespace Quickstarts.ReferenceServer
                         // allow access to users with ConfigureAdmin role
                         new RolePermissionType
                         {
-                            RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                            RoleId = Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
                             Permissions = (uint)(
                                 PermissionType.Browse |
                                 PermissionType.Read |
@@ -2707,13 +2711,8 @@ namespace Quickstarts.ReferenceServer
                         "All supported Node types are available except whichever is in use for the other nodes.";
                     variables.Add(nodeIdsInstructions);
 
-                    BaseDataVariableState integerNodeId = CreateVariable(
-                        nodeIdsFolder,
-                        nodeIds + "Int16Integer",
-                        "Int16Integer",
-                        DataTypeIds.Int16,
-                        ValueRanks.Scalar);
-                    integerNodeId.NodeId = new NodeId(9202, NamespaceIndex);
+                    BaseDataVariableState integerNodeId = CreateVariableById(
+                        new NodeId(9202, NamespaceIndex));
                     variables.Add(integerNodeId);
 
                     variables.Add(
@@ -2724,24 +2723,14 @@ namespace Quickstarts.ReferenceServer
                             DataTypeIds.Int16,
                             ValueRanks.Scalar));
 
-                    BaseDataVariableState guidNodeId = CreateVariable(
-                        nodeIdsFolder,
-                        nodeIds + "Int16GUID",
-                        "Int16GUID",
-                        DataTypeIds.Int16,
-                        ValueRanks.Scalar);
-                    guidNodeId.NodeId = new NodeId(
-                        new Guid("00000000-0000-0000-0000-000000009204"),
-                        NamespaceIndex);
+                    BaseDataVariableState guidNodeId = CreateVariableById(
+                        new NodeId(
+                            new Guid("00000000-0000-0000-0000-000000009204"),
+                            NamespaceIndex));
                     variables.Add(guidNodeId);
 
-                    BaseDataVariableState opaqueNodeId = CreateVariable(
-                        nodeIdsFolder,
-                        nodeIds + "Int16Opaque",
-                        "Int16Opaque",
-                        DataTypeIds.Int16,
-                        ValueRanks.Scalar);
-                    opaqueNodeId.NodeId = new NodeId(ByteString.From([9, 2, 0, 5]), NamespaceIndex);
+                    BaseDataVariableState opaqueNodeId = CreateVariableById(
+                        new NodeId(ByteString.From([9, 2, 0, 5]), NamespaceIndex));
                     variables.Add(opaqueNodeId);
 
                     FolderState eventsFolder = CreateFolder(nodeIdsFolder, "NodeIds_Events", "Events");
@@ -2787,7 +2776,7 @@ namespace Quickstarts.ReferenceServer
                     addMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(addMethod)
                     {
                         NodeId = new NodeId(addMethod.BrowseName.Name + "InArgs", NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.InputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.InputArguments)
                     };
                     addMethod.InputArguments.DisplayName = LocalizedText.From(addMethod.InputArguments.BrowseName.Name!);
                     addMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
@@ -2817,7 +2806,7 @@ namespace Quickstarts.ReferenceServer
                     addMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(addMethod)
                     {
                         NodeId = new NodeId(addMethod.BrowseName.Name + "OutArgs", NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.OutputArguments)
                     };
                     addMethod.OutputArguments.DisplayName = LocalizedText.From(addMethod.OutputArguments.BrowseName.Name!);
                     addMethod.OutputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
@@ -2848,7 +2837,7 @@ namespace Quickstarts.ReferenceServer
                         NodeId = new NodeId(
                             multiplyMethod.BrowseName.Name + "InArgs",
                             NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.InputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.InputArguments)
                     };
                     multiplyMethod.InputArguments.DisplayName = LocalizedText.From(
                         multiplyMethod.InputArguments.BrowseName.Name!);
@@ -2881,7 +2870,7 @@ namespace Quickstarts.ReferenceServer
                         NodeId = new NodeId(
                             multiplyMethod.BrowseName.Name + "OutArgs",
                             NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.OutputArguments)
                     };
                     multiplyMethod.OutputArguments.DisplayName = LocalizedText.From(
                         multiplyMethod.OutputArguments.BrowseName.Name!);
@@ -2914,7 +2903,7 @@ namespace Quickstarts.ReferenceServer
                         NodeId = new NodeId(
                             divideMethod.BrowseName.Name + "InArgs",
                             NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.InputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.InputArguments)
                     };
                     divideMethod.InputArguments.DisplayName = LocalizedText.From(
                         divideMethod.InputArguments.BrowseName.Name!);
@@ -2947,7 +2936,7 @@ namespace Quickstarts.ReferenceServer
                         NodeId = new NodeId(
                             divideMethod.BrowseName.Name + "OutArgs",
                             NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.OutputArguments)
                     };
                     divideMethod.OutputArguments.DisplayName = LocalizedText.From(
                         divideMethod.OutputArguments.BrowseName.Name!);
@@ -2979,7 +2968,7 @@ namespace Quickstarts.ReferenceServer
                         NodeId = new NodeId(
                             substractMethod.BrowseName.Name + "InArgs",
                             NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.InputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.InputArguments)
                     };
                     substractMethod.InputArguments.DisplayName = LocalizedText.From(
                         substractMethod.InputArguments.BrowseName.Name!);
@@ -3012,7 +3001,7 @@ namespace Quickstarts.ReferenceServer
                         NodeId = new NodeId(
                             substractMethod.BrowseName.Name + "OutArgs",
                             NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.OutputArguments)
                     };
                     substractMethod.OutputArguments.DisplayName = LocalizedText.From(
                         substractMethod.OutputArguments.BrowseName.Name!);
@@ -3043,7 +3032,7 @@ namespace Quickstarts.ReferenceServer
                     helloMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(helloMethod)
                     {
                         NodeId = new NodeId(helloMethod.BrowseName.Name + "InArgs", NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.InputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.InputArguments)
                     };
                     helloMethod.InputArguments.DisplayName = LocalizedText.From(
                         helloMethod.InputArguments.BrowseName.Name!);
@@ -3069,7 +3058,7 @@ namespace Quickstarts.ReferenceServer
                         NodeId = new NodeId(
                             helloMethod.BrowseName.Name + "OutArgs",
                             NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.OutputArguments)
                     };
                     helloMethod.OutputArguments.DisplayName = LocalizedText.From(
                         helloMethod.OutputArguments.BrowseName.Name!);
@@ -3099,7 +3088,7 @@ namespace Quickstarts.ReferenceServer
                     inputMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(inputMethod)
                     {
                         NodeId = new NodeId(inputMethod.BrowseName.Name + "InArgs", NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.InputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.InputArguments)
                     };
                     inputMethod.InputArguments.DisplayName = LocalizedText.From(
                         inputMethod.InputArguments.BrowseName.Name!);
@@ -3132,7 +3121,7 @@ namespace Quickstarts.ReferenceServer
                         NodeId = new NodeId(
                             helloMethod.BrowseName.Name + "OutArgs",
                             NamespaceIndex),
-                        BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
+                        BrowseName = QualifiedName.From(Opc.Ua.BrowseNames.OutputArguments)
                     };
                     outputMethod.OutputArguments.DisplayName = LocalizedText.From(
                         outputMethod.OutputArguments.BrowseName.Name!);
@@ -4021,21 +4010,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private FolderState CreateFolder(NodeState? parent, string path, string name)
         {
-            var folder = new FolderState(parent)
-            {
-                SymbolicName = name,
-                ReferenceTypeId = ReferenceTypeIds.Organizes,
-                TypeDefinitionId = ObjectTypeIds.FolderType,
-                NodeId = new NodeId(path, NamespaceIndex),
-                BrowseName = new QualifiedName(path, NamespaceIndex),
-                DisplayName = new LocalizedText("en", name),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None,
-                EventNotifier = EventNotifiers.None
-            };
-
-            parent?.AddChild(folder);
-            return folder;
+            return FindPredefinedNode<FolderState>(new NodeId(path, NamespaceIndex));
         }
 
         /// <summary>
@@ -4047,24 +4022,32 @@ namespace Quickstarts.ReferenceServer
             string name,
             params NodeState[] peers)
         {
-            BaseDataVariableState variable = CreateVariable(
+            return CreateVariable(
                 parent,
                 path,
                 name,
                 BuiltInType.Double,
                 ValueRanks.Scalar);
+        }
 
-            if (peers != null)
+        /// <summary>
+        /// Adds a reference only when it is not already present.
+        /// </summary>
+        /// <remarks>
+        /// The address space is materialized from the NodeSet2 model, which
+        /// already carries the mesh references configured below, so re-adding
+        /// them would throw. This keeps the historic wiring calls idempotent.
+        /// </remarks>
+        private static void AddReferenceIfMissing(
+            NodeState node,
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId)
+        {
+            if (node != null && !node.ReferenceExists(referenceTypeId, isInverse, targetId))
             {
-                foreach (NodeState peer in peers)
-                {
-                    peer.AddReference(ReferenceTypeIds.HasCause, false, variable.NodeId);
-                    variable.AddReference(ReferenceTypeIds.HasCause, true, peer.NodeId);
-                    peer.AddReference(ReferenceTypeIds.HasEffect, true, variable.NodeId);
-                    variable.AddReference(ReferenceTypeIds.HasEffect, false, peer.NodeId);
-                }
+                node.AddReference(referenceTypeId, isInverse, targetId);
             }
-            return variable;
         }
 
         /// <summary>
@@ -4077,44 +4060,24 @@ namespace Quickstarts.ReferenceServer
             BuiltInType dataType,
             int valueRank)
         {
-            var variable = new DataItemState(parent);
-            variable.ValuePrecision = PropertyState<double>.With<VariantBuilder>(variable);
-            variable.Definition = PropertyState<string>.With<VariantBuilder>(variable);
+            DataItemState variable = FindPredefinedNode<DataItemState>(new NodeId(path, NamespaceIndex));
+            if (variable == null)
+            {
+                return null!;
+            }
 
-            variable.Create(SystemContext, default, variable.BrowseName, default, true);
-
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.NodeId = new NodeId(path, NamespaceIndex);
-            variable.BrowseName = new QualifiedName(path, NamespaceIndex);
-            variable.DisplayName = new LocalizedText("en", name);
-            variable.WriteMask = AttributeWriteMask.None;
-            variable.UserWriteMask = AttributeWriteMask.None;
-            variable.DataType = (NodeId)(uint)dataType;
-            variable.ValueRank = valueRank;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
             variable.Value = TypeInfo.GetDefaultVariantValue((NodeId)(uint)dataType, valueRank, Server.TypeTree);
             variable.StatusCode = StatusCodes.Good;
 
-            if (valueRank == ValueRanks.OneDimension)
+            if (variable.ValuePrecision != null)
             {
-                variable.ArrayDimensions = [0];
-            }
-            else if (valueRank == ValueRanks.TwoDimensions)
-            {
-                variable.ArrayDimensions = [0, 0];
+                variable.ValuePrecision.Value = 2;
             }
 
-            variable.ValuePrecision.Value = 2;
-            variable.ValuePrecision.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.ValuePrecision.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Definition.Value = string.Empty;
-            variable.Definition.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Definition.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-
-            parent?.AddChild(variable);
+            if (variable.Definition != null)
+            {
+                variable.Definition.Value = string.Empty;
+            }
 
             return variable;
         }
@@ -4178,39 +4141,10 @@ namespace Quickstarts.ReferenceServer
             Variant initialValues,
             Range? customRange)
         {
-            var variable = new AnalogItemState(parent)
+            AnalogItemState variable = FindPredefinedNode<AnalogItemState>(new NodeId(path, NamespaceIndex));
+            if (variable == null)
             {
-                BrowseName = new QualifiedName(path, NamespaceIndex)
-            };
-            variable.EngineeringUnits = PropertyState<EUInformation>.With<StructureBuilder<EUInformation>>(variable);
-            variable.InstrumentRange = PropertyState<Range>.With<StructureBuilder<Range>>(variable);
-
-            variable.Create(
-                SystemContext,
-                new NodeId(path, NamespaceIndex),
-                variable.BrowseName,
-                default,
-                true);
-
-            variable.NodeId = new NodeId(path, NamespaceIndex);
-            variable.SymbolicName = name;
-            variable.DisplayName = new LocalizedText("en", name);
-            variable.WriteMask = AttributeWriteMask.None;
-            variable.UserWriteMask = AttributeWriteMask.None;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.DataType = dataType;
-            variable.ValueRank = valueRank;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
-
-            if (valueRank == ValueRanks.OneDimension)
-            {
-                variable.ArrayDimensions = [0];
-            }
-            else if (valueRank == ValueRanks.TwoDimensions)
-            {
-                variable.ArrayDimensions = [0, 0];
+                return null!;
             }
 
             BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType, Server.TypeTree);
@@ -4225,7 +4159,10 @@ namespace Quickstarts.ReferenceServer
             // Using anything but 120,-10 fails a few tests
             newRange.High = Math.Min(newRange.High, 120);
             newRange.Low = Math.Max(newRange.Low, -10);
-            variable.InstrumentRange.Value = newRange;
+            if (variable.InstrumentRange != null)
+            {
+                variable.InstrumentRange.Value = newRange;
+            }
 
             variable.EURange!.Value = customRange ?? new Range(100, 0);
 
@@ -4238,26 +4175,31 @@ namespace Quickstarts.ReferenceServer
             variable.StatusCode = StatusCodes.Good;
             // The latest UNECE version (Rev 11, published in 2015) is available here:
             // http://www.opcfoundation.org/UA/EngineeringUnits/UNECE/rec20_latest_08052015.zip
-            variable.EngineeringUnits.Value = new EUInformation(
-                "mV",
-                "millivolt",
-                "http://www.opcfoundation.org/UA/units/un/cefact")
+            if (variable.EngineeringUnits != null)
             {
-                // The mapping of the UNECE codes to OPC UA(EUInformation.unitId) is available here:
-                // http://www.opcfoundation.org/UA/EngineeringUnits/UNECE/UNECE_to_OPCUA.csv
-                UnitId = 12890 // "2Z"
-            };
+                variable.EngineeringUnits.Value = new EUInformation(
+                    "mV",
+                    "millivolt",
+                    "http://www.opcfoundation.org/UA/units/un/cefact")
+                {
+                    // The mapping of the UNECE codes to OPC UA(EUInformation.unitId) is available here:
+                    // http://www.opcfoundation.org/UA/EngineeringUnits/UNECE/UNECE_to_OPCUA.csv
+                    UnitId = 12890 // "2Z"
+                };
+                variable.EngineeringUnits.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.EngineeringUnits.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            }
+
             variable.OnWriteValue = OnWriteAnalog;
             variable.EURange.OnWriteValue = OnWriteAnalogRange;
             variable.EURange.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.EURange.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.EngineeringUnits.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.EngineeringUnits.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.InstrumentRange.OnWriteValue = OnWriteAnalogRange;
-            variable.InstrumentRange.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.InstrumentRange.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-
-            parent?.AddChild(variable);
+            if (variable.InstrumentRange != null)
+            {
+                variable.InstrumentRange.OnWriteValue = OnWriteAnalogRange;
+                variable.InstrumentRange.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.InstrumentRange.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            }
 
             return variable;
         }
@@ -4272,35 +4214,29 @@ namespace Quickstarts.ReferenceServer
             string trueState,
             string falseState)
         {
-            var variable = new TwoStateDiscreteState(parent)
+            TwoStateDiscreteState variable = FindPredefinedNode<TwoStateDiscreteState>(
+                new NodeId(path, NamespaceIndex));
+            if (variable == null)
             {
-                BrowseName = new QualifiedName(path, NamespaceIndex),
-                DisplayName = new LocalizedText("en", name),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None
-            };
+                return null!;
+            }
 
-            variable.Create(SystemContext, default, variable.BrowseName, default, true);
-
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.DataType = DataTypeIds.Boolean;
-            variable.ValueRank = ValueRanks.Scalar;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
             variable.Value = (bool)GetNewValue(variable);
             variable.StatusCode = StatusCodes.Good;
 
-            variable.TrueState!.Value = LocalizedText.From(trueState);
-            variable.TrueState.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.TrueState.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            if (variable.TrueState != null)
+            {
+                variable.TrueState.Value = LocalizedText.From(trueState);
+                variable.TrueState.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.TrueState.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            }
 
-            variable.FalseState!.Value = LocalizedText.From(falseState);
-            variable.FalseState.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.FalseState.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-
-            parent?.AddChild(variable);
+            if (variable.FalseState != null)
+            {
+                variable.FalseState.Value = LocalizedText.From(falseState);
+                variable.FalseState.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.FalseState.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            }
 
             return variable;
         }
@@ -4314,23 +4250,13 @@ namespace Quickstarts.ReferenceServer
             string name,
             params string[] values)
         {
-            var variable = new MultiStateDiscreteState(parent)
+            MultiStateDiscreteState variable = FindPredefinedNode<MultiStateDiscreteState>(
+                new NodeId(path, NamespaceIndex));
+            if (variable == null)
             {
-                BrowseName = new QualifiedName(path, NamespaceIndex),
-                DisplayName = new LocalizedText("en", name),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None
-            };
+                return null!;
+            }
 
-            variable.Create(SystemContext, default, variable.BrowseName, default, true);
-
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.DataType = DataTypeIds.UInt32;
-            variable.ValueRank = ValueRanks.Scalar;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
             variable.Value = (uint)0;
             variable.StatusCode = StatusCodes.Good;
             variable.OnWriteValue = OnWriteDiscrete;
@@ -4342,11 +4268,12 @@ namespace Quickstarts.ReferenceServer
                 strings[ii] = LocalizedText.From(values[ii]);
             }
 
-            variable.EnumStrings!.Value = strings;
-            variable.EnumStrings.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.EnumStrings.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-
-            parent?.AddChild(variable);
+            if (variable.EnumStrings != null)
+            {
+                variable.EnumStrings.Value = strings;
+                variable.EnumStrings.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.EnumStrings.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            }
 
             return variable;
         }
@@ -4373,23 +4300,13 @@ namespace Quickstarts.ReferenceServer
             NodeId nodeId,
             ArrayOf<string> enumNames)
         {
-            var variable = new MultiStateValueDiscreteState(parent)
+            MultiStateValueDiscreteState variable = FindPredefinedNode<MultiStateValueDiscreteState>(
+                new NodeId(path, NamespaceIndex));
+            if (variable == null)
             {
-                BrowseName = new QualifiedName(path, NamespaceIndex),
-                DisplayName = new LocalizedText("en", name),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None
-            };
+                return null!;
+            }
 
-            variable.Create(SystemContext, default, variable.BrowseName, default, true);
-
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.DataType = nodeId.IsNull ? DataTypeIds.UInt32 : nodeId;
-            variable.ValueRank = ValueRanks.Scalar;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
             variable.Value = (uint)0;
             variable.StatusCode = StatusCodes.Good;
             variable.OnWriteValue = OnWriteValueDiscrete;
@@ -4416,12 +4333,19 @@ namespace Quickstarts.ReferenceServer
                     DisplayName = strings[ii]
                 };
             }
-            variable.EnumValues!.Value = values;
-            variable.EnumValues.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.EnumValues.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.ValueAsText!.Value = variable.EnumValues.Value[0].DisplayName;
 
-            parent?.AddChild(variable);
+            if (variable.EnumValues != null)
+            {
+                variable.EnumValues.Value = values;
+                variable.EnumValues.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.EnumValues.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+                if (variable.ValueAsText != null)
+                {
+                    variable.ValueAsText.Value = variable.EnumValues.Value[0].DisplayName;
+                }
+            }
+
             return variable;
         }
 
@@ -4434,41 +4358,34 @@ namespace Quickstarts.ReferenceServer
             string path,
             string name)
         {
-            SelectionListState variable = SystemContext.CreateInstanceOfSelectionListType(
-                parent,
-                new QualifiedName(path, NamespaceIndex));
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.NodeId = new NodeId(path, NamespaceIndex);
-            variable.BrowseName = new QualifiedName(path, NamespaceIndex);
-            variable.DisplayName = new LocalizedText("en-US", name);
-            variable.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
-            variable.UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
-            variable.DataType = DataTypeIds.String;
-            variable.ValueRank = ValueRanks.Scalar;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
+            SelectionListState variable = FindPredefinedNode<SelectionListState>(
+                new NodeId(path, NamespaceIndex));
+            if (variable == null)
+            {
+                return null!;
+            }
+
             variable.Value = Variant.From("Red");
             variable.StatusCode = StatusCodes.Good;
             variable.Description = LocalizedText.From("Default Description");
             variable.OnWriteValue = OnWriteSelectionList;
 
-            if (variable.Selections != null)
+            if (variable.FindChild(
+                SystemContext,
+                new QualifiedName(Opc.Ua.BrowseNames.Selections)) is BaseInstanceState existingSelections)
             {
-                PropertyState<ArrayOf<Variant>> generatedSelections = variable.Selections;
-                variable.RemoveChild(generatedSelections);
-                // Nulling the generated Variant-typed property allows FindChild to
-                // resolve the String[] Selections property added below for this
-                // instance.
-                variable.Selections = null!;
+                variable.RemoveChild(existingSelections);
             }
+            // Nulling the generated Variant-typed property allows FindChild to
+            // resolve the String[] Selections property added below for this
+            // instance.
+            variable.Selections = null!;
 
             var selections = PropertyState<ArrayOf<string>>
                 .With<VariantBuilder>(variable);
             selections.NodeId = new NodeId(path + "_Selections", NamespaceIndex);
-            selections.BrowseName = new QualifiedName(BrowseNames.Selections);
-            selections.DisplayName = LocalizedText.From(BrowseNames.Selections);
+            selections.BrowseName = new QualifiedName(Opc.Ua.BrowseNames.Selections);
+            selections.DisplayName = LocalizedText.From(Opc.Ua.BrowseNames.Selections);
             selections.TypeDefinitionId = VariableTypeIds.PropertyType;
             selections.ReferenceTypeId = ReferenceTypeIds.HasProperty;
             selections.DataType = DataTypeIds.String;
@@ -4483,12 +4400,16 @@ namespace Quickstarts.ReferenceServer
             ];
             variable.AddChild(selections);
 
-            if (variable.SelectionDescriptions == null)
+            if (variable.FindChild(
+                SystemContext,
+                new QualifiedName(Opc.Ua.BrowseNames.SelectionDescriptions)) is BaseInstanceState existingDescriptions)
             {
-                variable.AddSelectionDescriptions(
-                    SystemContext,
-                    new NodeId(path + "_SelectionDescriptions", NamespaceIndex));
+                variable.RemoveChild(existingDescriptions);
             }
+            variable.SelectionDescriptions = null!;
+            variable.AddSelectionDescriptions(
+                SystemContext,
+                new NodeId(path + "_SelectionDescriptions", NamespaceIndex));
 
             PropertyState<ArrayOf<LocalizedText>> selectionDescriptions =
                 variable.SelectionDescriptions ??
@@ -4500,9 +4421,9 @@ namespace Quickstarts.ReferenceServer
                 path + "_SelectionDescriptions",
                 NamespaceIndex);
             selectionDescriptions.BrowseName = new QualifiedName(
-                BrowseNames.SelectionDescriptions);
+                Opc.Ua.BrowseNames.SelectionDescriptions);
             selectionDescriptions.DisplayName = LocalizedText.From(
-                BrowseNames.SelectionDescriptions);
+                Opc.Ua.BrowseNames.SelectionDescriptions);
             selectionDescriptions.TypeDefinitionId = VariableTypeIds.PropertyType;
             selectionDescriptions.ReferenceTypeId = ReferenceTypeIds.HasProperty;
             selectionDescriptions.DataType = DataTypeIds.LocalizedText;
@@ -4516,12 +4437,16 @@ namespace Quickstarts.ReferenceServer
                 new LocalizedText("en-US", "The color blue")
             ];
 
-            if (variable.RestrictToList == null)
+            if (variable.FindChild(
+                SystemContext,
+                new QualifiedName(Opc.Ua.BrowseNames.RestrictToList)) is BaseInstanceState existingRestrictToList)
             {
-                variable.AddRestrictToList(
-                    SystemContext,
-                    new NodeId(path + "_RestrictToList", NamespaceIndex));
+                variable.RemoveChild(existingRestrictToList);
             }
+            variable.RestrictToList = null!;
+            variable.AddRestrictToList(
+                SystemContext,
+                new NodeId(path + "_RestrictToList", NamespaceIndex));
 
             PropertyState<bool> restrictToList = variable.RestrictToList ??
                 throw new InvalidOperationException(
@@ -4529,8 +4454,8 @@ namespace Quickstarts.ReferenceServer
                     "Expected AddRestrictToList to populate variable.RestrictToList " +
                     "with a non-null PropertyState<bool>.");
             restrictToList.NodeId = new NodeId(path + "_RestrictToList", NamespaceIndex);
-            restrictToList.BrowseName = new QualifiedName(BrowseNames.RestrictToList);
-            restrictToList.DisplayName = LocalizedText.From(BrowseNames.RestrictToList);
+            restrictToList.BrowseName = new QualifiedName(Opc.Ua.BrowseNames.RestrictToList);
+            restrictToList.DisplayName = LocalizedText.From(Opc.Ua.BrowseNames.RestrictToList);
             restrictToList.TypeDefinitionId = VariableTypeIds.PropertyType;
             restrictToList.ReferenceTypeId = ReferenceTypeIds.HasProperty;
             restrictToList.DataType = DataTypeIds.Boolean;
@@ -4538,8 +4463,6 @@ namespace Quickstarts.ReferenceServer
             restrictToList.AccessLevel = AccessLevels.CurrentRead;
             restrictToList.UserAccessLevel = AccessLevels.CurrentRead;
             restrictToList.Value = true;
-
-            parent?.AddChild(variable);
 
             return variable;
         }
@@ -4565,7 +4488,7 @@ namespace Quickstarts.ReferenceServer
 
             if (node.FindChild(
                 context,
-                new QualifiedName(BrowseNames.Selections)) is not
+                new QualifiedName(Opc.Ua.BrowseNames.Selections)) is not
                 PropertyState<ArrayOf<string>> selections ||
                 selections.Value.IsNull)
             {
@@ -4595,7 +4518,19 @@ namespace Quickstarts.ReferenceServer
                 name,
                 DataTypeIds.Double,
                 ValueRanks.Scalar);
+            if (variable == null)
+            {
+                return null!;
+            }
+
             variable.Value = 42.0;
+
+            if (variable.FindChild(
+                SystemContext,
+                new QualifiedName("CurrencyUnit", 0)) is BaseInstanceState existingCurrencyUnit)
+            {
+                variable.RemoveChild(existingCurrencyUnit);
+            }
 
             var currencyUnit =
                 new PropertyState<CurrencyUnitType>.Implementation<StructureBuilder<CurrencyUnitType>>(variable)
@@ -4692,7 +4627,7 @@ namespace Quickstarts.ReferenceServer
 
             if (!node.SetChildValue(
                 context,
-                BrowseNames.ValueAsText,
+                Opc.Ua.BrowseNames.ValueAsText,
                 variable.EnumValues.Value[number].DisplayName,
                 true
             ))
@@ -5171,37 +5106,34 @@ namespace Quickstarts.ReferenceServer
             NodeId dataType,
             int valueRank)
         {
-            var variable = new BaseDataVariableState(parent)
+            BaseDataVariableState variable = FindPredefinedNode<BaseDataVariableState>(
+                new NodeId(path, NamespaceIndex));
+            if (variable == null)
             {
-                SymbolicName = name,
-                ReferenceTypeId = ReferenceTypeIds.Organizes,
-                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
-                NodeId = new NodeId(path, NamespaceIndex),
-                BrowseName = new QualifiedName(path, NamespaceIndex),
-                DisplayName = new LocalizedText("en", name),
-                WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description,
-                UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description,
-                DataType = dataType,
-                ValueRank = valueRank,
-                AccessLevel = AccessLevels.CurrentReadOrWrite,
-                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
-                Historizing = false
-            };
+                return null!;
+            }
 
             variable.Value = GetNewValue(variable);
             variable.StatusCode = StatusCodes.Good;
             variable.Description = LocalizedText.From("Default Description");
+            return variable;
+        }
 
-            if (valueRank == ValueRanks.OneDimension)
+        /// <summary>
+        /// Finds a variable that was materialized from the model under a
+        /// non-string NodeId (numeric, GUID or opaque) and re-seeds its value.
+        /// </summary>
+        private BaseDataVariableState CreateVariableById(NodeId nodeId)
+        {
+            BaseDataVariableState variable = FindPredefinedNode<BaseDataVariableState>(nodeId);
+            if (variable == null)
             {
-                variable.ArrayDimensions = [0];
-            }
-            else if (valueRank >= ValueRanks.TwoDimensions)
-            {
-                variable.ArrayDimensions = CreateFixedArrayDimensions(valueRank).ToArrayOf();
+                return null!;
             }
 
-            parent?.AddChild(variable);
+            variable.Value = GetNewValue(variable);
+            variable.StatusCode = StatusCodes.Good;
+            variable.Description = LocalizedText.From("Default Description");
             return variable;
         }
 
@@ -5350,13 +5282,13 @@ namespace Quickstarts.ReferenceServer
             type.ContainsNoLoops = true;
 
             if (!externalReferences.TryGetValue(
-                ObjectIds.ViewsFolder,
+                Opc.Ua.ObjectIds.ViewsFolder,
                 out IList<IReference>? references))
             {
-                externalReferences[ObjectIds.ViewsFolder] = references = [];
+                externalReferences[Opc.Ua.ObjectIds.ViewsFolder] = references = [];
             }
 
-            type.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ViewsFolder);
+            type.AddReference(ReferenceTypeIds.Organizes, true, Opc.Ua.ObjectIds.ViewsFolder);
             references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, type.NodeId));
 
             if (parent != null)
@@ -5374,21 +5306,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private MethodState CreateMethod(FolderState parent, string path, string name)
         {
-            var method = new MethodState(parent)
-            {
-                SymbolicName = name,
-                ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                NodeId = new NodeId(path, NamespaceIndex),
-                BrowseName = new QualifiedName(path, NamespaceIndex),
-                DisplayName = new LocalizedText("en", name),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None,
-                Executable = true,
-                UserExecutable = true
-            };
-
-            parent?.AddChild(method);
-            return method;
+            return FindPredefinedNode<MethodState>(new NodeId(path, NamespaceIndex));
         }
 
         private ServiceResult OnVoidCall(

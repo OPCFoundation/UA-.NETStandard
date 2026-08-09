@@ -928,10 +928,16 @@ namespace Opc.Ua.Schema.Model
                         return "global::Opc.Ua.ValueRanks.OneOrMoreDimensions";
                     }
 
-                    // TODO: "is ,,, not considered 3 dim?
-
+                    // The number of entries in ArrayDimensions is the number of
+                    // dimensions, which equals the ValueRank for a fixed-size
+                    // multi-dimensional array (e.g. "3,3" is a two-dimensional
+                    // array with ValueRank 2).
                     string[] dimensions = arrayDimensions.Split([','], StringSplitOptions.RemoveEmptyEntries);
-                    int dims = dimensions.Length + 1;
+                    int dims = dimensions.Length;
+                    if (dims == 0)
+                    {
+                        return "global::Opc.Ua.ValueRanks.OneOrMoreDimensions";
+                    }
                     if (dims == 1)
                     {
                         return "global::Opc.Ua.ValueRanks.OneDimension";
@@ -1771,6 +1777,15 @@ namespace Opc.Ua.Schema.Model
             this DataTypeDesign dataType,
             ValueRank valueRank)
         {
+            // DiagnosticInfo is not a valid Variant value (OPC UA Part 6) and
+            // therefore has no IVariantBuilder<DiagnosticInfo>. A typed
+            // State<DiagnosticInfo> (scalar or ArrayOf/MatrixOf) cannot be
+            // emitted, so fall back to the non-generic, Variant-backed state.
+            // Mirrors the DiagnosticInfo exclusion in SupportsMatrixOf.
+            if (dataType.BasicDataType == BasicDataType.DiagnosticInfo)
+            {
+                return false;
+            }
             if (dataType.BasicDataType
                 is not BasicDataType.BaseDataType
                 and not BasicDataType.Number
