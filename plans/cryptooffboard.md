@@ -8,11 +8,21 @@
 The design, the surface inventory and the phase plan that produced this feature have been removed:
 they described work that is now in the codebase, and `docs/CryptoProvider.md` documents the result.
 What remains below is the work that was deliberately **not** done, with the reason it was not done and
-what would have to be true to change that.
+what would have to be true to change that. Each section is tracked by its own issue.
+
+| Section | Issue |
+|---|---|
+| 1. Registrable security policies | [#4206](https://github.com/OPCFoundation/UA-.NETStandard/issues/4206) |
+| 2. Symmetric, key-derivation and RNG provider seams | [#4207](https://github.com/OPCFoundation/UA-.NETStandard/issues/4207) |
+| 3. Offboard providers block a thread | [#4208](https://github.com/OPCFoundation/UA-.NETStandard/issues/4208) |
+| 4. Platform and protocol gaps | [#4209](https://github.com/OPCFoundation/UA-.NETStandard/issues/4209) (HTTPS), [#4210](https://github.com/OPCFoundation/UA-.NETStandard/issues/4210) (PubSub), [#4211](https://github.com/OPCFoundation/UA-.NETStandard/issues/4211) (Part 7 facet) |
+| 5. FIPS posture that is still open | [#4212](https://github.com/OPCFoundation/UA-.NETStandard/issues/4212) |
 
 ---
 
 ## 1. Registrable security policies
+
+Tracked by [#4206](https://github.com/OPCFoundation/UA-.NETStandard/issues/4206).
 
 A provider can add a *key custody* mechanism today, but it cannot contribute a *security policy*. The
 policy set is fixed at compile time. This is a wide refactor of the security constants and needs its own
@@ -40,6 +50,8 @@ capability probe is far less work than opening the policy set, and may serve the
 
 ## 2. Symmetric, key-derivation and RNG provider seams
 
+Tracked by [#4207](https://github.com/OPCFoundation/UA-.NETStandard/issues/4207).
+
 `ISymmetricCryptoProvider`, `IKeyDerivationProvider` and `IRandomSource` were considered and
 **deliberately not added**. The measurement is the reason, not a guess: an isolated 8 KB round trip on
 `net10.0`/Basic256Sha256 costs roughly 9.8 µs and 2.2 KB, nearly all of it inside AES and HMAC
@@ -58,6 +70,8 @@ null-check fast path, with the benchmark as the gate.
 
 ## 3. Offboard providers block a thread
 
+Tracked by [#4208](https://github.com/OPCFoundation/UA-.NETStandard/issues/4208).
+
 `RSA` and `ECDsa` are synchronous contracts, so a network-backed provider — a cloud KMS, a remote
 signing service — blocks a thread for the duration of the call. This was accepted knowingly: the
 operations are all on the cold path (channel open, session activation, certificate issuance), where a
@@ -70,15 +84,17 @@ which is a much larger change than the provider model and was excluded from it.
 
 ## 4. Platform and protocol gaps
 
-| Gap | Why |
-|---|---|
-| HTTPS with a device-held key does not work on Windows or macOS | SChannel and the macOS Security framework require keys registered with a platform key storage provider. It works on Linux, where the TLS layer dispatches through the managed key. UA-TCP is unaffected everywhere. |
-| PubSub security policies take raw key bytes | `IPubSubSecurityPolicy` has no handle-based variant, so a PubSub key cannot stay in a device. Needs its own design. |
-| No Part 7 conformance facet for hardware key custody | Cannot be solved in this repository; it needs raising with the OPC Foundation. |
+| Gap | Tracked by | Why |
+|---|---|---|
+| HTTPS with a device-held key does not work on Windows or macOS | [#4209](https://github.com/OPCFoundation/UA-.NETStandard/issues/4209) | SChannel and the macOS Security framework require keys registered with a platform key storage provider. It works on Linux, where the TLS layer dispatches through the managed key. UA-TCP is unaffected everywhere. |
+| PubSub security policies take raw key bytes | [#4210](https://github.com/OPCFoundation/UA-.NETStandard/issues/4210) | `IPubSubSecurityPolicy` has no handle-based variant, so a PubSub key cannot stay in a device. Needs its own design. |
+| No Part 7 conformance facet for hardware key custody | [#4211](https://github.com/OPCFoundation/UA-.NETStandard/issues/4211) | Cannot be solved in this repository; it needs raising with the OPC Foundation. |
 
 ---
 
 ## 5. FIPS posture that is still open
+
+Tracked by [#4212](https://github.com/OPCFoundation/UA-.NETStandard/issues/4212).
 
 The compliance filter ships with `CryptoCompliancePolicy.Permissive` as the default, so nothing changes
 on upgrade. Two questions were left for maintainers rather than decided here:
@@ -125,3 +141,12 @@ fixture is `[Parallelizable]`, and 27 tests blocked a thread-pool thread on
 own. They now await instead, and the fixture runs in about a quarter of a second. `MonitoredNode2`'s
 synchronous `OnReportEvent` and `OnMonitoredNodeChanged` turned out to have no production callers at
 all, so they are marked `[Obsolete]` rather than removed.
+
+---
+
+## 7. Seen once, not explained
+
+A `Core.Encoders` CI job produced no test output for 57 minutes and hit the 60-minute timeout, then
+passed on re-run. Tracked by [#4213](https://github.com/OPCFoundation/UA-.NETStandard/issues/4213) with
+the evidence, including what was ruled out: it is not a static-initialiser deadlock from this work.
+Nothing here is a fix, because without a reproduction there is nothing honest to fix.
