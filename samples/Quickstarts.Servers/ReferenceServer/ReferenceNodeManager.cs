@@ -227,35 +227,11 @@ namespace Quickstarts.ReferenceServer
                         = "A library of Read/Write Variables of all supported data-types.";
 
                     const string scalarStatic = "Scalar_Static_";
-                    CreateVariable(scalarStatic + "Boolean");
-                    CreateVariable(scalarStatic + "Byte");
-                    CreateVariable(scalarStatic + "ByteString");
-                    CreateVariable(scalarStatic + "DateTime");
-                    CreateVariable(scalarStatic + "Double");
-                    CreateVariable(scalarStatic + "Duration");
                     BaseDataVariableState floatVal = CreateVariable(scalarStatic + "Float")
                             .MinimumSamplingInterval(100);
                     floatVal.Value = (float)5;
 
-                    CreateVariable(scalarStatic + "Guid");
-                    CreateVariable(scalarStatic + "Int16");
-                    CreateVariable(scalarStatic + "Int32");
 
-                    CreateVariable(scalarStatic + "Int64");
-                    CreateVariable(scalarStatic + "Integer");
-                    CreateVariable(scalarStatic + "LocaleId");
-                    CreateVariable(scalarStatic + "LocalizedText");
-                    CreateVariable(scalarStatic + "NodeId");
-                    CreateVariable(scalarStatic + "Number");
-                    CreateVariable(scalarStatic + "QualifiedName");
-                    CreateVariable(scalarStatic + "SByte");
-                    CreateVariable(scalarStatic + "String");
-                    CreateVariable(scalarStatic + "UInt16");
-                    CreateVariable(scalarStatic + "UInt32");
-                    CreateVariable(scalarStatic + "UInt64");
-                    CreateVariable(scalarStatic + "UInteger");
-                    CreateVariable(scalarStatic + "UtcTime");
-                    CreateVariable(scalarStatic + "Variant");
                     CreateVariable(scalarStatic + "XmlElement")
                             .MinimumSamplingInterval(100);
 
@@ -275,11 +251,6 @@ namespace Quickstarts.ReferenceServer
                     enumerationVariable.Value = new Variant((int)NodeClass.Object);
 
                     // Image type variables (ByteString subtypes)
-                    CreateVariable(scalarStatic + "Image");
-                    CreateVariable(scalarStatic + "ImageBMP");
-                    CreateVariable(scalarStatic + "ImageGIF");
-                    CreateVariable(scalarStatic + "ImageJPG");
-                    CreateVariable(scalarStatic + "ImagePNG");
 
                     // A node that advertises the NonatomicRead and NonatomicWrite
                     // extension flags in its AccessLevelEx attribute so clients (and
@@ -296,15 +267,10 @@ namespace Quickstarts.ReferenceServer
                     // timestamps (registered with ServerTimestampSupported = false in
                     // EnableHistoryArchivingAsync). Backs the CTT
                     // "HA Profile > NodeDoesNotSupportServerTimestamp" slot.
-                    CreateVariable(NodeDoesNotSupportServerTimestampNodeName);
 
                     ResetRandomGenerator(2);
                     const string staticArrays = "Scalar_Static_Arrays_";
 
-                    CreateVariable(staticArrays + "Boolean");
-                    CreateVariable(staticArrays + "Byte");
-                    CreateVariable(staticArrays + "ByteString");
-                    CreateVariable(staticArrays + "DateTime");
 
                     BaseDataVariableState doubleArrayVar = CreateVariable(staticArrays + "Double");
                     // Set the first elements of the array to a smaller value.
@@ -315,7 +281,6 @@ namespace Quickstarts.ReferenceServer
                     doubleArrayVal[3] %= 10E+10;
                     doubleArrayVar.Value = Variant.From(doubleArrayVal.ToArrayOf());
 
-                    CreateVariable(staticArrays + "Duration");
 
                     BaseDataVariableState floatArrayVar = CreateVariable(staticArrays + "Float");
                     // Set the first elements of the array to a smaller value.
@@ -326,17 +291,6 @@ namespace Quickstarts.ReferenceServer
                     floatArrayVal[3] %= 0xf10E + 4;
                     floatArrayVar.Value = Variant.From(floatArrayVal.ToArrayOf());
 
-                    CreateVariable(staticArrays + "Guid");
-                    CreateVariable(staticArrays + "Int16");
-                    CreateVariable(staticArrays + "Int32");
-                    CreateVariable(staticArrays + "Int64");
-                    CreateVariable(staticArrays + "Integer");
-                    CreateVariable(staticArrays + "LocaleId");
-                    CreateVariable(staticArrays + "LocalizedText");
-                    CreateVariable(staticArrays + "NodeId");
-                    CreateVariable(staticArrays + "Number");
-                    CreateVariable(staticArrays + "QualifiedName");
-                    CreateVariable(staticArrays + "SByte");
 
                     BaseDataVariableState stringArrayVar = CreateVariable(staticArrays + "String");
                     stringArrayVar.Value = Variant.From(
@@ -353,177 +307,25 @@ namespace Quickstarts.ReferenceServer
                         "龙_ 绵羊 大象 芒果; 猫'"
                     ]);
 
-                    CreateVariable(staticArrays + "UInt16");
-                    CreateVariable(staticArrays + "UInt32");
-                    CreateVariable(staticArrays + "UInt64");
-                    CreateVariable(staticArrays + "UInteger");
-                    CreateVariable(staticArrays + "UtcTime");
-                    CreateVariable(staticArrays + "Variant");
-                    CreateVariable(staticArrays + "XmlElement");
 
                     ResetRandomGenerator(3);
                     const string staticArrays2D = "Scalar_Static_Arrays2D_";
-                    CreateVariable(staticArrays2D + "Boolean");
-                    CreateVariable(staticArrays2D + "Byte");
-                    CreateVariable(staticArrays2D + "ByteString");
-                    CreateVariable(staticArrays2D + "DateTime");
-                    CreateVariable(staticArrays2D + "Double");
-                    CreateVariable(staticArrays2D + "Duration");
-                    CreateVariable(staticArrays2D + "Float");
-                    CreateVariable(staticArrays2D + "Guid");
-                    CreateVariable(staticArrays2D + "Int16");
-                    CreateVariable(staticArrays2D + "Int32");
-                    CreateVariable(staticArrays2D + "Int64");
-                    CreateVariable(staticArrays2D + "Integer");
-                    CreateVariable(staticArrays2D + "LocaleId");
                     CreateVariable(staticArrays2D + "LocalizedText")
                             .MinimumSamplingInterval(1000);
-                    CreateVariable(staticArrays2D + "NodeId");
-                    CreateVariable(staticArrays2D + "Number");
-                    CreateVariable(staticArrays2D + "QualifiedName");
-                    CreateVariable(staticArrays2D + "SByte");
-                    CreateVariable(staticArrays2D + "String");
-                    CreateVariable(staticArrays2D + "UInt16");
-                    CreateVariable(staticArrays2D + "UInt32");
-                    CreateVariable(staticArrays2D + "UInt64");
-                    CreateVariable(staticArrays2D + "UInteger");
-                    CreateVariable(staticArrays2D + "UtcTime");
-                    CreateVariable(staticArrays2D + "Variant");
                     CreateVariable(staticArrays2D + "XmlElement")
                             .MinimumSamplingInterval(1000);
 
                     ResetRandomGenerator(4);
                     const string staticArraysDynamic = "Scalar_Static_ArrayDynamic_";
-                    CreateVariable(staticArraysDynamic + "Boolean");
-                    CreateVariable(staticArraysDynamic + "Byte");
-                    CreateVariable(staticArraysDynamic + "ByteString");
-                    CreateVariable(staticArraysDynamic + "DateTime");
-                    CreateVariable(staticArraysDynamic + "Double");
-                    CreateVariable(staticArraysDynamic + "Duration");
-                    CreateVariable(staticArraysDynamic + "Float");
-                    CreateVariable(staticArraysDynamic + "Guid");
-                    CreateVariable(staticArraysDynamic + "Int16");
-                    CreateVariable(staticArraysDynamic + "Int32");
-                    CreateVariable(staticArraysDynamic + "Int64");
-                    CreateVariable(staticArraysDynamic + "Integer");
-                    CreateVariable(staticArraysDynamic + "LocaleId");
                     CreateVariable(staticArraysDynamic + "LocalizedText")
                             .MinimumSamplingInterval(1000);
-                    CreateVariable(staticArraysDynamic + "NodeId");
-                    CreateVariable(staticArraysDynamic + "Number");
                     CreateVariable(staticArraysDynamic + "QualifiedName")
                             .MinimumSamplingInterval(1000);
-                    CreateVariable(staticArraysDynamic + "SByte");
-                    CreateVariable(staticArraysDynamic + "String");
-                    CreateVariable(staticArraysDynamic + "UInt16");
-                    CreateVariable(staticArraysDynamic + "UInt32");
-                    CreateVariable(staticArraysDynamic + "UInt64");
-                    CreateVariable(staticArraysDynamic + "UInteger");
-                    CreateVariable(staticArraysDynamic + "UtcTime");
-                    CreateVariable(staticArraysDynamic + "Variant");
                     CreateVariable(staticArraysDynamic + "XmlElement")
                             .MinimumSamplingInterval(1000);
 
                     ResetRandomGenerator(5);
-                    // create 100 instances of each static scalar type
                     FolderState massFolder = CreateFolder("Scalar_Static_Mass");
-                    const string staticMass = "Scalar_Static_Mass_";
-                    CreateVariables(
-                        staticMass + "Boolean",
-                        "Boolean",
-                        100);
-                    CreateVariables(
-                        staticMass + "Byte",
-                        "Byte",
-                        100);
-                    CreateVariables(
-                        staticMass + "ByteString",
-                        "ByteString",
-                        100);
-                    CreateVariables(
-                        staticMass + "DateTime",
-                        "DateTime",
-                        100);
-                    CreateVariables(
-                        staticMass + "Double",
-                        "Double",
-                        100);
-                    CreateVariables(
-                        staticMass + "Duration",
-                        "Duration",
-                        100);
-                    CreateVariables(
-                        staticMass + "Float",
-                        "Float",
-                        100);
-                    CreateVariables(
-                        staticMass + "Guid",
-                        "Guid",
-                        100);
-                    CreateVariables(
-                        staticMass + "Int16",
-                        "Int16",
-                        100);
-                    CreateVariables(
-                        staticMass + "Int32",
-                        "Int32",
-                        100);
-                    CreateVariables(
-                        staticMass + "Int64",
-                        "Int64",
-                        100);
-                    CreateVariables(
-                        staticMass + "Integer",
-                        "Integer",
-                        100);
-                    CreateVariables(
-                        staticMass + "LocalizedText",
-                        "LocalizedText",
-                        100);
-                    CreateVariables(
-                        staticMass + "NodeId",
-                        "NodeId",
-                        100);
-                    CreateVariables(
-                        staticMass + "Number",
-                        "Number",
-                        100);
-                    CreateVariables(
-                        staticMass + "SByte",
-                        "SByte",
-                        100);
-                    CreateVariables(
-                        staticMass + "String",
-                        "String",
-                        100);
-                    CreateVariables(
-                        staticMass + "UInt16",
-                        "UInt16",
-                        100);
-                    CreateVariables(
-                        staticMass + "UInt32",
-                        "UInt32",
-                        100);
-                    CreateVariables(
-                        staticMass + "UInt64",
-                        "UInt64",
-                        100);
-                    CreateVariables(
-                        staticMass + "UInteger",
-                        "UInteger",
-                        100);
-                    CreateVariables(
-                        staticMass + "UtcTime",
-                        "UtcTime",
-                        100);
-                    CreateVariables(
-                        staticMass + "Variant",
-                        "Variant",
-                        100);
-                    CreateVariables(
-                        staticMass + "XmlElement",
-                        "XmlElement",
-                        100);
 
                     ResetRandomGenerator(6);
                     FolderState simulationFolder = CreateFolder("Scalar_Simulation");
@@ -1029,35 +831,10 @@ namespace Quickstarts.ReferenceServer
                     CreateCurrencyVariable("DataAccess_Currency_Amount");
 
                     ResetRandomGenerator(14);
-                    const string referencesPrefix = "References_";
 
                     BaseDataVariableState referencesInstructions = CreateVariable("References_Instructions");
                     referencesInstructions.Value =
                         "This folder will contain nodes that have specific Reference configurations.";
-
-                    // create variable nodes with specific references
-                    CreateMeshVariable(referencesPrefix + "HasForwardReference");
-
-                    CreateMeshVariable(referencesPrefix + "HasInverseReference");
-
-                    for (int i = 1; i <= 5; i++)
-                    {
-                        string referenceString = "Has3ForwardReferences";
-                        if (i > 1)
-                        {
-                            referenceString += i.ToString(CultureInfo.InvariantCulture);
-                        }
-                        CreateMeshVariable(referencesPrefix + referenceString);
-                    }
-
-                    CreateMeshVariable(referencesPrefix + "Has3InverseReferences");
-
-                    CreateMeshVariable(referencesPrefix + "HasForwardAndInverseReference");
-
-                    // Node with both a ReferenceType and a SubType of that ReferenceType
-                    // (HasComponent forward + HasOrderedComponent forward, where HasOrderedComponent
-                    // is a subtype of HasComponent — satisfies CTT "HasReferencesOfReferenceTypeAndSubType")
-                    CreateMeshVariable(referencesPrefix + "HasReferenceTypeAndSubType");
 
                     ResetRandomGenerator(15);
                     const string accessRights = "AccessRights_";
@@ -1240,18 +1017,9 @@ namespace Quickstarts.ReferenceServer
                     nodeIdsInstructions.Value =
                         "All supported Node types are available except whichever is in use for the other nodes.";
 
-                    CreateVariableById(
-                        new NodeId(9202, NamespaceIndex));
 
-                    CreateVariable(nodeIds + "Int16String");
 
-                    CreateVariableById(
-                        new NodeId(
-                            new Guid("00000000-0000-0000-0000-000000009204"),
-                            NamespaceIndex));
 
-                    CreateVariableById(
-                        new NodeId(ByteString.From([9, 2, 0, 5]), NamespaceIndex));
 
                     const string nodeIdsEvents = "NodeIds_Events_";
 
@@ -1872,7 +1640,6 @@ namespace Quickstarts.ReferenceServer
 
                     const string attributesAccessUser1 = "Attributes_AccessUser1_";
 
-                    CreateVariable(attributesAccessUser1 + "AccessLevel");
                     accessLevelAccessAll.WriteMask = AttributeWriteMask.AccessLevel;
                     accessLevelAccessAll.UserWriteMask = AttributeWriteMask.AccessLevel;
 
@@ -2010,16 +1777,6 @@ namespace Quickstarts.ReferenceServer
                     BaseDataVariableState myCompanyInstructions = CreateVariable(myCompany + "Instructions");
                     myCompanyInstructions.Value
                         = "A place for the vendor to describe their address-space.";
-
-                    // Second set of historized scalar variables used as the
-                    // paired "Two" nodes for the CTT Historical Access Aggregate
-                    // conformance units (the "One" nodes reuse the Static scalars).
-                    const string aggregates = "Aggregates_";
-                    CreateVariable(aggregates + "Boolean");
-                    CreateVariable(aggregates + "Int32");
-                    CreateVariable(aggregates + "Float");
-                    CreateVariable(aggregates + "Double");
-                    CreateVariable(aggregates + "String");
                 }
                 catch (Exception e)
                 {
@@ -2114,14 +1871,6 @@ namespace Quickstarts.ReferenceServer
         private FolderState CreateFolder(string path)
         {
             return FindPredefinedNode<FolderState>(new NodeId(path, NamespaceIndex));
-        }
-
-        /// <summary>
-        /// Creates a new variable.
-        /// </summary>
-        private BaseDataVariableState CreateMeshVariable(string path)
-        {
-            return CreateVariable(path);
         }
 
         /// <summary>
@@ -3128,7 +2877,7 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Finds a variable materialized from the model and re-seeds its value.
+        /// Finds a variable materialized from the model.
         /// </summary>
         private BaseDataVariableState CreateVariable(string path)
         {
@@ -3139,55 +2888,11 @@ namespace Quickstarts.ReferenceServer
                 return null!;
             }
 
-            variable.Value = GetNewValue(variable);
-            variable.StatusCode = StatusCodes.Good;
-            variable.Description = LocalizedText.From("Default Description");
             return variable;
         }
 
         /// <summary>
-        /// Finds a variable that was materialized from the model under a
-        /// non-string NodeId (numeric, GUID or opaque) and re-seeds its value.
-        /// </summary>
-        private BaseDataVariableState CreateVariableById(NodeId nodeId)
-        {
-            BaseDataVariableState variable = FindPredefinedNode<BaseDataVariableState>(nodeId);
-            if (variable == null)
-            {
-                return null!;
-            }
-
-            variable.Value = GetNewValue(variable);
-            variable.StatusCode = StatusCodes.Good;
-            variable.Description = LocalizedText.From("Default Description");
-            return variable;
-        }
-
-        /// <summary>
-        /// Re-seeds the values of a numbered set of variables materialized from the model.
-        /// </summary>
-        private BaseDataVariableState[] CreateVariables(string path, string name, ushort numVariables)
-        {
-            var itemsCreated = new List<BaseDataVariableState>();
-            for (uint i = 0; i < numVariables; i++)
-            {
-                string newName = string.Format(
-                    CultureInfo.InvariantCulture,
-                    "{0}_{1}",
-                    name,
-                    i.ToString("00", CultureInfo.InvariantCulture));
-                string newPath = string.Format(
-                    CultureInfo.InvariantCulture,
-                    "{0}_{1}",
-                    path,
-                    newName);
-                itemsCreated.Add(CreateVariable(newPath));
-            }
-            return [.. itemsCreated];
-        }
-
-        /// <summary>
-        /// Finds a variable materialized from the model, re-seeds it and registers
+        /// Finds a variable materialized from the model, and registers
         /// it for the value simulation.
         /// </summary>
         private BaseDataVariableState CreateDynamicVariable(string path)
