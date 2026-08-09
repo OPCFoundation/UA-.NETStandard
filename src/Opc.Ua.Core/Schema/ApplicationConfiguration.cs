@@ -1139,13 +1139,6 @@ namespace Opc.Ua
         public int MaxNotificationsPerPublish { get; set; } = 100;
 
         /// <summary>
-        /// The minimum sampling interval for metadata.
-        /// </summary>
-        /// <value>The minimum sampling interval for metadata.</value>
-        [DataTypeField(Order = 17)]
-        public int MinMetadataSamplingInterval { get; set; } = 1000;
-
-        /// <summary>
         /// The available sampling rates.
         /// </summary>
         /// <value>The available sampling rates.</value>

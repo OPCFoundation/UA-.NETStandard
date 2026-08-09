@@ -1402,7 +1402,7 @@ namespace Opc.Ua
         /// </summary>
         private ICertificateStore OpenStore(string storePath, string? storeType)
         {
-            storeType ??= CertificateStoreIdentifier.DetermineStoreType(storePath);
+            storeType ??= CertificateStoreIdentifier.DetermineStoreType(storePath, m_storeProviders);
 
             foreach (ICertificateStoreProvider provider in m_storeProviders)
             {
