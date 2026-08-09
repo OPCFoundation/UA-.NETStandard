@@ -1053,7 +1053,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(proxies, Does.Contain(
                     "ValueTask<string> LocalCollisionAsync("));
                 Assert.That(proxies, Does.Contain(
-                    "TryGetValue(out string _fooOut)"));
+                    "string _fooOut;"));
+                Assert.That(proxies, Does.Contain(
+                    "TryGetValue(out _fooOut)"));
                 Assert.That(proxies, Does.Contain("return _fooOut;"));
                 Assert.That(proxies, Does.Contain("string versionIdOut"));
                 Assert.That(proxies, Does.Contain("string classOut"));

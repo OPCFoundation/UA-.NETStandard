@@ -10,8 +10,6 @@
 
       /Plant/Pumps/P101/Impeller       xformOp:rotateZ      (MassFlow -> Rotation)
       /Plant/Pumps/P101/Body           primvars:displayColor(BearingTemperature -> DisplayColor)
-      /Plant/Pumps/P101/Body/Mat/Surface.inputs:diffuseColor
-                                                            (BearingTemperature -> DisplayColor)
       /Plant/Pumps/P101/AlarmRing.visibility                (supervision alarm -> Visibility)
       /Plant/Pumps/P101/Impeller.inputs:speedSetpoint       (opt-in command intent -> UA write)
 

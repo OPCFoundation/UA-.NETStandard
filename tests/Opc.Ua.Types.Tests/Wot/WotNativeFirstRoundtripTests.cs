@@ -169,10 +169,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"vendor\":\"urn:vendor:\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"vendor:root\":{\"b\":2,\"a\":1}," +
                 "\"properties\":{\"speed\":{" +
-                "\"@type\":\"uav:variableType\",\"uav:browseName\":\"1:Speed\"," +
+                "\"@type\":\"uav:variableType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;Speed\"," +
                 "\"type\":\"number\",\"readOnly\":true,\"observable\":true," +
                 "\"forms\":[{\"href\":\"opc.tcp://example.test:4840\"," +
                 "\"op\":[\"readproperty\"]}]," +
@@ -206,7 +206,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"extra\":\"urn:extra:\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"links\":[{\"rel\":\"tm:extends\"," +
                 "\"href\":\"nsu=urn:base;i=1001\",\"hreflang\":\"en\"}]}";
 
@@ -260,7 +260,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",{" +
                 "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"DeepType\",\"uav:browseName\":\"1:DeepType\"," +
+                "\"title\":\"DeepType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;DeepType\"," +
                 "\"vendor:deep\":" + nested + "}";
             var options = new WotNodeSetConverterOptions { MaxJsonDepth = 96 };
 
@@ -287,7 +287,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",{" +
                 "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"BoundedType\",\"uav:browseName\":\"1:BoundedType\"," +
+                "\"title\":\"BoundedType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;BoundedType\"," +
                 "\"vendor:value\":1}";
 
             UANodeSet nodeSet =
@@ -321,11 +321,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",{" +
                 "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"CollisionType\",\"uav:browseName\":\"1:CollisionType\"," +
+                "\"title\":\"CollisionType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;CollisionType\"," +
                 "\"properties\":{" +
-                "\"first\":{\"uav:browseName\":\"1:Temp\",\"type\":\"number\"," +
+                "\"first\":{\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;Temp\",\"type\":\"number\"," +
                 "\"vendor:value\":\"first\"}," +
-                "\"second\":{\"uav:browseName\":\"2:Temp\",\"type\":\"number\"," +
+                "\"second\":{\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;Temp\",\"type\":\"number\"," +
                 "\"vendor:value\":\"second\"}}}";
 
             UANodeSet nodeSet =

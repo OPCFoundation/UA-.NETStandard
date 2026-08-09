@@ -115,7 +115,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:eventType\"]," +
                 "\"title\":\"OverTemperatureEventType\"," +
-                "\"uav:browseName\":\"1:OverTemperatureEventType\"," +
+                "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;OverTemperatureEventType\"," +
                 "\"uav:isEvent\":true}";
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
@@ -134,9 +134,9 @@ namespace Opc.Ua.Types.Tests.Wot
             string json =
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"events\":{\"overTemp\":{\"@type\":\"uav:eventType\"," +
-                "\"uav:isEvent\":false,\"uav:browseName\":\"1:OverTemp\"}}}";
+                "\"uav:isEvent\":false,\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;OverTemp\"}}}";
 
             using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
@@ -258,10 +258,84 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result =
                 WotNodeSetConverter.ToNodeSetResult(document);
 
+            // Release 1.1 forbids a numeric namespace prefix, so the occurrence
+            // is an error rather than the warning v1.00 tolerated.
             Assert.That(
                 result.Diagnostics.Any(d =>
-                    d.Code == WotDiagnosticCode.NonPortableQualifiedName),
+                    d.Code == WotDiagnosticCode.NonPortableQualifiedName &&
+                    d.Severity == WotDiagnosticSeverity.Error),
                 Is.True);
+            Assert.That(result.HasErrors, Is.True);
+        }
+
+        [Test]
+        public void NumericReadableBrowseNameIsToleratedWhenLeniencyIsRequested()
+        {
+            string json =
+                "{" + Context +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"}";
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                document,
+                new WotNodeSetConverterOptions { AllowNonPortableIdentifiers = true });
+
+            // A document authored against OPC 10101 v1.00 still converts; the
+            // non-portable value is reported as a warning so it stays visible.
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.NonPortableQualifiedName &&
+                    d.Severity == WotDiagnosticSeverity.Warning),
+                Is.True);
+            Assert.That(result.HasErrors, Is.False);
+        }
+
+        [Test]
+        public void SessionLocalNodeIdIsRejected()
+        {
+            string json =
+                "{" + Context +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\"," +
+                "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
+                "\"uav:id\":\"ns=1;i=1001\"}";
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            WotConversionResult<UANodeSet> result =
+                WotNodeSetConverter.ToNodeSetResult(document);
+
+            // WoT Binding Section 5.1.1: the session-local ns=<index> form is
+            // meaningless outside the session that read the namespace table.
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.NonPortableIdentity &&
+                    d.Severity == WotDiagnosticSeverity.Error),
+                Is.True);
+            Assert.That(result.HasErrors, Is.True);
+        }
+
+        [Test]
+        public void SessionLocalNodeIdIsToleratedWhenLeniencyIsRequested()
+        {
+            string json =
+                "{" + Context +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\"," +
+                "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
+                "\"uav:id\":\"ns=1;i=1001\"}";
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                document,
+                new WotNodeSetConverterOptions { AllowNonPortableIdentifiers = true });
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.NonPortableIdentity &&
+                    d.Severity == WotDiagnosticSeverity.Warning),
+                Is.True);
+            Assert.That(result.HasErrors, Is.False);
         }
 
         [Test]
@@ -291,7 +365,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string json =
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"uav:id\":\"ns=1;i=1001\"}";
 
             using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
@@ -334,7 +408,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string json =
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"uav:hasComponent\":[\"nsu=urn:demo:pump;i=2001\"]," +
                 "\"links\":[{\"rel\":\"ua:HasOrderedComponent\"," +
                 "\"href\":\"nsu=urn:demo:pump;i=2001\",\"uav:refId\":\"i=49\"," +
@@ -357,7 +431,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string json =
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"uav:hasComponent\":[\"nsu=urn:demo:pump;i=2001\"]," +
                 "\"links\":[{\"rel\":\"ua:HasOrderedComponent\"," +
                 "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
@@ -379,7 +453,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"pump\":\"urn:demo:pump#\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"links\":[{\"rel\":\"pump:FlowsTo\"," +
                 "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
                 "\"uav:refId\":\"nsu=urn:demo:pump;i=4001\"}]}";
@@ -400,7 +474,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string json =
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"links\":[{\"rel\":\"ua:HasOrderedComponent\"," +
                 "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
                 "\"uav:refId\":\"i=47\"}]}";
@@ -424,8 +498,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"pump\":\"urn:demo:pump#\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
-                "\"properties\":{\"speed\":{\"uav:browseName\":\"1:Speed\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
+                "\"properties\":{\"speed\":{\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;Speed\"," +
                 "\"type\":\"number\",\"uav:mapToTypeName\":\"pump:Measurement\"," +
                 "\"uav:mapToType\":\"nsu=urn:demo:pump;i=3010\"}}}";
 
@@ -497,7 +571,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string json =
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"links\":[{\"rel\":\"uav:componentModel\"," +
                 "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
                 "\"uav:refId\":\"i=47\",\"uav:refName\":\"Stage\"}]}";
@@ -519,7 +593,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string json =
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"links\":[{\"rel\":\"https://schema.org/about\"," +
                 "\"href\":\"https://example.com/about\"}]}";
 
@@ -541,7 +615,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string json =
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
                 "\"uav:hasComponent\":[\"nsu=urn:demo:pump;i=2001\"]}";
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));

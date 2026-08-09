@@ -52,7 +52,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(logger.IsEventLogEnabled(), Is.True);
 
-            logger.CompatibilityServerCall("Browse", 99);
+            var sessionId = new NodeId(4711u);
+
+            logger.CompatibilityServerCall("Browse", 99, sessionId);
             logger.CompatibilitySessionState("Activated", "sid", "sname", "chan", "ident");
             logger.CompatibilityMonitoredItemReady(123, "publishing");
 
@@ -63,6 +65,9 @@ namespace Opc.Ua.Server.Tests
                 LogLevel.Information);
             Assert.That(serverCall.Properties["RequestType"], Is.EqualTo("Browse"));
             Assert.That(serverCall.Properties["RequestId"], Is.EqualTo(99u));
+            Assert.That(
+                serverCall.Properties["SessionId"]?.ToString(),
+                Is.EqualTo(sessionId.ToString()));
 
             RecordedLogRecord sessionState = AssertRecord(
                 provider,
@@ -96,7 +101,7 @@ namespace Opc.Ua.Server.Tests
 
             if (logger.IsEventLogEnabled())
             {
-                logger.CompatibilityServerCall("Browse", 99);
+                logger.CompatibilityServerCall("Browse", 99, new NodeId(4711u));
                 logger.CompatibilitySessionState("Activated", "sid", "sname", "chan", "ident");
             }
 

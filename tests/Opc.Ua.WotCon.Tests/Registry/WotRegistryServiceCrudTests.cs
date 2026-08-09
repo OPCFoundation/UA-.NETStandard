@@ -66,7 +66,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = "sensors",
                 ResourceId = "a",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td("urn:a")
+                Content = ByteString.From(TestMaterialization.Td("urn:a"))
             });
 
             WotRegistryMutationResult result = await service.DeleteGroupAsync("sensors");
@@ -128,7 +128,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = "sensors",
                 ResourceId = "a",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td("urn:a")
+                Content = ByteString.From(TestMaterialization.Td("urn:a"))
             });
 
             WoTValidationOutcomeDataType outcome = await service.ValidateResourceAsync("sensors", "a");
@@ -149,7 +149,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = "sensors",
                 ResourceId = "bad",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.InvalidJson()
+                Content = ByteString.From(TestMaterialization.InvalidJson())
             });
 
             WoTValidationOutcomeDataType outcome = await service.ValidateResourceAsync("sensors", "bad");

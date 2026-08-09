@@ -727,6 +727,14 @@ namespace Opc.Ua
                         passcode,
                         storageFlags));
                 }
+                catch (CryptographicException)
+                {
+                    // The key is not extractable, so there is no ephemeral key
+                    // handle to work around: the key lives in a TPM, an HSM, a
+                    // PKCS#11 token or a remote key service and is already stable
+                    // for the lifetime of the certificate.
+                    return certificate.AddRef();
+                }
                 finally
                 {
                     Array.Clear(passcode, 0, passcode.Length);

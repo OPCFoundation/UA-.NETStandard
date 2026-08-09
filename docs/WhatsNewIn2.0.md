@@ -192,7 +192,8 @@ server- and client-side implementations:
   providers, and validated fluent topology builders that assemble motion
   device systems, controllers, motion devices, axes, power trains, motors,
   gears, drives, safety states, and task controls with the correct
-  companion-spec references. See [Robotics](Robotics.md).
+  companion-spec references. See [Robotics](Robotics.md), including the draft
+  Robot Intent task-level command model.
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a
@@ -246,6 +247,21 @@ is bridge-compatible with legacy .NET / OPC UA implementations. The server
 ships with [client lockout](RoleBasedUserManagement.md) for failed
 authentication attempts, and `SubCA` revocation no longer auto-creates an
 empty CRL on the issuing CA.
+
+Cryptography is now pluggable. A [`CryptoProvider`](CryptoProvider.md) model
+lets an application route cryptographic operations to another library, an
+offboard service or hardware, chosen per purpose and per security policy and
+injected through `AddCryptoProvider(…)`. The default is unchanged and costs
+nothing: everything resolves to platform cryptography until something is bound.
+Private keys no longer have to be owned by the certificate — a key can be held
+detached, in a TPM, a smart card or an HSM, and never enter process memory.
+`Certificate.CopyWithDetachedPrivateKey` is the seam that makes this work on
+every platform, which `X509Certificate2.CopyWithPrivateKey` does not.
+The optional `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package adds a
+PKCS#11 certificate store addressed by RFC 7512 `pkcs11:` URIs. Which
+cryptographic module performed an operation, and whether it carries any
+validation, is auditable through logs, metrics and the address space, and can
+be constrained with a compliance policy.
 
 ## By layer
 

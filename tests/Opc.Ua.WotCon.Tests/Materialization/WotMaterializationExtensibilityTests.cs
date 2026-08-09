@@ -181,7 +181,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td("urn:" + resourceId)
+                Content = ByteString.From(TestMaterialization.Td("urn:" + resourceId))
             });
         }
 

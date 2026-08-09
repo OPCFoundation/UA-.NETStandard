@@ -37,7 +37,13 @@ namespace Opc.Ua.Server
     internal static partial class MonitoredItemQueueLog
     {
         [LoggerMessage(EventId = ServerEventIds.MonitoredItemQueue + 0, Level = LogLevel.Trace,
-            Message = "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}")]
-        public static partial void DequeueValue(this ILogger logger, Variant value, uint code, bool overflow);
+            Message = "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}," +
+                " MonitoredItemId={MonitoredItemId}")]
+        public static partial void DequeueValue(
+            this ILogger logger,
+            Variant value,
+            uint code,
+            bool overflow,
+            uint monitoredItemId);
     }
 }

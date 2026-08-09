@@ -1,0 +1,54 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "tm": "https://www.w3.org/2019/wot/tm#",
+      "pump": "http://example.com/demo/pump",
+      "qudt-quantitykind": "http://qudt.org/vocab/quantitykind/"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel"],
+  "id": "urn:example:model:pump-asset",
+  "title": "Pump asset model",
+  "description": "The same asset at type level. It projects over the pump Thing Model rather than over an instance, so it resolves to a Thing Model and materializes to a type-level view; the four groups it organizes become the organizational Objects every instance of the type carries.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "links": [
+    {
+      "rel": "ua:Organizes",
+      "href": "./16-model-group-process-data.jsonld",
+      "uav:refName": "ProcessData",
+      "type": "application/tm+json"
+    },
+    {
+      "rel": "ua:Organizes",
+      "href": "./17-model-group-condition-data.jsonld",
+      "uav:refName": "ConditionData",
+      "type": "application/tm+json"
+    },
+    {
+      "rel": "ua:Organizes",
+      "href": "./18-model-group-alarms.jsonld",
+      "uav:refName": "Alarms",
+      "type": "application/tm+json"
+    },
+    {
+      "rel": "ua:Organizes",
+      "href": "./19-model-group-management.jsonld",
+      "uav:refName": "Management",
+      "type": "application/tm+json"
+    }
+  ],
+  "properties": {
+    "serialNumber": {
+      "@type": "uav:variableType",
+      "title": "Serial Number",
+      "uav:browseName": "pump:SerialNumber",
+      "type": "string",
+      "uav:modellingRule": "Mandatory",
+      "uav:resolvedFrom": "./02-thing-model-pump.jsonld#/properties/serialNumber"
+    }
+  }
+}

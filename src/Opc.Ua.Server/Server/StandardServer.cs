@@ -1051,7 +1051,7 @@ namespace Opc.Ua.Server
                     session,
                     requestHeader.AdditionalHeader);
 
-                m_logger.ServerSESSIONACTIVATED();
+                m_logger.ServerSESSIONACTIVATED(session.Id);
 
                 // report the audit event for session activate
                 ServerInternal.ReportAuditActivateSessionEvent(
@@ -1081,11 +1081,11 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                m_logger.ServerSESSIONACTIVATEFailedErrorMessage(e.Message);
-
                 // report the audit event for failed session activate
                 ISession? session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
+
+                m_logger.ServerSESSIONACTIVATEFailedErrorMessage(session?.Id, e.Message);
                 ServerInternal.ReportAuditActivateSessionEvent(
                     m_logger,
                     context.AuditEntryId!,
@@ -2259,6 +2259,7 @@ namespace Opc.Ua.Server
             try
             {
                 m_logger.PUBLISHRequestHandleRECEIVEDTIMETimestampHhMm(
+                    context.SessionId,
                     requestHeader.RequestHandle,
                     requestHeader.Timestamp);
 
@@ -3229,7 +3230,10 @@ namespace Opc.Ua.Server
                    typeof(RequestType),
 #endif
                    context.RequestType);
-                m_eventLogger.CompatibilityServerCall(requestTypeString!, context.RequestId);
+                m_eventLogger.CompatibilityServerCall(
+                    requestTypeString!,
+                    context.RequestId,
+                    context.SessionId);
             }
 
             // Hand the validated request over to its execution scope. The context owns the scope
@@ -5419,17 +5423,21 @@ namespace Opc.Ua.Server
         public static partial void ServerSESSIONCREATEFailedErrorMessage(this ILogger logger, string? errorMessage);
 
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 3, Level = LogLevel.Information,
-            Message = "Server - SESSION ACTIVATED.")]
-        public static partial void ServerSESSIONACTIVATED(this ILogger logger);
+            Message = "Server - SESSION ACTIVATED. SessionId={SessionId}")]
+        public static partial void ServerSESSIONACTIVATED(this ILogger logger, NodeId? sessionId);
 
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 4, Level = LogLevel.Information,
-            Message = "Server - SESSION ACTIVATE failed. {ErrorMessage}")]
-        public static partial void ServerSESSIONACTIVATEFailedErrorMessage(this ILogger logger, string? errorMessage);
+            Message = "Server - SESSION ACTIVATE failed. SessionId={SessionId}, {ErrorMessage}")]
+        public static partial void ServerSESSIONACTIVATEFailedErrorMessage(
+            this ILogger logger,
+            NodeId? sessionId,
+            string? errorMessage);
 
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 5, Level = LogLevel.Trace,
-            Message = "PUBLISH #{RequestHandle} RECEIVED. TIME={Timestamp:hh:mm:ss.fff}")]
+            Message = "PUBLISH #{RequestHandle} RECEIVED. TIME={Timestamp:hh:mm:ss.fff}, SessionId={SessionId}")]
         public static partial void PUBLISHRequestHandleRECEIVEDTIMETimestampHhMm(
             this ILogger logger,
+            NodeId? sessionId,
             uint requestHandle,
             DateTimeUtc timestamp);
 
@@ -5469,11 +5477,12 @@ namespace Opc.Ua.Server
             EventId = ServerCompatibilityEventIds.ServerCall,
             EventName = "ServerCall",
             Level = LogLevel.Information,
-            Message = "Server Call={RequestType}, Id={RequestId}")]
+            Message = "Server Call={RequestType}, Id={RequestId}, SessionId={SessionId}")]
         public static partial void CompatibilityServerCall(
             this ILogger logger,
             string requestType,
-            uint requestId);
+            uint requestId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 13, Level = LogLevel.Error,
             Message = "Could not load updated configuration file from: {FilePath}")]

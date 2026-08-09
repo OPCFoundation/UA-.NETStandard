@@ -256,7 +256,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "a",
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td("urn:a")
+                Content = ByteString.From(TestMaterialization.Td("urn:a"))
             });
             WotRegistryChangedEventArgs? captured = null;
             service.Changed += (_, e) => captured = e;
@@ -287,7 +287,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         GroupId = WotRegistryGroups.ThingDescriptions,
                         ResourceId = "a",
                         Kind = WoTDocumentKindEnum.ThingDescription,
-                        Content = TestMaterialization.Td("urn:a")
+                        Content = ByteString.From(TestMaterialization.Td("urn:a"))
                     });
                     await service.AddResourceLabelAsync(
                         WotRegistryGroups.ThingDescriptions, "a", "site", "seattle");

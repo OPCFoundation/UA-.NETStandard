@@ -1,0 +1,33 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing", "uav:projection"],
+  "id": "urn:dev:opcua:asset:pump-01:process-data",
+  "title": "Process data",
+  "description": "A data set: the process signals of Pump 01. Organized by the asset, it materializes to an organizational Object that Organizes the two Variables rather than to a View of its own.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": "nosec_sc",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pump",
+      "href": "./01-opcua-td-pump.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "source"
+    }
+  ],
+  "properties": {
+    "pumpSpeed": {
+      "tm:ref": "./01-opcua-td-pump.jsonld#/properties/pumpSpeed"
+    },
+    "speedSetpoint": {
+      "tm:ref": "./01-opcua-td-pump.jsonld#/properties/speedSetpoint"
+    }
+  }
+}

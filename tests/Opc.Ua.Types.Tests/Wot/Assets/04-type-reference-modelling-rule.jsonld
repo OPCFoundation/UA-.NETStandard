@@ -1,0 +1,85 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "pump": "http://example.com/demo/pump",
+      "qudt-quantitykind": "http://qudt.org/vocab/quantitykind/"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:objectType"],
+  "title": "ImpellerType",
+  "description": "A Thing Model of an OPC UA ObjectType showing type, reference and modelling-rule mappings: subtype extension, contained-in composition, congruent type identity, forward and inverse HasComponent references, a typed reference, a HasOrderedComponent subtype pinned by a typed link, and the four modelling-rule values.",
+  "uav:browseName": "pump:ImpellerType",
+  "uav:id": "nsu=http://example.com/demo/pump;i=1005",
+  "uav:containedIn": "PumpType",
+  "uav:componentOf": ["nsu=http://example.com/demo/pump;i=1001"],
+  "uav:congruentTypeName": "pump:ImpellerType",
+  "uav:congruentType": "nsu=http://example.com/demo/pump;i=1005",
+  "uav:hasComponent": [
+    "nsu=http://example.com/demo/pump;s=Blade_1",
+    "nsu=http://example.com/demo/pump;s=Blade_2"
+  ],
+  "links": [
+    { "rel": "tm:extends", "href": "https://example.com/models/BaseComponentType.tm.jsonld" },
+    {
+      "rel": "pump:MaterialReference",
+      "href": "https://example.com/models/MaterialType.tm.jsonld",
+      "uav:refName": "Material",
+      "uav:refId": "nsu=http://example.com/demo/pump;i=5001"
+    },
+    {
+      "rel": "ua:HasOrderedComponent",
+      "href": "nsu=http://example.com/demo/pump;s=Blade_1",
+      "uav:refName": "Blade_1",
+      "uav:refId": "i=49"
+    },
+    {
+      "rel": "ua:HasOrderedComponent",
+      "href": "nsu=http://example.com/demo/pump;s=Blade_2",
+      "uav:refName": "Blade_2",
+      "uav:refId": "i=49"
+    }
+  ],
+  "properties": {
+    "diameter": {
+      "@type": "uav:variableType",
+      "title": "Diameter",
+      "uav:browseName": "pump:Diameter",
+      "type": "number",
+      "unit": "qudt-quantitykind:Length",
+      "uav:modellingRule": "Mandatory",
+      "uav:unitProperty": "/properties/diameter/unit"
+    },
+    "bladeAngle": {
+      "@type": "uav:variableType",
+      "title": "Blade Angle",
+      "uav:browseName": "pump:BladeAngle",
+      "type": "number",
+      "unit": "qudt-quantitykind:Angle",
+      "uav:modellingRule": "OptionalPlaceholder",
+      "uav:scaleFactor": 0.01,
+      "uav:decimalPlaces": 3
+    },
+    "vibration": {
+      "@type": "uav:variableType",
+      "title": "Vibration",
+      "uav:browseName": "pump:Vibration",
+      "type": "number",
+      "uav:mapToTypeName": "pump:MeasurementDataType",
+      "uav:mapToType": "nsu=http://example.com/demo/pump;i=3010",
+      "uav:modellingRule": "Optional"
+    }
+  },
+  "actions": {
+    "recalibrate": {
+      "@type": "uav:method",
+      "title": "Recalibrate",
+      "uav:browseName": "pump:Recalibrate",
+      "uav:modellingRule": "Optional",
+      "uav:hasComponent": ["nsu=http://example.com/demo/pump;i=7001"]
+    }
+  }
+}

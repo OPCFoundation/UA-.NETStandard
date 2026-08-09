@@ -36,6 +36,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Wot;
+using Opc.Ua.WotCon.Server.Materialization;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
@@ -63,6 +65,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotRegistryPersistenceBounds? bounds = null)
         {
             m_store = store ?? new InMemoryWotRegistryStore();
+            m_resourceStore = m_store is IWotRegistryResourceStoreProvider provider
+                ? provider.ResourceStore
+                : new InMemoryResourceStore();
             Bounds = bounds ?? new WotRegistryPersistenceBounds();
             Bounds.Validate();
             m_snapshot = WotRegistrySnapshot.Empty;
@@ -276,7 +281,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotResourceVersion? version = resource.DefaultVersion ??
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState, "The resource has no default version to validate.");
-            WoTValidationOutcomeDataType outcome = ValidateContent(version.Content);
+            ByteString content = await ReadContentAsync(version, cancellationToken).ConfigureAwait(false);
+            WoTValidationOutcomeDataType outcome = ValidateContent(content);
 
             await MutateResourceAsync(
                 groupId,
@@ -287,6 +293,57 @@ namespace Opc.Ua.WotCon.Server.Registry
                     null),
                 cancellationToken).ConfigureAwait(false);
             return outcome;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ByteString> ReadContentAsync(
+            WotResourceVersion version,
+            CancellationToken cancellationToken = default)
+        {
+            if (version is null)
+            {
+                throw new ArgumentNullException(nameof(version));
+            }
+            if (version.ContentLength > int.MaxValue)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadOutOfMemory,
+                    "The document exceeds the maximum readable size.");
+            }
+
+            ByteString content = await m_resourceStore
+                .ReadAsync(version.DigestHex, 0, checked((int)version.ContentLength), cancellationToken)
+                .ConfigureAwait(false);
+            if (content.IsNull)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotFound,
+                    "The document content is missing from the resource store.");
+            }
+            if (content.Length != version.ContentLength ||
+                !WotContentDigest.Equal(WotContentDigest.Compute(content), version.Digest))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDataEncodingInvalid,
+                    "The document content does not match the registry metadata.");
+            }
+            return content;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ByteString> ReadContentChunkAsync(
+            string digestHex,
+            long offset,
+            int count,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(digestHex))
+            {
+                return ByteString.Empty;
+            }
+            return await m_resourceStore
+                .ReadAsync(digestHex, offset, count, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private async ValueTask<WotResource> CreatePlaceholderLockedAsync(
@@ -333,11 +390,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             return resource;
         }
 
-        private static WoTValidationOutcomeDataType ValidateContent(ReadOnlyMemory<byte> content)
+        private static WoTValidationOutcomeDataType ValidateContent(ByteString content)
         {
             try
             {
-                using var document = WotDocument.Parse(content);
+                using var document = WotDocument.Parse(content.Span.ToArray());
                 _ = document.Id;
                 return new WoTValidationOutcomeDataType
                 {
@@ -364,7 +421,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 throw new ArgumentNullException(nameof(request));
             }
-            if (request.Content.Length == 0)
+            if (request.Content.IsNull || request.Content.Length == 0)
             {
                 return Failed(m_snapshot.Generation, "The document is empty.");
             }
@@ -382,8 +439,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ? DefaultGroupFor(request.Kind)
                 : NormalizeSegment(request.GroupId!, nameof(request.GroupId));
 
-            // Copy the caller's buffer: the immutable snapshot owns the bytes.
-            byte[] content = request.Content.ToArray();
+            ByteString content = ByteString.From(request.Content.Span.ToArray());
 
             // Light parse to derive the kind/id/title and to record a format
             // failure state for a document that cannot even be parsed. Full WoT
@@ -400,7 +456,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     MaxJsonDocumentSize = Bounds.MaxDocumentBytes,
                     MaxJsonDepth = Bounds.MaxJsonDepth
                 };
-                using var document = WotDocument.Parse(content, options);
+                using var document = WotDocument.Parse(content.Span.ToArray(), options);
                 thingId = document.Id;
                 title = document.Title;
             }
@@ -450,7 +506,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         "Too many resources.");
                 }
 
-                byte[] digest = WotContentDigest.Compute(content);
+                ByteString digest = WotContentDigest.Compute(content);
 
                 // Idempotency: an unchanged default document returns Unchanged
                 // and produces no new version and no model change.
@@ -466,17 +522,22 @@ namespace Opc.Ua.WotCon.Server.Registry
                         "Content digest unchanged.");
                 }
 
+                string digestHex = WotContentDigest.ToHex(digest);
+                await m_resourceStore
+                        .WriteAsync(digestHex, 0, content, cancellationToken)
+                        .ConfigureAwait(false);
+
                 long generation = snapshot.Generation + 1;
                 DateTime now = DateTime.UtcNow;
                 string versionId = NextVersionId(existing);
                 var version = new WotResourceVersion(
-                    versionId,
-                    content,
-                    request.ContentType,
-                    request.Format,
-                    createdAt: now,
-                    modifiedAt: now,
-                    digest: digest);
+                        versionId,
+                        digest,
+                        content.Length,
+                        request.ContentType,
+                        request.Format,
+                        createdAt: now,
+                        modifiedAt: now);
 
                 ImmutableArray<WotResourceVersion> versions = existing is null
                     ? [version]
@@ -1173,6 +1234,7 @@ epoch: generation, labels: resource.Labels.Remove(key));
         }
 
         private readonly IWotRegistryStore m_store;
+        private readonly IXRegistryResourceStore m_resourceStore;
         private readonly SemaphoreSlim m_mutex = new(1, 1);
         private WotRegistrySnapshot m_snapshot;
         private bool m_reloadRequired;

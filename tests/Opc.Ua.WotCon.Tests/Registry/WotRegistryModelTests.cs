@@ -48,36 +48,36 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public void ComputeReturnsSha256DigestOfContent()
         {
             byte[] content = Encoding.UTF8.GetBytes("hello");
-            byte[] digest = WotContentDigest.Compute(content);
+            ByteString digest = WotContentDigest.Compute(content);
 
-            Assert.That(digest, Has.Length.EqualTo(32),
+            Assert.That(digest.Span.Length, Is.EqualTo(32),
                 "SHA-256 always produces 32 bytes.");
-            Assert.That(digest, Is.Not.All.EqualTo((byte)0));
+            Assert.That(digest.Span.ToArray(), Is.Not.All.EqualTo((byte)0));
         }
 
         [Test]
         public void ComputeProducesDifferentDigestsForDifferentContent()
         {
-            byte[] digest1 = WotContentDigest.Compute(Encoding.UTF8.GetBytes("aaa"));
-            byte[] digest2 = WotContentDigest.Compute(Encoding.UTF8.GetBytes("bbb"));
+            ByteString digest1 = WotContentDigest.Compute(Encoding.UTF8.GetBytes("aaa"));
+            ByteString digest2 = WotContentDigest.Compute(Encoding.UTF8.GetBytes("bbb"));
 
-            Assert.That(digest1, Is.Not.EqualTo(digest2));
+            Assert.That(digest1.Span.ToArray(), Is.Not.EqualTo(digest2.Span.ToArray()));
         }
 
         [Test]
         public void ComputeProducesSameDigestForSameContent()
         {
             byte[] content = Encoding.UTF8.GetBytes("deterministic");
-            byte[] d1 = WotContentDigest.Compute(content);
-            byte[] d2 = WotContentDigest.Compute(content);
+            ByteString d1 = WotContentDigest.Compute(content);
+            ByteString d2 = WotContentDigest.Compute(content);
 
-            Assert.That(d1, Is.EqualTo(d2));
+            Assert.That(d1.Span.ToArray(), Is.EqualTo(d2.Span.ToArray()));
         }
 
         [Test]
         public void ToHexWithNullReturnsEmptyString()
         {
-            string result = WotContentDigest.ToHex(null);
+            string result = WotContentDigest.ToHex(default(ByteString));
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
@@ -153,21 +153,23 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             byte[] content = Encoding.UTF8.GetBytes("{\"title\":\"test\"}");
             var now = DateTime.UtcNow;
+            ByteString digest = WotContentDigest.Compute(content);
             var version = new WotResourceVersion(
                 versionId: "v1",
-                content: content,
+                digest: digest,
+                contentLength: content.Length,
                 contentType: "application/td+json",
                 format: "WoT-TD/1.1",
                 createdAt: now,
                 modifiedAt: now);
 
             Assert.That(version.VersionId, Is.EqualTo("v1"));
-            Assert.That(version.Content.ToArray(), Is.EqualTo(content));
+            Assert.That(version.ContentLength, Is.EqualTo(content.Length));
             Assert.That(version.ContentType, Is.EqualTo("application/td+json"));
             Assert.That(version.Format, Is.EqualTo("WoT-TD/1.1"));
             Assert.That(version.CreatedAt, Is.EqualTo(now));
             Assert.That(version.ModifiedAt, Is.EqualTo(now));
-            Assert.That(version.Digest, Is.Not.Null);
+            Assert.That(version.Digest.IsNull, Is.False);
             Assert.That(version.Digest, Has.Length.EqualTo(32));
         }
 
@@ -175,13 +177,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public void WotResourceVersionWithExplicitDigestUsesSuppliedDigest()
         {
             byte[] content = Encoding.UTF8.GetBytes("doc");
-            byte[] digest = new byte[32];
+            var digest = new byte[32];
             digest[0] = 42;
             var version = new WotResourceVersion(
-                versionId: "v1", content: content, contentType: "ct",
-                format: "f", createdAt: default, modifiedAt: default, digest: digest);
+                versionId: "v1", digest: ByteString.From(digest), contentLength: content.Length,
+                contentType: "ct", format: "f", createdAt: default, modifiedAt: default);
 
-            Assert.That(version.Digest[0], Is.EqualTo(42));
+            Assert.That(version.Digest.Span[0], Is.EqualTo(42));
         }
 
         [Test]
@@ -189,7 +191,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             byte[] content = Encoding.UTF8.GetBytes("doc");
             var version = new WotResourceVersion(
-                versionId: "v1", content: content, contentType: "ct",
+                versionId: "v1", digest: WotContentDigest.Compute(content), contentLength: content.Length, contentType: "ct",
                 format: "f", createdAt: default, modifiedAt: default);
 
             Assert.That(version.DigestHex, Has.Length.EqualTo(64));

@@ -368,9 +368,18 @@ namespace Opc.Ua.Server
         /// channel has capacity; blocks only when the bounded channel is full (only synchronous
         /// callers pay that cost).
         /// </summary>
+        /// <remarks>
+        /// Retained for callers written against the synchronous
+        /// <see cref="NodeState.OnReportEvent"/> contract. Nothing in the stack
+        /// wires this any more - notifiers are attached through
+        /// <see cref="NodeState.OnReportEventAsync"/> - and the blocking wait a
+        /// full channel forces here can starve the thread pool, so new code
+        /// must use <see cref="OnReportEventAsync"/>.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="node">The affected node.</param>
         /// <param name="e">The event.</param>
+        [Obsolete("Use OnReportEventAsync")]
         public void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
         {
             ValueTask report = OnReportEventAsync(context, node, e, default);
@@ -491,9 +500,17 @@ namespace Opc.Ua.Server
         /// synchronously-readable node with channel capacity; blocks only when a read is genuinely
         /// asynchronous or the bounded channel is full (only synchronous callers pay that cost).
         /// </summary>
+        /// <remarks>
+        /// Retained for callers written against the synchronous
+        /// <see cref="NodeState.OnStateChanged"/> contract. Nothing in the
+        /// stack wires this any more, and an asynchronous read handler turns it
+        /// into a blocking wait that can starve the thread pool, so new code
+        /// must use <see cref="OnMonitoredNodeChangedAsync"/>.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="node">The affected node.</param>
         /// <param name="changes">The mask indicating what changes have occurred.</param>
+        [Obsolete("Use OnMonitoredNodeChangedAsync")]
         public void OnMonitoredNodeChanged(
             ISystemContext context,
             NodeState node,

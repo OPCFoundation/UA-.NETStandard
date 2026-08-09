@@ -27,9 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -47,12 +49,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     {
         private static readonly string[] s_tmTdResourceIds = ["tm", "td"];
 
-        private async Task<WotRegistrySnapshot> Snapshot(
+        /// <summary>
+        /// A snapshot plus a reader for the bytes behind its versions. The
+        /// snapshot carries only digests, so a caller that needs the content has
+        /// to be able to fetch it; keeping the two together avoids a global
+        /// registry and keeps each test self-contained.
+        /// </summary>
+        private sealed record SnapshotFixture(
+            WotRegistrySnapshot Snapshot,
+            Func<WotResourceVersion, CancellationToken, ValueTask<ByteString>> ReadContent);
+
+        private static async Task<SnapshotFixture> Snapshot(
             params (WoTDocumentKindEnum Kind, string Id, byte[] Content)[] docs)
         {
+            var byDigest = new Dictionary<string, ByteString>(StringComparer.Ordinal);
             using var service = new WotRegistryService();
             foreach ((WoTDocumentKindEnum kind, string id, byte[] content) in docs)
             {
+                ByteString bytes = ByteString.From(content);
+                byDigest[WotContentDigest.ToHex(WotContentDigest.Compute(bytes))] = bytes;
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = kind == WoTDocumentKindEnum.ThingModel
@@ -60,10 +75,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         : WotRegistryGroups.ThingDescriptions,
                     ResourceId = id,
                     Kind = kind,
-                    Content = content
+                    Content = bytes
                 });
             }
-            return service.Current;
+            return new SnapshotFixture(
+                service.Current,
+                (version, _) => new ValueTask<ByteString>(byDigest[version.DigestHex]));
         }
 
         [Test]
@@ -81,13 +98,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task BuildClosuresSharedModelYieldsSingleClosureTmFirst()
         {
-            WotRegistrySnapshot snapshot = await Snapshot(
+            SnapshotFixture fixture = await Snapshot(
                 (WoTDocumentKindEnum.ThingModel, "tm", TestMaterialization.Tm("urn:tm")),
                 (WoTDocumentKindEnum.ThingDescription, "td",
                     TestMaterialization.Td("urn:td", extendsHrefs: "urn:tm")));
 
             ImmutableArray<WotDependencyClosure> closures =
-                WotDependencyGraph.BuildClosures(snapshot, [.. snapshot.AllResources()], 64);
+                await WotDependencyGraph.BuildClosuresAsync(
+                    fixture.Snapshot,
+                    [.. fixture.Snapshot.AllResources()],
+                    64,
+                    fixture.ReadContent,
+                    CancellationToken.None);
 
             Assert.That(closures, Has.Length.EqualTo(1));
             Assert.That(closures[0].IsProjectable, Is.True);
@@ -99,12 +121,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task BuildClosuresIndependentResourcesYieldSeparateClosures()
         {
-            WotRegistrySnapshot snapshot = await Snapshot(
+            SnapshotFixture fixture = await Snapshot(
                 (WoTDocumentKindEnum.ThingDescription, "a", TestMaterialization.Td("urn:a")),
                 (WoTDocumentKindEnum.ThingDescription, "b", TestMaterialization.Td("urn:b")));
 
             ImmutableArray<WotDependencyClosure> closures =
-                WotDependencyGraph.BuildClosures(snapshot, [.. snapshot.AllResources()], 64);
+                await WotDependencyGraph.BuildClosuresAsync(
+                    fixture.Snapshot,
+                    [.. fixture.Snapshot.AllResources()],
+                    64,
+                    fixture.ReadContent,
+                    CancellationToken.None);
 
             Assert.That(closures, Has.Length.EqualTo(2));
             Assert.That(closures.All(c => c.OrderedResources.Length == 1), Is.True);
@@ -113,12 +140,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task BuildClosuresMissingDependencyIsFlagged()
         {
-            WotRegistrySnapshot snapshot = await Snapshot(
+            SnapshotFixture fixture = await Snapshot(
                 (WoTDocumentKindEnum.ThingDescription, "td",
                     TestMaterialization.Td("urn:td", extendsHrefs: "urn:missing")));
 
             ImmutableArray<WotDependencyClosure> closures =
-                WotDependencyGraph.BuildClosures(snapshot, [.. snapshot.AllResources()], 64);
+                await WotDependencyGraph.BuildClosuresAsync(
+                    fixture.Snapshot,
+                    [.. fixture.Snapshot.AllResources()],
+                    64,
+                    fixture.ReadContent,
+                    CancellationToken.None);
 
             Assert.That(closures, Has.Length.EqualTo(1));
             Assert.That(closures[0].HasMissingDependency, Is.True);
@@ -128,14 +160,19 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task BuildClosuresCycleIsDetected()
         {
-            WotRegistrySnapshot snapshot = await Snapshot(
+            SnapshotFixture fixture = await Snapshot(
                 (WoTDocumentKindEnum.ThingModel, "a",
                     TestMaterialization.Tm("urn:a", extendsHrefs: "urn:b")),
                 (WoTDocumentKindEnum.ThingModel, "b",
                     TestMaterialization.Tm("urn:b", extendsHrefs: "urn:a")));
 
             ImmutableArray<WotDependencyClosure> closures =
-                WotDependencyGraph.BuildClosures(snapshot, [.. snapshot.AllResources()], 64);
+                await WotDependencyGraph.BuildClosuresAsync(
+                    fixture.Snapshot,
+                    [.. fixture.Snapshot.AllResources()],
+                    64,
+                    fixture.ReadContent,
+                    CancellationToken.None);
 
             Assert.That(closures, Has.Length.EqualTo(1));
             Assert.That(closures[0].HasCycle, Is.True);
