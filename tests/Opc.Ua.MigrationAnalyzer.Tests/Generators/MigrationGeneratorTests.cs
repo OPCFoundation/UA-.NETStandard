@@ -156,6 +156,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             Assert.That(text, Does.Contain($"public sealed class {shortName} : global::System.Collections.Generic.List<{elementDisplay}>"));
             Assert.That(text, Does.Contain("[global::System.Obsolete("));
             Assert.That(text, Does.Contain("(UA0002)"));
+            Assert.That(text, Does.Contain("#pragma warning disable CS1591"));
             Assert.That(text, Does.Contain($"implicit operator global::Opc.Ua.ArrayOf<{elementDisplay}>"));
         }
 
