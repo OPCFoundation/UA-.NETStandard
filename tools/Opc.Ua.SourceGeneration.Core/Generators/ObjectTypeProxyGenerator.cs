@@ -785,10 +785,21 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
-                        "    if (!_outputArguments[{0}].TryGetValue(" +
-                        "out {1} {2}, base.Session.MessageContext))",
-                        index,
+                        "    {0} {1};",
                         typeName,
+                        localName);
+                    context.Out.WriteLine(
+                        "    if (_outputArguments[{0}].IsNull)",
+                        index);
+                    context.Out.WriteLine("    {");
+                    context.Out.WriteLine(
+                        "        {0} = default!;",
+                        localName);
+                    context.Out.WriteLine("    }");
+                    context.Out.WriteLine(
+                        "    else if (!_outputArguments[{0}].TryGetValue(" +
+                        "out {1}, base.Session.MessageContext))",
+                        index,
                         localName);
                     EmitConversionFailure(context, methodName, parameter.Name);
                     break;
@@ -802,9 +813,21 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Out.WriteLine(
-                        "    if (!_outputArguments[{0}].TryGetValue(out {1} {2}))",
-                        index,
+                        "    {0} {1};",
                         typeName,
+                        localName);
+                    context.Out.WriteLine(
+                        "    if (_outputArguments[{0}].IsNull)",
+                        index,
+                        localName);
+                    context.Out.WriteLine("    {");
+                    context.Out.WriteLine(
+                        "        {0} = default!;",
+                        localName);
+                    context.Out.WriteLine("    }");
+                    context.Out.WriteLine(
+                        "    else if (!_outputArguments[{0}].TryGetValue(out {1}))",
+                        index,
                         localName);
                     EmitConversionFailure(context, methodName, parameter.Name);
                     break;

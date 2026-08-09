@@ -1,0 +1,321 @@
+#usda 1.0
+(
+    doc = """Single-robot workbench scene for the MinimalIntentRobotServer sample.
+
+    This layer composes the stationary collaborative arm from arm.usda and mounts the parallel gripper from gripper.usda beneath the arm flange, rather than duplicating either asset's geometry. The scene is deliberately smaller and simpler than the two-robot Robotics cell: one bench, one robot, and four large target markers an operator can click in an OpenUSD viewport to issue Robot Intent commands.
+
+    /World/Targets/Bin, /World/Targets/Fixture, /World/Targets/Inspect and /World/Targets/Handoff are the clickable target prims. They are wide coloured pucks placed well apart on the bench within the UR5e-style arm's 850 mm reach from its mounting point. The viewer host may use renderer-backed picking to select one of those prims; when that is unavailable it can author /World/IntentCommand.targetPrim as a fallback command channel.
+
+    Every gprim carries both a material binding and a matching primvars:displayColor, so the scene reads correctly on renderers that ignore the material graph. Meshes are doubleSided so face winding cannot cull a surface. Keep the target prim paths, /World/Camera and /World/IntentCommand stable because sample code and documentation address them by name.
+    """
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "World"
+{
+    def Xform "Robot"
+    {
+        def Xform "Arm" (
+            references = @arm.usda@</Arm>
+        )
+        {
+            double3 xformOp:translate = (0, 0, 0.8200)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            over "Base"
+            {
+                over "J1"
+                {
+                    over "J2"
+                    {
+                        over "J3"
+                        {
+                            over "J4"
+                            {
+                                over "J5"
+                                {
+                                    over "J6"
+                                    {
+                                        over "Flange"
+                                        {
+                                            def Xform "Gripper" (
+                                                references = @gripper.usda@</Gripper>
+                                            )
+                                            {
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    def Xform "Floor"
+    {
+        def Cube "Slab" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.34, 0.35, 0.36)]
+            rel material:binding = </World/Materials/Concrete>
+            double3 xformOp:translate = (0, 0, -0.0250)
+            double3 xformOp:scale = (2.4000, 1.8000, 0.0250)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Xform "Bench"
+    {
+        def Cube "Top" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.54, 0.55, 0.55)]
+            rel material:binding = </World/Materials/BenchTop>
+            double3 xformOp:translate = (0, 0, 0.7800)
+            double3 xformOp:scale = (1.4000, 0.9000, 0.0400)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegA" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)]
+            rel material:binding = </World/Materials/Steel>
+            double3 xformOp:translate = (0.5800, 0.3300, 0.3800)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegB" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)]
+            rel material:binding = </World/Materials/Steel>
+            double3 xformOp:translate = (-0.5800, 0.3300, 0.3800)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegC" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)]
+            rel material:binding = </World/Materials/Steel>
+            double3 xformOp:translate = (0.5800, -0.3300, 0.3800)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegD" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)]
+            rel material:binding = </World/Materials/Steel>
+            double3 xformOp:translate = (-0.5800, -0.3300, 0.3800)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Xform "Targets"
+    {
+        def Cylinder "Bin" (
+            doc = "Blue bin pickup target."
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Z"
+            double height = 0.0180
+            double radius = 0.0400
+            color3f[] primvars:displayColor = [(0.05, 0.32, 0.85)]
+            rel material:binding = </World/Materials/TargetBin>
+            double3 xformOp:translate = (0.4100, -0.2800, 0.8290)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Fixture" (
+            doc = "Green fixture placement target."
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Z"
+            double height = 0.0180
+            double radius = 0.0400
+            color3f[] primvars:displayColor = [(0.08, 0.62, 0.24)]
+            rel material:binding = </World/Materials/TargetFixture>
+            double3 xformOp:translate = (0.4800, 0.2600, 0.8290)
+            double xformOp:rotateZ = 25
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+        }
+
+        def Cylinder "Inspect" (
+            doc = "Amber inspection target."
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Z"
+            double height = 0.0180
+            double radius = 0.0350
+            color3f[] primvars:displayColor = [(0.95, 0.62, 0.10)]
+            rel material:binding = </World/Materials/TargetInspect>
+            double3 xformOp:translate = (-0.2500, 0.3000, 0.8290)
+            double xformOp:rotateZ = -20
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+        }
+
+        def Cylinder "Handoff" (
+            doc = "Purple handoff target."
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Z"
+            double height = 0.0180
+            double radius = 0.0400
+            color3f[] primvars:displayColor = [(0.55, 0.20, 0.78)]
+            rel material:binding = </World/Materials/TargetHandoff>
+            double3 xformOp:translate = (-0.4600, -0.2600, 0.8290)
+            double xformOp:rotateZ = 40
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+        }
+    }
+
+    def Xform "IntentCommand"
+    {
+        rel targetPrim = </World/Targets/Bin>
+    }
+
+    def Camera "Camera"
+    {
+        token projection = "perspective"
+        float focalLength = 24
+        float horizontalAperture = 20.955
+        float verticalAperture = 13.97
+        float2 clippingRange = (0.1, 100)
+        double3 xformOp:translate = (0, 0, 3.2000)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def DistantLight "KeyLight"
+    {
+        float intensity = 650
+        double3 xformOp:rotateXYZ = (-45, 0, 35)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+
+    def DomeLight "AmbientLight"
+    {
+        float intensity = 210
+        color3f inputs:color = (0.72, 0.76, 0.82)
+    }
+
+    def Scope "Materials"
+    {
+        def Material "Concrete"
+        {
+            token outputs:surface.connect = </World/Materials/Concrete/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.34, 0.35, 0.36)
+                float inputs:roughness = 0.92
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "BenchTop"
+        {
+            token outputs:surface.connect = </World/Materials/BenchTop/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.54, 0.55, 0.55)
+                float inputs:roughness = 0.48
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "Steel"
+        {
+            token outputs:surface.connect = </World/Materials/Steel/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.22, 0.23, 0.24)
+                float inputs:roughness = 0.28
+                float inputs:metallic = 0.8
+                token outputs:surface
+            }
+        }
+
+        def Material "TargetBin"
+        {
+            token outputs:surface.connect = </World/Materials/TargetBin/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.05, 0.32, 0.85)
+                float inputs:roughness = 0.34
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "TargetFixture"
+        {
+            token outputs:surface.connect = </World/Materials/TargetFixture/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.08, 0.62, 0.24)
+                float inputs:roughness = 0.34
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "TargetInspect"
+        {
+            token outputs:surface.connect = </World/Materials/TargetInspect/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.95, 0.62, 0.10)
+                float inputs:roughness = 0.34
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "TargetHandoff"
+        {
+            token outputs:surface.connect = </World/Materials/TargetHandoff/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.55, 0.20, 0.78)
+                float inputs:roughness = 0.34
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+    }
+}

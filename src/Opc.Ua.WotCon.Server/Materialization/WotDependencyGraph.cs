@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server.Materialization
@@ -194,6 +196,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 CollectLinks(root, references);
                 CollectExtends(root, references);
+                CollectProjects(root, references);
                 CollectTmRefs(root, references, 0, maxJsonDepth);
             }
             catch (JsonException)
@@ -210,10 +213,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Thing Model lands in a single closure), then each component is
         /// topologically ordered.
         /// </summary>
-        public static ImmutableArray<WotDependencyClosure> BuildClosures(
+        public static async ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
             WotRegistrySnapshot snapshot,
             IReadOnlyCollection<WotResource> selected,
-            int maxJsonDepth)
+            int maxJsonDepth,
+            Func<WotResourceVersion, CancellationToken, ValueTask<ByteString>> readContent,
+            CancellationToken cancellationToken)
         {
             if (selected.Count == 0)
             {
@@ -235,6 +240,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var edges = new Dictionary<string, List<WotDependency>>(StringComparer.Ordinal);
             while (queue.Count > 0)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 WotResource resource = queue.Dequeue();
                 var list = new List<WotDependency>();
                 edges[resource.Xid] = list;
@@ -243,8 +249,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     continue;
                 }
+                ByteString content = await readContent(version, cancellationToken)
+                    .ConfigureAwait(false);
                 foreach ((string href, string refType) in ExtractReferences(
-                    version.Content, maxJsonDepth))
+                    content.Span.ToArray(), maxJsonDepth))
                 {
                     WotResource? target = Resolve(snapshot, href);
                     list.Add(new WotDependency(
@@ -463,7 +471,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     relElement.ValueKind == JsonValueKind.String
                     ? relElement.GetString() ?? string.Empty
                     : string.Empty;
-                if (rel is "tm:extends" or "type" or "tm:submodel" or "collection" or "item")
+                if (rel is "tm:extends" or "type" or "tm:submodel" or "collection" or "item" or
+                    "ua:Organizes")
                 {
                     references.Add((hrefElement.GetString() ?? string.Empty, rel));
                 }
@@ -497,6 +506,28 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                     }
                     break;
+            }
+        }
+
+        private static void CollectProjects(
+            JsonElement root, List<(string, string)> references)
+        {
+            // A projection document depends on every document its uav:projects
+            // manifest names, so the closure includes the sources and a cyclic
+            // projection graph is rejected during dependency resolution.
+            if (!root.TryGetProperty("uav:projects", out JsonElement projects) ||
+                projects.ValueKind != JsonValueKind.Array)
+            {
+                return;
+            }
+            foreach (JsonElement entry in projects.EnumerateArray())
+            {
+                if (entry.ValueKind == JsonValueKind.Object &&
+                    entry.TryGetProperty("href", out JsonElement href) &&
+                    href.ValueKind == JsonValueKind.String)
+                {
+                    references.Add((href.GetString() ?? string.Empty, "uav:projects"));
+                }
             }
         }
 

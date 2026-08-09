@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>IntentEnabledRobot</AssemblyName>
+    <PackageId>IntentEnabledRobot</PackageId>
+    <Description>Minimal self-contained OPC UA Robot Intent server sample with a simulated UR5e-style arm and OpenUSD assets.</Description>
+    <RootNamespace>Robotics.IntentEnabledRobot</RootNamespace>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);CA1014;CA1822</NoWarn>
+    <PublishAot>true</PublishAot>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <!-- Pinned to net10.0, so it cannot take part directly in solution builds
+         pinned to a different CustomTestTarget. In legacy pins the referenced
+         libraries build for net472/net48/netstandard2.1 while this project would
+         otherwise keep its net10.0 BCL surface, causing public polyfills such as
+         System.Threading.Lock or nullable attributes to collide. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Robotics.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\arm.usda"><LogicalName>arm.usda</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Assets\gripper.usda"><LogicalName>gripper.usda</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Assets\Bench.usda"><LogicalName>Bench.usda</LogicalName></EmbeddedResource>
+  </ItemGroup>
+</Project>

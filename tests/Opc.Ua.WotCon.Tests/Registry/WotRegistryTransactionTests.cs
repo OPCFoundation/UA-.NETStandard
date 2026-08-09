@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Tests.Registry
 {
@@ -79,7 +80,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Content = TestMaterialization.Td(id)
+                Content = ByteString.From(TestMaterialization.Td(id))
             };
         }
 
@@ -382,7 +383,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// on the next <see cref="CommitAsync"/> (before delegating to the inner
         /// store), so a persistence failure can be injected deterministically.
         /// </summary>
-        private sealed class FaultInjectingWotRegistryStore : IWotRegistryStore
+        private sealed class FaultInjectingWotRegistryStore
+            : IWotRegistryStore, IWotRegistryResourceStoreProvider
         {
             public FaultInjectingWotRegistryStore(IWotRegistryStore inner)
             {
@@ -392,6 +394,16 @@ namespace Opc.Ua.WotCon.Tests.Registry
             public bool FailNextCommit { get; set; }
 
             public int CommitAttempts { get; private set; }
+
+            /// <summary>
+            /// Forwards the wrapped store's resource store. A decorator that
+            /// drops this capability would leave the registry service writing
+            /// document bytes into a private in-memory store while the wrapped
+            /// store validates against its own, so every commit would report the
+            /// documents missing.
+            /// </summary>
+            public IXRegistryResourceStore ResourceStore
+                => ((IWotRegistryResourceStoreProvider)m_inner).ResourceStore;
 
             public ValueTask<WotRegistrySnapshot> LoadAsync(
                 CancellationToken cancellationToken = default)

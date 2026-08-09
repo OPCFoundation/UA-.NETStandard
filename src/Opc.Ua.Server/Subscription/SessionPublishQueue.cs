@@ -60,6 +60,9 @@ namespace Opc.Ua.Server
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SessionPublishQueue>();
+            m_backgroundWork = new BackgroundTaskScope(
+                nameof(SessionPublishQueue),
+                server.Telemetry);
             m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_queuedRequests = new LinkedList<QueuedPublishRequest>();
             m_queuedSubscriptions = new ConcurrentDictionary<uint, QueuedSubscription>();
@@ -86,6 +89,10 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                // Signal only: Dispose is synchronous. A cleanup already running
+                // finishes deleting the subscriptions it captured.
+                m_backgroundWork.Dispose();
+
                 lock (m_lock)
                 {
                     while (m_queuedRequests.Count > 0)
@@ -675,7 +682,8 @@ namespace Opc.Ua.Server
             }
 
             // schedule cleanup on a background thread.
-            SubscriptionManager.CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
+            SubscriptionManager.CleanupSubscriptions(
+                m_server, subscriptionsToDelete, m_logger, m_backgroundWork);
         }
 
         /// <summary>
@@ -784,7 +792,9 @@ namespace Opc.Ua.Server
                 // check secure channel.
                 if (!m_session.IsSecureChannelValid(request.SecureChannelId))
                 {
-                    m_logger.PublishAbandonedBecauseTheSecureChannelChanged();
+                    m_logger.PublishAbandonedBecauseTheSecureChannelChanged(
+                        m_session.Id,
+                        subscription.Subscription.Id);
                     request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid));
                     request.Dispose();
                     continue;
@@ -802,7 +812,8 @@ namespace Opc.Ua.Server
 
                 m_logger.PUBLISHIdAssignedToSubscriptionSubscriptionId(
                     request.SecureChannelId,
-                    subscription.Subscription.Id);
+                    subscription.Subscription.Id,
+                    m_session.Id);
 
                 request.Dispose();
                 return true;
@@ -1020,6 +1031,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private readonly IServerInternal m_server;
         private readonly ISession m_session;
         private readonly LinkedList<QueuedPublishRequest> m_queuedRequests;
@@ -1038,18 +1050,23 @@ namespace Opc.Ua.Server
         /// Logs that a publish request was abandoned because its secure channel no longer matches the queued request.
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SessionPublishQueue + 0, Level = LogLevel.Warning,
-            Message = "Publish abandoned because the secure channel changed.")]
-        public static partial void PublishAbandonedBecauseTheSecureChannelChanged(this ILogger logger);
+            Message = "Publish abandoned because the secure channel changed. " +
+                "SessionId={SessionId}, SubscriptionId={SubscriptionId}")]
+        public static partial void PublishAbandonedBecauseTheSecureChannelChanged(
+            this ILogger logger,
+            NodeId? sessionId,
+            uint subscriptionId);
 
         /// <summary>
         /// Logs the trace-level assignment of a queued publish request to a subscription.
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SessionPublishQueue + 1, Level = LogLevel.Trace,
-            Message = "PUBLISH: #{Id} Assigned To Subscription({SubscriptionId}).")]
+            Message = "PUBLISH: #{Id} Assigned To Subscription({SubscriptionId}). SessionId={SessionId}")]
         public static partial void PUBLISHIdAssignedToSubscriptionSubscriptionId(
             this ILogger logger,
             string id,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         /// <summary>
         /// Logs a trace-level snapshot of the publish queue counters for diagnostics.

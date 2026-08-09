@@ -99,5 +99,31 @@ Robotics instances in the configured instance namespace.
 `AddOpcUaDi()`. Other companion-manager hosting extensions that load DI should
 use the shared `DiAddressSpaceOwnership` marker to enforce the same rule.
 
-See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md)
+## Robot Intent (draft)
+
+The package also hosts the **draft** *OPC UA — Robot Intent* model. Robot Intent
+adds task-level motion commands that OPC 40010 leaves undefined and represents
+each submitted command as a Part 10 program lifecycle, so motion that takes
+minutes outlives the `Call` that admitted it.
+
+Use `AddRobotIntent()` to load the Robot Intent NodeSet and register the
+DI-hosted controller services, `AddRobotIntentExecutor<TExecutor>()` to provide
+the application executor, and `ConfigureRobotIntent(...)` to declare
+controllers with the fluent builder. The builder exposes frames, fitted tools,
+locations, axes, outputs, programs, safety state, kinematic description,
+real-time channels, and truthful capability declarations through
+`Accepts<TIntent>()`. For servers that want Robot Intent without OPC 40010 or
+DI, `RobotIntentNodeManagerFactory` and `RobotIntentNodeManager` provide the
+standalone NodeManager path.
+
+Executors implement `IIntentExecutor`. The host owns admission, queueing,
+state transitions, cancellation admission, and outcomes; the executor owns the
+actual robot work and reports progress through `IIntentProgress`.
+
+> The namespace `http://opcfoundation.org/UA/RobotIntent/` and every NodeId in
+> it are **provisional**. The model is a working-group draft and is neither
+> official nor endorsed by the OPC Foundation.
+
+See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md),
+the [Robot Intent guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md#robot-intent),
 and the [Dependency Injection guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DependencyInjection.md).

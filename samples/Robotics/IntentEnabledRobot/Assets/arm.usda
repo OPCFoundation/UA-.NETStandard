@@ -1,0 +1,295 @@
+#usda 1.0
+(
+    doc = """Reusable UR5e-style collaborative arm asset for the OPC UA - Robot Intent sample.
+
+    This is deliberately not the KUKA-like arm used by the Robotics cell sample. It is a stationary collaborative arm with smooth cylindrical links, rounded housings, off-white/silver covers, dark joint bands and a blue wrist accent. The kinematic dimensions follow the published UR5e geometry: d1 = 162.5 mm, a2 = -425 mm, a3 = -392.2 mm, d4 = 133.3 mm, d5 = 99.7 mm and d6 = 99.6 mm, giving an honest 850 mm reach. The d4/d5/d6 offsets are visible so the wrist is an offset, non-spherical wrist rather than a true spherical industrial wrist.
+
+    The nested Xforms are the contract for the sample: /Arm/Base/J1/J2/J3/J4/J5/J6/Flange is the chain, and each J{i} prim carries the rotate op a live layer can drive. The authored rotations are only a readable home pose. /Arm/Base/J1/J2/J3/J4/J5/J6/Flange/Tcp marks the tool centre point, because Robot Intent has a first-class TCP concept.
+
+    Every gprim carries both a material binding and a matching primvars:displayColor, so the asset reads correctly on renderers that ignore the material graph. Meshes are doubleSided so face winding cannot cull a surface. To change the asset, keep the J{i} prim names, rotate op names and Flange/Tcp stable, then edit geometry and fixed link-offset transforms around them.
+    """
+    defaultPrim = "Arm"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Arm" (
+    kind = "component"
+)
+{
+    def Xform "Base"
+    {
+        def Cylinder "Pedestal" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Z"
+            double height = 0.0900
+            double radius = 0.1450
+            color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+            rel material:binding = </Arm/Materials/DarkGrey>
+            double3 xformOp:translate = (0, 0, 0.0450)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "BaseCollar" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Z"
+            double height = 0.0900
+            double radius = 0.1200
+            color3f[] primvars:displayColor = [(0.88, 0.88, 0.86)]
+            rel material:binding = </Arm/Materials/BodyWhite>
+            double3 xformOp:translate = (0, 0, 0.1350)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "J1"
+        {
+            double xformOp:rotateZ = 0
+            double3 xformOp:translate = (0, 0, 0.1625)
+            uniform token[] xformOpOrder = ["xformOp:rotateZ", "xformOp:translate"]
+
+            def Sphere "ShoulderPanHousing" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double radius = 0.1120
+                color3f[] primvars:displayColor = [(0.88, 0.88, 0.86)]
+                rel material:binding = </Arm/Materials/BodyWhite>
+            }
+
+            def Cylinder "ShoulderBand" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                double height = 0.0360
+                double radius = 0.1180
+                color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+                rel material:binding = </Arm/Materials/DarkGrey>
+            }
+
+            def Xform "J2"
+            {
+                double xformOp:rotateY = -35
+                uniform token[] xformOpOrder = ["xformOp:rotateY"]
+
+                def Cylinder "ShoulderLiftHousing" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                )
+                {
+                    uniform token axis = "Y"
+                    double height = 0.1450
+                    double radius = 0.1050
+                    color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+                    rel material:binding = </Arm/Materials/DarkGrey>
+                }
+
+                def Cylinder "UpperArm" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                )
+                {
+                    uniform token axis = "X"
+                    double height = 0.4250
+                    double radius = 0.0430
+                    color3f[] primvars:displayColor = [(0.88, 0.88, 0.86)]
+                    rel material:binding = </Arm/Materials/BodyWhite>
+                    double3 xformOp:translate = (-0.2125, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                }
+
+                def Xform "J3"
+                {
+                    double3 xformOp:translate = (-0.4250, 0, 0)
+                    double xformOp:rotateY = 70
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
+
+                    def Sphere "ElbowHousing" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        double radius = 0.0950
+                        color3f[] primvars:displayColor = [(0.88, 0.88, 0.86)]
+                        rel material:binding = </Arm/Materials/BodyWhite>
+                    }
+
+                    def Cylinder "ElbowBand" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        uniform token axis = "Y"
+                        double height = 0.1320
+                        double radius = 0.0980
+                        color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+                        rel material:binding = </Arm/Materials/DarkGrey>
+                    }
+
+                    def Cylinder "Forearm" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        uniform token axis = "X"
+                        double height = 0.3922
+                        double radius = 0.0390
+                        color3f[] primvars:displayColor = [(0.88, 0.88, 0.86)]
+                        rel material:binding = </Arm/Materials/BodyWhite>
+                        double3 xformOp:translate = (-0.1961, 0, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate"]
+                    }
+
+                    def Xform "J4"
+                    {
+                        double3 xformOp:translate = (-0.3922, 0, 0.1333)
+                        double xformOp:rotateY = -35
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
+
+                        def Sphere "WristOneHousing" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                        )
+                        {
+                            double radius = 0.0750
+                            color3f[] primvars:displayColor = [(0.78, 0.79, 0.78)]
+                            rel material:binding = </Arm/Materials/Silver>
+                        }
+
+                        def Cylinder "WristOneBand" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                        )
+                        {
+                            uniform token axis = "Y"
+                            double height = 0.1160
+                            double radius = 0.0780
+                            color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+                            rel material:binding = </Arm/Materials/DarkGrey>
+                        }
+
+                        def Xform "J5"
+                        {
+                            double3 xformOp:translate = (0, 0, 0.0997)
+                            double xformOp:rotateZ = 0
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+
+                            def Cylinder "WristTwoHousing" (
+                                prepend apiSchemas = ["MaterialBindingAPI"]
+                            )
+                            {
+                                uniform token axis = "Z"
+                                double height = 0.1000
+                                double radius = 0.0600
+                                color3f[] primvars:displayColor = [(0.10, 0.38, 0.68)]
+                                rel material:binding = </Arm/Materials/AccentBlue>
+                            }
+
+                            def Xform "J6"
+                            {
+                                double3 xformOp:translate = (0, 0, 0.0996)
+                                double xformOp:rotateY = 0
+                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
+
+                                def Cylinder "WristThreeHousing" (
+                                    prepend apiSchemas = ["MaterialBindingAPI"]
+                                )
+                                {
+                                    uniform token axis = "Y"
+                                    double height = 0.0900
+                                    double radius = 0.0520
+                                    color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+                                    rel material:binding = </Arm/Materials/DarkGrey>
+                                }
+
+                                def Xform "Flange"
+                                {
+                                    double3 xformOp:translate = (0.0450, 0, 0)
+                                    uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                                    def Cylinder "IsoFlange" (
+                                        prepend apiSchemas = ["MaterialBindingAPI"]
+                                    )
+                                    {
+                                        uniform token axis = "X"
+                                        double height = 0.0180
+                                        double radius = 0.0315
+                                        color3f[] primvars:displayColor = [(0.78, 0.79, 0.78)]
+                                        rel material:binding = </Arm/Materials/Silver>
+                                    }
+
+                                    def Xform "Tcp"
+                                    {
+                                        double3 xformOp:translate = (0.1200, 0, 0)
+                                        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                                        def Sphere "Marker" (
+                                            prepend apiSchemas = ["MaterialBindingAPI"]
+                                        )
+                                        {
+                                            double radius = 0.0120
+                                            color3f[] primvars:displayColor = [(0.10, 0.38, 0.68)]
+                                            rel material:binding = </Arm/Materials/AccentBlue>
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    def Scope "Materials"
+    {
+        def Material "BodyWhite"
+        {
+            token outputs:surface.connect = </Arm/Materials/BodyWhite/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.88, 0.88, 0.86)
+                float inputs:roughness = 0.55
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "DarkGrey"
+        {
+            token outputs:surface.connect = </Arm/Materials/DarkGrey/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.16, 0.17, 0.18)
+                float inputs:roughness = 0.62
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "Silver"
+        {
+            token outputs:surface.connect = </Arm/Materials/Silver/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.78, 0.79, 0.78)
+                float inputs:roughness = 0.30
+                float inputs:metallic = 0.6
+                token outputs:surface
+            }
+        }
+
+        def Material "AccentBlue"
+        {
+            token outputs:surface.connect = </Arm/Materials/AccentBlue/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.10, 0.38, 0.68)
+                float inputs:roughness = 0.45
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+    }
+}

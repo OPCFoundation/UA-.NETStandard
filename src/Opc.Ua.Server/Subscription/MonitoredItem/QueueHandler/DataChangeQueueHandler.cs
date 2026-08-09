@@ -331,7 +331,8 @@ namespace Opc.Ua.Server
                     m_logger.DequeueValue(
                         value.WrappedValue,
                         value.StatusCode.Code,
-                        value.StatusCode.Overflow);
+                        value.StatusCode.Overflow,
+                        m_monitoredItemId);
                 }
 
                 return true;

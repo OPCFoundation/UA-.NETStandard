@@ -66,11 +66,29 @@ namespace Opc.Ua.WotCon.Server.Registry
             int maxDocumentSize,
             Func<ISystemContext, string, ServiceResult> authorizeWrite,
             Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>> onCommit)
+            : this(
+                file,
+                maxOpenHandles,
+                maxDocumentSize,
+                authorizeWrite,
+                ReadInlineContentAsync,
+                onCommit)
+        {
+        }
+
+        public WotResourceFileManager(
+            FileState file,
+            int maxOpenHandles,
+            int maxDocumentSize,
+            Func<ISystemContext, string, ServiceResult> authorizeWrite,
+            Func<string, long, int, CancellationToken, ValueTask<ByteString>> readContent,
+            Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>> onCommit)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
             m_maxHandles = maxOpenHandles;
             m_maxSize = maxDocumentSize;
             m_authorizeWrite = authorizeWrite ?? throw new ArgumentNullException(nameof(authorizeWrite));
+            m_readContent = readContent ?? throw new ArgumentNullException(nameof(readContent));
             m_onCommit = onCommit ?? throw new ArgumentNullException(nameof(onCommit));
 
             if (m_file.Writable is not null)
@@ -100,7 +118,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             if (m_file.Read is not null)
             {
-                m_file.Read.OnCall = new ReadMethodStateMethodCallHandler(OnRead);
+                m_file.Read.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(OnReadAsync);
             }
             if (m_file.Write is not null)
             {
@@ -116,18 +134,24 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
-        /// <summary>The current version bytes served to readers.</summary>
-        public byte[] CurrentContent { get; private set; } = Array.Empty<byte>();
+        /// <summary>The current resource-store key served to readers.</summary>
+        public string CurrentContentKey { get; private set; } = string.Empty;
 
         /// <summary>
-        /// Replaces the served content (called when the registry snapshot changes).
+        /// Gets the current version length served to readers.
         /// </summary>
-        public void UpdatePersistedContent(byte[] content, string? mimeType)
+        public long CurrentContentLength { get; private set; }
+
+        /// <summary>
+        /// Replaces the served content metadata (called when the registry snapshot changes).
+        /// </summary>
+        public void UpdatePersistedContent(WotResourceVersion? version, string? mimeType)
         {
-            CurrentContent = content ?? throw new ArgumentNullException(nameof(content));
+            CurrentContentKey = version?.DigestHex ?? string.Empty;
+            CurrentContentLength = version?.ContentLength ?? 0;
             if (m_file.Size is not null)
             {
-                m_file.Size.Value = (ulong)content.Length;
+                m_file.Size.Value = (ulong)CurrentContentLength;
             }
             if (m_file.LastModifiedTime is not null)
             {
@@ -137,6 +161,26 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 m_file.MimeType.Value = mimeType;
             }
+        }
+
+        public void UpdatePersistedContent(byte[] content, string? mimeType)
+        {
+            ByteString digest = WotContentDigest.Compute(content);
+            string key = WotContentDigest.ToHex(digest);
+            lock (s_inlineContent)
+            {
+                s_inlineContent[key] = ByteString.From(content);
+            }
+            UpdatePersistedContent(
+                new WotResourceVersion(
+                    "inline",
+                    digest,
+                    content.Length,
+                    mimeType ?? string.Empty,
+                    string.Empty,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow),
+                mimeType);
         }
 
         /// <summary>
@@ -221,7 +265,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
                 Handle handle = mode == WriteEraseMode
                     ? Handle.OpenWrite(sessionId)
-                    : Handle.OpenRead(sessionId, CurrentContent);
+                    : Handle.OpenRead(sessionId, CurrentContentKey, CurrentContentLength);
                 fileHandle = ++m_nextHandle;
                 m_handles.Add(fileHandle, handle);
                 if (mode == WriteEraseMode)
@@ -297,53 +341,71 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
-        private ServiceResult OnRead(
+        private async ValueTask<ReadMethodStateResult> OnReadAsync(
             ISystemContext context, MethodState method, NodeId objectId,
-            uint fileHandle, int length, ref ByteString data)
+            uint fileHandle, int length, CancellationToken cancellationToken)
         {
+            string storeKey;
+            long position;
+            int toRead;
             lock (m_handlesLock)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
-                    data = default;
-                    return err;
+                    return new ReadMethodStateResult { ServiceResult = err };
                 }
                 if (handle.Writing)
                 {
-                    data = default;
-                    return ServiceResult.Create(
-                        StatusCodes.BadInvalidState, "File handle is opened for writing.");
+                    return new ReadMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(
+                            StatusCodes.BadInvalidState, "File handle is opened for writing.")
+                    };
                 }
                 if (length <= 0)
                 {
-                    data = ByteString.Empty;
-                    return ServiceResult.Good;
+                    return new ReadMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        Data = ByteString.Empty
+                    };
                 }
-                int available = checked((int)(handle.Stream.Length - handle.Stream.Position));
-                int toRead = Math.Min(available, length);
+                int available = checked((int)(handle.Length - handle.Position));
+                toRead = Math.Min(available, length);
                 if (toRead <= 0)
                 {
-                    data = ByteString.Empty;
-                    return ServiceResult.Good;
-                }
-                byte[] buffer = new byte[toRead];
-                int totalRead = 0;
-                while (totalRead < buffer.Length)
-                {
-                    int n = handle.Stream.Read(buffer, totalRead, buffer.Length - totalRead);
-                    if (n <= 0)
+                    return new ReadMethodStateResult
                     {
-                        break;
-                    }
-                    totalRead += n;
+                        ServiceResult = ServiceResult.Good,
+                        Data = ByteString.Empty
+                    };
                 }
-                if (totalRead != buffer.Length)
-                {
-                    Array.Resize(ref buffer, totalRead);
-                }
-                data = ByteString.From(buffer);
+                storeKey = handle.StoreKey;
+                position = handle.Position;
+                handle.Position += toRead;
             }
-            return ServiceResult.Good;
+
+            ByteString chunk = await m_readContent(storeKey, position, toRead, cancellationToken)
+                .ConfigureAwait(false);
+            if (chunk.IsNull)
+            {
+                chunk = ByteString.Empty;
+            }
+
+            lock (m_handlesLock)
+            {
+                if (m_handles.TryGetValue(fileHandle, out Handle? handle) &&
+                    !handle.Writing &&
+                    handle.Position == position + toRead)
+                {
+                    handle.Position = position + chunk.Length;
+                }
+            }
+            return new ReadMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                Data = chunk
+            };
         }
 
         private ServiceResult OnWrite(
@@ -393,7 +455,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     return err;
                 }
-                position = (ulong)handle.Stream.Position;
+                position = (ulong)handle.Position;
             }
             return ServiceResult.Good;
         }
@@ -416,12 +478,12 @@ namespace Opc.Ua.WotCon.Server.Registry
                         return access;
                     }
                 }
-                if (position > (ulong)handle.Stream.Length)
+                if (position > (ulong)handle.Length)
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadInvalidArgument, "Requested position exceeds file length.");
                 }
-                handle.Stream.Position = (long)position;
+                handle.Position = (long)position;
             }
             return ServiceResult.Good;
         }
@@ -435,6 +497,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 error = ServiceResult.Create(StatusCodes.BadInvalidArgument, "Unknown file handle.");
                 return false;
             }
+
             NodeId expected = SessionIdOf(context);
             if (!expected.IsNull && !located.SessionId.IsNull && located.SessionId != expected)
             {
@@ -448,36 +511,83 @@ namespace Opc.Ua.WotCon.Server.Registry
             return true;
         }
 
+        private static ValueTask<ByteString> ReadInlineContentAsync(
+            string key,
+            long offset,
+            int count,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (s_inlineContent)
+            {
+                if (!s_inlineContent.TryGetValue(key, out ByteString content))
+                {
+                    return new ValueTask<ByteString>(ByteString.Empty);
+                }
+                if (offset >= content.Length || count <= 0)
+                {
+                    return new ValueTask<ByteString>(ByteString.Empty);
+                }
+                int take = (int)Math.Min(count, content.Length - offset);
+                return new ValueTask<ByteString>(
+                    ByteString.From(content.Span.Slice((int)offset, take).ToArray()));
+            }
+        }
+
         private sealed class Handle : IDisposable
         {
-            private Handle(NodeId sessionId, Stream stream, bool writing)
+            private Handle(NodeId sessionId, Stream stream, bool writing, string storeKey, long length)
             {
                 SessionId = sessionId;
                 Stream = stream;
                 Writing = writing;
+                StoreKey = storeKey;
+                m_length = length;
             }
 
             public NodeId SessionId { get; }
             public Stream Stream { get; }
             public bool Writing { get; }
+            public string StoreKey { get; }
+            public long Length => Writing ? Stream.Length : m_length;
+            public long Position
+            {
+                get => Writing ? Stream.Position : m_position;
+                set
+                {
+                    if (Writing)
+                    {
+                        Stream.Position = value;
+                    }
+                    else
+                    {
+                        m_position = value;
+                    }
+                }
+            }
 
-            public static Handle OpenRead(NodeId sessionId, byte[] snapshot)
-                => new(sessionId, new MemoryStream(snapshot, writable: false), writing: false);
+            public static Handle OpenRead(NodeId sessionId, string storeKey, long length)
+                => new(sessionId, Stream.Null, writing: false, storeKey, length);
 
             public static Handle OpenWrite(NodeId sessionId)
-                => new(sessionId, new MemoryStream(), writing: true);
+                => new(sessionId, new MemoryStream(), writing: true, string.Empty, 0);
 
             public void Dispose() => Stream.Dispose();
+
+            private readonly long m_length;
+            private long m_position;
         }
 
         private readonly FileState m_file;
         private readonly int m_maxHandles;
         private readonly int m_maxSize;
         private readonly Func<ISystemContext, string, ServiceResult> m_authorizeWrite;
+        private readonly Func<string, long, int, CancellationToken, ValueTask<ByteString>> m_readContent;
         private readonly Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>> m_onCommit;
         private readonly Lock m_handlesLock = new();
         private readonly Dictionary<uint, Handle> m_handles = new();
         private uint m_nextHandle;
         private uint m_writingHandle;
+        private static readonly Dictionary<string, ByteString> s_inlineContent = new(StringComparer.Ordinal);
     }
 }

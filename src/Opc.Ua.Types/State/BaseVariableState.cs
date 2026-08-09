@@ -1321,18 +1321,26 @@ namespace Opc.Ua
                 return StatusCodes.BadUserAccessDenied;
             }
 
-            // ensure a value timestamp exists.
-            if (m_timestamp == DateTimeUtc.MinValue)
+            // Snapshot the correlated fields together so a concurrent write cannot be
+            // observed half-applied, then release: everything below can dispatch to a
+            // caller-supplied handler, and holding the node's lock across one would give
+            // the node no fixed place in the lock order.
+            Variant snapshotValue;
+            StatusCode statusCode;
+            DateTimeUtc snapshotTimestamp;
+            lock (m_attributeLock)
             {
-                sourceTimestamp = DateTimeUtc.Now;
-            }
-            else
-            {
-                sourceTimestamp = m_timestamp;
+                snapshotValue = m_value;
+                statusCode = m_statusCode;
+                snapshotTimestamp = m_timestamp;
             }
 
-            value = m_value;
-            StatusCode statusCode = m_statusCode;
+            // ensure a value timestamp exists.
+            sourceTimestamp = snapshotTimestamp == DateTimeUtc.MinValue
+                ? DateTimeUtc.Now
+                : snapshotTimestamp;
+
+            value = snapshotValue;
 
             ServiceResult result = ServiceResult.Good;
 
@@ -1703,14 +1711,15 @@ namespace Opc.Ua
                     return result;
                 }
 
-                m_value = value;
-                m_statusCode = statusCode;
-                m_timestamp = sourceTimestamp;
-
-                // update timestamp if not set by function.
-                if (sourceTimestamp == DateTimeUtc.MinValue)
+                // Commit the correlated fields together so a concurrent read cannot observe
+                // the write half-applied. The handler ran outside the lock, above.
+                lock (m_attributeLock)
                 {
-                    m_timestamp = DateTimeUtc.Now;
+                    m_value = value;
+                    m_statusCode = statusCode;
+                    m_timestamp = sourceTimestamp == DateTimeUtc.MinValue
+                        ? DateTimeUtc.Now
+                        : sourceTimestamp;
                 }
 
                 ChangeMasks |= NodeStateChangeMasks.Value;
@@ -1797,10 +1806,14 @@ namespace Opc.Ua
                 }
             }
 
-            // update cached values.
-            m_value = value;
-            m_statusCode = statusCode;
-            m_timestamp = sourceTimestamp;
+            // update cached values together, so a concurrent read cannot observe the write
+            // half-applied.
+            lock (m_attributeLock)
+            {
+                m_value = value;
+                m_statusCode = statusCode;
+                m_timestamp = sourceTimestamp;
+            }
 
             ChangeMasks |= NodeStateChangeMasks.Value;
 

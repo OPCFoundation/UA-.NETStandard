@@ -28,11 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server;
+using Opc.Ua.WotCon.Server.Assets;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -97,6 +101,8 @@ namespace Opc.Ua.WotCon.Tests
         [TestCase("DiscoverAssets")]
         [TestCase("CreateAssetForEndpoint")]
         [TestCase("ConnectionTest")]
+        [TestCase("Write")]
+        [TestCase("CloseAndUpdate")]
         public void AnonymousChannelReturnsBadUserAccessDenied(string operation)
         {
             using var harness = new PolicyHarness(_tempFolder);
@@ -114,6 +120,8 @@ namespace Opc.Ua.WotCon.Tests
         [TestCase("DiscoverAssets")]
         [TestCase("CreateAssetForEndpoint")]
         [TestCase("ConnectionTest")]
+        [TestCase("Write")]
+        [TestCase("CloseAndUpdate")]
         public void NoneSecurityModeReturnsBadUserAccessDenied(string operation)
         {
             using var harness = new PolicyHarness(_tempFolder);
@@ -131,6 +139,8 @@ namespace Opc.Ua.WotCon.Tests
         [TestCase("DiscoverAssets")]
         [TestCase("CreateAssetForEndpoint")]
         [TestCase("ConnectionTest")]
+        [TestCase("Write")]
+        [TestCase("CloseAndUpdate")]
         public void SignOnlySecurityModeReturnsBadUserAccessDenied(string operation)
         {
             using var harness = new PolicyHarness(_tempFolder);
@@ -148,6 +158,8 @@ namespace Opc.Ua.WotCon.Tests
         [TestCase("DiscoverAssets")]
         [TestCase("CreateAssetForEndpoint")]
         [TestCase("ConnectionTest")]
+        [TestCase("Write")]
+        [TestCase("CloseAndUpdate")]
         public void NonAdminUserReturnsBadUserAccessDenied(string operation)
         {
             using var harness = new PolicyHarness(_tempFolder);
@@ -166,6 +178,8 @@ namespace Opc.Ua.WotCon.Tests
         [TestCase("DiscoverAssets")]
         [TestCase("CreateAssetForEndpoint")]
         [TestCase("ConnectionTest")]
+        [TestCase("Write")]
+        [TestCase("CloseAndUpdate")]
         public void SecurityAdminSignAndEncryptSucceeds(string operation)
         {
             using var harness = new PolicyHarness(_tempFolder);
@@ -273,6 +287,72 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.DoesNotThrow(
                 () => harness.Manager.EnforceManagementAccess(context, "CreateAsset"));
+        }
+
+        [Test]
+        public void UploadPathRefusesAnUnauthorisedWriteAndCloseAndUpdate()
+        {
+            // WoT Connectivity 1.1-draft3 names the WoTFile Write and
+            // CloseAndUpdate operations alongside the management Methods,
+            // because they reach the same materializer. Asserting the policy
+            // covers those names is not enough on its own - the file manager
+            // has to actually consult it - so this drives the handlers.
+            using var harness = new PolicyHarness(_tempFolder);
+            ISystemContext denied = harness.BuildSystemContext(
+                MessageSecurityMode.None,
+                identity: new UserIdentity());
+
+            var file = new WoTAssetFileState(null);
+            file.Create(
+                harness.Manager.SystemContext,
+                new NodeId(Guid.NewGuid(), 1),
+                new QualifiedName("WoTFile", 1),
+                new LocalizedText("WoTFile"),
+                true);
+
+            var enforced = new List<string>();
+            using var manager = new WotAssetFileManager(
+                file,
+                maxOpenHandles: 4,
+                maxThingDescriptionSize: 4096,
+                onCloseAndUpdate: (td, token) =>
+                    new ValueTask<ServiceResult>(ServiceResult.Good),
+                logger: NullLogger.Instance,
+                enforceAccess: (context, operation) =>
+                {
+                    enforced.Add(operation);
+                    harness.Manager.EnforceManagementAccess(context, operation);
+                });
+
+            Assert.That(file.Write, Is.Not.Null);
+            WriteMethodState writeMethod = file.Write!;
+            Assert.That(writeMethod.OnCall, Is.Not.Null);
+            ServiceResult write = writeMethod.OnCall!(
+                denied,
+                writeMethod,
+                file.NodeId,
+                1u,
+                ByteString.From([1, 2, 3]));
+
+            Assert.That(ServiceResult.IsBad(write), Is.True);
+            Assert.That(write.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(enforced, Does.Contain("Write"));
+
+            // CloseAndUpdate reaches the same materializer and carries the same
+            // obligation. It enforces access before it validates the handle, so
+            // no valid handle is needed to prove the gate is wired.
+            Assert.That(file.CloseAndUpdate, Is.Not.Null);
+            CloseAndUpdateIWoTAssetTypeWoTFileMethodState closeAndUpdate = file.CloseAndUpdate!;
+            Assert.That(closeAndUpdate.OnCall, Is.Not.Null);
+            ServiceResult close = closeAndUpdate.OnCall!(
+                denied,
+                closeAndUpdate,
+                file.NodeId,
+                1u);
+
+            Assert.That(ServiceResult.IsBad(close), Is.True);
+            Assert.That(close.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(enforced, Does.Contain("CloseAndUpdate"));
         }
 
         /// <summary>

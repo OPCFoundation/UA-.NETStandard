@@ -235,25 +235,6 @@ namespace Opc.Ua.Robotics.Server.Builders
             return this;
         }
 
-        public IRoboticsOperationsBuilder AddOperations(
-            string browseName,
-            ushort applicationNamespaceIndex,
-            Action<IRoboticsOperationsBuilder> configure)
-        {
-            if (configure == null)
-            {
-                throw new ArgumentNullException(nameof(configure));
-            }
-            Scope.EnsureMutable();
-            var builder = new RoboticsOperationsBuilder(
-                Scope,
-                State,
-                browseName,
-                applicationNamespaceIndex);
-            configure(builder);
-            return builder;
-        }
-
         public IMotionDeviceBuilder BindSpeedOverrideRead(
             Func<CancellationToken, ValueTask<DataValue>> read)
         {

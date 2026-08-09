@@ -441,11 +441,37 @@ namespace Opc.Ua
 
             if (starter)
             {
-                _ = Task.Run(() => RunReconnectCycleAsync(tcs), CancellationToken.None);
+                // The cycle's own outcome is observed through tcs, but the manager
+                // still has to know the work exists so disposal waits for it.
+                if (!OwnerManager.BackgroundWork.Run(
+                    nameof(RunReconnectCycleAsync),
+                    async _ => await RunReconnectCycleAsync(tcs).ConfigureAwait(false)))
+                {
+                    // The manager is going away; nothing will run the cycle.
+                    tcs.TrySetException(ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel manager is shutting down."));
+                }
             }
 
             return tcs.Task.WaitAsync(ct);
         }
+
+        /// <summary>
+        /// Whether the most recent reconnect cycle on this entry stopped because the
+        /// reconnect policy ran out of attempts or the caller's retry budget ran out
+        /// of time, rather than because it lost a race against a concurrent close.
+        /// </summary>
+        /// <remarks>
+        /// Both stops leave the entry <see cref="ChannelState.Faulted"/> and surface
+        /// the same <see cref="StatusCodes.BadSecureChannelClosed"/> to the caller, so
+        /// the state and status code alone cannot tell them apart. Only a genuine race
+        /// is worth retrying on a freshly swapped entry; retrying a deliberate stop
+        /// would run a second, unbudgeted reconnect cycle behind the swap back-off and
+        /// defeat the very limit that ended the first one.
+        /// </remarks>
+        internal bool ReconnectStoppedByRetryPolicy
+            => Volatile.Read(ref m_reconnectStoppedByRetryPolicy) != 0;
 
         private TimeSpan? ConsumeServerRetryAfterHint()
         {
@@ -661,6 +687,10 @@ namespace Opc.Ua
             ServiceResult? finalError = null;
             int attemptsStarted = 0;
 
+            // A fresh cycle has not yet decided to stop, so any stale verdict from
+            // an earlier cycle on this entry must not leak into it.
+            Volatile.Write(ref m_reconnectStoppedByRetryPolicy, 0);
+
             CancellationToken shutdownToken = OwnerManager.ShutdownToken;
 
             async Task StopWithFaultAsync(
@@ -676,6 +706,13 @@ namespace Opc.Ua
                 FailReady(new ServiceResultException(
                     StatusCodes.BadSecureChannelClosed,
                     message));
+
+                // Record before completing the waiters: this is a deliberate stop
+                // (the retry policy or the caller's budget said so), not a lost race
+                // against a concurrent close, and callers inspect the flag as soon
+                // as tcs completes.
+                Volatile.Write(ref m_reconnectStoppedByRetryPolicy, 1);
+
                 await NotifyParticipantsFinalAsync().ConfigureAwait(false);
                 finalOutcome = kReconnectOutcomePolicyExhausted;
                 OwnerManager.RecordReconnectAttempt(this, finalOutcome);
@@ -1339,8 +1376,7 @@ namespace Opc.Ua
             public bool FatalForChannel;
         }
 
-        private const string kReconnectOutcomeSuccess = "success";
-        private const string kReconnectOutcomeTransientFailure = "transient-failure";
+        private const string kReconnectOutcomeSuccess = "success";        private const string kReconnectOutcomeTransientFailure = "transient-failure";
         private const string kReconnectOutcomeFatalChannel = "fatal-channel";
         private const string kReconnectOutcomePolicyExhausted = "policy-exhausted";
         private readonly Lock m_lock = new();
@@ -1358,6 +1394,7 @@ namespace Opc.Ua
         private long m_clientCertificateVersion;
         private TaskCompletionSource<bool> m_readyGate;
         private TaskCompletionSource<bool>? m_reconnectCoalescer;
+        private int m_reconnectStoppedByRetryPolicy;
         private IRetryBudget? m_effectiveBudget;
     }
 

@@ -115,6 +115,10 @@ The client should report four uploaded resources, a successful refresh generatio
 3. `Opc.Ua.Pumps.tm.json` as `thingmodels/opc-ua-pumps`, depending on DI and Machinery.
 4. `SamplePump.td.json` as `thingdescriptions/sample-pump`, depending on all three Thing Models.
 
+Each Thing Model is generated from a checked-in NodeSet2 by `WotAggregationDocumentGenerator`, and `WotAggregationDocumentTests.ThingModelsMatchCanonicalConverterRegeneration` asserts the checked-in file is byte-identical to that output, so the documents cannot drift from their sources.
+
+`Opc.Ua.Di.tm.json` is generated from **DI 1.05.0**. That version matters: the official DI NodeSet declared the `ConnectsTo` ReferenceType as a subtype of `HierarchicalReferences` through DI 1.04, which contradicts [OPC 10000-100](https://reference.opcfoundation.org/specs/OPC-10000-100/5.5) §5.5 Table 48 ("Subtype of 0:NonHierarchicalReferences"), and the OPC Foundation corrected it in 1.05.0. `DiConnectsToIsANonHierarchicalReference` pins the corrected form so refreshing the NodeSet from an older upstream revision fails rather than silently reintroducing a non-compliant model.
+
 ### Upload order is not a server requirement
 
 The registry accepts documents in any order. Upload order affects only when the Pump becomes visible, never whether it can be materialized:
@@ -160,13 +164,31 @@ The sample aggregation server sets `AutoRefresh = false` so the four uploads do 
 The materialized namespace is `urn:opcfoundation.org:UA:WotAggregation:PumpInstance`, with root `Pump1`. The end-to-end test verifies that the runtime-loaded hierarchy and type definitions comply with the checked-in companion models:
 
 * `Pump1` has the Pumps `PumpType` definition.
-* `Pump1.Identification` uses its DI type definition.
+* `Pump1.Identification` uses the Pumps `PumpIdentificationType`, which OPC 40223 declares for `PumpType.Identification`. It is a subtype of Machinery's `MachineryItemIdentificationType` and ultimately of DI's `FunctionalGroupType`, so the DI identification properties remain available on it.
 * `Operational`, `Operational.Measurements`, `Events`, `Events.SupervisionProcessFluid`, and `Events.SupervisionPumpOperation` use their Pumps type definitions.
 * The hierarchy contains Identification, Operational, Events, and Maintenance groups.
 * Measurements contain DifferentialPressure, FluidTemperature, BearingTemperature, PumpPowerInput, MassFlow, PumpEfficiency, Level, and NumberOfStarts.
 * Event supervision groups contain Cavitation and MotorOverheat variables.
 
 These nodes are not compiled into `AggregationServer`. They are produced from the DI, Machinery, Pumps, and Sample Pump WoT documents at runtime.
+
+### Cross-checked against a hand-written server
+
+The list above only restates what this sample's own documents ask for, so on its own it cannot catch a document that asks for the wrong thing — and it did not: `Pump1.Identification` carried DI's `FunctionalGroupType` instead of the `PumpIdentificationType` OPC 40223 declares, and every test, the sample documents and this README agreed with each other about it.
+
+[`WotPumpAddressSpaceComparisonTests`](../../tests/Opc.Ua.WotCon.Samples.Tests/WotPumpAddressSpaceComparisonTests.cs) therefore compares this server against [`PumpDeviceIntegrationServer`](../PumpDeviceIntegrationServer), which builds the same OPC 40223 Pump by a completely different route — generated from the companion NodeSets and wired by hand. It is an independent oracle rather than a restatement.
+
+It asserts two things separately:
+
+* Every node this server materializes under its Pump also exists under the native `Pump_1` with the same BrowseName, NodeClass and type definition. Nodes the native server has and this model does not — alarms, OpenUSD, the fuller Identification, the rest of the simulation — are reported for information, because the Thing Description deliberately models a subset.
+* The DI, Machinery and Pumps *type* definitions are equal in both servers. Both derive from the same companion models, so a difference there is a defect rather than a scope decision.
+
+Comparison is on namespace URIs and browse names throughout; NodeIds, namespace indexes, modelling rules and values legitimately differ between the two servers and are ignored.
+
+Two known differences remain and are deliberate rather than accidental:
+
+* `Pump1` has no hierarchical parent, so it is reachable by NodeId but not by browsing down from `Objects`. The native server organizes `Pump_1` under `DeviceSet` and `Machines`. Adding the equivalent `Organizes` reference to `SamplePump.NodeSet2.xml` round-trips through the converter but then fails activation with `IdentifierMissing`, so it needs its own fix first.
+* The Thing Description models ten measurements and two supervision variables; the native server simulates considerably more.
 
 ## Values from both sources
 

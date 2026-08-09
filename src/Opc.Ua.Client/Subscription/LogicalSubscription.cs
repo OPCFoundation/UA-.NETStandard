@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.Subscriptions
                 throw new ArgumentNullException(nameof(primary));
             }
             m_partitions = [primary];
-            m_partitionLock = new object();
+            m_partitionLock = new Lock();
             m_monitoredItems = new CompositeMonitoredItemCollection(
                 m_partitions,
                 m_partitionLock,
@@ -632,8 +632,8 @@ namespace Opc.Ua.Client.Subscriptions
             ThrowIfDispatchingNotification(snapshot, "disposed");
             // Stop any armed secondary-partition idle timers first so
             // they cannot fire against partitions we are tearing
-            // down.
-            m_monitoredItems.DisposeIdleTimers();
+            // down, and stop scheduling new idle deletes.
+            m_monitoredItems.Dispose();
             // Dispose partitions in reverse-add order; secondary partitions
             // (added on demand) hold references back to the primary's
             // notification handler in subsequent milestones, so removing
@@ -783,7 +783,7 @@ namespace Opc.Ua.Client.Subscriptions
         internal IManagedSubscription Primary => m_partitions[0];
 
         private readonly List<IManagedSubscription> m_partitions;
-        private readonly object m_partitionLock;
+        private readonly Lock m_partitionLock;
         private readonly CompositeMonitoredItemCollection m_monitoredItems;
 #pragma warning disable CA2213 // Retained so concurrent recreate waiters can release safely.
         private readonly SemaphoreSlim m_recreateGate = new(1, 1);
