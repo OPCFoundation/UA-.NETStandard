@@ -77,8 +77,8 @@ session.UpdateDiagnostics(diagnostics => diagnostics.ClientLastContactTime = now
 subscription.UpdateDiagnostics(diagnostics => diagnostics.NextSequenceNumber = next);
 ```
 
-To read a value derived from the diagnostics, use the read counterpart, which
-holds the same lock for the duration of the projection:
+To read a value derived from the session or subscription diagnostics, use the
+read counterpart, which holds the same lock for the duration of the projection:
 
 ```csharp
 uint count = session.ReadDiagnostics(diagnostics => diagnostics.RepublishRequestCount);

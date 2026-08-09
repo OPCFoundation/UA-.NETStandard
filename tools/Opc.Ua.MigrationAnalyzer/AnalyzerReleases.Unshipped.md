@@ -1,4 +1,4 @@
-﻿; Unshipped analyzer release
+; Unshipped analyzer release
 ; https://github.com/dotnet/roslyn-analyzers/blob/main/src/Microsoft.CodeAnalysis.Analyzers/ReleaseTrackingAnalyzers.Help.md
 
 ### New Rules
@@ -25,5 +25,5 @@ UA0020  | Migration | Warning  | Replace `EncodeableFactory.GlobalFactory` / `En
 UA0021  | Migration | Info     | Replace `CertificateValidator` / `CertificateValidationEventArgs` with the 1.6 `ICertificateManager` / `ICertificateValidatorEx` / `CertificateValidationResult` pipeline. See docs/migrate/2.0.x/certificates.md.
 UA0022  | Migration | Warning  | Replace `ApplicationConfiguration.CertificateValidator` / `ServerBase.CertificateValidator` property access with `.CertificateManager`.
 UA0023  | Migration | Warning  | Replace the legacy 1.04 PubSub top-level types (`UaPubSubApplication`, `IUaPubSubConnection`, `UaPubSubConnection`, `IUaPublisher`, `UaPublisher`, `IUaPubSubDataStore`, `UaPubSubDataStore`, `UaPubSubConfigurator`) with the new `IPubSubApplication` / `PubSubApplicationBuilder` surface (or `AddPubSub()` / `AddUdpTransport()` / `AddMqttTransport()` on `IOpcUaBuilder`). See docs/migrate/2.0.x/pubsub.md.
-UA0024  | Migration | Warning  | Replace `IServerInternal`/`ISession`/`ISubscription` `DiagnosticsLock`/`DiagnosticsWriteLock` access with `UpdateServerDiagnostics(...)` / `UpdateDiagnostics(...)` (and `ReadServerDiagnostics` / `ReadDiagnostics` for projections).
+UA0024  | Migration | Warning  | Replace `IServerInternal`/`ISession`/`ISubscription` `DiagnosticsLock`/`DiagnosticsWriteLock` access with `UpdateServerDiagnostics(...)` / `UpdateDiagnostics(...)` (and `ISession.ReadDiagnostics` / `ISubscription.ReadDiagnostics` for projections).
 UA0025  | Migration | Warning  | Remove `NodeBrowser.DataLock` usage: a browser is single-consumer in 2.0, so drop the `lock (DataLock)` statement and keep its body. See docs/migrate/2.0.x/node-states.md.

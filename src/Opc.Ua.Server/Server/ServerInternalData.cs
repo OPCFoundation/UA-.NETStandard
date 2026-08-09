@@ -1415,14 +1415,26 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the current diagnostics.
         /// </summary>
+        /// <remarks>
+        /// Takes the same lock every writer takes through
+        /// <see cref="UpdateServerDiagnostics"/>. Locking the payload instead - which is what
+        /// this callback did - meant the snapshot a client reads from the ServerDiagnostics
+        /// node was never excluded from a concurrent writer.
+        /// <para>
+        /// <c>copy: true</c> is what makes it a snapshot. The default overload wraps the live
+        /// structure in the <see cref="ExtensionObject"/> without copying it, so the caller
+        /// would read the fields long after the lock was released and see them change under
+        /// it - the lock would exclude nothing at all.
+        /// </para>
+        /// </remarks>
         private ServiceResult OnUpdateDiagnostics(
             ISystemContext context,
             NodeState node,
             ref Variant value)
         {
-            lock (ServerDiagnostics)
+            lock (m_diagnosticsLock)
             {
-                value = Variant.FromStructure(ServerDiagnostics);
+                value = Variant.FromStructure(ServerDiagnostics, copy: true);
             }
 
             return ServiceResult.Good;
