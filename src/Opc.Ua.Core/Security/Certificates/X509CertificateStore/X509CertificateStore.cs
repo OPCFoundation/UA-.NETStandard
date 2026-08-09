@@ -29,6 +29,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -185,12 +186,24 @@ namespace Opc.Ua
                         //     behaviour.
                         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                         {
-                            byte[] pfx = certificate.Export(X509ContentType.Pfx);
-                            using X509Certificate2 persistedX509 = X509CertificateLoader.LoadPkcs12(
-                                pfx,
-                                null,
-                                X509KeyStorageFlags.PersistKeySet);
-                            store.Add(persistedX509);
+                            try
+                            {
+                                byte[] pfx = certificate.Export(X509ContentType.Pfx);
+                                using X509Certificate2 persistedX509 = X509CertificateLoader.LoadPkcs12(
+                                    pfx,
+                                    null,
+                                    X509KeyStorageFlags.PersistKeySet);
+                                store.Add(persistedX509);
+                            }
+                            catch (CryptographicException)
+                            {
+                                // The key is not extractable, so it cannot be
+                                // re-imported. It already lives in a key storage
+                                // provider that the platform store can reach
+                                // through the existing handle, which is exactly
+                                // what the re-import was trying to achieve.
+                                store.Add(certificate.X509);
+                            }
                         }
                         else
                         {

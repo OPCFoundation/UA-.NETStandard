@@ -102,5 +102,6 @@ namespace Opc.Ua
         public const int UtilsObsolete = 560;
         public const int X509CertificateStore = 570;
         public const int X509CrlHelper = 580;
+        public const int CryptoProvider = 590;
     }
 }

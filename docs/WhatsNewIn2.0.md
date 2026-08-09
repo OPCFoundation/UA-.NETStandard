@@ -248,6 +248,21 @@ ships with [client lockout](RoleBasedUserManagement.md) for failed
 authentication attempts, and `SubCA` revocation no longer auto-creates an
 empty CRL on the issuing CA.
 
+Cryptography is now pluggable. A [`CryptoProvider`](CryptoProvider.md) model
+lets an application route cryptographic operations to another library, an
+offboard service or hardware, chosen per purpose and per security policy and
+injected through `AddCryptoProvider(…)`. The default is unchanged and costs
+nothing: everything resolves to platform cryptography until something is bound.
+Private keys no longer have to be owned by the certificate — a key can be held
+detached, in a TPM, a smart card or an HSM, and never enter process memory.
+`Certificate.CopyWithDetachedPrivateKey` is the seam that makes this work on
+every platform, which `X509Certificate2.CopyWithPrivateKey` does not.
+The optional `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package adds a
+PKCS#11 certificate store addressed by RFC 7512 `pkcs11:` URIs. Which
+cryptographic module performed an operation, and whether it carries any
+validation, is auditable through logs, metrics and the address space, and can
+be constrained with a compliance policy.
+
 ## By layer
 
 ### Server
