@@ -158,12 +158,56 @@ namespace Opc.Ua.OpenUsd.Client
             }
             if (m_remoteSessionFactory != null && !string.IsNullOrEmpty(c.ComponentEndpointUrl))
             {
-                ISession remote = await m_remoteSessionFactory(c.ComponentEndpointUrl!, ct)
-                    .ConfigureAwait(false);
-                var remoteConn = new OpenUsdConnector(remote, m_sink, m_options, m_telemetry, ownsSession: true);
-                m_remoteConnectors.Add(remoteConn);
-                await remoteConn.StartAsync(ct).ConfigureAwait(false);
-                m_logger.CrossServerFederated(c.ComponentEndpointUrl!);
+                // A subordinate server is an independent process that can be down,
+                // unreachable or refuse the session. Federation is best-effort per
+                // component: the placeholder prim is already composed, so the rest of
+                // the scene still renders and only that server's machines are missing.
+                // Letting one unreachable subordinate abort StartAsync would take the
+                // whole stage down with it.
+                try
+                {
+                    ISession remote = await m_remoteSessionFactory(c.ComponentEndpointUrl!, ct)
+                        .ConfigureAwait(false);
+
+                    // The session is owned by nobody until the connector that will
+                    // close it is in m_remoteConnectors. If the constructor throws in
+                    // between, the outer catch would log and move on while the
+                    // channel and the server-side session stay alive until the
+                    // server's session timeout expires.
+                    OpenUsdConnector remoteConn;
+                    try
+                    {
+                        remoteConn = new OpenUsdConnector(
+                            remote, m_sink, m_options, m_telemetry, ownsSession: true);
+                        m_remoteConnectors.Add(remoteConn);
+                    }
+                    catch
+                    {
+                        await remote.CloseAsync(ct).ConfigureAwait(false);
+                        throw;
+                    }
+
+                    await remoteConn.StartAsync(ct).ConfigureAwait(false);
+                    m_logger.CrossServerFederated(c.ComponentEndpointUrl!);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                // TODO: narrow to the transport and service exceptions once
+                // RemoteSessionFactory documents what it is allowed to throw. The
+                // catch is deliberately broad today because the factory is a public
+                // extension point: a caller-supplied implementation can throw
+                // anything, and letting an unanticipated type escape would take down
+                // the entire stage for one unreachable subordinate - the exact
+                // failure this handler exists to prevent. Cancellation is re-thrown
+                // above, so the broad catch never swallows a cancellation.
+#pragma warning disable CA1031 // One unreachable subordinate must not fail the stage.
+                catch (Exception ex)
+#pragma warning restore CA1031
+                {
+                    m_logger.CrossServerFederationFailed(c.ComponentEndpointUrl!, ex);
+                }
             }
         }
 

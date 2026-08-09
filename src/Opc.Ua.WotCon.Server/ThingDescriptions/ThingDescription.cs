@@ -75,6 +75,45 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// <summary>WoT actions keyed by action name (OPC 10100-1 §6.3.9).</summary>
         [JsonPropertyName("actions")]
         public Dictionary<string, WotAction>? Actions { get; set; }
+
+        /// <summary>WoT events keyed by event name (OPC 10100-1 §6.3.10).</summary>
+        [JsonPropertyName("events")]
+        public Dictionary<string, WotEvent>? Events { get; set; }
+    }
+
+    /// <summary>
+    /// W3C WoT event definition. An event affordance surfaces as an OPC UA
+    /// EventType (a <c>BaseEventType</c> subtype) whose event fields are
+    /// derived from the event's <c>data</c> schema per OPC 10100-1 §6.3.10.
+    /// </summary>
+    public sealed class WotEvent
+    {
+        /// <summary>Optional title.</summary>
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
+
+        /// <summary>Optional description.</summary>
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        /// <summary>
+        /// Schema of the event payload. Each member becomes an event field
+        /// on the materialized EventType.
+        /// </summary>
+        [JsonPropertyName("data")]
+        public WotActionSchema? Data { get; set; }
+
+        /// <summary>
+        /// Optional severity (OPC 10000-5 <c>BaseEventType.Severity</c>,
+        /// 1..1000) reported for every occurrence of this event when the
+        /// provider does not supply one. Defaults to 500 when absent.
+        /// </summary>
+        [JsonPropertyName("uav:severity")]
+        public ushort? Severity { get; set; }
+
+        /// <summary>Protocol binding forms.</summary>
+        [JsonPropertyName("forms")]
+        public List<JsonElement>? Forms { get; set; }
     }
 
     /// <summary>

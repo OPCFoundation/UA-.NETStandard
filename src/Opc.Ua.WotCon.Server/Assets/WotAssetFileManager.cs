@@ -34,6 +34,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 
 namespace Opc.Ua.WotCon.Server.Assets
@@ -59,13 +60,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             int maxOpenHandles,
             int maxThingDescriptionSize,
             Func<ThingDescription, CancellationToken, ValueTask<ServiceResult>> onCloseAndUpdate,
-            ILogger logger)
+            ILogger logger,
+            Action<ISystemContext, string>? enforceAccess = null)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
             m_maxHandles = maxOpenHandles;
             m_maxSize = maxThingDescriptionSize;
             m_onCloseAndUpdate = onCloseAndUpdate ?? throw new ArgumentNullException(nameof(onCloseAndUpdate));
             m_logger = logger;
+            m_enforceAccess = enforceAccess;
 
             file.Size?.Value = 0;
             file.Writable?.Value = true;
@@ -131,6 +134,18 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 return ServiceResult.Create(StatusCodes.BadNotSupported,
                     "WoTAssetFileType only supports modes Read (1) and Write+EraseExisting (6).");
+            }
+            if (mode == writeEraseMode)
+            {
+                // Opening for write is the start of a mutation, and it takes the
+                // single writer slot below. Gating only Write and CloseAndUpdate
+                // would let an unauthorized caller hold that slot and lock out
+                // every legitimate writer without ever calling a gated Method.
+                ServiceResult access = EnforceAccess(context, "Open");
+                if (ServiceResult.IsBad(access))
+                {
+                    return access;
+                }
             }
             NodeId? sessionId = SessionIdOf(context);
             lock (m_handles)
@@ -241,6 +256,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             uint fileHandle,
             ByteString data)
         {
+            // The upload path reaches the same materializer as the management
+            // methods, so it carries the same obligation: role-based access
+            // control and a secure channel for every mutation, whether or not
+            // the registry backs the asset surface.
+            ServiceResult access = EnforceAccess(context, "Write");
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
             lock (m_handles)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
@@ -315,6 +339,11 @@ namespace Opc.Ua.WotCon.Server.Assets
             NodeId objectId,
             uint fileHandle)
         {
+            ServiceResult access = EnforceAccess(context, "CloseAndUpdate");
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
             Handle handle;
             lock (m_handles)
             {
@@ -335,6 +364,36 @@ namespace Opc.Ua.WotCon.Server.Assets
             try
             {
                 byte[] content = ((MemoryStream)handle.Stream).ToArray();
+
+                // Wot-Con 1.02 requires an uploaded document to be format
+                // validated before any node is materialized from it, and a
+                // document that fails validation to materialize nothing.
+                // Deserializing into the Thing Description shape alone is not
+                // that check: every member of the POCO is optional, so an empty
+                // object deserializes happily. Parsing as a WoT document rejects
+                // JSON that is not an object, and requiring an identifying member
+                // rejects an object that is not a Thing Description. This surface
+                // keys an asset on "name" and W3C WoT TD 1.1 section 5.3.1 makes
+                // "title" mandatory, so either one identifies the document.
+                try
+                {
+                    using WotDocument probe = WotDocument.Parse(content);
+                    if (probe.RootElement.ValueKind != JsonValueKind.Object ||
+                        !HasIdentifyingMember(probe.RootElement))
+                    {
+                        m_logger.UploadedDocumentIsNotAThingDescription();
+                        return ServiceResult.Create(StatusCodes.BadDecodingError,
+                            "The uploaded document is not a Thing Description: it must be " +
+                            "a JSON object carrying a 'name' or 'title'.");
+                    }
+                }
+                catch (Exception ex) when (ex is FormatException or JsonException)
+                {
+                    m_logger.ThingDescriptionFailedFormatValidation(ex);
+                    return ServiceResult.Create(ex, StatusCodes.BadDecodingError,
+                        "The uploaded document is not a valid Thing Description.");
+                }
+
                 ThingDescription? td;
                 try
                 {
@@ -424,11 +483,54 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Applies the management access policy to a mutating file operation.
+        /// </summary>
+        /// <remarks>
+        /// WoT Connectivity 1.1-draft3 names the WoTFile Write and
+        /// CloseAndUpdate operations alongside the management Methods, because
+        /// they reach the same materializer and a server implementing only the
+        /// 1.02 surface would otherwise inherit no obligation at all.
+        /// </remarks>
+        /// <param name="context">The calling system context.</param>
+        /// <param name="operation">The operation being authorised.</param>
+        /// <returns>
+        /// <see cref="ServiceResult.Good"/> when the call is permitted.
+        /// </returns>
+        private ServiceResult EnforceAccess(ISystemContext context, string operation)
+        {
+            if (m_enforceAccess is null)
+            {
+                return ServiceResult.Good;
+            }
+            try
+            {
+                m_enforceAccess(context, operation);
+                return ServiceResult.Good;
+            }
+            catch (ServiceResultException ex)
+            {
+                return new ServiceResult(ex);
+            }
+        }
+
+        /// <summary>
+        /// Tests that a parsed document carries a member identifying it as a
+        /// Thing Description. This surface keys an asset on <c>name</c>, and W3C
+        /// WoT TD 1.1 §5.3.1 makes <c>title</c> mandatory, so either identifies
+        /// the document. An object carrying neither is not one.
+        /// </summary>
+        private static bool HasIdentifyingMember(JsonElement root)
+        {
+            return ThingDescriptionFormatValidator.HasIdentifyingMember(root);
+        }
+
         private readonly WoTAssetFileState m_file;
         private readonly int m_maxHandles;
         private readonly int m_maxSize;
         private readonly Func<ThingDescription, CancellationToken, ValueTask<ServiceResult>> m_onCloseAndUpdate;
         private readonly ILogger m_logger;
+        private readonly Action<ISystemContext, string>? m_enforceAccess;
         private readonly Dictionary<uint, Handle> m_handles = [];
         private uint m_nextHandle;
         private uint m_writingHandle;
@@ -439,5 +541,14 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 0, Level = LogLevel.Warning,
             Message = "Thing description JSON could not be parsed")]
         public static partial void ThingDescriptionJsonCouldNotBeParsed(this ILogger logger, JsonException ex);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 1, Level = LogLevel.Warning,
+            Message = "Uploaded document failed format validation and materialized nothing")]
+        public static partial void ThingDescriptionFailedFormatValidation(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 2, Level = LogLevel.Warning,
+            Message = "Uploaded document is well formed JSON but is not a Thing Description " +
+                "and materialized nothing")]
+        public static partial void UploadedDocumentIsNotAThingDescription(this ILogger logger);
     }
 }

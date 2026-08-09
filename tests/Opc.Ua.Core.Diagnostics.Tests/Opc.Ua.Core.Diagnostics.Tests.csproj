@@ -52,7 +52,7 @@
     <ProjectReference Include="..\Opc.Ua.Core.TestFramework\Opc.Ua.Core.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
     <!--
-      McpServerOptionsTests / PacketDecodePathValidationTests
+      OpcUaMcpOptionsTests / PacketDecodePathValidationTests
       reflectively load the Opc.Ua.Mcp assembly from
       tools/Opc.Ua.Mcp/bin via Assembly.LoadFrom. On CI the
       per-project build (dotnet build $CSPROJECT) only builds projects

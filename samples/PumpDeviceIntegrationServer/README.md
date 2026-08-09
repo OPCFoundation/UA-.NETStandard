@@ -305,7 +305,7 @@ own copy of every target.
 | `BayPosition` | `xformOp:translate` | places the pump in its bay |
 | `ShaftAngle` | `…/Impeller.xformOp:rotateZ` | turns the shaft, impeller and coupling |
 | `ShaftAngle` | `…/Motor/FanBlades.xformOp:rotateZ` | motor cooling fan |
-| `BearingTemperature` | `…/Body/Mat/Surface.inputs:diffuseColor` | casing colour, blue (cool) → red (hot) |
+| `BearingTemperature` | `…/Body.primvars:displayColor` | casing colour, blue (cool) → red (hot) |
 | `BearingTemperature` | `…/PowerEnd/TempGauge/Needle.xformOp:rotateZ` | bearing-temperature gauge |
 | `DifferentialPressure` | `…/Discharge/Gauge/Needle.xformOp:rotateZ` | discharge pressure gauge |
 | `FluidSurfacePosition` | `…/SuctionVessel/Surface.xformOp:translate` | liquid surface rides on the published `Level` |

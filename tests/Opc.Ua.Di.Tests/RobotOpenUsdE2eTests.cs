@@ -506,6 +506,32 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public async Task RepresentationsAreMountedWithHasAddInAsync()
+        {
+            // The representation is an AddIn (§5.2), so every represented Object must
+            // reference it with HasAddIn, not plain HasComponent. Both browse the same
+            // way - HasAddIn is a subtype of HasComponent - so a wrong reference type
+            // is invisible to every functional test and only shows up against a
+            // conformance checker. Hence this assertion.
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
+            List<OpenUsdConnector.RepresentationInfo> reps = await AllRepsAsync(connector).ConfigureAwait(false);
+            Assert.That(reps, Is.Not.Empty, "No representations discovered.");
+
+            foreach (OpenUsdConnector.RepresentationInfo rep in reps)
+            {
+                ArrayOf<ReferenceDescription> owners = await BrowseAsync(
+                    rep.NodeId,
+                    global::Opc.Ua.ReferenceTypeIds.HasAddIn,
+                    (uint)NodeClass.Object,
+                    BrowseDirection.Inverse).ConfigureAwait(false);
+                Assert.That(
+                    owners,
+                    Has.Count.EqualTo(1),
+                    $"{rep.PrimPath} is not mounted on its represented Object with HasAddIn.");
+            }
+        }
+
+        [Test]
         public async Task AllRepresentationsAreDiscoverableAsync()
         {
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());

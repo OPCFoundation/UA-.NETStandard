@@ -36,6 +36,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Robotics;
 using Opc.Ua.Robotics.Client;
+using IntentControllerTypeClient = Opc.Ua.RobotIntent.IntentControllerTypeClient;
 
 namespace Opc.Ua.Robotics.Client.Tests
 {
@@ -93,6 +94,24 @@ namespace Opc.Ua.Robotics.Client.Tests
             Assert.That(client.Telemetry, Is.SameAs(telemetry));
             Assert.That(client.Topology, Is.Not.Null);
             Assert.That(client.Topology.Session, Is.SameAs(session.Object));
+        }
+
+        [Test]
+        public void IntentControllerBindsTheGivenNodeToTheCallersSessionAndTelemetry()
+        {
+            Mock<ISession> session = SessionWithRobotics(out _);
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
+            var client = new RoboticsClient(session.Object, telemetry);
+            var controllerId = new NodeId(4242u, 7);
+
+            IntentControllerTypeClient controller = client.IntentController(controllerId);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.ObjectId, Is.EqualTo(controllerId));
+                Assert.That(controller.Session, Is.SameAs(session.Object));
+                Assert.That(controller.Telemetry, Is.SameAs(telemetry));
+            });
         }
 
         [Test]

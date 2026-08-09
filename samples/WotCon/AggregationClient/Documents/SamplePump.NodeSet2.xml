@@ -34,7 +34,7 @@
     <Alias Alias="Range">i=884</Alias>
     <Alias Alias="EUInformation">i=887</Alias>
   </Aliases>
-  <UAObject NodeId="ns=1;s=Pump1" BrowseName="1:Pump #1">
+  <UAObject NodeId="ns=1;s=Pump1" BrowseName="1:Pump_1">
     <DisplayName>Pump #1</DisplayName>
     <Description>Sample-owned aggregate pump projected from two upstream OPC UA servers.</Description>
     <References>
@@ -52,7 +52,7 @@
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Identification.Manufacturer</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Identification.SerialNumber</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Identification.ProductInstanceUri</Reference>
-      <Reference ReferenceType="HasTypeDefinition">ns=4;i=1005</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1005</Reference>
     </References>
   </UAObject>
   <UAVariable NodeId="ns=1;s=Pump1.Identification.Manufacturer" BrowseName="4:Manufacturer" ParentNodeId="ns=1;s=Pump1.Identification" DataType="LocalizedText" AccessLevel="1">

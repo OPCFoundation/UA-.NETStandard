@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -224,9 +225,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     internal sealed class SnapshotThingResolver : IWotThingResolver
     {
-        public SnapshotThingResolver(WotRegistrySnapshot snapshot)
+        public SnapshotThingResolver(
+            WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents)
         {
             m_snapshot = snapshot;
+            m_contents = contents ?? throw new ArgumentNullException(nameof(contents));
         }
 
         /// <summary>
@@ -240,12 +244,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             cancellationToken.ThrowIfCancellationRequested();
             WotResource? resource = WotDependencyGraph.Resolve(m_snapshot, reference);
             WotResourceVersion? version = resource?.DefaultVersion;
-            WotResolverResult result = version is null
+            WotResolverResult result = version is null ||
+                !m_contents.TryGetValue(version.DigestHex, out ByteString content)
                 ? WotResolverResult.NotFound
-                : WotResolverResult.FromBytes(version.Content);
+                : WotResolverResult.FromBytes(content.Span.ToArray());
             return new ValueTask<WotResolverResult>(result);
         }
 
         private readonly WotRegistrySnapshot m_snapshot;
+        private readonly IReadOnlyDictionary<string, ByteString> m_contents;
     }
 }

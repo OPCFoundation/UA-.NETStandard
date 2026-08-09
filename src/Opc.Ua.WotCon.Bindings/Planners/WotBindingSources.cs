@@ -137,7 +137,11 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             WotBindingMaturity.OpcSpecification,
             commit: "OPC-10101-1.00",
             retrieved: Retrieved,
-            note: "uav: terms (id, componentOf, mapToNodeId, mapToType, mapByFieldPath, " +
-                "eventFields) per the official OPC UA WoT Connectivity binding (OPC 10101).");
+            note: "uav: terms (id, componentOf, mapToNodeId, mapToType, mapByFieldPath) " +
+                "per the official OPC UA WoT Connectivity binding (OPC 10101). " +
+                "uav:eventFields is a non-standard extension of this " +
+                "implementation: release 1.1 Section 8 carries the event's " +
+                "fields in the event data schema and its delivery configuration " +
+                "in uav:eventConfiguration, and defines no eventFields term.");
     }
 }

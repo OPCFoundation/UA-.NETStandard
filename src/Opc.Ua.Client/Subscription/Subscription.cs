@@ -203,6 +203,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_handler = handler;
             m_context = context;
             m_monitoredItems = new MonitoredItemManager(this, telemetry);
+            m_backgroundWork = new BackgroundTaskScope(nameof(Subscription), telemetry);
             m_publishTimer = TimeProvider.CreateTimer(OnKeepAlive,
                 null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             if (loadState != null)
@@ -596,6 +597,11 @@ namespace Opc.Ua.Client.Subscriptions
                 try
                 {
                     await m_cts.CancelAsync().ConfigureAwait(false);
+
+                    // Before the state machine and monitored items go away: an
+                    // in-flight recreate walks both of them.
+                    await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+
                     await m_stateManagement.ConfigureAwait(false);
 
                     await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
@@ -797,7 +803,10 @@ namespace Opc.Ua.Client.Subscriptions
                 Interlocked.CompareExchange(
                     ref m_recreateAfterTransferInProgress, 1, 0) == 0)
             {
-                _ = Task.Run(RecoverAfterUnsolicitedTransferAsync);
+                m_backgroundWork.Run(
+                    nameof(RecoverAfterUnsolicitedTransferAsync),
+                    async _ => await RecoverAfterUnsolicitedTransferAsync()
+                        .ConfigureAwait(false));
             }
             return default;
         }
@@ -1458,6 +1467,7 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly ISubscriptionNotificationHandler m_handler;
         private readonly ISubscriptionContext m_context;
         private readonly MonitoredItemManager m_monitoredItems;
+        private readonly BackgroundTaskScope m_backgroundWork;
     }
 
     /// <summary>

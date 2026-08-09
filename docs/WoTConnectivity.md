@@ -113,14 +113,60 @@ between protocols:
 ```csharp
 public sealed class MyHttpWotAssetProvider : IWotAssetProvider
 {
-    public ValueTask<(ServiceResult, object?)> ReadAsync(WotPropertyTag tag, CancellationToken ct);
-    public ValueTask<ServiceResult> WriteAsync(WotPropertyTag tag, object? value, CancellationToken ct);
+    public ValueTask<(ServiceResult, Variant)> ReadAsync(WotPropertyTag tag, CancellationToken ct);
+    public ValueTask<ServiceResult> WriteAsync(WotPropertyTag tag, Variant value, CancellationToken ct);
     public ValueTask SubscribeAsync(WotPropertyTag tag, uint id, OnWotValueChange cb, CancellationToken ct);
     public ValueTask UnsubscribeAsync(WotPropertyTag tag, uint id, CancellationToken ct);
-    public ValueTask<ServiceResult> InvokeActionAsync(WotActionTag action, IReadOnlyList<object?> inputs, IList<object?> outputs, CancellationToken ct);
+    public ValueTask<ServiceResult> InvokeActionAsync(WotActionTag action, IReadOnlyList<Variant> inputs, IList<Variant> outputs, CancellationToken ct);
+    public ValueTask SubscribeEventAsync(WotEventTag tag, uint id, OnWotEvent cb, CancellationToken ct);
+    public ValueTask UnsubscribeEventAsync(WotEventTag tag, uint id, CancellationToken ct);
     public ValueTask DisposeAsync();
 }
 ```
+
+### Event affordances
+
+A TD `events` entry (OPC 10100-1 §6.3.10) materializes as a
+non-abstract `BaseEventType` subtype whose event fields come from the
+event's `data` schema. The asset object becomes an event notifier and
+gains a `GeneratesEvent` reference to the materialized type, so a client
+subscribing to the asset — or to the Server object — receives every
+occurrence.
+
+```jsonc
+"events": {
+  "Overheating": {
+    "title": "Overheating",
+    "uav:severity": 700,          // optional; 1..1000, defaults to 500
+    "data": {
+      "type": "object",
+      "properties": { "Temperature": { "type": "number" } }
+    }
+  }
+}
+```
+
+The registry subscribes the provider once per affordance when the TD is
+applied and keeps that subscription for the lifetime of the generation;
+the server's subscription machinery decides which clients receive each
+occurrence, so a provider never tracks per-client state. The provider
+reports an occurrence by invoking the `OnWotEvent` callback with one
+value per `WotEventTag.Fields` entry, in order:
+
+```csharp
+public ValueTask SubscribeEventAsync(
+    WotEventTag tag, uint id, OnWotEvent cb, CancellationToken ct)
+{
+    m_client.Overheated += (temperature, at) =>
+        cb(tag, [new Variant(temperature)], new LocalizedText("Pump is overheating"), 700, at);
+    return default;
+}
+```
+
+`message` and `severity` are optional: a null `message` publishes the
+event name and a null `severity` falls back to the affordance's
+`uav:severity`. An authored severity outside 1..1000 is clamped rather
+than rejected, so one bad event definition cannot fail the whole asset.
 
 Pair it with an `IWotAssetProviderFactory` that advertises the WoT
 binding URIs it understands (surfaced through
@@ -340,6 +386,30 @@ connector. Operators who need IP-range enforcement must either pin
 `AllowedHosts` to IP literals or accept that the IP-range gates only
 fire when the host portion of the URI itself is an IP literal.
 
+The same policy applies to the endpoints `DiscoverAssets` returns:
+they are filtered through `AssetEndpointValidator` before they reach
+the caller, so a provider cannot use discovery to hand a client an
+address the policy would have refused on `ConnectionTest`.
+
+### The generated Thing Description is untrusted too
+
+§11 of the specification requires a Thing Description auto-generated
+from a caller-chosen endpoint to be treated as untrusted input,
+subject to the same `Wot-Con 1.02` format validation an uploaded
+document gets. `CreateAssetForEndpoint` therefore validates what
+`IWotAssetDiscoveryProvider.CreateThingDescriptionAsync` returns before
+materialising anything from it: the document must identify itself by
+carrying a non-empty `name` or `title`. A document that fails
+materialises nothing — the asset created to hold it is removed again —
+and the call returns `Bad_DecodingError`.
+
+Deserializing into `ThingDescription` is not that check. Every member
+of that type is optional, so an empty object deserializes happily;
+neither the endpoint (chosen by the caller) nor the provider
+(pluggable) is a trusted source. The rule lives in one place,
+`ThingDescriptionFormatValidator`, which both the upload path and this
+path call.
+
 ---
 
 ## 7. Error reporting
@@ -451,7 +521,7 @@ may be exposed over `MessageSecurityMode.None` by deployment policy.
 
 ## 11. WoT Connectivity 1.1 registry and materialization (preview)
 
-The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.1** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, marked deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry** base model the registry types build on:
+The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.1** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, superseded in capability but **not** deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry** base model the registry types build on:
 
 | Model | Namespace | Emitted C# namespace |
 |-------|-----------|----------------------|
@@ -537,6 +607,26 @@ options.ResourceStore = new WotBlobResourceStore("/mnt/shared/wot-documents");
 `WotBlobResourceStore` is the default WoT implementation. It keeps one file per document named after the document's SHA-256 digest — deliberately the `{root}/{digest}.bin` layout `FileWotRegistryStore` has always written, so adopting the interface needs **no on-disk migration** and existing registry folders keep working. It is validated against the shared `XRegistryResourceStoreContractTests`, so any other implementation (an object store, a database) can be substituted.
 
 The registry still writes and switches its own manifest atomically; only the bytes move. That split is required because `IXRegistryResourceStore` has no staging, flush or bulk-delete concept, whereas the file store fsyncs its blob directory before the manifest switch and deletes it wholesale when rolling back a pristine commit. It is safe because documents are content-addressed and therefore immutable: a document is always written *before* the manifest that references it, so an interrupted commit can leave an orphaned document but never a dangling reference. A supplied store owns the durability of the bytes it holds.
+
+##### Staging and promotion
+
+Writing bytes before the manifest that names them collides with the way the file store recognises trouble: a `blobs/` directory with no manifest means a lost generation or a crashed commit, and the store fails closed rather than report an empty registry and discard data. If the writer put bytes straight into `blobs/`, the very first write on a fresh deployment would look exactly like that.
+
+So writes land in `staging/` and the commit **promotes** the entries its snapshot references into `blobs/` as artifacts it owns, before switching the manifest:
+
+```text
+{root}/staging/…            writer's durable scratch — never evidence of prior state
+{root}/blobs/{digest}.bin   promoted by the commit, named by the manifest
+{root}/manifest.json        switched last
+```
+
+Reads prefer `blobs/` and fall back to `staging/`, so content written but not yet committed is still readable by the transaction that wrote it. A staged entry that never gets promoted is inert and safe to delete: nothing can reference a document until a manifest names it, and only promoted entries are ever named. A commit that is refused therefore leaves a staged orphan and changes nothing else.
+
+Promotion also restores the integrity check that content addressing is worth having. Each referenced document is streamed and hashed as the snapshot is validated, so a blob whose bytes were altered without changing its length, or that cannot be read at all, fails the commit closed. The hash is computed incrementally over chunks, so verifying a document never requires holding it in memory — which is the point of keeping bytes out of the snapshot. Structural validation runs first, so a malformed snapshot is reported for what is wrong with it rather than for content it was never entitled to reference.
+
+The practical win is that a commit no longer rewrites the whole corpus. A blob is written once per digest, so editing one document leaves every other document's file untouched — asserted by `MutatingOneResourceDoesNotRewriteAnotherResourceBytes`.
+
+A decorator around `IWotRegistryStore` **must** forward `IWotRegistryResourceStoreProvider`. A decorator that drops it leaves the registry service writing bytes into a private in-memory store while the wrapped store validates against its own, and every commit then reports the documents missing.
 
 Resource bounds (`WotRegistryPersistenceBounds`) cap document size, versions per resource, resources per group, and group count.
 
@@ -771,3 +861,157 @@ refresh.EnsureSuccess();
 ```
 
 Register the registry client with DI alongside `AddWotConClient` via `AddWotRegistryClient` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`, bindable from `IConfiguration`/`IConfigurationSection`, default section `OpcUa:WotCon:RegistryClient`). It follows the same lazy `ManagedSession`-backed factory pattern: resolve `Func<CancellationToken, Task<WotRegistryClient>>` for the lazily connected form, or `Func<ManagedSession, CancellationToken, Task<WotRegistryClient>>` to wrap an already-connected session.
+
+## 12. Conformance to WoT Connectivity 1.1
+
+This clause describes what the model requires and what this implementation
+provides. It is a statement of the current state, not a history of how either
+got here.
+
+### 12.1 Model identity
+
+The information model is generated from the NodeSets the specifications publish,
+adopted verbatim rather than maintained by hand.
+
+| Model | Version | PublicationDate |
+|---|---|---|
+| WoT Connectivity | `1.1` | 2026-08-05 |
+| WoT Binding | `1.1` | 2026-07-29 |
+| xRegistry (`RequiredModel`) | `0.3.0` | 2026-07-31 |
+
+xRegistry contributes 66 nodes and two behavioural rules the registry honours: a
+reverse-authority construction algorithm for `GroupId` and `ResourceId`
+(§ 11.4), and `SignAndEncrypt` on every mutating operation.
+
+### 12.2 Conformance units and profiles
+
+Three profiles form a lattice rather than a ladder:
+
+| Profile | Covers |
+|---|---|
+| *WoT-Con Minimal* | `Wot-Con 1.02` alone — the published OPC 10100-1 v1.02 shape and nothing else |
+| *WoT-Con Registry Server* | the registry surface without federation, change events, projections or the atomicity modes |
+| *WoT-Con Full* | every unit, `Wot-Con 1.02` included |
+
+Minimal and Registry Server are each a subset of Full, and neither is a subset of
+the other: they share no conformance unit. A server may implement either surface
+or both.
+
+`Wot-Con 1.02` is implementable on its own, so it covers serving the data points of
+an uploaded Thing Description — and with it, format-validating that document
+before any Node is materialized from it. Client-supplied input never reaches the
+AddressSpace unchecked; a document that fails validation materializes nothing and
+returns `Bad_DecodingError`.
+
+`WOTC-ProjectionMaterialization` is carried by `ThingDescriptionFileType`,
+`ThingModelFileType` and `HasWoTProjection`.
+
+### 12.3 Grouping
+
+A grouping is an ordinary document whose members are reached by `ua:Organizes`
+links; across documents it is a projection document (§ 12.4). The binding has no
+separate grouping vocabulary, because a grouping is an Object and `Organizes` is
+a ReferenceType — the two constructs the model already has.
+
+### 12.4 Projection documents and the View NodeClass
+
+A **projection document** is a Thing Description or Thing Model that declares,
+rather than defines, its affordances. It names source documents and states which
+of their affordances a view is assembled from, so it carries references and
+annotations only and has nothing that can drift from its sources.
+
+This completes the NodeClass binding. Seven OPC UA NodeClasses bind to a WoT
+construct that defines something; `View` is the eighth and the only one whose
+purpose is to select rather than define. A View owns no Node — it organizes Nodes
+that already exist so a client can browse a subset shaped for one task — and a
+projection document is that construct in WoT.
+
+A projection is marked by `uav:projection` in its `@type` and declares:
+
+| Term | Meaning |
+|---|---|
+| `uav:scenario` | absolute IRI naming the purpose the view serves |
+| `uav:projects` | non-empty manifest of the documents it projects |
+| `uav:sourceName` | alias for a source, unique in the manifest |
+| `uav:routing` | `source` (default) or `projection` |
+| `uav:sourceDigest` | `sha-256:<hex>` pinning a source revision |
+| `uav:namePrefix` | prefix applied to bulk-selected names |
+
+Selection has three forms. An enumerated `tm:ref` names one affordance and is the
+only form that can annotate it; `uav:selectAll` takes every affordance of a
+source; and `uav:select` filters on affordance kind, semantic identifier and type
+tokens. The predicate set is closed — a filter carrying any other key is rejected
+rather than ignored — so a filter stays decidable by inspection.
+
+Every member of `properties`, `actions` and `events` carries `tm:ref`. A member
+without one is defining an affordance, which is the one thing a projection
+document must not do.
+
+Materialization produces a `View` Node that `Organizes` the Nodes already
+materialized from the sources. The View creates **no** affordance Node, so
+`MaterializedNodeCount` counts only the View and any organizational Objects, not
+the Nodes it organizes. `RootNodeId` is the View, and the document resource points
+at it through `HasWoTProjection`, navigable back through `WoTProjectionOf`.
+
+`ViewVersion` is a deterministic function of the resolved membership alone, computed
+exactly as *WoT Binding* §12.6 specifies: each resolved member's ExpandedNodeId in the
+portable `nsu=` form, sorted ascending by Unicode code point, each written as its
+length in UTF-8 octets, a colon, the string and U+000A, UTF-8 encoded, and the first
+four octets of the SHA-256 digest read as a big-endian `UInt32`, with `0` reported as
+`1` because OPC 10000-3 §5.4 requires a value greater than zero.
+
+The length prefix is what makes the encoding injective. A NodeId string identifier may
+itself contain U+000A, so joining on the separator alone would let a single member that
+embeds a newline serialize byte-for-byte as the two members it imitates — a structural
+collision an author can construct deliberately, distinct from the statistical one below.
+
+Naming the function is what makes the property testable: two servers that resolved the
+same membership compute the same value, which a per-server counter could not promise
+across a redundant pair. It needs no persisted state, so it survives a restart or a
+rebuild from the registry, and it records *what* a View contains rather than how it is
+arranged — reordering the same members does not change it. It is not monotonic and
+carries no ordering. A `UInt32` cannot separate every possible membership, so a client
+treats inequality as proof that the membership changed and equality as evidence rather
+than proof that it did not.
+
+A projection over Thing Models materializes to a `View` in the same way,
+organizing the ObjectType and VariableType Nodes its source Thing Models
+materialized.
+
+A source that is not in the address space is omitted from the View and reported in
+`WoTResourceLoadResultDataType.Message`; the resource still reaches
+`LoadState = Active`, because an omission is a reported detail rather than a
+failure.
+
+### 12.5 Portable identifiers
+
+Two identifier forms are errors, because a document carrying either binds to the
+wrong namespace as soon as the namespace table is reordered:
+
+* the session-local `ns=<index>` form in any NodeId-valued term — `uav:id`,
+  `uav:hasComponent`, `uav:componentOf`, `uav:mapToNodeId`, `uav:mapToType`,
+  `uav:refId` and form `href`s;
+* a numeric namespace prefix in `uav:browseName` or `uav:browsePath`, such as
+  `3:PaintingRobot_1`.
+
+Authors write `nsu=<NamespaceUri>;<idtype>=<id>` and either a context-bound
+non-numeric prefix or `nsu=<NamespaceUri>;<Name>` instead.
+`WotNodeSetConverterOptions.AllowNonPortableIdentifiers` keeps a document written
+against OPC 10101 v1.00 readable while it is rewritten; see
+[WoT protocol bindings](WotBindings.md#compatibility-switch-for-non-portable-identifiers)
+for the forms and worked examples.
+
+### 12.6 The 1.02 asset surface
+
+The incorporated OPC 10100-1 v1.02 management and upload surface (NodeIds
+`1..172`) is superseded in capability by the registry but is **not** deprecated:
+serving a WoT asset that way is legitimate, and *WoT-Con Minimal* is built on it.
+
+It carries its security obligation directly rather than by reference to the
+optional registry backing, so a server implementing only this surface still
+inherits it. `CreateAsset`, `DeleteAsset`, `CreateAssetForEndpoint`,
+`ConnectionTest` and the `WoTFile` `Open` (write mode), `Write` and
+`CloseAndUpdate` operations require role-based access control and a
+`SignAndEncrypt` channel for every mutation, whether or not the registry backs
+them. The rule against dereferencing a URI found in a document extends to the
+`WoTFile` upload path, which reaches the same materializer.

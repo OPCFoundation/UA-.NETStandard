@@ -496,11 +496,11 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     ReadOnlySpan<UsdVec3f> single = [vector];
                     if (timeCode is { } colorTime)
                     {
-                        prim.SetVec3fArray(propertyName, single, colorTime);
+                        prim.SetColor3fArray(propertyName, single, colorTime);
                     }
                     else
                     {
-                        prim.SetVec3fArray(propertyName, single);
+                        prim.SetColor3fArray(propertyName, single);
                     }
                     return;
                 }

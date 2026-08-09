@@ -3,22 +3,26 @@
     Enforces the repository's code-coverage gates against a Cobertura report.
 
  .DESCRIPTION
-    Replaces the retired codecov/project and codecov/patch status checks with a
-    self-contained gate that runs inside the pipeline. Three checks are made
+    The enforced coverage gate, run inside the pipeline so it can react to how
+    much a patch actually changed. codecov.io is still uploaded to, but purely
+    for reporting - its own status checks are `informational: true` (see
+    codecov.yml) precisely so there is only ever one gate. Three checks are made
     against the merged Cobertura report produced by ReportGenerator:
 
       1. Project floor (BLOCKING)  - total line and branch rates must meet the
                                      absolute floors in coverage-thresholds.json.
-      2. Patch coverage (BLOCKING) - lines added or modified relative to the pull
-                                     request's base must reach the patch target,
-                                     tolerating the configured threshold. This
-                                     mirrors the old codecov/patch semantics.
+      2. Patch coverage (GRADUATED)- lines added or modified relative to the pull
+                                     request's base must reach a floor that
+                                     scales with the size of the patch: small
+                                     patches warn, large ones fail. See
+                                     'patch.bands' in coverage-thresholds.json.
       3. Baseline delta (ADVISORY) - reports how the current total line rate
                                      compares to the recorded master baseline.
                                      Never fails the build.
 
     Files matching the 'ignore' globs in coverage-thresholds.json are excluded
-    from the patch calculation, exactly as they were excluded by codecov.yml.
+    from the patch calculation. Keep that list in step with the 'ignore' list in
+    codecov.yml so both report on the same code.
 
     When no base ref is supplied - a scheduled or master build rather than a pull
     request - the patch gate is skipped and only the project floor is enforced.
@@ -40,6 +44,12 @@
  .PARAMETER SkipFetch
     Do not run 'git fetch' for the base ref. Used by the unit tests, which
     operate on a purpose-built local repository.
+
+ .PARAMETER SummaryPath
+    Optional path to write a markdown summary of the gate result to. Azure
+    Pipelines attaches it with '##vso[task.uploadsummary]' and GitHub Actions
+    appends it to $GITHUB_STEP_SUMMARY and to the pull request comment, so the
+    numbers are visible without opening the log.
 #>
 
 [CmdletBinding()]
@@ -49,7 +59,8 @@ Param(
     [string] $ThresholdsPath = '',
     [string] $BaseRef = '',
     [string] $RepoRoot = '',
-    [switch] $SkipFetch
+    [switch] $SkipFetch,
+    [string] $SummaryPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -68,10 +79,15 @@ if ([string]::IsNullOrWhiteSpace($ThresholdsPath)) {
 }
 
 $script:IsAzurePipeline = -not [string]::IsNullOrEmpty($env:TF_BUILD)
+$script:IsGitHubActions = $env:GITHUB_ACTIONS -eq 'true'
 
 function Write-GateError([string] $message) {
     if ($script:IsAzurePipeline) {
         Write-Host "##vso[task.logissue type=error]$message"
+    }
+    if ($script:IsGitHubActions) {
+        # Workflow command: surfaces the message as an annotation on the run.
+        Write-Host "::error title=Coverage gate::$message"
     }
     Write-Host "ERROR: $message"
 }
@@ -80,7 +96,90 @@ function Write-GateWarning([string] $message) {
     if ($script:IsAzurePipeline) {
         Write-Host "##vso[task.logissue type=warning]$message"
     }
+    if ($script:IsGitHubActions) {
+        Write-Host "::warning title=Coverage gate::$message"
+    }
     Write-Host "WARNING: $message"
+}
+
+<#
+.SYNOPSIS
+Selects the patch-coverage requirement that applies to a change of a given size.
+
+.DESCRIPTION
+A coverage percentage over a handful of lines carries almost no information: a
+single uncovered line in a two-line fix reads as 50%, which a flat floor would
+fail even though nothing is wrong. Small changes therefore get a lower bar and
+report a warning rather than a failure, while changes large enough for the
+percentage to mean something are enforced. Bands are consulted in order and the
+first one whose maxChangedLines covers the patch wins; anything larger falls
+through to the enforced target.
+
+.PARAMETER changedLines
+Number of coverable changed lines in the patch.
+
+.PARAMETER patch
+The 'patch' object from coverage-thresholds.json.
+#>
+function Get-PatchBand([int] $changedLines, $patch) {
+    $bands = @($patch.bands)
+    foreach ($band in $bands) {
+        if ($null -eq $band) { continue }
+        if ($changedLines -le [int]$band.maxChangedLines) {
+            return [pscustomobject]@{
+                Floor    = [double]$band.target
+                Enforced = [bool]$band.enforced
+                Scope    = ('<= {0} changed lines' -f [int]$band.maxChangedLines)
+            }
+        }
+    }
+
+    $largest = if ($bands.Count -gt 0) { [int]$bands[-1].maxChangedLines } else { 0 }
+    return [pscustomobject]@{
+        Floor    = [double]$patch.target - [double]$patch.threshold
+        Enforced = $true
+        Scope    = ('> {0} changed lines' -f $largest)
+    }
+}
+
+# Markdown summary accumulated as the gate runs and written to -SummaryPath at
+# the end. Kept separate from the console output because the console log is a
+# flat transcript while this is rendered as a table in both CI UIs.
+$script:SummaryRows = [System.Collections.Generic.List[string]]::new()
+$script:SummaryNotes = [System.Collections.Generic.List[string]]::new()
+
+<#
+ .SYNOPSIS
+    Adds a row to the markdown summary table.
+
+ .PARAMETER check
+    Name of the check, for example 'Project line rate'.
+
+ .PARAMETER value
+    The measured value, already formatted.
+
+ .PARAMETER target
+    The threshold the value is compared against, or '-' when there is none.
+
+ .PARAMETER state
+    One of 'pass', 'fail', 'warn' or 'info'.
+#>
+function Add-SummaryRow([string] $check, [string] $value, [string] $target, [string] $state) {
+    $icon = switch ($state) {
+        'pass' { ':white_check_mark:' }
+        'fail' { ':x:' }
+        'warn' { ':warning:' }
+        default { ':information_source:' }
+    }
+    $script:SummaryRows.Add(('| {0} {1} | {2} | {3} |' -f $icon, $check, $value, $target))
+}
+
+<#
+ .SYNOPSIS
+    Adds a free-form markdown note below the summary table.
+#>
+function Add-SummaryNote([string] $note) {
+    $script:SummaryNotes.Add($note)
 }
 
 <#
@@ -427,19 +526,29 @@ $failures = @()
 $minLine = [double]$thresholds.project.minimumLineRate
 if ($null -eq $totals.LineRate) {
     $failures += 'No coverable lines were found in the report; the run did not produce usable coverage.'
+    Add-SummaryRow 'Project line rate' 'no data' ('>= {0:N2}%' -f $minLine) 'fail'
 }
 elseif ($totals.LineRate -lt $minLine) {
     $failures += ('Total line coverage {0:N2}% is below the required floor of {1:N2}%.' -f $totals.LineRate, $minLine)
+    Add-SummaryRow 'Project line rate' ('**{0:N2}%** ({1}/{2} lines)' -f $totals.LineRate, $totals.CoveredLines, $totals.TotalLines) ('>= {0:N2}%' -f $minLine) 'fail'
+}
+else {
+    Add-SummaryRow 'Project line rate' ('**{0:N2}%** ({1}/{2} lines)' -f $totals.LineRate, $totals.CoveredLines, $totals.TotalLines) ('>= {0:N2}%' -f $minLine) 'pass'
 }
 
 $minBranch = [double]$thresholds.project.minimumBranchRate
 if ($null -ne $totals.BranchRate -and $totals.BranchRate -lt $minBranch) {
     $failures += ('Total branch coverage {0:N2}% is below the required floor of {1:N2}%.' -f $totals.BranchRate, $minBranch)
+    Add-SummaryRow 'Project branch rate' ('**{0:N2}%**' -f $totals.BranchRate) ('>= {0:N2}%' -f $minBranch) 'fail'
+}
+elseif ($null -ne $totals.BranchRate) {
+    Add-SummaryRow 'Project branch rate' ('**{0:N2}%**' -f $totals.BranchRate) ('>= {0:N2}%' -f $minBranch) 'pass'
 }
 
 # 2. Patch coverage (blocking, pull requests only).
 if ([string]::IsNullOrWhiteSpace($BaseRef)) {
     Write-Host 'No base ref supplied; skipping the changed-lines (patch) gate.'
+    Add-SummaryRow 'Patch coverage' 'not a pull request' '-' 'info'
 }
 else {
     $changed = Get-ChangedLines -baseRef $BaseRef -repoRoot $RepoRoot -skipFetch:$SkipFetch.IsPresent
@@ -463,14 +572,17 @@ else {
         if ($uncovered.Count -gt 0) { $uncoveredByFile[$file] = $uncovered }
     }
 
-    $patchFloor = [double]$thresholds.patch.target - [double]$thresholds.patch.threshold
+    $patchBand = Get-PatchBand -changedLines $coverableChanged -patch $thresholds.patch
+    $patchFloor = $patchBand.Floor
     if ($coverableChanged -eq 0) {
         Write-Host 'No coverable changed lines were found; the patch gate passes vacuously.'
+        Add-SummaryRow 'Patch coverage' 'no coverable changed lines' '-' 'info'
     }
     else {
         $patchRate = 100.0 * $coveredChanged / $coverableChanged
-        Write-Host ("Patch:       {0:N2}% ({1}/{2} changed lines covered, floor {3:N2}%)" -f `
-            $patchRate, $coveredChanged, $coverableChanged, $patchFloor)
+        Write-Host ("Patch:       {0:N2}% ({1}/{2} changed lines covered, floor {3:N2}% for {4}, {5})" -f `
+            $patchRate, $coveredChanged, $coverableChanged, $patchFloor, $patchBand.Scope,
+            $(if ($patchBand.Enforced) { 'enforced' } else { 'advisory' }))
 
         if ($uncoveredByFile.Count -gt 0) {
             Write-Host 'Uncovered changed lines:'
@@ -479,9 +591,46 @@ else {
             }
         }
 
-        if ($patchRate -lt $patchFloor) {
-            $failures += ('Patch coverage {0:N2}% is below the required {1:N2}% ({2} of {3} changed lines are uncovered).' -f `
-                $patchRate, $patchFloor, ($coverableChanged - $coveredChanged), $coverableChanged)
+        $patchBelowFloor = $patchRate -lt $patchFloor
+        $patchState = if (-not $patchBelowFloor) {
+            'pass'
+        }
+        elseif ($patchBand.Enforced) {
+            'fail'
+        }
+        else {
+            'warn'
+        }
+
+        Add-SummaryRow 'Patch coverage' `
+            ('**{0:N2}%** ({1}/{2} changed lines)' -f $patchRate, $coveredChanged, $coverableChanged) `
+            ('>= {0:N2}% ({1}{2})' -f $patchFloor, $patchBand.Scope,
+                $(if ($patchBand.Enforced) { '' } else { ', advisory' })) `
+            $patchState
+
+        # List the uncovered changed lines in the summary too - that is the
+        # actionable part for the author, and it saves opening the raw log.
+        if ($uncoveredByFile.Count -gt 0) {
+            $detail = [System.Text.StringBuilder]::new()
+            $null = $detail.AppendLine('<details><summary>Uncovered changed lines</summary>')
+            $null = $detail.AppendLine('')
+            foreach ($file in $uncoveredByFile.Keys) {
+                $null = $detail.AppendLine(('- `{0}`: {1}' -f $file, ($uncoveredByFile[$file] -join ', ')))
+            }
+            $null = $detail.AppendLine('')
+            $null = $detail.Append('</details>')
+            Add-SummaryNote $detail.ToString()
+        }
+
+        if ($patchBelowFloor) {
+            $message = ('Patch coverage {0:N2}% is below {1:N2}% for {2} ({3} of {4} changed lines are uncovered).' -f `
+                $patchRate, $patchFloor, $patchBand.Scope, ($coverableChanged - $coveredChanged), $coverableChanged)
+            if ($patchBand.Enforced) {
+                $failures += $message
+            }
+            else {
+                Write-GateWarning ($message + ' Advisory at this patch size - add a test if the change deserves one.')
+            }
         }
     }
 }
@@ -492,17 +641,68 @@ $tolerance = [double]$thresholds.project.advisoryDeltaTolerance
 if ($null -ne $totals.LineRate -and $baseline -gt 0) {
     $delta = $totals.LineRate - $baseline
     Write-Host ("Baseline:    {0:N2}% recorded, delta {1:+0.00;-0.00;0.00} percentage points" -f $baseline, $delta)
+    $deltaText = '{0:+0.00;-0.00;0.00} pp' -f $delta
     if ($delta -lt (-1 * $tolerance)) {
         Write-GateWarning ('Total line coverage dropped {0:N2} percentage points below the recorded master baseline of {1:N2}%. This is advisory and does not fail the build.' -f `
             [Math]::Abs($delta), $baseline)
+        Add-SummaryRow 'Baseline delta (advisory)' $deltaText ('{0:N2}% recorded' -f $baseline) 'warn'
     }
-    elseif ($delta -gt $tolerance) {
-        Write-Host 'Coverage is above the recorded baseline; consider ratcheting coverage-thresholds.json.'
+    else {
+        if ($delta -gt $tolerance) {
+            Write-Host 'Coverage is above the recorded baseline; consider ratcheting coverage-thresholds.json.'
+            Add-SummaryNote 'Coverage is above the recorded baseline - consider ratcheting `coverage-thresholds.json`.'
+        }
+        Add-SummaryRow 'Baseline delta (advisory)' $deltaText ('{0:N2}% recorded' -f $baseline) 'info'
     }
 }
 
 if ($failures.Count -gt 0) {
     foreach ($failure in $failures) { Write-GateError $failure }
+}
+
+if (-not [string]::IsNullOrWhiteSpace($SummaryPath)) {
+    $verdict = if ($failures.Count -gt 0) {
+        ':x: **Coverage gate failed.** This check is advisory and does not block the merge.'
+    }
+    else {
+        ':white_check_mark: **Coverage gate passed.**'
+    }
+
+    $summary = [System.Text.StringBuilder]::new()
+    $null = $summary.AppendLine('## Code coverage')
+    $null = $summary.AppendLine('')
+    $null = $summary.AppendLine($verdict)
+    $null = $summary.AppendLine('')
+    $null = $summary.AppendLine('| Check | Result | Threshold |')
+    $null = $summary.AppendLine('| --- | --- | --- |')
+    foreach ($row in $script:SummaryRows) {
+        $null = $summary.AppendLine($row)
+    }
+    if ($failures.Count -gt 0) {
+        $null = $summary.AppendLine('')
+        foreach ($failure in $failures) {
+            $null = $summary.AppendLine(('- :x: {0}' -f $failure))
+        }
+    }
+    foreach ($note in $script:SummaryNotes) {
+        $null = $summary.AppendLine('')
+        $null = $summary.AppendLine($note)
+    }
+    $null = $summary.AppendLine('')
+    $null = $summary.AppendLine(('<sub>Thresholds live in `coverage-thresholds.json`. Whole report before exclusions: line {0:N2}%, branch {1:N2}%.</sub>' -f `
+        $report.ReportLineRate, $report.ReportBranchRate))
+
+    $summaryDir = Split-Path -Parent $SummaryPath
+    if (-not [string]::IsNullOrWhiteSpace($summaryDir) -and -not (Test-Path $summaryDir)) {
+        $null = New-Item -ItemType Directory -Force -Path $summaryDir
+    }
+    # UTF8 without BOM: GitHub renders a leading BOM as a literal character at
+    # the top of the step summary.
+    [System.IO.File]::WriteAllText($SummaryPath, $summary.ToString(), [System.Text.UTF8Encoding]::new($false))
+    Write-Host "Wrote the markdown summary to $SummaryPath."
+}
+
+if ($failures.Count -gt 0) {
     Write-Host 'Coverage gate FAILED.'
     exit 1
 }

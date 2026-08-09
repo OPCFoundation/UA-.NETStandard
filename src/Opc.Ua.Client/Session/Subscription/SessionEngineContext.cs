@@ -210,9 +210,14 @@ namespace Opc.Ua.Client
 
                 if (publishEventHandler != null)
                 {
-                    _ = Task.Run(
-                        () => RaisePublishNotification(
-                            publishEventHandler, notification));
+                    m_session.BackgroundWork.Run(
+                        nameof(RaisePublishNotification),
+                        _ =>
+                        {
+                            RaisePublishNotification(
+                                publishEventHandler, notification);
+                            return default;
+                        });
                 }
             }
 
