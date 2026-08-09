@@ -703,14 +703,14 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     return NonThreadSafeStatus.Value.State;
                 }
             }
             set
             {
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     NonThreadSafeStatus.Value.State = value;
                 }
@@ -754,8 +754,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Guards the server diagnostics. Never exposed: callers reach the diagnostics
-        /// through <see cref="UpdateServerDiagnostics"/>.
+        /// Guards the server diagnostics and the server status value, which is constructed
+        /// with this same lock so the two stay mutually exclusive. Never exposed: callers
+        /// reach the diagnostics through <see cref="UpdateServerDiagnostics"/>, and the
+        /// status through <see cref="CurrentState"/> and <see cref="UpdateServerStatus"/>.
         /// </summary>
         private readonly Lock m_diagnosticsLock = new();
 
@@ -789,7 +791,7 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     if (NonThreadSafeStatus.Value.State == ServerState.Running)
                     {
@@ -987,7 +989,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(action));
             }
 
-            lock (NonThreadSafeStatus.Lock)
+            lock (m_diagnosticsLock)
             {
                 action.Invoke(NonThreadSafeStatus);
             }
@@ -1320,7 +1322,7 @@ namespace Opc.Ua.Server
             BaseVariableValue variable,
             NodeState component)
         {
-            lock (NonThreadSafeStatus.Lock)
+            lock (m_diagnosticsLock)
             {
                 DateTime now = TimeProvider.GetUtcNow().UtcDateTime;
                 NonThreadSafeStatus.Timestamp = now;
