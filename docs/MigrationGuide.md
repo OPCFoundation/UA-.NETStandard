@@ -123,6 +123,37 @@ for the runtime rules.
 
 ## Removed members on ISession
 
+`ISession.SessionDiagnostics` is removed. It handed out the whole mutable
+`SessionDiagnosticsDataType` — the structure the session's diagnostics lock
+protects — so a caller could read a field while the owner was writing it.
+
+Every server-side reader wanted one value out of it, and those two values are
+now on the interface directly:
+
+```csharp
+// was
+string? uri = session.SessionDiagnostics?.ClientDescription?.ApplicationUri;
+string name = session.SessionDiagnostics?.SessionName ?? string.Empty;
+
+// now
+string? uri = session.ClientApplicationUri;
+string name = session.SessionName;
+```
+
+For anything else in the structure, project it inside `ReadDiagnostics`, which
+holds the lock for the duration of the projection:
+
+```csharp
+uint reads = session.ReadDiagnostics(diagnostics => diagnostics.ReadCount.TotalCount);
+```
+
+`SessionName` is read from the field it was always a copy of rather than from
+the diagnostics, because it is assigned once during construction and a value
+that cannot change should not cost a lock.
+
+The concrete `Session` still exposes `SessionDiagnostics`; only the interface
+loses it.
+
 `ISession.ValidateBeforeActivate` — the synchronous overload with
 `out IUserIdentityTokenHandler?` and `out UserTokenPolicy?` parameters — is
 removed. It had no caller anywhere in the stack, its samples or its tests other
