@@ -93,11 +93,42 @@ namespace Opc.Ua.Wot
         /// <param name="resolutionContext">An optional resolution context for cycle and limit tracking.</param>
         /// <param name="cancellationToken">A token that cancels asynchronous resolution.</param>
         /// <returns>The conversion result and its diagnostics.</returns>
-        public static async ValueTask<WotConversionResult<UANodeSet>> ToNodeSetResultAsync(
+        public static ValueTask<WotConversionResult<UANodeSet>> ToNodeSetResultAsync(
             WotDocument document,
             WotNodeSetConverterOptions? options = null,
             IWotThingResolver? thingResolver = null,
             WotResolutionContext? resolutionContext = null,
+            CancellationToken cancellationToken = default)
+        {
+            return ToNodeSetResultAsync(
+                document, options, thingResolver, resolutionContext, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Restores or synthesizes the NodeSet2 document described by a WoT
+        /// document, resolving names against the WoT Binding Section 5.1.5
+        /// local context.
+        /// </summary>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="options">Resource limits; defaults are used when omitted.</param>
+        /// <param name="thingResolver">Resolves referenced TD/TM documents.</param>
+        /// <param name="resolutionContext">The active resolution context.</param>
+        /// <param name="nodeResolver">
+        /// Resolves a name or identifier to the OPC UA Node it names. When
+        /// omitted nothing is held, so a document that binds to an existing
+        /// type is reported as unresolved rather than silently mistyped.
+        /// </param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>The conversion result and its diagnostics.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="document"/> is <c>null</c>.
+        /// </exception>
+        public static async ValueTask<WotConversionResult<UANodeSet>> ToNodeSetResultAsync(
+            WotDocument document,
+            WotNodeSetConverterOptions? options,
+            IWotThingResolver? thingResolver,
+            WotResolutionContext? resolutionContext,
+            IWotNodeResolver? nodeResolver,
             CancellationToken cancellationToken = default)
         {
             if (document is null)
@@ -121,8 +152,18 @@ namespace Opc.Ua.Wot
                     diagnostics,
                     cancellationToken).ConfigureAwait(false);
             }
+
+            // WoT Binding Section 5.2.1 is resolved before the synchronous
+            // core runs, in the same shape as the Thing references above, so
+            // the core stays synchronous.
+            WotTypeBinding typeBinding = await ResolveTypeBindingAsync(
+                document,
+                nodeResolver ?? NullWotNodeResolver.Instance,
+                diagnostics,
+                cancellationToken).ConfigureAwait(false);
+
             UANodeSet? nodeSet = ToNodeSetCore(
-                document, options, thingCatalog, resolutionContext, diagnostics);
+                document, options, thingCatalog, resolutionContext, diagnostics, typeBinding);
             ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
         }
@@ -193,7 +234,8 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions? options,
             WotThingCatalog? thingCatalog,
             WotResolutionContext? resolutionContext,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            WotTypeBinding? typeBinding = null)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -235,7 +277,8 @@ namespace Opc.Ua.Wot
             }
 
             UANodeSet? synthesized =
-                Synthesize(document, options, thingCatalog, resolutionContext, diagnostics);
+                Synthesize(
+                    document, options, thingCatalog, resolutionContext, diagnostics, typeBinding);
             if (synthesized is not null)
             {
                 WotJsonResidue.Replace(synthesized, document, options, diagnostics);
@@ -415,7 +458,8 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions options,
             WotThingCatalog? thingCatalog,
             WotResolutionContext resolutionContext,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            WotTypeBinding? typeBinding)
         {
             WotDocumentKind kind = document.Kind;
             if (kind == WotDocumentKind.Unknown)
@@ -491,8 +535,10 @@ namespace Opc.Ua.Wot
 
                 // WoT Binding Section 5.2.1: a document may bind its projected
                 // node to a type that already exists. Only fall back to
-                // BaseObjectType when it declares no binding at all.
-                string? boundType = ReadDefinitiveTypeBinding(document, diagnostics);
+                // BaseObjectType when it declares no binding at all - an
+                // unresolved or invalid binding is reported and must not be
+                // silently mistyped as BaseObjectType.
+                string? boundType = ApplyTypeBinding(document, typeBinding, diagnostics);
                 rootReferences.Add(new Reference
                 {
                     ReferenceType = "HasTypeDefinition",
@@ -1681,6 +1727,205 @@ namespace Opc.Ua.Wot
         /// vocabulary of its own.
         /// </summary>
         private const string TypeBindingRel = "ua:HasTypeDefinition";
+
+        /// <summary>
+        /// Turns a resolved type binding into the NodeId to emit, reporting an
+        /// unresolved or invalid one.
+        /// </summary>
+        /// <remarks>
+        /// When no binding was resolved — because the caller used the
+        /// synchronous entry point, which has no local context — the definitive
+        /// link is still honoured on its own. An ExpandedNodeId identifies one
+        /// Node or none and needs no lookup, so that path stays available
+        /// without a resolver.
+        /// </remarks>
+        private static string? ApplyTypeBinding(
+            WotDocument document,
+            WotTypeBinding? typeBinding,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (typeBinding is null)
+            {
+                return ReadDefinitiveTypeBinding(document, diagnostics);
+            }
+
+            switch (typeBinding.Outcome)
+            {
+                case WotTypeBindingOutcome.Bound:
+                    return typeBinding.NodeId;
+                case WotTypeBindingOutcome.Invalid:
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.AmbiguousTypeBinding,
+                        typeBinding.Detail!,
+                        new WotLocation(jsonPointer: "/@type")));
+                    return null;
+                case WotTypeBindingOutcome.Unresolved:
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.UnresolvedTypeBinding,
+                        typeBinding.Detail!,
+                        new WotLocation(jsonPointer: "/@type")));
+                    return null;
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// Reads the compact model names in <c>@type</c> that are type
+        /// bindings, per WoT Binding Section 5.2.1.
+        /// </summary>
+        /// <remarks>
+        /// A member is a binding when its namespace is one the local context
+        /// holds; every other member is ordinary semantic annotation and is
+        /// retained as residue. The test is the namespace, not whether the
+        /// lookup succeeds, so a name in a held namespace that resolves to
+        /// nothing is a reported mistake rather than a silently ignored
+        /// annotation.
+        /// </remarks>
+        private static async ValueTask<List<string>> ReadTypeBindingNamesAsync(
+            WotDocument document,
+            IWotNodeResolver resolver,
+            CancellationToken cancellationToken)
+        {
+            var names = new List<string>();
+            foreach (string token in document.TypeTokens)
+            {
+                if (!TrySplitCompactModelName(token, out string prefix, out _) ||
+                    string.Equals(prefix, "uav", StringComparison.Ordinal) ||
+                    string.Equals(prefix, "tm", StringComparison.Ordinal) ||
+                    !TryGetContextNamespace(document, prefix, out string namespaceUri))
+                {
+                    continue;
+                }
+
+                if (await resolver.HoldsNamespaceAsync(namespaceUri, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    names.Add(token);
+                }
+            }
+
+            return names;
+        }
+
+        /// <summary>
+        /// Resolves the type binding a document declares, applying the table in
+        /// WoT Binding Section 5.2.1.
+        /// </summary>
+        private static async ValueTask<WotTypeBinding> ResolveTypeBindingAsync(
+            WotDocument document,
+            IWotNodeResolver resolver,
+            List<WotDiagnostic> diagnostics,
+            CancellationToken cancellationToken)
+        {
+            string? link = ReadDefinitiveTypeBinding(document, diagnostics);
+            List<string> names = await ReadTypeBindingNamesAsync(
+                document, resolver, cancellationToken).ConfigureAwait(false);
+
+            if (names.Count > 1)
+            {
+                return WotTypeBinding.Invalid(
+                    $"{names.Count} members of '@type' are type bindings, but a Node has " +
+                    "exactly one HasTypeDefinition.");
+            }
+
+            WotExpectedNodeClass expected = document.Kind == WotDocumentKind.ThingModel
+                ? WotExpectedNodeClass.Any
+                : WotExpectedNodeClass.ObjectType;
+
+            WotResolvedNode? byLink = null;
+            if (link is not null)
+            {
+                byLink = await resolver.ResolveByNodeIdAsync(link, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (names.Count == 0)
+            {
+                if (link is null)
+                {
+                    return WotTypeBinding.None;
+                }
+                return byLink is null
+                    ? WotTypeBinding.Unresolved(
+                        $"The '{TypeBindingRel}' link names '{link}', which the local context " +
+                        "does not hold.")
+                    : Accept(byLink.Value, expected, link);
+            }
+
+            string name = names[0];
+            TrySplitCompactModelName(name, out string prefix, out string browseName);
+            TryGetContextNamespace(document, prefix, out string namespaceUri);
+            IReadOnlyList<WotResolvedNode> byName = await resolver
+                .ResolveByBrowseNameAsync(namespaceUri, browseName, expected, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (link is null)
+            {
+                return byName.Count switch
+                {
+                    1 => Accept(byName[0], expected, name),
+                    0 => WotTypeBinding.Unresolved(
+                        $"'@type' names '{name}', which the local context does not hold."),
+                    _ => WotTypeBinding.Invalid(
+                        $"'@type' names '{name}', which is ambiguous ({byName.Count} matches) and " +
+                        $"carries no '{TypeBindingRel}' link to settle it.")
+                };
+            }
+
+            if (byLink is null)
+            {
+                return WotTypeBinding.Unresolved(
+                    $"The '{TypeBindingRel}' link names '{link}', which the local context does " +
+                    "not hold.");
+            }
+
+            if (byName.Count == 0)
+            {
+                // The identifier resolves and the name does not: a name that
+                // resolves to nothing is a mistake in the name rather than a
+                // shorthand for the identifier.
+                return WotTypeBinding.Invalid(
+                    $"'@type' names '{name}', which the local context does not hold, while the " +
+                    $"'{TypeBindingRel}' link resolves. The two disagree.");
+            }
+
+            foreach (WotResolvedNode candidate in byName)
+            {
+                if (string.Equals(candidate.NodeId, byLink.Value.NodeId, StringComparison.Ordinal))
+                {
+                    // Either the two agree, or the link settles an ambiguous
+                    // name. Both bind to the identified type.
+                    return Accept(byLink.Value, expected, link);
+                }
+            }
+
+            return WotTypeBinding.Invalid(
+                $"'@type' names '{name}' and the '{TypeBindingRel}' link names '{link}', which " +
+                "resolve to different Nodes.");
+        }
+
+        /// <summary>
+        /// Accepts a resolved type, or rejects it for the wrong NodeClass.
+        /// </summary>
+        private static WotTypeBinding Accept(
+            WotResolvedNode node,
+            WotExpectedNodeClass expected,
+            string named)
+        {
+            if (expected != WotExpectedNodeClass.Any &&
+                node.NodeClass != WotExpectedNodeClass.Any &&
+                node.NodeClass != expected)
+            {
+                return WotTypeBinding.Invalid(
+                    $"'{named}' resolves to a {node.NodeClass}, but the document projects a node " +
+                    $"that requires a {expected}.");
+            }
+
+            return WotTypeBinding.Bound(node.NodeId);
+        }
 
         /// <summary>
         /// Determines whether the projected root ObjectType derives from

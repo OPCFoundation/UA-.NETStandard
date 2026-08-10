@@ -282,7 +282,16 @@ namespace Opc.Ua.Wot
         /// A <c>ua:HasTypeDefinition</c> link (WoT Binding Section 5.2.1) did
         /// not carry a usable definitive ExpandedNodeId in its <c>href</c>.
         /// </summary>
-        InvalidTypeBinding = 6020
+        InvalidTypeBinding = 6020,
+
+        /// <summary>
+        /// A type binding (WoT Binding Section 5.2.1) names a type the local
+        /// context of Section 5.1.5 does not hold. The projection fails rather
+        /// than falling back to <c>BaseObjectType</c>, because a silently
+        /// mistyped node is worse than a reported failure: a Client browsing
+        /// for the companion type would not find it and nothing would say why.
+        /// </summary>
+        UnresolvedTypeBinding = 6021
     }
 
     /// <summary>
