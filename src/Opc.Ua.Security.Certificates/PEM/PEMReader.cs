@@ -73,7 +73,8 @@ namespace Opc.Ua.Security.Certificates
 
         /// <summary>
         /// Import multiple X509 certificates from PEM data.
-        /// Supports a maximum of 99 certificates in the PEM data.
+        /// Examines at most 99 certificate blocks. Any certificate carrying an
+        /// empty subject or issuer name is skipped rather than imported.
         /// </summary>
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <returns>The certificates.</returns>

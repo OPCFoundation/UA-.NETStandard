@@ -46,9 +46,17 @@ namespace Opc.Ua.Security.Certificates
     public static class PEMReader
     {
         /// <summary>
-        /// The maximum number of PEM blocks read from a single blob.
+        /// The maximum number of certificates returned from a single blob.
         /// </summary>
-        private const int kMaxPemBlocks = 99;
+        private const int kMaxCertificates = 99;
+
+        /// <summary>
+        /// Bounds a run of blocks that cannot be parsed, so a pathological blob
+        /// cannot spin even if a future parser were to fail without consuming
+        /// its input. It deliberately does not bound the blob as a whole: a
+        /// private key may legitimately follow more certificates than that.
+        /// </summary>
+        private const int kMaxConsecutiveUnparseableBlocks = 1000;
 
         /// <summary>
         /// Reads the next object from the PEM stream, skipping any block this
@@ -65,18 +73,13 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="pemReader">
         /// The reader to advance.
         /// </param>
-        /// <param name="blocksRead">
-        /// Counts the blocks consumed so far, bounding a blob made up entirely
-        /// of unparseable entries.
-        /// </param>
         /// <returns>
         /// The next object that could be parsed, or null at the end of the blob.
         /// </returns>
-        private static object? ReadNextObject(PemReader pemReader, ref int blocksRead)
+        private static object? ReadNextObject(PemReader pemReader)
         {
-            while (blocksRead < kMaxPemBlocks)
+            for (int skipped = 0; skipped <= kMaxConsecutiveUnparseableBlocks; skipped++)
             {
-                blocksRead++;
                 try
                 {
                     return pemReader.ReadObject();
@@ -101,8 +104,7 @@ namespace Opc.Ua.Security.Certificates
             using var pemReader = new PemReader(reader);
             try
             {
-                int blocksRead = 0;
-                object? pemObject = ReadNextObject(pemReader, ref blocksRead);
+                object? pemObject = ReadNextObject(pemReader);
                 while (pemObject != null)
                 {
                     // Check for AsymmetricCipherKeyPair (private key)
@@ -120,7 +122,7 @@ namespace Opc.Ua.Security.Certificates
                     {
                         return true;
                     }
-                    pemObject = ReadNextObject(pemReader, ref blocksRead);
+                    pemObject = ReadNextObject(pemReader);
                 }
             }
             finally
@@ -132,7 +134,8 @@ namespace Opc.Ua.Security.Certificates
 
         /// <summary>
         /// Import multiple X509 certificates from PEM data.
-        /// Supports a maximum of 99 certificates in the PEM data.
+        /// Returns at most 99 certificates. Any certificate carrying an empty
+        /// subject or issuer name is skipped rather than imported.
         /// </summary>
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <returns>The certificates.</returns>
@@ -146,9 +149,8 @@ namespace Opc.Ua.Security.Certificates
                 int certCount = 0;
                 try
                 {
-                    int blocksRead = 0;
-                    object? pemObject = ReadNextObject(pemReader, ref blocksRead);
-                    while (pemObject != null && certCount < kMaxPemBlocks)
+                    object? pemObject = ReadNextObject(pemReader);
+                    while (pemObject != null && certCount < kMaxCertificates)
                     {
                         if (pemObject is Org.BouncyCastle.X509.X509Certificate bcCert)
                         {
@@ -170,7 +172,7 @@ namespace Opc.Ua.Security.Certificates
                             }
                         }
 
-                        pemObject = ReadNextObject(pemReader, ref blocksRead);
+                        pemObject = ReadNextObject(pemReader);
                     }
                 }
                 finally
@@ -233,8 +235,7 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 // find the private key in the PEM blob
-                int blocksRead = 0;
-                object? pemObject = ReadNextObject(pemReader, ref blocksRead);
+                object? pemObject = ReadNextObject(pemReader);
                 while (pemObject != null)
                 {
                     if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keypair)
@@ -258,7 +259,7 @@ namespace Opc.Ua.Security.Certificates
                     }
 
                     // read next object
-                    pemObject = ReadNextObject(pemReader, ref blocksRead);
+                    pemObject = ReadNextObject(pemReader);
                 }
             }
             finally
