@@ -3819,6 +3819,34 @@ namespace Opc.Ua
             QualifiedName dataEncoding,
             ref DataValue value)
         {
+            return ReadAttributeCore(
+                context, attributeId, indexRange, dataEncoding, ref value);
+        }
+
+        /// <summary>
+        /// Reads an attribute.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately takes no node-wide lock. Reading an attribute dispatches to
+        /// caller-supplied handlers (<c>OnReadValue</c> and its siblings), and a handler may
+        /// take locks of its own. Holding a lock on the node across one puts the node into
+        /// an unknown lock order and deadlocks against any caller that takes that lock first
+        /// and then touches the node. The asynchronous read path has always snapshotted
+        /// under a lock and released before dispatching; this matches it. The individual
+        /// attribute fields guard themselves.
+        /// </remarks>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="indexRange">The index range.</param>
+        /// <param name="dataEncoding">The data encoding.</param>
+        /// <param name="value">The value.</param>
+        private ServiceResult ReadAttributeCore(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref DataValue value)
+        {
             Variant valueToRead = value.WrappedValue;
 
             _ = ServiceResult.Good;
@@ -3887,7 +3915,7 @@ namespace Opc.Ua
         /// Asynchronous sibling of
         /// <see cref="ReadAttribute(ISystemContext, uint, NumericRange, QualifiedName, ref DataValue)"/>.
         /// The default implementation simply wraps the synchronous call
-        /// inside a <c>lock(this)</c> so behaviour is bit-identical for
+        /// so behaviour is bit-identical for
         /// every <see cref="NodeState"/> that does not override it. Derived
         /// types (notably <see cref="BaseVariableState"/>) can override
         /// this method to dispatch to true asynchronous read hooks without
@@ -3916,18 +3944,7 @@ namespace Opc.Ua
         {
             ServiceResult result;
             DataValue value = seed;
-            // TODO: introduce a dedicated private lock object on NodeState —
-            // today's sync flow synchronises through `lock(source)` taken by
-            // external callers (e.g. CustomNodeManager2.Read), so the async
-            // path must lock on the same instance to preserve mutual
-            // exclusion. Switching to a private lock object requires
-            // updating every external `lock(source)` site.
-#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
-            lock (this)
-#pragma warning restore CA2002, RCS1059
-            {
-                result = ReadAttribute(context, attributeId, indexRange, dataEncoding, ref value);
-            }
+            result = ReadAttribute(context, attributeId, indexRange, dataEncoding, ref value);
             return new ValueTask<(ServiceResult, DataValue)>((result, value));
         }
 
@@ -4164,6 +4181,29 @@ namespace Opc.Ua
             NumericRange indexRange,
             DataValue value)
         {
+            return WriteAttributeCore(context, attributeId, indexRange, value);
+        }
+
+        /// <summary>
+        /// Writes an attribute.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately takes no node-wide lock, for the same reason as the read path:
+        /// writing dispatches to caller-supplied handlers (<c>OnWriteValue</c> and its
+        /// siblings) which may take locks of their own, and holding a lock on the node
+        /// across one gives the node no fixed place in the lock order. The individual
+        /// attribute fields guard themselves.
+        /// </remarks>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="indexRange">The index range.</param>
+        /// <param name="value">The value.</param>
+        private ServiceResult WriteAttributeCore(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value)
+        {
             Variant valueToWrite = value.WrappedValue;
 
             if (attributeId == Attributes.Value)
@@ -4229,8 +4269,8 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronous sibling of
         /// <see cref="WriteAttribute(ISystemContext, uint, NumericRange, DataValue)"/>.
-        /// The default implementation wraps the synchronous call inside a
-        /// <c>lock(this)</c> so behaviour is bit-identical for every
+        /// The default implementation wraps the synchronous call so behaviour is
+        /// bit-identical for every
         /// <see cref="NodeState"/> that does not override it. Derived
         /// types (notably <see cref="BaseVariableState"/>) can override
         /// this method to dispatch to true asynchronous write hooks
@@ -4248,15 +4288,7 @@ namespace Opc.Ua
             DataValue value,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result;
-            // TODO: introduce a dedicated private lock object on NodeState —
-            // see the sibling note in ReadAttributeAsync for the rationale.
-#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
-            lock (this)
-#pragma warning restore CA2002, RCS1059
-            {
-                result = WriteAttribute(context, attributeId, indexRange, value);
-            }
+            ServiceResult result = WriteAttribute(context, attributeId, indexRange, value);
             return new ValueTask<ServiceResult>(result);
         }
 

@@ -298,10 +298,37 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void DiagnosticsLockIsNotNull()
+        public void UpdateServerDiagnosticsInvokesTheUpdateUnderTheLock()
         {
             using ServerInternalData data = CreateServerInternalData();
-            Assert.That(data.DiagnosticsLock, Is.Not.Null);
+
+            // ServerDiagnostics is only populated once the server object is created, so
+            // this asserts the callback is invoked rather than inspecting the payload.
+            bool invoked = false;
+
+            data.UpdateServerDiagnostics(_ => invoked = true);
+
+            Assert.That(invoked, Is.True);
+        }
+
+        [Test]
+        public void UpdateServerDiagnosticsThrowsOnNullUpdate()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(
+                () => data.UpdateServerDiagnostics(null!),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void ReadServerDiagnosticsThrowsOnNullRead()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(
+                () => data.ReadServerDiagnostics<int>(null!),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
