@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua;
 using Opc.Ua.Server.Fluent;
 
 namespace Quickstarts.ReferenceServer
@@ -79,6 +80,65 @@ namespace Quickstarts.ReferenceServer
             // void -> string.
             builder.CTT.Methods.Methods_Output
                 .OnCall(() => "Output");
+
+            // Value-write handlers for the simulation control and event
+            // trigger variables. The nodes and their values are baked into the
+            // NodeSet2 model; only the write behaviour is wired here (Prio 2).
+            builder.CTT.Scalar.Scalar_Simulation.Scalar_Simulation_Interval
+                .OnWrite(OnWriteInterval);
+            builder.CTT.Scalar.Scalar_Simulation.Scalar_Simulation_Enabled
+                .OnWrite(OnWriteEnabled);
+            builder.CTT.NodeIds.NodeIds_Events.NodeIds_Events_TriggerNode01
+                .OnWrite(OnWriteTriggerNode);
+            builder.CTT.NodeIds.NodeIds_Events.NodeIds_Events_TriggerNode02
+                .OnWrite(OnWriteTriggerNode);
+
+            // The selection-list write validation rejects values outside the
+            // baked Selections array. The node, its Value and the Selections /
+            // SelectionDescriptions / RestrictToList properties are all baked
+            // into the NodeSet2 model; only the write behaviour is wired here
+            // (Prio 2).
+            builder.CTT.DataAccess.DataAccess_SelectionList.DataAccess_SelectionList_Colors
+                .OnWrite(OnWriteSelectionList);
+
+            // UserAccessLevel and AccessLevelEx cannot be expressed in the
+            // NodeSet2 model (Prio 1 impossible): the UANodeSet loader always
+            // derives UserAccessLevel from AccessLevel and has no element for
+            // AccessLevelEx. They are applied here through the fluent .Node
+            // escape hatch (Prio 2). Only nodes whose UserAccessLevel diverges
+            // from their AccessLevel need this; the loader default already
+            // matches for every other node.
+            SetUserAccessLevel(
+                builder.CTT.AccessRights.AccessRights_AccessAll.AccessRights_AccessAll_RO_NotUser,
+                AccessLevels.None);
+            SetUserAccessLevel(
+                builder.CTT.AccessRights.AccessRights_AccessAll.AccessRights_AccessAll_WO_NotUser,
+                AccessLevels.None);
+            SetUserAccessLevel(
+                builder.CTT.AccessRights.AccessRights_AccessAll.AccessRights_AccessAll_RW_NotUser,
+                AccessLevels.CurrentRead);
+            SetUserAccessLevel(
+                builder.CTT.AccessRights.AccessRights_AccessAll.AccessRights_AccessAll_RO_User1_RW,
+                AccessLevels.CurrentReadOrWrite);
+            SetUserAccessLevel(
+                builder.CTT.AccessRights.AccessRights_AccessAll.AccessRights_AccessAll_RO_Group1_RW,
+                AccessLevels.CurrentReadOrWrite);
+            SetUserAccessLevel(
+                builder.CTT.AccessRights.AccessRights_AccessUser1.AccessRights_AccessUser1_RO,
+                (byte)(AccessLevels.CurrentRead | AccessLevels.HistoryRead));
+
+            // AccessLevelEx advertises non-atomic read/write on the read/write
+            // static scalar (Prio 1 impossible, see above).
+            ((BaseVariableState)builder.CTT.Scalar.Scalar_Static
+                .Scalar_Static_NonatomicReadWrite.Node).AccessLevelEx =
+                AccessLevels.CurrentReadOrWrite
+                | (uint)AccessLevelExType.NonatomicRead
+                | (uint)AccessLevelExType.NonatomicWrite;
+
+            static void SetUserAccessLevel(INodeBuilder node, byte userAccessLevel)
+            {
+                ((BaseVariableState)node.Node).UserAccessLevel = userAccessLevel;
+            }
         }
     }
 }
