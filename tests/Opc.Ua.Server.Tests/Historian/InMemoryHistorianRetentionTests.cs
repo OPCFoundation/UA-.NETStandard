@@ -27,10 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
-// adds noise without a behavioural benefit. Disabled file-level for the suite.
-#pragma warning disable CA2007
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -250,6 +246,86 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(
                 page.Values[0].Value.SourceTimestamp.ToDateTime(),
                 Is.EqualTo(BaseTime.AddMinutes(20)));
+        }
+
+        [Test]
+        public async Task DeleteAtTimeRefreshesLatestTimestampForRetentionAsync()
+        {
+            using var provider = CreateTenMinuteProvider();
+            var nodeId = new NodeId("retention.deleteattime", NamespaceIndex);
+            provider.Register(nodeId);
+            HistorianOperationContext context = CreateContext();
+            DateTime earlier = BaseTime.AddMinutes(10);
+            DateTime latest = BaseTime.AddMinutes(20);
+
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [MakeValue(earlier, 1), MakeValue(latest, 2)],
+                CancellationToken.None).ConfigureAwait(false);
+            await provider.DeleteAtTimeAsync(
+                context,
+                nodeId,
+                [(DateTimeUtc)latest],
+                CancellationToken.None).ConfigureAwait(false);
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [MakeValue(BaseTime.AddMinutes(5), 0)],
+                CancellationToken.None).ConfigureAwait(false);
+
+            HistorianPage<HistoricalDataValue> page =
+                await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(2));
+            Assert.That(
+                page.Values[0].Value.SourceTimestamp.ToDateTime(),
+                Is.EqualTo(BaseTime.AddMinutes(5)));
+        }
+
+        [Test]
+        public async Task DeleteRawRefreshesLatestTimestampForRetentionAsync()
+        {
+            using var provider = CreateTenMinuteProvider();
+            var nodeId = new NodeId("retention.deleteraw", NamespaceIndex);
+            provider.Register(nodeId);
+            HistorianOperationContext context = CreateContext();
+            DateTime earlier = BaseTime.AddMinutes(10);
+            DateTime latest = BaseTime.AddMinutes(20);
+
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [MakeValue(earlier, 1), MakeValue(latest, 2)],
+                CancellationToken.None).ConfigureAwait(false);
+            await provider.DeleteRawAsync(
+                context,
+                nodeId,
+                (DateTimeUtc)latest,
+                (DateTimeUtc)latest.AddTicks(1),
+                isDeleteModified: false,
+                CancellationToken.None).ConfigureAwait(false);
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [MakeValue(BaseTime.AddMinutes(5), 0)],
+                CancellationToken.None).ConfigureAwait(false);
+
+            HistorianPage<HistoricalDataValue> page =
+                await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(2));
+            Assert.That(
+                page.Values[0].Value.SourceTimestamp.ToDateTime(),
+                Is.EqualTo(BaseTime.AddMinutes(5)));
+        }
+
+        private static InMemoryHistorianProvider CreateTenMinuteProvider()
+        {
+            return new InMemoryHistorianProvider(new InMemoryHistorianOptions
+            {
+                RawDataRetentionPeriod = TimeSpan.FromMinutes(10)
+            });
         }
 
         private static async Task<HistorianPage<HistoricalDataValue>> ReadAllAsync(

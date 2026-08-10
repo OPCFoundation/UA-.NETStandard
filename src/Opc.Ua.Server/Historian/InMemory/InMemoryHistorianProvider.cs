@@ -391,6 +391,10 @@ namespace Opc.Ua.Server.Historian.InMemory
                         LogModification(archive, prior, HistoryUpdateType.Delete, context.DefaultModificationInfo);
                         removed++;
                     }
+                    if (removed > 0)
+                    {
+                        RefreshLatestRawTimestamp(archive);
+                    }
                 }
 
                 return new ValueTask<StatusCode>(removed > 0
@@ -440,6 +444,10 @@ namespace Opc.Ua.Server.Historian.InMemory
                     {
                         statuses[i] = StatusCodes.BadNoEntryExists;
                     }
+                }
+                if (statuses.Any(StatusCode.IsGood))
+                {
+                    RefreshLatestRawTimestamp(archive);
                 }
             }
             return new ValueTask<IList<StatusCode>>(statuses);
@@ -1400,6 +1408,13 @@ namespace Opc.Ua.Server.Historian.InMemory
                     archive.Raw.Remove(oldest);
                 }
             }
+        }
+
+        private static void RefreshLatestRawTimestamp(NodeArchive archive)
+        {
+            archive.LatestRawTimestamp = archive.Raw.Count > 0
+                ? archive.Raw.Keys.Last()
+                : DateTime.MinValue;
         }
 
         private void EvictAnnotationsIfNeeded(NodeArchive archive)
