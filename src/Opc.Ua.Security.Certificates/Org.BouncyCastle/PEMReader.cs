@@ -101,17 +101,50 @@ namespace Opc.Ua.Security.Certificates
                 int certCount = 0;
                 try
                 {
-                    object pemObject = pemReader.ReadObject();
-                    while (pemObject != null && certCount < 99)
+                    // Every iteration consumes one PEM block, so the attempt bound
+                    // also terminates a file made up entirely of unparseable blocks.
+                    const int maxBlocks = 99;
+                    for (int attempt = 0; attempt < maxBlocks && certCount < maxBlocks; attempt++)
                     {
+                        object pemObject;
+                        try
+                        {
+                            pemObject = pemReader.ReadObject();
+                        }
+                        catch (PemException)
+                        {
+                            // BouncyCastle 2.7.0 and later refuse to parse a certificate
+                            // that violates RFC 5280, an empty issuer distinguished name
+                            // being the case seen in practice. The block has already been
+                            // consumed at that point, so skip it and keep reading instead
+                            // of discarding the whole file - a single malformed
+                            // certificate must not empty an otherwise usable trust list.
+                            continue;
+                        }
+
+                        if (pemObject == null)
+                        {
+                            break;
+                        }
+
                         if (pemObject is Org.BouncyCastle.X509.X509Certificate bcCert)
                         {
                             byte[] rawData = bcCert.GetEncoded();
                             var cert = new X509Certificate2(rawData);
+
+                            // Keep the same rule as the .NET PEM reader used on the
+                            // other target frameworks: a certificate with an empty
+                            // subject or issuer name identifies nothing and can never
+                            // take part in a trust decision.
+                            if (DistinguishedNameUtils.HasEmptyDistinguishedName(cert))
+                            {
+                                cert.Dispose();
+                                continue;
+                            }
+
                             certificates.Add(cert);
                             certCount++;
                         }
-                        pemObject = pemReader.ReadObject();
                     }
                 }
                 finally
