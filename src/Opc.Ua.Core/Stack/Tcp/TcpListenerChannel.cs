@@ -716,7 +716,7 @@ namespace Opc.Ua.Bindings
                 // Written on this stack rather than queued: the caller closes the
                 // transport as its next step, and a queued write would be
                 // discarded before the peer ever saw why the channel faulted.
-                WriteMessageInline(new ArraySegment<byte>(buffer, 0, size), null);
+                WriteMessageInline(new ArraySegment<byte>(buffer, 0, size));
                 buffer = null;
             }
             finally

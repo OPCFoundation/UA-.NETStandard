@@ -1013,7 +1013,6 @@ namespace Opc.Ua.Bindings
         /// Sends a message on the caller's stack instead of queuing it.
         /// </summary>
         /// <param name="buffer">The encoded message. Ownership transfers.</param>
-        /// <param name="state">Passed to <see cref="HandleWriteComplete"/>.</param>
         /// <exception cref="ServiceResultException">
         /// Thrown synchronously if no transport is attached.
         /// </exception>
@@ -1021,53 +1020,48 @@ namespace Opc.Ua.Bindings
         /// Reserved for the terminal error message a faulting channel sends
         /// immediately before closing its transport. A queued write would be
         /// discarded by that close, and the peer would see the connection drop
-        /// rather than the reason for it.
+        /// rather than the reason for it. Starting the send here hands the bytes
+        /// to the socket before the caller's next statement closes it.
         /// <para>
-        /// The entitlement to re-enter the gate is deliberately *not* dropped
-        /// here, unlike a queued write. This runs on the caller's stack, so the
-        /// completion callback a synchronous send triggers is the caller's own
-        /// re-entry and must be allowed; disclaiming would leave it blocking on
-        /// a gate the very same thread holds.
+        /// This deliberately does not report through
+        /// <see cref="HandleWriteComplete"/>, and touches the gate only to
+        /// disclaim what it inherited. Reporting would enter the gate — which
+        /// the caller holds — from a continuation that may resume on another
+        /// thread, and that is precisely the deadlock queuing exists to avoid.
+        /// Nothing is owed to a channel that is already faulted beyond returning
+        /// the buffer.
         /// </para>
         /// </remarks>
-        protected void WriteMessageInline(ArraySegment<byte> buffer, object? state)
+        protected void WriteMessageInline(ArraySegment<byte> buffer)
         {
             IUaSCByteTransport transport = m_transport
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadConnectionClosed,
                     "The transport was closed by the remote application.");
 
-            Interlocked.Increment(ref m_activeWriteRequests);
             ReadOnlyMemory<byte> chunk = new(buffer.GetArray(), buffer.Offset, buffer.Count);
 
-            _ = SendInlineAsync(transport, chunk, buffer.GetArray(), state);
+            _ = SendInlineAsync(transport, chunk, buffer.GetArray());
         }
 
         private async Task SendInlineAsync(
             IUaSCByteTransport transport,
             ReadOnlyMemory<byte> chunk,
-            byte[] backingBuffer,
-            object? state)
+            byte[] backingBuffer)
         {
-            ServiceResult result = ServiceResult.Good;
-            int sent = chunk.Length;
+            // The continuation may resume on another thread while the caller
+            // still holds the gate, so it must not carry the caller's holder.
+            Gate.LeaveInheritedContext();
 
             try
             {
                 await transport.SendChunkAsync(chunk, CancellationToken.None).ConfigureAwait(false);
             }
-            catch (ServiceResultException sre)
-            {
-                sent = 0;
-                result = sre.Result;
-            }
             catch (Exception ex)
             {
-                sent = 0;
-                result = ServiceResult.Create(
-                    ex,
-                    StatusCodes.BadTcpInternalError,
-                    "Unexpected error during write operation.");
+                // The channel is already faulted and the caller is closing it;
+                // failing to deliver the reason changes nothing it can act on.
+                m_logger.UaSCChannelTerminalWriteFailed(ex, ChannelId);
             }
             finally
             {
@@ -1080,10 +1074,9 @@ namespace Opc.Ua.Bindings
                 }
                 catch
                 {
-                    // Best-effort: a double-return throws but should not mask the write result.
+                    // Best-effort: a double-return throws but must not escape a
+                    // fire-and-forget send.
                 }
-
-                HandleWriteComplete(null, state, sent, result);
             }
         }
 
@@ -1682,6 +1675,14 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint tokenId);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 13, Level = LogLevel.Debug,
+            Message = "ChannelId {ChannelId}: Could not deliver the error message describing why " +
+                "the channel faulted. The peer will see the connection close instead.")]
+        public static partial void UaSCChannelTerminalWriteFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId);
     }
 
 }
