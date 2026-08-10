@@ -408,17 +408,27 @@ namespace Opc.Ua
 #else
             try
             {
-                string formatted = ToDateTime().ToString(provider);
+                // Honour the format specifier. ToString(provider) ignores it and
+                // always emits the general format, so a caller asking for "O" got
+                // "1/1/2023 12:30:45 PM" instead of the round trip form - the
+                // fractional seconds and the UTC designator were silently lost.
+                string formatted = ToDateTime()
+                    .ToString(format.IsEmpty ? null : format.ToString(), provider);
                 byte[] encoded = System.Text.Encoding.UTF8.GetBytes(formatted);
-                bytesWritten = encoded.Length > utf8Destination.Length ?
-                    utf8Destination.Length :
-                    encoded.Length;
-                encoded.AsSpan(0, bytesWritten).CopyTo(utf8Destination);
+                if (encoded.Length > utf8Destination.Length)
+                {
+                    // All or nothing: reporting success for a truncated timestamp
+                    // would hand the caller a corrupt value it believes is complete.
+                    bytesWritten = 0;
+                    return false;
+                }
+                encoded.CopyTo(utf8Destination);
+                bytesWritten = encoded.Length;
                 return true;
             }
-            catch
+            catch (Exception ex) when (ex is FormatException or ArgumentException)
             {
-                bytesWritten = default;
+                bytesWritten = 0;
                 return false;
             }
 #endif
