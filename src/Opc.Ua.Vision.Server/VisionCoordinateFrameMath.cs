@@ -346,20 +346,21 @@ namespace Opc.Ua.Vision.Server
                 (quaternion[1] * quaternion[1]) +
                 (quaternion[2] * quaternion[2]) +
                 (quaternion[3] * quaternion[3]));
-            if (norm > 0.0)
+
+            // A zero-norm quaternion carries no orientation. Substituting the identity would
+            // compose a pose that looks plausible and points the wrong way, which for a grasp
+            // is worse than a refusal, so it is reported like every other malformed input here.
+            if (norm <= 0.0)
             {
-                quaternion[0] /= norm;
-                quaternion[1] /= norm;
-                quaternion[2] /= norm;
-                quaternion[3] /= norm;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "An orientation quaternion has zero norm and does not describe a rotation.");
             }
-            else
-            {
-                quaternion[0] = 0.0;
-                quaternion[1] = 0.0;
-                quaternion[2] = 0.0;
-                quaternion[3] = 1.0;
-            }
+
+            quaternion[0] /= norm;
+            quaternion[1] /= norm;
+            quaternion[2] /= norm;
+            quaternion[3] /= norm;
         }
     }
 }

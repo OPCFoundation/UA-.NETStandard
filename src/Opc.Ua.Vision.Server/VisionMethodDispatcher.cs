@@ -546,12 +546,22 @@ namespace Opc.Ua.Vision.Server
                         ServiceResult = StatusCodes.BadNotSupported
                     };
                 }
+                if (string.IsNullOrEmpty(resultId))
+                {
+                    // ResultId identifies the result being corrected. Forwarding an empty one
+                    // would ask the sink to correct an unnamed result, so refuse instead of
+                    // quietly substituting a value the caller never supplied.
+                    return new SubmitCorrectionMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadInvalidArgument
+                    };
+                }
                 try
                 {
                     ServiceResult result = await sink.SubmitCorrectionAsync(
                         new VisionSubmitCorrectionRequest(
                             pipelineNodeId,
-                            resultId ?? string.Empty,
+                            resultId,
                             purpose,
                             detections,
                             characteristics,

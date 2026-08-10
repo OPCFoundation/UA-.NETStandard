@@ -282,13 +282,30 @@ namespace Opc.Ua.Vision.OpenUsd
             }
         }
 
+        private static bool IsLocalPath(string stageIdentifier)
+        {
+            // Only a plain filesystem path is checkable here. Anything carrying a URI scheme
+            // (an asset-resolver path, a remote stage) is left to the native resolver.
+            return !Uri.TryCreate(stageIdentifier, UriKind.Absolute, out Uri? uri) || uri.IsFile;
+        }
+
         private SceneCameraCaptureResult? ValidateRequest(
             SceneCameraCaptureRequest request, DateTime timestamp, long start)
-        {
-            if (string.IsNullOrWhiteSpace(request.StageIdentifier))
+        {            if (string.IsNullOrWhiteSpace(request.StageIdentifier))
             {
                 return Failure(SceneCameraCaptureStatus.InvalidRequest,
                     "StageIdentifier must not be empty.", request, timestamp, start);
+            }
+
+            // A stage identifier that names no readable file has been observed to tear the
+            // process down inside the native UsdStage.Open rather than returning an error, and
+            // an AccessViolationException cannot be caught here. Reject it in managed code so a
+            // bad request costs a failed capture rather than the whole server.
+            if (IsLocalPath(request.StageIdentifier) && !File.Exists(request.StageIdentifier))
+            {
+                return Failure(SceneCameraCaptureStatus.InvalidRequest,
+                    $"StageIdentifier '{request.StageIdentifier}' does not name a readable file.",
+                    request, timestamp, start);
             }
             if (request.Width <= 0 || request.Height <= 0)
             {
