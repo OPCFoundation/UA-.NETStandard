@@ -822,7 +822,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             byte[] docJson = WotTestData.Utf8(
                 "{\"title\":\"T\",\"links\":" +
-                "[{\"rel\":\"uav:reference\",\"href\":\"urn:x\",\"vendor:score\":42}]}");
+                "[{\"rel\":\"ua:NonHierarchicalReferences\",\"href\":\"urn:x\",\"vendor:score\":42}]}");
             using WotDocument document = WotDocument.Parse(docJson);
             var nodeSet = new UANodeSet();
             var diagnostics = new List<WotDiagnostic>();
@@ -833,7 +833,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(nodeSet.Extensions, Is.Not.Null.And.Not.Empty);
 
             byte[] baseJson = WotTestData.Utf8(
-                "{\"title\":\"T\",\"links\":[{\"rel\":\"uav:reference\",\"href\":\"urn:x\"}]}");
+                "{\"title\":\"T\",\"links\":[{\"rel\":\"ua:NonHierarchicalReferences\",\"href\":\"urn:x\"}]}");
             var applyDiagnostics = new List<WotDiagnostic>();
             byte[] result = WotJsonResidue.Apply(
                 baseJson, nodeSet, new WotNodeSetConverterOptions(), applyDiagnostics);

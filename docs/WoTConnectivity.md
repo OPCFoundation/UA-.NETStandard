@@ -814,7 +814,7 @@ not by copying the source document. The readable surface tracks the current
   the ReferenceType model name directly in `rel` (for example
   `ua:HasOrderedComponent`) beside its definitive `uav:refId`
   ExpandedNodeId. Authored
-  `uav:mapToTypeName` / `uav:congruentTypeName` hints are validated and
+  `uav:mapToTypeName` hints are validated and
   preserved beside their definitive identifiers. Compact model names are
   never used for arbitrary instance targets.
 

@@ -47,7 +47,8 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotMappingAdditionalTests
     {
-        private const string s_uavCtx = "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"";
+        private const string s_uavCtx = "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+            "\"ua\":\"http://opcfoundation.org/UA/\"";
         private const string s_wotCtx = "\"https://www.w3.org/2022/wot/td/v1.1\"";
 
         private static byte[] ThingModelJson(string extra = "")
@@ -200,32 +201,32 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ToNodeSetAddsOrganizesReferenceForUavReferenceLink()
+        public void ToNodeSetAddsNonHierarchicalReferenceForUaLink()
         {
             byte[] json = ThingModelJson(
-                "\"links\":[{\"rel\":\"uav:reference\",\"href\":\"i=47\"}]");
+                "\"links\":[{\"rel\":\"ua:NonHierarchicalReferences\",\"href\":\"i=47\"}]");
 
             using WotDocument document = WotDocument.Parse(json);
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
             UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().First();
-            bool hasOrganizes = root.References != null &&
+            bool hasNonHierarchical = root.References != null &&
                 root.References.Any(r =>
                     r.IsForward &&
-                    string.Equals(r.ReferenceType, "Organizes", StringComparison.Ordinal) &&
+                    string.Equals(r.ReferenceType, "i=32", StringComparison.Ordinal) &&
                     string.Equals(r.Value, "i=47", StringComparison.Ordinal));
             Assert.That(
-                hasOrganizes,
+                hasNonHierarchical,
                 Is.True,
-                "uav:reference link should synthesize an Organizes reference.");
+                "A ua:NonHierarchicalReferences link should synthesize that reference (i=32).");
         }
 
         [Test]
-        public void ToNodeSetAddsHasComponentForUavComponentModelLink()
+        public void ToNodeSetAddsHasComponentForUaHasComponentLink()
         {
             byte[] json = ThingModelJson(
-                "\"links\":[{\"rel\":\"uav:componentModel\",\"href\":\"i=58\"}]");
+                "\"links\":[{\"rel\":\"ua:HasComponent\",\"href\":\"i=58\"}]");
 
             using WotDocument document = WotDocument.Parse(json);
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
@@ -235,12 +236,12 @@ namespace Opc.Ua.Types.Tests.Wot
             bool hasHasComponent = root.References != null &&
                 root.References.Any(r =>
                     r.IsForward &&
-                    string.Equals(r.ReferenceType, "HasComponent", StringComparison.Ordinal) &&
+                    string.Equals(r.ReferenceType, "i=47", StringComparison.Ordinal) &&
                     string.Equals(r.Value, "i=58", StringComparison.Ordinal));
             Assert.That(
                 hasHasComponent,
                 Is.True,
-                "uav:componentModel link should synthesize a HasComponent reference.");
+                "A ua:HasComponent link should synthesize a HasComponent reference (i=47).");
         }
 
         [Test]
@@ -286,7 +287,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void ToNodeSetWarnsAboutNonNodeIdHrefWithoutResolver()
         {
             byte[] json = ThingModelJson(
-                "\"links\":[{\"rel\":\"uav:reference\",\"href\":\"https://example.com/other-thing\"}]");
+                "\"links\":[{\"rel\":\"ua:NonHierarchicalReferences\",\"href\":\"https://example.com/other-thing\"}]");
 
             using WotDocument document = WotDocument.Parse(json);
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
@@ -342,26 +343,6 @@ namespace Opc.Ua.Types.Tests.Wot
                     d.Message.Contains("ns1:SomeType", StringComparison.Ordinal)),
                 Is.True,
                 "A uav:mapToTypeName with a prefix not bound in @context should produce a diagnostic.");
-        }
-
-        [Test]
-        public void ToNodeSetReportsNonStringCongruentTypeName()
-        {
-            byte[] json = WotTestData.Utf8(
-                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
-                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"T\",\"uav:browseName\":\"1:T\"," +
-                "\"uav:congruentTypeName\":42," +
-                "\"uav:congruentType\":\"nsu=urn:test;i=1\"}");
-
-            using WotDocument document = WotDocument.Parse(json);
-            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
-
-            Assert.That(
-                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ModelConceptUnresolved),
-                Is.True,
-                "A non-string uav:congruentTypeName should produce a ModelConceptUnresolved diagnostic.");
         }
 
         [Test]
@@ -1636,30 +1617,29 @@ namespace Opc.Ua.Types.Tests.Wot
                 "uav:mapToTypeName without uav:mapToType should produce ModelConceptUnresolved.");
         }
 
+        /// <summary>
+        /// Spec PR #19 replaced <c>uav:capability</c> with <c>ua:HasInterface</c>
+        /// used directly as a link <c>rel</c>, so the converter has to know the
+        /// ReferenceType by name.
+        /// </summary>
         [Test]
-        public void ToNodeSetValidatesCongruentTypeNameRequiresCongruentType()
+        public void ToNodeSetAddsHasInterfaceForUaLink()
         {
-            byte[] json = WotTestData.Utf8(
-                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
-                "\"ua\":\"http://opcfoundation.org/UA/\"}]," +
-                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"T\"," +
-                "\"properties\":{" +
-                "\"val\":{\"type\":\"number\"," +
-                "\"uav:congruentTypeName\":\"ua:BaseDataVariableType\"}" +
-                "}}");
+            byte[] json = ThingModelJson(
+                "\"links\":[{\"rel\":\"ua:HasInterface\",\"href\":\"i=58\"}]");
 
             using WotDocument document = WotDocument.Parse(json);
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
+            Assert.That(result.Value, Is.Not.Null);
+            UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().First();
             Assert.That(
-                result.Diagnostics.Any(d =>
-                    d.Code == WotDiagnosticCode.ModelConceptUnresolved &&
-                    d.Message.Contains("uav:congruentTypeName", StringComparison.Ordinal) &&
-                    d.Message.Contains("uav:congruentType", StringComparison.Ordinal)),
+                root.References!.Any(r =>
+                    r.IsForward &&
+                    string.Equals(r.ReferenceType, "i=17603", StringComparison.Ordinal) &&
+                    string.Equals(r.Value, "i=58", StringComparison.Ordinal)),
                 Is.True,
-                "uav:congruentTypeName without uav:congruentType should produce ModelConceptUnresolved.");
+                "A ua:HasInterface link should synthesize a HasInterface reference (i=17603).");
         }
 
         [Test]

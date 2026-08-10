@@ -198,7 +198,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// An absolute-IRI term (WoT Binding Section 6), such as
-        /// <c>uav:semanticId</c> or <c>uav:nameNamespace</c>, did not carry an
+        /// <c>uav:semanticId</c>, did not carry an
         /// absolute IRI with a scheme.
         /// </summary>
         NonAbsoluteIri = 6007,

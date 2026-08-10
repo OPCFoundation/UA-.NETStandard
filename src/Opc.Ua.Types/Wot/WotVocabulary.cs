@@ -61,6 +61,20 @@ namespace Opc.Ua.Wot
         public const string HasModellingRule = "i=37";
         public const string GeneratesEvent = "i=41";
 
+        /// <summary>
+        /// The abstract root of every non-hierarchical ReferenceType
+        /// (OPC 10000-5). Spec PR #19 replaced <c>uav:reference</c> with this
+        /// name used directly as a link <c>rel</c>.
+        /// </summary>
+        public const string NonHierarchicalReferences = "i=32";
+
+        /// <summary>
+        /// The ReferenceType that names an Interface an Object exposes
+        /// (OPC 10000-3). Spec PR #19 replaced <c>uav:capability</c> with this
+        /// name used directly as a link <c>rel</c>.
+        /// </summary>
+        public const string HasInterface = "i=17603";
+
         // Type-annotation term for an event affordance projecting a UA EventType.
         public const string EventTypeAnnotation = "uav:eventType";
 
@@ -84,7 +98,9 @@ namespace Opc.Ua.Wot
                 ["HasSubtype"] = HasSubtype,
                 ["HasProperty"] = HasProperty,
                 ["HasComponent"] = HasComponent,
-                ["HasOrderedComponent"] = HasOrderedComponent
+                ["HasOrderedComponent"] = HasOrderedComponent,
+                ["NonHierarchicalReferences"] = NonHierarchicalReferences,
+                ["HasInterface"] = HasInterface
             };
 
         private static readonly Dictionary<string, string> s_referenceTypeNodeIdToName =
@@ -97,7 +113,9 @@ namespace Opc.Ua.Wot
                 [HasSubtype] = "HasSubtype",
                 [HasProperty] = "HasProperty",
                 [HasComponent] = "HasComponent",
-                [HasOrderedComponent] = "HasOrderedComponent"
+                [HasOrderedComponent] = "HasOrderedComponent",
+                [NonHierarchicalReferences] = "NonHierarchicalReferences",
+                [HasInterface] = "HasInterface"
             };
 
         // HasComponent subtypes (base namespace) that carry stronger semantics

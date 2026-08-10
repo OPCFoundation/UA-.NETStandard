@@ -455,10 +455,7 @@ namespace Opc.Ua.Wot
 
         private static bool IsMappedLink(string? rel, JsonElement link)
         {
-            if (rel is "tm:extends" or
-                "uav:reference" or
-                "uav:componentModel" or
-                "uav:capability")
+            if (rel is "tm:extends")
             {
                 return true;
             }

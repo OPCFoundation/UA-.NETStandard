@@ -867,10 +867,7 @@ namespace Opc.Ua.Wot
             JsonElement link,
             string rel)
         {
-            return rel is "uav:reference" or
-                "uav:componentModel" or
-                "uav:capability" ||
-                IsModelConceptRelation(document, link, rel);
+            return IsModelConceptRelation(document, link, rel);
         }
 
         private static bool IsModelConceptRelation(
@@ -895,10 +892,7 @@ namespace Opc.Ua.Wot
 
         private static bool IsKnownBindingRelation(string rel)
         {
-            return rel is "uav:reference" or
-                "uav:componentModel" or
-                "uav:capability" or
-                "uav:componentOf";
+            return rel is "uav:componentOf";
         }
 
         private static bool IsModelConceptCandidate(
@@ -931,15 +925,6 @@ namespace Opc.Ua.Wot
         private static bool IsExternalRelationPrefix(string prefix)
         {
             return prefix is "http" or "https" or "urn";
-        }
-
-        private static string DefaultReferenceType(string rel)
-        {
-            if (string.Equals(rel, "uav:componentModel", StringComparison.Ordinal))
-            {
-                return "HasComponent";
-            }
-            return "Organizes";
         }
 
         private static bool IsNodeId(string reference)

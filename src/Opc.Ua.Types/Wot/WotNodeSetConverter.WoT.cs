@@ -918,7 +918,9 @@ namespace Opc.Ua.Wot
                 return false;
             }
 
-            referenceType = DefaultReferenceType(rel);
+            // With uav:componentModel gone (spec PR #19), a binding link that
+            // resolves to no ReferenceType organizes rather than composes.
+            referenceType = "Organizes";
             return true;
         }
 
@@ -1206,6 +1208,17 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Resolves a link target to the <c>uav:id</c> the referenced document
+        /// declares.
+        /// </summary>
+        /// <remarks>
+        /// A single resolution: spec PR #19 removed <c>uav:congruentType</c>,
+        /// which was the only term that redirected one reference to another, so
+        /// a target either declares its own identity or is unresolved. The
+        /// resolution context is still entered and the bytes still counted, so
+        /// the per-conversion document, depth and byte bounds continue to apply.
+        /// </remarks>
         private static async ValueTask<string?> ResolveTargetNodeIdAsync(
             string reference,
             IWotThingResolver resolver,
@@ -1214,66 +1227,51 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             CancellationToken cancellationToken)
         {
-            var entered = new List<string>();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!context.TryEnter(WotResolutionKind.Thing, reference, out WotDiagnostic? blocking))
+            {
+                diagnostics.Add(blocking!);
+                return null;
+            }
+
             try
             {
-                string current = reference;
-                while (true)
+                WotResolverResult result = await resolver.ResolveThingAsync(
+                    reference,
+                    context,
+                    cancellationToken).ConfigureAwait(false);
+                if (!result.Found)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (!context.TryEnter(WotResolutionKind.Thing, current, out WotDiagnostic? blocking))
-                    {
-                        diagnostics.Add(blocking!);
-                        return null;
-                    }
-                    entered.Add(current);
-
-                    WotResolverResult result = await resolver.ResolveThingAsync(
-                        current,
-                        context,
-                        cancellationToken).ConfigureAwait(false);
-                    if (!result.Found)
-                    {
-                        diagnostics.Add(new WotDiagnostic(
-                            WotDiagnosticSeverity.Warning,
-                            WotDiagnosticCode.ResolverNotFound,
-                            $"The referenced document '{current}' could not be resolved.",
-                            new WotLocation(reference: current)));
-                        return null;
-                    }
-                    if (!context.TryAddBytes(current, result.Content.Length, out WotDiagnostic? limit))
-                    {
-                        diagnostics.Add(limit!);
-                        return null;
-                    }
-
-                    using WotDocument resolved = WotDocument.Parse(result.Content, options);
-                    string? resolvedId = GetUavString(resolved, "id");
-                    if (resolvedId is not null)
-                    {
-                        return resolvedId;
-                    }
-                    string? congruent = GetUavString(resolved, "congruentType");
-                    if (congruent is not null &&
-                        !string.Equals(congruent, current, StringComparison.Ordinal))
-                    {
-                        current = congruent;
-                        continue;
-                    }
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Warning,
-                        WotDiagnosticCode.UnresolvedReference,
-                        $"The referenced document '{current}' does not declare a uav:id.",
-                        new WotLocation(reference: current)));
+                        WotDiagnosticCode.ResolverNotFound,
+                        $"The referenced document '{reference}' could not be resolved.",
+                        new WotLocation(reference: reference)));
                     return null;
                 }
+                if (!context.TryAddBytes(reference, result.Content.Length, out WotDiagnostic? limit))
+                {
+                    diagnostics.Add(limit!);
+                    return null;
+                }
+
+                using WotDocument resolved = WotDocument.Parse(result.Content, options);
+                string? resolvedId = GetUavString(resolved, "id");
+                if (resolvedId is not null)
+                {
+                    return resolvedId;
+                }
+
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Warning,
+                    WotDiagnosticCode.UnresolvedReference,
+                    $"The referenced document '{reference}' does not declare a uav:id.",
+                    new WotLocation(reference: reference)));
+                return null;
             }
             finally
             {
-                for (int ii = entered.Count - 1; ii >= 0; ii--)
-                {
-                    context.Leave(entered[ii]);
-                }
+                context.Leave(reference);
             }
         }
 
@@ -1891,12 +1889,6 @@ namespace Opc.Ua.Wot
                     element,
                     "uav:mapToTypeName",
                     requiredDefinitiveMember: "uav:mapToType",
-                    diagnostics);
-                ValidateModelConceptMember(
-                    document,
-                    element,
-                    "uav:congruentTypeName",
-                    requiredDefinitiveMember: "uav:congruentType",
                     diagnostics);
                 foreach (JsonProperty member in element.EnumerateObject())
                 {
