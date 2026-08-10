@@ -196,6 +196,27 @@ for the before/after and
 [Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
 for the runtime rules.
 
+## Removed members on IServerInternal
+
+The following members had no consumer anywhere in the stack, its samples or
+its tests, and have been removed. Each has a direct replacement:
+
+| Removed | Use instead |
+| --- | --- |
+| `CloseSession(OperationContext, NodeId, bool)` | `CloseSessionAsync(…)` |
+| `Status` | `CurrentState` to read, `UpdateServerStatus` to write |
+| `ServerDiagnostics` | `UpdateServerDiagnostics(Action<…>)` |
+| `DiagnosticsEnabled` | `IDiagnosticsNodeManager.DiagnosticsEnabled` |
+| `ModellingRulesManager`, `ConformanceUnitsManager` | the concrete `ServerInternalData`, which owns them |
+
+`MessageContext`, `DefaultSystemContext`, `CurrentState`, `ServerObject`,
+`ReportEventAsync`, `CloseSessionAsync`, `DeleteSubscriptionAsync` and
+`UpdateServerDiagnostics` all moved *down* to `IServerContext`, the ambient
+view of a running server that `IServerInternal` now derives from. They remain
+reachable through `IServerInternal` unchanged, so no call site has to move.
+`CurrentState` is read-only on the ambient interface; the server itself still
+sets it.
+
 ## Migrating servers that relied on unserved history advertisement
 
 Server startup now reconciles variables that advertise history with the

@@ -38,25 +38,19 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The interface that a server exposes to objects that it contains.
     /// </summary>
-    public interface IServerInternal : IAuditEventServer, IDisposable
+    /// <remarks>
+    /// Components that only need to observe the server and act on it should take
+    /// <see cref="IServerContext"/> instead. This interface additionally hands out the
+    /// server's subsystems, which a component should ask for by constructor injection
+    /// rather than reach for through an ambient handle.
+    /// </remarks>
+    public interface IServerInternal : IServerContext, IAuditEventServer, IDisposable
     {
         /// <summary>
         /// The endpoint addresses used by the server.
         /// </summary>
         /// <value>The endpoint addresses.</value>
         IEnumerable<Uri> EndpointAddresses { get; }
-
-        /// <summary>
-        /// The context to use when serializing/deserializing extension objects.
-        /// </summary>
-        /// <value>The message context.</value>
-        IServiceMessageContext MessageContext { get; }
-
-        /// <summary>
-        /// The default system context for the server.
-        /// </summary>
-        /// <value>The default system context.</value>
-        ServerSystemContext DefaultSystemContext { get; }
 
         /// <summary>
         /// The table of namespace uris known to the server.
@@ -142,20 +136,6 @@ namespace Opc.Ua.Server
         AggregateManager AggregateManager { get; }
 
         /// <summary>
-        /// A manager for modelling rules supported by the server.
-        /// </summary>
-        /// <value>The modelling rules manager.</value>
-        ModellingRulesManager ModellingRulesManager { get; }
-
-        /// <summary>
-        /// A manager for the conformance units and server profiles the server
-        /// advertises, aggregated from the registered
-        /// <see cref="IConformanceContributor"/> node managers.
-        /// </summary>
-        /// <value>The conformance units manager.</value>
-        ConformanceUnitsManager ConformanceUnitsManager { get; }
-
-        /// <summary>
         /// The manager for active sessions.
         /// </summary>
         /// <value>The session manager.</value>
@@ -219,91 +199,6 @@ namespace Opc.Ua.Server
         bool IsRunning { get; }
 
         /// <summary>
-        /// Returns the status object for the server.
-        /// </summary>
-        /// <value>The status.</value>
-        [Obsolete("No longer thread safe. To read the value use CurrentState, to write use UpdateServerStatus.")]
-        ServerStatusValue Status { get; }
-
-        /// <summary>
-        /// Gets or sets the current state of the server.
-        /// </summary>
-        /// <value>The state of the current.</value>
-        ServerState CurrentState { get; set; }
-
-        /// <summary>
-        /// Returns the Server object node
-        /// </summary>
-        /// <value>The Server object node.</value>
-        ServerObjectState ServerObject { get; }
-
-        /// <summary>
-        /// Applies an update to the server diagnostics while holding the server's
-        /// diagnostics lock.
-        /// </summary>
-        /// <remarks>
-        /// The server owns its lock and never exposes it, so callers cannot participate in
-        /// the server's locking order. The diagnostic nodes are marked dirty inside the
-        /// critical section.
-        /// </remarks>
-        /// <param name="update">The mutation to apply to the diagnostics.</param>
-        void UpdateServerDiagnostics(Action<ServerDiagnosticsSummaryDataType> update);
-
-        /// <summary>
-        /// Reads a value derived from the server diagnostics while holding the server's
-        /// diagnostics lock.
-        /// </summary>
-        /// <remarks>
-        /// Do not let the diagnostics object escape the callback: once the lock is
-        /// released, any field read from it is unsynchronized.
-        /// </remarks>
-        /// <typeparam name="TResult">The type of the value produced.</typeparam>
-        /// <param name="read">The projection applied to the diagnostics.</param>
-        TResult ReadServerDiagnostics<TResult>(
-            Func<ServerDiagnosticsSummaryDataType, TResult> read);
-
-        /// <summary>
-        /// Returns the diagnostics structure for the server.
-        /// </summary>
-        /// <value>The server diagnostics.</value>
-        ServerDiagnosticsSummaryDataType ServerDiagnostics { get; }
-
-        /// <summary>
-        /// Whether the server is collecting diagnostics.
-        /// </summary>
-        /// <value><c>true</c> if diagnostics is enabled; otherwise, <c>false</c>.</value>
-        bool DiagnosticsEnabled { get; }
-
-        /// <summary>
-        /// Closes the specified session.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="sessionId">The session identifier.</param>
-        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
-        [Obsolete("Use CloseSessionAsync instead.")]
-        void CloseSession(OperationContext context, NodeId sessionId, bool deleteSubscriptions);
-
-        /// <summary>
-        /// Closes the specified session.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="sessionId">The session identifier.</param>
-        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask CloseSessionAsync(
-            OperationContext context,
-            NodeId sessionId,
-            bool deleteSubscriptions,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Deletes the specified subscription.
-        /// </summary>
-        /// <param name="subscriptionId">The subscription identifier.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask DeleteSubscriptionAsync(uint subscriptionId, CancellationToken cancellationToken = default);
-
-        /// <summary>
         /// Called by any component to report a global event.
         /// </summary>
         /// <param name="e">The event.</param>
@@ -315,14 +210,6 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="e">The event.</param>
         void ReportEvent(ISystemContext context, IFilterTarget e);
-
-        /// <summary>
-        /// Asynchronously reports a global event, awaiting an asynchronous report sink so the caller
-        /// is never blocked.
-        /// </summary>
-        /// <param name="e">The event.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask ReportEventAsync(IFilterTarget e, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Asynchronously reports a global event, awaiting an asynchronous report sink so the caller
