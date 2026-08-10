@@ -187,15 +187,14 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
-        /// A TD that omits the severity has to produce a valid OPC 10000-5
-        /// severity, and an out-of-range one must be clamped rather than
-        /// published verbatim.
+        /// A TD that omits the severity gets the default, and an in-range one
+        /// is published verbatim.
         /// </summary>
         [TestCase(null, (ushort)500)]
-        [TestCase((ushort)0, (ushort)500)]
-        [TestCase((ushort)5000, (ushort)1000)]
         [TestCase((ushort)250, (ushort)250)]
-        public async Task AuthoredSeverityIsNormalisedIntoTheValidRangeAsync(
+        [TestCase((ushort)1, (ushort)1)]
+        [TestCase((ushort)1000, (ushort)1000)]
+        public async Task AuthoredSeverityInRangeIsPublishedAsync(
             ushort? authored,
             ushort expected)
         {
@@ -209,6 +208,54 @@ namespace Opc.Ua.WotCon.Tests
             (_, WotEventTag tag) = entry.Events.Values.First();
 
             Assert.That(tag.Severity, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// The WoT Binding "Event severity range" rule makes an out-of-range
+        /// severity invalid and forbids silently clamping it, so the affordance
+        /// is skipped rather than published with a rewritten value.
+        /// </summary>
+        [TestCase((ushort)0)]
+        [TestCase((ushort)1001)]
+        [TestCase((ushort)5000)]
+        public async Task AnOutOfRangeSeverityIsRejectedRatherThanClampedAsync(ushort authored)
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(
+                harness, severity: authored).ConfigureAwait(false);
+
+            Assert.That(entry.Events, Is.Empty,
+                "An out-of-range severity must not be silently rewritten into a valid one.");
+        }
+
+        /// <summary>
+        /// Rejecting one affordance must not leave a half-built event type
+        /// advertised on the asset.
+        /// </summary>
+        [Test]
+        public async Task ARejectedEventLeavesNoGeneratesEventReferenceAsync()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(
+                harness, severity: 5000).ConfigureAwait(false);
+
+            NodeId eventTypeId = harness.Manager.AllocateChildNodeId(
+                entry.Name, "events", "Overheating");
+
+            Assert.That(
+                entry.Asset.ReferenceExists(Ua.ReferenceTypeIds.GeneratesEvent, false, eventTypeId),
+                Is.False,
+                "A rejected affordance must not advertise an event type.");
+            Assert.That(
+                harness.Manager.FindPredefinedNode<NodeState>(eventTypeId),
+                Is.Null,
+                "A rejected affordance must not leave its event type registered.");
         }
 
         /// <summary>

@@ -165,8 +165,9 @@ public ValueTask SubscribeEventAsync(
 
 `message` and `severity` are optional: a null `message` publishes the
 event name and a null `severity` falls back to the affordance's
-`uav:severity`. An authored severity outside 1..1000 is clamped rather
-than rejected, so one bad event definition cannot fail the whole asset.
+`uav:severity`. An authored severity outside 1..1000 is invalid: the WoT Binding forbids
+silently clamping it, so the affordance carrying it is skipped and the rest of
+the asset is unaffected.
 
 Pair it with an `IWotAssetProviderFactory` that advertises the WoT
 binding URIs it understands (surfaced through

@@ -881,26 +881,67 @@ namespace Opc.Ua.WotCon.Server.Assets
             m_manager.AddEventTypeNode(eventType);
 
             JsonElement? form = evt.Forms?.Count > 0 ? evt.Forms[0] : null;
-            ushort severity = NormaliseSeverity(evt.Severity);
+            ushort? severity = ValidateSeverity(evt.Severity);
+            if (severity is null)
+            {
+                m_logger.SkippingTd(
+                    "event",
+                    WotChildNameValidator.SanitiseForLog(name),
+                    entry.Name,
+                    $"uav:severity {evt.Severity} is outside the OPC 10000-5 range 1..1000");
+                m_manager.RemoveEventTypeNode(eventTypeId);
+                entry.Asset.RemoveReference(
+                    Ua.ReferenceTypeIds.GeneratesEvent, isInverse: false, eventTypeId);
+                return;
+            }
+
             var tag = new WotEventTag(
-                name, eventTypeId, entry.Asset.NodeId, fields, severity, form);
+                name, eventTypeId, entry.Asset.NodeId, fields, severity.Value, form);
 
             entry.Events[eventTypeId] = (eventType, tag);
         }
 
         /// <summary>
-        /// Clamps an authored severity into the OPC 10000-5 1..1000 range,
-        /// defaulting to 500 when the TD omits it. An out-of-range authored
-        /// value is clamped rather than rejected so one bad event definition
-        /// cannot fail the whole asset.
+        /// Validates an authored severity against the OPC 10000-5 1..1000
+        /// range and supplies the default when the Thing Description omits it.
         /// </summary>
-        private static ushort NormaliseSeverity(ushort? severity)
+        /// <remarks>
+        /// WoT Binding "Event severity range" makes an out-of-range value
+        /// invalid and forbids silently clamping it: a document asking for
+        /// severity 5000 has a mistake in it, and rewriting the number would
+        /// hide the mistake while changing what the author asked for. The
+        /// affordance carrying it is therefore skipped, which keeps the rest of
+        /// the asset usable without accepting the bad definition.
+        /// </remarks>
+        /// <returns>
+        /// The severity to publish, or <c>null</c> when the authored value is
+        /// out of range.
+        /// </returns>
+        private static ushort? ValidateSeverity(ushort? severity)
         {
-            if (severity is null or 0)
+            if (severity is null)
             {
                 return 500;
             }
-            return severity.Value > 1000 ? (ushort)1000 : severity.Value;
+            return severity.Value is >= 1 and <= 1000 ? severity.Value : null;
+        }
+
+        /// <summary>
+        /// Chooses the severity to publish for one occurrence: the value the
+        /// provider supplied when it is in the OPC 10000-5 range, otherwise the
+        /// affordance's authored default.
+        /// </summary>
+        /// <remarks>
+        /// The tag's severity was already validated when the affordance was
+        /// built, so it is always a usable fallback. A provider that supplies
+        /// nothing, or an out-of-range value, gets that default rather than an
+        /// invalid Severity on the wire.
+        /// </remarks>
+        private static ushort EffectiveSeverity(ushort? severity, WotEventTag tag)
+        {
+            return severity is not null && severity.Value is >= 1 and <= 1000
+                ? severity.Value
+                : tag.Severity;
         }
 
         /// <summary>
@@ -1020,7 +1061,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             e.SetChildValue(context, Ua.BrowseNames.Time, new DateTimeUtc(timestamp), false);
             e.SetChildValue(context, Ua.BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
             e.SetChildValue(
-                context, Ua.BrowseNames.Severity, NormaliseSeverity(severity ?? tag.Severity), false);
+                context, Ua.BrowseNames.Severity, EffectiveSeverity(severity, tag), false);
 
             int count = Math.Min(fields.Count, tag.Fields.Count);
             for (int i = 0; i < count; i++)
