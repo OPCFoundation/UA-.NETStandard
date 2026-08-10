@@ -68,6 +68,8 @@ builder.Services.AddSingleton(stage);
 builder.Services.AddSingleton(sensorSpec);
 builder.Services.AddSingleton<SimulatedArmExecutor>();
 builder.Services.AddSingleton<BinPickingRobotCell>();
+builder.Services.AddSingleton<BinPickingWorldState>();
+builder.Services.AddSingleton<BinPickingGroundTruthInferenceProvider>();
 builder.Services.AddSingleton<BinPickingVisionCell>();
 builder.Services.AddSingleton<BinPickingMediaProvider>();
 builder.Services.AddOpenUsdSceneCameraCaptureProvider();
@@ -78,6 +80,11 @@ builder.Services.AddHostedService(services =>
         services.GetRequiredService<ILogger<BinPickingCaptureProof>>(),
         enabled: captureOnStartup,
         artifactDirectory: artifactDirectory));
+builder.Services.AddHostedService(services =>
+    new BinPickingInferenceProof(
+        services.GetRequiredService<BinPickingGroundTruthInferenceProvider>(),
+        services.GetRequiredService<BinPickingWorldState>(),
+        services.GetRequiredService<ILogger<BinPickingInferenceProof>>()));
 
 builder.Services
     .AddOpcUa()

@@ -66,6 +66,17 @@ namespace Vision.BinPickingCell
     /// vision-side calibration to the robot-side frame without any
     /// translation table.
     /// </para>
+    /// <para>
+    /// The vision-side <c>flange</c> transform is authored at the "scan
+    /// pose" the arm would hold to point the eye-in-hand camera at the
+    /// bin. In a live cell the flange frame is dynamic and reflects the
+    /// current joint state; for this static-sample demo it is pinned to
+    /// the scan pose so a consumer composing
+    /// camera → flange → robot_base → world lands on the parts'
+    /// authored world positions — which is exactly what the
+    /// <see cref="BinPickingGroundTruthInferenceProvider"/> reports for
+    /// each detection's <c>Pose</c>.
+    /// </para>
     /// </remarks>
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Performance", "CA1812",
@@ -75,11 +86,14 @@ namespace Vision.BinPickingCell
         public BinPickingVisionCell(
             ILogger<BinPickingVisionCell> logger,
             BinPickingMediaProvider mediaProvider,
-            BinPickingCellStage stage)
+            BinPickingCellStage stage,
+            BinPickingGroundTruthInferenceProvider inferenceProvider)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_mediaProvider = mediaProvider ?? throw new ArgumentNullException(nameof(mediaProvider));
             m_stage = stage ?? throw new ArgumentNullException(nameof(stage));
+            m_inferenceProvider = inferenceProvider
+                ?? throw new ArgumentNullException(nameof(inferenceProvider));
         }
 
         /// <summary>
@@ -93,7 +107,9 @@ namespace Vision.BinPickingCell
             }
             AddFrames(context);
             AddSensor(context);
+            AddPipeline(context);
             await AttachSimulatedTwinAsync(context, cancellationToken).ConfigureAwait(false);
+            await FinalizePipelineAsync(context, cancellationToken).ConfigureAwait(false);
             m_logger.VisionCellReady(
                 m_frames.Count,
                 m_stage.CellStagePath,
@@ -120,7 +136,7 @@ namespace Vision.BinPickingCell
                 .WithFrameId(BinPickingRobotCell.FlangeFrameId)
                 .WithRole(VisionFrameRoleEnum.MechanicalInterface)
                 .WithParent(BinPickingRobotCell.RobotBaseFrameId)
-                .WithTransform(Pose(BinPickingRobotCell.RobotBaseFrameId, 0.0, 0.0, 0.1625)));
+                .WithTransform(FlangeScanPose()));
             m_frames.Add(BinPickingRobotCell.FlangeFrameId);
 
             nodes.AddFrame("GripperTcp", frame => frame
@@ -136,6 +152,71 @@ namespace Vision.BinPickingCell
                 .WithParent(BinPickingRobotCell.FlangeFrameId)
                 .WithTransform(HandEyeTransform()));
             m_frames.Add(BinPickingRobotCell.CameraFrameId);
+        }
+
+        private void AddPipeline(IVisionBuildContext context)
+        {
+            NodeId deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
+            context.Nodes.AddPipeline(PipelineBrowseName, pipe => pipe
+                .WithPipelineId(PipelineId)
+                .WithSensor(FindSensor(context, SensorTwinBrowseName)?.NodeId ?? NodeId.Null)
+                .WithDeployment(deployment)
+                .UseInferenceProvider(m_inferenceProvider, onServer: true));
+        }
+
+        private async ValueTask FinalizePipelineAsync(
+            IVisionBuildContext context, CancellationToken cancellationToken)
+        {
+            InferencePipelineState pipeline = FindPipeline(context, PipelineBrowseName)
+                ?? throw new InvalidOperationException(
+                    "Pipeline '" + PipelineBrowseName + "' was not registered on the Vision node manager.");
+            ImageSensorState sensor = FindSensor(context, SensorTwinBrowseName)
+                ?? throw new InvalidOperationException(
+                    "Sensor '" + SensorTwinBrowseName + "' was not registered on the Vision node manager.");
+            FolderState results = pipeline.CreateOrReplaceResults(context.Context, null!);
+            results.NodeId = context.Context.RequireNodeIdFactory().New(context.Context, results);
+            NodeInstanceExtensions.AssignInstanceChildNodeIds(context.Context, results, results.NodeId);
+            await context.Manager.AddPredefinedNodeAsync(results, cancellationToken).ConfigureAwait(false);
+            VisionIntrinsicsDataType intrinsics = BuildIntrinsics();
+            NodeId deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
+            var target = new BinPickingInferenceTarget(
+                context.Manager,
+                context.Context,
+                context.InstanceNamespaceIndex,
+                pipeline.NodeId,
+                sensor.NodeId,
+                deployment,
+                results,
+                BinPickingRobotCell.CameraFrameId,
+                PixelFormat,
+                intrinsics.Fx,
+                intrinsics.Fy,
+                intrinsics.Cx,
+                intrinsics.Cy,
+                intrinsics.Width,
+                intrinsics.Height,
+                CameraInWorldPose());
+            m_inferenceProvider.Attach(target);
+        }
+
+        private static InferencePipelineState? FindPipeline(IVisionBuildContext context, string browseName)
+        {
+            FolderState? pipelines = context.Root.Pipelines;
+            if (pipelines == null)
+            {
+                return null;
+            }
+            var children = new List<BaseInstanceState>();
+            pipelines.GetChildren(context.Context, children);
+            var qualified = new QualifiedName(browseName, context.InstanceNamespaceIndex);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is InferencePipelineState pipeline && pipeline.BrowseName == qualified)
+                {
+                    return pipeline;
+                }
+            }
+            return null;
         }
 
         private void AddSensor(IVisionBuildContext context)
@@ -280,15 +361,44 @@ namespace Vision.BinPickingCell
             };
         }
 
+        private static VisionPose3DDataType FlangeScanPose()
+        {
+            return new VisionPose3DDataType
+            {
+                FrameId = BinPickingRobotCell.RobotBaseFrameId,
+                Position = s_flangeScanPosition.ToArrayOf(),
+                Orientation = s_flangeScanOrientation.ToArrayOf(),
+                Covariance = ArrayOf<double>.Empty
+            };
+        }
+
+        private static VisionPose3DDataType CameraInWorldPose()
+        {
+            return new VisionPose3DDataType
+            {
+                FrameId = BinPickingRobotCell.WorldFrameId,
+                Position = s_cameraInWorldPosition.ToArrayOf(),
+                Orientation = s_cameraInWorldOrientation.ToArrayOf(),
+                Covariance = ArrayOf<double>.Empty
+            };
+        }
+
         private static readonly double[] s_identityOrientation = [0.0, 0.0, 0.0, 1.0];
         private static readonly double[] s_handEyePosition = [0.062, -0.031, 0.115];
         private static readonly double[] s_handEyeOrientation = [0.0, 0.0, 0.7071, 0.7071];
+        private static readonly double[] s_cameraInWorldPosition = [0.38, 0.0, 1.35];
+        private static readonly double[] s_cameraInWorldOrientation = [1.0, 0.0, 0.0, 0.0];
+        private static readonly double[] s_flangeScanPosition = [0.411, -0.062, 0.636];
+        private static readonly double[] s_flangeScanOrientation = [0.7071, 0.7071, 0.0, 0.0];
 
         internal const string SensorTwinBrowseName = "BinPickingCameraTwin";
         internal const string IntrinsicCalibrationBrowseName = "Intrinsics2448x2048";
         internal const string HandEyeCalibrationBrowseName = "HandEye";
         internal const string StreamEndpointBrowseName = "LiveRtsp";
         internal const string ClipEndpointBrowseName = "PickFrames";
+        internal const string PipelineBrowseName = "BinPickingPipeline";
+        internal const string PipelineId = "pipe-onserver-groundtruth";
+        internal const string DeploymentBrowseName = "OnServerDeployment";
         internal const string PixelFormat = "BayerRG8";
         internal const string CameraPrimPath =
             "/World/Robot/Arm/Base/J1/J2/J3/J4/J5/J6/Flange/Camera";
@@ -296,6 +406,7 @@ namespace Vision.BinPickingCell
         private readonly ILogger<BinPickingVisionCell> m_logger;
         private readonly BinPickingMediaProvider m_mediaProvider;
         private readonly BinPickingCellStage m_stage;
+        private readonly BinPickingGroundTruthInferenceProvider m_inferenceProvider;
         private readonly List<string> m_frames = [];
     }
 
