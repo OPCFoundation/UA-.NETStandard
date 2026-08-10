@@ -25,7 +25,7 @@ them.
 | Root `uav:browseName` | **Default** | `1:<rootLocal>`. |
 | Root `title` | **Default** | Root `DisplayName` becomes `<rootLocal>`. |
 | Thing Model root event annotation `uav:eventType` | **Default** | Root is a non-abstract `UAObjectType` with inverse `HasSubtype` to `BaseObjectType` (`i=58`). If the event annotation is present, the default supertype is `BaseEventType` (`i=2041`). |
-| Thing Description root type information | **Default** | Root is a `UAObject` with `HasTypeDefinition` to `BaseObjectType` (`i=58`). |
+| Thing Description root type information | **Default** / **Bound** | Absent: root is a `UAObject` with `HasTypeDefinition` to `BaseObjectType` (`i=58`). Present: a `ua:HasTypeDefinition` link (WoT Binding Section 5.2.1) whose `href` is the ExpandedNodeId of the type binds the root to that type instead, so the converter reuses the existing type rather than defining a second one. Two such links, or one without a usable identifier, are reported (`AmbiguousTypeBinding` / `InvalidTypeBinding`) and the root keeps the default rather than being bound to a guess. |
 | Root `description` | **Default** | No `Description` field is materialized. |
 | Property affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Property affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<propertyLocal>`. |

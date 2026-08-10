@@ -488,11 +488,18 @@ namespace Opc.Ua.Wot
             else
             {
                 rootNode = new UAObject();
+
+                // WoT Binding Section 5.2.1: a document may bind its projected
+                // node to a type that already exists. Only fall back to
+                // BaseObjectType when it declares no binding at all.
+                string? boundType = ReadDefinitiveTypeBinding(document, diagnostics);
                 rootReferences.Add(new Reference
                 {
                     ReferenceType = "HasTypeDefinition",
                     IsForward = true,
-                    Value = WotVocabulary.BaseObjectType
+                    Value = boundType is not null
+                        ? ToNodeSetNodeId(boundType, nodeSet, diagnostics)
+                        : WotVocabulary.BaseObjectType
                 });
             }
 
@@ -1590,6 +1597,92 @@ namespace Opc.Ua.Wot
             }
             return false;
         }
+
+        /// <summary>
+        /// Reads the definitive type binding a document declares through
+        /// <c>ua:HasTypeDefinition</c> links (WoT Binding Section 5.2.1).
+        /// </summary>
+        /// <remarks>
+        /// Section 5.2.1 names a type in either or both of two forms. This
+        /// reads the definitive one: a link whose <c>rel</c> is the
+        /// <c>ua:HasTypeDefinition</c> ReferenceType compact model name and
+        /// whose <c>href</c> is the ExpandedNodeId of the type. An
+        /// ExpandedNodeId matches exactly one Node or none, so it needs no
+        /// lookup here; the readable <c>@type</c> form is a hint that has to be
+        /// resolved against the local context of Section 5.1.5 and is handled
+        /// separately.
+        /// <para>
+        /// A Node has exactly one <c>HasTypeDefinition</c>, so more than one
+        /// such link makes the document invalid rather than picking a winner.
+        /// </para>
+        /// </remarks>
+        /// <returns>
+        /// The authored ExpandedNodeId, or <c>null</c> when the document
+        /// declares no definitive binding or the binding is invalid.
+        /// </returns>
+        private static string? ReadDefinitiveTypeBinding(
+            WotDocument document,
+            List<WotDiagnostic> diagnostics)
+        {
+            string? bound = null;
+            int count = 0;
+
+            foreach (JsonElement link in document.Links)
+            {
+                if (link.ValueKind != JsonValueKind.Object ||
+                    !link.TryGetProperty("rel", out JsonElement rel) ||
+                    rel.ValueKind != JsonValueKind.String ||
+                    !string.Equals(rel.GetString(), TypeBindingRel, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                count++;
+                if (count > 1)
+                {
+                    continue;
+                }
+
+                string? href = link.TryGetProperty("href", out JsonElement hrefElement) &&
+                    hrefElement.ValueKind == JsonValueKind.String
+                        ? hrefElement.GetString()
+                        : null;
+
+                if (string.IsNullOrWhiteSpace(href))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.InvalidTypeBinding,
+                        $"A '{TypeBindingRel}' link (WoT Binding Section 5.2.1) must carry the " +
+                        "ExpandedNodeId of the type in its 'href'.",
+                        new WotLocation(jsonPointer: "/links")));
+                    continue;
+                }
+
+                bound = href;
+            }
+
+            if (count > 1)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.AmbiguousTypeBinding,
+                    $"A document declares {count} '{TypeBindingRel}' links, but a Node has exactly " +
+                    "one HasTypeDefinition (WoT Binding Section 5.2.1).",
+                    new WotLocation(jsonPointer: "/links")));
+                return null;
+            }
+
+            return bound;
+        }
+
+        /// <summary>
+        /// The ReferenceType compact model name that carries a definitive type
+        /// binding, per WoT Binding Section 5.2.1. It is an ordinary
+        /// ReferenceType name used directly in <c>rel</c>, so it adds no
+        /// vocabulary of its own.
+        /// </summary>
+        private const string TypeBindingRel = "ua:HasTypeDefinition";
 
         /// <summary>
         /// Determines whether the projected root ObjectType derives from

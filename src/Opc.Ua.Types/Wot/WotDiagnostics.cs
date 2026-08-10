@@ -267,7 +267,22 @@ namespace Opc.Ua.Wot
         /// A selection names an affordance that was already selected, so the
         /// later selection is dropped.
         /// </summary>
-        ProjectionSelectionDropped = 6018
+        ProjectionSelectionDropped = 6018,
+
+        /// <summary>
+        /// A document declares more than one type binding (WoT Binding
+        /// Section 5.2.1): either more than one member of a single
+        /// <c>@type</c> resolves as a type binding, or the document carries
+        /// more than one <c>ua:HasTypeDefinition</c> link. A Node has exactly
+        /// one <c>HasTypeDefinition</c>, so the document is invalid.
+        /// </summary>
+        AmbiguousTypeBinding = 6019,
+
+        /// <summary>
+        /// A <c>ua:HasTypeDefinition</c> link (WoT Binding Section 5.2.1) did
+        /// not carry a usable definitive ExpandedNodeId in its <c>href</c>.
+        /// </summary>
+        InvalidTypeBinding = 6020
     }
 
     /// <summary>
