@@ -60535,6 +60535,20 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=CTT</Reference>
     </References>
   </UAObject>
+  <UAView NodeId="ns=1;s=Views_Operations" BrowseName="1:Operations" ParentNodeId="ns=1;s=Views" ContainsNoLoops="true">
+    <DisplayName Locale="en">Operations</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes">ns=1;s=Scalar_Static_Mass</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=87</Reference>
+    </References>
+  </UAView>
+  <UAView NodeId="ns=1;s=Views_Engineering" BrowseName="1:Engineering" ParentNodeId="ns=1;s=Views" ContainsNoLoops="true">
+    <DisplayName Locale="en">Engineering</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes">ns=1;s=Scalar_Simulation</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=87</Reference>
+    </References>
+  </UAView>
   <UAObject NodeId="ns=1;s=Locales" BrowseName="1:Locales" ParentNodeId="ns=1;s=CTT">
     <DisplayName Locale="en">Locales</DisplayName>
     <References>

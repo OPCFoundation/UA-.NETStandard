@@ -249,41 +249,6 @@ namespace Quickstarts.ReferenceServer
                     // registration of the individual dynamic nodes stays
                     // imperative.
                     RegisterSimulationVariables();
-
-                    // Prio 1 (NodeSet) not possible: the Organizes references
-                    // that place the two browse Views under the core ViewsFolder
-                    // and let them organize the mass / simulation folders are
-                    // baked into the model, but the View nodes themselves cannot
-                    // be baked - the model source generator emits invalid
-                    // instantiation code for UAView nodes (it references an
-                    // undefined 'forInstance' variable). Prio 2 (fluent) not
-                    // possible: the fluent builder exposes no view-node creation
-                    // surface. The view nodes are therefore created at runtime.
-                    FolderState viewsFolder = CreateFolder("Views");
-                    FolderState massFolder = CreateFolder("Scalar_Static_Mass");
-                    FolderState simulationFolder = CreateFolder("Scalar_Simulation");
-                    const string views = "Views_";
-                    ViewState viewStateOperations = await CreateViewAsync(
-                        viewsFolder,
-                        externalReferences,
-                        views + "Operations",
-                        "Operations",
-                        cancellationToken).ConfigureAwait(false);
-                    viewStateOperations.AddReference(
-                        ReferenceTypeIds.Organizes,
-                        false,
-                        massFolder.NodeId);
-
-                    ViewState viewStateEngineering = await CreateViewAsync(
-                        viewsFolder,
-                        externalReferences,
-                        views + "Engineering",
-                        "Engineering",
-                        cancellationToken).ConfigureAwait(false);
-                    viewStateEngineering.AddReference(
-                        ReferenceTypeIds.Organizes,
-                        false,
-                        simulationFolder.NodeId);
                 }
                 catch (Exception e)
                 {
@@ -493,55 +458,6 @@ namespace Quickstarts.ReferenceServer
                 itemsCreated.Add(CreateDynamicVariable(newPath));
             } //for i
             return [.. itemsCreated];
-        }
-
-        /// <summary>
-        /// Creates a new view.
-        /// </summary>
-        /// <remarks>
-        /// The Organizes references that place the view under the core
-        /// ViewsFolder and let it organize its target folder are baked into the
-        /// NodeSet2 model, but the View node itself has to be created here: the
-        /// model source generator emits invalid instantiation code for
-        /// <c>UAView</c> nodes (it references an undefined <c>forInstance</c>
-        /// variable), so View nodes cannot currently be baked into the model.
-        /// </remarks>
-        private async ValueTask<ViewState> CreateViewAsync(
-            NodeState parent,
-            IDictionary<NodeId, IList<IReference>> externalReferences,
-            string path,
-            string name,
-            CancellationToken cancellationToken = default)
-        {
-            var type = new ViewState
-            {
-                SymbolicName = name,
-                NodeId = new NodeId(path, NamespaceIndex),
-                BrowseName = new QualifiedName(name, NamespaceIndex)
-            };
-            type.DisplayName = LocalizedText.From(type.BrowseName.Name!);
-            type.WriteMask = AttributeWriteMask.None;
-            type.UserWriteMask = AttributeWriteMask.None;
-            type.ContainsNoLoops = true;
-
-            if (!externalReferences.TryGetValue(
-                Opc.Ua.ObjectIds.ViewsFolder,
-                out IList<IReference>? references))
-            {
-                externalReferences[Opc.Ua.ObjectIds.ViewsFolder] = references = [];
-            }
-
-            type.AddReference(ReferenceTypeIds.Organizes, true, Opc.Ua.ObjectIds.ViewsFolder);
-            references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, type.NodeId));
-
-            if (parent != null)
-            {
-                parent.AddReference(ReferenceTypeIds.Organizes, false, type.NodeId);
-                type.AddReference(ReferenceTypeIds.Organizes, true, parent.NodeId);
-            }
-
-            await AddPredefinedNodeAsync(SystemContext, type, cancellationToken).ConfigureAwait(false);
-            return type;
         }
 
         /// <summary>
