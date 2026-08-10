@@ -87,19 +87,20 @@ namespace Opc.Ua.Server.Tests
             m_sessionMock.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
             m_sessionMock.Setup(s => s.Identity).Returns(identity);
             m_sessionMock.Setup(s => s.IdentityToken).Returns(identity.TokenHandler);
+            var sessionDiagnostics = new SessionDiagnosticsDataType
+            {
+                ClientDescription = new ApplicationDescription
+                {
+                    ApplicationUri = "urn:localhost:opcfoundation.org:SubscriptionTests"
+                }
+            };
             m_sessionMock
                 .Setup(s => s.UpdateDiagnostics(
                     It.IsAny<Action<SessionDiagnosticsDataType>>()))
                 .Callback<Action<SessionDiagnosticsDataType>>(
-                    update => update(m_sessionMock.Object.SessionDiagnostics));
-            m_sessionMock.Setup(s => s.SessionDiagnostics).Returns(
-                new SessionDiagnosticsDataType
-                {
-                    ClientDescription = new ApplicationDescription
-                    {
-                        ApplicationUri = "urn:localhost:opcfoundation.org:SubscriptionTests"
-                    }
-                });
+                    update => update(sessionDiagnostics));
+            m_sessionMock.Setup(s => s.ClientApplicationUri)
+                .Returns(() => sessionDiagnostics.ClientDescription?.ApplicationUri);
 
             m_diagnosticsNodeManagerMock
                 .Setup(d => d.CreateSubscriptionDiagnosticsAsync(
@@ -371,19 +372,20 @@ namespace Opc.Ua.Server.Tests
             var identity = new UserIdentity(tokenHandler);
             session.Setup(s => s.Identity).Returns(identity);
             session.Setup(s => s.IdentityToken).Returns(tokenHandler);
+            var diagnostics = new SessionDiagnosticsDataType
+            {
+                ClientDescription = new ApplicationDescription
+                {
+                    ApplicationUri = "urn:localhost:opcfoundation.org:SubscriptionTests"
+                }
+            };
             session
                 .Setup(s => s.UpdateDiagnostics(
                     It.IsAny<Action<SessionDiagnosticsDataType>>()))
                 .Callback<Action<SessionDiagnosticsDataType>>(
-                    update => update(session.Object.SessionDiagnostics));
-            session.Setup(s => s.SessionDiagnostics).Returns(
-                new SessionDiagnosticsDataType
-                {
-                    ClientDescription = new ApplicationDescription
-                    {
-                        ApplicationUri = "urn:localhost:opcfoundation.org:SubscriptionTests"
-                    }
-                });
+                    update => update(diagnostics));
+            session.Setup(s => s.ClientApplicationUri)
+                .Returns(() => diagnostics.ClientDescription?.ApplicationUri);
         }
 
         private static void SetExpiryTime(Subscription subscription, long expiryTime)
@@ -475,8 +477,8 @@ namespace Opc.Ua.Server.Tests
             destinationSession.SetupGet(session => session.IdentityToken)
                 .Returns(identity.TokenHandler);
             SessionDiagnosticsDataType destinationDiagnostics = CreateSessionDiagnostics();
-            destinationSession.SetupGet(session => session.SessionDiagnostics)
-                .Returns(destinationDiagnostics);
+            destinationSession.SetupGet(session => session.ClientApplicationUri)
+                .Returns(() => destinationDiagnostics.ClientDescription?.ApplicationUri);
             destinationSession
                 .Setup(session => session.UpdateDiagnostics(
                     It.IsAny<Action<SessionDiagnosticsDataType>>()))
@@ -1066,8 +1068,8 @@ namespace Opc.Ua.Server.Tests
             destinationSession.SetupGet(session => session.IdentityToken)
                 .Returns(identity.TokenHandler);
             SessionDiagnosticsDataType destinationDiagnostics = CreateSessionDiagnostics();
-            destinationSession.SetupGet(session => session.SessionDiagnostics)
-                .Returns(destinationDiagnostics);
+            destinationSession.SetupGet(session => session.ClientApplicationUri)
+                .Returns(() => destinationDiagnostics.ClientDescription?.ApplicationUri);
             destinationSession
                 .Setup(session => session.UpdateDiagnostics(
                     It.IsAny<Action<SessionDiagnosticsDataType>>()))

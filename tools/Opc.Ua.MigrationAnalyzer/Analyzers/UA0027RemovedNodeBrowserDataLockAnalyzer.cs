@@ -37,7 +37,7 @@ using Opc.Ua.MigrationAnalyzer.Diagnostics;
 namespace Opc.Ua.MigrationAnalyzer.Analyzers
 {
     /// <summary>
-    /// UA0025: Detect use of <c>NodeBrowser.DataLock</c>, the protected synchronization lock
+    /// UA0027: Detect use of <c>NodeBrowser.DataLock</c>, the protected synchronization lock
     /// that 1.5.378 exposed to derived browsers, and recommend removing it.
     /// </summary>
     /// <remarks>
@@ -51,10 +51,10 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     /// whole rule.
     /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UA0025RemovedNodeBrowserDataLockAnalyzer : DiagnosticAnalyzer
+    public sealed class UA0027RemovedNodeBrowserDataLockAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-            [DiagnosticDescriptors.UA0025_RemovedNodeBrowserDataLock];
+            [DiagnosticDescriptors.UA0027_RemovedNodeBrowserDataLock];
 
         public override void Initialize(AnalysisContext context)
         {
@@ -191,7 +191,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         {
             context.ReportDiagnostic(
                 Diagnostic.Create(
-                    DiagnosticDescriptors.UA0025_RemovedNodeBrowserDataLock,
+                    DiagnosticDescriptors.UA0027_RemovedNodeBrowserDataLock,
                     location));
         }
 

@@ -207,7 +207,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.SecureChannelId, Is.EqualTo("channel-1"));
             Assert.That(session.Activated, Is.False);
             Assert.That(session.SessionDiagnostics, Is.Not.Null);
-            Assert.That(session.SessionDiagnostics.SessionName, Is.EqualTo("CoverageSession"));
+            Assert.That(session.ReadDiagnostics(d => d.SessionName), Is.EqualTo("CoverageSession"));
             Assert.That(session.Identity, Is.Not.Null);
         }
 
@@ -330,7 +330,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 () => session.ValidateRequest(new RequestHeader(), channelContext, requestType),
                 Throws.TypeOf<ServiceResultException>());
-            Assert.That(session.SessionDiagnostics.TotalRequestCount.TotalCount, Is.GreaterThan(0));
+            Assert.That(session.ReadDiagnostics(d => d.TotalRequestCount.TotalCount), Is.GreaterThan(0));
         }
 
         [Test]
@@ -407,6 +407,31 @@ namespace Opc.Ua.Server.Tests
                 session.ContinuationPoints.RestoreBrowse(new ByteString(first.Id.ToByteArray())),
                 Is.Null,
                 "The oldest continuation point should have been evicted.");
+        }
+
+        [Test]
+        public void ClientApplicationUriReadsTheDiagnosticsUnderTheLock()
+        {
+            using ServerSession session = CreateSession(CreateEndpoint());
+
+            // The four server-side callers that used to reach through SessionDiagnostics
+            // want exactly this, and it is read under the diagnostics lock rather than off
+            // a handed-out structure.
+            Assert.That(
+                session.ClientApplicationUri,
+                Is.EqualTo(session.ReadDiagnostics(d => d.ClientDescription?.ApplicationUri)));
+        }
+
+        [Test]
+        public void SessionNameDoesNotDependOnTheDiagnostics()
+        {
+            using ServerSession session = CreateSession(CreateEndpoint());
+
+            // Assigned once during construction, so it is read from the field: a caller
+            // must not have to take the diagnostics lock for a value that never changes.
+            Assert.That(
+                session.SessionName,
+                Is.EqualTo(session.ReadDiagnostics(d => d.SessionName)));
         }
 
         [Test]
@@ -599,7 +624,7 @@ namespace Opc.Ua.Server.Tests
                     new SignatureData(),
                     default,
                     new SignatureData(),
-                CancellationToken.None).ConfigureAwait(false);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(handler, Is.Not.Null);
             Assert.That(policy, Is.Not.Null);
@@ -655,7 +680,7 @@ namespace Opc.Ua.Server.Tests
                     new SignatureData(),
                     new ExtensionObject(userToken),
                     new SignatureData(),
-                CancellationToken.None).ConfigureAwait(false);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(handler, Is.Not.Null);
             Assert.That(policy, Is.Not.Null);

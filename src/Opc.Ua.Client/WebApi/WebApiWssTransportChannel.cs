@@ -534,24 +534,8 @@ namespace Opc.Ua.Client.WebApi
         {
             try
             {
-                var validationChain = new X509Certificate2Collection();
-                if (chain != null && chain.ChainElements != null)
-                {
-                    foreach (X509ChainElement element in chain.ChainElements)
-                    {
-                        validationChain.Add(element.Certificate);
-                    }
-                }
-                else if (certificate is X509Certificate2 x509)
-                {
-                    validationChain.Add(x509);
-                }
-                else if (certificate != null)
-                {
-                    validationChain.Add(new X509Certificate2(certificate));
-                }
-
-                using var validationCollection = CertificateCollection.From(validationChain);
+                using CertificateCollection validationCollection = CertificateValidationHelpers
+                    .BuildValidationCertificateCollection(certificate, chain);
                 ICertificateValidatorEx? validator = m_quotas?.CertificateValidator;
                 if (validator != null)
                 {
@@ -598,6 +582,7 @@ namespace Opc.Ua.Client.WebApi
                 return false;
             }
         }
+
 #endif
 
         /// <summary>

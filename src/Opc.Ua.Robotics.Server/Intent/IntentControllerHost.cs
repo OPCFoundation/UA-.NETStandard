@@ -3084,7 +3084,7 @@ namespace Opc.Ua.RobotIntent.Server
                 } &&
                 operation.Session != null)
             {
-                return operation.Session.SessionDiagnostics?.SessionName ?? string.Empty;
+                return operation.Session.SessionName;
             }
             return string.Empty;
         }

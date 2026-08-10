@@ -169,8 +169,8 @@ namespace Opc.Ua.Core.Encoders.Tests
                 decoder.PopNamespace();
             }
 
-            TestContext.Out.WriteLine("Result:");
-            TestContext.Out.WriteLine(result);
+            TestOutput.WriteLine("Result:");
+            TestOutput.WriteLine(result);
 
             string encodeInfo =
                 $"Encoder: {encoderType} Type: Array of {systemType}. Expected is different from result.";
@@ -241,8 +241,8 @@ namespace Opc.Ua.Core.Encoders.Tests
                 result = decoder.ReadVariantValue(objectName, expected.TypeInfo);
             }
 
-            TestContext.Out.WriteLine("Result:");
-            TestContext.Out.WriteLine(result);
+            TestOutput.WriteLine("Result:");
+            TestOutput.WriteLine(result);
 
             Assert.That(
                 result,

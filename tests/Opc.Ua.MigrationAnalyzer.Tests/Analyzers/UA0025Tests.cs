@@ -38,46 +38,43 @@ using Opc.Ua.MigrationAnalyzer.Analyzers;
 namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 {
     /// <summary>
-    /// Tests for UA0025 (the protected DataLock removed from NodeBrowser).
+    /// Tests for UA0025 (ILocalNode.DataLock removed).
     /// </summary>
     /// <remarks>
-    /// Each source declares the 1.5.378 shape of NodeBrowser. The member is gone from the 2.0
-    /// assemblies, so the rule has to fire on sources that still compile against the old
-    /// surface — which is exactly the migration path it exists for.
+    /// Each source declares the 1.5.378 shape of the interface. The member is gone from the
+    /// 2.0 assemblies, so the rule has to fire on sources that still compile against the old
+    /// surface - which is exactly the migration path it exists for.
     /// </remarks>
     [TestFixture]
     public class UA0025Tests
     {
-        private const string BrowserShim = """
+        private const string NodeShim = """
             namespace Opc.Ua
             {
-                public interface IReference
+                public interface INode
                 {
                 }
 
-                public class NodeBrowser
+                public interface ILocalNode : INode
                 {
-                    protected object DataLock { get; } = new object();
+                    object DataLock { get; }
+                }
 
-                    public virtual IReference Next() => null;
+                public class Node : ILocalNode
+                {
+                    public object DataLock => this;
                 }
             }
             """;
 
         [Test]
-        public async Task ReportsOnDataLockInsideADerivedBrowserAsync()
+        public async Task ReportsOnLocalNodeDataLockAsync()
         {
-            string source = BrowserShim + """
+            string source = NodeShim + """
 
-                class MyBrowser : Opc.Ua.NodeBrowser
+                class C
                 {
-                    public override Opc.Ua.IReference Next()
-                    {
-                        lock (DataLock)
-                        {
-                            return base.Next();
-                        }
-                    }
+                    static object M(Opc.Ua.ILocalNode node) => node.DataLock;
                 }
                 """;
 
@@ -85,25 +82,40 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 
             Assert.That(
                 diagnostic.GetMessage(CultureInfo.InvariantCulture),
-                Does.Contain("NodeBrowser.DataLock"));
-            Assert.That(
-                diagnostic.GetMessage(CultureInfo.InvariantCulture),
-                Does.Contain("single-consumer"),
-                "the message must say why the lock went, not just that it is gone.");
+                Does.Contain("ILocalNode.DataLock"));
         }
 
         [Test]
-        public async Task ReportsOnQualifiedDataLockAccessAsync()
+        public async Task ReportsOnNodeClassDataLockAsync()
         {
-            string source = BrowserShim + """
+            string source = NodeShim + """
 
-                class MyBrowser : Opc.Ua.NodeBrowser
+                class C
                 {
-                    public override Opc.Ua.IReference Next()
+                    static object M(Opc.Ua.Node node) => node.DataLock;
+                }
+                """;
+
+            Diagnostic diagnostic = await SingleAsync(source).ConfigureAwait(false);
+
+            Assert.That(
+                diagnostic.GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("Node.DataLock"));
+        }
+
+        [Test]
+        public async Task ReportsInsideALockStatementAsync()
+        {
+            // The shape a consumer actually wrote, and the reason the rule cannot auto-fix:
+            // what the body needs to stay atomic with is not visible from the lock keyword.
+            string source = NodeShim + """
+
+                class C
+                {
+                    static void M(Opc.Ua.ILocalNode node)
                     {
-                        lock (this.DataLock)
+                        lock (node.DataLock)
                         {
-                            return base.Next();
                         }
                     }
                 }
@@ -112,35 +124,6 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
             Diagnostic diagnostic = await SingleAsync(source).ConfigureAwait(false);
 
             Assert.That(diagnostic.Id, Is.EqualTo("UA0025"));
-        }
-
-        [Test]
-        public async Task ReportsOnceForAQualifiedAccessAsync()
-        {
-            string source = BrowserShim + """
-
-                class MyBrowser : Opc.Ua.NodeBrowser
-                {
-                    public override Opc.Ua.IReference Next()
-                    {
-                        lock (this.DataLock)
-                        {
-                            return base.Next();
-                        }
-                    }
-                }
-                """;
-
-            ImmutableArray<Diagnostic> diagnostics = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(
-                    new UA0025RemovedNodeBrowserDataLockAnalyzer(),
-                    source)
-                .ConfigureAwait(false);
-
-            Assert.That(
-                diagnostics.Count(d => d.Id == "UA0025"),
-                Is.EqualTo(1),
-                "the member-access and identifier handlers must not both report the same expression.");
         }
 
         [Test]
@@ -150,20 +133,16 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
                 class Unrelated
                 {
                     public object DataLock { get; } = new object();
+                }
 
-                    void M()
-                    {
-                        lock (DataLock)
-                        {
-                        }
-                    }
+                class C
+                {
+                    static object M(Unrelated u) => u.DataLock;
                 }
                 """;
 
             ImmutableArray<Diagnostic> diagnostics = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(
-                    new UA0025RemovedNodeBrowserDataLockAnalyzer(),
-                    source)
+                .GetAnalyzerDiagnosticsAsync(new UA0025RemovedNodeDataLockAnalyzer(), source)
                 .ConfigureAwait(false);
 
             Assert.That(
@@ -173,119 +152,26 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
         }
 
         [Test]
-        public async Task DoesNotReportOnALocalNamedDataLockInsideABrowserAsync()
+        public async Task DoesNotReportOnNodeBrowserDataLockAsync()
         {
-            string source = BrowserShim + """
-
-                class MyBrowser : Opc.Ua.NodeBrowser
-                {
-                    public override Opc.Ua.IReference Next()
-                    {
-                        object DataLock = new object();
-                        lock (DataLock)
-                        {
-                            return base.Next();
-                        }
-                    }
-                }
-                """;
-
-            ImmutableArray<Diagnostic> diagnostics = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(
-                    new UA0025RemovedNodeBrowserDataLockAnalyzer(),
-                    source)
-                .ConfigureAwait(false);
-
-            Assert.That(
-                diagnostics.Any(d => d.Id == "UA0025"),
-                Is.False,
-                "a local that happens to be named DataLock is not the removed member.");
-        }
-
-        [Test]
-        public async Task DoesNotReportOnAnUnrelatedNodeBrowserInAnotherNamespaceAsync()
-        {
+            // NodeBrowser still has a DataLock; only the node one was removed.
             const string source = """
-                namespace Other
+                namespace Opc.Ua
                 {
                     public class NodeBrowser
                     {
                         protected object DataLock { get; } = new object();
                     }
-
-                    public class MyBrowser : NodeBrowser
-                    {
-                        public void M()
-                        {
-                            lock (DataLock)
-                            {
-                            }
-                        }
-                    }
                 }
 
-                namespace Opc.Ua
+                class C : Opc.Ua.NodeBrowser
                 {
-                    public class NodeBrowser
-                    {
-                    }
+                    object M() => this.DataLock;
                 }
                 """;
 
             ImmutableArray<Diagnostic> diagnostics = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(
-                    new UA0025RemovedNodeBrowserDataLockAnalyzer(),
-                    source)
-                .ConfigureAwait(false);
-
-            Assert.That(
-                diagnostics.Any(d => d.Id == "UA0025"),
-                Is.False,
-                "a NodeBrowser in an unrelated namespace must not fire the rule.");
-        }
-
-        [Test]
-        public async Task ReportsInsideALambdaInADerivedBrowserAsync()
-        {
-            string source = BrowserShim + """
-
-                class MyBrowser : Opc.Ua.NodeBrowser
-                {
-                    public System.Action M()
-                    {
-                        return () =>
-                        {
-                            lock (DataLock)
-                            {
-                            }
-                        };
-                    }
-                }
-                """;
-
-            Diagnostic diagnostic = await SingleAsync(source).ConfigureAwait(false);
-
-            Assert.That(diagnostic.Id, Is.EqualTo("UA0025"));
-        }
-
-        [Test]
-        public async Task DoesNotReportOnABrowserThatTookNoLockAsync()
-        {
-            string source = BrowserShim + """
-
-                class MyBrowser : Opc.Ua.NodeBrowser
-                {
-                    public override Opc.Ua.IReference Next()
-                    {
-                        return base.Next();
-                    }
-                }
-                """;
-
-            ImmutableArray<Diagnostic> diagnostics = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(
-                    new UA0025RemovedNodeBrowserDataLockAnalyzer(),
-                    source)
+                .GetAnalyzerDiagnosticsAsync(new UA0025RemovedNodeDataLockAnalyzer(), source)
                 .ConfigureAwait(false);
 
             Assert.That(diagnostics.Any(d => d.Id == "UA0025"), Is.False);
@@ -294,9 +180,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
         private static async Task<Diagnostic> SingleAsync(string source)
         {
             ImmutableArray<Diagnostic> diagnostics = await AnalyzerHarness
-                .GetAnalyzerDiagnosticsAsync(
-                    new UA0025RemovedNodeBrowserDataLockAnalyzer(),
-                    source)
+                .GetAnalyzerDiagnosticsAsync(new UA0025RemovedNodeDataLockAnalyzer(), source)
                 .ConfigureAwait(false);
 
             Diagnostic? diagnostic = diagnostics.SingleOrDefault(d => d.Id == "UA0025");

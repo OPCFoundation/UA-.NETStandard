@@ -185,6 +185,41 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Detects the type of store represented by the path, consulting the
+        /// supplied providers before the built-in store types.
+        /// </summary>
+        /// <param name="storePath">The store path to classify.</param>
+        /// <param name="providers">
+        /// Providers to consult first, or <c>null</c> to use only the built-in
+        /// store types.
+        /// </param>
+        /// <returns>The name of the store type that handles the path.</returns>
+        /// <remarks>
+        /// The parameterless overload can only see the built-in store types and
+        /// the legacy static registry, so a store type registered through
+        /// dependency injection is invisible to it. Configuration that relies on
+        /// auto-detection for such a store must either go through this overload
+        /// or state the store type explicitly.
+        /// </remarks>
+        public static string DetermineStoreType(
+            string storePath,
+            IEnumerable<ICertificateStoreProvider>? providers)
+        {
+            if (!string.IsNullOrEmpty(storePath) && providers != null)
+            {
+                foreach (ICertificateStoreProvider provider in providers)
+                {
+                    if (provider.SupportsStorePath(storePath))
+                    {
+                        return provider.StoreTypeName;
+                    }
+                }
+            }
+
+            return DetermineStoreType(storePath);
+        }
+
+        /// <summary>
         /// Resolves a store type using registered <see cref="ICertificateStoreProvider"/>
         /// instances, falling back to the built-in store types.
         /// </summary>
