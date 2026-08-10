@@ -445,6 +445,89 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 () => RoboticsIntentJson.BuildMissionTransitions("""[{"fromStepId":"s1"}]"""),
                 Throws.ArgumentException);
         }
+
+        [TestCase("""{"target":{"position":[],"orientation":[0.0,0.0,0.0,1.0]}}""")]
+        [TestCase("""{"target":{"position":[0.1,0.2],"orientation":[0.0,0.0,0.0,1.0]}}""")]
+        [TestCase("""{"target":{"position":[0.1,0.2,0.3],"orientation":[]}}""")]
+        [TestCase("""{"target":{"position":[0.1,0.2,0.3],"orientation":[0.0,0.0,1.0]}}""")]
+        public void APoseWithTooFewComponentsIsRejectedAsAnArgumentError(string json)
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildIntent("linearmove", json),
+                Throws.ArgumentException);
+        }
+
+        [TestCase("""{"target":{"position":"0.1","orientation":[0.0,0.0,0.0,1.0]}}""")]
+        [TestCase("""{"target":{"position":{"x":0.1},"orientation":[0.0,0.0,0.0,1.0]}}""")]
+        [TestCase("""{"target":{"position":[0.1,0.2,0.3],"orientation":42}}""")]
+        public void APoseComponentThatIsNotAnArrayIsRejectedAsAnArgumentError(string json)
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildIntent("linearmove", json),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void APoseComponentHoldingANonNumberIsRejectedAsAnArgumentError()
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildIntent(
+                    "linearmove",
+                    """{"target":{"position":["a","b","c"],"orientation":[0.0,0.0,0.0,1.0]}}"""),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void ATrajectoryPositionsFieldThatIsNotAnArrayIsRejectedAsAnArgumentError()
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildIntent(
+                    "trajectory",
+                    """{"points":[{"timeFromStart":0.0,"positions":"nope"}]}"""),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void ATrajectoryPointsFieldThatIsNotAnArrayIsRejectedAsAnArgumentError()
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildIntent("trajectory", """{"points":{"timeFromStart":0.0}}"""),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void AForceDirectionThatIsNotAnArrayIsRejectedAsAnArgumentError()
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildIntent("force", """{"direction":1.0,"contactForce":5.0}"""),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void AJointMoveWithNonArrayJointTargetsIsRejectedAsAnArgumentError()
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildIntent("jointmove", """{"jointTargets":"0.1"}""", 6),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void APoseThatIsNotAnObjectIsRejectedAsAnArgumentError()
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildIntent("linearmove", """{"target":5}"""),
+                Throws.ArgumentException);
+        }
+
+        [TestCase("""{"weldSchedule":-1}""")]
+        [TestCase("""{"weldSchedule":99999999999}""")]
+        [TestCase("""{"weldSchedule":2.5}""")]
+        public void AWholeNumberFieldOutsideUInt32IsRejectedAsAnArgumentError(string json)
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildIntent("spotweld", json),
+                Throws.ArgumentException);
+        }
     }
 }
 #endif

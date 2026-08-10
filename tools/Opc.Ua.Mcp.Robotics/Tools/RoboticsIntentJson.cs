@@ -148,7 +148,7 @@ namespace Opc.Ua.Mcp.Tools
             JointMoveIntentBuilder builder = RobotIntentBuilder.JointMove(axisCount);
             if (root.TryGetProperty("jointTargets", out JsonElement jointTargets))
             {
-                return builder.ToJoints(GetDoubleArray(jointTargets)).Build();
+                return builder.ToJoints(GetDoubleArray(jointTargets, "jointTargets")).Build();
             }
 
             return builder.ToPose(GetPose(root, "targetPose")).Build();
@@ -167,12 +167,12 @@ namespace Opc.Ua.Mcp.Tools
         private static TrajectoryIntentDataType BuildTrajectory(JsonElement root)
         {
             var points = new List<TrajectoryPointDataType>();
-            foreach (JsonElement point in GetRequiredProperty(root, "points").EnumerateArray())
+            foreach (JsonElement point in GetRequiredArray(root, "points").EnumerateArray())
             {
                 points.Add(new TrajectoryPointDataType
                 {
                     TimeFromStart = GetDouble(point, "timeFromStart"),
-                    Positions = GetDoubleArray(GetRequiredProperty(point, "positions")),
+                    Positions = GetDoubleArray(point, "positions", "points"),
                     Velocities = TryGetDoubleArray(point, "velocities"),
                     Accelerations = TryGetDoubleArray(point, "accelerations")
                 });
@@ -184,7 +184,7 @@ namespace Opc.Ua.Mcp.Tools
         private static CartesianPathIntentDataType BuildCartesianPath(JsonElement root)
         {
             var waypoints = new List<PathWaypointDataType>();
-            foreach (JsonElement waypoint in GetRequiredProperty(root, "waypoints").EnumerateArray())
+            foreach (JsonElement waypoint in GetRequiredArray(root, "waypoints").EnumerateArray())
             {
                 waypoints.Add(new PathWaypointDataType
                 {
@@ -199,7 +199,7 @@ namespace Opc.Ua.Mcp.Tools
         private static ForceIntentDataType BuildForce(JsonElement root)
         {
             ForceIntentDataType intent = RobotIntentBuilder.Force(
-                GetDoubleArray(GetRequiredProperty(root, "direction")),
+                GetDoubleArray(root, "direction", "force"),
                 GetDouble(root, "contactForce")).Build();
             intent.FrameId = GetString(root, "frameId") ?? string.Empty;
             intent.MaxDistance = GetDouble(root, "maxDistance", 0);
@@ -307,9 +307,25 @@ namespace Opc.Ua.Mcp.Tools
 
         private static Pose3DDataType GetPose(JsonElement root, string name)
         {
-            JsonElement pose = GetRequiredProperty(root, name);
-            ArrayOf<double> position = GetDoubleArray(GetRequiredProperty(pose, "position"));
-            ArrayOf<double> orientation = GetDoubleArray(GetRequiredProperty(pose, "orientation"));
+            JsonElement pose = GetRequiredObject(root, name);
+            ArrayOf<double> position = GetDoubleArray(pose, "position", name);
+            ArrayOf<double> orientation = GetDoubleArray(pose, "orientation", name);
+            if (position.Count != 3)
+            {
+                throw new ArgumentException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"'{name}.position' must hold exactly 3 numbers (x, y, z) but held {position.Count}."));
+            }
+            if (orientation.Count != 4)
+            {
+                throw new ArgumentException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"'{name}.orientation' must hold exactly 4 numbers (quaternion x, y, z, w) " +
+                        $"but held {orientation.Count}."));
+            }
+
             return RobotIntentBuilder.Pose(
                 position[0],
                 position[1],
@@ -380,18 +396,69 @@ namespace Opc.Ua.Mcp.Tools
 
         private static ArrayOf<double> TryGetDoubleArray(JsonElement root, string propertyName)
         {
-            return root.TryGetProperty(propertyName, out JsonElement value) ? GetDoubleArray(value) : [];
+            return root.TryGetProperty(propertyName, out JsonElement value)
+                ? GetDoubleArray(value, propertyName)
+                : [];
         }
 
-        private static ArrayOf<double> GetDoubleArray(JsonElement element)
+        private static ArrayOf<double> GetDoubleArray(JsonElement root, string propertyName, string owner)
         {
+            _ = GetRequiredProperty(root, propertyName);
+            return GetDoubleArray(
+                root.GetProperty(propertyName),
+                string.Create(CultureInfo.InvariantCulture, $"{owner}.{propertyName}"));
+        }
+
+        private static ArrayOf<double> GetDoubleArray(JsonElement element, string description)
+        {
+            if (element.ValueKind != JsonValueKind.Array)
+            {
+                throw new ArgumentException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"'{description}' must be a JSON array of numbers but was {element.ValueKind}."));
+            }
+
             var values = new List<double>();
             foreach (JsonElement item in element.EnumerateArray())
             {
-                values.Add(item.GetDouble());
+                if (item.ValueKind != JsonValueKind.Number || !item.TryGetDouble(out double value))
+                {
+                    throw new ArgumentException(
+                        string.Create(
+                            CultureInfo.InvariantCulture,
+                            $"'{description}' must hold only numbers a Double can represent."));
+                }
+                values.Add(value);
             }
 
             return [.. values];
+        }
+
+        private static JsonElement GetRequiredArray(JsonElement root, string propertyName)
+        {
+            JsonElement value = GetRequiredProperty(root, propertyName);
+            if (value.ValueKind != JsonValueKind.Array)
+            {
+                throw new ArgumentException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Property '{propertyName}' must be a JSON array but was {value.ValueKind}."));
+            }
+            return value;
+        }
+
+        private static JsonElement GetRequiredObject(JsonElement root, string propertyName)
+        {
+            JsonElement value = GetRequiredProperty(root, propertyName);
+            if (value.ValueKind != JsonValueKind.Object)
+            {
+                throw new ArgumentException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Property '{propertyName}' must be a JSON object but was {value.ValueKind}."));
+            }
+            return value;
         }
 
         private static NodeId GetNode(JsonElement root, string propertyName)
@@ -442,9 +509,19 @@ namespace Opc.Ua.Mcp.Tools
 
         private static uint GetUInt(JsonElement root, string propertyName, uint defaultValue)
         {
-            return root.TryGetProperty(propertyName, out JsonElement value) && value.ValueKind == JsonValueKind.Number
-                ? value.GetUInt32()
-                : defaultValue;
+            if (!root.TryGetProperty(propertyName, out JsonElement value) ||
+                value.ValueKind != JsonValueKind.Number)
+            {
+                return defaultValue;
+            }
+            if (!value.TryGetUInt32(out uint parsed))
+            {
+                throw new ArgumentException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Property '{propertyName}' must be a whole number a UInt32 can represent."));
+            }
+            return parsed;
         }
 
         private static bool GetBool(JsonElement root, string propertyName, bool defaultValue)

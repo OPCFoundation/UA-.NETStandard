@@ -29,6 +29,7 @@
 
 #if NET10_0
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -485,11 +486,17 @@ namespace Opc.Ua.Robotics.Intent.Tests
 
         private static string LinearMoveJson(string intentId, double x, double y, double z)
         {
+            // JSON numbers are culture-invariant. Interpolating a double directly would emit a
+            // comma decimal separator under a culture such as de-DE, turning a three-element
+            // position into a six-element one that no longer describes the requested pose.
+            string px = x.ToString(CultureInfo.InvariantCulture);
+            string py = y.ToString(CultureInfo.InvariantCulture);
+            string pz = z.ToString(CultureInfo.InvariantCulture);
             return $$"""
                 {
                   "intentId": "{{intentId}}",
                   "target": {
-                    "position": [{{x}}, {{y}}, {{z}}],
+                    "position": [{{px}}, {{py}}, {{pz}}],
                     "orientation": [0, 0, 0, 1],
                     "frameId": "world"
                   },

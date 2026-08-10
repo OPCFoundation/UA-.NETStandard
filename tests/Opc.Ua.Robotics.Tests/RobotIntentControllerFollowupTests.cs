@@ -46,6 +46,38 @@ namespace Opc.Ua.Robotics.Client.Tests
     public sealed class RobotIntentControllerFollowupTests
     {
         [Test]
+        public void ADefaultControllerStateExposesNullNodeIdsRatherThanNullReferences()
+        {
+            var state = new RobotIntentControllerState();
+
+            Assert.That(state.ControlOwner.Available, Is.False);
+            Assert.That(state.ActiveIntent.Available, Is.False);
+            Assert.That(state.ActiveMission.Available, Is.False);
+            Assert.That(state.ControlOwner.Value.IsNull, Is.True);
+            Assert.That(state.ActiveIntent.Value.IsNull, Is.True);
+            Assert.That(state.ActiveMission.Value.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ADefaultSafetyStateExposesANullLocalizedTextRatherThanANullReference()
+        {
+            var safety = new RobotIntentSafetyStateSnapshot();
+
+            Assert.That(safety.LastStopReason.Available, Is.False);
+            Assert.That(safety.LastStopReason.Value.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ADefaultOptionalValueMatchesTheUnavailableSingleton()
+        {
+            RobotIntentOptionalValue<NodeId> fromDefault = default;
+
+            Assert.That(fromDefault.Available, Is.False);
+            Assert.That(fromDefault.Value.IsNull, Is.True);
+            Assert.That(fromDefault, Is.EqualTo(RobotIntentOptionalValue<NodeId>.Unavailable));
+        }
+
+        [Test]
         public async Task ReadStateReturnsActiveIntentRuntimeMembers()
         {
             NodeId activeIntent = new("active-intent", 2);
@@ -264,6 +296,42 @@ namespace Opc.Ua.Robotics.Client.Tests
                 Assert.That(result.Current.ExecutionState, Is.EqualTo(ExecutionStateEnum.Suspended));
                 Assert.That(result.Current.Progress, Is.EqualTo(0.25));
                 Assert.That(transport.ReadSnapshotCount, Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public async Task RefreshClearsTheQueuePositionWhenTheServerReportsTheOperationIsNoLongerQueued()
+        {
+            FakeTransport transport = new()
+            {
+                Snapshot = new IntentOperationSnapshot
+                {
+                    Operation = OperationNode,
+                    IntentId = "intent-1",
+                    ExecutionState = ExecutionStateEnum.Queued,
+                    QueuePosition = 3,
+                    MissionId = "mission-1"
+                }
+            };
+            RobotIntentControllerClient controller = new(transport);
+
+            await using IntentOperationHandle handle = await controller.TrackOperationAsync("intent-1", OperationNode);
+            Assert.That(handle.Current.QueuePosition, Is.EqualTo(3u));
+
+            transport.Snapshot = new IntentOperationSnapshot
+            {
+                Operation = OperationNode,
+                IntentId = "intent-1",
+                ExecutionState = ExecutionStateEnum.Executing,
+                QueuePosition = 0,
+                MissionId = "mission-1"
+            };
+            await handle.RefreshAsync();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(handle.Current.ExecutionState, Is.EqualTo(ExecutionStateEnum.Executing));
+                Assert.That(handle.Current.QueuePosition, Is.Zero);
             });
         }
 
