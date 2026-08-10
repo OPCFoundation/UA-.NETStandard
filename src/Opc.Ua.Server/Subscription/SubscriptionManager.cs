@@ -499,13 +499,12 @@ namespace Opc.Ua.Server
             // get the count for the diagnostics.
             publishingIntervalCount = GetPublishingIntervalCount();
 
-            lock (m_server.DiagnosticsWriteLock)
+            m_server.UpdateServerDiagnostics(diagnostics =>
             {
-                ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                 diagnostics.CurrentSubscriptionCount++;
                 diagnostics.CumulatedSubscriptionCount++;
                 diagnostics.PublishingIntervalCount = publishingIntervalCount;
-            }
+            });
 
             // raise subscription event.
             RaiseSubscriptionEvent(subscription, false);
@@ -586,13 +585,11 @@ namespace Opc.Ua.Server
 
                     // get the count for the diagnostics.
                     uint publishingIntervalCount = GetPublishingIntervalCount();
-                    lock (m_server.DiagnosticsWriteLock)
+                    m_server.UpdateServerDiagnostics(diagnostics =>
                     {
-                        ServerDiagnosticsSummaryDataType diagnostics = m_server
-                            .ServerDiagnostics;
                         diagnostics.CurrentSubscriptionCount--;
                         diagnostics.PublishingIntervalCount = publishingIntervalCount;
-                    }
+                    });
                 }
             }
         }
@@ -775,21 +772,19 @@ namespace Opc.Ua.Server
                 // get the count for the diagnostics.
                 uint publishingIntervalCount = GetPublishingIntervalCount();
 
-                lock (m_server.DiagnosticsWriteLock)
+                m_server.UpdateServerDiagnostics(diagnostics =>
                 {
-                    ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                     diagnostics.CurrentSubscriptionCount--;
                     diagnostics.PublishingIntervalCount = publishingIntervalCount;
-                }
+                });
 
                 if (context != null && context.Session != null)
                 {
-                    lock (context.Session.DiagnosticsLock)
+                    context.Session.UpdateDiagnostics(diagnostics =>
                     {
-                        SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
                         diagnostics.CurrentSubscriptionsCount--;
                         UpdateCurrentMonitoredItemsCount(diagnostics, -monitoredItemCount);
-                    }
+                    });
                 }
 
                 return StatusCodes.Good;
@@ -953,21 +948,17 @@ namespace Opc.Ua.Server
                 }
             }
 
-            lock (m_server.DiagnosticsWriteLock)
+            m_server.UpdateServerDiagnostics(diagnostics =>
             {
-                ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                 diagnostics.CurrentSubscriptionCount++;
                 diagnostics.CumulatedSubscriptionCount++;
                 diagnostics.PublishingIntervalCount = publishingIntervalCount;
-            }
+            });
 
             if (context.Session != null)
             {
-                lock (context.Session.DiagnosticsLock)
-                {
-                    SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                    diagnostics.CurrentSubscriptionsCount++;
-                }
+                context.Session.UpdateDiagnostics(
+                    diagnostics => diagnostics.CurrentSubscriptionsCount++);
             }
 
             // raise subscription event.
@@ -1186,11 +1177,8 @@ namespace Opc.Ua.Server
             // update diagnostics.
             if (context.Session != null)
             {
-                lock (context.Session.DiagnosticsLock)
-                {
-                    SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                    diagnostics.CurrentPublishRequestsInQueue++;
-                }
+                context.Session.UpdateDiagnostics(
+                    diagnostics => diagnostics.CurrentPublishRequestsInQueue++);
             }
 
             try
@@ -1292,11 +1280,8 @@ namespace Opc.Ua.Server
                 // update diagnostics.
                 if (context.Session != null)
                 {
-                    lock (context.Session.DiagnosticsLock)
-                    {
-                        SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                        diagnostics.CurrentPublishRequestsInQueue--;
-                    }
+                    context.Session.UpdateDiagnostics(
+                        diagnostics => diagnostics.CurrentPublishRequestsInQueue--);
                 }
             }
         }
@@ -1362,11 +1347,10 @@ namespace Opc.Ua.Server
             // get the count for the diagnostics.
             uint publishingIntervalCount = GetPublishingIntervalCount();
 
-            lock (m_server.DiagnosticsWriteLock)
+            m_server.UpdateServerDiagnostics(diagnostics =>
             {
-                ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                 diagnostics.PublishingIntervalCount = publishingIntervalCount;
-            }
+            });
         }
 
         /// <summary>
@@ -1529,11 +1513,8 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    lock (subscription.DiagnosticsLock)
-                    {
-                        SubscriptionDiagnosticsDataType diagnostics = subscription.Diagnostics;
-                        diagnostics.TransferRequestCount++;
-                    }
+                    subscription.UpdateDiagnostics(
+                        diagnostics => diagnostics.TransferRequestCount++);
 
                     ISession ownerSession = null!;
                     var concreteSubscription = subscription as Subscription;
@@ -1859,12 +1840,8 @@ namespace Opc.Ua.Server
 
                     if (context.Session != null)
                     {
-                        lock (context.Session.DiagnosticsLock)
-                        {
-                            SessionDiagnosticsDataType diagnostics = context.Session
-                                .SessionDiagnostics;
-                            diagnostics.CurrentSubscriptionsCount++;
-                        }
+                        context.Session.UpdateDiagnostics(
+                            diagnostics => diagnostics.CurrentSubscriptionsCount++);
                     }
 
                     // raise subscription event.
@@ -1874,12 +1851,8 @@ namespace Opc.Ua.Server
                     // Notify old session with Good_SubscriptionTransferred.
                     if (ownerSession != null)
                     {
-                        lock (ownerSession.DiagnosticsLock)
-                        {
-                            SessionDiagnosticsDataType diagnostics = ownerSession
-                                .SessionDiagnostics;
-                            diagnostics.CurrentSubscriptionsCount--;
-                        }
+                        ownerSession.UpdateDiagnostics(
+                            diagnostics => diagnostics.CurrentSubscriptionsCount--);
 
                         // queue the Good_SubscriptionTransferred message
                         bool statusQueued = false;
@@ -1936,11 +1909,8 @@ namespace Opc.Ua.Server
                     result.AvailableSequenceNumbers = subscription
                         .AvailableSequenceNumbersForRetransmission();
 
-                    lock (subscription.DiagnosticsLock)
-                    {
-                        SubscriptionDiagnosticsDataType diagnostics = subscription.Diagnostics;
-                        diagnostics.TransferredToSameClientCount++;
-                    }
+                    subscription.UpdateDiagnostics(
+                        diagnostics => diagnostics.TransferredToSameClientCount++);
 
                     // save results.
                     results.Add(result);
@@ -2067,11 +2037,9 @@ namespace Opc.Ua.Server
             // update diagnostics.
             if (context.Session != null)
             {
-                lock (context.Session.DiagnosticsLock)
-                {
-                    SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                    UpdateCurrentMonitoredItemsCount(diagnostics, monitoredItemCountIncrement);
-                }
+                context.Session.UpdateDiagnostics(
+                    diagnostics => UpdateCurrentMonitoredItemsCount(
+                        diagnostics, monitoredItemCountIncrement));
             }
 
             return response;
@@ -2132,11 +2100,9 @@ namespace Opc.Ua.Server
             // update diagnostics.
             if (context.Session != null)
             {
-                lock (context.Session.DiagnosticsLock)
-                {
-                    SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                    UpdateCurrentMonitoredItemsCount(diagnostics, monitoredItemCountIncrement);
-                }
+                context.Session.UpdateDiagnostics(
+                    diagnostics => UpdateCurrentMonitoredItemsCount(
+                        diagnostics, monitoredItemCountIncrement));
             }
 
             return response;
