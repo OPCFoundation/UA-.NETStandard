@@ -187,6 +187,45 @@ A subclass that took `DataLock` in order to be mutually exclusive with
 the **channel's** state transitions was already relying on an
 implementation detail, and can no longer do so.
 
+## Migrating channel subclasses that override HandleIncomingMessage
+
+`UaSCBinaryChannel.HandleIncomingMessage` and `OnChunkReceived` are
+`[Obsolete]`, as is the `WriteAsymmetricMessage` overload that returns
+the signature through an `out` parameter. The receive loop now calls
+`HandleIncomingMessageAsync` and `OnChunkReceivedAsync`, so that the
+secure channel open path can await a private key served over a network —
+see [Crypto provider](CryptoProvider.md).
+
+**Existing overrides keep working.** The default
+`HandleIncomingMessageAsync` calls the synchronous
+`HandleIncomingMessage`, so a subclass that overrides only the
+synchronous one behaves exactly as before. Override the asynchronous one
+to stop occupying a thread:
+
+```csharp
+// before
+protected override bool HandleIncomingMessage(
+    uint messageType, ArraySegment<byte> messageChunk)
+{
+    ...
+}
+
+// after
+protected override async ValueTask<bool> HandleIncomingMessageAsync(
+    uint messageType, ArraySegment<byte> messageChunk, CancellationToken ct)
+{
+    ...
+}
+```
+
+The buffer-ownership contract is unchanged: return `true` when the
+implementor takes ownership of the chunk, and it will not be returned to
+the buffer manager for you.
+
+`ReadAsymmetricMessageAsync` and `WriteAsymmetricMessageAsync` return
+`AsymmetricMessage` and `AsymmetricWriteResult` rather than using `out`
+parameters, which an asynchronous method cannot have.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

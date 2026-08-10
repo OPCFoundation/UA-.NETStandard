@@ -14,7 +14,7 @@ what would have to be true to change that. Each section is tracked by its own is
 |---|---|
 | 1. Registrable security policies | [#4206](https://github.com/OPCFoundation/UA-.NETStandard/issues/4206) |
 | 2. ~~Symmetric, key-derivation and RNG provider seams~~ **done** | [#4207](https://github.com/OPCFoundation/UA-.NETStandard/issues/4207) |
-| 3. Offboard providers block a thread — **partly done** | [#4208](https://github.com/OPCFoundation/UA-.NETStandard/issues/4208) |
+| 3. ~~Offboard providers block a thread~~ **done** | [#4208](https://github.com/OPCFoundation/UA-.NETStandard/issues/4208) |
 | 4. Platform and protocol gaps | [#4209](https://github.com/OPCFoundation/UA-.NETStandard/issues/4209) (HTTPS), [#4210](https://github.com/OPCFoundation/UA-.NETStandard/issues/4210) (PubSub), [#4211](https://github.com/OPCFoundation/UA-.NETStandard/issues/4211) (Part 7 facet) |
 | 5. FIPS posture that is still open | [#4212](https://github.com/OPCFoundation/UA-.NETStandard/issues/4212) |
 
@@ -77,7 +77,7 @@ Documented in [`docs/CryptoProvider.md`](../docs/CryptoProvider.md#substituting-
 
 ---
 
-## 3. Offboard providers block a thread — **partly done**
+## 3. Offboard providers block a thread — **done**
 
 Tracked by [#4208](https://github.com/OPCFoundation/UA-.NETStandard/issues/4208).
 
@@ -91,39 +91,35 @@ which the stack finds by type test:
 - A software key declares neither, so every one of those returns an already-completed task and the
   ordering of everything around the call is unchanged.
 
-**Done:** the user identity paths, which were already asynchronous but performed synchronous
-cryptography inside — `X509IdentityTokenHandler.SignAsync`, `UserNameIdentityTokenHandler.DecryptAsync`
-and `IssuedIdentityTokenHandler.DecryptAsync`. Session activation against a remote key service no longer
-occupies a thread.
+The secure channel open and renew path is asynchronous end to end, as are the user identity paths and
+session activation. The channel no longer serialises its state on a monitor: `ChannelGate` replaces it
+and can be entered from an asynchronous path.
 
-**Done, as the prerequisite for the rest:** the channel no longer serialises its state on a monitor.
-`ChannelGate` replaces it and can be entered from an asynchronous path.
+### What still occupies a thread, and why
 
-**Still open:** the UASC open path itself — `HandleIncomingMessage`,
-`ProcessOpenSecureChannelRequest`/`Response` and `Read`/`WriteAsymmetricMessage` are still synchronous,
-so opening and renewing a channel against a remote key still occupies a thread.
+Certificate, certificate request and revocation list signing, because
+`X509SignatureGenerator.SignData` is called by .NET's own `CertificateRequest` and CRL builders. Service
+faults and the synchronous reconnect handoff are in the same position: both are reached from call sites
+that cannot become asynchronous without a contract break.
 
-### What the gate had to account for, and why it is not a plain SemaphoreSlim
+### Three defects this surfaced, all fixed
 
-The monitor it replaces is re-entrant, and the channel relies on that in eight places —
-`HandleIncomingMessage` holds it and calls `ForceChannelFault`, which takes it again, and
-`ForceReconnect` and `Shutdown` do the same. A plain `SemaphoreSlim` deadlocks on every one of them.
+**A synchronous gate handle held across an await.** `ChannelGate.Enter()` records the acquiring thread
+so an inline completion callback can re-enter — `ChannelAsyncOperation` invokes its callback both inline
+and detached. That record is only sound while the holder is synchronously on that thread; once it
+suspends, the thread returns to the pool and unrelated work is recognised as the holder. `EnterAsync`
+therefore records no thread at all, and `Enter()` must not be held across an await.
 
-Two properties were found the hard way and are now covered by tests in `ChannelGateTests`:
+**Detached work started inline.** The channel started its writes with `_ = WriteBuffersAsync(...)`, which
+runs the prologue on the caller's stack. That prologue disclaims the inherited context — stripping the
+*caller's own* right to re-enter — and when the send completed synchronously the completion then blocked
+on a gate that very thread was holding. This is what stopped the handshake. Writes are now queued, so
+the disclaimer only ever runs on genuinely detached work.
 
-1. **Re-entrancy has to follow thread identity as well as logical context.**
-   `ChannelAsyncOperation` invokes its completion callback *inline* as well as detached. Inline, it runs
-   on the thread that already holds the gate but under the context captured when the operation started,
-   so a context-only check does not recognise it and the thread deadlocks against itself. This crashed
-   the entire channel test suite before it was fixed.
-2. **Work started while the gate is held inherits the right to re-enter**, and would then run inside the
-   guarded region alongside its parent. Every detached path — the receive loop, both write paths, the
-   reverse-connect tasks — disclaims it with `LeaveInheritedContext`, and `ChannelAsyncOperation` queues
-   its detached callback without flowing the context at all. A method that is invoked *both* inline and
-   detached must not disclaim, because that reintroduces the first problem.
+**`SignAsync` rejected the policy that signs nothing.** It validated the certificate before the
+algorithm, so `SecurityPolicies.None` threw where the synchronous `Sign` returns null.
 
-The gate is deliberately not disposable: it replaces a monitor, which has no disposed state, and channel
-teardown enters it and then runs paths that enter it again.
+All three are covered by tests in `ChannelGateTests` and by the secured loopback fixture.
 
 ---
 

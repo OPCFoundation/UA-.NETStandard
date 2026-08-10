@@ -448,6 +448,44 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
             });
         }
 
+        /// <summary>
+        /// Work started while the gate is held must not run its prologue on the
+        /// holder's stack, disclaim the holder's entitlement, and then block on the
+        /// gate the holder still owns.
+        /// </summary>
+        /// <remarks>
+        /// This is the deadlock that stopped the secure channel handshake: the
+        /// channel started its write inline, so <see cref="ChannelGate.LeaveInheritedContext"/>
+        /// ran on the caller's stack and stripped the caller's own right to
+        /// re-enter; when the send completed synchronously the completion then
+        /// blocked on a gate that very thread was holding. The channel now queues
+        /// the write, and this test states the rule the fix relies on.
+        /// </remarks>
+        [Test]
+        public async Task DisclaimingOnTheHoldersOwnStackWouldSelfDeadlockAsync()
+        {
+            var gate = new ChannelGate();
+
+            using (await gate.EnterAsync().ConfigureAwait(false))
+            {
+                // Running the disclaimer inline is what the channel used to do.
+                gate.LeaveInheritedContext();
+
+                Assert.That(
+                    gate.IsHeldByCurrentContext,
+                    Is.False,
+                    "disclaiming inline strips the holder's own entitlement, which is " +
+                    "why detached work must be queued rather than started inline");
+            }
+
+            // Once the holder has left, the gate is free again, which shows the
+            // depth accounting was not corrupted by the disclaimer.
+            using (await gate.EnterAsync().ConfigureAwait(false))
+            {
+                Assert.That(gate.IsHeldByCurrentContext, Is.True);
+            }
+        }
+
         private static void InterlockedMax(ref int target, int value)
         {
             int current = Volatile.Read(ref target);

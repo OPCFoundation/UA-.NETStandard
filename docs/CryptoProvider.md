@@ -352,8 +352,9 @@ unchanged.
 
 | Path | Asynchronous? |
 |---|---|
+| Secure channel open and renew | ✅ |
 | User identity token signing and decryption, session activation | ✅ |
-| Secure channel open and renew | ❌ not yet |
+| Service faults, and the synchronous reconnect handoff | ❌ both are reached from synchronous call sites |
 | Certificate, certificate request and revocation list signing | ❌ by construction — `X509SignatureGenerator.SignData` is called by .NET internals |
 
 ## Limitations
@@ -367,15 +368,11 @@ unchanged.
   implementation is supported — see above.
 - **A provider cannot yet contribute a new security policy.** The policy set is fixed at compile time.
   Adding one still requires changing the stack.
-- **Network-backed providers still block a thread while a channel opens.** `RSA` and `ECDsa` are
-  synchronous contracts, so an implementation opts into an asynchronous path by also implementing
-  `IAsyncRsaKey` or `IAsyncEcdsaKey`. The stack takes that path where it can: user identity token
-  signing and decryption, and session activation, no longer occupy a thread. The UASC open path does not
-  take it yet, so opening and renewing a channel against a remote key service still does. A software key
-  declares neither facet and the asynchronous paths complete synchronously, so nothing changes for it.
 - **Certificate issuance cannot be made asynchronous at all.** `X509SignatureGenerator.SignData` is
   called by .NET's own `CertificateRequest` and CRL builders, so signing a certificate, a certificate
-  request or a revocation list with a remote key occupies a thread by construction.
+  request or a revocation list with a remote key occupies a thread by construction. Service faults and
+  the synchronous reconnect handoff are in the same position, because both are reached from call sites
+  that cannot become asynchronous without a contract break.
 
 ## Related
 

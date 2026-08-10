@@ -365,11 +365,12 @@ namespace Opc.Ua.Bindings
         /// Processes an incoming message.
         /// </summary>
         /// <returns>True if the implementor takes ownership of the buffer.</returns>
-        protected override bool HandleIncomingMessage(
+        protected override async ValueTask<bool> HandleIncomingMessageAsync(
             uint messageType,
-            ArraySegment<byte> messageChunk)
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
         {
-            using (Gate.Enter())
+            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
                 SetResponseRequired(true);
 
@@ -396,7 +397,8 @@ namespace Opc.Ua.Bindings
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                     {
                         m_logger.TcpServerLog2(ChannelId);
-                        return ProcessOpenSecureChannelRequest(messageType, messageChunk);
+                        return await ProcessOpenSecureChannelRequestAsync(
+                            messageType, messageChunk, ct).ConfigureAwait(false);
                     }
 
                     // process close secure channel response.
@@ -610,9 +612,10 @@ namespace Opc.Ua.Bindings
         /// Processes an OpenSecureChannel request message.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private bool ProcessOpenSecureChannelRequest(
+        private async ValueTask<bool> ProcessOpenSecureChannelRequestAsync(
             uint messageType,
-            ArraySegment<byte> messageChunk)
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
         {
             // Communication is active on the channel
             UpdateLastActiveTime();
@@ -638,18 +641,22 @@ namespace Opc.Ua.Bindings
             {
                 m_oscRequestSignature = null;
 
-                messageBody = ReadAsymmetricMessage(
+                AsymmetricMessage message = await ReadAsymmetricMessageAsync(
                     messageChunk,
                     ServerCertificate,
-                    out channelId,
-                    out clientCertificate,
-                    out requestId,
-                    out sequenceNumber,
                     null,
-                    out byte[] signature);
+                    ct).ConfigureAwait(false);
+
+                messageBody = message.Body;
+                channelId = message.ChannelId;
+                clientCertificate = message.SenderCertificate;
+                requestId = message.RequestId;
+                sequenceNumber = message.SequenceNumber;
 
                 // don't keep signature if secure channel enhancements are not used.
-                m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements ? signature : null;
+                m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements
+                    ? message.Signature
+                    : null;
 
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
@@ -877,11 +884,13 @@ namespace Opc.Ua.Bindings
                 // send the response.
                 if (requestType == SecurityTokenRequestType.Renew)
                 {
-                    SendOpenSecureChannelResponse(requestId, RenewedToken!, request, true);
+                    await SendOpenSecureChannelResponseAsync(
+                        requestId, RenewedToken!, request, true, ct).ConfigureAwait(false);
                 }
                 else
                 {
-                    SendOpenSecureChannelResponse(requestId, CurrentToken!, request, false);
+                    await SendOpenSecureChannelResponseAsync(
+                        requestId, CurrentToken!, request, false, ct).ConfigureAwait(false);
                 }
 
                 // notify reverse
@@ -981,6 +990,11 @@ namespace Opc.Ua.Bindings
                 byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
 
                 // secure message.
+#pragma warning disable CS0618 // The fault path is exceptional and is reached from
+                // synchronous call sites, including the public Reconnect override. Signing
+                // here with a key served over a network still occupies a thread; that is
+                // recorded as a residual limitation rather than cascading async through
+                // eight fault call sites.
                 chunksToSend = WriteAsymmetricMessage(
                     TcpMessageType.Open,
                     requestId,
@@ -989,7 +1003,8 @@ namespace Opc.Ua.Bindings
                     ClientCertificate,
                     new ArraySegment<byte>(buffer, 0, buffer.Length),
                     !renew ? m_oscRequestSignature : null,
-                    out byte[] signature);
+                    out _);
+#pragma warning restore CS0618
 
                 // write the message to the server.
                 BeginWriteMessage(chunksToSend, null);
@@ -1019,6 +1034,13 @@ namespace Opc.Ua.Bindings
         /// <c>true</c> when answering a token renewal request. Renewal keeps the same channel, but issues a new
         /// security token (new token id and server nonce), <c>false</c> for the initial open.
         /// </param>
+        /// <remarks>
+        /// Used by the synchronous reconnect handoff, which is reached through a
+        /// public override that cannot become asynchronous without breaking the
+        /// contract. Signing here with a key served over a network still occupies
+        /// a thread; the open path proper uses
+        /// <see cref="SendOpenSecureChannelResponseAsync"/> and does not.
+        /// </remarks>
         private void SendOpenSecureChannelResponse(
             uint requestId,
             ChannelToken token,
@@ -1040,6 +1062,7 @@ namespace Opc.Ua.Bindings
 
             byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
 
+#pragma warning disable CS0618 // See the remarks above.
             BufferCollection chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
                 requestId,
@@ -1049,12 +1072,70 @@ namespace Opc.Ua.Bindings
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
                 !renew ? m_oscRequestSignature : null,
                 out byte[] signature);
+#pragma warning restore CS0618
 
             if (!renew)
             {
                 ChannelThumbprint = signature;
             }
 
+            SendOpenSecureChannelChunks(chunksToSend);
+        }
+
+        /// <summary>
+        /// Sends an OpenSecureChannel response, without occupying the calling
+        /// thread while the response is signed.
+        /// </summary>
+        /// <param name="requestId">The request being answered.</param>
+        /// <param name="token">The issued or renewed token.</param>
+        /// <param name="request">The request being answered.</param>
+        /// <param name="renew">Whether the token was renewed.</param>
+        /// <param name="ct">Cancels the operation.</param>
+        private async ValueTask SendOpenSecureChannelResponseAsync(
+            uint requestId,
+            ChannelToken token,
+            OpenSecureChannelRequest request,
+            bool renew,
+            CancellationToken ct)
+        {
+            m_logger.TcpServerLog9(ChannelId);
+
+            var response = new OpenSecureChannelResponse();
+
+            response.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
+            response.ResponseHeader.Timestamp = DateTime.UtcNow;
+
+            response.SecurityToken.ChannelId = token.ChannelId;
+            response.SecurityToken.TokenId = token.TokenId;
+            response.SecurityToken.CreatedAt = token.CreatedAt;
+            response.SecurityToken.RevisedLifetime = (uint)token.Lifetime;
+            response.ServerNonce = token.ServerNonce.ToByteString();
+
+            byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
+
+            AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
+                TcpMessageType.Open,
+                requestId,
+                ServerCertificate,
+                ServerCertificateChain,
+                ClientCertificate,
+                new ArraySegment<byte>(buffer, 0, buffer.Length),
+                !renew ? m_oscRequestSignature : null,
+                ct).ConfigureAwait(false);
+
+            if (!renew)
+            {
+                ChannelThumbprint = written.Signature;
+            }
+
+            SendOpenSecureChannelChunks(written.Chunks);
+        }
+
+        /// <summary>
+        /// Writes the chunks of an OpenSecureChannel response to the client.
+        /// </summary>
+        private void SendOpenSecureChannelChunks(BufferCollection chunksToSend)
+        {
             // write the response to the client.
             BufferCollection? chunksToRelease = chunksToSend;
             try

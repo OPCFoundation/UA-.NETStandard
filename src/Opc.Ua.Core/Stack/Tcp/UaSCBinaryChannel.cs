@@ -592,7 +592,57 @@ namespace Opc.Ua.Bindings
         /// Dispatches a complete UASC <c>MessageChunk</c> pulled from the
         /// transport's receive loop into the channel pipeline.
         /// </summary>
+        /// <param name="message">The chunk to dispatch.</param>
+        /// <param name="ct">Cancels the dispatch.</param>
+        /// <remarks>
+        /// This is the path the receive loop takes. It exists so that the secure
+        /// channel open path can await a private key served over a network; with
+        /// a software key nothing suspends and the sequencing is the same as the
+        /// synchronous path this replaces.
+        /// </remarks>
+        protected virtual async ValueTask OnChunkReceivedAsync(
+            ArraySegment<byte> message,
+            CancellationToken ct)
+        {
+            try
+            {
+                if (message.Count > ReceiveBufferSize)
+                {
+                    var result = ServiceResult.Create(
+                        StatusCodes.BadTcpMessageTooLarge,
+                        "Message size {0} bytes exceeds the negotiated receive buffer size of {1} bytes.",
+                        message.Count,
+                        ReceiveBufferSize);
+                    BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
+                    OnTransportError(result);
+                    return;
+                }
+
+                uint messageType = BitConverter.ToUInt32(message.GetArray(), message.Offset);
+
+                if (!await HandleIncomingMessageAsync(messageType, message, ct)
+                        .ConfigureAwait(false))
+                {
+                    BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
+                }
+            }
+            catch (Exception e)
+            {
+                HandleMessageProcessingError(
+                    e,
+                    StatusCodes.BadTcpInternalError,
+                    "An error occurred receiving a message.");
+                BufferManager.ReturnBuffer(message.Array, "OnChunkReceived");
+            }
+        }
+
+        /// <summary>
+        /// Dispatches a complete UASC <c>MessageChunk</c> pulled from the
+        /// transport's receive loop into the channel pipeline.
+        /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Override OnChunkReceivedAsync instead. The receive loop no longer " +
+            "calls this, because the secure channel open path has to be able to await.")]
         protected virtual void OnChunkReceived(ArraySegment<byte> message)
         {
             try
@@ -611,7 +661,9 @@ namespace Opc.Ua.Bindings
 
                 uint messageType = BitConverter.ToUInt32(message.GetArray(), message.Offset);
 
+#pragma warning disable CS0618 // The synchronous pair is retained together.
                 if (!HandleIncomingMessage(messageType, message))
+#pragma warning restore CS0618
                 {
                     BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
                 }
@@ -629,7 +681,32 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Processes an incoming message.
         /// </summary>
+        /// <param name="messageType">The UA TCP message type.</param>
+        /// <param name="messageChunk">The chunk to process.</param>
+        /// <param name="ct">Cancels the processing.</param>
         /// <returns>True if the implementor takes ownership of the buffer.</returns>
+        /// <remarks>
+        /// The default implementation defers to the synchronous
+        /// <see cref="HandleIncomingMessage"/>, so a channel outside this stack
+        /// that overrides only that one keeps working.
+        /// </remarks>
+        protected virtual ValueTask<bool> HandleIncomingMessageAsync(
+            uint messageType,
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
+        {
+#pragma warning disable CS0618 // Deferring to it is what keeps existing overrides working.
+            return new ValueTask<bool>(HandleIncomingMessage(messageType, messageChunk));
+#pragma warning restore CS0618
+        }
+
+        /// <summary>
+        /// Processes an incoming message.
+        /// </summary>
+        /// <returns>True if the implementor takes ownership of the buffer.</returns>
+        [Obsolete("Override HandleIncomingMessageAsync instead. This is still called " +
+            "by the default asynchronous implementation, so an existing override keeps " +
+            "working, but it cannot await a private key served over a network.")]
         protected virtual bool HandleIncomingMessage(
             uint messageType,
             ArraySegment<byte> messageChunk)
@@ -809,7 +886,26 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                OnChunkReceived(chunk);
+                try
+                {
+                    await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    // Dispatching a chunk must never end the loop silently. The
+                    // task this runs on is fire-and-forget, so an escaping
+                    // exception would otherwise stop the channel receiving with no
+                    // report at all, and the peer would simply time out.
+                    OnTransportError(ServiceResult.Create(
+                        ex,
+                        StatusCodes.BadTcpInternalError,
+                        "An error occurred dispatching a received message."));
+                    return;
+                }
             }
         }
 
@@ -831,7 +927,13 @@ namespace Opc.Ua.Bindings
 
             Interlocked.Increment(ref m_activeWriteRequests);
             ReadOnlyMemory<byte> chunk = new(buffer.GetArray(), buffer.Offset, buffer.Count);
-            _ = WriteSingleChunkAsync(transport, chunk, buffer.GetArray(), state);
+
+            // Queued rather than started inline. The write completes by calling
+            // HandleWriteComplete, which enters the gate, and the caller may be
+            // holding it: started inline, the synchronous prologue would run on
+            // the caller's stack, disclaim the caller's own entitlement and then
+            // block on a gate that this very thread holds.
+            _ = Task.Run(() => WriteSingleChunkAsync(transport, chunk, buffer.GetArray(), state));
         }
 
         /// <summary>
@@ -859,7 +961,10 @@ namespace Opc.Ua.Bindings
             }
 
             Interlocked.Increment(ref m_activeWriteRequests);
-            _ = WriteBuffersAsync(transport, buffers, state);
+
+            // Queued rather than started inline, for the reason given in
+            // BeginWriteMessage(ArraySegment{byte}, object).
+            _ = Task.Run(() => WriteBuffersAsync(transport, buffers, state));
         }
 
         private async Task WriteSingleChunkAsync(

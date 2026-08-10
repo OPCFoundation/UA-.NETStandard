@@ -318,7 +318,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void ChannelRejectsChunkAboveNegotiatedReceiveSize()
+        public async Task ChannelRejectsChunkAboveNegotiatedReceiveSizeAsync()
         {
             var pool = new TrackingArrayPool();
             using TestServerChannel channel = CreateOpenChannel(pool);
@@ -327,7 +327,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             BitConverter.GetBytes(TcpMessageType.Message).CopyTo(buffer, 0);
             BitConverter.GetBytes(17).CopyTo(buffer, 4);
 
-            channel.FeedReceivedChunk(new ArraySegment<byte>(buffer, 0, 17));
+            await channel.FeedReceivedChunkAsync(new ArraySegment<byte>(buffer, 0, 17))
+                .ConfigureAwait(false);
 
             Assert.That(pool.OutstandingCount, Is.Zero);
             Assert.That(
@@ -496,9 +497,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return BufferManager.TakeBuffer(size, nameof(TakeBufferForTest));
             }
 
-            public void FeedReceivedChunk(ArraySegment<byte> chunk)
+            public ValueTask FeedReceivedChunkAsync(ArraySegment<byte> chunk)
             {
-                OnChunkReceived(chunk);
+                return OnChunkReceivedAsync(chunk, CancellationToken.None);
             }
 
             protected override void OnTransportError(ServiceResult result)

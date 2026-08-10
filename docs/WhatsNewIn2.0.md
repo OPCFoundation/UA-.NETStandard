@@ -275,11 +275,10 @@ A key served over a network no longer has to occupy a thread. `RSA` and `ECDsa`
 are synchronous contracts belonging to .NET, so an implementation opts in by
 also implementing `IAsyncRsaKey` or `IAsyncEcdsaKey`, which the stack finds by
 type test and uses where it can — user identity token signing and decryption,
-and session activation. A software key implements neither, so those paths
-complete synchronously and nothing about their ordering changes. As the
-prerequisite for extending this to the channel handshake, the secure channel no
-longer serialises its state on a monitor, and `UaSCBinaryChannel.DataLock` is
-`[Obsolete]`.
+session activation, and the secure channel open and renew path. A software key
+implements neither, so those paths complete synchronously and nothing about
+their ordering changes. The secure channel no longer serialises its state on a
+monitor, and `UaSCBinaryChannel.DataLock` is `[Obsolete]`.
 
 ## By layer
 

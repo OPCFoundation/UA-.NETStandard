@@ -121,18 +121,19 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            OnChunkReceived(chunk);
+            await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Processes an incoming message.
         /// </summary>
         /// <returns>True if the implementor takes ownership of the buffer.</returns>
-        protected override bool HandleIncomingMessage(
+        protected override async ValueTask<bool> HandleIncomingMessageAsync(
             uint messageType,
-            ArraySegment<byte> messageChunk)
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
         {
-            using (Gate.Enter())
+            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
                 SetResponseRequired(true);
 

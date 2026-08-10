@@ -451,7 +451,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Processes an Acknowledge message.
         /// </summary>
-        private bool ProcessAcknowledgeMessage(ArraySegment<byte> messageChunk)
+        private async ValueTask<bool> ProcessAcknowledgeMessageAsync(
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
         {
             m_logger.UaSCClientLog7(ChannelId);
 
@@ -567,12 +569,12 @@ namespace Opc.Ua.Bindings
                 // check if reconnecting after a socket failure.
                 if (CurrentToken != null)
                 {
-                    SendOpenSecureChannelRequest(true);
+                    await SendOpenSecureChannelRequestAsync(true, ct).ConfigureAwait(false);
                     return false;
                 }
 
                 // open a new connection.
-                SendOpenSecureChannelRequest(false);
+                await SendOpenSecureChannelRequestAsync(false, ct).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -589,7 +591,7 @@ namespace Opc.Ua.Bindings
         /// Sends an OpenSecureChannel request.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void SendOpenSecureChannelRequest(bool renew)
+        private async ValueTask SendOpenSecureChannelRequestAsync(bool renew, CancellationToken ct)
         {
             if (m_handshakeOperation == null)
             {
@@ -626,7 +628,7 @@ namespace Opc.Ua.Bindings
             m_oscRequestSignature = null;
 
             // write the asymmetric message.
-            BufferCollection? chunksToSend = WriteAsymmetricMessage(
+            AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
                 TcpMessageType.Open,
                 m_handshakeOperation.RequestId,
                 ClientCertificate,
@@ -634,10 +636,14 @@ namespace Opc.Ua.Bindings
                 ServerCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
                 m_oscRequestSignature,
-                out byte[] signature);
+                ct).ConfigureAwait(false);
+
+            BufferCollection? chunksToSend = written.Chunks;
 
             // don't keep signature if secure channel enhancements are not used.
-            m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements ? signature : null;
+            m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements
+                ? written.Signature
+                : null;
 
             // save token.
             m_requestedToken = token;
@@ -658,9 +664,10 @@ namespace Opc.Ua.Bindings
         /// Processes an OpenSecureChannel response message.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private bool ProcessOpenSecureChannelResponse(
+        private async ValueTask<bool> ProcessOpenSecureChannelResponseAsync(
             uint messageType,
-            ArraySegment<byte> messageChunk)
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
         {
             m_logger.UaSCClientLog8(ChannelId);
 
@@ -690,24 +697,26 @@ namespace Opc.Ua.Bindings
             uint sequenceNumber;
             try
             {
-                messageBody = ReadAsymmetricMessage(
+                AsymmetricMessage message = await ReadAsymmetricMessageAsync(
                     messageChunk,
                     ClientCertificate,
-                    out channelId,
-                    out serverCertificate,
-                    out requestId,
-                    out sequenceNumber,
                     State == TcpChannelState.Opening ? m_oscRequestSignature : null,
-                    out byte[] signature);
+                    ct).ConfigureAwait(false);
+
+                messageBody = message.Body;
+                channelId = message.ChannelId;
+                serverCertificate = message.SenderCertificate;
+                requestId = message.RequestId;
+                sequenceNumber = message.SequenceNumber;
 
                 if (State == TcpChannelState.Opening)
                 {
-                    ChannelThumbprint = signature;
+                    ChannelThumbprint = message.Signature;
                 }
             }
             catch (Exception e)
             {
-                // CA1508: serverCertificate is assigned via out param before this catch — the analyzer's
+                // CA1508: serverCertificate is assigned before this catch — the analyzer's
                 // null-flow does not track that path. Defensive null check kept on purpose.
 #pragma warning disable CA1508
                 serverCertificate?.Dispose();
@@ -875,9 +884,10 @@ namespace Opc.Ua.Bindings
         /// Processes an incoming message.
         /// </summary>
         /// <returns>True if the function takes ownership of the buffer.</returns>
-        protected override bool HandleIncomingMessage(
+        protected override async ValueTask<bool> HandleIncomingMessageAsync(
             uint messageType,
-            ArraySegment<byte> messageChunk)
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
         {
             // process a response.
             if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
@@ -886,13 +896,14 @@ namespace Opc.Ua.Bindings
                 return ProcessResponseMessage(messageType, messageChunk);
             }
 
-            using (Gate.Enter())
+            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
                 // check for acknowledge.
                 if (messageType == TcpMessageType.Acknowledge)
                 {
                     m_logger.UaSCClientLog12(ChannelId);
-                    return ProcessAcknowledgeMessage(messageChunk);
+                    return await ProcessAcknowledgeMessageAsync(messageChunk, ct)
+                        .ConfigureAwait(false);
                 }
                 // check for error.
                 else if (messageType == TcpMessageType.Error)
@@ -904,7 +915,8 @@ namespace Opc.Ua.Bindings
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                 {
                     m_logger.UaSCClientLog14(ChannelId);
-                    return ProcessOpenSecureChannelResponse(messageType, messageChunk);
+                    return await ProcessOpenSecureChannelResponseAsync(
+                        messageType, messageChunk, ct).ConfigureAwait(false);
                 }
                 // process a response to a close request.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
@@ -1029,7 +1041,7 @@ namespace Opc.Ua.Bindings
 
                 IUaSCByteTransport? transport = null;
                 WriteOperation? operation = null;
-                using (Gate.Enter())
+                    using (await Gate.EnterAsync(CancellationToken.None).ConfigureAwait(false))
                 {
                     // check if renewing a token.
                     var token = state as ChannelToken;
@@ -1051,7 +1063,8 @@ namespace Opc.Ua.Bindings
                             token);
 
                         // send the request.
-                        SendOpenSecureChannelRequest(true);
+                        await SendOpenSecureChannelRequestAsync(true, CancellationToken.None)
+                            .ConfigureAwait(false);
                         return;
                     }
 
