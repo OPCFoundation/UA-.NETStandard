@@ -327,9 +327,54 @@ namespace Opc.Ua.Server
         public IUserIdentityTokenHandler IdentityToken { get; private set; } = null!;
 
         /// <summary>
-        /// A lock which must be acquired before accessing the diagnostics.
+        /// Applies an update to the session diagnostics while holding the session's
+        /// diagnostics lock.
         /// </summary>
-        public object DiagnosticsLock => SessionDiagnostics;
+        /// <remarks>
+        /// Replaces the former <c>DiagnosticsLock</c> property. The session owns its lock
+        /// and never hands it out, so callers cannot participate in - or deadlock against -
+        /// the server's locking order. The update runs on the caller's thread; keep it
+        /// short and free of I/O or callbacks into the server.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if update is null.</exception>
+        public void UpdateDiagnostics(Action<SessionDiagnosticsDataType> update)
+        {
+            if (update == null)
+            {
+                throw new ArgumentNullException(nameof(update));
+            }
+
+            lock (m_diagnosticsLock)
+            {
+                update.Invoke(SessionDiagnostics);
+            }
+        }
+
+        /// <summary>
+        /// Reads a value derived from the session diagnostics while holding the session's
+        /// diagnostics lock.
+        /// </summary>
+        /// <remarks>
+        /// Use this to take a consistent snapshot of the fields needed. Do not let the
+        /// diagnostics object itself escape the callback: once the lock is released, any
+        /// field read from it is unsynchronized.
+        /// </remarks>
+        /// <typeparam name="TResult">The type of the value produced.</typeparam>
+        /// <param name="read">The projection applied to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if read is null.</exception>
+        public TResult ReadDiagnostics<TResult>(Func<SessionDiagnosticsDataType, TResult> read)
+        {
+            if (read == null)
+            {
+                throw new ArgumentNullException(nameof(read));
+            }
+
+            lock (m_diagnosticsLock)
+            {
+                return read.Invoke(SessionDiagnostics);
+            }
+        }
 
         /// <summary>
         /// The diagnostics associated with the session.
@@ -363,7 +408,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (DiagnosticsLock)
+                lock (m_diagnosticsLock)
                 {
                     return m_timeProvider.GetTimestampMilliseconds() - m_lastContactTickCount >
                         (long)SessionDiagnostics.ActualSessionTimeout;
@@ -378,7 +423,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (DiagnosticsLock)
+                lock (m_diagnosticsLock)
                 {
                     return (DateTime)SessionDiagnostics.ClientLastContactTime;
                 }
@@ -393,7 +438,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (DiagnosticsLock)
+                lock (m_diagnosticsLock)
                 {
                     return m_lastContactTickCount;
                 }
@@ -562,7 +607,7 @@ namespace Opc.Ua.Server
                     PreferredLocales = ids;
 
                     // update diagnostics.
-                    lock (DiagnosticsLock)
+                    lock (m_diagnosticsLock)
                     {
                         SessionDiagnostics.LocaleIds = [.. localeIds];
                     }
@@ -773,7 +818,7 @@ namespace Opc.Ua.Server
                 m_serverNonce = serverNonce;
 
                 // update the contact time.
-                lock (DiagnosticsLock)
+                lock (m_diagnosticsLock)
                 {
                     SessionDiagnostics.ClientLastContactTime = m_timeProvider.GetUtcNow().UtcDateTime;
                     m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
@@ -891,7 +936,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref Variant value)
         {
-            lock (DiagnosticsLock)
+            lock (m_diagnosticsLock)
             {
                 value = Variant.FromStructure(SessionDiagnostics);
             }
@@ -907,7 +952,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref Variant value)
         {
-            lock (DiagnosticsLock)
+            lock (m_diagnosticsLock)
             {
                 value = Variant.FromStructure(m_securityDiagnostics);
             }
@@ -1323,7 +1368,7 @@ namespace Opc.Ua.Server
                 EffectiveIdentity = effectiveIdentity!;
 
                 // update diagnostics.
-                lock (DiagnosticsLock)
+                lock (m_diagnosticsLock)
                 {
                     string? clientUserId = ClientUserIdResolver.Resolve(
                         identityToken,
@@ -1349,7 +1394,7 @@ namespace Opc.Ua.Server
         {
             ServiceCounterDataType? counter = null;
 
-            lock (DiagnosticsLock)
+            lock (m_diagnosticsLock)
             {
                 if (!error)
                 {
@@ -1486,6 +1531,13 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Guards the session and security diagnostics, and the last-contact tick count that
+        /// is updated alongside them. Never exposed: callers reach the diagnostics through
+        /// <see cref="UpdateDiagnostics"/> and <see cref="ReadDiagnostics{TResult}"/>.
+        /// </summary>
+        private readonly Lock m_diagnosticsLock = new();
         private int m_closing;
         private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;

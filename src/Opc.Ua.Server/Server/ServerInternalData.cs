@@ -622,14 +622,14 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     return NonThreadSafeStatus.Value.State;
                 }
             }
             set
             {
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     NonThreadSafeStatus.Value.State = value;
                 }
@@ -643,25 +643,68 @@ namespace Opc.Ua.Server
         public ServerObjectState ServerObject { get; private set; } = null!;
 
         /// <summary>
-        /// Used to synchronize access to the server diagnostics.
+        /// Applies an update to the server diagnostics while holding the server's
+        /// diagnostics lock.
         /// </summary>
-        /// <value>The diagnostics lock.</value>
-        public object DiagnosticsLock { get; } = new object();
-
-        /// <summary>
-        /// Used to synchronize write access to
-        /// the server diagnostics.
-        /// </summary>
-        /// <value>The diagnostics lock.</value>
-        public object DiagnosticsWriteLock
+        /// <remarks>
+        /// Replaces the former <c>DiagnosticsLock</c> and <c>DiagnosticsWriteLock</c>
+        /// properties. The server owns its lock and never hands it out, so callers cannot
+        /// participate in - or deadlock against - the server's locking order. The
+        /// diagnostic nodes are marked dirty inside the critical section; the old
+        /// <c>DiagnosticsWriteLock</c> getter did that outside the lock it then returned.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if update is null.</exception>
+        public void UpdateServerDiagnostics(
+            Action<ServerDiagnosticsSummaryDataType> update)
         {
-            get
+            if (update == null)
             {
-                // implicitly force diagnostics update
+                throw new ArgumentNullException(nameof(update));
+            }
+
+            lock (m_diagnosticsLock)
+            {
+                update.Invoke(ServerDiagnostics);
+
+                // mark diagnostic nodes dirty
                 DiagnosticsNodeManager?.ForceDiagnosticsScan();
-                return DiagnosticsLock;
             }
         }
+
+        /// <summary>
+        /// Reads a value derived from the server diagnostics while holding the server's
+        /// diagnostics lock.
+        /// </summary>
+        /// <remarks>
+        /// Do not let the diagnostics object itself escape the callback: once the lock is
+        /// released, any field read from it is unsynchronized.
+        /// </remarks>
+        /// <typeparam name="TResult">The type of the value produced.</typeparam>
+        /// <param name="read">The projection applied to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if read is null.</exception>
+        public TResult ReadServerDiagnostics<TResult>(
+            Func<ServerDiagnosticsSummaryDataType, TResult> read)
+        {
+            if (read == null)
+            {
+                throw new ArgumentNullException(nameof(read));
+            }
+
+            lock (m_diagnosticsLock)
+            {
+                return read.Invoke(ServerDiagnostics);
+            }
+        }
+
+        /// <summary>
+        /// Guards the server diagnostics and the server status value, which is constructed
+        /// with this same lock so the two stay mutually exclusive. Never exposed: callers
+        /// reach the diagnostics through <see cref="UpdateServerDiagnostics"/> and
+        /// <see cref="ReadServerDiagnostics{TResult}"/>, and the status through
+        /// <see cref="CurrentState"/> and <see cref="UpdateServerStatus"/>.
+        /// </summary>
+        private readonly Lock m_diagnosticsLock = new();
 
         /// <summary>
         /// Returns the diagnostics structure for the server.
@@ -688,7 +731,7 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     if (NonThreadSafeStatus.Value.State == ServerState.Running)
                     {
@@ -902,7 +945,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(action));
             }
 
-            lock (NonThreadSafeStatus.Lock)
+            lock (m_diagnosticsLock)
             {
                 action.Invoke(NonThreadSafeStatus);
             }
@@ -1131,7 +1174,7 @@ namespace Opc.Ua.Server
             NonThreadSafeStatus = new ServerStatusValue(
                 serverObject.ServerStatus,
                 serverStatus,
-                DiagnosticsLock)
+                m_diagnosticsLock)
             {
                 Timestamp = nowUtc,
                 OnBeforeRead = OnReadServerStatus
@@ -1235,7 +1278,7 @@ namespace Opc.Ua.Server
             BaseVariableValue variable,
             NodeState component)
         {
-            lock (NonThreadSafeStatus.Lock)
+            lock (m_diagnosticsLock)
             {
                 DateTime now = TimeProvider.GetUtcNow().UtcDateTime;
                 NonThreadSafeStatus.Timestamp = now;

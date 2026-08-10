@@ -41,6 +41,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Opc.Ua.Bindings;
+using Opc.Ua.Mcp.Serialization;
 using Opc.Ua.Pcap.Audit;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Capture.Sources;
@@ -398,7 +399,8 @@ namespace Opc.Ua.Mcp.Tools
             var builder = new StringBuilder();
             foreach (DecodedServiceCall call in calls)
             {
-                builder.AppendLine(JsonSerializer.Serialize(call));
+                builder.AppendLine(JsonSerializer.Serialize(
+                    call, PcapMcpJsonContext.Default.DecodedServiceCall));
             }
 
             return builder.ToString();
