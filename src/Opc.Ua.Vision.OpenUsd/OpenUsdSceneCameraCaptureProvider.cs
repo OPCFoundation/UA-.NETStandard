@@ -44,18 +44,20 @@ namespace Opc.Ua.Vision.OpenUsd
     /// <summary>
     /// <see cref="ISceneCameraCaptureProvider"/> backed by the OpenUSD
     /// Silk rendering stack. Probes a graphics device on construction and
-    /// then serves capture requests by opening the requested stage, building
-    /// a fresh <c>OpenUsdSilkSession</c> per request, resolving the camera
-    /// prim to a <c>CameraState</c>, calling <c>SilkFrameCapture.Capture</c>,
-    /// and encoding the resulting RGBA8 buffer as PNG.
+    /// then serves capture requests by opening the requested stage, resolving
+    /// the camera prim to a <c>CameraState</c>, rendering through a retained
+    /// <c>SilkFrameCapturer</c>, and encoding the RGBA8 buffer as PNG.
     /// </summary>
     /// <remarks>
-    /// One session per request is a deliberate design choice: reusing a
-    /// session and passing a different <c>CameraState</c> is known to
-    /// silently produce an all-zero frame with <c>DrawCount == 0</c>, which
-    /// would be indistinguishable from a black scene to any caller.
-    /// Session creation is only 1-7 ms on WARP, so the cost is negligible;
-    /// in return every capture is guarded and its results are trustworthy.
+    /// A capturer retains the scene between captures, which is what makes
+    /// repeated rendering from one session correct. Before OpenUSD
+    /// 0.8.0-alpha the one-shot <c>SilkFrameCapture.Capture</c> silently
+    /// returned an all-zero frame on any second capture, indistinguishable
+    /// from a black scene, and this provider worked around it by building a
+    /// session per request. That defect is fixed upstream
+    /// (openusd-dotnet#13), so the workaround is gone. The blank-frame guard
+    /// stays: a frame with no draws is still worth refusing rather than
+    /// serving as though it were a picture of nothing.
     /// </remarks>
     public sealed class OpenUsdSceneCameraCaptureProvider : ISceneCameraCaptureProvider, IDisposable
     {
@@ -162,6 +164,14 @@ namespace Opc.Ua.Vision.OpenUsd
                 return;
             }
             m_captureGate.Dispose();
+
+            // The capturer holds the retained scene and must go before the session it rendered
+            // from; the device outlives both.
+            m_capturer?.Dispose();
+            m_session?.Dispose();
+            m_capturer = null;
+            m_session = null;
+            m_sessionStageIdentifier = null;
             m_device?.Dispose();
         }
 
@@ -174,7 +184,6 @@ namespace Opc.Ua.Vision.OpenUsd
             cancellationToken.ThrowIfCancellationRequested();
 
             UsdStage? stage = null;
-            OpenUsdSilkSession? session = null;
             try
             {
                 try
@@ -192,10 +201,13 @@ namespace Opc.Ua.Vision.OpenUsd
                 CameraState camera;
                 try
                 {
+                    // CameraState.FromStageCamera landed in OpenUSD 0.8.0-alpha (openusd-dotnet#14),
+                    // so the projection maths is the package's own rather than derived here from
+                    // the prim's window and clipping values.
                     camera = string.IsNullOrEmpty(request.PrimPath)
                         ? CameraState.Default
-                        : CameraStateResolver.ResolveFromPrim(
-                            stage, request.PrimPath!, request.TimeCode);
+                        : CameraState.FromStageCamera(
+                            stage, request.PrimPath!, request.TimeCode, request.Width, request.Height);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -208,12 +220,33 @@ namespace Opc.Ua.Vision.OpenUsd
 
                 try
                 {
-                    session = m_pluginPath is null
-                        ? OpenUsdSilkRuntime.Create(string.Empty, request.StageIdentifier)
-                        : OpenUsdSilkRuntime.Create(m_pluginPath, request.StageIdentifier);
+                    // A capturer retains the scene between captures, so the session and the
+                    // capturer are kept for as long as the requests keep naming the same stage.
+                    // Rebuilding them per request would discard that scene and pay the stage-open
+                    // cost every perception cycle.
+                    if (m_session is null ||
+                        !string.Equals(m_sessionStageIdentifier, request.StageIdentifier, StringComparison.Ordinal))
+                    {
+                        m_capturer?.Dispose();
+                        m_session?.Dispose();
+                        m_capturer = null;
+                        m_session = null;
+                        m_sessionStageIdentifier = null;
+
+                        m_session = m_pluginPath is null
+                            ? OpenUsdSilkRuntime.Create(string.Empty, request.StageIdentifier)
+                            : OpenUsdSilkRuntime.Create(m_pluginPath, request.StageIdentifier);
+                        m_capturer = new SilkFrameCapturer(m_device!);
+                        m_sessionStageIdentifier = request.StageIdentifier;
+                    }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
+                    m_capturer?.Dispose();
+                    m_session?.Dispose();
+                    m_capturer = null;
+                    m_session = null;
+                    m_sessionStageIdentifier = null;
                     m_logger.RenderFailed(m_backend.Name, ex);
                     return Failure(SceneCameraCaptureStatus.RenderFailed,
                         $"OpenUsdSilkRuntime.Create failed: {ex.Message}",
@@ -225,15 +258,14 @@ namespace Opc.Ua.Vision.OpenUsd
                 SilkFrameCaptureResult frame;
                 try
                 {
-                    frame = SilkFrameCapture.Capture(
-                        session!, m_device!, request.Width, request.Height,
-                        request.TimeCode, camera);
+                    frame = m_capturer!.Capture(
+                        m_session!, request.Width, request.Height, request.TimeCode, camera);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     m_logger.RenderFailed(m_backend.Name, ex);
                     return Failure(SceneCameraCaptureStatus.RenderFailed,
-                        $"SilkFrameCapture.Capture failed on {m_backend.Name}: {ex.Message}",
+                        $"SilkFrameCapturer.Capture failed on {m_backend.Name}: {ex.Message}",
                         request, timestamp, start);
                 }
 
@@ -277,7 +309,6 @@ namespace Opc.Ua.Vision.OpenUsd
             }
             finally
             {
-                session?.Dispose();
                 stage?.Dispose();
             }
         }
@@ -395,6 +426,9 @@ namespace Opc.Ua.Vision.OpenUsd
         private readonly SceneCameraCaptureBackend m_backend;
         private readonly string? m_backendUnavailableReason;
         private readonly SemaphoreSlim m_captureGate = new(1, 1);
+        private OpenUsdSilkSession? m_session;
+        private SilkFrameCapturer? m_capturer;
+        private string? m_sessionStageIdentifier;
         private int m_disposed;
     }
 }
