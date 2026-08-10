@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -524,10 +524,17 @@ namespace Opc.Ua.Server
             // through a synchronous adapter. A manager that already implements INodeManager
             // is its own adapter, so the two lists overlap and the capability may sit on
             // either face; both are searched and the overlap is removed.
-            return nodeManager.AsyncNodeManagers
-                .OfType<T>()
-                .Concat(nodeManager.NodeManagers.OfType<T>())
-                .Distinct();
+            //
+            // The overlap is the *same instance* appearing twice, so identity is the only
+            // correct comparison. Distinct() would use EqualityComparer<T>.Default and
+            // honour an Equals override on an implementation, silently collapsing two
+            // managers that merely compare equal.
+            List<T> asyncManagers = [.. nodeManager.AsyncNodeManagers.OfType<T>()];
+
+            return asyncManagers.Concat(
+                nodeManager.NodeManagers
+                    .OfType<T>()
+                    .Where(manager => !asyncManagers.Exists(known => ReferenceEquals(known, manager))));
         }
 
         /// <summary>
