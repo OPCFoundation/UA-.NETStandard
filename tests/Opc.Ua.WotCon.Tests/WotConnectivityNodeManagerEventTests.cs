@@ -259,6 +259,51 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
+        /// An affordance the Server cannot materialise is skipped so the rest
+        /// of the asset stays usable, but the caller must be told. Reporting a
+        /// plain Good would leave an operator believing an alarm they authored
+        /// is configured when it silently does not exist.
+        /// </summary>
+        [Test]
+        public async Task ARejectedEventIsReportedAsAnIncompleteResultAsync()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            ServiceResult status = await RebuildWithOverheatingEventAsync(
+                harness, severity: 5000).ConfigureAwait(false);
+
+            Assert.That(
+                ServiceResult.IsGood(status),
+                Is.True,
+                "The asset is still usable, so the result stays in the Good class.");
+            Assert.That(
+                status.StatusCode.Code,
+                Is.EqualTo(StatusCodes.GoodResultsMayBeIncomplete),
+                "A silently dropped alarm must not be reported as a plain Good.");
+        }
+
+        /// <summary>
+        /// A Thing Description whose affordances all materialise reports a
+        /// plain Good, so an incomplete result stays meaningful.
+        /// </summary>
+        [Test]
+        public async Task AnAcceptedEventIsReportedAsAPlainGoodAsync()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            ServiceResult status = await RebuildWithOverheatingEventAsync(
+                harness, severity: 900).ConfigureAwait(false);
+
+            Assert.That(status.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
         /// Re-applying a TD must not accumulate event types from the previous
         /// generation.
         /// </summary>
@@ -402,8 +447,32 @@ namespace Opc.Ua.WotCon.Tests
             (_, NodeId assetId) = await harness.Registry
                 .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await RebuildWithOverheatingEventAsync(harness, entry, severity)
+                .ConfigureAwait(false);
+            return entry;
+        }
 
-            await harness.Registry.RebuildAsync(
+        /// <summary>
+        /// Applies the overheating TD and hands back the status, for a test
+        /// that asserts on what the caller is told rather than on the nodes.
+        /// </summary>
+        private static async Task<ServiceResult> RebuildWithOverheatingEventAsync(
+            ManagerHarness harness,
+            ushort? severity)
+        {
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            return await RebuildWithOverheatingEventAsync(harness, entry, severity)
+                .ConfigureAwait(false);
+        }
+
+        private static ValueTask<ServiceResult> RebuildWithOverheatingEventAsync(
+            ManagerHarness harness,
+            AssetEntry entry,
+            ushort? severity)
+        {
+            return harness.Registry.RebuildAsync(
                 entry,
                 new ThingDescription
                 {
@@ -427,9 +496,7 @@ namespace Opc.Ua.WotCon.Tests
                     }
                 },
                 persistOnSuccess: false,
-                CancellationToken.None).ConfigureAwait(false);
-
-            return entry;
+                CancellationToken.None);
         }
 
         private static readonly Variant[] s_overheatingFields = [new Variant(93.5)];

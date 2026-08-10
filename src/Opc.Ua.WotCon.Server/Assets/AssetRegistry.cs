@@ -525,6 +525,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
 
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
+            int skippedAffordances = 0;
             try
             {
                 if (entry.Provider != null)
@@ -548,6 +549,11 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 ClearDynamicChildren(entry);
 
+                // An affordance the TD declares but this Server cannot
+                // materialise is skipped so the rest of the asset stays usable.
+                // Skipping is not the same as succeeding, though: reporting a
+                // plain Good would tell an operator the whole TD was applied
+                // while an alarm they authored had silently vanished.
                 if (td.Properties != null)
                 {
                     var seen = new HashSet<string>(
@@ -557,6 +563,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     {
                         if (!TryValidateChildName(entry.Name, "property", kv.Key))
                         {
+                            skippedAffordances++;
                             continue;
                         }
                         if (!seen.Add(kv.Key))
@@ -564,6 +571,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                             m_logger.SkippingDuplicateTdProperty(
                                 WotChildNameValidator.SanitiseForLog(kv.Key),
                                 entry.Name);
+                            skippedAffordances++;
                             continue;
                         }
                         BuildPropertyNode(entry, kv.Key, kv.Value);
@@ -578,6 +586,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     {
                         if (!TryValidateChildName(entry.Name, "action", kv.Key))
                         {
+                            skippedAffordances++;
                             continue;
                         }
                         if (!seen.Add(kv.Key))
@@ -585,6 +594,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                             m_logger.SkippingDuplicateTdAction(
                                 WotChildNameValidator.SanitiseForLog(kv.Key),
                                 entry.Name);
+                            skippedAffordances++;
                             continue;
                         }
                         BuildActionNode(entry, kv.Key, kv.Value);
@@ -599,6 +609,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     {
                         if (!TryValidateChildName(entry.Name, "event", kv.Key))
                         {
+                            skippedAffordances++;
                             continue;
                         }
                         if (!seen.Add(kv.Key))
@@ -606,9 +617,13 @@ namespace Opc.Ua.WotCon.Server.Assets
                             m_logger.SkippingDuplicateTdEvent(
                                 WotChildNameValidator.SanitiseForLog(kv.Key),
                                 entry.Name);
+                            skippedAffordances++;
                             continue;
                         }
-                        BuildEventNode(entry, kv.Key, kv.Value);
+                        if (!BuildEventNode(entry, kv.Key, kv.Value))
+                        {
+                            skippedAffordances++;
+                        }
                     }
                 }
 
@@ -641,7 +656,17 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 m_writeLock.Release();
             }
-            return ServiceResult.Good;
+
+            // Still Good - the asset is usable and IsGood callers are
+            // unaffected - but an operator reading the code learns the TD was
+            // not applied in full rather than being told everything worked.
+            return skippedAffordances == 0
+                ? ServiceResult.Good
+                : ServiceResult.Create(
+                    StatusCodes.GoodResultsMayBeIncomplete,
+                    "{0} affordance(s) of the Thing Description were skipped; see the log " +
+                    "for the reason for each.",
+                    skippedAffordances);
         }
 
         private void ClearDynamicChildren(AssetEntry entry)
@@ -834,7 +859,14 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// (OPC 10100-1 §6.3.10) whose fields come from the event's
         /// <c>data</c> schema, and makes the owning asset a notifier for it.
         /// </summary>
-        private void BuildEventNode(AssetEntry entry, string name, WotEvent evt)
+        /// <summary>
+        /// Materialises the EventType for one event affordance.
+        /// </summary>
+        /// <returns>
+        /// <c>false</c> when the affordance was skipped, so the caller can
+        /// report that the Thing Description was not applied in full.
+        /// </returns>
+        private bool BuildEventNode(AssetEntry entry, string name, WotEvent evt)
         {
             ushort ns = m_manager.AssetNamespaceIndex;
             NodeId eventTypeId = m_manager.AllocateChildNodeId(entry.Name, "events", name);
@@ -892,13 +924,14 @@ namespace Opc.Ua.WotCon.Server.Assets
                 m_manager.RemoveEventTypeNode(eventTypeId);
                 entry.Asset.RemoveReference(
                     Ua.ReferenceTypeIds.GeneratesEvent, isInverse: false, eventTypeId);
-                return;
+                return false;
             }
 
             var tag = new WotEventTag(
                 name, eventTypeId, entry.Asset.NodeId, fields, severity.Value, form);
 
             entry.Events[eventTypeId] = (eventType, tag);
+            return true;
         }
 
         /// <summary>

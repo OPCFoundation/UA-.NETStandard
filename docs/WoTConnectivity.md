@@ -169,6 +169,16 @@ event name and a null `severity` falls back to the affordance's
 silently clamping it, so the affordance carrying it is skipped and the rest of
 the asset is unaffected.
 
+Skipping is not the same as succeeding. Whenever an affordance is skipped — for
+an out-of-range severity, an invalid child name, or a duplicate name — applying
+the Thing Description returns `GoodResultsMayBeIncomplete` rather than `Good`,
+with the number of skipped affordances and one log entry per skip explaining
+why. The code stays in the Good class, so a caller testing `ServiceResult.IsGood`
+is unaffected and the asset remains usable; but a caller that inspects the code
+learns the Thing Description was not applied in full. Reporting a plain `Good`
+would leave an operator believing an alarm they authored is configured when it
+silently does not exist.
+
 Pair it with an `IWotAssetProviderFactory` that advertises the WoT
 binding URIs it understands (surfaced through
 `SupportedWoTBindings` per Spec §6.3.1.1):

@@ -184,7 +184,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     [],
                     WotNodeSetConverter.TrySelectProjectionRoot(result.Value));
             }
-            catch (Exception ex) when (ex is System.Text.Json.JsonException or FormatException)
+            // One malformed document fails its own conversion and is reported
+            // as such. It must never abort the refresh, because that would let
+            // a single bad document take every unrelated resource in the
+            // registry down with it.
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return WotConversionOutput.Failure(ex.Message);
             }

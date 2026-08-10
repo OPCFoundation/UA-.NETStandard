@@ -197,8 +197,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     indexed++;
                     budget += content.Length;
 
-                    // A sibling that cannot be parsed simply does not
-                    // contribute a name. Its own conversion reports why.
+                    // A sibling that cannot be indexed simply does not
+                    // contribute a name. Its own conversion reports why, and
+                    // one unreadable document must never abort the indexing of
+                    // every other document in the registry.
                     try
                     {
                         using WotDocument document = WotDocument.Parse(
@@ -235,8 +237,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             bucket.Add(node);
                         }
                     }
-                    catch (Exception ex) when (
-                        ex is System.Text.Json.JsonException or FormatException)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         continue;
                     }
