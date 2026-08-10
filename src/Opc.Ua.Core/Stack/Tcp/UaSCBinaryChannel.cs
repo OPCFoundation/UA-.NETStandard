@@ -986,9 +986,12 @@ namespace Opc.Ua.Bindings
         {
             lock (m_writeChainLock)
             {
-                // No ExecuteSynchronously: the continuation must reach the pool
-                // rather than run on whichever thread completed its predecessor,
-                // which may be the caller's.
+                // No ExecuteSynchronously on the write itself: the continuation
+                // must reach the pool rather than run on whichever thread
+                // completed its predecessor, which may be the caller's. The
+                // trailing continuation observes any fault so that a write which
+                // fails outside its own error handling cannot surface later as an
+                // unobserved task exception.
                 m_writeChain = m_writeChain
                     .ContinueWith(
                         static (_, state) => ((Func<Task>)state!)(),
@@ -996,7 +999,13 @@ namespace Opc.Ua.Bindings
                         CancellationToken.None,
                         TaskContinuationOptions.DenyChildAttach,
                         TaskScheduler.Default)
-                    .Unwrap();
+                    .Unwrap()
+                    .ContinueWith(
+                        static completed => _ = completed.Exception,
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously |
+                            TaskContinuationOptions.DenyChildAttach,
+                        TaskScheduler.Default);
             }
         }
 
