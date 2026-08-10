@@ -1,0 +1,151 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua;
+
+namespace Microsoft.Extensions.DependencyInjection
+{
+    /// <summary>
+    /// Registers the crypto provider model.
+    /// </summary>
+    public static class OpcUaCryptoBuilderExtensions
+    {
+        /// <summary>
+        /// Registers the crypto provider registry without changing behaviour.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <remarks>
+        /// The registry resolves to platform cryptography until something is
+        /// bound, so registering it on its own is inert.
+        /// </remarks>
+        public static IOpcUaBuilder AddCryptoProvider(this IOpcUaBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<ICryptoProviderRegistry>(
+                _ => new CryptoProviderRegistry());
+
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the crypto provider registry and binds providers to
+        /// purposes and security policies.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configure">Configures the bindings.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <example>
+        /// <code>
+        /// services.AddOpcUa()
+        ///     .AddCryptoProvider(crypto => crypto
+        ///         .For(CryptoPurpose.ApplicationInstanceKey).Use(tpmProvider)
+        ///         .For(CryptoPurpose.KeyAgreement).Use(tpmProvider)
+        ///         .For(CryptoPurpose.UserIdentityKey).Use(keyVaultProvider));
+        /// </code>
+        /// </example>
+        /// <remarks>
+        /// A consumer that registered its own <see cref="ICryptoProviderRegistry"/>
+        /// before this call keeps it, and the bindings are applied to that
+        /// instance.
+        /// </remarks>
+        public static IOpcUaBuilder AddCryptoProvider(
+            this IOpcUaBuilder builder,
+            Action<CryptoProviderBuilder> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            builder.AddCryptoProvider();
+
+            builder.Services.AddSingleton(new CryptoProviderConfiguration(configure));
+
+            return builder;
+        }
+    }
+}
+
+namespace Opc.Ua
+{
+    /// <summary>
+    /// Carries a pending crypto provider configuration through the container.
+    /// </summary>
+    /// <remarks>
+    /// Bindings are applied by <see cref="Apply"/> once the registry has been
+    /// resolved, so that several independent calls to <c>AddCryptoProvider</c>
+    /// compose rather than overwrite one another.
+    /// </remarks>
+    public sealed class CryptoProviderConfiguration
+    {
+        /// <summary>
+        /// Initializes a pending configuration.
+        /// </summary>
+        /// <param name="configure">The configuration action.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="configure"/> is <c>null</c>.
+        /// </exception>
+        public CryptoProviderConfiguration(Action<CryptoProviderBuilder> configure)
+        {
+            m_configure = configure ?? throw new ArgumentNullException(nameof(configure));
+        }
+
+        /// <summary>
+        /// Applies the configuration to a registry.
+        /// </summary>
+        /// <param name="registry">The registry to configure.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="registry"/> is <c>null</c>.
+        /// </exception>
+        public void Apply(ICryptoProviderRegistry registry)
+        {
+            if (registry is null)
+            {
+                throw new ArgumentNullException(nameof(registry));
+            }
+
+            m_configure(new CryptoProviderBuilder(registry));
+        }
+
+        private readonly Action<CryptoProviderBuilder> m_configure;
+    }
+}

@@ -141,6 +141,20 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public ICertificatePasswordProvider? CertificatePasswordProvider { get; set; }
 
+        /// <summary>
+        /// Generates the key pair behind a new application instance certificate.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to generating the key in software, which is what the stack
+        /// has always done. Set this to have the key created inside a TPM, an HSM
+        /// or a secure element instead, so it never exists outside the device.
+        /// </remarks>
+        public IKeyPairGenerator KeyPairGenerator
+        {
+            get => m_keyPairGenerator ?? DefaultKeyPairGenerator.Instance;
+            set => m_keyPairGenerator = value;
+        }
+
         /// <inheritdoc/>
         public bool DisableCertificateAutoCreation { get; set; }
 
@@ -945,30 +959,21 @@ namespace Opc.Ua.Configuration
                     serverDomainNames.ToList())
                 .SetLifeTime(lifeTimeInMonths);
 
-            Certificate newCertificate;
+            Certificate newCertificate = KeyPairGenerator.CreateCertificate(
+                builder, id.CertificateType, minimumKeySize);
             if (id.CertificateType.IsNull ||
                 id.CertificateType == ObjectTypeIds.ApplicationCertificateType ||
                 id.CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
                 id.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
             {
-                ushort keySize = minimumKeySize == 0
-                    ? CertificateFactory.DefaultKeySize
-                    : minimumKeySize;
-
-                newCertificate = builder.SetRSAKeySize(keySize).CreateForRSA();
-
-                m_logger.CertificateCreatedForRsa(newCertificate, keySize);
+                m_logger.CertificateCreatedForRsa(
+                    newCertificate,
+                    minimumKeySize == 0 ? CertificateFactory.DefaultKeySize : minimumKeySize);
             }
             else
             {
-                ECCurve? curve =
-                    CryptoUtils.GetCurveFromCertificateTypeId(id.CertificateType)
-                    ?? throw ServiceResultException.ConfigurationError(
-                        "The Ecc certificate type is not supported.");
-
-                newCertificate = builder.SetECCurve(curve.Value).CreateForECDsa();
-
-                m_logger.CertificateCreatedForCurve(newCertificate, curve.Value.Oid.FriendlyName);
+                ECCurve? curve = CryptoUtils.GetCurveFromCertificateTypeId(id.CertificateType);
+                m_logger.CertificateCreatedForCurve(newCertificate, curve?.Oid.FriendlyName);
             }
 
             // Update the identifier metadata so subsequent resolver lookups
@@ -1238,6 +1243,7 @@ namespace Opc.Ua.Configuration
 
         private readonly ITelemetryContext? m_telemetry;
         private readonly ILogger m_logger;
+        private IKeyPairGenerator? m_keyPairGenerator;
     }
 
     internal static partial class ApplicationInstanceLog

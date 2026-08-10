@@ -353,6 +353,37 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the info object associated with the SecurityPolicyUri whether
+        /// or not the policy is supported on this platform.
+        /// </summary>
+        /// <param name="securityPolicyUri">The policy uri or short name.</param>
+        /// <returns>The info object, or <c>null</c> when no such policy exists.</returns>
+        /// <remarks>
+        /// <see cref="GetInfo"/> answers "can this policy be used here", which is
+        /// what almost every caller wants. This answers "what is this policy",
+        /// which is what a caller reasoning about the policy's properties needs -
+        /// compliance classification, for instance, is a property of the
+        /// algorithms and does not change because a platform lacks them.
+        /// </remarks>
+        public static SecurityPolicyInfo? GetInfoIgnoringPlatformSupport(string securityPolicyUri)
+        {
+            if (string.IsNullOrEmpty(securityPolicyUri))
+            {
+                return SecurityPolicyInfo.None;
+            }
+
+            if (s_securityPolicyUriToInfo.Value.TryGetValue(
+                    securityPolicyUri, out SecurityPolicyInfo? info))
+            {
+                return info;
+            }
+
+            return s_securityPolicyNameToInfo.Value.TryGetValue(securityPolicyUri, out info)
+                ? info
+                : null;
+        }
+
+        /// <summary>
         /// Returns the uri associated with the display name. This includes http and all
         /// other supported platform security policies.
         /// </summary>
