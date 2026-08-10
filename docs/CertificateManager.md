@@ -698,6 +698,7 @@ Built-in providers:
 - `X509StoreProvider` — Windows certificate store (`X509Store:` prefix)
 - `InMemoryStoreProvider` — in-memory store for testing (`InMemory:` prefix)
 - `SharedKeyValueCertificateStoreProvider` — a certificate store distributed across a redundant server set over a shared key/value backend (`kv:` prefix, store type `SharedKeyValue`); shares the trusted, issuer and rejected lists and CRLs with fail-closed record integrity. See [High Availability § Shared certificate stores](HighAvailability.md).
+- `Pkcs11StoreProvider` — a hardware token, smart card or HSM addressed by an RFC 7512 `pkcs11:` URI (store type `PKCS11`); the private key is used but never leaves the device. Ships in the optional `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package. See [CryptoProvider](CryptoProvider.md).
 
 Custom providers are passed to the `CertificateManager` constructor (or via `CertificateManagerOptions.AddStoreProvider`):
 
