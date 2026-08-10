@@ -94,6 +94,13 @@ namespace Opc.Ua.Server.Historian.InMemory
         public InMemoryHistorianProvider(InMemoryHistorianOptions options)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
+            if (m_options.RawDataRetentionPeriod < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    m_options.RawDataRetentionPeriod,
+                    "Raw data retention period must be non-negative.");
+            }
         }
 
         /// <summary>
@@ -277,7 +284,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         }
                         archive.Raw[key] = CloneValue(value);
                         statuses[i] = StatusCodes.GoodEntryInserted;
-                        EvictIfNeeded(archive);
+                        EvictRawIfNeeded(archive, key);
                     }
                     result[entry.Key] = statuses;
                 }
@@ -821,7 +828,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                             {
                                 archive.Raw[key] = CloneValue(value);
                                 statuses[i] = StatusCodes.GoodEntryInserted;
-                                EvictIfNeeded(archive);
+                                EvictRawIfNeeded(archive, key);
                             }
                             break;
                         case HistoryUpdateType.Replace:
@@ -847,7 +854,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                             {
                                 archive.Raw[key] = CloneValue(value);
                                 statuses[i] = StatusCodes.GoodEntryInserted;
-                                EvictIfNeeded(archive);
+                                EvictRawIfNeeded(archive, key);
                             }
                             break;
                         default:
@@ -925,7 +932,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                     statuses[i] = preflightResult;
                 }
 
-                // Commit pass: at this point we know every value will succeed.
+                // Capture modification history before retention can evict an
+                // existing value that a later item in this transaction updates.
                 for (int i = 0; i < values.Count; i++)
                 {
                     DataValue value = values[i];
@@ -934,11 +942,27 @@ namespace Opc.Ua.Server.Historian.InMemory
                     {
                         LogModification(archive, prior, updateType, context.DefaultModificationInfo);
                     }
+                }
+
+                // Commit pass: at this point we know every value will succeed.
+                DateTime? newestInsertedTimestamp = null;
+                for (int i = 0; i < values.Count; i++)
+                {
+                    DataValue value = values[i];
+                    var key = value.SourceTimestamp.ToDateTime();
                     archive.Raw[key] = CloneValue(value);
-                    if (!archive.Raw.ContainsKey(key))
+                    if (statuses[i].Code == StatusCodes.GoodEntryInserted.Code)
                     {
-                        EvictIfNeeded(archive);
+                        if (!newestInsertedTimestamp.HasValue || key > newestInsertedTimestamp.Value)
+                        {
+                            newestInsertedTimestamp = key;
+                        }
+                        EvictRawIfNeeded(archive, key);
                     }
+                }
+                if (newestInsertedTimestamp.HasValue)
+                {
+                    EvictRawIfNeeded(archive, newestInsertedTimestamp.Value);
                 }
             }
             return statuses;
@@ -1343,17 +1367,38 @@ namespace Opc.Ua.Server.Historian.InMemory
             return archive;
         }
 
-        private void EvictIfNeeded(NodeArchive archive)
+        private void EvictRawIfNeeded(NodeArchive archive, DateTime newestInsertedTimestamp)
         {
-            if (m_options.MaxSamplesPerNode == 0 || archive.Raw.Count <= m_options.MaxSamplesPerNode)
+            if (newestInsertedTimestamp > archive.LatestRawTimestamp)
             {
-                return;
+                archive.LatestRawTimestamp = newestInsertedTimestamp;
             }
 
-            while (archive.Raw.Count > m_options.MaxSamplesPerNode)
+            if (m_options.RawDataRetentionPeriod > TimeSpan.Zero)
             {
-                DateTime oldest = archive.Raw.Keys.First();
-                archive.Raw.Remove(oldest);
+                long cutoffTicks = archive.LatestRawTimestamp.Ticks > m_options.RawDataRetentionPeriod.Ticks
+                    ? archive.LatestRawTimestamp.Ticks - m_options.RawDataRetentionPeriod.Ticks
+                    : DateTime.MinValue.Ticks;
+                var cutoff = new DateTime(cutoffTicks, archive.LatestRawTimestamp.Kind);
+
+                while (archive.Raw.Count > 0)
+                {
+                    DateTime oldest = archive.Raw.Keys.First();
+                    if (oldest >= cutoff)
+                    {
+                        break;
+                    }
+                    archive.Raw.Remove(oldest);
+                }
+            }
+
+            if (m_options.MaxSamplesPerNode > 0)
+            {
+                while (archive.Raw.Count > m_options.MaxSamplesPerNode)
+                {
+                    DateTime oldest = archive.Raw.Keys.First();
+                    archive.Raw.Remove(oldest);
+                }
             }
         }
 
@@ -1452,6 +1497,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             public SortedDictionary<DateTime, DataValue> Raw { get; } = [];
             public List<ModificationEntry> ModifiedLog { get; } = [];
             public SortedDictionary<DateTime, Annotation> Annotations { get; } = [];
+            public DateTime LatestRawTimestamp { get; set; } = DateTime.MinValue;
             public int SequenceCounter;
         }
 

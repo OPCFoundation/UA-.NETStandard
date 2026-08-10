@@ -214,6 +214,36 @@ provider through the server-wide historian registry, or override
 [Server address-space metadata](NodeManagers.md#server-address-space-metadata) and
 [Historical Access](HistoricalAccess.md).
 
+## Migrating unbounded in-memory historian retention
+
+`InMemoryHistorianProvider` now retains one hour of raw data per node by
+default. Earlier versions kept every raw sample for the lifetime of the
+provider unless `MaxSamplesPerNode` was configured, which allowed
+high-frequency simulations and telemetry servers to grow without bound.
+
+Configure the source-timestamp retention window when constructing the
+provider:
+
+```csharp
+var historian = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+{
+    RawDataRetentionPeriod = TimeSpan.FromHours(24),
+    MaxSamplesPerNode = 100_000
+});
+```
+
+To preserve the earlier process-lifetime behavior, opt out explicitly:
+
+```csharp
+var historian = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+{
+    RawDataRetentionPeriod = TimeSpan.Zero
+});
+```
+
+`MaxSamplesPerNode` remains available as an additional hard cap. When
+both limits are configured, both are enforced.
+
 ## Migrating custom ISessionManager implementations to ShutdownAsync
 
 `ISessionManager.Shutdown()` is **gone**, replaced by

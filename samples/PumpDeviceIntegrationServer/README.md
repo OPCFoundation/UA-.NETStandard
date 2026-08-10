@@ -84,6 +84,13 @@ id, component name and installation bay. They publish monitored data
 changes every 250 ms, with deterministic phase offsets so their values do
 not move in lockstep.
 
+The sample uses the bundled `InMemoryHistorianProvider`, whose default
+raw-data retention window is one hour per historized variable. This keeps
+the continuously running 250 ms simulation memory-bounded. Applications
+that need another horizon can pass `InMemoryHistorianOptions` to
+`UseInMemoryProvider`; setting `RawDataRetentionPeriod` to `TimeSpan.Zero`
+restores unbounded process-lifetime retention.
+
 Subscribe to the `EventNotifier` attribute on any pump to receive alarm
 condition events when its simulated `MotorOverheat` state activates or
 clears. Each pump is also registered as a root notifier, so the same events
