@@ -353,6 +353,79 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void BindingAfterTheBindPhaseIsRefused()
+        {
+            // A subsystem swapped underneath a running server would leave every component
+            // that already resolved it holding the previous instance.
+            using ServerInternalData data = CreateServerInternalData();
+            data.CompleteBindPhase();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => data.SetNodeManager(new Mock<IMasterNodeManager>().Object),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property("StatusCode").EqualTo((StatusCode)StatusCodes.BadInvalidState));
+
+                Assert.That(
+                    () => data.SetRoleManager(new Mock<IRoleManager>().Object),
+                    Throws.TypeOf<ServiceResultException>());
+
+                Assert.That(
+                    () => data.SetSubscriptionStore(new Mock<ISubscriptionStore>().Object),
+                    Throws.TypeOf<ServiceResultException>());
+
+                Assert.That(
+                    () => data.SetSessionManager(
+                        new Mock<ISessionManager>().Object,
+                        new Mock<ISubscriptionManager>().Object),
+                    Throws.TypeOf<ServiceResultException>());
+            });
+        }
+
+        [Test]
+        public void TheRefusedBindNamesTheOperation()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+            data.CompleteBindPhase();
+
+            Assert.That(
+                () => data.SetMonitoredItemQueueFactory(new Mock<IMonitoredItemQueueFactory>().Object),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Message.Contains(nameof(ServerInternalData.SetMonitoredItemQueueFactory)));
+        }
+
+        [Test]
+        public void BindingIsAllowedUntilTheBindPhaseCloses()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+            var first = new Mock<IRoleManager>();
+            var second = new Mock<IRoleManager>();
+
+            // Rebinding during startup stays legal; only binding afterwards is refused.
+            data.SetRoleManager(first.Object);
+            data.SetRoleManager(second.Object);
+
+            Assert.That(data.RoleManager, Is.SameAs(second.Object));
+
+            data.CompleteBindPhase();
+
+            Assert.That(
+                () => data.SetRoleManager(first.Object),
+                Throws.TypeOf<ServiceResultException>());
+        }
+
+        [Test]
+        public void CompletingTheBindPhaseTwiceIsHarmless()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            data.CompleteBindPhase();
+
+            Assert.That(() => data.CompleteBindPhase(), Throws.Nothing);
+        }
+
+        [Test]
         public void UpdateServerDiagnosticsInvokesTheUpdateUnderTheLock()
         {
             using ServerInternalData data = CreateServerInternalData();

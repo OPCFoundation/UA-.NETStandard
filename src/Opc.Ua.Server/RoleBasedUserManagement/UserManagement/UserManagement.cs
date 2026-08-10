@@ -47,7 +47,8 @@ namespace Opc.Ua.Server.UserManagement
     /// this default keeps the metadata in memory across the server lifetime.
     /// Integrators that need persistence of the metadata implement
     /// <see cref="IUserManagement"/> directly and inject the instance via
-    /// <see cref="IServerInternal.SetUserManagement"/>.
+    /// <see cref="StandardServer.CreateUserManagement"/>, or by registering it
+    /// in the service container.
     /// </remarks>
     public sealed class UserManagement : IUserManagement, IDisposable
     {

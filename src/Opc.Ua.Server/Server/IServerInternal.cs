@@ -144,25 +144,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The manager for role identity / application / endpoint mapping rules
         /// per OPC UA Part 18 §6.4. <c>null</c> only on stripped-down server hosts
-        /// that don't expose Server.ServerCapabilities.RoleSet. Integrators may
-        /// override the default in-memory implementation by calling
-        /// <see cref="SetRoleManager"/> before the address space is bound.
+        /// that don't expose Server.ServerCapabilities.RoleSet. Integrators override
+        /// the default in-memory implementation through
+        /// <see cref="StandardServer.CreateRoleManager"/> or by registering one in
+        /// the service container.
         /// </summary>
         IRoleManager RoleManager { get; }
 
         /// <summary>
         /// The registry that validates user identity tokens before falling back
         /// to the legacy <c>SessionManager.ImpersonateUser</c> event. Integrators
-        /// may replace the default empty registry by calling
-        /// <see cref="SetIdentityRegistry"/> before sessions are activated.
+        /// add authenticators to the default registry rather than replacing it;
+        /// see <c>ServerIdentityRegistryExtensions.RegisterDefaultAuthenticators</c>.
         /// </summary>
         IServerIdentityRegistry IdentityRegistry { get; }
 
         /// <summary>
         /// The manager for the OPC UA Part 18 §5 user-management model.
         /// <c>null</c> when the server doesn't expose
-        /// <c>ServerConfiguration.UserManagement</c>. Integrators inject a
-        /// concrete instance by calling <see cref="SetUserManagement"/>.
+        /// <c>ServerConfiguration.UserManagement</c>. Integrators supply a concrete
+        /// instance through <see cref="StandardServer.CreateUserManagement"/> or by
+        /// registering one in the service container.
         /// </summary>
         UserManagement.IUserManagement? UserManagement { get; }
 
@@ -237,99 +239,6 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionId">The subscription identifier.</param>
         /// <param name="monitoredItemId">The monitored item identifier.</param>
         void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId);
-
-        /// <summary>
-        /// Sets the EventManager, the ResourceManager, the RequestManager and the AggregateManager.
-        /// </summary>
-        /// <param name="eventManager">The event manager.</param>
-        /// <param name="resourceManager">The resource manager.</param>
-        /// <param name="requestManager">The request manager.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask CreateServerObjectAsync(
-            EventManager eventManager,
-            ResourceManager resourceManager,
-            RequestManager requestManager,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Stores the MasterNodeManager and the CoreNodeManager
-        /// </summary>
-        /// <param name="nodeManager">The node manager.</param>
-        void SetNodeManager(IMasterNodeManager nodeManager);
-
-        /// <summary>
-        /// Stores the MainNodeManagerFactory
-        /// </summary>
-        /// <param name="mainNodeManagerFactory">The main node manager factory.</param>
-        void SetMainNodeManagerFactory(IMainNodeManagerFactory mainNodeManagerFactory);
-
-        /// <summary>
-        /// Stores the SessionManager, the SubscriptionManager in the datastore.
-        /// </summary>
-        /// <param name="sessionManager">The session manager.</param>
-        /// <param name="subscriptionManager">The subscription manager.</param>
-        void SetSessionManager(
-            ISessionManager sessionManager,
-            ISubscriptionManager subscriptionManager);
-
-        /// <summary>
-        /// Stores the MonitoredItemQueueFactory in the datastore.
-        /// </summary>
-        /// <param name="monitoredItemQueueFactory">The MonitoredItemQueueFactory.</param>
-        void SetMonitoredItemQueueFactory(IMonitoredItemQueueFactory monitoredItemQueueFactory);
-
-        /// <summary>
-        /// Stores the Subscriptionstore in the datastore.
-        /// </summary>
-        /// <param name="subscriptionStore">The subscriptionstore.</param>
-        void SetSubscriptionStore(ISubscriptionStore subscriptionStore);
-
-        /// <summary>
-        /// Replaces the role manager with a custom <see cref="IRoleManager"/>
-        /// implementation. Must be called before the diagnostics node manager
-        /// binds the address space (typically before <c>StartServer</c>).
-        /// Integrators use this to plug a persistent backing store, an LDAP
-        /// directory, etc., in place of the default in-memory
-        /// <see cref="Server.RoleManager"/>.
-        /// </summary>
-        /// <param name="roleManager">The role manager to use.</param>
-        void SetRoleManager(IRoleManager roleManager);
-
-        /// <summary>
-        /// Replaces the identity registry with a custom
-        /// <see cref="IServerIdentityRegistry"/> implementation. Must be
-        /// called before sessions are activated so authenticators can run
-        /// ahead of the legacy impersonation event.
-        /// </summary>
-        /// <param name="registry">The identity registry to use.</param>
-        void SetIdentityRegistry(IServerIdentityRegistry registry);
-
-        /// <summary>
-        /// Replaces the user-management facade with a custom
-        /// <see cref="UserManagement.IUserManagement"/>
-        /// implementation. Must be called before the configuration node
-        /// manager binds the address space (typically before <c>StartServer</c>).
-        /// </summary>
-        /// <param name="userManagement">The user-management facade.</param>
-        void SetUserManagement(UserManagement.IUserManagement userManagement);
-
-        /// <summary>
-        /// Stores the AggregateManager in the datastore.
-        /// </summary>
-        /// <param name="aggregateManager">The AggregateManager.</param>
-        void SetAggregateManager(AggregateManager aggregateManager);
-
-        /// <summary>
-        /// Stores the ModellingRulesManager in the datastore.
-        /// </summary>
-        /// <param name="modellingRulesManager">The ModellingRulesManager.</param>
-        void SetModellingRulesManager(ModellingRulesManager modellingRulesManager);
-
-        /// <summary>
-        /// Stores the ConformanceUnitsManager in the datastore.
-        /// </summary>
-        /// <param name="conformanceUnitsManager">The ConformanceUnitsManager.</param>
-        void SetConformanceUnitsManager(ConformanceUnitsManager conformanceUnitsManager);
 
         /// <summary>
         /// Updates the server status safely.

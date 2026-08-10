@@ -196,6 +196,85 @@ for the before/after and
 [Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
 for the runtime rules.
 
+## Migrating code that called IServerInternal.Set* mutators
+
+`IServerInternal` no longer exposes the twelve `Set*` binding methods or
+`CreateServerObjectAsync`. They were startup plumbing: `StandardServer` calls
+each exactly once, in one block, to carry a `Create*` factory result into the
+datastore. Publishing them on the interface let any holder rewire a running
+server, which would leave every component that had already resolved a subsystem
+holding the previous instance.
+
+The supported seam is the factory seam, which already existed for every
+subsystem here:
+
+| Instead of | Override | Or register in DI |
+| --- | --- | --- |
+| `SetRoleManager` | `StandardServer.CreateRoleManager` | `IRoleManager` |
+| `SetUserManagement` | `StandardServer.CreateUserManagement` (new) | `IUserManagement` |
+| `SetMonitoredItemQueueFactory` | `StandardServer.CreateMonitoredItemQueueFactory` | `IMonitoredItemQueueFactory` |
+| `SetSubscriptionStore` | `StandardServer.CreateSubscriptionStore` | `ISubscriptionStore` |
+| `SetMainNodeManagerFactory` | `StandardServer.CreateMainNodeManagerFactory` | — |
+| `SetNodeManager` | `StandardServer.CreateMasterNodeManager` | — |
+| `SetSessionManager` | `StandardServer.CreateSessionManager` / `CreateSubscriptionManager` | `ISessionManager`, `ISubscriptionManager` |
+| `SetAggregateManager` | `StandardServer.CreateAggregateManagerAsync` | — |
+| `SetModellingRulesManager` | `StandardServer.CreateModellingRulesManagerAsync` | — |
+| `SetConformanceUnitsManager` | `StandardServer.CreateConformanceUnitsManagerAsync` | — |
+
+`CreateUserManagement` is new in this release, because user management was the
+one subsystem with no factory seam. Registering an `IUserManagement` in the
+container also switches on the username/password authenticator; override
+`CreateUserManagement` if you want the Part 18 §5 model without that.
+
+`SetIdentityRegistry` is **removed with no replacement**. Nothing ever called
+it: the supported route has always been
+`ServerIdentityRegistryExtensions.RegisterDefaultAuthenticators`, which adds
+authenticators to the default registry rather than replacing it.
+
+The methods remain on the concrete `ServerInternalData`, so code that already
+held that type keeps compiling. Binding is now refused once the server has
+finished starting — a late `Set*` throws `ServiceResultException` with
+`BadInvalidState` naming the operation.
+
+## Migrating IServerStartupTask implementations to IServerContext
+
+`IServerStartupTask.OnServerStartedAsync` now receives an `IServerContext`
+instead of an `IServerInternal`. `IServerInternal` derives from
+`IServerContext`, so the host still passes the same object; only the
+declared parameter type changes and an implementation fails to compile
+(`CS0535`) until its signature is updated.
+
+`IServerContext` is the ambient view of a running server. It carries what
+is genuinely server-wide and nothing else — it deliberately does not hand
+out the server's subsystems. A startup task that needs a subsystem takes it
+as a constructor dependency, which every implementation in this repository
+already did for its other dependencies.
+
+Rewrite the member reads that no longer resolve:
+
+| Was | Now |
+| --- | --- |
+| `server.Telemetry` | `server.DefaultSystemContext.Telemetry` |
+| `server.NamespaceUris` | `server.DefaultSystemContext.NamespaceUris` |
+| `server.ServerUris` | `server.DefaultSystemContext.ServerUris` |
+| `server.TypeTree` | `server.DefaultSystemContext.TypeTable` |
+| `server.Factory` | `server.DefaultSystemContext.EncodeableFactory` |
+| `server.DiagnosticsNodeManager.FindPredefinedNode<T>(id)` | `server.FindPredefinedNode<T>(id)` |
+| `server.NodeManager.NodeManagers` + a type test | `server.FindNodeManagers<TCapability>()` |
+| `server.SessionManager`, `server.SubscriptionManager`, `server.RequestManager`, `server.AggregateManager`, `server.RoleManager`, `server.IdentityRegistry`, … | constructor injection |
+
+`server.MessageContext` is unchanged and remains on `IServerContext`. Do
+**not** substitute `server.DefaultSystemContext.AsMessageContext()` for it:
+that conversion produces a context with *default* decoding limits rather
+than the server's configured `MaxStringLength`, `MaxArrayLength` and
+`MaxByteStringLength`, which silently widens what your component accepts.
+
+Tests that hand a `Mock<IServerInternal>` to a startup task keep compiling,
+because the mock still satisfies `IServerContext`. Stub the members the task
+actually reads now — typically `DefaultSystemContext` and any
+`FindNodeManagers<T>()` — or the mock returns `null` and the task fails at
+run time rather than at build time.
+
 ## Removed members on IServerInternal
 
 The following members had no consumer anywhere in the stack, its samples or
