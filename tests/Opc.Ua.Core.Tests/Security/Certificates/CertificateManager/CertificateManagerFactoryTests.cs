@@ -69,6 +69,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
             provider.SetupGet(p => p.StoreTypeName).Returns(CertificateStoreType.Directory);
+            // Store type resolution probes each provider by path before falling
+            // back to the built-in types; this provider claims no path scheme of
+            // its own and is selected by its store type name instead.
+            provider.Setup(p => p.SupportsStorePath(It.IsAny<string>())).Returns(false);
             provider.Setup(p => p.CreateStore(m_telemetry)).Returns(store.Object);
 
             var trustList = new TrustListIdentifier("CustomTrustList");

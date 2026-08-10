@@ -60,6 +60,94 @@ namespace Opc.Ua
         };
 
         /// <summary>
+        /// Builds a validation certificate collection from the TLS leaf certificate and chain.
+        /// </summary>
+        /// <param name="certificate">The TLS leaf certificate.</param>
+        /// <param name="chain">The TLS chain, if the platform supplied one.</param>
+        /// <param name="emptyChainHandling">How to handle a non-null chain with no elements.</param>
+        /// <returns>
+        /// A certificate collection that owns DER copies of the platform certificates.
+        /// </returns>
+        internal static CertificateCollection BuildValidationCertificateCollection(
+            X509Certificate? certificate,
+            X509Chain? chain,
+            EmptyChainHandling emptyChainHandling = EmptyChainHandling.FallbackToLeafCertificate)
+        {
+            return BuildValidationCertificateCollection(
+                certificate,
+                chain,
+                CreateCertificateFromRawData,
+                emptyChainHandling);
+        }
+
+        /// <summary>
+        /// Builds a validation certificate collection using the supplied factory.
+        /// </summary>
+        /// <param name="certificate">The TLS leaf certificate.</param>
+        /// <param name="chain">The TLS chain, if the platform supplied one.</param>
+        /// <param name="createCertificate">The factory that creates owned certificates.</param>
+        /// <param name="emptyChainHandling">How to handle a non-null chain with no elements.</param>
+        /// <returns>
+        /// A certificate collection that owns the certificates created by the factory.
+        /// </returns>
+        internal static CertificateCollection BuildValidationCertificateCollection(
+            X509Certificate? certificate,
+            X509Chain? chain,
+            Func<X509Certificate, Certificate> createCertificate,
+            EmptyChainHandling emptyChainHandling = EmptyChainHandling.FallbackToLeafCertificate)
+        {
+            if (createCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(createCertificate));
+            }
+
+            var validationChain = new CertificateCollection();
+            try
+            {
+                if (chain?.ChainElements != null)
+                {
+                    if (chain.ChainElements.Count > 0)
+                    {
+                        foreach (X509ChainElement element in chain.ChainElements)
+                        {
+                            using Certificate chainCertificate = createCertificate(element.Certificate);
+                            validationChain.Add(chainCertificate);
+                        }
+                    }
+                    else if (certificate != null &&
+                        emptyChainHandling == EmptyChainHandling.FallbackToLeafCertificate)
+                    {
+                        using Certificate serverCertificate = createCertificate(certificate);
+                        validationChain.Add(serverCertificate);
+                    }
+                }
+                else if (certificate != null)
+                {
+                    using Certificate serverCertificate = createCertificate(certificate);
+                    validationChain.Add(serverCertificate);
+                }
+
+                return validationChain;
+            }
+            catch
+            {
+                validationChain.Dispose();
+                throw;
+            }
+        }
+
+        private static Certificate CreateCertificateFromRawData(X509Certificate certificate)
+        {
+            return Certificate.FromRawData(certificate.GetRawCertData());
+        }
+
+        internal enum EmptyChainHandling
+        {
+            FallbackToLeafCertificate,
+            PreserveEmptyChain
+        }
+
+        /// <summary>
         /// Returns if a certificate is signed with a SHA1 algorithm.
         /// </summary>
         internal static bool IsSHA1SignatureAlgorithm(Oid oid)

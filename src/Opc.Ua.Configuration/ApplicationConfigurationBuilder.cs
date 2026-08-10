@@ -878,15 +878,6 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions SetMinMetadataSamplingInterval(
-            int minMetadataSamplingInterval)
-        {
-            ApplicationConfiguration.ServerConfiguration!.MinMetadataSamplingInterval
-                = minMetadataSamplingInterval;
-            return this;
-        }
-
-        /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(
             ArrayOf<SamplingRateGroup> availableSampleRates)
         {

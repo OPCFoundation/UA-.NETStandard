@@ -104,7 +104,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             const MemoryStreamType memoryStreamType = MemoryStreamType.MemoryStream;
             const JsonEncodingType jsonEncodingType = JsonEncodingType.Verbose;
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
-            TestContext.Out.WriteLine(encodeInfo);
+            TestOutput.WriteLine(encodeInfo);
             DataValue expected = dataValue;
             Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
 
@@ -571,9 +571,9 @@ namespace Opc.Ua.Core.Encoders.Tests
 
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             IBuiltInType type = TypeInfo.GetSystemType(builtInType);
-            TestContext.Out.WriteLine(encodeInfo);
-            TestContext.Out.WriteLine("Expected:");
-            TestContext.Out.WriteLine(randomData);
+            TestOutput.WriteLine(encodeInfo);
+            TestOutput.WriteLine("Expected:");
+            TestOutput.WriteLine(randomData);
 
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(
@@ -595,13 +595,13 @@ namespace Opc.Ua.Core.Encoders.Tests
             switch (encoderType)
             {
                 case EncodingType.Binary:
-                    TestContext.Out.WriteLine(PrettifyAndValidateBinary(buffer));
+                    TestOutput.WriteLine(PrettifyAndValidateBinary(buffer));
                     break;
                 case EncodingType.Json:
-                    TestContext.Out.WriteLine(PrettifyAndValidateJson(buffer));
+                    TestOutput.WriteLine(PrettifyAndValidateJson(buffer));
                     break;
                 case EncodingType.Xml:
-                    TestContext.Out.WriteLine(PrettifyAndValidateXml(buffer));
+                    TestOutput.WriteLine(PrettifyAndValidateXml(buffer));
                     break;
             }
 
@@ -619,8 +619,8 @@ namespace Opc.Ua.Core.Encoders.Tests
                     randomData.TypeInfo);
             }
 
-            TestContext.Out.WriteLine("Result:");
-            TestContext.Out.WriteLine(result);
+            TestOutput.WriteLine("Result:");
+            TestOutput.WriteLine(result);
 
             Assert.That(result, Is.EqualTo(randomData), encodeInfo);
         }
@@ -714,9 +714,9 @@ namespace Opc.Ua.Core.Encoders.Tests
 
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             IBuiltInType type = TypeInfo.GetSystemType(builtInType);
-            TestContext.Out.WriteLine(encodeInfo);
-            TestContext.Out.WriteLine("Expected:");
-            TestContext.Out.WriteLine(randomData);
+            TestOutput.WriteLine(encodeInfo);
+            TestOutput.WriteLine("Expected:");
+            TestOutput.WriteLine(randomData);
 
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(
@@ -737,13 +737,13 @@ namespace Opc.Ua.Core.Encoders.Tests
             switch (encoderType)
             {
                 case EncodingType.Binary:
-                    TestContext.Out.WriteLine(PrettifyAndValidateBinary(buffer));
+                    TestOutput.WriteLine(PrettifyAndValidateBinary(buffer));
                     break;
                 case EncodingType.Json:
-                    TestContext.Out.WriteLine(PrettifyAndValidateJson(buffer));
+                    TestOutput.WriteLine(PrettifyAndValidateJson(buffer));
                     break;
                 case EncodingType.Xml:
-                    TestContext.Out.WriteLine(PrettifyAndValidateXml(buffer));
+                    TestOutput.WriteLine(PrettifyAndValidateXml(buffer));
                     break;
             }
 
@@ -761,8 +761,8 @@ namespace Opc.Ua.Core.Encoders.Tests
                     randomData.TypeInfo);
             }
 
-            TestContext.Out.WriteLine("Result:");
-            TestContext.Out.WriteLine(result);
+            TestOutput.WriteLine("Result:");
+            TestOutput.WriteLine(result);
             Assert.That(result, Is.EqualTo(randomData), encodeInfo);
         }
     }

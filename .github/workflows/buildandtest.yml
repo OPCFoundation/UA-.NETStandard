@@ -222,6 +222,76 @@ jobs:
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
 
+    # SoftHSM2 stands in for a hardware token so the PKCS#11 store is exercised
+    # against a real module rather than a substitute. The tests skip themselves
+    # when no module is present or the token is not provisioned, so this step
+    # only ever adds coverage. It is deliberately strict: if provisioning breaks,
+    # the step fails here rather than silently reducing this job to a no-op.
+    - name: Setup SoftHSM2
+      if: ${{ matrix.csproj == 'Security.Pkcs11' && runner.os != 'Windows' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y softhsm2 opensc libc6-dev
+          SOFTHSM_MODULE=$(ls /usr/lib/softhsm/libsofthsm2.so \
+            /usr/lib/*/softhsm/libsofthsm2.so 2>/dev/null | head -n1)
+
+          # Pkcs11Interop reaches the module through DllImport("libdl"). glibc
+          # 2.34 folded libdl into libc and ships only the libdl.so.2 ABI stub,
+          # which the .NET loader will not bind "libdl" to, so provide the name
+          # it looks for. Consumers on a modern distribution need the same.
+          if ! ldconfig -p | grep -q "libdl\.so "; then
+            DL_STUB=$(ldconfig -p | awk '/libdl\.so\.2/ {print $NF; exit}')
+            test -n "$DL_STUB"
+            sudo ln -sf "$DL_STUB" "$(dirname "$DL_STUB")/libdl.so"
+            sudo ldconfig
+          fi
+        else
+          brew install softhsm opensc
+          SOFTHSM_MODULE=$(ls "$(brew --prefix)"/lib/softhsm/libsofthsm2.so | head -n1)
+        fi
+        test -n "$SOFTHSM_MODULE"
+
+        # A token has to be provisioned before it can be opened, exactly as a
+        # real device would be by its vendor tooling.
+        export SOFTHSM2_CONF="$HOME/softhsm2.conf"
+        mkdir -p "$HOME/softhsm-tokens"
+        echo "directories.tokendir = $HOME/softhsm-tokens" > "$SOFTHSM2_CONF"
+
+        softhsm2-util --init-token --free --label opcua-test \
+          --pin 1234 --so-pin 123456
+
+        # Build the key and certificate in software, then import both onto the
+        # token. Generating on-token and then issuing a certificate for that key
+        # would need the OpenSSL pkcs11 engine, which OpenSSL 3.x on the hosted
+        # images no longer provides. Importing is equivalent for this test:
+        # SoftHSM stores an imported private key with CKA_SENSITIVE=true and
+        # CKA_EXTRACTABLE=false, so it is non-extractable once it is on the
+        # token, which is the property under test.
+        openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+          -subj "/CN=Pkcs11TestServer" -keyout /tmp/pkcs11-key.pem -out /tmp/pkcs11-cert.pem
+        openssl rsa  -in /tmp/pkcs11-key.pem  -outform DER -out /tmp/pkcs11-key.der
+        openssl x509 -in /tmp/pkcs11-cert.pem -outform DER -out /tmp/pkcs11-cert.der
+
+        pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
+          --write-object /tmp/pkcs11-key.der  --type privkey --label opcua-server --id 01
+        pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
+          --write-object /tmp/pkcs11-cert.der --type cert    --label opcua-server --id 01
+
+        # Fail here rather than let the tests quietly skip everything.
+        pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 --list-objects | tee /tmp/pkcs11-objects.txt
+        grep -q "Certificate Object" /tmp/pkcs11-objects.txt
+        grep -q "Private Key Object" /tmp/pkcs11-objects.txt
+
+        {
+          echo "SOFTHSM2_CONF=$SOFTHSM2_CONF"
+          echo "OPCUA_PKCS11_MODULE=$SOFTHSM_MODULE"
+          echo "OPCUA_PKCS11_TOKEN=opcua-test"
+          echo "OPCUA_PKCS11_PIN=1234"
+        } >> "$GITHUB_ENV"
+
     - name: Build
       # Build in parallel with the shared compiler (both `dotnet build` defaults).
       # These were previously pinned to `-maxcpucount:1 /p:UseSharedCompilation=false`
@@ -235,6 +305,15 @@ jobs:
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
       shell: pwsh
+      # Bound the step, not just the job. The blame collector below only reacts
+      # to inactivity *inside* the test host, and even once it has written its
+      # dump the run can fail to unwind: on run 31249610490 the hang dump was
+      # taken at +50 min and vstest.console still had not exited when the
+      # 60-minute job timeout cancelled the job (issue #4213). A step timeout
+      # ends that state while `Upload test results` (if: always()) still
+      # publishes the dump. 30 minutes is well clear of every leg here, which
+      # spend at most ~12 minutes in this step.
+      timeout-minutes: 30
       run: |
         $testArgs = @(
           '${{ env.CSPROJECT }}',
