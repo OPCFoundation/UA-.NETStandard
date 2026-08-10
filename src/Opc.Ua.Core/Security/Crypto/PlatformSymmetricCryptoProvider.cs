@@ -57,6 +57,8 @@ namespace Opc.Ua
             {
                 case SymmetricEncryptionAlgorithm.Aes128Cbc:
                 case SymmetricEncryptionAlgorithm.Aes256Cbc:
+                case SymmetricEncryptionAlgorithm.Aes128Ctr:
+                case SymmetricEncryptionAlgorithm.Aes256Ctr:
                     return true;
                 case SymmetricEncryptionAlgorithm.ChaCha20Poly1305:
                 case SymmetricEncryptionAlgorithm.Aes128Gcm:
@@ -90,6 +92,12 @@ namespace Opc.Ua
             ReadOnlySpan<byte> plaintext,
             Span<byte> ciphertext)
         {
+            if (IsCounterMode(algorithm))
+            {
+                TransformCtr(key, iv, plaintext, ciphertext);
+                return;
+            }
+
             RequireCbc(algorithm);
             TransformCbc(key, iv, plaintext, ciphertext, encrypting: true);
         }
@@ -105,6 +113,13 @@ namespace Opc.Ua
             ReadOnlySpan<byte> ciphertext,
             Span<byte> plaintext)
         {
+            if (IsCounterMode(algorithm))
+            {
+                // Counter mode is its own inverse.
+                TransformCtr(key, iv, ciphertext, plaintext);
+                return;
+            }
+
             RequireCbc(algorithm);
             TransformCbc(key, iv, ciphertext, plaintext, encrypting: false);
         }
@@ -303,6 +318,9 @@ namespace Opc.Ua
         {
         }
 
+        private const int kAesBlockSize = 16;
+        private const int kCtrNonceLength = 12;
+
         private static void TransformCbc(
             ReadOnlySpan<byte> key,
             ReadOnlySpan<byte> iv,
@@ -353,8 +371,95 @@ namespace Opc.Ua
         }
 #endif
 
-        private static void RequireCbc(SymmetricEncryptionAlgorithm algorithm)
+        private static bool IsCounterMode(SymmetricEncryptionAlgorithm algorithm)
         {
+            return algorithm is SymmetricEncryptionAlgorithm.Aes128Ctr
+                or SymmetricEncryptionAlgorithm.Aes256Ctr;
+        }
+
+        /// <summary>
+        /// Applies AES counter mode, which is its own inverse.
+        /// </summary>
+        /// <remarks>
+        /// The counter block is the twelve byte nonce followed by a big endian
+        /// thirty two bit block counter starting at zero, which is the layout
+        /// NIST SP 800-38A §6.5 defines and Part 14 §7.2.4.4.3.2 requires.
+        /// </remarks>
+        private static void TransformCtr(
+            ReadOnlySpan<byte> key,
+            ReadOnlySpan<byte> nonce,
+            ReadOnlySpan<byte> input,
+            Span<byte> output)
+        {
+            if (nonce.Length != kCtrNonceLength)
+            {
+                throw new ArgumentException(
+                    $"AES-CTR requires a {kCtrNonceLength} byte nonce.",
+                    nameof(nonce));
+            }
+
+            if (output.Length < input.Length)
+            {
+                throw new ArgumentException(
+                    "The destination is shorter than the input.",
+                    nameof(output));
+            }
+
+            using var aes = Aes.Create();
+
+            // CA5358: counter mode is built from the raw block cipher, so the
+            // underlying mode is necessarily ECB. Confidentiality comes from
+            // XOR-ing the key stream this produces, never from encrypting the
+            // plaintext directly, and each counter block is used exactly once
+            // under a given key and nonce. This is the construction NIST
+            // SP 800-38A §6.5 defines.
+#pragma warning disable CA5358
+            aes.Mode = CipherMode.ECB;
+#pragma warning restore CA5358
+            aes.Padding = PaddingMode.None;
+            aes.Key = key.ToArray();
+
+            using ICryptoTransform encryptor = aes.CreateEncryptor();
+
+            byte[] counter = new byte[kAesBlockSize];
+            byte[] keyStream = new byte[kAesBlockSize];
+            nonce.CopyTo(counter);
+
+            try
+            {
+                for (int offset = 0; offset < input.Length; offset += kAesBlockSize)
+                {
+                    encryptor.TransformBlock(counter, 0, kAesBlockSize, keyStream, 0);
+
+                    int count = Math.Min(kAesBlockSize, input.Length - offset);
+
+                    for (int ii = 0; ii < count; ii++)
+                    {
+                        output[offset + ii] = (byte)(input[offset + ii] ^ keyStream[ii]);
+                    }
+
+                    IncrementCounter(counter);
+                }
+            }
+            finally
+            {
+                Array.Clear(keyStream, 0, keyStream.Length);
+                Array.Clear(counter, 0, counter.Length);
+            }
+        }
+
+        private static void IncrementCounter(byte[] counter)
+        {
+            for (int ii = kAesBlockSize - 1; ii >= kCtrNonceLength; ii--)
+            {
+                if (++counter[ii] != 0)
+                {
+                    return;
+                }
+            }
+        }
+
+        private static void RequireCbc(SymmetricEncryptionAlgorithm algorithm)        {
             if (algorithm is not SymmetricEncryptionAlgorithm.Aes128Cbc and
                 not SymmetricEncryptionAlgorithm.Aes256Cbc)
             {

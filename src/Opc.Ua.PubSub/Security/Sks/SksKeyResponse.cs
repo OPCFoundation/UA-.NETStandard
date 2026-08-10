@@ -186,21 +186,36 @@ namespace Opc.Ua.PubSub.Security.Sks
                 byte[] signing = new byte[signingLength];
                 byte[] encrypting = new byte[encryptingLength];
                 byte[] nonce = new byte[nonceLength];
-                Array.Copy(packed, 0, signing, 0, signingLength);
-                Array.Copy(packed, signingLength, encrypting, 0, encryptingLength);
-                Array.Copy(
-                    packed,
-                    signingLength + encryptingLength,
-                    nonce,
-                    0,
-                    nonceLength);
-                unpacked[i] = new PubSubSecurityKey(
-                    unchecked(FirstTokenId + (uint)i),
-                    ByteString.Create(signing),
-                    ByteString.Create(encrypting),
-                    ByteString.Create(nonce),
-                    issuedAt,
-                    KeyLifetime);
+
+                try
+                {
+                    Array.Copy(packed, 0, signing, 0, signingLength);
+                    Array.Copy(packed, signingLength, encrypting, 0, encryptingLength);
+                    Array.Copy(
+                        packed,
+                        signingLength + encryptingLength,
+                        nonce,
+                        0,
+                        nonceLength);
+                    unpacked[i] = new PubSubSecurityKey(
+                        unchecked(FirstTokenId + (uint)i),
+                        ByteString.Create(signing),
+                        ByteString.Create(encrypting),
+                        ByteString.Create(nonce),
+                        issuedAt,
+                        KeyLifetime);
+                }
+                finally
+                {
+                    // ByteString.Create copies, so these intermediates are the
+                    // stack's own plain copies of the key material and nothing
+                    // else refers to them. Left alone they would sit in the heap
+                    // for the lifetime of the process; the key itself is zeroed
+                    // by PubSubSecurityKey.Dispose when the ring retires it.
+                    CryptoUtils.ZeroMemory(signing);
+                    CryptoUtils.ZeroMemory(encrypting);
+                    CryptoUtils.ZeroMemory(nonce);
+                }
             }
             return unpacked;
         }

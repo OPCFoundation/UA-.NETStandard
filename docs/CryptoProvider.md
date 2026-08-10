@@ -19,6 +19,7 @@ exactly as it did before the provider model existed.
 - [What can and cannot be claimed about FIPS](#what-can-and-cannot-be-claimed-about-fips)
 - [Substituting the symmetric primitives](#substituting-the-symmetric-primitives)
 - [Using a key served over a network](#using-a-key-served-over-a-network)
+- [PubSub](#pubsub)
 - [Limitations](#limitations)
 
 ## The short version
@@ -356,6 +357,51 @@ unchanged.
 | User identity token signing and decryption, session activation | ✅ |
 | Service faults, and the synchronous reconnect handoff | ❌ both are reached from synchronous call sites |
 | Certificate, certificate request and revocation list signing | ❌ by construction — `X509SignatureGenerator.SignData` is called by .NET internals |
+
+## PubSub
+
+The per-message cryptography a publisher and subscriber apply — AES-CTR and
+HMAC-SHA-256, per Part 14 §7.2.4.4.3.1 — routes through
+`ISymmetricCryptoProvider` when one is registered, so a validated module performs
+it:
+
+```csharp
+services.AddOpcUa()
+    .AddCryptoProvider(crypto => crypto
+        .For(CryptoPurpose.ChannelSymmetric).Use(module))
+    .AddPubSub(...);
+```
+
+The policies resolve the provider once, when they are constructed, and hold it;
+nothing consults a registry per message. A provider that does not declare the
+algorithms a policy needs is ignored rather than used, so a configuration mistake
+does not stop publishing. `IPubSubSecurityPolicy` is unchanged — a provider is
+supplied through the constructor, so implementations of that interface outside
+this stack are unaffected.
+
+### What device custody can and cannot mean here
+
+**With a standard Security Key Service the key necessarily exists in process
+memory.** `GetSecurityKeys` (Part 14 §8.3.2) returns raw key bytes over the wire,
+so the property the client and server side achieve — the key never leaves the
+device — **cannot** be achieved for PubSub through the SKS pull profile. That is
+a property of the specification, not of this stack, and no amount of API here
+changes it.
+
+Introducing a wrapped-key envelope would change what is on the wire and break
+interoperability with third-party key services and publishers, so it is
+deliberately not done.
+
+What is achievable, and is supported:
+
+- **The operations** can be performed by a validated module, as above.
+- **The key material can come from somewhere other than the SKS.**
+  `IPubSubSecurityKeyProvider` is the seam; an implementation may derive per-token
+  keys from a long-lived secret that stays in a device, so only the derived
+  material is in memory.
+- **Its lifetime is bounded.** `PubSubSecurityKey` zeroizes on disposal, the key
+  ring disposes keys as it retires them, and the intermediate copies made while
+  unpacking an SKS response are cleared rather than left in the heap.
 
 ## Limitations
 

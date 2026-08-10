@@ -271,6 +271,11 @@ deployment that registers nothing keeps the inline platform code, with no
 interface dispatch on the per-message path. A provider bound to a symmetric
 purpose it cannot actually perform is reported rather than silently replaced by
 the platform, and under `FipsOnly` it refuses to start.
+PubSub uses the same seam: the per-message AES-CTR and HMAC a publisher applies
+route through a registered provider, so a validated module performs those too.
+Full device custody is not achievable for PubSub, and the reason is worth stating
+— a standard Security Key Service returns raw key bytes over the wire, so the key
+is in process memory by construction. What is bounded instead is its lifetime.
 A key served over a network no longer has to occupy a thread. `RSA` and `ECDsa`
 are synchronous contracts belonging to .NET, so an implementation opts in by
 also implementing `IAsyncRsaKey` or `IAsyncEcdsaKey`, which the stack finds by

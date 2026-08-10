@@ -128,8 +128,43 @@ All three are covered by tests in `ChannelGateTests` and by the secured loopback
 | Gap | Tracked by | Why |
 |---|---|---|
 | HTTPS with a device-held key does not work on Windows or macOS | [#4209](https://github.com/OPCFoundation/UA-.NETStandard/issues/4209) | SChannel and the macOS Security framework require keys registered with a platform key storage provider. It works on Linux, where the TLS layer dispatches through the managed key. UA-TCP is unaffected everywhere. |
-| PubSub security policies take raw key bytes | [#4210](https://github.com/OPCFoundation/UA-.NETStandard/issues/4210) | `IPubSubSecurityPolicy` has no handle-based variant, so a PubSub key cannot stay in a device. Needs its own design. |
+| ~~PubSub security policies take raw key bytes~~ **addressed** | [#4210](https://github.com/OPCFoundation/UA-.NETStandard/issues/4210) | See below. |
 | No Part 7 conformance facet for hardware key custody | [#4211](https://github.com/OPCFoundation/UA-.NETStandard/issues/4211) | Cannot be solved in this repository; it needs raising with the OPC Foundation. |
+
+### PubSub key custody — what was possible, and what was not
+
+Tracked by [#4210](https://github.com/OPCFoundation/UA-.NETStandard/issues/4210).
+
+The issue asked for a handle-based variant of `IPubSubSecurityPolicy` so a PubSub
+key could stay in a device. Investigating it produced a finding worth recording
+rather than an implementation:
+
+> **With a standard Security Key Service the key necessarily exists in process
+> memory.** `GetSecurityKeys` (Part 14 §8.3.2) returns raw key bytes over the
+> wire. The "key never leaves the device" property that #4192 achieved for client
+> and server therefore **cannot** be achieved for PubSub through the SKS pull
+> profile. That is a property of the specification, not of this stack.
+
+A wrapped-key envelope would change what is on the wire and break interoperability
+with third-party key services and publishers, so it was deliberately rejected.
+
+What was delivered instead, being what is actually achievable:
+
+- **The operations are pluggable.** The per-message AES-CTR and HMAC route through
+  `ISymmetricCryptoProvider` when one is registered, so a validated module
+  performs them. `IPubSubSecurityPolicy` is unchanged; the provider is supplied
+  through the policy constructor, so implementations outside this stack are
+  unaffected. `PlatformSymmetricCryptoProvider` gained AES counter mode for this,
+  which the seam should have covered anyway since the algorithm enum names it.
+- **Key material need not come from the SKS.** `IPubSubSecurityKeyProvider` is the
+  seam for supplying or deriving keys from a secret that stays in a device.
+- **Lifetime is bounded.** The intermediate plain copies made while unpacking an
+  SKS response are now zeroed; they were previously left in the heap for the
+  lifetime of the process.
+
+An earlier draft of this section claimed `PubSubSecurityKey.Dispose` might skip
+zeroization for non-array-backed `ByteString`s. That was checked and is wrong:
+`ByteString.Create` copies into an owned array, so the zeroization always applies.
 
 ---
 

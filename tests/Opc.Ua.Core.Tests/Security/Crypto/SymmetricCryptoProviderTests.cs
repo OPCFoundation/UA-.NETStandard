@@ -174,6 +174,69 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             Assert.That(derived, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// AES counter mode is its own inverse, and the counter layout is fixed
+        /// by Part 14 §7.2.4.4.3.2: a twelve byte nonce followed by a big endian
+        /// block counter starting at zero.
+        /// </summary>
+        [Test]
+        public void PlatformSymmetricProviderRoundTripsCounterMode()
+        {
+            byte[] key = new byte[32];
+            byte[] nonce = new byte[12];
+            // Deliberately not a whole number of blocks.
+            byte[] plaintext = new byte[70];
+            FillRandom(key);
+            FillRandom(nonce);
+            FillRandom(plaintext);
+
+            byte[] ciphertext = new byte[plaintext.Length];
+            byte[] recovered = new byte[plaintext.Length];
+
+            PlatformSymmetricCryptoProvider provider = PlatformSymmetricCryptoProvider.Instance;
+
+            provider.Encrypt(
+                SymmetricEncryptionAlgorithm.Aes256Ctr, key, nonce, plaintext, ciphertext);
+            provider.Decrypt(
+                SymmetricEncryptionAlgorithm.Aes256Ctr, key, nonce, ciphertext, recovered);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(provider.Supports(SymmetricEncryptionAlgorithm.Aes256Ctr), Is.True);
+                Assert.That(ciphertext, Is.Not.EqualTo(plaintext));
+                Assert.That(recovered, Is.EqualTo(plaintext));
+            });
+        }
+
+        /// <summary>
+        /// The counter must advance per block, or a long message would reuse key
+        /// stream.
+        /// </summary>
+        [Test]
+        public void PlatformSymmetricProviderCounterModeAdvancesPerBlock()
+        {
+            byte[] key = new byte[16];
+            byte[] nonce = new byte[12];
+            FillRandom(key);
+            FillRandom(nonce);
+
+            byte[] zeros = new byte[48];
+            byte[] keyStream = new byte[zeros.Length];
+
+            PlatformSymmetricCryptoProvider.Instance.Encrypt(
+                SymmetricEncryptionAlgorithm.Aes128Ctr, key, nonce, zeros, keyStream);
+
+            byte[] first = keyStream.AsSpan(0, 16).ToArray();
+            byte[] second = keyStream.AsSpan(16, 16).ToArray();
+            byte[] third = keyStream.AsSpan(32, 16).ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(second, Is.Not.EqualTo(first), "block 2 reused block 1 key stream");
+                Assert.That(third, Is.Not.EqualTo(second), "block 3 reused block 2 key stream");
+            });
+        }
+
         [Test]
         public void PlatformRandomSourceFillsTheWholeBuffer()
         {
