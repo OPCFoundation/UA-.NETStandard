@@ -126,5 +126,46 @@ namespace Opc.Ua.Mcp
 
             return mcpServerBuilder;
         }
+
+        /// <summary>
+        /// Registers the PubSub diagnostics tools when the composed
+        /// <paramref name="toolProfiles"/> includes
+        /// <see cref="McpToolProfile.PubSub"/>.
+        /// </summary>
+        /// <remarks>
+        /// This overload is the composition entry point a host uses when it
+        /// wants the PubSub capture tools alongside other bounded profiles. The
+        /// key-loading decode tool is still gated by
+        /// <paramref name="diagnosticsToolsEnabled"/>.
+        /// </remarks>
+        /// <param name="mcpServerBuilder">The MCP server builder.</param>
+        /// <param name="toolProfiles">The composed set of profiles.</param>
+        /// <param name="diagnosticsToolsEnabled">
+        /// Whether the key-loading decode tool is opted in.
+        /// </param>
+        /// <returns>The builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="mcpServerBuilder"/> is <c>null</c>.
+        /// </exception>
+        public static IMcpServerBuilder WithOpcUaPubSubDiagnosticsTools(
+            this IMcpServerBuilder mcpServerBuilder,
+            McpToolProfileSet toolProfiles,
+            bool diagnosticsToolsEnabled)
+        {
+            ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+
+            if (!toolProfiles.Contains(McpToolProfile.PubSub) &&
+                !toolProfiles.Contains(McpToolProfile.Full))
+            {
+                return mcpServerBuilder;
+            }
+
+            mcpServerBuilder.WithTools<PubSubCaptureTools>();
+            if (diagnosticsToolsEnabled)
+            {
+                mcpServerBuilder.WithTools<PubSubDecodeTools>();
+            }
+            return mcpServerBuilder;
+        }
     }
 }

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using Opc.Ua.Mcp.Tools;
@@ -204,6 +205,161 @@ namespace Opc.Ua.Mcp
 
             mcpServerBuilder.WithResources<SessionResources>();
             return mcpServerBuilder;
+        }
+
+        /// <summary>
+        /// Registers the Part 4 tools that satisfy the composed set of
+        /// profiles in <paramref name="toolProfiles"/>, together with the
+        /// session resources.
+        /// </summary>
+        /// <remarks>
+        /// This overload is the composition entry point a host uses when it
+        /// wants tools from more than one bounded profile - a vision-guided
+        /// pick-and-place agent that has to both see through the
+        /// <c>Vision</c> tools and command a robot through the <c>Robotics</c>
+        /// tools, for example. Every profile in the set that owns a Part 4
+        /// tool set contributes it, deduplicated by tool type. Profiles that
+        /// only rely on Part 4 tools indirectly - <see cref="McpToolProfile.Vision"/>,
+        /// <see cref="McpToolProfile.Robotics"/> and <see cref="McpToolProfile.Diagnostics"/>
+        /// - cause <see cref="Tools.ConnectionTools"/> to be registered exactly once
+        /// through <see cref="WithOpcUaConnectionTools(IMcpServerBuilder)"/>, so
+        /// composing Vision and Robotics on the same builder does not register
+        /// the connection tools twice.
+        /// </remarks>
+        /// <param name="mcpServerBuilder">The MCP server builder.</param>
+        /// <param name="toolProfiles">The composed set of profiles.</param>
+        /// <returns>The builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="mcpServerBuilder"/> is <c>null</c>.
+        /// </exception>
+        public static IMcpServerBuilder WithOpcUaCoreTools(
+            this IMcpServerBuilder mcpServerBuilder,
+            McpToolProfileSet toolProfiles)
+        {
+            ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+
+            if (toolProfiles.Contains(McpToolProfile.Full))
+            {
+                AddFullTools(mcpServerBuilder);
+            }
+            else
+            {
+                var registered = new HashSet<Type>();
+                if (toolProfiles.Contains(McpToolProfile.Services))
+                {
+                    AddServiceToolTypes(registered);
+                }
+                if (toolProfiles.Contains(McpToolProfile.Administration))
+                {
+                    AddAdministrationToolTypes(registered);
+                }
+                if (toolProfiles.Contains(McpToolProfile.Core))
+                {
+                    AddCoreToolTypes(registered);
+                }
+                // ConnectionTools is registered once through the shared helper
+                // below, so remove it from the set of tools to register here
+                // even when a Part 4 profile listed it as owned.
+                registered.Remove(typeof(ConnectionTools));
+                foreach (Type toolType in registered)
+                {
+                    mcpServerBuilder.WithTools([toolType], serializerOptions: null);
+                }
+            }
+
+            if (NeedsConnectionTools(toolProfiles))
+            {
+                mcpServerBuilder.WithOpcUaConnectionTools();
+            }
+
+            mcpServerBuilder.WithResources<SessionResources>();
+            return mcpServerBuilder;
+        }
+
+        /// <summary>
+        /// Registers <see cref="Tools.ConnectionTools"/> at most once on the
+        /// supplied builder, so several tool packages composed on the same MCP
+        /// server share one set of connection tools instead of registering
+        /// their own.
+        /// </summary>
+        /// <remarks>
+        /// Every session-scoped OPC UA tool - Part 4 services, Vision,
+        /// Robotics and Diagnostics - resolves a named session that only the
+        /// connection tools can open, so a composed host has to expose them.
+        /// This method uses a marker service on <see cref="IMcpServerBuilder.Services"/>
+        /// to detect a prior registration on the same builder and skip a
+        /// second one. Each package's <c>McpToolProfileSet</c> overload calls
+        /// it, so composing Vision and Robotics yields one <c>Connect</c>
+        /// entry rather than two.
+        /// </remarks>
+        /// <param name="mcpServerBuilder">The MCP server builder.</param>
+        /// <returns>The builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="mcpServerBuilder"/> is <c>null</c>.
+        /// </exception>
+        public static IMcpServerBuilder WithOpcUaConnectionTools(
+            this IMcpServerBuilder mcpServerBuilder)
+        {
+            ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+
+            IServiceCollection services = mcpServerBuilder.Services;
+            for (int i = 0; i < services.Count; i++)
+            {
+                if (services[i].ServiceType == typeof(ConnectionToolsMarker))
+                {
+                    return mcpServerBuilder;
+                }
+            }
+
+            services.AddSingleton<ConnectionToolsMarker>();
+            return mcpServerBuilder.WithTools<ConnectionTools>();
+        }
+
+        internal static bool NeedsConnectionTools(McpToolProfileSet toolProfiles)
+        {
+            return toolProfiles.Contains(McpToolProfile.Core)
+                || toolProfiles.Contains(McpToolProfile.Services)
+                || toolProfiles.Contains(McpToolProfile.Administration)
+                || toolProfiles.Contains(McpToolProfile.Diagnostics)
+                || toolProfiles.Contains(McpToolProfile.Robotics)
+                || toolProfiles.Contains(McpToolProfile.Vision)
+                || toolProfiles.Contains(McpToolProfile.Full);
+        }
+
+        private static void AddCoreToolTypes(HashSet<Type> registered)
+        {
+            registered.Add(typeof(ConfigurationReadTools));
+            registered.Add(typeof(ConfigurationUpdateTools));
+            registered.Add(typeof(ConnectionTools));
+            registered.Add(typeof(ConvenienceTools));
+        }
+
+        private static void AddServiceToolTypes(HashSet<Type> registered)
+        {
+            registered.Add(typeof(AttributeServiceTools));
+            registered.Add(typeof(ConfigurationReadTools));
+            registered.Add(typeof(ConfigurationUpdateTools));
+            registered.Add(typeof(ConnectionTools));
+            registered.Add(typeof(ConvenienceTools));
+            registered.Add(typeof(DiscoveryServiceTools));
+            registered.Add(typeof(MethodServiceTools));
+            registered.Add(typeof(MonitoredItemServiceTools));
+            registered.Add(typeof(NodeManagementServiceTools));
+            registered.Add(typeof(SubscriptionServiceTools));
+            registered.Add(typeof(ViewServiceTools));
+        }
+
+        private static void AddAdministrationToolTypes(HashSet<Type> registered)
+        {
+            registered.Add(typeof(ConfigurationReadTools));
+            registered.Add(typeof(ConfigurationUpdateTools));
+            registered.Add(typeof(ConnectionTools));
+            registered.Add(typeof(NodeSetExportTools));
+            registered.Add(typeof(PkiTools));
+        }
+
+        private sealed class ConnectionToolsMarker
+        {
         }
 
         private static void AddCoreTools(IMcpServerBuilder mcpServerBuilder)
