@@ -59,6 +59,12 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         public const string UA0023 = "UA0023";
         public const string UA0024 = "UA0024";
         public const string UA0025 = "UA0025";
+        public const string UA0026 = "UA0026";
+
+        /// <summary>
+        /// NodeBrowser.DataLock was removed: a browser is single-consumer in 2.0.
+        /// </summary>
+        public const string UA0027 = "UA0027";
 
         /// <summary>The diagnostic category every UA00xx rule belongs to.</summary>
         public const string Category = "Migration";

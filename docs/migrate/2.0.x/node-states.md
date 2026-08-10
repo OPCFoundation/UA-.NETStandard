@@ -178,7 +178,7 @@ already do. See
 
 Custom node managers that implement `INodeManager` / `INodeManager2` **directly** (not via `CustomNodeManager2`) silently lose the new behavior: the server probes for `INodeManager3` at the call site, and node managers that do not implement it fall through to the legacy code path. This is not a build break - it is a silent feature-availability regression. Either derive from `CustomNodeManager2` or implement `INodeManager3` explicitly to participate in role-permission evaluation and the new method-resolution contract.
 
-### NodeState guards itself; NodeBrowser is single-consumer (UA0025)
+### NodeState guards itself; NodeBrowser is single-consumer (UA0027)
 
 In 1.5.378 a caller wanting a consistent view of a node took a lock on the node
 instance itself — `lock (source)` — and `NodeBrowser` handed its own lock to
@@ -257,7 +257,7 @@ of delegating to `base.CreateBrowser` must fill it through the new
 lock held, so an override must not block on external work such as I/O; defer
 that to the browser's own `Next()`.
 
-Analyzer `UA0025` reports every remaining `NodeBrowser.DataLock` reference.
+Analyzer `UA0027` reports every remaining `NodeBrowser.DataLock` reference.
 
 ## `INodeCache` changes
 

@@ -1066,7 +1066,7 @@ namespace Opc.Ua.Server
                     {
                         channelCert = Certificate.FromRawData(rawCert.RawData);
                     }
-                    channelAppUri = session.SessionDiagnostics?.ClientDescription?.ApplicationUri;
+                    channelAppUri = session.ClientApplicationUri;
                 }
                 catch (Exception ex)
                 {
@@ -1816,7 +1816,7 @@ namespace Opc.Ua.Server
                 return session.ClientCertificate.Thumbprint;
             }
 
-            string? applicationUri = session?.SessionDiagnostics?.ClientDescription?.ApplicationUri;
+            string? applicationUri = session?.ClientApplicationUri;
             if (!string.IsNullOrEmpty(applicationUri))
             {
                 return applicationUri!;

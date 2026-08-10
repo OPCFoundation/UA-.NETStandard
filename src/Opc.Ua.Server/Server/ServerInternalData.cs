@@ -568,10 +568,17 @@ namespace Opc.Ua.Server
             // through a synchronous adapter. A manager that already implements INodeManager
             // is its own adapter, so the two lists overlap and the capability may sit on
             // either face; both are searched and the overlap is removed.
-            return nodeManager.AsyncNodeManagers
-                .OfType<T>()
-                .Concat(nodeManager.NodeManagers.OfType<T>())
-                .Distinct();
+            //
+            // The overlap is the *same instance* appearing twice, so identity is the only
+            // correct comparison. Distinct() would use EqualityComparer<T>.Default and
+            // honour an Equals override on an implementation, silently collapsing two
+            // managers that merely compare equal.
+            List<T> asyncManagers = [.. nodeManager.AsyncNodeManagers.OfType<T>()];
+
+            return asyncManagers.Concat(
+                nodeManager.NodeManagers
+                    .OfType<T>()
+                    .Where(manager => !asyncManagers.Exists(known => ReferenceEquals(known, manager))));
         }
 
         /// <summary>
@@ -703,14 +710,14 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     return NonThreadSafeStatus.Value.State;
                 }
             }
             set
             {
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     NonThreadSafeStatus.Value.State = value;
                 }
@@ -754,8 +761,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Guards the server diagnostics. Never exposed: callers reach the diagnostics
-        /// through <see cref="UpdateServerDiagnostics"/>.
+        /// Guards the server diagnostics and the server status value, which is constructed
+        /// with this same lock so the two stay mutually exclusive. Never exposed: callers
+        /// reach the diagnostics through <see cref="UpdateServerDiagnostics"/>, and the
+        /// status through <see cref="CurrentState"/> and <see cref="UpdateServerStatus"/>.
         /// </summary>
         private readonly Lock m_diagnosticsLock = new();
 
@@ -789,7 +798,7 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     if (NonThreadSafeStatus.Value.State == ServerState.Running)
                     {
@@ -987,7 +996,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(action));
             }
 
-            lock (NonThreadSafeStatus.Lock)
+            lock (m_diagnosticsLock)
             {
                 action.Invoke(NonThreadSafeStatus);
             }
@@ -1320,7 +1329,7 @@ namespace Opc.Ua.Server
             BaseVariableValue variable,
             NodeState component)
         {
-            lock (NonThreadSafeStatus.Lock)
+            lock (m_diagnosticsLock)
             {
                 DateTime now = TimeProvider.GetUtcNow().UtcDateTime;
                 NonThreadSafeStatus.Timestamp = now;

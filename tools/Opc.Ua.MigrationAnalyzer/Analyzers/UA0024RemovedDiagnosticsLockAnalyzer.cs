@@ -125,20 +125,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 
         private static bool IsOrImplements(ITypeSymbol type, string interfaceName)
         {
-            if (type.Name == interfaceName)
-            {
-                return true;
-            }
-
-            foreach (INamedTypeSymbol implemented in type.AllInterfaces)
-            {
-                if (implemented.Name == interfaceName)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return TypeNames.IsOrImplements(type, interfaceName);
         }
 
         private static string ReplacementFor(string ownerType)

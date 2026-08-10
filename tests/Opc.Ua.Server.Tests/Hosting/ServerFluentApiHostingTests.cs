@@ -96,9 +96,14 @@ namespace Opc.Ua.Server.Tests.Hosting
         [Test]
         public async Task ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync()
         {
+            // Short root on purpose. A ClientAndServer application provisions
+            // ECC certificates too, and those file names carry the curve
+            // ("... [BrainpoolP256r1] [<thumbprint>].pfx"), which is long
+            // enough that a root named after this test method pushes the PFX
+            // past MAX_PATH. .NET Framework cannot open such a path at all.
             string pkiRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                nameof(ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync),
+                "cfgapp",
                 Guid.NewGuid().ToString("N"));
             using var certificateManager = new CertificateManager(
                 NUnitTelemetryContext.Create(isServer: true));

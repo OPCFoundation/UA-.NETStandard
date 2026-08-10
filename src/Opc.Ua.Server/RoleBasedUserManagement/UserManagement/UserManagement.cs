@@ -48,7 +48,7 @@ namespace Opc.Ua.Server.UserManagement
     /// Integrators that need persistence of the metadata implement
     /// <see cref="IUserManagement"/> directly and inject the instance via
     /// <see cref="StandardServer.CreateUserManagement"/>, or by registering it
-/// in the service container.
+    /// in the service container.
     /// </remarks>
     public sealed class UserManagement : IUserManagement, IDisposable
     {

@@ -210,11 +210,64 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void FindNodeManagersYieldsAManagerOnBothFacesOnce()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            // A manager that implements INodeManager is its own synchronous adapter, so
+            // the same instance appears on both faces.
+            var manager = new Mock<IAsyncNodeManager>();
+            INodeManager syncFace = manager.As<INodeManager>().Object;
+
+            data.SetNodeManager(CreateMasterNodeManager([manager.Object], [syncFace]));
+
+            Assert.That(
+                data.FindNodeManagers<IAsyncNodeManager>().ToList(),
+                Is.EqualTo(new[] { manager.Object }).AsCollection);
+        }
+
+        [Test]
+        public void FindNodeManagersYieldsEveryDistinctManager()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+            var asyncOnly = new Mock<IAsyncNodeManager>();
+            var syncManager = new Mock<INodeManager>();
+            IAsyncNodeManager syncAsAsync = syncManager.As<IAsyncNodeManager>().Object;
+
+            data.SetNodeManager(
+                CreateMasterNodeManager([asyncOnly.Object], [syncManager.Object]));
+
+            Assert.That(
+                data.FindNodeManagers<IAsyncNodeManager>().ToList(),
+                Is.EqualTo(new[] { asyncOnly.Object, syncAsAsync }).AsCollection);
+        }
+
+        [Test]
+        public void FindNodeManagersReturnsEmptyWhenNoNodeManagerIsSet()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(data.FindNodeManagers<IAsyncNodeManager>(), Is.Empty);
+        }
+
+        private static IMasterNodeManager CreateMasterNodeManager(
+            IAsyncNodeManager[] asyncNodeManagers,
+            INodeManager[] nodeManagers)
+        {
+            var mock = new Mock<IMasterNodeManager>();
+            mock.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
+            mock.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
+            mock.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null);
+            mock.Setup(m => m.AsyncNodeManagers).Returns(asyncNodeManagers);
+            mock.Setup(m => m.NodeManagers).Returns(nodeManagers);
+            return mock.Object;
+        }
+
+        [Test]
         public void SetMainNodeManagerFactoryStoresFactory()
         {
             using ServerInternalData data = CreateServerInternalData();
             var mockFactory = new Mock<IMainNodeManagerFactory>();
-
             data.SetMainNodeManagerFactory(mockFactory.Object);
 
             Assert.That(data.MainNodeManagerFactory, Is.SameAs(mockFactory.Object));

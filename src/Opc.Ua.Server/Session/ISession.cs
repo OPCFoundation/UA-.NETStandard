@@ -181,9 +181,15 @@ namespace Opc.Ua.Server
         string SecureChannelId { get; }
 
         /// <summary>
-        /// The diagnostics associated with the session.
+        /// The name the client gave this session when it created it.
         /// </summary>
-        SessionDiagnosticsDataType SessionDiagnostics { get; }
+        string SessionName { get; }
+
+        /// <summary>
+        /// The application URI of the client that owns this session, or <c>null</c> when the
+        /// client did not supply an application description.
+        /// </summary>
+        string? ClientApplicationUri { get; }
 
         /// <summary>
         /// Completes the asynchronous part of session creation by registering
