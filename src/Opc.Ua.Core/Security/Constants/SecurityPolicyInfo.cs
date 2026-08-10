@@ -70,6 +70,25 @@ namespace Opc.Ua
         public bool IsDeprecated { get; private set; }
 
         /// <summary>
+        /// Returns true if every algorithm the policy uses is approved for
+        /// validated cryptography.
+        /// </summary>
+        /// <remarks>
+        /// This lives with the policy rather than in a separate list so that
+        /// adding a policy forces the classification to be stated next to the
+        /// algorithms it is derived from. It is what
+        /// <see cref="CryptoCompliance"/> filters on under
+        /// <see cref="CryptoCompliancePolicy.FipsOnly"/>.
+        /// <para>
+        /// ChaCha20-Poly1305 is not a NIST approved algorithm. The brainpool
+        /// curves are absent from SP 800-186, as are Curve25519 and Curve448.
+        /// SHA-1, and therefore the P-SHA1 key derivation used by the two oldest
+        /// policies, is deprecated for new signatures by SP 800-131A.
+        /// </para>
+        /// </remarks>
+        public bool IsFipsApproved { get; private set; }
+
+        /// <summary>
         /// The symmetric signature algorithm to use.
         /// </summary>
         public SymmetricSignatureAlgorithm SymmetricSignatureAlgorithm { get; private set; }
@@ -352,6 +371,8 @@ namespace Opc.Ua
         /// </summary>
         public static readonly SecurityPolicyInfo None = new(SecurityPolicies.None)
         {
+            // No cryptography is performed, so there is nothing to withhold.
+            IsFipsApproved = true,
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 0,
             InitializationVectorLength = 0,
@@ -397,6 +418,7 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha1,
             IsDeprecated = true,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
@@ -424,6 +446,7 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha1,
             IsDeprecated = true,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
@@ -450,6 +473,7 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
             IsDeprecated = false,
+            IsFipsApproved = true,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
@@ -476,6 +500,7 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
             IsDeprecated = false,
+            IsFipsApproved = true,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
@@ -502,6 +527,7 @@ namespace Opc.Ua
             InitializationVectorLength = 128 / 8,
             SymmetricSignatureLength = 256 / 8,
             IsDeprecated = false,
+            IsFipsApproved = true,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
@@ -529,6 +555,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = false,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
@@ -556,6 +583,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
@@ -583,6 +611,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
@@ -610,6 +639,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = false,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
@@ -637,6 +667,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
@@ -664,6 +695,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
@@ -691,6 +723,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
             SecureChannelEnhancements = false,
             IsDeprecated = false,
+            IsFipsApproved = true,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
@@ -718,6 +751,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = true,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
@@ -745,6 +779,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
@@ -772,6 +807,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha384,
             SecureChannelEnhancements = false,
             IsDeprecated = false,
+            IsFipsApproved = true,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
@@ -799,6 +835,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = true,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
@@ -826,6 +863,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
@@ -853,6 +891,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
             SecureChannelEnhancements = false,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
@@ -880,6 +919,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
@@ -907,6 +947,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
@@ -934,6 +975,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha384,
             SecureChannelEnhancements = false,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
@@ -961,6 +1003,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes256Gcm,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
@@ -988,6 +1031,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
@@ -1015,6 +1059,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = true,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
@@ -1042,6 +1087,7 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
             IsDeprecated = false,
+            IsFipsApproved = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
     }

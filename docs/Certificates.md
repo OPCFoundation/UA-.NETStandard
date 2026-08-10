@@ -4,6 +4,8 @@ All required application certificates for OPC UA are created at the first start 
 
 The UA stack allows also for using CA issued application certificates and remote certificate store and trust list management with a *Global Discovery Server* using *Server Push*.
 
+Private keys do not have to live in a file or an OS certificate store. A key can be held in a TPM, a smart card, an HSM or a remote key service and never enter process memory. See [CryptoProvider](CryptoProvider.md) for pluggable cryptography and hardware-held keys, and the `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package for PKCS#11 tokens.
+
 ### Certificate stores
 
 The layout of the certificate stores for sample applications which store the certificates in the file system follow the recommended layout in the [specification](https://reference.opcfoundation.org/v104/GDS/docs/F.1/), where certificates are stored in a `certs` folder, private keys under a `private` folder and revocation lists under a `crl` folder with a `<root>` folder called `pki`.

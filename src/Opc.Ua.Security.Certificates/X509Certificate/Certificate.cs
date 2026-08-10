@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
@@ -90,10 +91,18 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="fileName">
         /// The path to a file containing DER or PEM encoded certificate data.
         /// </param>
+        /// <remarks>
+        /// The file is read before it is parsed rather than handing the path to
+        /// the platform loader. On Windows that loader reaches CryptoAPI, which
+        /// is not long-path aware, so a certificate sitting deeper than
+        /// <c>MAX_PATH</c> fails with <c>CryptographicException: The system
+        /// cannot find the path specified</c> even though the directory
+        /// enumeration that produced the path succeeded.
+        /// </remarks>
         public Certificate(string fileName)
         {
             m_core = new CertificateCore(
-                X509CertificateLoader.LoadCertificateFromFile(fileName));
+                X509CertificateLoader.LoadCertificate(File.ReadAllBytes(fileName)));
             Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
@@ -129,13 +138,18 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="keyStorageFlags">
         /// The storage flags to use when loading the certificate.
         /// </param>
+        /// <remarks>
+        /// Reads the file rather than passing the path to the platform loader,
+        /// for the same long-path reason described on
+        /// <see cref="Certificate(string)"/>.
+        /// </remarks>
         public Certificate(
             string fileName,
             ReadOnlySpan<char> password,
             X509KeyStorageFlags keyStorageFlags = default)
         {
-            m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12FromFile(
-                fileName, password, keyStorageFlags));
+            m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12(
+                File.ReadAllBytes(fileName), password, keyStorageFlags));
             Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
@@ -153,6 +167,35 @@ namespace Opc.Ua.Security.Certificates
         {
             m_core = new CertificateCore(certificate ??
                 throw new ArgumentNullException(nameof(certificate)));
+            Interlocked.Increment(ref s_instancesCreated);
+#if DEBUG
+            Track();
+#endif
+        }
+
+        /// <summary>
+        /// Private constructor that takes ownership of the provided
+        /// <see cref="X509Certificate2"/> and holds a private key alongside it
+        /// rather than attaching the key to the certificate.
+        /// </summary>
+        /// <param name="certificate">
+        /// The certificate to wrap. Must not be <c>null</c>.
+        /// </param>
+        /// <param name="detachedPrivateKey">
+        /// The private key held alongside the certificate.
+        /// </param>
+        /// <param name="ownsDetachedPrivateKey">
+        /// <c>true</c> if the key is disposed with the last reference.
+        /// </param>
+        private Certificate(
+            X509Certificate2 certificate,
+            AsymmetricAlgorithm detachedPrivateKey,
+            bool ownsDetachedPrivateKey)
+        {
+            m_core = new CertificateCore(
+                certificate ?? throw new ArgumentNullException(nameof(certificate)),
+                detachedPrivateKey,
+                ownsDetachedPrivateKey);
             Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
@@ -309,7 +352,19 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Whether the certificate has an associated private key.
         /// </summary>
-        public bool HasPrivateKey => X509.HasPrivateKey;
+        /// <remarks>
+        /// This is <c>true</c> both when the certificate itself owns a private
+        /// key and when a private key is held alongside it in detached form,
+        /// for example a key that resides in a TPM, an HSM or a remote key
+        /// service and can never be attached to the certificate object.
+        /// </remarks>
+        public bool HasPrivateKey => m_core.DetachedPrivateKey is not null || X509.HasPrivateKey;
+
+        /// <summary>
+        /// Whether the private key is held in detached form and therefore
+        /// cannot be exported with the certificate.
+        /// </summary>
+        public bool HasDetachedPrivateKey => m_core.DetachedPrivateKey is not null;
 
         /// <summary>
         /// The public key of the certificate.
@@ -387,6 +442,7 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The exported certificate bytes.</returns>
         public byte[] Export(X509ContentType contentType)
         {
+            ThrowIfDetachedKeyCannotBeExported(contentType);
             return X509.Export(contentType);
         }
 
@@ -399,6 +455,7 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The exported certificate bytes.</returns>
         public byte[] Export(X509ContentType contentType, ReadOnlySpan<char> password)
         {
+            ThrowIfDetachedKeyCannotBeExported(contentType);
 #if NETFRAMEWORK
             return X509.Export(contentType, new string(password.ToArray()));
 #else
@@ -414,6 +471,11 @@ namespace Opc.Ua.Security.Certificates
         /// </returns>
         public RSA? GetRSAPrivateKey()
         {
+            if (m_core.DetachedPrivateKey is RSA detached)
+            {
+                return new NonOwningRsa(detached);
+            }
+
             return X509.GetRSAPrivateKey();
         }
 
@@ -437,6 +499,11 @@ namespace Opc.Ua.Security.Certificates
         /// </returns>
         public ECDsa? GetECDsaPrivateKey()
         {
+            if (m_core.DetachedPrivateKey is ECDsa detached)
+            {
+                return new NonOwningECDsa(detached);
+            }
+
             return X509.GetECDsaPrivateKey();
         }
 
@@ -476,6 +543,116 @@ namespace Opc.Ua.Security.Certificates
         public Certificate CopyWithPrivateKey(ECDsa privateKey)
         {
             return new Certificate(X509.CopyWithPrivateKey(privateKey));
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="Certificate"/> that holds an RSA private key
+        /// alongside this certificate without attaching it to the certificate.
+        /// </summary>
+        /// <param name="privateKey">
+        /// The RSA private key to hold. Must not be <c>null</c>.
+        /// </param>
+        /// <param name="ownsPrivateKey">
+        /// <c>true</c> if the returned certificate should dispose
+        /// <paramref name="privateKey"/> when its last reference is released;
+        /// otherwise <c>false</c>.
+        /// </param>
+        /// <returns>
+        /// A new public-key-only <see cref="Certificate"/> that reports a private
+        /// key and returns it from <see cref="GetRSAPrivateKey"/>.
+        /// </returns>
+        /// <remarks>
+        /// Use this instead of <see cref="CopyWithPrivateKey(RSA)"/> when the key
+        /// cannot be attached to an <see cref="X509Certificate2"/>. That is the
+        /// case for every key whose private material is not extractable and which
+        /// is not a platform key object: on Windows
+        /// <c>X509Certificate2.CopyWithPrivateKey</c> only has fast paths for
+        /// <c>RSACng</c> and <c>RSACryptoServiceProvider</c>, and otherwise falls
+        /// back to exporting the private parameters, which a key held in a TPM,
+        /// an HSM, a PKCS#11 token or a remote key service will refuse.
+        /// <para>
+        /// The detached key is shared by every handle created with
+        /// <see cref="AddRef"/> and is disposed once, with the last handle, when
+        /// <paramref name="ownsPrivateKey"/> is <c>true</c>. Each call to
+        /// <see cref="GetRSAPrivateKey"/> returns an independent non owning view
+        /// that the caller may dispose safely.
+        /// </para>
+        /// </remarks>
+        public Certificate CopyWithDetachedPrivateKey(RSA privateKey, bool ownsPrivateKey = true)
+        {
+            return CreateWithDetachedPrivateKey(
+                privateKey ?? throw new ArgumentNullException(nameof(privateKey)),
+                ownsPrivateKey);
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="Certificate"/> that holds an ECDsa private key
+        /// alongside this certificate without attaching it to the certificate.
+        /// </summary>
+        /// <param name="privateKey">
+        /// The ECDsa private key to hold. Must not be <c>null</c>.
+        /// </param>
+        /// <param name="ownsPrivateKey">
+        /// <c>true</c> if the returned certificate should dispose
+        /// <paramref name="privateKey"/> when its last reference is released;
+        /// otherwise <c>false</c>.
+        /// </param>
+        /// <returns>
+        /// A new public-key-only <see cref="Certificate"/> that reports a private
+        /// key and returns it from <see cref="GetECDsaPrivateKey"/>.
+        /// </returns>
+        /// <remarks>
+        /// See <see cref="CopyWithDetachedPrivateKey(RSA, bool)"/> for the rationale.
+        /// </remarks>
+        public Certificate CopyWithDetachedPrivateKey(ECDsa privateKey, bool ownsPrivateKey = true)
+        {
+            return CreateWithDetachedPrivateKey(
+                privateKey ?? throw new ArgumentNullException(nameof(privateKey)),
+                ownsPrivateKey);
+        }
+
+        private Certificate CreateWithDetachedPrivateKey(
+            AsymmetricAlgorithm privateKey,
+            bool ownsPrivateKey)
+        {
+            // A fresh public-key-only certificate is loaded so that the new handle
+            // owns its own X509Certificate2 and never aliases this one.
+            return new Certificate(
+                X509CertificateLoader.LoadCertificate(X509.RawData),
+                privateKey,
+                ownsPrivateKey);
+        }
+
+        /// <summary>
+        /// Rejects an export that would silently drop a detached private key.
+        /// </summary>
+        /// <param name="contentType">The requested export format.</param>
+        /// <exception cref="CryptographicException">
+        /// Thrown when a key bearing format is requested and the private key is
+        /// held in detached form.
+        /// </exception>
+        /// <remarks>
+        /// The inner <see cref="X509Certificate2"/> of a detached key certificate
+        /// carries no private key, so a PKCS#12 export would succeed and quietly
+        /// produce a file without one. Failing loudly is safer: a key held in a
+        /// TPM, an HSM or a remote key service is not exportable by design, and a
+        /// caller that wanted the key would otherwise be handed a useless blob.
+        /// </remarks>
+        private void ThrowIfDetachedKeyCannotBeExported(X509ContentType contentType)
+        {
+            if (m_core.DetachedPrivateKey is null)
+            {
+                return;
+            }
+
+            // X509ContentType.Pkcs12 and X509ContentType.Pfx are the same value.
+            if (contentType == X509ContentType.Pfx)
+            {
+                throw new CryptographicException(
+                    "The private key is held in detached form and cannot be exported. " +
+                    "Export the certificate without the private key, or keep the key " +
+                    "where it resides.");
+            }
         }
 
         /// <summary>
@@ -737,15 +914,26 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private sealed class CertificateCore
         {
-            public CertificateCore(X509Certificate2 x509)
+            public CertificateCore(
+                X509Certificate2 x509,
+                AsymmetricAlgorithm? detachedPrivateKey = null,
+                bool ownsDetachedPrivateKey = true)
             {
                 X509 = x509;
+                DetachedPrivateKey = detachedPrivateKey;
+                m_ownsDetachedPrivateKey = ownsDetachedPrivateKey;
             }
 
             /// <summary>
             /// The wrapped certificate. Valid until the last reference is released.
             /// </summary>
             public X509Certificate2 X509 { get; }
+
+            /// <summary>
+            /// A private key held alongside the certificate rather than owned by
+            /// it, or <c>null</c> when the certificate owns its own key.
+            /// </summary>
+            public AsymmetricAlgorithm? DetachedPrivateKey { get; }
 
             /// <summary>
             /// The current number of owning handles. For diagnostics only.
@@ -780,10 +968,15 @@ namespace Opc.Ua.Security.Certificates
                 if (remaining == 0)
                 {
                     X509.Dispose();
+                    if (m_ownsDetachedPrivateKey)
+                    {
+                        DetachedPrivateKey?.Dispose();
+                    }
                     Interlocked.Increment(ref s_instancesDisposed);
                 }
             }
 
+            private readonly bool m_ownsDetachedPrivateKey;
             private int m_refCount = 1;
         }
 

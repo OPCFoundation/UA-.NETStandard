@@ -276,6 +276,30 @@ Deriving from `SessionManager` requires no change beyond renaming any
 `Shutdown` override: `ShutdownAsync` is `virtual` and the base
 implementation already awaits the monitor loop.
 
+## Migrating callers of the synchronous MonitoredNode2 notification wrappers
+
+`MonitoredNode2.OnReportEvent` and `MonitoredNode2.OnMonitoredNodeChanged`
+are `[Obsolete]`; use `OnReportEventAsync` and
+`OnMonitoredNodeChangedAsync`. Nothing in the stack wires the synchronous
+pair any more — notifiers are attached through
+`NodeState.OnReportEventAsync` and `NodeState.OnStateChangedAsync` — and
+both wrappers block the calling thread whenever the bounded notification
+channel is full, or whenever the node has an asynchronous read handler.
+Blocking there occupies a thread while waiting for a consumer that needs
+a thread of its own, which starves the thread pool under load.
+
+```csharp
+// before
+monitoredNode.OnReportEvent(context, node, e);
+
+// after
+await monitoredNode.OnReportEventAsync(context, node, e, cancellationToken)
+    .ConfigureAwait(false);
+```
+
+The wrappers still work and are unchanged in behaviour, so this is a
+warning to act on rather than a break.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default
