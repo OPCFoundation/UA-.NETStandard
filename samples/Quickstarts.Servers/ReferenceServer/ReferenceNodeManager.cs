@@ -199,6 +199,36 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
+        /// Loads the predefined nodes from the NodeSet2 model and then enables
+        /// the runtime history archiving behaviour, once every node has been
+        /// materialized and its reverse references established.
+        /// </summary>
+        protected override async ValueTask LoadPredefinedNodesAsync(
+            ISystemContext context,
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+        {
+            await base.LoadPredefinedNodesAsync(context, externalReferences, cancellationToken).ConfigureAwait(false);
+
+            // Prio 1 / Prio 2 not possible: history archiving registers an
+            // in-memory historian provider, seeds the sample history and
+            // refreshes the HistoricalDataConfiguration companion objects at
+            // runtime. The Historizing attribute, the history access-level bits
+            // and the companion nodes are all baked into the NodeSet2 model; the
+            // archive contents and provider wiring remain runtime services and
+            // therefore run here, after every predefined node has been loaded.
+            await m_semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await EnableHistoryArchivingAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_semaphore.Release();
+            }
+        }
+
+        /// <summary>
         /// Does any initialization required before the address space can be used.
         /// </summary>
         /// <remarks>
@@ -257,13 +287,6 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken).ConfigureAwait(false);
-
-                // Prio 1 / Prio 2 not possible: history archiving registers an
-                // in-memory historian provider, seeds the sample history and
-                // installs the HistoricalDataConfiguration companion objects at
-                // runtime. The Historizing attribute is baked into the model;
-                // the archive contents and provider wiring are runtime services.
-                await EnableHistoryArchivingAsync(cancellationToken).ConfigureAwait(false);
 
                 if (m_simulationEnabled)
                 {
@@ -1069,13 +1092,12 @@ namespace Quickstarts.ReferenceServer
                     continue;
                 }
 
-                variable.Historizing = true;
-                if (!AccessRightsHistoricalNodeNames.Contains(name))
-                {
-                    variable.AccessLevel = (byte)(variable.AccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
-                    variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
-                }
-
+                // Prio 1 (model): Historizing and the HistoryRead / HistoryWrite
+                // access-level bits are baked into the NodeSet2 model (the
+                // historized nodes carry Historizing="true" and AccessLevel="15";
+                // UserAccessLevel is derived from AccessLevel by the loader when
+                // the attribute is absent). Only the runtime historian
+                // registration and seeding remain here.
                 m_historian.Register(
                     nodeId,
                     name == NodeDoesNotSupportServerTimestampNodeName
