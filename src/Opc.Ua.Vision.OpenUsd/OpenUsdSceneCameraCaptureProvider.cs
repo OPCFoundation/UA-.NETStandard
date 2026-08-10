@@ -59,15 +59,6 @@ namespace Opc.Ua.Vision.OpenUsd
     /// </remarks>
     public sealed class OpenUsdSceneCameraCaptureProvider : ISceneCameraCaptureProvider, IDisposable
     {
-        private readonly OpenUsdSceneCaptureOptions m_options;
-        private readonly ILogger m_logger;
-        private readonly string? m_pluginPath;
-        private readonly ISilkGraphicsDevice? m_device;
-        private readonly SceneCameraCaptureBackend m_backend;
-        private readonly string? m_backendUnavailableReason;
-        private readonly SemaphoreSlim m_captureGate = new(1, 1);
-        private int m_disposed;
-
         /// <summary>
         /// Initializes a provider with default options and no telemetry.
         /// </summary>
@@ -157,6 +148,21 @@ namespace Opc.Ua.Vision.OpenUsd
             {
                 m_captureGate.Release();
             }
+        }
+
+        /// <summary>
+        /// Disposes the shared graphics device and internal synchronization
+        /// primitive. In-flight captures are allowed to finish; further
+        /// calls throw <see cref="ObjectDisposedException"/>.
+        /// </summary>
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+            m_captureGate.Dispose();
+            m_device?.Dispose();
         }
 
         private SceneCameraCaptureResult CaptureCore(
@@ -365,19 +371,13 @@ namespace Opc.Ua.Vision.OpenUsd
             }
         }
 
-        /// <summary>
-        /// Disposes the shared graphics device and internal synchronization
-        /// primitive. In-flight captures are allowed to finish; further
-        /// calls throw <see cref="ObjectDisposedException"/>.
-        /// </summary>
-        public void Dispose()
-        {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
-            {
-                return;
-            }
-            m_captureGate.Dispose();
-            m_device?.Dispose();
-        }
+        private readonly OpenUsdSceneCaptureOptions m_options;
+        private readonly ILogger m_logger;
+        private readonly string? m_pluginPath;
+        private readonly ISilkGraphicsDevice? m_device;
+        private readonly SceneCameraCaptureBackend m_backend;
+        private readonly string? m_backendUnavailableReason;
+        private readonly SemaphoreSlim m_captureGate = new(1, 1);
+        private int m_disposed;
     }
 }

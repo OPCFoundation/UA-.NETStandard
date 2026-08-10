@@ -163,7 +163,7 @@ namespace Opc.Ua.Vision.Client
 
         public async ValueTask<ArrayOf<NodeId>> ResolveChildrenAsync(
             NodeId parent,
-            IReadOnlyList<string> browseNames,
+            ArrayOf<string> browseNames,
             ushort namespaceIndex,
             CancellationToken cancellationToken)
         {
@@ -216,7 +216,7 @@ namespace Opc.Ua.Vision.Client
 
         public async ValueTask<ArrayOf<NodeId>> ResolveChildrenAsync(
             NodeId parent,
-            IReadOnlyList<string> browseNames,
+            ArrayOf<string> browseNames,
             CancellationToken cancellationToken)
         {
             if (!TryGetVisionNamespaceIndex(out ushort ns))
@@ -243,7 +243,7 @@ namespace Opc.Ua.Vision.Client
         }
 
         public async ValueTask<ArrayOf<DataValue>> ReadValuesAsync(
-            IReadOnlyList<NodeId> nodeIds, CancellationToken cancellationToken)
+            ArrayOf<NodeId> nodeIds, CancellationToken cancellationToken)
         {
             var reads = new List<ReadValueId>(nodeIds.Count);
             for (int ii = 0; ii < nodeIds.Count; ii++)

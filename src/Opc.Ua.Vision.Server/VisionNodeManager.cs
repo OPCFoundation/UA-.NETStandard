@@ -332,9 +332,13 @@ namespace Opc.Ua.Vision.Server
 
         private ArrayOf<string> ComputeServerProfileArrayEntries()
         {
-            IReadOnlyList<string> facets = VisionFacetCalculator.Compute(m_registry);
+            ArrayOf<string> facets = VisionFacetCalculator.Compute(m_registry);
             var entries = new List<string>();
-            var facetNames = new HashSet<string>(facets, StringComparer.Ordinal);
+            var facetNames = new HashSet<string>(StringComparer.Ordinal);
+            for (int ii = 0; ii < facets.Count; ii++)
+            {
+                facetNames.Add(facets[ii]);
+            }
             ArrayOf<string> additional = m_options.AdditionalFacets;
             for (int ii = 0; ii < additional.Count; ii++)
             {
@@ -343,7 +347,7 @@ namespace Opc.Ua.Vision.Server
                     facetNames.Add(additional[ii]);
                 }
             }
-            IReadOnlyList<string> profiles = VisionFacetCalculator.ComputeProfiles(facetNames);
+            ArrayOf<string> profiles = VisionFacetCalculator.ComputeProfiles(facetNames.ToArrayOf());
             for (int ii = 0; ii < profiles.Count; ii++)
             {
                 if (!entries.Contains(profiles[ii]))

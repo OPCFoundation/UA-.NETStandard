@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Vision.Server
 {
@@ -47,7 +46,7 @@ namespace Opc.Ua.Vision.Server
     /// </remarks>
     internal static class VisionFacetCalculator
     {
-        public static IReadOnlyList<string> Compute(VisionRegistry registry)
+        public static ArrayOf<string> Compute(VisionRegistry registry)
         {
             if (registry == null)
             {
@@ -70,37 +69,41 @@ namespace Opc.Ua.Vision.Server
             }
             var result = new List<string>(facets);
             result.Sort(StringComparer.Ordinal);
-            return result;
+            return result.ToArrayOf();
         }
 
-        public static IReadOnlyList<string> ComputeProfiles(IReadOnlyCollection<string> facets)
+        public static ArrayOf<string> ComputeProfiles(ArrayOf<string> facets)
         {
-            if (facets == null)
+            var lookup = new HashSet<string>(StringComparer.Ordinal);
+            for (int ii = 0; ii < facets.Count; ii++)
             {
-                throw new ArgumentNullException(nameof(facets));
+                if (!string.IsNullOrEmpty(facets[ii]))
+                {
+                    lookup.Add(facets[ii]);
+                }
             }
             var profiles = new List<string>();
-            if (facets.Contains(VisionConformanceUris.FacetNames.Base) &&
-                facets.Contains(VisionConformanceUris.FacetNames.MediaJpeg) &&
-                facets.Contains(VisionConformanceUris.FacetNames.MediaRtsp))
+            if (lookup.Contains(VisionConformanceUris.FacetNames.Base) &&
+                lookup.Contains(VisionConformanceUris.FacetNames.MediaJpeg) &&
+                lookup.Contains(VisionConformanceUris.FacetNames.MediaRtsp))
             {
                 profiles.Add(VisionConformanceUris.Profiles.Basic);
             }
-            if (facets.Contains(VisionConformanceUris.FacetNames.ResultInspection) &&
-                facets.Contains(VisionConformanceUris.FacetNames.Feedback))
+            if (lookup.Contains(VisionConformanceUris.FacetNames.ResultInspection) &&
+                lookup.Contains(VisionConformanceUris.FacetNames.Feedback))
             {
                 profiles.Add(VisionConformanceUris.Profiles.Inspection);
             }
-            if (facets.Contains(VisionConformanceUris.FacetNames.ResultDetection) &&
-                facets.Contains(VisionConformanceUris.FacetNames.Feedback))
+            if (lookup.Contains(VisionConformanceUris.FacetNames.ResultDetection) &&
+                lookup.Contains(VisionConformanceUris.FacetNames.Feedback))
             {
                 profiles.Add(VisionConformanceUris.Profiles.Detection);
             }
-            if (facets.Contains(VisionConformanceUris.FacetNames.InferenceOnServer))
+            if (lookup.Contains(VisionConformanceUris.FacetNames.InferenceOnServer))
             {
                 profiles.Add(VisionConformanceUris.Profiles.Inference);
             }
-            return profiles;
+            return profiles.ToArrayOf();
         }
     }
 }
