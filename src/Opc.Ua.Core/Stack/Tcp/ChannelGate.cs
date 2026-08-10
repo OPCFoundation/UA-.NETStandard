@@ -245,18 +245,29 @@ namespace Opc.Ua.Bindings
 
         private void Leave(Holder holder, bool owner)
         {
-            if (--holder.Depth > 0)
+            if (!owner)
             {
+                // A nested entry never releases. Depth is clamped because a
+                // context that inherited this holder may leave after the owner
+                // already released it.
+                if (holder.Depth > 0)
+                {
+                    holder.Depth--;
+                }
                 return;
             }
 
-            if (owner)
-            {
-                m_current.Value = null;
-                m_owner = null;
-                m_owningThreadId = 0;
-                m_semaphore.Release();
-            }
+            // The owner releases when it leaves, whatever the depth says.
+            // Liveness must not depend on that count: it lives in an AsyncLocal,
+            // so it is shared with every context forked from the owner's, and an
+            // increment from one of those would otherwise leave the owner's own
+            // exit believing the region is still occupied — stranding the
+            // permit and hanging every later entry on this channel.
+            holder.Depth = 0;
+            m_current.Value = null;
+            m_owner = null;
+            m_owningThreadId = 0;
+            m_semaphore.Release();
         }
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);

@@ -52,9 +52,51 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
     public class ChannelGateTests
     {
         [Test]
-        public void EnterIsReentrantOnTheSameContext()
+        [CancelAfter(30000)]
+        public async Task InheritedReentryDoesNotStrandTheGateAsync()
         {
             var gate = new ChannelGate();
+            var forkEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var ownerLeaving = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            Task fork;
+
+            using (gate.Enter())
+            {
+                // Work started from inside the guarded region without disclaiming
+                // inherits the holder. A timer callback whose timer was created
+                // here behaves exactly like this.
+                fork = Task.Run(async () =>
+                {
+                    using (gate.Enter())
+                    {
+                        forkEntered.TrySetResult(true);
+                        await ownerLeaving.Task.ConfigureAwait(false);
+                    }
+                });
+
+                await forkEntered.Task.ConfigureAwait(false);
+            }
+
+            // The owner has left, so the gate must be free even though the forked
+            // context is still inside its own nested entry.
+            ownerLeaving.TrySetResult(true);
+
+            using (ChannelGate.Releaser entered = await gate
+                .EnterAsync(new CancellationTokenSource(TimeSpan.FromSeconds(10)).Token)
+                .ConfigureAwait(false))
+            {
+                Assert.That(gate.IsHeldByCurrentContext, Is.True);
+            }
+
+            await fork.ConfigureAwait(false);
+        }
+
+        [Test]
+        public void EnterIsReentrantOnTheSameContext()
+        {            var gate = new ChannelGate();
 
             using (gate.Enter())
             {
