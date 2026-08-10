@@ -24,6 +24,7 @@
     <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
     <Project Path="samples/Vision/BinPickingCell/BinPickingCell.csproj" />
+    <Project Path="samples/Vision/BinPickingClient/BinPickingClient.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
   </Folder>

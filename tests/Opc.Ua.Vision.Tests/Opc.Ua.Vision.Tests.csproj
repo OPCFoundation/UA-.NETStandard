@@ -43,5 +43,7 @@
     <Compile Remove="PngEncoderTests.cs" />
     <Compile Remove="SceneCameraCaptureProviderTests.cs" />
     <Compile Remove="SceneCameraCaptureTypesTests.cs" />
+    <Compile Remove="OpenUsdSceneCameraCaptureServiceCollectionExtensionsTests.cs" />
+    <Compile Remove="OpenUsdCaptureLogTests.cs" />
   </ItemGroup>
 </Project>
