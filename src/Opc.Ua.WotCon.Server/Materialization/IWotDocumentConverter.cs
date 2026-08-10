@@ -149,7 +149,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 // conversion are the first part of the local context, so a
                 // Section 5.2.1 type binding naming a type another document in
                 // the same registry projects resolves without an AddressSpace.
-                var nodeResolver = new SnapshotWotNodeResolver(snapshot, contents, m_options);
+                //
+                // A refresh converts every resource of a snapshot in turn, so
+                // the resolver is reused for as long as the snapshot it indexes
+                // is the one being converted. Building it per conversion would
+                // make a refresh cost one registry-wide index per document.
+                SnapshotWotNodeResolver nodeResolver = GetNodeResolver(snapshot, contents);
                 // One resolution context per top-level conversion, seeded from
                 // the configured converter options, so depth/document/byte
                 // bounds and cycle detection apply across every link resolved
@@ -185,6 +190,35 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Gets the resolver for the supplied snapshot, reusing the previous
+        /// one while the snapshot is unchanged.
+        /// </summary>
+        /// <remarks>
+        /// A snapshot is immutable and a refresh converts every one of its
+        /// resources in turn, so the sibling index is the same for all of them.
+        /// Rebuilding it per conversion would make a refresh parse the registry
+        /// once per document. Only the most recent snapshot is held, so nothing
+        /// accumulates as generations advance.
+        /// </remarks>
+        private SnapshotWotNodeResolver GetNodeResolver(
+            WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents)
+        {
+            lock (m_resolverLock)
+            {
+                if (m_nodeResolver is null ||
+                    !ReferenceEquals(m_nodeResolver.Snapshot, snapshot))
+                {
+                    m_nodeResolver = new SnapshotWotNodeResolver(
+                        snapshot, contents, m_options);
+                }
+                return m_nodeResolver;
+            }
+        }
+
         private readonly WotNodeSetConverterOptions m_options;
+        private readonly System.Threading.Lock m_resolverLock = new();
+        private SnapshotWotNodeResolver? m_nodeResolver;
     }
 }

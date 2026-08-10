@@ -866,12 +866,22 @@ several nodes; an `ExpandedNodeId` is definitive and matches one or none.
 | `NullWotNodeResolver` | holds nothing; the default | `Opc.Ua.Types` |
 
 `SnapshotWotNodeResolver` indexes the registry snapshot being converted. Only
-Thing Models are indexed: a Thing Model projects its root as a `UAObjectType`
-and so is what a type binding can name, whereas a Thing Description projects an
-instance and is never a type-binding target. The identity it indexes by is
+Thing Models are indexed, and the decision uses the *registry's* `Kind` rather
+than the document's own content: a Thing Model projects its root as a
+`UAObjectType` and so is what a type binding can name, whereas a Thing
+Description projects an instance and is never a type-binding target. Trusting
+the registry Kind means a party who can only submit Thing Descriptions cannot
+plant a type for another document to bind to. The identity it indexes by is
 derived through `WotNodeSetConverter.TryDescribeProjectedType`, the same rules
 the conversion itself uses, so an index entry and the projected node cannot
 disagree.
+
+The index is built once per snapshot, not once per conversion — a refresh
+converts every resource of one immutable snapshot in turn, so rebuilding it per
+document would make a refresh parse the registry once per document. It is also
+bounded by the same `MaxResolverDocuments` / `MaxResolverTotalBytes` budget the
+rest of a conversion runs under, so a large registry cannot turn one conversion
+into unbounded parsing work.
 
 Two behaviours are deliberate and worth knowing:
 

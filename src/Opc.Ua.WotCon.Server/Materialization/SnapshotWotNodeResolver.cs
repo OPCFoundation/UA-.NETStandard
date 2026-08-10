@@ -84,7 +84,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             m_contents = contents ?? throw new ArgumentNullException(nameof(contents));
             m_options = options;
+            m_maxDocuments = options?.MaxResolverDocuments ?? 256;
+            m_maxTotalBytes = options?.MaxResolverTotalBytes ?? 128L * 1024 * 1024;
         }
+
+        /// <summary>
+        /// Gets the snapshot this resolver indexes, so a caller can tell
+        /// whether an existing instance still applies.
+        /// </summary>
+        public WotRegistrySnapshot Snapshot => m_snapshot;
 
         /// <inheritdoc/>
         public ValueTask<bool> HoldsNamespaceAsync(
@@ -159,14 +167,35 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
 
                 var built = new SnapshotIndex();
+                long budget = 0;
+                int indexed = 0;
                 foreach (WotResource resource in m_snapshot.AllResources())
                 {
+                    // Only a Thing Model projects a type, so a Thing
+                    // Description's bytes are never read. Filtering on the
+                    // registry's own Kind avoids parsing a document only to
+                    // discard it.
+                    if (resource.Kind != WoTDocumentKindEnum.ThingModel)
+                    {
+                        continue;
+                    }
+
                     WotResourceVersion? version = resource.DefaultVersion;
                     if (version is null ||
                         !m_contents.TryGetValue(version.DigestHex, out ByteString content))
                     {
                         continue;
                     }
+
+                    // The same budget the rest of a conversion runs under also
+                    // bounds the indexing, so a large registry cannot turn one
+                    // conversion into unbounded work.
+                    if (indexed >= m_maxDocuments || budget > m_maxTotalBytes)
+                    {
+                        break;
+                    }
+                    indexed++;
+                    budget += content.Length;
 
                     // A sibling that cannot be parsed simply does not
                     // contribute a name. Its own conversion reports why.
@@ -237,6 +266,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly WotRegistrySnapshot m_snapshot;
         private readonly IReadOnlyDictionary<string, ByteString> m_contents;
         private readonly WotNodeSetConverterOptions? m_options;
+        private readonly int m_maxDocuments;
+        private readonly long m_maxTotalBytes;
         private readonly System.Threading.Lock m_lock = new();
         private volatile SnapshotIndex? m_index;
     }

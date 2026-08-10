@@ -191,6 +191,85 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// The registry's Kind decides what is indexed, not the document's own
+        /// content. A resource registered as a Thing Description is never
+        /// indexed even when its bytes claim to be a Thing Model, so a party
+        /// who can only submit Thing Descriptions cannot plant a type for
+        /// another document to bind to.
+        /// </summary>
+        [Test]
+        public async Task DoesNotIndexAThingDescriptionWhoseContentClaimsToBeAThingModelAsync()
+        {
+            var byDigest = new Dictionary<string, ByteString>(System.StringComparer.Ordinal);
+            using var service = new WotRegistryService();
+
+            // Registered as a Thing Description, but the bytes are a Thing
+            // Model. Its content is present, so only the Kind check can
+            // exclude it.
+            ByteString disguised = ByteString.From(Tm("Tank", "i=1042"));
+            byDigest[WotContentDigest.ToHex(WotContentDigest.Compute(disguised))] = disguised;
+            await service.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "disguised",
+                Kind = WoTDocumentKindEnum.ThingDescription,
+                Content = disguised
+            }).ConfigureAwait(false);
+
+            var resolver = new SnapshotWotNodeResolver(service.Current, byDigest);
+
+            IReadOnlyList<WotResolvedNode> matches = await resolver
+                .ResolveByBrowseNameAsync(
+                    PumpNamespace, "Tank", WotExpectedNodeClass.ObjectType)
+                .ConfigureAwait(false);
+
+            Assert.That(matches, Is.Empty,
+                "A Thing Description must never be indexed, whatever its content claims.");
+        }
+
+        /// <summary>
+        /// The index is bounded by the same document budget the rest of a
+        /// conversion runs under, so a large registry cannot turn one
+        /// conversion into unbounded parsing work.
+        /// </summary>
+        [Test]
+        public async Task StopsIndexingAtTheDocumentBudgetAsync()
+        {
+            var byDigest = new Dictionary<string, ByteString>(System.StringComparer.Ordinal);
+            using var service = new WotRegistryService();
+            for (int ii = 0; ii < 6; ii++)
+            {
+                ByteString bytes = ByteString.From(Tm("Tank" + ii, "i=" + (1000 + ii)));
+                byDigest[WotContentDigest.ToHex(WotContentDigest.Compute(bytes))] = bytes;
+                await service.UpsertResourceAsync(new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingModels,
+                    ResourceId = "tank" + ii,
+                    Kind = WoTDocumentKindEnum.ThingModel,
+                    Content = bytes
+                }).ConfigureAwait(false);
+            }
+
+            var resolver = new SnapshotWotNodeResolver(
+                service.Current,
+                byDigest,
+                new WotNodeSetConverterOptions { MaxResolverDocuments = 2 });
+
+            int resolved = 0;
+            for (int ii = 0; ii < 6; ii++)
+            {
+                IReadOnlyList<WotResolvedNode> matches = await resolver
+                    .ResolveByBrowseNameAsync(
+                        PumpNamespace, "Tank" + ii, WotExpectedNodeClass.ObjectType)
+                    .ConfigureAwait(false);
+                resolved += matches.Count;
+            }
+
+            Assert.That(resolved, Is.EqualTo(2),
+                "Indexing must stop at the configured document budget.");
+        }
+
+        /// <summary>
         /// Builds a resolver over a snapshot holding the supplied documents.
         /// </summary>
         private static async Task<SnapshotWotNodeResolver> ResolverAsync(
