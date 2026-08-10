@@ -34,6 +34,7 @@ using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -163,6 +164,30 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void Replace(string sourcePath, string destinationPath)
+        {
+            if (!m_files.TryRemove(sourcePath, out VirtualFile? staged))
+            {
+                throw new FileNotFoundException(
+                    "The staged file to publish does not exist.",
+                    sourcePath);
+            }
+
+            // Re-keying the whole entry publishes the file in one step, so a reader sees
+            // either the previous content or the new content and never a partial write.
+            VirtualFile? replaced = null;
+            m_files.AddOrUpdate(
+                destinationPath,
+                staged,
+                (_, existing) =>
+                {
+                    replaced = existing;
+                    return staged;
+                });
+            replaced?.Dispose();
+        }
+
+        /// <inheritdoc/>
         public DateTime GetLastWriteTime(string path)
         {
             if (m_files.TryGetValue(path, out VirtualFile? file))
@@ -213,6 +238,21 @@ namespace Opc.Ua
         private sealed class VirtualFile : IDisposable
         {
             /// <summary>
+            /// Address space reserved for a single in-memory file. This is a
+            /// reservation rather than an allocation - DelayAllocatePages
+            /// commits pages on demand - but the reservation still has to fit
+            /// in the process address space, and several files can be open at
+            /// once. It has to clear the largest single generated file: the
+            /// source generator writes whole model sources through this file
+            /// system and a large companion model already exceeds 32 MB, so
+            /// 64-bit processes reserve 256 MB. A 32-bit process has roughly
+            /// 2 GB of user address space in total, where a handful of 256 MB
+            /// reservations would exhaust it, so those reserve 64 MB.
+            /// </summary>
+            private static long MapReservationBytes
+                => IntPtr.Size == 4 ? 64L * 1024 * 1024 : 256L * 1024 * 1024;
+
+            /// <summary>
             /// Path of the file
             /// </summary>
             public string Path { get; }
@@ -259,7 +299,7 @@ namespace Opc.Ua
 
                     File = MemoryMappedFile.CreateNew(
                         GetMapName(),
-                        32 * 1024 * 1024,
+                        MapReservationBytes,
                         MemoryMappedFileAccess.ReadWrite,
                         MemoryMappedFileOptions.DelayAllocatePages,
                         HandleInheritability.None);

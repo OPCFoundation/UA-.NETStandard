@@ -497,9 +497,18 @@ namespace Opc.Ua
             }
             ReconnectPolicy = reconnectPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
             TimeProvider = timeProvider ?? TimeProvider.System;
+            BackgroundWork = new BackgroundTaskScope(nameof(ClientChannelManager), telemetry);
             m_certRotation = new ClientChannelManagerCertRotation(this);
             WireCertificateRotation();
         }
+
+        /// <summary>
+        /// Owns the background work the channel internals start but cannot await
+        /// inline, so it is drained before the manager goes away.
+        /// </summary>
+        internal BackgroundTaskScope BackgroundWork { get; }
+
+        BackgroundTaskScope IChannelEntryHost.BackgroundWork => BackgroundWork;
 
         /// <inheritdoc/>
         public ValueTask<IManagedTransportChannel> GetAsync(
@@ -743,14 +752,68 @@ namespace Opc.Ua
                 entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
             }
 
-            Task<bool> reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            Task<bool> reconnectTask;
+            try
+            {
+                reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            }
+            catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, sre, ct))
+            {
+                entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            }
+
             if (throwOnReconnectFailure)
             {
-                await AwaitReconnectResultAsync(reconnectTask).ConfigureAwait(false);
+                try
+                {
+                    await AwaitReconnectResultAsync(reconnectTask).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, sre, ct))
+                {
+                    entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                    await AwaitReconnectResultAsync(entry.RequestReconnectAsync(budget, ct))
+                        .ConfigureAwait(false);
+                }
                 return;
             }
 
-            _ = await reconnectTask.ConfigureAwait(false);
+            try
+            {
+                _ = await reconnectTask.ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, sre, ct))
+            {
+                entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                _ = await entry.RequestReconnectAsync(budget, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Whether a terminal reconnect failure is a lost race against a
+        /// concurrent close, in which case retrying on a freshly swapped entry
+        /// recovers transparently.
+        /// </summary>
+        /// <remarks>
+        /// A reconnect cycle that stopped because the reconnect policy ran out of
+        /// attempts, or because the caller's retry budget ran out of time, is a
+        /// deliberate terminal outcome rather than a race. It leaves the entry
+        /// <see cref="ChannelState.Faulted"/> with
+        /// <see cref="StatusCodes.BadSecureChannelClosed"/> - indistinguishable from a
+        /// lost race by state and status code alone - so the entry is asked directly.
+        /// Swapping and reconnecting after a deliberate stop would run a second,
+        /// unbudgeted cycle behind the swap back-off and defeat the very limit that
+        /// ended the first one.
+        /// </remarks>
+        private static bool IsTerminalReconnectRace(
+            ChannelEntry entry,
+            ServiceResultException sre,
+            CancellationToken ct)
+        {
+            return !ct.IsCancellationRequested &&
+                !entry.ReconnectStoppedByRetryPolicy &&
+                sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                entry.State is ChannelState.Closed or ChannelState.Faulted;
         }
 
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(
@@ -1003,6 +1066,11 @@ namespace Opc.Ua
                 await entry.DisposeAsync(ChannelCloseReason.ManagerDisposed)
                     .ConfigureAwait(false);
             }
+
+            // Drain last: releasing a lease or tearing down an entry can still
+            // schedule background work, and none of it may outlive the manager
+            // whose state it touches.
+            await BackgroundWork.DisposeAsync().ConfigureAwait(false);
 
             m_meter?.Dispose();
             m_shutdownCts.Dispose();

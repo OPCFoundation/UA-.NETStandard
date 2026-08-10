@@ -31,14 +31,18 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Schema.Model;
+using Opc.Ua.SourceGeneration.Api.Tests;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
@@ -105,6 +109,38 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             // Assert
             Assert.That(generator, Is.Not.Null);
+        }
+
+        [TestCase(ModellingRule.Mandatory, true)]
+        [TestCase(ModellingRule.Optional, true)]
+        [TestCase(ModellingRule.None, false)]
+        [TestCase(ModellingRule.OptionalPlaceholder, false)]
+        public void HasFixedChildSlotRequiresFixedModellingRule(
+            ModellingRule modellingRule,
+            bool expected)
+        {
+            var type = new ObjectTypeDesign
+            {
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        new VariableDesign
+                        {
+                            SymbolicName = new System.Xml.XmlQualifiedName(
+                                "DefaultInstanceBrowseName",
+                                Types.Namespaces.OpcUa),
+                            ModellingRule = modellingRule
+                        }
+                    ]
+                }
+            };
+
+            Assert.That(
+                NodeStateGenerator.HasFixedChildSlot(
+                    type,
+                    "DefaultInstanceBrowseName"),
+                Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -203,6 +239,306 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Assert
             Assert.That(success, Is.True,
                 $"Generated NodeStates should compile without errors. Errors: {errorCount}, Warnings: {warnCount}");
+        }
+
+        [Test]
+        public void NodeSetMethodArgumentsGenerateTypedDelegatesResultsAndPlumbing()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            IModelDesign model = OpenNodeSetModel(
+                "TypedMethodArguments.NodeSet2.xml",
+                telemetry);
+            ObjectTypeDesign controllerDesign = model.Nodes
+                .OfType<ObjectTypeDesign>()
+                .Single(type => type.SymbolicId.Name == "ControllerType");
+            MethodDesign executeDesign = controllerDesign.Children.Items
+                .OfType<MethodDesign>()
+                .Single(method => method.BrowseName == "Execute");
+            MethodDesign calibrateDesign = controllerDesign.Children.Items
+                .OfType<MethodDesign>()
+                .Single(method => method.BrowseName == "Calibrate");
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    MethodDesignArgumentResolver.ResolveMethodInputs(executeDesign),
+                    Has.Length.EqualTo(4));
+                Assert.That(
+                    MethodDesignArgumentResolver.ResolveMethodOutputs(executeDesign),
+                    Has.Length.EqualTo(4));
+                Assert.That(
+                    MethodDesignArgumentResolver.ResolveMethodInputs(calibrateDesign),
+                    Has.Length.EqualTo(1));
+                Assert.That(
+                    MethodDesignArgumentResolver.ResolveMethodOutputs(calibrateDesign),
+                    Has.Length.EqualTo(1));
+            });
+
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "TypedMethodArguments.NodeSet2.xml",
+                telemetry);
+            string nodeStates = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(nodeStates, Does.Contain(
+                    "_inputArguments[0].TryGetValue(out string name);"));
+                Assert.That(nodeStates, Does.Contain(
+                    "_inputArguments[1].TryGetValue(out global::Opc.Ua.NodeId targetId);"));
+                Assert.That(nodeStates, Does.Contain(
+                    "_inputArguments[2].TryGetValue(out short mode);"));
+                Assert.That(nodeStates, Does.Contain(
+                    "_inputArguments[3].TryGetValue(out " +
+                    "global::Opc.Ua.ArrayOf<global::Opc.Ua.NodeId> targets);"));
+                Assert.That(nodeStates, Does.Contain(
+                    "_outputArguments[0] = global::Opc.Ua.Variant.From(_result.Status);"));
+                Assert.That(nodeStates, Does.Contain(
+                    "_outputArguments[3] = global::Opc.Ua.Variant.From(_result.RelatedIds);"));
+                Assert.That(nodeStates, Does.Not.Contain("class PingMethodState"));
+            });
+
+            Assembly assembly = CompileGeneratedAssembly(files);
+            Type executeDelegate = GetGeneratedType(
+                assembly,
+                "ExecuteMethodStateMethodCallHandler");
+            ParameterInfo[] executeParameters =
+                executeDelegate.GetMethod("Invoke")!.GetParameters();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(executeParameters, Has.Length.EqualTo(11));
+                Assert.That(executeParameters[3].ParameterType, Is.EqualTo(typeof(string)));
+                Assert.That(executeParameters[4].ParameterType.FullName, Is.EqualTo("Opc.Ua.NodeId"));
+                Assert.That(executeParameters[5].ParameterType, Is.EqualTo(typeof(short)));
+                AssertArrayOfNodeIds(executeParameters[6].ParameterType);
+                Assert.That(executeParameters[7].ParameterType, Is.EqualTo(typeof(short).MakeByRefType()));
+                Assert.That(
+                    executeParameters[8].ParameterType.GetElementType()?.FullName,
+                    Is.EqualTo("Opc.Ua.NodeId"));
+                Assert.That(
+                    executeParameters[9].ParameterType,
+                    Is.EqualTo(typeof(string).MakeByRefType()));
+                AssertArrayOfNodeIds(executeParameters[10].ParameterType.GetElementType());
+            });
+
+            Type asyncDelegate = GetGeneratedType(
+                assembly,
+                "ExecuteMethodStateMethodAsyncCallHandler");
+            MethodInfo asyncInvoke = asyncDelegate.GetMethod("Invoke")!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(asyncInvoke.GetParameters(), Has.Length.EqualTo(8));
+                Assert.That(asyncInvoke.ReturnType.IsGenericType, Is.True);
+                Assert.That(
+                    asyncInvoke.ReturnType.GetGenericTypeDefinition(),
+                    Is.EqualTo(typeof(ValueTask<>)));
+                Assert.That(
+                    asyncInvoke.ReturnType.GetGenericArguments()[0].Name,
+                    Is.EqualTo("ExecuteMethodStateResult"));
+            });
+
+            Type result = GetGeneratedType(assembly, "ExecuteMethodStateResult");
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("ServiceResult"), Is.Not.Null);
+                Assert.That(result.GetProperty("Status")?.PropertyType, Is.EqualTo(typeof(short)));
+                Assert.That(
+                    result.GetProperty("SelectedId")?.PropertyType.FullName,
+                    Is.EqualTo("Opc.Ua.NodeId"));
+                Assert.That(result.GetProperty("Message")?.PropertyType, Is.EqualTo(typeof(string)));
+                AssertArrayOfNodeIds(result.GetProperty("RelatedIds")?.PropertyType);
+            });
+
+            Type controller = GetGeneratedType(assembly, "ControllerState");
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    controller.GetProperty("Calibrate")?.PropertyType.Name,
+                    Is.EqualTo("SharedCalibrationMethodState"));
+                Assert.That(
+                    controller.GetProperty("Ping")?.PropertyType.FullName,
+                    Is.EqualTo("Opc.Ua.MethodState"));
+            });
+        }
+
+        [Test]
+        public void DuplicateMethodNamesReuseOnlyMatchingSignatures()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            IModelDesign focusedModel = OpenNodeSetModel(
+                "DuplicateMethodNames.NodeSet2.xml",
+                telemetry);
+            MethodDesign alpha = GetMethod(focusedModel, "AlphaType", "Execute");
+            MethodDesign beta = GetMethod(focusedModel, "BetaType", "Execute");
+            MethodDesign gamma = GetMethod(focusedModel, "GammaType", "Execute");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(alpha.MethodDeclarationNode, Is.SameAs(beta.MethodDeclarationNode));
+                Assert.That(gamma.MethodDeclarationNode, Is.Not.SameAs(alpha.MethodDeclarationNode));
+                Assert.That(
+                    alpha.MethodDeclarationNode.SymbolicId.Name,
+                    Is.EqualTo("ExecuteAlphaTypeMethodType"));
+                Assert.That(
+                    gamma.MethodDeclarationNode.SymbolicId.Name,
+                    Is.EqualTo("ExecuteGammaTypeMethodType"));
+            });
+
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "DuplicateMethodNames.NodeSet2.xml",
+                telemetry);
+            Assembly assembly = CompileGeneratedAssembly(files);
+            Type sharedDelegate = GetGeneratedType(
+                assembly,
+                "ExecuteAlphaTypeMethodStateMethodCallHandler");
+            Type stringDelegate = GetGeneratedType(
+                assembly,
+                "ExecuteGammaTypeMethodStateMethodCallHandler");
+            Type alphaState = GetGeneratedType(assembly, "AlphaState");
+            Type betaState = GetGeneratedType(assembly, "BetaState");
+            Type gammaState = GetGeneratedType(assembly, "GammaState");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    sharedDelegate.GetMethod("Invoke")!.GetParameters()[3].ParameterType,
+                    Is.EqualTo(typeof(int)));
+                Assert.That(
+                    stringDelegate.GetMethod("Invoke")!.GetParameters()[3].ParameterType,
+                    Is.EqualTo(typeof(string)));
+                Assert.That(
+                    alphaState.GetProperty("Execute")?.PropertyType.Name,
+                    Is.EqualTo("ExecuteAlphaTypeMethodState"));
+                Assert.That(
+                    betaState.GetProperty("Execute")?.PropertyType.Name,
+                    Is.EqualTo("ExecuteAlphaTypeMethodState"));
+                Assert.That(
+                    gammaState.GetProperty("Execute")?.PropertyType.Name,
+                    Is.EqualTo("ExecuteGammaTypeMethodState"));
+            });
+        }
+
+        [Test]
+        public void DiGetUpdateBehaviorMethodsUseDistinctDeclarations()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            IModelDesign model = OpenNodeSetModel("Opc.Ua.Di.NodeSet2.xml", telemetry);
+            MethodDesign cached = GetMethod(model, "CachedLoadingType", "GetUpdateBehavior");
+            MethodDesign fileSystem = GetMethod(
+                model,
+                "FileSystemLoadingType",
+                "GetUpdateBehavior");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(cached.MethodDeclarationNode, Is.Not.Null);
+                Assert.That(fileSystem.MethodDeclarationNode, Is.Not.Null);
+                Assert.That(
+                    cached.MethodDeclarationNode,
+                    Is.Not.SameAs(fileSystem.MethodDeclarationNode));
+                Assert.That(
+                    cached.MethodDeclarationNode.SymbolicId.Name,
+                    Is.EqualTo("GetUpdateBehaviorCachedLoadingTypeMethodType"));
+                Assert.That(
+                    fileSystem.MethodDeclarationNode.SymbolicId.Name,
+                    Is.EqualTo("GetUpdateBehaviorFileSystemLoadingTypeMethodType"));
+                Assert.That(
+                    MethodDesignArgumentResolver.ResolveMethodInputs(cached),
+                    Has.Length.EqualTo(3));
+                Assert.That(
+                    MethodDesignArgumentResolver.ResolveMethodInputs(fileSystem),
+                    Has.Length.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void DerivedMethodTypeOverrideUsesStringDefinitionEverywhere()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            IModelDesign model = OpenModelDesign(
+                "MethodTypeOverride.ModelDesign.xml",
+                telemetry);
+            ObjectTypeDesign derivedType = model.Nodes
+                .OfType<ObjectTypeDesign>()
+                .Single(type => type.SymbolicId.Name == "StringControllerType");
+            MethodDesign stringMethodType = model.Nodes
+                .OfType<MethodDesign>()
+                .Single(method => method.SymbolicId.Name == "StringConvertMethodType");
+            Assert.That(stringMethodType.InputArguments, Has.Length.EqualTo(1));
+            Assert.That(stringMethodType.OutputArguments, Has.Length.EqualTo(1));
+            MethodDesign mergedMethod = (MethodDesign)derivedType.Hierarchy.Nodes["Convert"].Instance;
+            Parameter[] inputs =
+                MethodDesignArgumentResolver.ResolveMethodInputs(mergedMethod);
+            Parameter[] outputs =
+                MethodDesignArgumentResolver.ResolveMethodOutputs(mergedMethod);
+            Assert.That(inputs, Has.Length.EqualTo(1));
+            Assert.That(outputs, Has.Length.EqualTo(1));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    mergedMethod.TypeDefinition.Name,
+                    Is.EqualTo("StringConvertMethodType"));
+                Assert.That(
+                    mergedMethod.MethodType.SymbolicId.Name,
+                    Is.EqualTo("StringConvertMethodType"));
+                Assert.That(
+                    mergedMethod.MethodDeclarationNode.SymbolicId.Name,
+                    Is.EqualTo("StringControllerType_Convert"));
+                Assert.That(
+                    mergedMethod.MethodDeclarationNode,
+                    Is.SameAs(mergedMethod));
+                Assert.That(mergedMethod.NumericIdSpecified, Is.True);
+                Assert.That(
+                    inputs[0].DataType.Name,
+                    Is.EqualTo("String"));
+                Assert.That(
+                    outputs[0].DataType.Name,
+                    Is.EqualTo("String"));
+            });
+
+            Dictionary<string, string> files = GenerateFromModelDesign(
+                "MethodTypeOverride.ModelDesign.xml",
+                telemetry);
+            string extensions = files.Single(
+                file => file.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            string factory = ExtractMethodBody(
+                extensions,
+                "CreateStringControllerType_Convert");
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    factory,
+                    Does.Contain("global::MethodTypeOverride.StringConvertMethodState"));
+                Assert.That(
+                    factory,
+                    Does.Contain(
+                        $"state.MethodDeclarationId = global::Opc.Ua.NodeId.Create({mergedMethod.NumericId}u"));
+                Assert.That(
+                    factory,
+                    Does.Not.Contain("global::MethodTypeOverride.IntegerConvertMethodState"));
+            });
+
+            Assembly assembly = CompileGeneratedAssembly(files);
+            Type derivedState = GetGeneratedType(assembly, "StringControllerState");
+            Type handler = GetGeneratedType(
+                assembly,
+                "StringConvertMethodStateMethodCallHandler");
+            ParameterInfo[] parameters = handler.GetMethod("Invoke")!.GetParameters();
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    derivedState.GetProperty(
+                        "Convert",
+                        BindingFlags.Public |
+                        BindingFlags.Instance |
+                        BindingFlags.DeclaredOnly)?.PropertyType.Name,
+                    Is.EqualTo("StringConvertMethodState"));
+                Assert.That(parameters[3].ParameterType, Is.EqualTo(typeof(string)));
+                Assert.That(
+                    parameters[4].ParameterType,
+                    Is.EqualTo(typeof(string).MakeByRefType()));
+            });
         }
 
         [Test]
@@ -499,6 +835,310 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies DataTypeEncoding objects remain independent predefined
+        /// nodes when a NodeSet exporter authors a same-namespace
+        /// <c>ParentNodeId</c> pointing at the owning DataType. Absorbing the
+        /// encoding into the DataType child collection drops it from the
+        /// generated NodeManager and leaves the server TypeTree without the
+        /// encoding-to-DataType relationship required for structured values.
+        /// </summary>
+        [Test]
+        public void SameNamespaceEncodingNodesAreEmittedAsPredefinedNodes()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "SameNamespaceEncoding.NodeSet2.xml",
+                telemetry);
+
+            string code = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    code,
+                    Does.Contain("CreateMyDataType_Encoding_DefaultBinary"),
+                    "The Default Binary encoding factory must be emitted.");
+                Assert.That(
+                    code,
+                    Does.Contain("CreateMyDataType_Encoding_Default_JSON"),
+                    "The Default JSON encoding factory must be emitted.");
+                Assert.That(
+                    code,
+                    Does.Contain(
+                        "NodeState state = CreateMyDataType_Encoding_DefaultBinary(context);"),
+                    "The Default Binary encoding must be registered as a predefined node.");
+                Assert.That(
+                    code,
+                    Does.Contain(
+                        "NodeState state = CreateMyDataType_Encoding_Default_JSON(context);"),
+                    "The Default JSON encoding must be registered as a predefined node.");
+            });
+        }
+
+        [Test]
+        public void MethodArgumentDataTypesUseRuntimeNamespaceTable()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "MethodArgumentNamespace.NodeSet2.xml",
+                telemetry);
+
+            string code = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            string factory = ExtractMethodBody(
+                code,
+                "CreateMyObjectType_DoWork_InputArguments");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    factory,
+                    Does.Contain(
+                        "DataType = global::Opc.Ua.NodeId.Create(100u, " +
+                        "global::MethodArguments.Namespaces.MethodArguments, " +
+                        "context.NamespaceUris)"));
+                Assert.That(factory, Does.Not.Contain("Variant.FromXml"));
+            });
+        }
+
+        [Test]
+        public void SameNamedMethodArgumentsUseDistinctSymbolsAndPreserveRuntimeNames()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "SameNamedMethodArguments.NodeSet2.xml",
+                telemetry);
+            Dictionary<string, string> repeatedFiles = GenerateFromNodeSet(
+                "SameNamedMethodArguments.NodeSet2.xml",
+                telemetry);
+
+            string nodeStates = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            string nodeStateClasses = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.g.cs", StringComparison.Ordinal)).Value;
+            string proxies = files.Single(
+                kv => kv.Key.EndsWith(".TypeProxies.g.cs", StringComparison.Ordinal)).Value;
+            string generatedCode = string.Join("\n", files.Values);
+            string inputArgumentsFactory = ExtractMethodBody(
+                nodeStates,
+                "CreateRoundTripMethodType_InputArguments");
+            string outputArgumentsFactory = ExtractMethodBody(
+                nodeStates,
+                "CreateRoundTripMethodType_OutputArguments");
+            string localCollisionInputFactory = ExtractMethodBody(
+                nodeStates,
+                "CreateLocalCollisionMethodType_InputArguments");
+            string localCollisionOutputFactory = ExtractMethodBody(
+                nodeStates,
+                "CreateLocalCollisionMethodType_OutputArguments");
+            string[] inputRuntimeNames = ExtractStringLiteralValues(inputArgumentsFactory);
+            string[] outputRuntimeNames = ExtractStringLiteralValues(outputArgumentsFactory);
+            string[] localCollisionInputNames =
+                ExtractStringLiteralValues(localCollisionInputFactory);
+            string[] localCollisionOutputNames =
+                ExtractStringLiteralValues(localCollisionOutputFactory);
+            string[] proxyRuntimeStrings = ExtractStringLiteralValues(proxies);
+            string[] expectedInputNames =
+            [
+                "Foo",
+                "foo",
+                "Class",
+                "VersionId",
+                "Await",
+                "Ct",
+                "cT",
+                "CancellationToken",
+                "Context",
+                "ObjectId",
+                "Method",
+                "InputArguments",
+                "Results",
+                "_result",
+                "_foo",
+                "_",
+                "Nameof",
+                "__arglist",
+                "__makeref",
+                "__reftype",
+                "__refvalue"
+            ];
+            string[] expectedOutputNames =
+            [
+                "VersionId",
+                "class",
+                "Changed",
+                "OutputArguments",
+                "ServiceResult",
+                "Quote\"Name",
+                "Back\\Slash",
+                "Line\nBreak",
+                "Δelta雪",
+                "Foo",
+                "RoundTripMethodStateResult",
+                "Next\u0085Line",
+                "Line\u2028Separator",
+                "Paragraph\u2029Separator"
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(generatedCode, Does.Contain("string foo,"));
+                Assert.That(generatedCode, Does.Contain("string foo2,"));
+                Assert.That(generatedCode, Does.Contain("string @class,"));
+                Assert.That(generatedCode, Does.Contain("string versionId,"));
+                Assert.That(generatedCode, Does.Contain("string await2,"));
+                Assert.That(generatedCode, Does.Contain("string ct2,"));
+                Assert.That(generatedCode, Does.Contain("string cT3,"));
+                Assert.That(generatedCode, Does.Contain("string cancellationToken2,"));
+                Assert.That(generatedCode, Does.Contain("string context2,"));
+                Assert.That(generatedCode, Does.Contain("string objectId2,"));
+                Assert.That(generatedCode, Does.Contain("string method2,"));
+                Assert.That(generatedCode, Does.Contain("string inputArguments2,"));
+                Assert.That(generatedCode, Does.Contain("string results2,"));
+                Assert.That(nodeStateClasses, Does.Contain("string _result2,"));
+                Assert.That(nodeStateClasses, Does.Contain("string _foo,"));
+                Assert.That(nodeStateClasses, Does.Contain("string _2,"));
+                Assert.That(nodeStateClasses, Does.Contain("string nameof,"));
+                Assert.That(nodeStateClasses, Does.Contain("string @__arglist,"));
+                Assert.That(nodeStateClasses, Does.Contain("string @__makeref,"));
+                Assert.That(nodeStateClasses, Does.Contain("string @__reftype,"));
+                Assert.That(nodeStateClasses, Does.Contain("string @__refvalue,"));
+                Assert.That(generatedCode, Does.Contain("ref string versionIdOut"));
+                Assert.That(generatedCode, Does.Contain("ref string classOut"));
+                Assert.That(generatedCode, Does.Contain("ref string outputArgumentsOut"));
+                Assert.That(generatedCode, Does.Contain("ref string serviceResultOut"));
+                Assert.That(nodeStateClasses, Does.Contain("ref string fooOut"));
+                Assert.That(nodeStateClasses,
+                    Does.Contain("ref string roundTripMethodStateResultOut"));
+                Assert.That(generatedCode, Does.Contain(
+                    "public string VersionIdOut { get; set; }"));
+                Assert.That(generatedCode, Does.Contain(
+                    "public string ClassOut { get; set; }"));
+                Assert.That(generatedCode, Does.Contain(
+                    "public string OutputArgumentsOut { get; set; }"));
+                Assert.That(generatedCode, Does.Contain(
+                    "public string ServiceResultOut { get; set; }"));
+                Assert.That(nodeStateClasses, Does.Contain(
+                    "public string RoundTripMethodStateResultOut { get; set; }"));
+                Assert.That(generatedCode, Does.Contain("\\u0085"));
+                Assert.That(generatedCode, Does.Contain("\\u2028"));
+                Assert.That(generatedCode, Does.Contain("\\u2029"));
+                Assert.That(generatedCode, Does.Not.Contain("string await,"));
+                Assert.That(generatedCode, Does.Not.Contain("string cancellationToken,"));
+                Assert.That(inputArgumentsFactory,
+                    Does.Not.Contain("Name = \"foo2\""));
+                Assert.That(inputArgumentsFactory,
+                    Does.Not.Contain("Name = \"@class\""));
+                Assert.That(outputArgumentsFactory,
+                    Does.Not.Contain("Name = \"VersionIdOut\""));
+                Assert.That(outputArgumentsFactory,
+                    Does.Not.Contain("Name = \"classOut\""));
+                foreach (string expectedName in expectedInputNames)
+                {
+                    Assert.That(inputRuntimeNames, Does.Contain(expectedName));
+                }
+                foreach (string expectedName in expectedOutputNames)
+                {
+                    Assert.That(outputRuntimeNames, Does.Contain(expectedName));
+                }
+                Assert.That(localCollisionInputNames, Does.Contain("_foo"));
+                Assert.That(localCollisionOutputNames, Does.Contain("Foo"));
+
+                Assert.That(proxies, Does.Contain("ValueTask<("));
+                Assert.That(proxies, Does.Contain(
+                    "ValueTask<string> LocalCollisionAsync("));
+                Assert.That(proxies, Does.Contain(
+                    "string _fooOut;"));
+                Assert.That(proxies, Does.Contain(
+                    "TryGetValue(out _fooOut)"));
+                Assert.That(proxies, Does.Contain("return _fooOut;"));
+                Assert.That(proxies, Does.Contain("string versionIdOut"));
+                Assert.That(proxies, Does.Contain("string classOut"));
+                Assert.That(proxies, Does.Contain("bool changed"));
+                Assert.That(proxies, Does.Contain("string outputArgumentsOut"));
+                Assert.That(proxies, Does.Contain("string serviceResultOut"));
+                Assert.That(proxies, Does.Contain("string quote_Name"));
+                Assert.That(proxies, Does.Contain("string back_Slash"));
+                Assert.That(proxies, Does.Contain("string lineBreak"));
+                Assert.That(proxies, Does.Contain("string δelta雪"));
+                Assert.That(proxies, Does.Contain("string fooOut"));
+                Assert.That(proxies,
+                    Does.Contain("string roundTripMethodStateResult"));
+                Assert.That(proxies, Does.Contain("string nextLine"));
+                Assert.That(proxies, Does.Contain("string lineSeparator"));
+                Assert.That(proxies, Does.Contain("string paragraphSeparator"));
+                Assert.That(proxies, Does.Contain("string foo,"));
+                Assert.That(proxies, Does.Contain("string foo2,"));
+                Assert.That(proxies, Does.Contain("string @class,"));
+                Assert.That(proxies, Does.Contain("string versionId,"));
+                Assert.That(proxies, Does.Contain("string await2,"));
+                Assert.That(proxies, Does.Contain("string ct2,"));
+                Assert.That(proxies, Does.Contain("string cT3,"));
+                Assert.That(proxies, Does.Contain("string cancellationToken2,"));
+                Assert.That(proxies, Does.Contain("string context2,"));
+                Assert.That(proxies, Does.Contain("string objectId2,"));
+                Assert.That(proxies, Does.Contain("string method2,"));
+                Assert.That(proxies, Does.Contain("string inputArguments2,"));
+                Assert.That(proxies, Does.Contain("string results2,"));
+                Assert.That(proxies, Does.Contain("string _result,"));
+                Assert.That(proxies, Does.Contain("string _foo,"));
+                Assert.That(proxies, Does.Contain("string _2,"));
+                Assert.That(proxies, Does.Contain("string nameof2,"));
+                Assert.That(proxies, Does.Contain("string @__arglist,"));
+                Assert.That(proxies, Does.Contain("string @__makeref,"));
+                Assert.That(proxies, Does.Contain("string @__reftype,"));
+                Assert.That(proxies, Does.Contain("string @__refvalue,"));
+                Assert.That(proxies, Does.Contain("<param name=\"class\">"));
+                Assert.That(proxies, Does.Not.Contain("<param name=\"@class\">"));
+                Assert.That(proxies, Does.Contain("output 'VersionId'."));
+                Assert.That(proxies, Does.Contain("output 'class'."));
+                foreach (string expectedName in expectedOutputNames)
+                {
+                    Assert.That(
+                        proxyRuntimeStrings,
+                        Does.Contain(
+                            $"Method 'RoundTrip' returned an unexpected value " +
+                            $"for output '{expectedName}'."));
+                }
+
+                Assert.That(repeatedFiles.Keys, Is.EquivalentTo(files.Keys));
+                foreach (string key in files.Keys)
+                {
+                    Assert.That(repeatedFiles[key], Is.EqualTo(files[key]), key);
+                }
+            });
+
+            using var peStream = new MemoryStream();
+            bool success = OptimizationLevel.Debug
+                .CreateCompilation()
+                .AddCode(
+                    files.WithOpcUaGeneratedStack(),
+                    LanguageVersion.Latest)
+                .Emit(peStream)
+                .Check(TestContext.Out, out int errorCount, out int warnCount);
+
+            Assert.That(success, Is.True,
+                $"Generated code should compile. Errors: {errorCount}, Warnings: {warnCount}");
+        }
+
+        private static string[] ExtractStringLiteralValues(string source)
+        {
+            return
+            [
+                .. CSharpSyntaxTree.ParseText(source)
+                    .GetRoot()
+                    .DescendantNodes()
+                    .OfType<LiteralExpressionSyntax>()
+                    .Where(literal => literal.IsKind(SyntaxKind.StringLiteralExpression))
+                    .Select(literal => literal.Token.ValueText)
+            ];
+        }
+
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
             ITelemetryContext telemetry)
@@ -524,6 +1164,148 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             return fileSystem.CreatedFiles
                 .Where(c => Path.GetExtension(c) == ".cs")
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
+        }
+
+        private static Dictionary<string, string> GenerateFromModelDesign(
+            string modelDesignResource,
+            ITelemetryContext telemetry)
+        {
+            using var fileSystem = new VirtualFileSystem();
+            string path = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "Resources",
+                modelDesignResource);
+            Generators.GenerateCode(
+                new DesignFileCollection
+                {
+                    Targets = [path],
+                    Options = new DesignFileOptions()
+                },
+                fileSystem,
+                string.Empty,
+                telemetry,
+                new GeneratorOptions { OmitFluentApi = true });
+
+            return fileSystem.CreatedFiles
+                .Where(c => Path.GetExtension(c) == ".cs")
+                .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
+        }
+
+        private static IModelDesign OpenNodeSetModel(
+            string nodeSetResource,
+            ITelemetryContext telemetry)
+        {
+            using var fileSystem = new VirtualFileSystem();
+            string path = Path.Combine(
+                Directory.GetCurrentDirectory(), "Resources", nodeSetResource);
+            var nodesets = new NodesetFileCollection(
+                [(path, new NodesetFileOptions())],
+                [],
+                fileSystem,
+                telemetry);
+            string modelUri = nodesets.ModelUris.Single();
+            List<string> designFiles = nodesets.GetDesignFileListForModel(
+                modelUri,
+                out _);
+            IFileSystem sourceFileSystem = typeof(Generators).Assembly
+                .AsFileSystem("Opc.Ua.SourceGeneration.Design")
+                .WithFallback(fileSystem);
+            return sourceFileSystem.OpenModelDesign(
+                new DesignFileCollection { Targets = designFiles },
+                [],
+                telemetry,
+                useAllowSubtypes: false);
+        }
+
+        private static IModelDesign OpenModelDesign(
+            string modelDesignResource,
+            ITelemetryContext telemetry)
+        {
+            using var fileSystem = new VirtualFileSystem();
+            string path = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "Resources",
+                modelDesignResource);
+            IFileSystem sourceFileSystem = typeof(Generators).Assembly
+                .AsFileSystem("Opc.Ua.SourceGeneration.Design")
+                .WithFallback(fileSystem);
+            return sourceFileSystem.OpenModelDesign(
+                new DesignFileCollection { Targets = [path] },
+                [],
+                telemetry,
+                useAllowSubtypes: false);
+        }
+
+        private static MethodDesign GetMethod(
+            IModelDesign model,
+            string ownerName,
+            string browseName)
+        {
+            ObjectTypeDesign owner = model.Nodes
+                .OfType<ObjectTypeDesign>()
+                .Single(type => type.SymbolicId.Name == ownerName);
+            return owner.Children.Items
+                .OfType<MethodDesign>()
+                .Single(method => method.BrowseName == browseName);
+        }
+
+        private static Assembly CompileGeneratedAssembly(
+            Dictionary<string, string> files)
+        {
+            using var peStream = new MemoryStream();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> stackFiles = GenerateStackTests.GenerateStack(
+                StackGenerationType.Models,
+                telemetry,
+                out _);
+            IEnumerable<KeyValuePair<string, string>> generatedNodeStateFiles = stackFiles
+                .Concat(files)
+                .Where(file => !file.Key.EndsWith(
+                    ".TypeProxies.g.cs",
+                    StringComparison.Ordinal));
+            bool success = OptimizationLevel.Debug
+                .CreateCompilation("TypedMethodArguments.Generated")
+                .AddCode(
+                    generatedNodeStateFiles.WithOpcUaCoreStubs(),
+                    LanguageVersion.Latest)
+                .Emit(peStream)
+                .Check(TestContext.Out, out int errorCount, out int warningCount);
+
+            Assert.That(
+                success,
+                Is.True,
+                $"Generated code failed with {errorCount} errors and {warningCount} warnings.");
+            return Assembly.Load(peStream.ToArray());
+        }
+
+        private static Type GetGeneratedType(Assembly assembly, string name)
+        {
+            Type type = assembly.GetTypes().SingleOrDefault(candidate => candidate.Name == name);
+            Assert.That(type, Is.Not.Null, $"Generated type '{name}' was not found.");
+            return type;
+        }
+
+        private static void AssertArrayOfNodeIds(Type type)
+        {
+            Assert.That(type, Is.Not.Null);
+            if (type == null)
+            {
+                return;
+            }
+            Assert.That(type.IsGenericType, Is.True);
+            if (!type.IsGenericType)
+            {
+                return;
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    type.GetGenericTypeDefinition().FullName,
+                    Is.EqualTo("Opc.Ua.ArrayOf`1"));
+                Assert.That(
+                    type.GetGenericArguments()[0].FullName,
+                    Is.EqualTo("Opc.Ua.NodeId"));
+            });
         }
 
         /// <summary>

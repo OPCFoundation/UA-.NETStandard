@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.Server.RuntimeNodeSet
@@ -82,6 +84,18 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         public string? DefaultNamespaceUri { get; set; }
 
         /// <summary>
+        /// Gets or sets whether lifecycle operations for this runtime NodeSet
+        /// may be initiated from an OPC UA request callback.
+        /// </summary>
+        /// <remarks>
+        /// Leave this disabled unless the initiating request is handled by a
+        /// different, stable NodeManager. When enabled, the lifecycle excludes
+        /// only that initiating request from its request-drain wait while the
+        /// runtime NodeSet generation is added, replaced, or removed.
+        /// </remarks>
+        public bool AllowLifecycleFromRequestCallback { get; set; }
+
+        /// <summary>
         /// Gets or sets an optional callback invoked with the fluent
         /// <see cref="INodeManagerBuilder"/> after all NodeSet2 nodes
         /// have been added to the address space.
@@ -92,5 +106,39 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// statically defined address-space nodes.
         /// </remarks>
         public Action<INodeManagerBuilder>? Configure { get; set; }
+
+        /// <summary>
+        /// Gets or sets an optional asynchronous callback invoked with the
+        /// fluent <see cref="INodeManagerBuilder"/> after all NodeSet2
+        /// nodes have been added to the address space and after
+        /// <see cref="Configure"/> (if also set) has run, and before the
+        /// node manager is published.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Use this hook for wiring that requires asynchronous work, such
+        /// as resolving DataType-typed variables, awaiting an external
+        /// configuration source, or starting a background loop that must
+        /// be torn down when the node manager's generation is retired.
+        /// </para>
+        /// <para>
+        /// The callback may return an <see cref="IAsyncDisposable"/> that
+        /// represents resources owned by this node manager generation
+        /// (for example, a running background loop). When non-<c>null</c>,
+        /// the returned instance is retained for the lifetime of the
+        /// generation and disposed asynchronously when the generation is
+        /// torn down (normal removal, reload, shadow-reload retirement, or
+        /// a failed activation). Returning <c>null</c> is valid when no
+        /// disposable resource needs to be tracked.
+        /// </para>
+        /// <para>
+        /// Both <see cref="Configure"/> and <see cref="ConfigureAsync"/>
+        /// operate on the same unsealed builder: when both are set,
+        /// <see cref="Configure"/> runs first, then
+        /// <see cref="ConfigureAsync"/>, and the builder is sealed once
+        /// after both have completed.
+        /// </para>
+        /// </remarks>
+        public Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? ConfigureAsync { get; set; }
     }
 }

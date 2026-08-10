@@ -53,7 +53,6 @@ namespace Opc.Ua.SourceGeneration
         public void GenerateAndCompileTest(OptimizationLevel optimizationLevel)
         {
             var generator = new StackSourceGenerator();
-            var host = new StackSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = optimizationLevel.CreateCompilation("Opc.Ua.Test")
                 .AddCode(
@@ -61,8 +60,16 @@ namespace Opc.Ua.SourceGeneration
                         .WithOpcUaCoreStubs(includeBaseEventTypeRecord: false),
                     LanguageVersion.Latest);
 
-            // Create the driver the executes the generator
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host);
+            // Create the driver the executes the generator. The mode is the
+            // opt-in a project declares through the StackSourceGeneratorMode
+            // MSBuild property; without it the generator stays silent.
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(
+                [generator.AsSourceGenerator()],
+                optionsProvider: new AnalyzerOptionsProvider(
+                    new Dictionary<string, string>
+                    {
+                        ["build_property.stacksourcegeneratormode"] = "All"
+                    }));
             // Run it
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,

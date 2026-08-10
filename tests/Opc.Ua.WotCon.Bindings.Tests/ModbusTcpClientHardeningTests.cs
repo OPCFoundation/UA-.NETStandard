@@ -1,0 +1,407 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Opc.Ua.WotCon.Bindings.Modbus;
+using Opc.Ua.WotCon.Bindings.Tests.Support;
+
+namespace Opc.Ua.WotCon.Bindings.Tests
+{
+    /// <summary>
+    /// Hardening tests for <see cref="ModbusTcpClient"/>: hostile / truncated
+    /// responses must map to a <see cref="ModbusException"/> (never an out-of-range
+    /// index), and a timeout must fault the connection so a fresh reconnect is
+    /// required and works deterministically.
+    /// </summary>
+    [TestFixture]
+    public sealed class ModbusTcpClientHardeningTests
+    {
+        [Test]
+        public async Task TruncatedRegisterResponseThrowsModbusException()
+        {
+            // A register-read response whose declared byte count (4) exceeds the
+            // register bytes actually present in the frame. Before the bounds
+            // check this indexed out of range; now it maps to a ModbusException.
+            using var server = new ScriptedModbusServer((_, pdu) =>
+                pdu[0] == 0x03
+                    ? [0x03, 0x04, 0x00, 0x2A] // byteCount 4, only 1 register present
+                    : null);
+
+            using var client = new ModbusTcpClient("127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<ModbusException>(async () =>
+                await client.ReadHoldingRegistersAsync(1, 0, 2, CancellationToken.None).ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task TruncatedBitResponseThrowsModbusException()
+        {
+            // A coil-read response claiming a byte count (2) larger than the frame
+            // carries, so a naive read would index past the end of the buffer.
+            using var server = new ScriptedModbusServer((_, pdu) =>
+                pdu[0] == 0x01
+                    ? [0x01, 0x02, 0x01] // byteCount 2, only 1 data byte present
+                    : null);
+
+            using var client = new ModbusTcpClient("127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<ModbusException>(async () =>
+                await client.ReadCoilsAsync(1, 0, 9, CancellationToken.None).ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task TimeoutFaultsConnectionThenNextOperationReconnects()
+        {
+            using var server = new ScriptedModbusServer((connection, pdu) =>
+            {
+                // First connection: never respond so the client times out. Second
+                // (reconnect) connection: answer the register read normally.
+                if (connection == 0)
+                {
+                    return null;
+                }
+                return [0x03, 0x02, 0x12, 0x34];
+            });
+
+            using var client = new ModbusTcpClient("127.0.0.1", server.Port, TimeSpan.FromMilliseconds(300));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            // The silent server causes the request to time out.
+            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await client.ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false));
+
+            // The connection is now faulted, so the next operation opens a fresh
+            // socket itself instead of requiring activation to run again.
+            ushort[] registers = await client
+                .ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(registers, Has.Length.EqualTo(1));
+            Assert.That(registers[0], Is.EqualTo((ushort)0x1234));
+        }
+
+        [Test]
+        public async Task DroppedConnectionReconnectsOncePerOperationAndRecovers()
+        {
+            using var server = new TestModbusServer();
+            server.HoldingRegisters[0] = 0x1234;
+
+            using var client = new ModbusTcpClient("127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ushort[] first = await client
+                .ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(first, Is.EqualTo(new ushort[] { 0x1234 }));
+
+            server.RejectConnections = true;
+            server.DisconnectClients();
+
+            Exception? dropped = Assert.CatchAsync<Exception>(async () =>
+                await client.ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false));
+            Assert.That(dropped, Is.TypeOf<ModbusException>().Or.TypeOf<System.IO.IOException>());
+
+            int acceptedBeforeReconnect = server.AcceptedConnectionCount;
+            Exception? rejected = Assert.CatchAsync<Exception>(async () =>
+                await client.ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false));
+            Assert.That(rejected, Is.TypeOf<ModbusException>().Or.TypeOf<System.IO.IOException>());
+            Assert.That(
+                server.AcceptedConnectionCount - acceptedBeforeReconnect,
+                Is.EqualTo(1),
+                "A single failed operation must not loop and open a storm of reconnect sockets.");
+
+            server.RejectConnections = false;
+            server.HoldingRegisters[0] = 0x5678;
+
+            ushort[] recovered = await client
+                .ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(recovered, Is.EqualTo(new ushort[] { 0x5678 }));
+        }
+
+        [Test]
+        public async Task WriteMultipleCoilsAcceptsProtocolMaximum()
+        {
+            using var server = new TestModbusServer();
+            bool[] values = new bool[1968];
+            values[0] = true;
+            values[7] = true;
+            values[8] = true;
+            values[^1] = true;
+
+            using var client = new ModbusTcpClient(
+                "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+            await client
+                .WriteMultipleCoilsAsync(1, 0, values, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(server.LastFunctionCode, Is.EqualTo(0x0F));
+            Assert.That(server.Coils.Take(values.Length), Is.EqualTo(values));
+        }
+
+        [Test]
+        public void WriteMultipleCoilsRejectsQuantityAboveProtocolMaximum()
+        {
+            using var client = new ModbusTcpClient(
+                "127.0.0.1", 502, TimeSpan.FromSeconds(2));
+
+            ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await client
+                    .WriteMultipleCoilsAsync(1, 0, new bool[1969], CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(exception!.Message, Does.Contain("1968"));
+        }
+
+        [TestCaseSource(nameof(InvalidSingleCoilAcknowledgements))]
+        public async Task WriteSingleCoilRejectsInvalidAcknowledgement(
+            byte[] acknowledgement,
+            string expectedError)
+        {
+            using var server = new ScriptedModbusServer((_, pdu) =>
+                pdu[0] == 0x05 ? acknowledgement : null);
+            using var client = new ModbusTcpClient(
+                "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ModbusException? exception = Assert.ThrowsAsync<ModbusException>(
+                async () => await client
+                    .WriteSingleCoilAsync(1, 0, true, CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(exception!.Message, Does.Contain(expectedError));
+        }
+
+        [TestCaseSource(nameof(InvalidMultipleCoilAcknowledgements))]
+        public async Task WriteMultipleCoilsRejectsInvalidAcknowledgement(
+            byte[] acknowledgement,
+            string expectedError)
+        {
+            using var server = new ScriptedModbusServer((_, pdu) =>
+                pdu[0] == 0x0F ? acknowledgement : null);
+            using var client = new ModbusTcpClient(
+                "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ModbusException? exception = Assert.ThrowsAsync<ModbusException>(
+                async () => await client
+                    .WriteMultipleCoilsAsync(1, 0, [true, false], CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(exception!.Message, Does.Contain(expectedError));
+        }
+
+        private static IEnumerable<TestCaseData> InvalidSingleCoilAcknowledgements()
+        {
+            yield return new TestCaseData(
+                new byte[] { 0x05, 0x00, 0x00, 0xFF },
+                "exactly 5 bytes")
+                .SetName("WriteSingleCoilRejectsTruncatedAcknowledgement");
+            yield return new TestCaseData(
+                new byte[] { 0x05, 0x00, 0x00, 0xFF, 0x00, 0x00 },
+                "exactly 5 bytes")
+                .SetName("WriteSingleCoilRejectsOversizedAcknowledgement");
+            yield return new TestCaseData(
+                new byte[] { 0x05, 0x00, 0x01, 0xFF, 0x00 },
+                "requested address")
+                .SetName("WriteSingleCoilRejectsMismatchedAddress");
+            yield return new TestCaseData(
+                new byte[] { 0x05, 0x00, 0x00, 0x00, 0x00 },
+                "requested value")
+                .SetName("WriteSingleCoilRejectsMismatchedValue");
+        }
+
+        private static IEnumerable<TestCaseData> InvalidMultipleCoilAcknowledgements()
+        {
+            yield return new TestCaseData(
+                new byte[] { 0x0F, 0x00, 0x00, 0x00 },
+                "exactly 5 bytes")
+                .SetName("WriteMultipleCoilsRejectsTruncatedAcknowledgement");
+            yield return new TestCaseData(
+                new byte[] { 0x0F, 0x00, 0x00, 0x00, 0x02, 0x00 },
+                "exactly 5 bytes")
+                .SetName("WriteMultipleCoilsRejectsOversizedAcknowledgement");
+            yield return new TestCaseData(
+                new byte[] { 0x0F, 0x00, 0x01, 0x00, 0x02 },
+                "requested address")
+                .SetName("WriteMultipleCoilsRejectsMismatchedAddress");
+            yield return new TestCaseData(
+                new byte[] { 0x0F, 0x00, 0x00, 0x00, 0x03 },
+                "requested value or quantity")
+                .SetName("WriteMultipleCoilsRejectsMismatchedQuantity");
+        }
+
+        /// <summary>
+        /// A minimal Modbus TCP listener whose per-request response is supplied by
+        /// a script. The script receives the zero-based accepted-connection index
+        /// and the request PDU and returns the response PDU, or <c>null</c> to hold
+        /// the connection open without responding (used to provoke a timeout).
+        /// </summary>
+        private sealed class ScriptedModbusServer : IDisposable
+        {
+            public ScriptedModbusServer(Func<int, byte[], byte[]?> responder)
+            {
+                m_responder = responder;
+                m_listener = new TcpListener(IPAddress.Loopback, 0);
+                m_listener.Start();
+                Port = ((IPEndPoint)m_listener.LocalEndpoint).Port;
+                m_loop = Task.Run(AcceptLoopAsync);
+            }
+
+            public int Port { get; }
+
+            public void Dispose()
+            {
+                m_cts.Cancel();
+                m_listener.Stop();
+                m_listener.Dispose();
+                try
+                {
+                    m_loop.Wait(2000);
+                }
+                catch (AggregateException)
+                {
+                    // Ignore teardown faults.
+                }
+                m_cts.Dispose();
+            }
+
+            private async Task AcceptLoopAsync()
+            {
+                while (!m_cts.IsCancellationRequested)
+                {
+                    TcpClient client;
+                    try
+                    {
+                        client = await m_listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        return;
+                    }
+                    catch (SocketException)
+                    {
+                        return;
+                    }
+                    int connection = m_connections++;
+                    _ = Task.Run(() => ServeAsync(client, connection));
+                }
+            }
+
+            private async Task ServeAsync(TcpClient client, int connection)
+            {
+                using (client)
+                using (NetworkStream stream = client.GetStream())
+                {
+                    try
+                    {
+                        while (!m_cts.IsCancellationRequested)
+                        {
+                            byte[]? header = await ReadExactAsync(stream, 6).ConfigureAwait(false);
+                            if (header is null)
+                            {
+                                return;
+                            }
+                            int length = (header[4] << 8) | header[5];
+                            byte[]? rest = await ReadExactAsync(stream, length).ConfigureAwait(false);
+                            if (rest is null)
+                            {
+                                return;
+                            }
+                            byte unit = rest[0];
+                            byte[] pdu = new byte[rest.Length - 1];
+                            Array.Copy(rest, 1, pdu, 0, pdu.Length);
+
+                            byte[]? responsePdu = m_responder(connection, pdu);
+                            if (responsePdu is null)
+                            {
+                                // Hold the connection open without answering so the
+                                // client's request times out.
+                                await Task.Delay(Timeout.Infinite, m_cts.Token).ConfigureAwait(false);
+                                return;
+                            }
+
+                            byte[] frame = BuildFrame(header[0], header[1], unit, responsePdu);
+                            await stream.WriteAsync(frame).ConfigureAwait(false);
+                            await stream.FlushAsync().ConfigureAwait(false);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Server shutting down.
+                    }
+                    catch (System.IO.IOException)
+                    {
+                        // Client disconnected.
+                    }
+                }
+            }
+
+            private static byte[] BuildFrame(byte txnHi, byte txnLo, byte unit, byte[] pdu)
+            {
+                int length = pdu.Length + 1;
+                byte[] frame = new byte[7 + pdu.Length];
+                frame[0] = txnHi;
+                frame[1] = txnLo;
+                frame[2] = 0x00;
+                frame[3] = 0x00;
+                frame[4] = (byte)(length >> 8);
+                frame[5] = (byte)(length & 0xFF);
+                frame[6] = unit;
+                Array.Copy(pdu, 0, frame, 7, pdu.Length);
+                return frame;
+            }
+
+            private static async Task<byte[]?> ReadExactAsync(NetworkStream stream, int count)
+            {
+                byte[] buffer = new byte[count];
+                int offset = 0;
+                while (offset < count)
+                {
+                    int read = await stream.ReadAsync(buffer.AsMemory(offset, count - offset)).ConfigureAwait(false);
+                    if (read == 0)
+                    {
+                        return null;
+                    }
+                    offset += read;
+                }
+                return buffer;
+            }
+
+            private readonly Func<int, byte[], byte[]?> m_responder;
+            private readonly TcpListener m_listener;
+            private readonly Task m_loop;
+            private readonly CancellationTokenSource m_cts = new();
+            private int m_connections;
+        }
+    }
+}

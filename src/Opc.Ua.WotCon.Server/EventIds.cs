@@ -46,5 +46,7 @@ namespace Opc.Ua
         public const int AssetRegistry = 0;
         public const int WotAssetFileManager = 40;
         public const int WotConnectivityNodeManager = 50;
+        public const int WotRegistryNodeManager = 60;
+        public const int WotProjectionViewNodeManager = 70;
     }
 }

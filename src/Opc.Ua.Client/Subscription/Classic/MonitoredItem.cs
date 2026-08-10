@@ -564,7 +564,9 @@ namespace Opc.Ua.Client
                             {
                                 m_logger.ReceivedServerTimestampServerTimestampFutureMonitoredItemIdMonitoredItemId(
                                     datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
-                                    ClientHandle);
+                                    ClientHandle,
+                                    Subscription?.Id ?? 0,
+                                    Subscription?.Session?.SessionId);
                             }
 
                             // validate SourceTimestamp of the notification.
@@ -572,7 +574,9 @@ namespace Opc.Ua.Client
                             {
                                 m_logger.ReceivedSourceTimestampSourceTimestampFutureMonitoredItemIdMonitoredItemId(
                                     datachange.Value.SourceTimestamp.ToDateTime().ToLocalTime(),
-                                    ClientHandle);
+                                    ClientHandle,
+                                    Subscription?.Id ?? 0,
+                                    Subscription?.Session?.SessionId);
                             }
                         }
 
@@ -581,7 +585,9 @@ namespace Opc.Ua.Client
                             m_logger.OverflowBitSetDataChangeServerTimestamp(
                                 datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
                                 datachange.Value.WrappedValue,
-                                ClientHandle);
+                                ClientHandle,
+                                Subscription?.Id ?? 0,
+                                Subscription?.Session?.SessionId);
                         }
                     }
 
@@ -1330,28 +1336,35 @@ namespace Opc.Ua.Client
     {
         [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 0, Level = LogLevel.Warning,
             Message = "Received ServerTimestamp {ServerTimestamp} is in the future for MonitoredItemId" +
-                " {MonitoredItemId}")]
+                " {MonitoredItemId}, SubscriptionId={SubscriptionId}, SessionId={SessionId}")]
         public static partial void ReceivedServerTimestampServerTimestampFutureMonitoredItemIdMonitoredItemId(
             this ILogger logger,
             DateTime serverTimestamp,
-            uint monitoredItemId);
+            uint monitoredItemId,
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 1, Level = LogLevel.Warning,
             Message = "Received SourceTimestamp {SourceTimestamp} is in the future for MonitoredItemId" +
-                " {MonitoredItemId}")]
+                " {MonitoredItemId}, SubscriptionId={SubscriptionId}, SessionId={SessionId}")]
         public static partial void ReceivedSourceTimestampSourceTimestampFutureMonitoredItemIdMonitoredItemId(
             this ILogger logger,
             DateTime sourceTimestamp,
-            uint monitoredItemId);
+            uint monitoredItemId,
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 2, Level = LogLevel.Warning,
             Message = "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} and value {Value}" +
-                " for MonitoredItemId {MonitoredItemId}")]
+                " for MonitoredItemId {MonitoredItemId}, SubscriptionId={SubscriptionId}," +
+                " SessionId={SessionId}")]
         public static partial void OverflowBitSetDataChangeServerTimestamp(
             this ILogger logger,
             DateTime serverTimestamp,
             Variant value,
-            uint monitoredItemId);
+            uint monitoredItemId,
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(
             EventId = ClientEventIds.LegacyNotificationId,

@@ -29,38 +29,84 @@
 
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
-using IIncrementalGenerator = SGF.IncrementalGenerator;
-using IncrementalGeneratorAttribute = SGF.IncrementalGeneratorAttribute;
-using IncrementalGeneratorInitializationContext = SGF.SgfInitializationContext;
+using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
     /// Generates server and client models using the model generator library
     /// </summary>
-    [IncrementalGenerator]
-    public class ModelSourceGenerator : IIncrementalGenerator
+    [Generator(LanguageNames.CSharp)]
+    public sealed class ModelSourceGenerator : IIncrementalGenerator
     {
         /// <inheritdoc/>
-        public ModelSourceGenerator()
-            : base(SourceGenerator.Name)
+        public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-        }
+            SourceGenerator.AttachDebuggerIfRequested();
 
-        /// <inheritdoc/>
-        public override void OnInitialize(IncrementalGeneratorInitializationContext context)
-        {
-#if DEBUGX
-            AttachDebugger();
-#endif
-            IncrementalValueProvider<ImmutableArray<(AdditionalText Left, NodesetFileOptions)>> inputFiles =
+            // Pair every AdditionalFile with its own per-file analyzer config
+            // options once, up front, so both the design/NodeSet2 filter and
+            // the WoT filter (which needs the per-file
+            // ModelSourceGeneratorWot opt-in metadata to recognize a plain
+            // .jsonld input) can be evaluated without recomputing options.
+            IncrementalValuesProvider<(AdditionalText Text, AnalyzerConfigOptions Options)> textsWithOptions =
                 context.AdditionalTextsProvider
-                    .Where(f => f.IsDesignOrNodeset2File())
                     .Combine(context.AnalyzerConfigOptionsProvider)
-                    .Select((pair, _) => (
-                        pair.Left,
-                        pair.Right.GetOptions(pair.Left).ToNodeSetOptions()))
+                    .Select(static (pair, _) => (pair.Left, pair.Right.GetOptions(pair.Left)));
+
+            IncrementalValueProvider<ImmutableArray<(AdditionalText Left, NodesetFileOptions)>> xmlInputFiles =
+                textsWithOptions
+                    .Where(static pair => pair.Text.IsDesignOrNodeset2File())
+                    .Select(static (pair, _) => (pair.Text, pair.Options.ToNodeSetOptions()))
                     .Collect();
+
+            // Snapshot the structural per-file options before conversion so
+            // downstream work remains cheaply cached per file. An ignored WoT
+            // input leaves the pipeline here, before its contents are read or
+            // it can produce diagnostics, dependencies or a virtual path claim.
+            IncrementalValuesProvider<(AdditionalText Text, NodesetFileOptions Options)> wotInputFiles =
+                textsWithOptions
+                    .Where(static pair => pair.Text.IsWotFile(pair.Options))
+                    .Select(static (pair, _) => (
+                        pair.Text,
+                        Options: pair.Options.ToNodeSetOptions()))
+                    .Where(static pair => !pair.Options.Ignore);
+
+            // Every active WoT input is converted independently: parse, bounds,
+            // missing preservation/native mapping, dependency/resolver and
+            // conversion problems are captured as diagnostics on the outcome
+            // rather than thrown, so one malformed input can never abort the
+            // whole generator run.
+            IncrementalValueProvider<ImmutableArray<WotConversionOutcome>> wotOutcomes =
+                wotInputFiles
+                    .Select(static (input, ct) => WotNodeSetAdditionalText.Convert(
+                        input.Text, input.Options, ct))
+                    .Collect();
+
+            // Resolve WoT outcomes against the explicit NodeSet2/ModelDesign
+            // inputs and each other: forwards every conversion diagnostic and
+            // drops (with a diagnostic) any WoT input whose synthesized
+            // virtual NodeSet2 path collides with another input, so a
+            // collision can never silently overwrite another model.
+            IncrementalValueProvider<(
+                ImmutableArray<(AdditionalText Text, NodesetFileOptions Options)> Accepted,
+                ImmutableArray<Diagnostic> Diagnostics)> resolvedWotInputs =
+                xmlInputFiles
+                    .Combine(wotOutcomes)
+                    .Select(static (pair, _) => pair.Left.ResolveWotInputs(pair.Right));
+
+            context.RegisterSourceOutput(resolvedWotInputs, static (spc, resolved) =>
+            {
+                foreach (Diagnostic diagnostic in resolved.Diagnostics)
+                {
+                    spc.ReportDiagnostic(diagnostic);
+                }
+            });
+
+            IncrementalValueProvider<ImmutableArray<(AdditionalText Left, NodesetFileOptions)>> inputFiles =
+                xmlInputFiles
+                    .Combine(resolvedWotInputs)
+                    .Select(static (pair, _) => pair.Left.AddRange(pair.Right.Accepted));
             IncrementalValueProvider<ImmutableArray<AdditionalText>> identifierFiles =
                 context.AdditionalTextsProvider
                     .Where(f => f.IsIdentifierFile())
@@ -78,6 +124,9 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<ImmutableArray<ModelDependencyReference>> referencedModels =
                 context.CompilationProvider
                     .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
+            IncrementalValueProvider<ImmutableArray<ModelFluentAccessorProviderReference>>
+                referencedAccessorProviders = context.CompilationProvider
+                    .Select((c, _) => ReferencedFluentAccessorProviderScanner.Scan(c));
             IncrementalValueProvider<ImmutableHashSet<string>> stateTypeIndex =
                 context.CompilationProvider
                     .Select((c, _) => OpcUaStateTypeIndex.Build(c));
@@ -111,21 +160,30 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<
                 (
                     ImmutableArray<ModelDependencyReference> ReferencedModels,
+                    ImmutableArray<ModelFluentAccessorProviderReference> ReferencedAccessorProviders,
                     ImmutableArray<NodeManagerAttributeDiscovery> NodeManagerBindings)>
                 modelReferences = referencedModels
-                .Combine(nodeManagerBindings)
+                .Combine(referencedAccessorProviders)
                 .Select(static (pair, _) => (
                     ReferencedModels: pair.Left,
+                    ReferencedAccessorProviders: pair.Right))
+                .Combine(nodeManagerBindings)
+                .Select(static (pair, _) => (
+                    ReferencedModels: pair.Left.ReferencedModels,
+                    ReferencedAccessorProviders: pair.Left.ReferencedAccessorProviders,
                     NodeManagerBindings: pair.Right));
             IncrementalValueProvider<
                 (
                     ImmutableArray<ModelDependencyReference> ReferencedModels,
+                    ImmutableArray<ModelFluentAccessorProviderReference> ReferencedAccessorProviders,
                     ImmutableArray<NodeManagerAttributeDiscovery> NodeManagerBindings,
                     ImmutableHashSet<string> AvailableStateTypeNames)> modelDependencies =
                 modelReferences
                 .Combine(stateTypeIndex)
-                .Select(static (pair, _) => (pair.Left.ReferencedModels,
-                    pair.Left.NodeManagerBindings,
+                .Select(static (pair, _) => (
+                    ReferencedModels: pair.Left.ReferencedModels,
+                    ReferencedAccessorProviders: pair.Left.ReferencedAccessorProviders,
+                    NodeManagerBindings: pair.Left.NodeManagerBindings,
                     AvailableStateTypeNames: pair.Right));
             IncrementalValueProvider<
                 (
@@ -150,22 +208,25 @@ namespace Opc.Ua.SourceGeneration
                         pair.Left.Options,
                         pair.Left.CompilationOptions,
                         pair.Right.ReferencedModels,
+                        pair.Right.ReferencedAccessorProviders,
                         pair.Right.NodeManagerBindings,
                         pair.Right.AvailableStateTypeNames));
 
             context.RegisterSourceOutput(
                 modelCompilationInput,
-                (context, input) => new ModelCompilation(
+                static (context, input) => SourceGenerator.Guard(
                     context,
-                    input.InputFiles,
-                    input.CsvFiles,
-                    input.IdentifierFiles,
-                    input.Options,
-                    input.CompilationOptions,
-                    input.ReferencedModels,
-                    input.NodeManagerBindings,
-                    input.AvailableStateTypeNames,
-                    Logger).Emit(context.CancellationToken));
+                    () => new ModelCompilation(
+                        context,
+                        input.InputFiles,
+                        input.CsvFiles,
+                        input.IdentifierFiles,
+                        input.Options,
+                        input.CompilationOptions,
+                        input.ReferencedModels,
+                        input.ReferencedAccessorProviders,
+                        input.NodeManagerBindings,
+                        input.AvailableStateTypeNames).Emit(context.CancellationToken)));
 
             IncrementalValueProvider<bool> publicDataTypeExtensions =
                 context.AnalyzerConfigOptionsProvider
@@ -179,8 +240,10 @@ namespace Opc.Ua.SourceGeneration
                 .Where(static m => m is not null)
                 .Collect()
                 .Combine(publicDataTypeExtensions),
-                static (spc, pair) => DataTypeCompilation.EmitBatch(
-                    spc, pair.Left, pair.Right));
+                static (spc, pair) => SourceGenerator.Guard(
+                    spc,
+                    () => DataTypeCompilation.EmitBatch(
+                        spc, pair.Left, pair.Right)));
         }
 
         private readonly record struct ModelCompilationInput(
@@ -190,6 +253,7 @@ namespace Opc.Ua.SourceGeneration
             ModelCompilationOptions Options,
             CompilationOptions CompilationOptions,
             ImmutableArray<ModelDependencyReference> ReferencedModels,
+            ImmutableArray<ModelFluentAccessorProviderReference> ReferencedAccessorProviders,
             ImmutableArray<NodeManagerAttributeDiscovery> NodeManagerBindings,
             ImmutableHashSet<string> AvailableStateTypeNames);
     }

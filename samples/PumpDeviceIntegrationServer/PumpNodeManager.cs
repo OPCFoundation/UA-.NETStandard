@@ -28,14 +28,17 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Machinery;
+using Opc.Ua.OpenUsd;
 using Opc.Ua.Pumps;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
@@ -44,12 +47,31 @@ using Opc.Ua.Server.NodeManager;
 namespace Pumps
 {
     /// <summary>
+    /// Runtime options for the pump device-integration sample.
+    /// </summary>
+    public sealed class PumpDeviceIntegrationOptions
+    {
+        /// <summary>
+        /// Gets or sets how many simulated pump instances are materialised.
+        /// </summary>
+        public int PumpCount { get; set; } = 2;
+
+        /// <summary>
+        /// Gets or sets the interval used by the live simulation loop.
+        /// </summary>
+        public TimeSpan SimulationInterval { get; set; } = TimeSpan.FromMilliseconds(250);
+    }
+
+    /// <summary>
     /// Hand-written node manager partial that provides the infrastructure
     /// (constructor, address-space load, fluent builder wiring) for the
     /// OPC 40223 Pumps companion specification server.
     /// </summary>
     public partial class PumpNodeManager : DiNodeManager
     {
+        private readonly PumpDeviceIntegrationOptions m_options;
+        private readonly List<PumpState> m_pumpStates = [];
+
         /// <summary>
         /// Initialises a new <see cref="PumpNodeManager"/> without
         /// DI-hosting integration.
@@ -57,7 +79,7 @@ namespace Pumps
         public PumpNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
-            : this(server, configuration, postSetupRunner: null)
+            : this(server, configuration, postSetupRunner: null, options: null)
         {
         }
 
@@ -68,18 +90,53 @@ namespace Pumps
         public PumpNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            IDiPostSetupRunner? postSetupRunner)
+            IDiPostSetupRunner? postSetupRunner,
+            IOptions<PumpDeviceIntegrationOptions>? options = null)
             : base(
                   server,
                   configuration,
                   postSetupRunner,
                   Opc.Ua.Pumps.Namespaces.Pumps,
-                  Opc.Ua.Machinery.Namespaces.Machinery)
+                  Opc.Ua.Machinery.Namespaces.Machinery,
+                  Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
             // Base class constructor sets SystemContext.NodeIdFactory to
             // itself; our New() override takes over.
             SystemContext.NodeIdFactory = this;
+            m_options = options?.Value ?? new PumpDeviceIntegrationOptions();
+            if (m_options.PumpCount < 1 || m_options.PumpCount > 100)
+            {
+                throw new ArgumentOutOfRangeException(
+                    $"{nameof(options)}.{nameof(PumpDeviceIntegrationOptions.PumpCount)}",
+                    m_options.PumpCount,
+                    "Pump count must be between 1 and 100.");
+            }
+            if (m_options.SimulationInterval <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    $"{nameof(options)}.{nameof(PumpDeviceIntegrationOptions.SimulationInterval)}",
+                    m_options.SimulationInterval,
+                    "Simulation interval must be positive.");
+            }
         }
+
+        /// <summary>
+        /// Gets the registered pump instance NodeIds.
+        /// </summary>
+        public ArrayOf<NodeId> PumpNodeIds
+        {
+            get
+            {
+                var nodeIds = new List<NodeId>(m_pumpStates.Count);
+                foreach (PumpState pump in m_pumpStates)
+                {
+                    nodeIds.Add(pump.NodeId);
+                }
+                return nodeIds.ToArrayOf();
+            }
+        }
+
+        internal TimeSpan SimulationInterval => m_options.SimulationInterval;
 
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
@@ -90,7 +147,7 @@ namespace Pumps
                 string parentId = instance.Parent.NodeId.IdentifierAsString;
                 return new NodeId(
                     $"{parentId}_{instance.SymbolicName}",
-                    instance.Parent.NodeId.NamespaceIndex);
+                    InstanceNamespaceIndex);
             }
 
             return node.NodeId;
@@ -108,7 +165,10 @@ namespace Pumps
             QualifiedName pumpBrowseName,
             CancellationToken cancellationToken = default)
         {
-            return MaterialisePumpInstanceAsync(pumpBrowseName, cancellationToken);
+            return MaterialisePumpInstanceAsync(
+                pumpBrowseName,
+                cancellationToken,
+                RegisterPumpSimulation);
         }
 
         /// <inheritdoc/>
@@ -130,6 +190,7 @@ namespace Pumps
             nodes.AddOpcUaDi(context);
             nodes.AddOpcUaMachinery(context);
             nodes.AddOpcUaPumps(context);
+            nodes.AddOpcUaOpenUsd(context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
 
@@ -146,11 +207,10 @@ namespace Pumps
 
             // Configuration phase 2 (sync): wire fluent callbacks
             // against the predefined nodes.
-            ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(
-                Opc.Ua.Pumps.Namespaces.Pumps);
-            CreateFluentBuilder(nsIndex)
+            CreateFluentBuilder(InstanceNamespaceIndex)
                 .Configure(Configure)
                 .Seal();
+            PreservePumpHistoryReadAccessLevels();
 
             m_logger.PumpAddressSpaceReady(PredefinedNodes.Count);
 
@@ -183,11 +243,34 @@ namespace Pumps
         private async ValueTask ConfigureInstancesAsync(
             CancellationToken cancellationToken)
         {
-            ushort pumpsNs = (ushort)Server.NamespaceUris
-                .GetIndex(Opc.Ua.Pumps.Namespaces.Pumps);
-            var pumpBrowseName = new QualifiedName("Pump #1", pumpsNs);
-            await MaterialisePumpInstanceAsync(pumpBrowseName, cancellationToken)
+            // OpenUSD facility first so the pump representation can reference the stage.
+            await MaterialiseOpenUsdFacilityAsync(cancellationToken)
                 .ConfigureAwait(false);
+
+            PumpState? firstPump = null;
+            for (int pumpNumber = 1; pumpNumber <= m_options.PumpCount; pumpNumber++)
+            {
+                var pumpBrowseName = new QualifiedName(
+                    GetPumpBrowseName(pumpNumber),
+                    InstanceNamespaceIndex);
+                PumpState pump = await MaterialisePumpInstanceAsync(
+                    pumpBrowseName,
+                    cancellationToken).ConfigureAwait(false);
+                firstPump ??= pump;
+            }
+
+            // Every pump is a twin in its own right, so every representation has to
+            // be discoverable — a connector finds them through this registry alone.
+            OrganiseRepresentations();
+
+            // Plant-level aggregation: composes one full-fidelity pump prim per
+            // configured pump, so the rendered scene scales with --pumps N.
+            await MaterialisePlantAggregationAsync(cancellationToken).ConfigureAwait(false);
+
+            // Composition demo: a ProductionLine aggregating 1..n pumps (Many), with a
+            // dynamically added/removed pump (model-change events) and a cross-server
+            // component (federation). See OpenUsdComposition.cs.
+            await MaterialiseProductionLineAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -210,7 +293,8 @@ namespace Pumps
         /// </summary>
         private async ValueTask<PumpState> MaterialisePumpInstanceAsync(
             QualifiedName pumpBrowseName,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Action<PumpState>? onRegistered = null)
         {
             NodeState? deviceSet = PredefinedNodes.FindById(NodeId.Create(
                 Opc.Ua.Di.Objects.DeviceSet,
@@ -226,7 +310,7 @@ namespace Pumps
 
             var pumpNodeId = new NodeId(
                 $"{deviceSet.NodeId.IdentifierAsString}_{pumpBrowseName.Name}",
-                deviceSet.NodeId.NamespaceIndex);
+                InstanceNamespaceIndex);
             if (PredefinedNodes.ContainsKey(pumpNodeId))
             {
                 m_logger.DeviceSetAlreadyContains(pumpBrowseName.Name);
@@ -241,14 +325,35 @@ namespace Pumps
             // mandatory children from the parent chain.
             PumpState pump = SystemContext
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
+            int pumpNumber = m_pumpStates.Count + 1;
+            pump.DisplayName = new LocalizedText(GetPumpDisplayName(pumpNumber));
 
             pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
             deviceSet.AddChild(pump);
 
             MaterialisePumpOptionalChildren(pump);
 
+            // Attach the OpenUSD representation + live bindings before
+            // registration. Per-instance NodeIds are already assigned by the
+            // generated CreateOrReplace/AddXxx helpers, so the binding source
+            // NodeIds captured here are the instance ones.
+            AttachOpenUsdRepresentation(pump, pumpNumber);
+
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
+            await AddRootNotifierAsync(pump, cancellationToken)
+                .ConfigureAwait(false);
+            onRegistered?.Invoke(pump);
+
+            // Variables hand-built onto the pump (rather than materialised by the
+            // generated factory) are reachable by browse and read, but a monitored
+            // item never samples them unless they are registered in their own
+            // right -- register them explicitly so the OpenUSD bindings that use
+            // them are live.
+            await RegisterOpenUsdSignalsAsync(pump, cancellationToken).ConfigureAwait(false);
+
+            TryAddToMachinesFolder(pump);
+            m_pumpStates.Add(pump);
 
             m_logger.MaterialisedPump(pumpBrowseName.Name, pump.NodeId);
             return pump;
@@ -266,6 +371,8 @@ namespace Pumps
         private void MaterialisePumpOptionalChildren(
             PumpState pump)
         {
+            MaterialiseNameplate(pump.Identification!);
+
             pump.AddOperational(SystemContext);
             OperationalGroupState operational = pump.Operational!;
             operational.AddMeasurements(SystemContext);
@@ -288,16 +395,112 @@ namespace Pumps
             // under SupervisionPumpOperation.
             pump.AddEvents(SystemContext);
             SupervisionState events = pump.Events!;
+            pump.EventNotifier |= EventNotifiers.SubscribeToEvents;
+            events.EventNotifier |= EventNotifiers.SubscribeToEvents;
+            pump.AddReference(
+                Opc.Ua.Types.ReferenceTypeIds.HasNotifier,
+                isInverse: false,
+                events.NodeId);
+            events.AddReference(
+                Opc.Ua.Types.ReferenceTypeIds.HasNotifier,
+                isInverse: true,
+                pump.NodeId);
+
             events.AddSupervisionProcessFluid(SystemContext);
             events.SupervisionProcessFluid!.AddCavitation(SystemContext);
+            PreserveHistoryRead(events.SupervisionProcessFluid.Cavitation);
 
             events.AddSupervisionPumpOperation(SystemContext);
             events.SupervisionPumpOperation!.AddMotorOverheat(SystemContext);
+            PreserveHistoryRead(events.SupervisionPumpOperation.MotorOverheat);
 
             // Maintenance container — leaf wiring deferred until the
             // typed-accessor generator (FB-3 phase 3) ships materialisable
             // leaves for ConditionBasedMaintenance / BreakdownMaintenance.
             pump.AddMaintenance(SystemContext);
+        }
+
+        internal static string GetPumpBrowseName(int pumpNumber)
+        {
+            return "Pump_" + pumpNumber.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        internal static string GetPumpDisplayName(int pumpNumber)
+        {
+            return "Pump #" + pumpNumber.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private static void PreserveHistoryRead(BaseVariableState? variable)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+
+            variable.AccessLevel |= AccessLevels.HistoryRead;
+            variable.UserAccessLevel |= AccessLevels.HistoryRead;
+            variable.AccessLevelEx |= AccessLevels.HistoryRead;
+            variable.OnReadAccessLevel = (
+                ISystemContext context,
+                NodeState node,
+                ref byte value) =>
+            {
+                value = (byte)(variable.AccessLevel | AccessLevels.HistoryRead);
+                return ServiceResult.Good;
+            };
+        }
+
+        private void PreservePumpHistoryReadAccessLevels()
+        {
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is BaseVariableState variable &&
+                    node.BrowseName.Name is "Cavitation" or "MotorOverheat")
+                {
+                    PreserveHistoryRead(variable);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Materialises the optional nameplate properties that carry the
+        /// PumpX-2000 datasheet identification data. <c>Manufacturer</c>
+        /// and <c>SerialNumber</c> are mandatory on
+        /// <c>PumpIdentificationType</c> and are already created by the
+        /// generated factory; every other field is optional and is added
+        /// here through the generator-emitted <c>AddXxx(context)</c>
+        /// helpers so each property keeps the browse name, namespace and
+        /// DataType declared by the DI, Machinery and Pumps models. The
+        /// values themselves are assigned by the fluent
+        /// <c>WithProperty</c> wiring (Pump #1) and by the topology-element
+        /// builder (Pump #2).
+        /// </summary>
+        private void MaterialiseNameplate(PumpIdentificationState identification)
+        {
+            // OPC 10000-100 (DI) nameplate.
+            identification.AddManufacturerUri(SystemContext);
+            identification.AddModel(SystemContext);
+            identification.AddProductCode(SystemContext);
+            identification.AddDeviceClass(SystemContext);
+            identification.AddHardwareRevision(SystemContext);
+            identification.AddSoftwareRevision(SystemContext);
+            identification.AddProductInstanceUri(SystemContext);
+            identification.AddAssetId(SystemContext);
+            identification.AddComponentName(SystemContext);
+
+            // OPC 40001-1 (Machinery) nameplate.
+            identification.AddLocation(SystemContext);
+            identification.AddYearOfConstruction(SystemContext);
+            identification.AddMonthOfConstruction(SystemContext);
+
+            // OPC 40223 (Pumps) nameplate.
+            identification.AddDayOfConstruction(SystemContext);
+            identification.AddArticleNumber(SystemContext);
+            identification.AddOrderProductCode(SystemContext);
+            identification.AddTypeOfProduct(SystemContext);
+            identification.AddSupplier(SystemContext);
+            identification.AddCountryOfOrigin(SystemContext);
+            identification.AddFabricationNumber(SystemContext);
         }
 
         /// <summary>
@@ -317,12 +520,13 @@ namespace Pumps
     public sealed class PumpNodeManagerFactory : IAsyncNodeManagerFactory
     {
         private readonly IDiPostSetupRunner? m_runner;
+        private readonly IOptions<PumpDeviceIntegrationOptions>? m_options;
 
         /// <summary>
         /// Creates a factory without DI-hosting integration.
         /// </summary>
         public PumpNodeManagerFactory()
-            : this(null)
+            : this(null, null)
         {
         }
 
@@ -330,9 +534,12 @@ namespace Pumps
         /// Creates a factory that injects the post-setup runner into
         /// every manager it produces.
         /// </summary>
-        public PumpNodeManagerFactory(IDiPostSetupRunner? runner)
+        public PumpNodeManagerFactory(
+            IDiPostSetupRunner? runner,
+            IOptions<PumpDeviceIntegrationOptions>? options = null)
         {
             m_runner = runner;
+            m_options = options;
         }
 
         /// <inheritdoc/>
@@ -340,7 +547,8 @@ namespace Pumps
         {
             Opc.Ua.Pumps.Namespaces.Pumps,
             Opc.Ua.Machinery.Namespaces.Machinery,
-            Opc.Ua.Di.Namespaces.OpcUaDi
+            Opc.Ua.Di.Namespaces.OpcUaDi,
+            Opc.Ua.OpenUsd.Namespaces.OpenUSD
         };
 
         /// <inheritdoc/>
@@ -350,7 +558,7 @@ namespace Pumps
             CancellationToken cancellationToken = default)
         {
 #pragma warning disable CA2000 // ownership transferred to server
-            IAsyncNodeManager nm = new PumpNodeManager(server, configuration, m_runner);
+            IAsyncNodeManager nm = new PumpNodeManager(server, configuration, m_runner, m_options);
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(nm);
         }

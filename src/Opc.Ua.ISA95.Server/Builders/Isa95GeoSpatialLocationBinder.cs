@@ -32,17 +32,22 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.ISA95.Server.Providers;
 
 namespace Opc.Ua.ISA95.Server.Builders
 {
     /// <summary>
     /// Binds an OPC-10030 <see cref="GeoSpatialLocationState"/> variable to an
-    /// <see cref="IIsa95GeoSpatialLocationProvider"/>. Reads are served through
-    /// the asynchronous value hook (never blocking the stack on the provider),
-    /// and, when the provider exposes an update stream, a background loop keeps
-    /// the cached value, status code and source timestamp in sync.
+    /// <see cref="IGeoLocationProvider"/>. Reads are served through the
+    /// asynchronous value hook (never blocking the stack on the provider), and,
+    /// when the provider supports push, a background loop keeps the cached
+    /// value, status code and source timestamp in sync.
     /// </summary>
+    /// <remarks>
+    /// The variable carries text rather than coordinates, so an
+    /// <see cref="IGeoLocationTextFormatter"/> projects each sample into the
+    /// literals it publishes. This is what lets one provider implementation
+    /// serve both this model and the OPC 10000-211 coordinate model.
+    /// </remarks>
     public static class Isa95GeoSpatialLocationBinder
     {
         /// <summary>
@@ -57,17 +62,32 @@ namespace Opc.Ua.ISA95.Server.Builders
         /// <param name="provider">
         /// The provider backing the variable.
         /// </param>
+        /// <param name="sourceId">
+        /// The provider-local source whose location the variable publishes.
+        /// </param>
+        /// <param name="formatter">
+        /// Projects a sample into location literals; defaults to
+        /// <see cref="WktGeoLocationTextFormatter"/>.
+        /// </param>
         /// <param name="cancellationToken">
         /// A token that stops the optional update loop when cancelled.
         /// </param>
         /// <returns>
         /// A handle that stops the update loop when disposed.
         /// </returns>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/>, <paramref name="state"/> or
+        /// <paramref name="provider"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="sourceId"/> is empty.
+        /// </exception>
         public static IDisposable Bind(
             ISystemContext context,
             GeoSpatialLocationState state,
-            IIsa95GeoSpatialLocationProvider provider,
+            IGeoLocationProvider provider,
+            string sourceId,
+            IGeoLocationTextFormatter? formatter = null,
             CancellationToken cancellationToken = default)
         {
             if (context == null)
@@ -82,42 +102,65 @@ namespace Opc.Ua.ISA95.Server.Builders
             {
                 throw new ArgumentNullException(nameof(provider));
             }
+            if (string.IsNullOrWhiteSpace(sourceId))
+            {
+                throw new ArgumentException(
+                    "A stable source identifier is required.",
+                    nameof(sourceId));
+            }
+
+            IGeoLocationTextFormatter effectiveFormatter =
+                formatter ?? WktGeoLocationTextFormatter.Instance;
 
             state.OnReadValueAsync = async (ctx, node, indexRange, dataEncoding, ct) =>
             {
-                Isa95GeoSpatialLocation location =
-                    await provider.GetCurrentAsync(ct).ConfigureAwait(false);
-                DateTimeUtc timestamp = location.SourceTimestamp == DateTime.MinValue
-                    ? DateTimeUtc.From(DateTime.UtcNow)
-                    : DateTimeUtc.From(location.SourceTimestamp);
+                GeoLocationSample sample = await provider
+                    .ReadAsync(sourceId, ct).ConfigureAwait(false);
                 return new AttributeReadResult(
                     ServiceResult.Good,
-                    ToVariant(location.Value),
-                    location.StatusCode,
-                    timestamp);
+                    ToVariant(effectiveFormatter, sample),
+                    sample.StatusCode,
+                    sample.GetEffectiveSourceTimestamp());
             };
 
             ILogger logger = context.Telemetry.CreateLogger(
                 typeof(Isa95GeoSpatialLocationBinder).FullName!);
-            return new Binding(context, state, provider, logger, cancellationToken);
+            return new Binding(
+                context,
+                state,
+                provider,
+                sourceId,
+                effectiveFormatter,
+                logger,
+                cancellationToken);
         }
 
         private static void Apply(
             ISystemContext context,
             GeoSpatialLocationState state,
-            Isa95GeoSpatialLocation location)
+            IGeoLocationTextFormatter formatter,
+            GeoLocationSample sample)
         {
-            state.Value = ToVariant(location.Value);
-            state.StatusCode = location.StatusCode;
-            state.Timestamp = location.SourceTimestamp == DateTime.MinValue
-                ? DateTimeUtc.From(DateTime.UtcNow)
-                : DateTimeUtc.From(location.SourceTimestamp);
+            state.Value = ToVariant(formatter, sample);
+            state.StatusCode = sample.StatusCode;
+            state.Timestamp = sample.GetEffectiveSourceTimestamp();
             state.ClearChangeMasks(context, false);
         }
 
-        private static Variant ToVariant(string? value)
+        /// <summary>
+        /// Projects a sample into the value the variable publishes.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10030 declares GeoSpatialLocationType with ValueRank
+        /// OneOrMoreDimensions, so the value is an array of literals rather
+        /// than a single string.
+        /// </remarks>
+        private static Variant ToVariant(
+            IGeoLocationTextFormatter formatter,
+            GeoLocationSample sample)
         {
-            return value is null ? Variant.Null : new Variant(value);
+            ArrayOf<string> literals = formatter.Format(sample);
+            return literals.Count == 0 ? Variant.Null : new Variant(literals);
         }
 
         private sealed class Binding : IDisposable
@@ -125,33 +168,40 @@ namespace Opc.Ua.ISA95.Server.Builders
             public Binding(
                 ISystemContext context,
                 GeoSpatialLocationState state,
-                IIsa95GeoSpatialLocationProvider provider,
+                IGeoLocationProvider provider,
+                string sourceId,
+                IGeoLocationTextFormatter formatter,
                 ILogger logger,
                 CancellationToken cancellationToken)
             {
                 m_cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                IAsyncEnumerable<Isa95GeoSpatialLocation>? updates =
-                    provider.SubscribeAsync(m_cts.Token);
-                if (updates != null)
+                if (provider.SupportsPush)
                 {
-                    _ = RunAsync(context, state, updates, logger, m_cts.Token);
+                    _ = RunAsync(
+                        context,
+                        state,
+                        provider.WatchAsync(sourceId, m_cts.Token),
+                        formatter,
+                        logger,
+                        m_cts.Token);
                 }
             }
 
             private static async Task RunAsync(
                 ISystemContext context,
                 GeoSpatialLocationState state,
-                IAsyncEnumerable<Isa95GeoSpatialLocation> updates,
+                IAsyncEnumerable<GeoLocationSample> updates,
+                IGeoLocationTextFormatter formatter,
                 ILogger logger,
                 CancellationToken cancellationToken)
             {
                 try
                 {
-                    await foreach (Isa95GeoSpatialLocation location in updates
+                    await foreach (GeoLocationSample sample in updates
                         .WithCancellation(cancellationToken)
                         .ConfigureAwait(false))
                     {
-                        Apply(context, state, location);
+                        Apply(context, state, formatter, sample);
                     }
                 }
                 catch (OperationCanceledException)

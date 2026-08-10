@@ -5,20 +5,13 @@ on:
     branches: [ master, main, master378, develop/* ]
   pull_request:
     branches: [ master, main, master378, develop/* ]
-    paths:
-    - '**.cs'
-    - '**.csproj'
-    # Build/config files affect compilation across TFMs, so the all-TFM build
-    # jobs must run when they change (e.g. targets.props, Directory.Packages.props,
-    # Directory.Build.props/targets, the solution, and this workflow itself).
-    - '**.props'
-    - '**.targets'
-    - '**.slnx'
-    - '**.sln'
-    - 'global.json'
-    - 'nuget.config'
-    - 'NuGet.config'
-    - '.github/workflows/buildandtest.yml'
+    # NOTE: deliberately no `paths:` filter. A workflow that is filtered out by
+    # `paths` never reports its checks at all, and a required status check that
+    # never reports leaves a pull request permanently "Expected — waiting for
+    # status to be reported". Since `build-and-test summary` below is the check
+    # branch protection requires, this workflow has to trigger on every pull
+    # request. The path allow-list is applied inside the `discover` job instead,
+    # which skips the expensive jobs while still letting the summary report.
   # Weekly nightly run mirroring azure-pipelines.yml — Sun 02:00 UTC.
   schedule:
     - cron: '0 2 * * 0'
@@ -33,6 +26,36 @@ on:
 permissions:
   contents: read
 
+# Which CI system owns the all-TFM solution build, the cross-platform test
+# matrix and the Native AoT run.  This is one half of a single conceptual
+# switch - the other half is the ciBuildBackend parameter in
+# azure-pipelines.yml.  BOTH MUST BE FLIPPED TOGETHER.
+#
+#   ado     - Azure Pipelines owns the work on master/main: the jobs below stand
+#             down there and run only on the branches Azure Pipelines does not
+#             cover (master378, develop/*).
+#   actions - (default) the work is split with Azure Pipelines: every job below
+#             runs here on GitHub-hosted runners for every triggering branch,
+#             while Azure Pipelines keeps the fast PR test legs and the coverage
+#             gate.
+#
+# The macOS legs are deliberately exempt from this switch: Managed DevOps Pools
+# provide no macOS image, so macOS coverage has to stay on GitHub-hosted
+# runners regardless of the backend.
+#
+# Note: GitHub Actions does not expose the `env` context to job-level `if:`
+# conditions, so the switch is resolved once in the `discover` job below and
+# re-exported as job outputs.
+env:
+  CI_BUILD_BACKEND: actions
+  # Upload the merged coverage report to codecov.io. Reporting only - the
+  # enforced rules live in coverage-thresholds.json and are applied by
+  # check-coverage.ps1 in the `code-coverage` job below, so a codecov outage can
+  # never fail a build. Set to 'false' to turn the upload off; it is skipped
+  # anyway when the CODECOV_TOKEN secret is unavailable, which is the case for
+  # pull requests from forks.
+  ENABLE_CODECOV: 'true'
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -45,14 +68,23 @@ jobs:
       csprojs: ${{ steps.list.outputs.csprojs }}
       test_os: ${{ steps.list.outputs.test_os }}
       aot_matrix: ${{ steps.list.outputs.aot_matrix }}
+      gh_owns_build: ${{ steps.list.outputs.gh_owns_build }}
+      relevant_changes: ${{ steps.list.outputs.relevant_changes }}
     steps:
     - uses: actions/checkout@v7
+      with:
+        # Full history so the path-relevance check below can diff a pull request
+        # against its base commit.
+        fetch-depth: 0
     - name: Enumerate tests/Opc.Ua.*.Tests projects
       id: list
       shell: pwsh
       env:
         EVENT_NAME: ${{ github.event_name }}
         INCLUDE_MACOS: ${{ github.event.inputs.include_macos }}
+        # Base branch on pull_request, pushed/scheduled branch otherwise.
+        TARGET_REF: ${{ github.base_ref || github.ref_name }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
       run: |
         # Discover test projects from the filesystem so this matrix does
         # not have to be hand-maintained as projects are added/renamed.
@@ -77,15 +109,64 @@ jobs:
             'workflow_dispatch' { $env:INCLUDE_MACOS -eq 'true' }
             default { $true }
         }
-        $testOs = @('ubuntu-latest')
-        $aotMatrix = @(@{ os = 'ubuntu-latest'; rid = 'linux-x64' })
-        if ($includeMac) {
+
+        # CI backend switch (see CI_BUILD_BACKEND at the top of this file).
+        # Azure Pipelines only builds master/main, so the stand-down is scoped
+        # to those branches; master378 and develop/* keep running everything
+        # here. The macOS legs are exempt because Managed DevOps Pools have no
+        # macOS image.
+        $adoOwnsBuild = ($env:CI_BUILD_BACKEND -eq 'ado') -and
+            (@('master', 'main') -contains $env:TARGET_REF)
+        $ghOwnsBuild = -not $adoOwnsBuild
+        Write-Host "CI_BUILD_BACKEND=$($env:CI_BUILD_BACKEND); TARGET_REF=$($env:TARGET_REF); gh_owns_build=$ghOwnsBuild"
+
+        # Path relevance. This replaces the `paths:` filter that used to sit on
+        # the pull_request trigger: filtering the whole workflow out would stop
+        # `build-and-test summary` from ever reporting, and a required status
+        # check that never reports blocks the pull request forever. Applying the
+        # same allow-list here skips the expensive jobs instead, while the
+        # summary job still reports.
+        $relevantChanges = $true
+        if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
+            # Triple-dot: diff from the merge base, not from the current base
+            # branch head. A two-dot diff would also report commits that landed
+            # on the base branch after this one was cut, which would make an
+            # unrelated base-branch change look like a build-relevant change here.
+            $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
+            $relevantChanges = $false
+            foreach ($file in $changed) {
+                $name = [System.IO.Path]::GetFileName($file)
+                if ($name -like '*.cs' -or $name -like '*.csproj' -or
+                    # Build/config files affect compilation across TFMs, so the
+                    # all-TFM build jobs must run when they change (targets.props,
+                    # Directory.Packages.props, Directory.Build.props/targets, the
+                    # solution, and this workflow itself).
+                    $name -like '*.props' -or $name -like '*.targets' -or
+                    $name -like '*.slnx' -or $name -like '*.sln' -or
+                    $name -eq 'global.json' -or $name -ieq 'nuget.config' -or
+                    $file -eq '.github/workflows/buildandtest.yml') {
+                    $relevantChanges = $true
+                    break
+                }
+            }
+            Write-Host "Changed files: $(@($changed).Count); build-relevant: $relevantChanges"
+        }
+
+        $testOs = @()
+        $aotMatrix = @()
+        if ($ghOwnsBuild -and $relevantChanges) {
+            $testOs += 'ubuntu-latest'
+            $aotMatrix += @{ os = 'ubuntu-latest'; rid = 'linux-x64' }
+        }
+        if ($includeMac -and $relevantChanges) {
             $testOs += 'macOS-latest'
             $aotMatrix += @{ os = 'macos-13';     rid = 'osx-x64'  }
             $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
         }
         Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
         Write-Host "test_os=$($testOs -join ', ')"
+        "gh_owns_build=$($ghOwnsBuild.ToString().ToLowerInvariant())"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "test_os=$(ConvertTo-Json -InputObject @($testOs) -Compress)"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "aot_matrix=$(ConvertTo-Json -InputObject @($aotMatrix) -Compress)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
@@ -93,11 +174,24 @@ jobs:
     needs: discover
     name: test-${{matrix.os}}-${{matrix.csproj}}
     runs-on: ${{ matrix.os }}
+    # Bound the job well below the 360-minute default. These entries normally
+    # take 3-15 minutes, so anything approaching an hour is a hang, and letting
+    # it run for six hours blocks the pull-request gate with no diagnostic
+    # information (observed on run 30988867402, where the Core and Client
+    # entries sat for ~6 hours). --blame-hang-timeout below turns the common
+    # case into a named test failure long before this fires; this is the
+    # backstop for a hang outside the test host itself.
+    timeout-minutes: 60
+    # test_os is empty when Azure Pipelines owns the Linux matrix and macOS is
+    # not included for this event; skip rather than fan out to nothing.
+    if: ${{ needs.discover.outputs.test_os != '[]' }}
     strategy:
       fail-fast: false
       matrix:
         # macOS is on by default for push/schedule/workflow_dispatch and
-        # off by default on pull_request; controlled via discover.test_os.
+        # off by default on pull_request; ubuntu drops out entirely when
+        # CI_BUILD_BACKEND hands the Linux matrix to Azure Pipelines.
+        # Both are computed by discover.test_os.
         os: ${{ fromJSON(needs.discover.outputs.test_os) }}
         csproj: ${{ fromJSON(needs.discover.outputs.csprojs) }}
         include:
@@ -128,12 +222,98 @@ jobs:
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
 
+    # SoftHSM2 stands in for a hardware token so the PKCS#11 store is exercised
+    # against a real module rather than a substitute. The tests skip themselves
+    # when no module is present or the token is not provisioned, so this step
+    # only ever adds coverage. It is deliberately strict: if provisioning breaks,
+    # the step fails here rather than silently reducing this job to a no-op.
+    - name: Setup SoftHSM2
+      if: ${{ matrix.csproj == 'Security.Pkcs11' && runner.os != 'Windows' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y softhsm2 opensc libc6-dev
+          SOFTHSM_MODULE=$(ls /usr/lib/softhsm/libsofthsm2.so \
+            /usr/lib/*/softhsm/libsofthsm2.so 2>/dev/null | head -n1)
+
+          # Pkcs11Interop reaches the module through DllImport("libdl"). glibc
+          # 2.34 folded libdl into libc and ships only the libdl.so.2 ABI stub,
+          # which the .NET loader will not bind "libdl" to, so provide the name
+          # it looks for. Consumers on a modern distribution need the same.
+          if ! ldconfig -p | grep -q "libdl\.so "; then
+            DL_STUB=$(ldconfig -p | awk '/libdl\.so\.2/ {print $NF; exit}')
+            test -n "$DL_STUB"
+            sudo ln -sf "$DL_STUB" "$(dirname "$DL_STUB")/libdl.so"
+            sudo ldconfig
+          fi
+        else
+          brew install softhsm opensc
+          SOFTHSM_MODULE=$(ls "$(brew --prefix)"/lib/softhsm/libsofthsm2.so | head -n1)
+        fi
+        test -n "$SOFTHSM_MODULE"
+
+        # A token has to be provisioned before it can be opened, exactly as a
+        # real device would be by its vendor tooling.
+        export SOFTHSM2_CONF="$HOME/softhsm2.conf"
+        mkdir -p "$HOME/softhsm-tokens"
+        echo "directories.tokendir = $HOME/softhsm-tokens" > "$SOFTHSM2_CONF"
+
+        softhsm2-util --init-token --free --label opcua-test \
+          --pin 1234 --so-pin 123456
+
+        # Build the key and certificate in software, then import both onto the
+        # token. Generating on-token and then issuing a certificate for that key
+        # would need the OpenSSL pkcs11 engine, which OpenSSL 3.x on the hosted
+        # images no longer provides. Importing is equivalent for this test:
+        # SoftHSM stores an imported private key with CKA_SENSITIVE=true and
+        # CKA_EXTRACTABLE=false, so it is non-extractable once it is on the
+        # token, which is the property under test.
+        openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+          -subj "/CN=Pkcs11TestServer" -keyout /tmp/pkcs11-key.pem -out /tmp/pkcs11-cert.pem
+        openssl rsa  -in /tmp/pkcs11-key.pem  -outform DER -out /tmp/pkcs11-key.der
+        openssl x509 -in /tmp/pkcs11-cert.pem -outform DER -out /tmp/pkcs11-cert.der
+
+        pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
+          --write-object /tmp/pkcs11-key.der  --type privkey --label opcua-server --id 01
+        pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
+          --write-object /tmp/pkcs11-cert.der --type cert    --label opcua-server --id 01
+
+        # Fail here rather than let the tests quietly skip everything.
+        pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 --list-objects | tee /tmp/pkcs11-objects.txt
+        grep -q "Certificate Object" /tmp/pkcs11-objects.txt
+        grep -q "Private Key Object" /tmp/pkcs11-objects.txt
+
+        {
+          echo "SOFTHSM2_CONF=$SOFTHSM2_CONF"
+          echo "OPCUA_PKCS11_MODULE=$SOFTHSM_MODULE"
+          echo "OPCUA_PKCS11_TOKEN=opcua-test"
+          echo "OPCUA_PKCS11_PIN=1234"
+        } >> "$GITHUB_ENV"
+
     - name: Build
-      run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }} /p:UseSharedCompilation=false -maxcpucount:1
+      # Build in parallel with the shared compiler (both `dotnet build` defaults).
+      # These were previously pinned to `-maxcpucount:1 /p:UseSharedCompilation=false`
+      # to work around a race in the SourceGenerator.Foundations assembly resolver that
+      # surfaced as intermittent CS8784; that dependency was removed, so the generators
+      # now resolve through Roslyn's own analyzer loader and the workaround only cost
+      # build time. Do not re-add without evidence - re-loading the ~19-assembly
+      # analyzer closure for every project is expensive.
+      run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
 
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
       shell: pwsh
+      # Bound the step, not just the job. The blame collector below only reacts
+      # to inactivity *inside* the test host, and even once it has written its
+      # dump the run can fail to unwind: on run 31249610490 the hang dump was
+      # taken at +50 min and vstest.console still had not exited when the
+      # 60-minute job timeout cancelled the job (issue #4213). A step timeout
+      # ends that state while `Upload test results` (if: always()) still
+      # publishes the dump. 30 minutes is well clear of every leg here, which
+      # spend at most ~12 minutes in this step.
+      timeout-minutes: 30
       run: |
         $testArgs = @(
           '${{ env.CSPROJECT }}',
@@ -149,6 +329,17 @@ jobs:
           '--collect:XPlat Code Coverage',
           '--settings',
           './tests/coverlet.runsettings.xml',
+          # Kill (and name) any single test that exceeds 10 minutes, so a silent
+          # hang surfaces as "Test <Name> exceeded the configured timeout"
+          # instead of burning the whole job timeout with nothing to go on. The
+          # LongRunning and Stress tiers do not run here, so 10 minutes is well
+          # above any legitimate test. This mirrors what the Azure Pipelines
+          # test template already does; the mini dump captures every thread's
+          # stack, which is what a teardown/shutdown hang needs to diagnose.
+          '--blame-hang-timeout',
+          '10m',
+          '--blame-hang-dump-type',
+          'mini',
           '--results-directory',
           '${{ env.TESTRESULTS }}')
 
@@ -167,29 +358,200 @@ jobs:
       # Use always() to always run this step to publish test results when there are test failures
       if: ${{ always() }}
 
-    - name: Upload to Codecov
+  # Advisory coverage check. Mirrors the Azure Pipelines 'Code coverage' stage:
+  # it merges the Cobertura fragments the matrix above already collects, runs the
+  # same check-coverage.ps1 against the same coverage-thresholds.json, and
+  # surfaces the numbers in the run summary and on the pull request.
+  #
+  # It reports a clean failure when the thresholds are missed so the miss is
+  # visible, but it is deliberately NOT in `build-and-test summary`'s `needs`,
+  # so it can never block the required check. Do not add it to the branch
+  # ruleset.
+  code-coverage:
+    name: code coverage
+    needs: [discover, build-and-test]
+    runs-on: ubuntu-latest
+    # always(): the coverage of a run whose tests failed is still worth
+    # reporting. Gated on the same test_os condition build-and-test itself uses,
+    # rather than on gh_owns_build - a push or scheduled run under the 'ado'
+    # backend still executes the macOS legs here, and their coverage would
+    # otherwise be uploaded and then discarded.
+    if: ${{ always() && needs.discover.outputs.test_os != '[]' && needs.discover.outputs.relevant_changes == 'true' }}
+    permissions:
+      contents: read
+      # Required to upsert the sticky coverage comment. Note that on a
+      # pull_request from a fork the token is read-only regardless of what this
+      # block says, which the comment step below handles.
+      pull-requests: write
+    env:
+      # The `secrets` context is not available to a step's `if`, so the presence
+      # of the token is resolved once here (job-level `env` can read `secrets`)
+      # and tested as a plain string below. Fork pull requests get no secrets,
+      # so this is 'false' there and the upload is skipped rather than failing.
+      HAS_CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN != '' }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # Full history: the changed-lines (patch) gate diffs against the base
+        # branch, which a shallow clone cannot do.
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Download test results
+      uses: actions/download-artifact@v8
+      with:
+        pattern: dotnet-results-*
+        path: coverage-artifacts
+
+    - name: Detect coverage
+      id: probe
+      shell: pwsh
+      env:
+        TESTS_RESULT: ${{ needs.build-and-test.result }}
+      run: |
+        $reports = @(Get-ChildItem -Path coverage-artifacts -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue)
+        Write-Host "Found $($reports.Count) Cobertura report(s)."
+        "has_reports=$(($reports.Count -gt 0).ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        if ($reports.Count -gt 0) {
+            exit 0
+        }
+
+        # Nothing to evaluate. Whether that is expected depends on whether the
+        # test matrix actually ran: if it was skipped there is genuinely no
+        # coverage to collect, but a matrix that completed and published nothing
+        # means the collector is broken, and silently reporting green would hide
+        # that indefinitely.
+        if ($env:TESTS_RESULT -eq 'success') {
+            Write-Host '::error title=Code coverage::The test matrix completed but published no coverage at all; the collector is not working.'
+            exit 1
+        }
+
+        Write-Host "::warning title=Code coverage::The test matrix did not complete (result: $($env:TESTS_RESULT)), so there is no coverage to evaluate."
+
+    - name: Merge coverage report
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        dotnet tool install --tool-path tools dotnet-reportgenerator-globaltool
+        ./tools/reportgenerator `
+            '-reports:coverage-artifacts/**/*.cobertura.xml' `
+            '-targetdir:CodeCoverage' `
+            '-reporttypes:Cobertura;HtmlSummary' `
+            '-title:UA .Net Standard Test Coverage' `
+            '-assemblyfilters:-*.Tests'
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error title=Code coverage::ReportGenerator failed with exit code $LASTEXITCODE."
+            exit $LASTEXITCODE
+        }
+
+    - name: Upload merged coverage report
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: coverage-report
+        path: CodeCoverage
+
+    # Reporting only, and deliberately continue-on-error: the verdict comes from
+    # the gate below, never from codecov.io being reachable. Skipped when the
+    # secret is unavailable, which is how fork pull requests behave.
+    - name: Upload to codecov.io
+      if: ${{ steps.probe.outputs.has_reports == 'true' && env.ENABLE_CODECOV == 'true' && env.HAS_CODECOV_TOKEN == 'true' }}
+      continue-on-error: true
       uses: codecov/codecov-action@v7
       with:
-        name: codecov-umbrella
         token: ${{ secrets.CODECOV_TOKEN }}
-        directory: ${{ env.TESTRESULTS }}
-        env_vars: CSPROJ,OS,DOTNET_VERSION,CONFIGURATION
+        files: CodeCoverage/Cobertura.xml
+        flags: actions
+        disable_search: true
         fail_ci_if_error: false
-        #path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
-        verbose: true
-      # Use always() to always run this step to publish test results when there are test failures
-      if: ${{ always() }}
+
+    # Writes the markdown summary even when the gate fails, so the numbers reach
+    # the summary and the pull request either way. The gate's exit code is
+    # captured here and replayed by the last step.
+    - name: Evaluate coverage
+      id: gate
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      shell: pwsh
+      env:
+        # Empty on push/schedule, in which case check-coverage.ps1 enforces the
+        # project floor only and skips the changed-lines gate.
+        BASE_REF: ${{ github.base_ref }}
+      run: |
+        ./.azurepipelines/check-coverage.ps1 `
+            -CoberturaPath CodeCoverage/Cobertura.xml `
+            -ThresholdsPath coverage-thresholds.json `
+            -RepoRoot . `
+            -BaseRef $env:BASE_REF `
+            -SummaryPath coverage-summary.md
+        "outcome=$LASTEXITCODE" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+        if (Test-Path coverage-summary.md) {
+            Get-Content coverage-summary.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+        }
+        exit 0
+
+    # Sticky comment: upsert a single comment keyed on an HTML marker rather
+    # than adding one per run. Uses actions/github-script rather than a
+    # community action to keep this workflow on first-party actions only.
+    - name: Comment coverage on the pull request
+      if: ${{ steps.probe.outputs.has_reports == 'true' && github.event_name == 'pull_request' }}
+      # A pull_request from a fork gets a read-only GITHUB_TOKEN no matter what
+      # `permissions:` says, so commenting fails there. The step summary still
+      # carries the numbers, so a failure here must not fail the job.
+      continue-on-error: true
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const fs = require('fs');
+          const marker = '<!-- ua-coverage-report -->';
+          if (!fs.existsSync('coverage-summary.md')) {
+            core.info('No coverage summary to post.');
+            return;
+          }
+          const body = marker + '\n' + fs.readFileSync('coverage-summary.md', 'utf8');
+          const { owner, repo } = context.repo;
+          const issue_number = context.issue.number;
+
+          const comments = await github.paginate(github.rest.issues.listComments, {
+            owner, repo, issue_number, per_page: 100,
+          });
+          const existing = comments.find(c => c.body && c.body.includes(marker));
+
+          if (existing) {
+            await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            core.info(`Updated coverage comment ${existing.id}.`);
+          } else {
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            core.info('Created the coverage comment.');
+          }
+
+    - name: Report coverage gate result
+      if: ${{ steps.probe.outputs.has_reports == 'true' }}
+      shell: pwsh
+      run: |
+        if ('${{ steps.gate.outputs.outcome }}' -ne '0') {
+            Write-Host '::error title=Code coverage::Coverage thresholds were not met. This check is advisory and does not block the merge - see the job summary for the numbers.'
+            exit 1
+        }
+        Write-Host 'Coverage gate passed.'
 
   aot-test:
     needs: discover
     name: aot-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    if: ${{ needs.discover.outputs.aot_matrix != '[]' }}
     strategy:
       fail-fast: false
       matrix:
         # OS + RID pairs computed by `discover` so macOS entries drop out
-        # entirely on pull_request (default off).  Windows AoT is covered
-        # by the AzDO testaot stage.
+        # entirely on pull_request (default off) and the ubuntu entry drops
+        # out when CI_BUILD_BACKEND hands AoT to Azure Pipelines.  Windows AoT
+        # is covered by the AzDO testaot stage.
         include: ${{ fromJSON(needs.discover.outputs.aot_matrix) }}
 
     env:
@@ -238,8 +600,14 @@ jobs:
   # Each TFM is built by pinning the solution to it via CustomTestTarget (the
   # same mechanism the Azure full build uses). All TFMs are attempted so a
   # single failure reports every broken TFM; the job fails if any TFM fails.
+  #
+  # Both legs stand down on master/main when CI_BUILD_BACKEND is 'ado' - the
+  # Azure Pipelines `build` stage then covers the same TFM split across its
+  # Windows and Linux legs.
   build-all-tfm-windows:
     name: build-windows-all-tfm
+    needs: discover
+    if: ${{ needs.discover.outputs.gh_owns_build == 'true' && needs.discover.outputs.relevant_changes == 'true' }}
     runs-on: windows-latest
     timeout-minutes: 120
     steps:
@@ -270,7 +638,7 @@ jobs:
         $failed = @()
         foreach ($tfm in $tfms) {
           Write-Host "::group::Build UA.slnx ($tfm)"
-          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm /p:UseSharedCompilation=false
+          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm
           if ($LASTEXITCODE -ne 0) {
             $failed += $tfm
             Write-Host "::error::UA.slnx build failed for $tfm"
@@ -285,6 +653,8 @@ jobs:
 
   build-all-tfm-linux:
     name: build-linux-all-tfm
+    needs: discover
+    if: ${{ needs.discover.outputs.gh_owns_build == 'true' && needs.discover.outputs.relevant_changes == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -313,7 +683,7 @@ jobs:
         $failed = @()
         foreach ($tfm in $tfms) {
           Write-Host "::group::Build UA.slnx ($tfm)"
-          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm /p:UseSharedCompilation=false
+          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm
           if ($LASTEXITCODE -ne 0) {
             $failed += $tfm
             Write-Host "::error::UA.slnx build failed for $tfm"
@@ -325,3 +695,63 @@ jobs:
           exit 1
         }
         Write-Host "UA.slnx built successfully for all target frameworks."
+
+  # Single stable status check for branch protection.  The individual jobs above
+  # are matrix-generated (their names change with the OS/project fan-out) and
+  # they are skipped entirely on master/main while CI_BUILD_BACKEND is 'ado', or
+  # when a pull request touches no build-relevant files.  A required status check
+  # that never reports would leave a PR pending forever, so protect on THIS job
+  # instead: this workflow has no `paths:` filter (which would suppress the whole
+  # run), the job is `always()`, and it treats an intentionally skipped job as
+  # success while still failing on a real failure or cancellation.
+  build-and-test-summary:
+    name: build-and-test summary
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs:
+    - discover
+    - build-and-test
+    - aot-test
+    - build-all-tfm-windows
+    - build-all-tfm-linux
+    steps:
+    - name: Evaluate job results
+      shell: pwsh
+      env:
+        GH_OWNS_BUILD: ${{ needs.discover.outputs.gh_owns_build }}
+        DISCOVER_RESULT: ${{ needs.discover.result }}
+        TEST_RESULT: ${{ needs.build-and-test.result }}
+        AOT_RESULT: ${{ needs.aot-test.result }}
+        TFM_WINDOWS_RESULT: ${{ needs.build-all-tfm-windows.result }}
+        TFM_LINUX_RESULT: ${{ needs.build-all-tfm-linux.result }}
+      run: |
+        if ($env:GH_OWNS_BUILD -eq 'true') {
+          Write-Host 'GitHub Actions owns the build/test matrix for this branch.'
+        }
+        else {
+          Write-Host 'Azure Pipelines owns the build/test matrix for this branch; the jobs below are expected to be skipped.'
+        }
+
+        $results = [ordered]@{
+          'discover'              = $env:DISCOVER_RESULT
+          'build-and-test'        = $env:TEST_RESULT
+          'aot-test'              = $env:AOT_RESULT
+          'build-all-tfm-windows' = $env:TFM_WINDOWS_RESULT
+          'build-all-tfm-linux'   = $env:TFM_LINUX_RESULT
+        }
+
+        $bad = @()
+        foreach ($job in $results.GetEnumerator()) {
+          Write-Host "$($job.Key): $($job.Value)"
+          # 'skipped' is a valid outcome - either the backend switch stood the
+          # job down, or its matrix was empty for this event.
+          if (@('success', 'skipped') -notcontains $job.Value) {
+            $bad += "$($job.Key)=$($job.Value)"
+          }
+        }
+
+        if ($bad.Count -gt 0) {
+          Write-Host "::error::Build and test jobs did not succeed: $($bad -join ', ')"
+          exit 1
+        }
+        Write-Host 'All build and test jobs succeeded or were intentionally skipped.'

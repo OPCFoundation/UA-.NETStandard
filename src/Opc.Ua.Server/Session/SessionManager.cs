@@ -143,6 +143,9 @@ namespace Opc.Ua.Server
                 m_shutdownEvent.Set();
                 m_shutdownEvent.Dispose();
                 m_semaphoreSlim.Dispose();
+                m_workerCts?.Cancel();
+                m_workerCts?.Dispose();
+                m_workerCts = null;
             }
         }
 
@@ -158,12 +161,12 @@ namespace Opc.Ua.Server
                 // start thread to monitor sessions.
                 m_shutdownEvent.Reset();
 
-                // TODO: Await the task completion in shutdown and pass cancellation token
-                _ = Task.Factory.StartNew(
-                    () => MonitorSessionsAsync(m_minSessionTimeout),
-                    default,
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default);
+                // Recreated on every startup: a token source cannot be reset once
+                // ShutdownAsync has cancelled it, and the manager supports restart.
+                m_workerCts?.Dispose();
+                m_workerCts = new CancellationTokenSource();
+
+                m_monitorWorkerTask = StartSessionMonitor(m_workerCts.Token);
             }
             finally
             {
@@ -172,13 +175,64 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Stops the session manager and closes all sessions.
+        /// Starts the session monitor loop and returns a task that completes when the
+        /// loop has actually exited.
         /// </summary>
-        public virtual void Shutdown()
+        /// <remarks>
+        /// The inner <c>AsTask</c> plus <c>Unwrap</c> matter: <see cref="Task.Factory"/>
+        /// hands back a task that completes as soon as the loop first yields, so
+        /// awaiting the raw <see cref="Task.Factory"/> result would only await the
+        /// scheduling of the loop and let shutdown race ahead of it.
+        /// </remarks>
+        private Task StartSessionMonitor(CancellationToken cancellationToken)
         {
-            // stop the monitoring thread.
+            return Task.Factory.StartNew(
+                    static state =>
+                    {
+                        (SessionManager manager, CancellationToken ct) =
+                            ((SessionManager, CancellationToken))state!;
+                        return manager
+                            .MonitorSessionsAsync(manager.m_minSessionTimeout, ct)
+                            .AsTask();
+                    },
+                    (this, cancellationToken),
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default)
+                .Unwrap();
+        }
+
+        /// <summary>
+        /// Stops the session manager and closes all sessions, waiting for the session
+        /// monitor loop to exit before returning.
+        /// </summary>
+        public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
+        {
+            // stop the monitoring loop.
             m_shutdownEvent.Set();
 
+            // Cancel so the monitor's inter-cycle delay is abandoned immediately
+            // instead of running to the end of its sleep cycle.
+            m_workerCts?.Cancel();
+
+            Task? monitorWorkerTask = m_monitorWorkerTask;
+            if (monitorWorkerTask is not null)
+            {
+                await monitorWorkerTask.ConfigureAwait(false);
+                m_monitorWorkerTask = null;
+            }
+
+            m_workerCts?.Dispose();
+            m_workerCts = null;
+
+            CloseAllSessions();
+        }
+
+        /// <summary>
+        /// Disposes every tracked session and empties the session table.
+        /// </summary>
+        private void CloseAllSessions()
+        {
             // dispose of session objects using a snapshot.
             KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
             m_sessions.Clear();
@@ -779,10 +833,10 @@ namespace Opc.Ua.Server
                             session.Dispose();
 
                             // update diagnostics.
-                            lock (m_server.DiagnosticsWriteLock)
+                            m_server.UpdateServerDiagnostics(diagnostics =>
                             {
-                                m_server.ServerDiagnostics.CurrentSessionCount--;
-                            }
+                                diagnostics.CurrentSessionCount--;
+                            });
                         }
                     }
                     finally
@@ -1447,13 +1501,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
-        private async ValueTask MonitorSessionsAsync(object data)
+        private async ValueTask MonitorSessionsAsync(
+            int sleepCycle,
+            CancellationToken cancellationToken = default)
         {
             try
             {
                 m_logger.ServerSessionMonitorThreadStarted();
-
-                int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
 
                 while (true)
                 {
@@ -1464,15 +1518,18 @@ namespace Opc.Ua.Server
                         if (session.HasExpired)
                         {
                             // update diagnostics.
-                            lock (m_server.DiagnosticsWriteLock)
+                            m_server.UpdateServerDiagnostics(diagnostics =>
                             {
-                                m_server.ServerDiagnostics.SessionTimeoutCount++;
-                            }
+                                diagnostics.SessionTimeoutCount++;
+                            });
 
                             // raise audit event for session closed because of timeout
                             m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
 
-                            await m_server.CloseSessionAsync(null!, session.Id, false)
+                            // Deliberately not cancellable: a close already under way
+                            // must finish so the session is torn down cleanly even when
+                            // shutdown has cancelled the monitor loop.
+                            await m_server.CloseSessionAsync(null!, session.Id, false, CancellationToken.None)
                                 .ConfigureAwait(false);
                         }
                         // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
@@ -1483,12 +1540,26 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    if (m_shutdownEvent.WaitOne(sleepCycle))
+                    if (m_shutdownEvent.WaitOne(0))
                     {
                         m_logger.ServerSessionMonitorThreadExitedNormally();
                         break;
                     }
+
+                    // Asynchronous so the sleep does not park a thread-pool thread for
+                    // the whole cycle, and so shutdown can abandon it immediately.
+                    await m_timeProvider
+                        .Delay(TimeSpan.FromMilliseconds(sleepCycle), cancellationToken)
+                        .ConfigureAwait(false);
                 }
+            }
+            catch (ObjectDisposedException)
+            {
+                m_logger.ServerSessionMonitorThreadExitedNormally();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                m_logger.ServerSessionMonitorThreadExitedNormally();
             }
             catch (Exception e)
             {
@@ -1505,6 +1576,8 @@ namespace Opc.Ua.Server
             m_sessionActivationStates = new();
         private uint m_lastSessionId;
         private readonly ManualResetEvent m_shutdownEvent;
+        private Task? m_monitorWorkerTask;
+        private CancellationTokenSource? m_workerCts;
 
         private readonly int m_minSessionTimeout;
         private readonly int m_maxSessionTimeout;

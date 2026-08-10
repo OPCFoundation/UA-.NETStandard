@@ -86,9 +86,27 @@ namespace Opc.Ua.Server
         ByteString ClientNonce { get; }
 
         /// <summary>
-        /// A lock which must be acquired before accessing the diagnostics.
+        /// Applies an update to the session diagnostics while holding the session's
+        /// diagnostics lock.
         /// </summary>
-        object DiagnosticsLock { get; }
+        /// <remarks>
+        /// The session owns its lock and never exposes it, so callers cannot participate in
+        /// the server's locking order. Keep the update short and free of I/O or callbacks.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        void UpdateDiagnostics(Action<SessionDiagnosticsDataType> update);
+
+        /// <summary>
+        /// Reads a value derived from the session diagnostics while holding the session's
+        /// diagnostics lock.
+        /// </summary>
+        /// <remarks>
+        /// Do not let the diagnostics object escape the callback: once the lock is released,
+        /// any field read from it is unsynchronized.
+        /// </remarks>
+        /// <typeparam name="TResult">The type of the value produced.</typeparam>
+        /// <param name="read">The projection applied to the diagnostics.</param>
+        TResult ReadDiagnostics<TResult>(Func<SessionDiagnosticsDataType, TResult> read);
 
         /// <summary>
         /// The application defined mapping for user identity provided by the client.

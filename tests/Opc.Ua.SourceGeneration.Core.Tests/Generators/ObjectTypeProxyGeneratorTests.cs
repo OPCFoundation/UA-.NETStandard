@@ -200,7 +200,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Does.Contain($"global::{kTestNamespacePrefix}.MethodIds.FooType_DoIt"));
             Assert.That(content, Does.Contain("await CallMethodAsync"));
             Assert.That(content, Does.Contain("ConfigureAwait(false)"));
-            Assert.That(content, Does.Contain("TryGetValue(out global::Opc.Ua.NodeId _result"));
+            Assert.That(content, Does.Contain("global::Opc.Ua.NodeId _result;"));
+            Assert.That(content, Does.Contain("_outputArguments[0].IsNull"));
+            Assert.That(content, Does.Contain("_result = default!;"));
+            Assert.That(content, Does.Contain("TryGetValue(out _result"));
             Assert.That(content, Does.Contain("return _result;"));
         }
 
@@ -347,6 +350,46 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(
                 content,
                 Does.Contain("global::Opc.Ua.Variant.FromStructure(payload)"));
+        }
+
+        [Test]
+        public void StructureOutputUsesSessionMessageContext()
+        {
+            MethodDesign method = CreateMethod(
+                "Read",
+                outputs:
+                [
+                    CreateParameter(
+                        "payload",
+                        BasicDataType.UserDefined,
+                        symbolicName: "MyStruct")
+                ]);
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+
+            using var stream = new MemoryStream();
+            m_mockFileSystem
+                .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
+                .Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain("global::Test.MyStruct _payload;"));
+                Assert.That(
+                    content,
+                    Does.Contain("TryGetValue(out _payload, base.Session.MessageContext)"));
+
+                // A Server may leave an unused output argument unset, which arrives as a Null
+                // Variant. Strict decoding of that would surface a refusal as a thrown fault,
+                // which clause 6.2 of the Robot Intent draft forbids and which any Server that
+                // omits its refusal outputs would trigger. The generated proxy takes the type's
+                // default instead.
+                Assert.That(content, Does.Contain("_outputArguments[0].IsNull"));
+                Assert.That(content, Does.Contain("_payload = default!;"));
+            });
         }
 
         [Test]

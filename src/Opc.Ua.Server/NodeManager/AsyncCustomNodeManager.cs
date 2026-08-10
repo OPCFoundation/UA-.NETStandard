@@ -2396,10 +2396,7 @@ namespace Opc.Ua.Server
             {
                 NodeState source = kvp.Value;
                 var references = new List<IReference>();
-                lock (source)
-                {
-                    source.GetReferences(SystemContext, references);
-                }
+                source.GetReferences(SystemContext, references);
 
                 for (int ii = 0; ii < references.Count; ii++)
                 {
@@ -2548,10 +2545,7 @@ namespace Opc.Ua.Server
             foreach (NodeState node in PredefinedNodes.Values)
             {
                 var references = new List<IReference>();
-                lock (node)
-                {
-                    node.GetReferences(SystemContext, references);
-                }
+                node.GetReferences(SystemContext, references);
                 foreach (IReference reference in references)
                 {
                     if (reference.IsInverse &&
@@ -3080,6 +3074,11 @@ namespace Opc.Ua.Server
             if (continuationPoint.Data is not BrowserContext browserContext)
             {
                 INodeBrowser browser;
+                // NOTE: CreateBrowser is not internally synchronized - unlike
+                // GetReferences/GetChildren/ReferenceExists/SetAreEventsMonitored, which
+                // guard themselves - so this lock is retained until browser creation owns
+                // its own synchronization. Tracked by
+                // https://github.com/OPCFoundation/UA-.NETStandard/issues/4216.
                 lock (source)
                 {
                     // create a new browser.
@@ -3357,6 +3356,9 @@ namespace Opc.Ua.Server
 
             INodeBrowser browser;
             // get list of references that relative path.
+            // NOTE: CreateBrowser is not internally synchronized; see the sibling note in
+            // the Browse path. Retained until browser creation owns its own lock, tracked
+            // by https://github.com/OPCFoundation/UA-.NETStandard/issues/4216.
             lock (source)
             {
                 browser = source.CreateBrowser(
@@ -4008,15 +4010,12 @@ namespace Opc.Ua.Server
 
                         var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
-                        lock (node)
-                        {
-                            node.ReadAttribute(
-                                systemContext,
-                                Attributes.Value,
-                                monitoredItem.IndexRange,
-                                default,
-                                ref value);
-                        }
+                        node.ReadAttribute(
+                            systemContext,
+                            Attributes.Value,
+                            monitoredItem.IndexRange,
+                            default,
+                            ref value);
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
 
@@ -4447,6 +4446,121 @@ namespace Opc.Ua.Server
         private IHistorianProvider? ResolveHistorianProvider(NodeState node)
         {
             return HistorianDispatcher.ResolveProvider(Server, node, GetHistorianProvider(node));
+        }
+
+        /// <summary>
+        /// Returns whether history services are wired for the specified node.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation honors the node-manager override and the
+        /// server-wide historian registry. Subclasses can override this when
+        /// history is provided by an implementation-specific route that is not
+        /// visible through either provider model.
+        /// </remarks>
+        protected virtual bool HasHistorianProvider(NodeState node)
+        {
+            NodeState? providerNode = node;
+            if (HistorianDispatcher.IsAnnotationsProperty(node))
+            {
+                providerNode = HistorianDispatcher.GetAnnotationsParent(node);
+            }
+
+            return providerNode != null && ResolveHistorianProvider(providerNode) != null;
+        }
+
+        /// <summary>
+        /// Clears historical-access advertisement from variables that do not
+        /// have a historian wired.
+        /// </summary>
+        internal void ReconcileHistoricalAccessAdvertisement()
+        {
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                ReconcileHistoricalAccessAdvertisement(node);
+            }
+        }
+
+        private void ReconcileHistoricalAccessAdvertisement(NodeState node)
+        {
+            if (node is not BaseVariableState variable ||
+                !HasHistoricalAccessAdvertisement(variable) ||
+                HasHistorianProvider(variable))
+            {
+                return;
+            }
+
+            byte accessLevel = variable.AccessLevel;
+            byte userAccessLevel = variable.UserAccessLevel;
+            variable.Historizing = false;
+            variable.AccessLevel = ClearHistoryAccess(accessLevel);
+            variable.UserAccessLevel = ClearHistoryAccess(userAccessLevel);
+            MaskHistoricalAccessReadCallbacks(variable);
+
+            m_logger.HistoryAdvertisementCleared(variable.NodeId);
+        }
+
+        private static void MaskHistoricalAccessReadCallbacks(BaseVariableState variable)
+        {
+            NodeAttributeEventHandler<byte>? onReadAccessLevel = variable.OnReadAccessLevel;
+            variable.OnReadAccessLevel = (ISystemContext context, NodeState node, ref byte value) =>
+            {
+                ServiceResult result = onReadAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = ClearHistoryAccess(value);
+                }
+                return result;
+            };
+
+            NodeAttributeEventHandler<byte>? onReadUserAccessLevel = variable.OnReadUserAccessLevel;
+            variable.OnReadUserAccessLevel = (ISystemContext context, NodeState node, ref byte value) =>
+            {
+                ServiceResult result = onReadUserAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = ClearHistoryAccess(value);
+                }
+                return result;
+            };
+
+            NodeAttributeEventHandler<uint>? onReadAccessLevelEx = variable.OnReadAccessLevelEx;
+            variable.OnReadAccessLevelEx = (ISystemContext context, NodeState node, ref uint value) =>
+            {
+                ServiceResult result = onReadAccessLevelEx?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = ClearHistoryAccess(value);
+                }
+                return result;
+            };
+
+            NodeAttributeEventHandler<bool>? onReadHistorizing = variable.OnReadHistorizing;
+            variable.OnReadHistorizing = (ISystemContext context, NodeState node, ref bool value) =>
+            {
+                ServiceResult result = onReadHistorizing?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = false;
+                }
+                return result;
+            };
+        }
+
+        private static bool HasHistoricalAccessAdvertisement(BaseVariableState variable)
+        {
+            return variable.Historizing ||
+                (variable.AccessLevel & kHistoryAccessMask) != 0 ||
+                (variable.UserAccessLevel & kHistoryAccessMask) != 0;
+        }
+
+        private static byte ClearHistoryAccess(byte accessLevel)
+        {
+            return (byte)(accessLevel & ~kHistoryAccessMask);
+        }
+
+        private static uint ClearHistoryAccess(uint accessLevel)
+        {
+            return accessLevel & ~(uint)kHistoryAccessMask;
         }
 
         /// <summary>
@@ -5426,10 +5540,7 @@ namespace Opc.Ua.Server
             }
 
             MethodState? method;
-            lock (source)
-            {
-                method = source.FindMethod(systemContext, methodToCall.MethodId);
-            }
+            method = source.FindMethod(systemContext, methodToCall.MethodId);
 
             if (method != null)
             {
@@ -5437,13 +5548,10 @@ namespace Opc.Ua.Server
             }
 
             bool referenceExists;
-            lock (source)
-            {
-                referenceExists = source.ReferenceExists(
-                    ReferenceTypeIds.HasComponent,
-                    false,
-                    methodToCall.MethodId);
-            }
+            referenceExists = source.ReferenceExists(
+                ReferenceTypeIds.HasComponent,
+                false,
+                methodToCall.MethodId);
 
             if (referenceExists)
             {
@@ -5709,24 +5817,9 @@ namespace Opc.Ua.Server
         /// </remarks>
         protected virtual async ValueTask AddRootNotifierAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
-            RootNotifiers.AddOrUpdate(notifier.NodeId, notifier, (key, _) => notifier);
-
-            // need to prevent recursion with the server object.
-            if (notifier.NodeId != ObjectIds.Server)
-            {
-                lock (notifier)
-                {
-                    notifier.OnReportEventAsync = OnReportEventAsync;
-
-                    if (!notifier.ReferenceExists(
-                        ReferenceTypeIds.HasNotifier,
-                        true,
-                        ObjectIds.Server))
-                    {
-                        notifier.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-                    }
-                }
-            }
+            AddRootNotifierSynchronously(notifier);
+            await PublishRootNotifierReferenceAsync(notifier, cancellationToken)
+                .ConfigureAwait(false);
 
             // subscribe to existing events.
             if (!SuppressExistingEventSubscriptions &&
@@ -5748,6 +5841,86 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Synchronously registers a root event notifier owned by this node manager.
+        /// </summary>
+        protected internal void AddRootNotifierSynchronously(NodeState notifier)
+        {
+            if (notifier == null)
+            {
+                throw new ArgumentNullException(nameof(notifier));
+            }
+
+            RootNotifiers.AddOrUpdate(notifier.NodeId, notifier, (key, _) => notifier);
+
+            // need to prevent recursion with the server object.
+            if (notifier.NodeId != ObjectIds.Server)
+            {
+                lock (notifier)
+                {
+                    notifier.OnReportEventAsync = OnReportEventAsync;
+
+                    if (!notifier.ReferenceExists(
+                        ReferenceTypeIds.HasNotifier,
+                        true,
+                        ObjectIds.Server))
+                    {
+                        notifier.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+                    }
+                }
+
+                // The matching forward reference on the Server Object belongs
+                // to whichever node manager owns it, so it is published
+                // through PublishRootNotifierReferenceAsync rather than being
+                // written into the shared ServerObjectState from here.
+            }
+        }
+
+        internal async ValueTask PublishRootNotifierReferencesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            foreach (NodeState notifier in RootNotifiers.Values)
+            {
+                await PublishRootNotifierReferenceAsync(notifier, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask PublishRootNotifierReferenceAsync(
+            NodeState notifier,
+            CancellationToken cancellationToken)
+        {
+            if (notifier.NodeId == ObjectIds.Server)
+            {
+                return;
+            }
+
+            ServerObjectState? serverObject = Server.ServerObject;
+            if (serverObject != null &&
+                serverObject.ReferenceExists(
+                    ReferenceTypeIds.HasNotifier,
+                    false,
+                    notifier.NodeId))
+            {
+                return;
+            }
+
+            IList<IReference> references =
+            [
+                new ReferenceNode
+                {
+                    ReferenceTypeId = ReferenceTypeIds.HasNotifier,
+                    IsInverse = false,
+                    TargetId = notifier.NodeId
+                }
+            ];
+
+            await Server.NodeManager.AddReferencesAsync(
+                ObjectIds.Server,
+                references,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -5775,6 +5948,19 @@ namespace Opc.Ua.Server
                             true,
                             ObjectIds.Server);
                     }
+                }
+
+                ServerObjectState? serverObject = Server.ServerObject;
+                if (serverObject != null &&
+                    serverObject.ReferenceExists(
+                        ReferenceTypeIds.HasNotifier,
+                        false,
+                        notifier.NodeId))
+                {
+                    serverObject.RemoveReference(
+                        ReferenceTypeIds.HasNotifier,
+                        false,
+                        notifier.NodeId);
                 }
             }
             return default;
@@ -5846,10 +6032,7 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsGood(serviceResult) &&
                     wasSubscribed == unsubscribe)
                 {
-                    lock (source)
-                    {
-                        source.SetAreEventsMonitored(context, !unsubscribe, true);
-                    }
+                    source.SetAreEventsMonitored(context, !unsubscribe, true);
                 }
 
                 // signal update.
@@ -7070,7 +7253,8 @@ namespace Opc.Ua.Server
         /// <param name="processedItems">The list of bool with items that were already processed.</param>
         /// <param name="errors">Any errors.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public virtual async ValueTask TransferMonitoredItemsAsync(
+        [Obsolete("Use TransferMonitoredItemsAsync with MonitoredItemTransferOptions.")]
+        public virtual ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
@@ -7078,8 +7262,38 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
+            return TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                processedItems,
+                errors,
+                new MonitoredItemTransferOptions(),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
+        /// <param name="monitoredItems">The set of monitoring items to update.</param>
+        /// <param name="processedItems">The list of bool with items that were already processed.</param>
+        /// <param name="errors">Any errors.</param>
+        /// <param name="transferOptions">Options that describe the transfer execution.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public virtual async ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions,
+            CancellationToken cancellationToken = default)
+        {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             var transferredItems = new List<IMonitoredItem>();
+            bool deferInitialValues = transferOptions.DeferInitialValues;
 
             await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -7102,7 +7316,8 @@ namespace Opc.Ua.Server
                     // owned by this node manager.
                     processedItems[ii] = true;
                     transferredItems.Add(monitoredItems[ii]);
-                    if (sendInitialValues)
+                    if (sendInitialValues &&
+                        !deferInitialValues)
                     {
                         monitoredItems[ii].SetupResendDataTrigger();
                     }
@@ -7797,5 +8012,7 @@ namespace Opc.Ua.Server
         /// Counter for the NodeIdFactory.New Method
         /// </summary>
         private uint m_lastUsedNodeId;
+
+        private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
     }
 }

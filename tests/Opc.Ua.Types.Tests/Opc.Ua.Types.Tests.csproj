@@ -49,4 +49,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The WoT Binding specification's worked examples, used as conformance
+         fixtures. Two of them are golden pairs: a projection document and the
+         resolved view the specification says it resolves to. -->
+    <EmbeddedResource Include="Wot\Assets\*.jsonld" />
+  </ItemGroup>
 </Project>

@@ -1,0 +1,97 @@
+# WoT / NodeSet conversion
+
+`Opc.Ua.Wot.WotNodeSetConverter` converts OPC UA NodeSet2 documents to
+WoT Thing Models / Thing Descriptions and materializes WoT documents back
+to NodeSet2. The converter preserves a byte-exact `uav:nodeSet` envelope
+when requested, uses the structured `uav:nodes` projection when the
+readable vocabulary is not complete, and otherwise synthesizes NodeSet2
+from the readable WoT terms.
+
+## WoT to NodeSet defaults
+
+The table below lists the defaults the current WoT-to-NodeSet
+materializer applies when the WoT input lacks information needed for a
+NodeSet2 projection. Rows marked **Fails** emit an error diagnostic and
+`ToNodeSet` throws. Rows marked **Default** substitute the listed value;
+warnings or informational diagnostics are noted where the code emits
+them.
+
+| Missing WoT input | Behaviour | Materialized value |
+|---|---|---|
+| Convertible content: no `uav:nodeSet`, no `uav:nodes`, and neither a Thing Model nor a Thing Description kind | **Fails** | `NoConvertibleContent` error; no NodeSet is returned. |
+| Model namespace: root `uav:id` has no `nsu=<NamespaceUri>;...` part and document `id` is absent | **Default** | `NamespaceUris = ["urn:opcua:wot:synthesized"]` and `Models[0].ModelUri = "urn:opcua:wot:synthesized"`. This is intentionally synthetic and should be replaced by an authored namespace in portable documents. |
+| Root local name: root `uav:browseName` is absent | **Default** | Sanitized `title` (letters, digits, `_`, `-`) when non-empty; otherwise `Thing`. |
+| Root `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>` and an informational `GeneratedNodeId` diagnostic. |
+| Root `uav:browseName` | **Default** | `1:<rootLocal>`. |
+| Root `title` | **Default** | Root `DisplayName` becomes `<rootLocal>`. |
+| Thing Model root event annotation `uav:eventType` | **Default** | Root is a non-abstract `UAObjectType` with inverse `HasSubtype` to `BaseObjectType` (`i=58`). If the event annotation is present, the default supertype is `BaseEventType` (`i=2041`). |
+| Thing Description root type information | **Default** | Root is a `UAObject` with `HasTypeDefinition` to `BaseObjectType` (`i=58`). |
+| Root `description` | **Default** | No `Description` field is materialized. |
+| Property affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
+| Property affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<propertyLocal>`. |
+| Property DataSchema `type` or an unrecognized `type` | **Default** | OPC UA `BaseDataType` (`i=24`). `type: object` maps to `BaseObjectType` (`i=22`) and emits an unsupported-schema warning; `type: array` currently falls back to `BaseDataType` with the same warning, which is a deliberately conservative but coarse default. |
+| Property `readOnly` and `writeOnly` | **Default** | Missing flags mean read/write access (`CurrentRead | CurrentWrite`, value `3`). If both flags are `true`, the zero-access result is coerced to `CurrentRead` (`1`); this is an arbitrary safety default and should be specified explicitly. |
+| Property `title` | **Default** | No `DisplayName` field is materialized for the variable. |
+| Property `description` | **Default** | No `Description` field is materialized for the variable. |
+| Property type definition | **Default** | `HasTypeDefinition` to `BaseDataVariableType` (`i=63`). |
+| Action affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
+| Action affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<actionLocal>`. |
+| Action `title` | **Default** | No `DisplayName` field is materialized for the method. |
+| Event affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
+| Event affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<eventLocal>`. |
+| Event `title` | **Default** | No `DisplayName` field is materialized for the event type. |
+| Event type abstraction/supertype | **Default** | Event affordances materialize as non-abstract `UAObjectType` nodes with inverse `HasSubtype` to `BaseEventType` (`i=2041`) and a root `GeneratesEvent` reference. |
+| `uav:modellingRule` on a property or action | **Default** | No `HasModellingRule` reference is materialized. |
+| `uav:hasComponent` / `uav:componentOf` entry has no matching typed ReferenceType link | **Default** | `HasComponent` is used for the component reference. |
+| Binding link has no resolvable model-name relation and no `uav:refId` | **Default** | `uav:componentModel` maps to `HasComponent`; other generic binding relations map to `Organizes`. |
+| Reference link points to another Thing by URI and no resolver is supplied or the resolver cannot find `uav:id` | **Default** | The reference is omitted and a warning diagnostic is emitted; no placeholder NodeId is generated. |
+| Invalid namespace-qualified `uav:id` / `uav:browseName` syntax or unbound compact-name prefix | **Fails** | An error diagnostic is emitted; `ToNodeSet` throws even though synthesis continues far enough to collect diagnostics. |
+| Event affordance says `@type: uav:eventType` and `uav:isEvent: false` | **Fails** | `EventAnnotationConflict` error; the two terms must not contradict each other. |
+| `uav:isComposite` (Section 6.1) | **Default** / **Fails** | Absent: the type is treated as atomic and no `HasComponent` walk is forced. Malformed (non-boolean): `InvalidModelVocabularyValue` error and `ToNodeSet` throws. Present and valid: the flag has no distinct readable NodeSet structure, so it is carried verbatim through the `uav:nodes` residue and restored on the reverse conversion. |
+| `uav:contains` (Section 6.3) | **Default** / **Fails** | Absent: sub-components come from links only. Malformed (not an array, or an entry that does not match a link `uav:refName` declared on the same type): `InvalidContainment` error. Present and valid: preserved via residue. |
+| `uav:containedIn` (Section 6.3) | **Default** / **Fails** | Absent: no parent is recorded. Malformed (not a non-empty string, or naming the type itself, which is a cycle): `InvalidContainment` error. The reciprocal "the named composite exists" check is cross-document and out of scope for the single-document converter, which validates range and self-cycle only. Present and valid: preserved via residue. |
+| `uav:unitProperty` (Section 6.5) | **Default** / **Fails** | Absent: the value is treated as already in engineering units and no `EngineeringUnits` pointer is recorded. Malformed (not a non-empty RFC 6901 JSON Pointer resolving, within the same document, to a string property): `InvalidUnitPointer` error. Present and valid: preserved via residue. |
+| `uav:scaleFactor` (Section 6.5) | **Default** / **Fails** | Absent: identity scaling (factor `1`). Malformed (not a non-zero number): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
+| `uav:decimalPlaces` (Section 6.5) | **Default** / **Fails** | Absent: no rounding is recorded. Malformed (not an integer greater than or equal to zero; `2.0` is rejected as a non-integer literal): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
+| `uav:semanticId` (Section 6.7) | **Default** / **Fails** | Absent: no semantic reference is recorded. Malformed (not an absolute IRI with a scheme): `NonAbsoluteIri` error. Present and valid: preserved via residue. |
+| `uav:metadata` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque; carried verbatim through residue, never validated and never a reason to reject the document (Section 6.7). |
+| `uav:propertyConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
+| `uav:actionConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
+| `uav:eventConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
+| `uav:includeInherited` (Section 6.8) | **Default** / **Fails** | Absent: no inheritance-span flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
+| `uav:additionalProperties` (Section 6.8) | **Default** / **Fails** | Absent: no open-content flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
+| `uav:nameNamespace` (Section 6.4) | **Default** / **Fails** | Absent: local names resolve against the model's own target namespace and nothing extra is recorded. Malformed (not an absolute IRI with a scheme): `NonAbsoluteIri` error. Present and valid: preserved via residue. |
+| `uav:browsePathAnchor` (Section 5.1.4) | **Default** / **Fails** | Absent: a relative `uav:browsePath` resolves against the nearest enclosing `uav:id`. Malformed (not an ExpandedNodeId): `ValidationError` error; the session-local `ns=<index>` form is reported `NonPortableIdentity` (an error unless `AllowNonPortableIdentifiers` is set). Present and valid: preserved via residue. |
+
+## Model and platform vocabulary (Section 6)
+
+The WoT Binding Section 6 model- and platform-vocabulary terms
+(composition, containment, naming, units and scaling, semantics,
+inheritance) and the anchored browse-path term of Section 5.1.4 are
+**readable annotations**: they record OPC UA model facts but have no
+distinct structure that this converter materializes into the readable
+NodeSet (it does not model, for example, `AnalogUnitType`,
+`EngineeringUnits`, or `HasDictionaryEntry` structures). The converter
+therefore handles them in one direction with full round-trip fidelity:
+
+- **WoT to NodeSet.** Each term is validated during synthesis against
+  the per-term domain and range table of Section 7. A malformed value is
+  an error (Section 7 requires a consumer to treat the document as
+  invalid rather than repair it), so `ToNodeSet` throws and
+  `ToNodeSetResult` reports the diagnostic. A well-formed value is
+  carried unchanged through the generic `uav:nodes` residue mechanism.
+- **NodeSet to WoT (reverse).** These readable terms are not synthesized
+  from a plain NodeSet. When a NodeSet carries a structure that the
+  readable vocabulary cannot yet express, the complete `uav:nodes`
+  native projection preserves it losslessly, and any residue previously
+  captured for a term is re-applied by JSON Pointer.
+- **Round-trip.** A document carrying these terms survives
+  WoT &rarr; NodeSet &rarr; WoT unchanged. Affordance-level terms
+  (`uav:scaleFactor`, `uav:decimalPlaces`, `uav:unitProperty`,
+  `uav:semanticId`) are preserved under the affordance's projected local
+  name, so an affordance that also carries `uav:browseName` round-trips
+  under that browse name's local part rather than its original map key.
+
+The opaque terms `uav:metadata`, `uav:propertyConfiguration`,
+`uav:actionConfiguration` and `uav:eventConfiguration` are never
+validated and never cause rejection; they are carried verbatim.

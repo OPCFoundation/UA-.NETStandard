@@ -124,7 +124,6 @@ namespace Opc.Ua.Tests
         }
 
         /// <summary>
-        /// <summary>
         /// Arms a background watchdog that force-exits the test host
         /// process if it has not exited within <paramref name="timeout"/>.
         /// </summary>
@@ -237,23 +236,60 @@ namespace Opc.Ua.Tests
         }
 
         /// <summary>
-        /// Returns <see cref="Certificate.InstancesLeaked"/>, but when it is
-        /// positive, re-reads it over a short bounded poll first so that an
-        /// in-flight background disposal (fire-and-forget channel / session
-        /// cleanup) is given a brief moment to complete. The poll exits as soon
-        /// as the count reaches zero and is hard-bounded (no
-        /// <see cref="GC.WaitForPendingFinalizers"/>), so it can never hang the
-        /// test host. Suites with no leak return immediately.
+        /// Returns <see cref="Certificate.InstancesLeaked"/>, waiting first for the count to
+        /// settle so that an in-flight background disposal (fire-and-forget channel / session
+        /// cleanup) is not mistaken for a leak. The poll is hard-bounded and never calls
+        /// <see cref="GC.WaitForPendingFinalizers"/>, so it cannot hang the test host. Suites
+        /// with no outstanding instances return immediately.
         /// </summary>
+        /// <remarks>
+        /// Waiting a fixed budget cannot separate the two cases it needs to tell apart. A
+        /// genuine leak holds the count steady, while a suite still draining its background
+        /// disposals has a count that is falling - and on a loaded CI agent the drain can
+        /// outlast any budget short enough to keep a real leak's failure prompt. This waits
+        /// for <b>quiescence</b> instead: progress resets the clock, and the count is only
+        /// reported once it has stopped moving. A real leak is therefore reported sooner than
+        /// a fixed budget would, and a slow drain is given as long as it keeps making progress.
+        /// The Sessions WSS fixtures can leave the final TLS callback cleanup queued slightly
+        /// longer on loaded Linux CI agents, so the steady-count window is deliberately a few
+        /// seconds rather than a sub-second race against that transport teardown.
+        /// </remarks>
+        /// <param name="maxAttempts">Hard cap on polls, so the wait always terminates.</param>
+        /// <param name="delayMilliseconds">Delay between polls.</param>
+        /// <param name="stableReadsRequired">Consecutive unchanged reads that count as settled.</param>
         public static long WaitForOutstandingDisposals(
-            int maxAttempts = 50,
-            int delayMilliseconds = 100)
+            int maxAttempts = 600,
+            int delayMilliseconds = 100,
+            int stableReadsRequired = 50)
         {
             long leaked = Certificate.InstancesLeaked;
-            for (int i = 0; leaked > 0 && i < maxAttempts; i++)
+            if (leaked <= 0)
+            {
+                return leaked;
+            }
+
+            int stableReads = 0;
+            for (int i = 0; i < maxAttempts; i++)
             {
                 Thread.Sleep(delayMilliseconds);
-                leaked = Certificate.InstancesLeaked;
+                long current = Certificate.InstancesLeaked;
+                if (current <= 0)
+                {
+                    return current;
+                }
+
+                if (current < leaked)
+                {
+                    // Still draining - a disposal completed since the last read, so do
+                    // not start counting toward "settled" yet.
+                    stableReads = 0;
+                }
+                else if (++stableReads >= stableReadsRequired)
+                {
+                    return current;
+                }
+
+                leaked = current;
             }
             return leaked;
         }

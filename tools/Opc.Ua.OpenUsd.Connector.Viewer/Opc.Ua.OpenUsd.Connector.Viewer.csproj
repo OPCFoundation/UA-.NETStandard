@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- The OpenUSD rendering stack and Avalonia support .NET 8+, so this optional
+         assembly is deliberately narrower than the connector that loads it. The
+         connector keeps targeting net48 through net10.0 and reports a clear
+         diagnostic when the view option is unavailable. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
+    <OutputType>Library</OutputType>
+    <AssemblyName>Opc.Ua.OpenUsd.Connector.Viewer</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer</PackageId>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <Description>Optional viewport for the OPC UA - OpenUSD connector. Renders the composed stage with the OpenUSD Avalonia viewer and exposes it as an IUsdSink, so the connector's --view option streams live OPC UA values into the picture on screen. Install alongside Opc.Ua.OpenUsd.Connector; the connector loads it on demand and works without it.</Description>
+    <RootNamespace>Opc.Ua.OpenUsd.Connector.Viewer</RootNamespace>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Avalonia and the OpenUSD interop layer are not trim/AOT clean, and the
+         connector reaches this assembly reflectively, so AOT is not offered here. -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <!-- The OpenUSD/Avalonia viewport has no net48 asset, so legacy CustomTestTarget
+         solution legs build this project as a no-op shell. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenUsd" />
+    <PackageReference Include="OpenUsd.Viewer" />
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="OpenUsd.Runtime.Imaging" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

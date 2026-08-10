@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Produces the OPC UA stack source generator NuGet package. The package ships
+    one analyzer folder per Roslyn variant; the .NET SDK picks the highest one
+    its compiler supports.
+  -->
+  <!-- Already imported by Directory.Packages.props; the condition keeps this project self-contained. -->
+  <Import Project="..\..\roslyn.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>$(PackagePrefix).Opc.Ua.SourceGeneration.Stack</PackageId>
+    <AssemblyName>$(AssemblyPrefix).SourceGeneration.Stack.Pack</AssemblyName>
+    <RootNamespace>Opc.Ua.SourceGeneration</RootNamespace>
+    <Description>OPC UA stack source generator</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <SourceGeneratorVariant Include="..\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj"
+                            RoslynAnalyzerFolder="$(RoslynAnalyzerFolderVS2026)" />
+    <SourceGeneratorVariant Include="..\Opc.Ua.SourceGeneration.Stack.Roslyn4_14\Opc.Ua.SourceGeneration.Stack.Roslyn4_14.csproj"
+                            RoslynAnalyzerFolder="$(RoslynAnalyzerFolderVS2022)" />
+  </ItemGroup>
+  <Import Project="..\SourceGeneratorPack.targets" />
+</Project>

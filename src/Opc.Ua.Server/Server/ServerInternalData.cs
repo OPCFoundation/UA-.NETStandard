@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
         Historian.IHistorianRegistryProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
-
+        IAsyncDisposable,
         ITimeProviderProvider
     {
         /// <summary>
@@ -130,8 +130,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Frees any unmanaged resources.
+        /// Frees resources by running the asynchronous disposal core synchronously.
         /// </summary>
+        /// <remarks>
+        /// Callers should prefer <see cref="DisposeAsync"/>. If <see cref="DisposeAsync"/> has already run,
+        /// this method is a no-op.
+        /// </remarks>
         public void Dispose()
         {
             Dispose(true);
@@ -139,28 +143,84 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Frees resources asynchronously.
         /// </summary>
-        /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+        /// <remarks>
+        /// This is the preferred disposal path. A subsequent call to <see cref="Dispose()"/> is a no-op.
+        /// </remarks>
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Runs the asynchronous disposal core synchronously when disposing managed resources.
+        /// </summary>
+        /// <param name="disposing">
+        /// <c>true</c> to release managed resources; <c>false</c> to release only unmanaged resources.
+        /// </param>
+        /// <remarks>
+        /// If <see cref="DisposeAsyncCore"/> has already run, this method is a no-op.
+        /// </remarks>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && Volatile.Read(ref m_disposed) == 0)
             {
-                m_roleStateBinding?.Dispose();
-                m_roleStateBinding = null;
-                (RoleManager as IDisposable)?.Dispose();
-                ResourceManager?.Dispose();
-                RequestManager?.Dispose();
-                AggregateManager?.Dispose();
-                ModellingRulesManager?.Dispose();
-                ConformanceUnitsManager?.Dispose();
-                (NodeManager as IDisposable)?.Dispose();
-                SessionManager?.Dispose();
-                SubscriptionManager?.Dispose();
-                MonitoredItemQueueFactory?.Dispose();
-                (AliasNameStoreRegistry as IDisposable)?.Dispose();
-                (HistorianRegistry as IDisposable)?.Dispose();
+#pragma warning disable CA2012 // Owner-approved sync dispose path blocks here; TODO: remove if contract changes.
+                DisposeAsyncCore().GetAwaiter().GetResult();
+#pragma warning restore CA2012
             }
+        }
+
+        /// <summary>
+        /// An overrideable version of asynchronous dispose.
+        /// </summary>
+        /// <remarks>
+        /// This method performs the full managed-resource cleanup. <see cref="Dispose()"/> calls this method
+        /// synchronously when callers use the synchronous disposal path.
+        /// </remarks>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+
+            m_roleStateBinding?.Dispose();
+            m_roleStateBinding = null;
+            (RoleManager as IDisposable)?.Dispose();
+            RoleManager = null!;
+            ResourceManager?.Dispose();
+            ResourceManager = null!;
+            RequestManager?.Dispose();
+            RequestManager = null!;
+            AggregateManager?.Dispose();
+            AggregateManager = null!;
+            ModellingRulesManager?.Dispose();
+            ModellingRulesManager = null!;
+            ConformanceUnitsManager?.Dispose();
+            ConformanceUnitsManager = null!;
+            (NodeManager as IDisposable)?.Dispose();
+            NodeManager = null!;
+            DiagnosticsNodeManager = null!;
+            ConfigurationNodeManager = null!;
+            CoreNodeManager = null!;
+            SessionManager?.Dispose();
+            SessionManager = null!;
+            if (SubscriptionManager is IAsyncDisposable asyncSubscriptionManager)
+            {
+                await asyncSubscriptionManager.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                SubscriptionManager?.Dispose();
+            }
+            SubscriptionManager = null!;
+            MonitoredItemQueueFactory?.Dispose();
+            MonitoredItemQueueFactory = null!;
+            (AliasNameStoreRegistry as IDisposable)?.Dispose();
+            (HistorianRegistry as IDisposable)?.Dispose();
         }
 
         /// <summary>
@@ -562,14 +622,14 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     return NonThreadSafeStatus.Value.State;
                 }
             }
             set
             {
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     NonThreadSafeStatus.Value.State = value;
                 }
@@ -583,25 +643,68 @@ namespace Opc.Ua.Server
         public ServerObjectState ServerObject { get; private set; } = null!;
 
         /// <summary>
-        /// Used to synchronize access to the server diagnostics.
+        /// Applies an update to the server diagnostics while holding the server's
+        /// diagnostics lock.
         /// </summary>
-        /// <value>The diagnostics lock.</value>
-        public object DiagnosticsLock { get; } = new object();
-
-        /// <summary>
-        /// Used to synchronize write access to
-        /// the server diagnostics.
-        /// </summary>
-        /// <value>The diagnostics lock.</value>
-        public object DiagnosticsWriteLock
+        /// <remarks>
+        /// Replaces the former <c>DiagnosticsLock</c> and <c>DiagnosticsWriteLock</c>
+        /// properties. The server owns its lock and never hands it out, so callers cannot
+        /// participate in - or deadlock against - the server's locking order. The
+        /// diagnostic nodes are marked dirty inside the critical section; the old
+        /// <c>DiagnosticsWriteLock</c> getter did that outside the lock it then returned.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if update is null.</exception>
+        public void UpdateServerDiagnostics(
+            Action<ServerDiagnosticsSummaryDataType> update)
         {
-            get
+            if (update == null)
             {
-                // implicitly force diagnostics update
+                throw new ArgumentNullException(nameof(update));
+            }
+
+            lock (m_diagnosticsLock)
+            {
+                update.Invoke(ServerDiagnostics);
+
+                // mark diagnostic nodes dirty
                 DiagnosticsNodeManager?.ForceDiagnosticsScan();
-                return DiagnosticsLock;
             }
         }
+
+        /// <summary>
+        /// Reads a value derived from the server diagnostics while holding the server's
+        /// diagnostics lock.
+        /// </summary>
+        /// <remarks>
+        /// Do not let the diagnostics object itself escape the callback: once the lock is
+        /// released, any field read from it is unsynchronized.
+        /// </remarks>
+        /// <typeparam name="TResult">The type of the value produced.</typeparam>
+        /// <param name="read">The projection applied to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if read is null.</exception>
+        public TResult ReadServerDiagnostics<TResult>(
+            Func<ServerDiagnosticsSummaryDataType, TResult> read)
+        {
+            if (read == null)
+            {
+                throw new ArgumentNullException(nameof(read));
+            }
+
+            lock (m_diagnosticsLock)
+            {
+                return read.Invoke(ServerDiagnostics);
+            }
+        }
+
+        /// <summary>
+        /// Guards the server diagnostics and the server status value, which is constructed
+        /// with this same lock so the two stay mutually exclusive. Never exposed: callers
+        /// reach the diagnostics through <see cref="UpdateServerDiagnostics"/> and
+        /// <see cref="ReadServerDiagnostics{TResult}"/>, and the status through
+        /// <see cref="CurrentState"/> and <see cref="UpdateServerStatus"/>.
+        /// </summary>
+        private readonly Lock m_diagnosticsLock = new();
 
         /// <summary>
         /// Returns the diagnostics structure for the server.
@@ -628,7 +731,7 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     if (NonThreadSafeStatus.Value.State == ServerState.Running)
                     {
@@ -702,7 +805,8 @@ namespace Opc.Ua.Server
             {
                 await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
                     .ConfigureAwait(false);
-                await SubscriptionManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                await SubscriptionManager
+                    .SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -841,7 +945,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(action));
             }
 
-            lock (NonThreadSafeStatus.Lock)
+            lock (m_diagnosticsLock)
             {
                 action.Invoke(NonThreadSafeStatus);
             }
@@ -1070,7 +1174,7 @@ namespace Opc.Ua.Server
             NonThreadSafeStatus = new ServerStatusValue(
                 serverObject.ServerStatus,
                 serverStatus,
-                DiagnosticsLock)
+                m_diagnosticsLock)
             {
                 Timestamp = nowUtc,
                 OnBeforeRead = OnReadServerStatus
@@ -1113,6 +1217,15 @@ namespace Opc.Ua.Server
             // Initialize history capabilities and update Server EventNotifier accordingly
             await DiagnosticsNodeManager.UpdateServerEventNotifierAsync(cancellationToken)
                 .ConfigureAwait(false);
+
+            foreach (IAsyncNodeManager nodeManager in NodeManager.AsyncNodeManagers)
+            {
+                if (nodeManager is AsyncCustomNodeManager customNodeManager)
+                {
+                    await customNodeManager.PublishRootNotifierReferencesAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
 
             Auditing = m_configuration.ServerConfiguration.AuditingEnabled;
             PropertyState<bool>? auditing = serverObject.Auditing;
@@ -1165,7 +1278,7 @@ namespace Opc.Ua.Server
             BaseVariableValue variable,
             NodeState component)
         {
-            lock (NonThreadSafeStatus.Lock)
+            lock (m_diagnosticsLock)
             {
                 DateTime now = TimeProvider.GetUtcNow().UtcDateTime;
                 NonThreadSafeStatus.Timestamp = now;
@@ -1280,5 +1393,6 @@ namespace Opc.Ua.Server
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
         private ArrayOf<EndpointDescription> m_serverEndpoints;
+        private int m_disposed;
     }
 }

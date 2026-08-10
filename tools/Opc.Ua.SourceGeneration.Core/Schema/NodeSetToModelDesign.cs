@@ -423,6 +423,23 @@ namespace Opc.Ua.Schema.Model
                 return new XmlQualifiedName(input.SymbolicName, browseName.Namespace);
             }
 
+            // A placeholder browse name "<Name>" (no explicit SymbolicName in the
+            // NodeSet) follows the ModelCompiler convention of mapping to
+            // "Name_Placeholder" so generated identifiers match those produced
+            // from the equivalent ModelDesign source (e.g. a combined NodeSet
+            // that incorporates a model authored as ModelDesign). The raw browse
+            // name is used because ImportQualifiedName rewrites '<' and '>' to '_'.
+            string rawName = QualifiedName.Parse(input.BrowseName).Name;
+            if (rawName != null &&
+                rawName.Length > 2 &&
+                rawName[0] == '<' &&
+                rawName[^1] == '>')
+            {
+                return new XmlQualifiedName(
+                    ToSymbolicName(rawName[1..^1]) + "_Placeholder",
+                    browseName.Namespace);
+            }
+
             return new XmlQualifiedName(ToSymbolicName(browseName.Name), browseName.Namespace);
         }
 
@@ -954,6 +971,12 @@ namespace Opc.Ua.Schema.Model
             output.AccessLevel = ImportAccessLevel(input.AccessLevel);
             output.AccessLevelSpecified = true;
 
+            // The ModelDesign AccessLevel enumeration cannot express
+            // combinations such as CurrentRead | HistoryRead (5), so the
+            // verbatim bitmask is carried alongside it and preferred by
+            // code generation. See GetAccessLevelAsCode.
+            output.RawAccessLevel = input.AccessLevel;
+
             if (input.Value != null)
             {
                 XmlDecoder decoder = CreateDecoder(input.Value);
@@ -1195,6 +1218,8 @@ namespace Opc.Ua.Schema.Model
                     output.HasArguments = true;
                 }
             }
+
+            output.AssignMethodArgumentCodeNames();
         }
 
         private void LinkChildToParent(UAInstance input)
@@ -1341,6 +1366,11 @@ namespace Opc.Ua.Schema.Model
             output.SymbolicName = ImportSymbolicName(input);
             output.Extensions = input.Extensions;
 
+            output.SymbolicName = NormalizeSymbolicNameNamespace(
+                input,
+                output.SymbolicId,
+                output.SymbolicName);
+
             if (input is UAType &&
                 output.SymbolicId.Name.EndsWith(
                     "_" + nodeId.IdentifierAsString, StringComparison.Ordinal))
@@ -1410,6 +1440,22 @@ namespace Opc.Ua.Schema.Model
             return output;
         }
 
+        internal static XmlQualifiedName NormalizeSymbolicNameNamespace(
+            UANode input,
+            XmlQualifiedName symbolicId,
+            XmlQualifiedName symbolicName)
+        {
+            if (input is UAType &&
+                symbolicId != null &&
+                symbolicName != null &&
+                symbolicId.Namespace != symbolicName.Namespace)
+            {
+                return new XmlQualifiedName(symbolicName.Name, symbolicId.Namespace);
+            }
+
+            return symbolicName;
+        }
+
         private UANode FindNode(UANodeSet nodeset, ExpandedNodeId targetId)
         {
             if (targetId.IsNull)
@@ -1465,7 +1511,8 @@ namespace Opc.Ua.Schema.Model
 
             if (typeDefinitionId == ObjectTypeIds.DataTypeEncodingType)
             {
-                if (input.SymbolicName.Contains("Default", StringComparison.Ordinal) &&
+                if (!string.IsNullOrEmpty(input.SymbolicName) &&
+                    input.SymbolicName.Contains("Default", StringComparison.Ordinal) &&
                     input.SymbolicName.Contains("XML", StringComparison.OrdinalIgnoreCase) &&
                     input.SymbolicName != "DefaultXml")
                 {
@@ -1913,8 +1960,20 @@ namespace Opc.Ua.Schema.Model
                         NodeId childId = ImportNodeId(instance.NodeId);
 
                         if (parentId.NamespaceIndex != childId.NamespaceIndex)
-
                         {
+                            instance.ParentNodeId = null;
+                        }
+                        else if (FindTarget(
+                            node,
+                            ReferenceTypeIds.HasTypeDefinition,
+                            false) == ObjectTypeIds.DataTypeEncodingType)
+                        {
+                            // DataTypeEncoding objects are independent address-space
+                            // nodes even when an exporter sets ParentNodeId to the
+                            // owning DataType. Keeping that parent absorbs the
+                            // encoding into DataType.Children, excludes it from the
+                            // top-level model items and prevents the NodeManager
+                            // generator from registering the encoding node.
                             instance.ParentNodeId = null;
                         }
                     }
@@ -2006,7 +2065,10 @@ namespace Opc.Ua.Schema.Model
             Dictionary<XmlQualifiedName, MethodDesign> methods = [];
             CollectMethodDefinitions(dictionary.TargetNamespace, methods);
 
-            items.AddRange(methods.Values);
+            items.AddRange(methods
+                .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
+                .ThenBy(entry => entry.Key.Name, StringComparer.Ordinal)
+                .Select(entry => entry.Value));
 
             foreach (NodeDesign item in items)
             {
@@ -2142,45 +2204,195 @@ namespace Opc.Ua.Schema.Model
             string targetNamespace,
             Dictionary<XmlQualifiedName, MethodDesign> methods)
         {
+            // Index the explicit method nodes already present in the model by
+            // their symbolic name. A concrete method with arguments normally
+            // gets a synthesized "<Name>MethodType" declaration, but a combined
+            // NodeSet may already ship that method-type node explicitly (e.g.
+            // an incorporated companion specification method type).
+            // Reuse the existing declaration in that case so code generation
+            // does not emit two identifiers with the same name.
+            Dictionary<XmlQualifiedName, MethodDesign> existingByName = [];
             foreach (NodeDesign node in m_settings.NodesById.Values)
             {
-                if (node is MethodDesign method)
+                if (node is MethodDesign existing &&
+                    existing.SymbolicName != null &&
+                    !existingByName.ContainsKey(existing.SymbolicName))
                 {
-                    if (node.SymbolicId.Namespace != targetNamespace)
+                    existingByName.Add(existing.SymbolicName, existing);
+                }
+            }
+
+            MethodDesign[] candidates =
+            [
+                .. m_settings.NodesById.Values
+                    .OfType<MethodDesign>()
+                    .Where(method =>
+                        method.SymbolicId.Namespace == targetNamespace &&
+                        MethodDesignArgumentResolver.HasDeclaredArguments(method))
+                    .OrderBy(method => method.SymbolicId.Namespace, StringComparer.Ordinal)
+                    .ThenBy(method => method.SymbolicId.Name, StringComparer.Ordinal)
+            ];
+            var groupedCandidates =
+                new Dictionary<XmlQualifiedName, List<List<MethodDesign>>>();
+
+            foreach (MethodDesign method in candidates)
+            {
+                if (method.MethodDeclarationNode != null)
+                {
+                    MethodDesign definition =
+                        MethodDesignArgumentResolver.ResolveMethodDefinition(
+                            method.MethodDeclarationNode);
+                    if (MethodDesignArgumentResolver.HaveSameDeclaredSignature(
+                        method,
+                        definition))
                     {
                         continue;
                     }
-                    if (method.HasArguments && method.MethodDeclarationNode == null)
+                }
+
+                // Skip methods whose BrowseName belongs to a base namespace
+                // (e.g. the Core FileType Open/Close/Read/Write methods that a
+                // FileType instance re-declares): they are instances of a
+                // base-type method and must reuse that base method type rather
+                // than get a synthesized method type in this model.
+                if (method.SymbolicName != null &&
+                    method.SymbolicName.Namespace != targetNamespace)
+                {
+                    continue;
+                }
+
+                // Skip a standalone node that already is a method type (no owning
+                // parent and the conventional "MethodType" name, e.g. an
+                // incorporated companion specification method type.
+                // Synthesizing a declaration for it would emit a spurious
+                // "<Name>MethodTypeMethodType" node. A parentless method that is
+                // merely a declaration target of another method still needs one.
+                if (method.Parent == null &&
+                    method.SymbolicName != null &&
+                    method.SymbolicName.Name.EndsWith("MethodType", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var baseName = new XmlQualifiedName(
+                    method.SymbolicName.Name + "MethodType",
+                    method.SymbolicId.Namespace);
+                if (!groupedCandidates.TryGetValue(
+                    baseName,
+                    out List<List<MethodDesign>> signatureGroups))
+                {
+                    groupedCandidates.Add(baseName, signatureGroups = []);
+                }
+
+                List<MethodDesign> signatureGroup = signatureGroups.FirstOrDefault(
+                    group => MethodDesignArgumentResolver.HaveSameDeclaredSignature(
+                        group[0],
+                        method));
+                if (signatureGroup == null)
+                {
+                    signatureGroups.Add([method]);
+                }
+                else
+                {
+                    signatureGroup.Add(method);
+                }
+            }
+
+            var reservedNames = new HashSet<XmlQualifiedName>(
+                m_settings.NodesByQName.Keys);
+            foreach (KeyValuePair<XmlQualifiedName, List<List<MethodDesign>>> entry
+                in groupedCandidates
+                    .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
+                    .ThenBy(entry => entry.Key.Name, StringComparer.Ordinal))
+            {
+                bool qualifyWithOwner = entry.Value.Count > 1 ||
+                    reservedNames.Contains(entry.Key);
+                foreach (List<MethodDesign> signatureGroup in entry.Value)
+                {
+                    MethodDesign representative = signatureGroup[0];
+                    string preferredName = qualifyWithOwner
+                        ? GetOwnerQualifiedMethodTypeName(representative)
+                        : entry.Key.Name;
+                    var name = new XmlQualifiedName(
+                        preferredName,
+                        representative.SymbolicId.Namespace);
+                    int suffix = 2;
+                    while (reservedNames.Contains(name) || methods.ContainsKey(name))
                     {
-                        var name = new XmlQualifiedName(
-                            node.SymbolicName.Name + "MethodType",
-                            node.SymbolicId.Namespace);
+                        string stem = preferredName.EndsWith(
+                            "MethodType",
+                            StringComparison.Ordinal)
+                                ? preferredName[..^"MethodType".Length]
+                                : preferredName;
+                        name = new XmlQualifiedName(
+                            stem +
+                                suffix.ToString(CultureInfo.InvariantCulture) +
+                                "MethodType",
+                            representative.SymbolicId.Namespace);
+                        suffix++;
+                    }
 
-                        if (methods.ContainsKey(name))
+                    // Prefer an explicit method-type declaration already in
+                    // the model over synthesizing a colliding duplicate. The
+                    // concrete method carries the authoritative argument
+                    // definitions, so copy them onto the reused declaration
+                    // to guarantee code generation emits the correct method
+                    // signature and result even when the incorporated
+                    // NodeSet declares the method-type argument nodes apart
+                    // from the concrete method.
+                    if (existingByName.TryGetValue(name, out MethodDesign declared) &&
+                        !signatureGroup.Any(method => ReferenceEquals(declared, method)))
+                    {
+                        declared.InputArguments = representative.InputArguments;
+                        declared.OutputArguments = representative.OutputArguments;
+                        declared.HasArguments = true;
+                        foreach (MethodDesign method in signatureGroup)
                         {
-                            continue;
+                            method.MethodDeclarationNode = declared;
+                            method.TypeDefinition = null;
+                            method.MethodType = null;
                         }
+                        reservedNames.Add(name);
+                        continue;
+                    }
 
-                        var declaration = new MethodDesign
+                    var declaration = new MethodDesign
+                    {
+                        SymbolicId = name,
+                        SymbolicName = name,
+                        BrowseName = name.Name,
+                        DisplayName = new LocalizedText
                         {
-                            SymbolicId = name,
-                            SymbolicName = name,
-                            BrowseName = name.Name,
-                            DisplayName = new LocalizedText
-                            {
-                                Value = name.Name,
-                                IsAutogenerated = true
-                            },
-                            InputArguments = method.InputArguments,
-                            OutputArguments = method.OutputArguments,
-                            HasArguments = true
-                        };
+                            Value = name.Name,
+                            IsAutogenerated = true
+                        },
+                        InputArguments = representative.InputArguments,
+                        OutputArguments = representative.OutputArguments,
+                        HasArguments = true
+                    };
 
-                        methods.Add(declaration.SymbolicName, declaration);
+                    methods.Add(declaration.SymbolicName, declaration);
+                    reservedNames.Add(declaration.SymbolicName);
+                    foreach (MethodDesign method in signatureGroup)
+                    {
                         method.MethodDeclarationNode = declaration;
+                        method.TypeDefinition = null;
+                        method.MethodType = null;
                     }
                 }
             }
+        }
+
+        private static string GetOwnerQualifiedMethodTypeName(MethodDesign method)
+        {
+            string ownerName = method.SymbolicId.Name;
+            string methodSuffix = "_" + method.SymbolicName.Name;
+            if (ownerName.EndsWith(methodSuffix, StringComparison.Ordinal))
+            {
+                ownerName = ownerName[..^methodSuffix.Length];
+            }
+            ownerName = ownerName.Replace("_", string.Empty, StringComparison.Ordinal);
+            return method.SymbolicName.Name + ownerName + "MethodType";
         }
 
         /// <summary>
@@ -2188,6 +2400,10 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
+            // The factory knows the standard OPC UA encodeable types. Without them, structured
+            // NodeSet2 values such as method Argument lists (InputArguments/OutputArguments)
+            // cannot be decoded and the generated typed method state would lose its arguments
+            // and result fields.
             var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
             messageContext.NamespaceUris = m_settings.NamespaceUris;
             messageContext.ServerUris = m_serverUris;

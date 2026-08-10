@@ -45,9 +45,12 @@ namespace Opc.Ua.WotCon.Server
     /// <remarks>
     /// The static model nodes — <c>WoTAssetConnectionManagement</c>, all
     /// type definitions, and the <c>HasWoTComponent</c> reference type —
-    /// are loaded from the generated <c>AddOpcUaWotCon</c> table. Dynamic
-    /// nodes (assets, property variables, action methods) are created
-    /// per asset by <see cref="AssetRegistry"/> in a dedicated namespace
+    /// are loaded from the generated <c>AddOpcUaWotCon</c> table, restricted to
+    /// the incorporated OPC 10100-1 v1.02 surface (NodeIds below the additive
+    /// registry block). The additive registry nodes in the same combined model
+    /// are owned by <c>WotRegistryNodeManager</c>. Dynamic nodes (assets,
+    /// property variables, action methods) are created per asset by
+    /// <see cref="AssetRegistry"/> in a dedicated namespace
     /// (<see cref="WotConnectivityServerOptions.AssetNamespaceUri"/>).
     /// </remarks>
     public sealed class WotConnectivityNodeManager : AsyncCustomNodeManager, INodeIdFactory
@@ -92,6 +95,60 @@ namespace Opc.Ua.WotCon.Server
                 return node.NodeId;
             }
             return new NodeId((uint)Interlocked.Increment(ref m_nextDynamicId), AssetNamespaceIndex);
+        }
+
+        /// <summary>
+        /// Registers an EventType materialised for a WoT event affordance.
+        /// </summary>
+        /// <remarks>
+        /// Synchronous because it is called from the asset-registry build
+        /// pass, which already holds that registry's write lock; taking this
+        /// manager's lock there would deadlock.
+        /// </remarks>
+        internal void AddEventTypeNode(BaseObjectTypeState eventType)
+        {
+            AddPredefinedNodeSynchronously(eventType);
+        }
+
+        /// <summary>
+        /// Removes an EventType previously registered by
+        /// <see cref="AddEventTypeNode"/>, together with the field properties
+        /// registered beneath it.
+        /// </summary>
+        /// <remarks>
+        /// Synchronous for the same reason as <see cref="AddEventTypeNode"/>.
+        /// <see cref="AddEventTypeNode"/> indexes the whole subtree, so the
+        /// per-field <c>PropertyState</c> children have their own index
+        /// entries and must be dropped here or a re-applied Thing Description
+        /// leaks them.
+        /// </remarks>
+        internal void RemoveEventTypeNode(NodeId nodeId)
+        {
+            if (!PredefinedNodes.TryRemove(nodeId, out NodeState? node))
+            {
+                return;
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                PredefinedNodes.TryRemove(child.NodeId, out _);
+            }
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+            node.ClearChangeMasks(SystemContext, includeChildren: true);
+        }
+
+        /// <summary>
+        /// Marks an asset object as an event notifier and registers it as a
+        /// root notifier so subscriptions on the Server object receive the
+        /// asset's WoT events.
+        /// </summary>
+        internal ValueTask EnableAssetEventsAsync(IWoTAssetState asset, CancellationToken ct)
+        {
+            asset.EventNotifier = EventNotifiers.SubscribeToEvents;
+            return AddRootNotifierAsync(asset, ct);
         }
 
         /// <summary>
@@ -170,7 +227,15 @@ namespace Opc.Ua.WotCon.Server
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            return new ValueTask<NodeStateCollection>(new NodeStateCollection().AddOpcUaWotCon(context));
+            // The combined WoT-Con model incorporates both the deprecated 1.02
+            // surface and the additive registry nodes (which reference xRegistry
+            // base types). Register the xRegistry namespace so the combined table
+            // can be created, then keep only the 1.02 slice: the registry nodes
+            // are owned by WotRegistryNodeManager.
+            WotConModelPartition.EnsureXRegistryNamespace(context);
+            NodeStateCollection nodes = new NodeStateCollection().AddOpcUaWotCon(context);
+            WotConModelPartition.RetainLegacyNodes(nodes, context);
+            return new ValueTask<NodeStateCollection>(nodes);
         }
 
         /// <inheritdoc/>
@@ -435,8 +500,9 @@ namespace Opc.Ua.WotCon.Server
                 child.ValueRank = ValueRanks.Scalar;
                 child.AccessLevel = kv.Value.Writable ? AccessLevels.CurrentReadOrWrite : AccessLevels.CurrentRead;
                 child.UserAccessLevel = child.AccessLevel;
-                child.Value = kv.Value.InitialValue
-                    ?? TypeInfo.GetDefaultVariantValue(kv.Value.DataType, ValueRanks.Scalar);
+                child.Value = kv.Value.HasInitialValue
+                    ? kv.Value.InitialValue
+                    : TypeInfo.GetDefaultVariantValue(kv.Value.DataType, ValueRanks.Scalar);
                 if (!string.IsNullOrEmpty(kv.Value.Description))
                 {
                     child.Description = new LocalizedText(kv.Value.Description);
@@ -444,7 +510,7 @@ namespace Opc.Ua.WotCon.Server
             }
         }
 
-        private async ValueTask<CreateAssetMethodStateResult> OnCreateAssetAsync(
+        private async ValueTask<CreateAssetWoTAssetConnectionManagementTypeMethodStateResult> OnCreateAssetAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -454,10 +520,14 @@ namespace Opc.Ua.WotCon.Server
             EnforceManagementAccess(context, "CreateAsset");
             (ServiceResult status, NodeId assetId) = await m_registry
                 .CreateAssetAsync(assetName, cancellationToken).ConfigureAwait(false);
-            return new CreateAssetMethodStateResult { ServiceResult = status, AssetId = assetId.IsNull ? NodeId.Null : assetId };
+            return new CreateAssetWoTAssetConnectionManagementTypeMethodStateResult
+            {
+                ServiceResult = status,
+                AssetId = assetId.IsNull ? NodeId.Null : assetId
+            };
         }
 
-        private async ValueTask<DeleteAssetMethodStateResult> OnDeleteAssetAsync(
+        private async ValueTask<DeleteAssetWoTAssetConnectionManagementTypeMethodStateResult> OnDeleteAssetAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -467,10 +537,10 @@ namespace Opc.Ua.WotCon.Server
             EnforceManagementAccess(context, "DeleteAsset");
             ServiceResult status = await m_registry
                 .DeleteAssetAsync(assetId, cancellationToken).ConfigureAwait(false);
-            return new DeleteAssetMethodStateResult { ServiceResult = status };
+            return new DeleteAssetWoTAssetConnectionManagementTypeMethodStateResult { ServiceResult = status };
         }
 
-        private async ValueTask<DiscoverAssetsMethodStateResult> OnDiscoverAssetsAsync(
+        private async ValueTask<DiscoverAssetsWoTAssetConnectionManagementTypeMethodStateResult> OnDiscoverAssetsAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -484,14 +554,14 @@ namespace Opc.Ua.WotCon.Server
             {
                 arr[i] = endpoints[i];
             }
-            return new DiscoverAssetsMethodStateResult
+            return new DiscoverAssetsWoTAssetConnectionManagementTypeMethodStateResult
             {
                 ServiceResult = status,
                 AssetEndpoints = new ArrayOf<string>(arr)
             };
         }
 
-        private async ValueTask<CreateAssetForEndpointMethodStateResult> OnCreateAssetForEndpointAsync(
+        private async ValueTask<CreateAssetForEndpointWoTAssetConnectionManagementTypeMethodStateResult> OnCreateAssetForEndpointAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -503,14 +573,14 @@ namespace Opc.Ua.WotCon.Server
             (ServiceResult status, NodeId assetId) = await m_registry
                 .CreateAssetForEndpointAsync(assetName, assetEndpoint, cancellationToken)
                 .ConfigureAwait(false);
-            return new CreateAssetForEndpointMethodStateResult
+            return new CreateAssetForEndpointWoTAssetConnectionManagementTypeMethodStateResult
             {
                 ServiceResult = status,
                 AssetId = assetId.IsNull ? NodeId.Null : assetId
             };
         }
 
-        private async ValueTask<ConnectionTestMethodStateResult> OnConnectionTestAsync(
+        private async ValueTask<ConnectionTestWoTAssetConnectionManagementTypeMethodStateResult> OnConnectionTestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -520,7 +590,7 @@ namespace Opc.Ua.WotCon.Server
             EnforceManagementAccess(context, "ConnectionTest");
             (ServiceResult status, bool success, string text) = await m_registry
                 .ConnectionTestAsync(assetEndpoint, cancellationToken).ConfigureAwait(false);
-            return new ConnectionTestMethodStateResult
+            return new ConnectionTestWoTAssetConnectionManagementTypeMethodStateResult
             {
                 ServiceResult = status,
                 Success = success,
@@ -563,7 +633,10 @@ namespace Opc.Ua.WotCon.Server
             MessageSecurityMode securityMode = operationContext.ChannelContext?
                 .EndpointDescription?.SecurityMode ??
                 MessageSecurityMode.None;
-            if (securityMode != policy.MinimumSecurityMode)
+            // MinimumSecurityMode is a floor, not an exact match: MessageSecurityMode is ordered by
+            // strength (Invalid < None < Sign < SignAndEncrypt), so a channel at or above the
+            // configured mode is accepted and Invalid is always rejected.
+            if (securityMode < policy.MinimumSecurityMode)
             {
                 m_logger.ManagementCallDeniedSecurityMode(operation, securityMode, policy.MinimumSecurityMode);
                 throw new ServiceResultException(

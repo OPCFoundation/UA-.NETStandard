@@ -61,6 +61,24 @@ namespace Opc.Ua.WotCon.Server.Assets
         public Dictionary<NodeId, (MethodState Method, WotActionTag Tag)> Actions { get; } = [];
 
         /// <summary>
+        /// EventTypes created from TD events keyed by EventType NodeId.
+        /// </summary>
+        public Dictionary<NodeId, (BaseObjectTypeState EventType, WotEventTag Tag)> Events { get; } = [];
+
+        /// <summary>
+        /// Identifies the current Thing Description generation for event
+        /// callbacks.
+        /// </summary>
+        /// <remarks>
+        /// A provider callback runs on the provider's own thread and can
+        /// arrive after the TD it belongs to has been replaced. The callback
+        /// captures the token that was current when it subscribed, so a
+        /// stale occurrence can be dropped instead of being reported against
+        /// an event type that no longer exists.
+        /// </remarks>
+        public object EventGeneration { get; set; } = new();
+
+        /// <summary>
         /// Active observation callbacks keyed by monitored-item id, used to
         /// route value changes from the provider back to the right variable.
         /// </summary>

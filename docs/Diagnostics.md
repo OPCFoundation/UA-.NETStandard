@@ -697,6 +697,15 @@ shared `/tmp` directory:
 The base folder is created with mode `0700` on Unix and inherits the
 user profile ACL on Windows. Override via `PcapOptions.BaseFolder`.
 
+Every MCP tool that accepts a caller-supplied capture or key-log path
+(`decode_pcap_with_keys`, `summarize_service_calls`, `replay_pcap`,
+`pubsub_decode_pcap`, `pubsub_dissect_capture`, `pubsub_load_keylog`,
+`pubsub_write_pcap`) confines it to this folder through
+`McpCapturePath.ResolveAndValidate`, so a path that resolves outside the
+root is rejected rather than read. The root is resolved with the
+precedence `OpcUaMcpOptions.PcapBaseFolder` → `PcapOptions.BaseFolder` →
+the per-user default above.
+
 #### Environment-variable configuration
 
 For deployments where the operator sets capture / keylog destinations
@@ -1487,3 +1496,7 @@ unchanged.
   change required to adopt the telemetry context.
 - [Certificate Manager](CertificateManager.md) &mdash; certificate
   factories and stores all take `ITelemetryContext` on construction.
+- [CryptoProvider](CryptoProvider.md) &mdash; the `opc.ua.crypto.*`
+  metrics and the audit events that record which cryptographic module
+  performed an operation, including a warning when it carries no
+  validation.

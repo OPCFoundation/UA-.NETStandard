@@ -638,7 +638,8 @@ namespace Opc.Ua.SourceGeneration
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::Opc.Ua.DateTimeUtc timestamp)
             {
-                lock (Lock)
+                EnterLock();
+                try
                 {
                     DoBeforeReadProcessing(context, node);
 
@@ -677,6 +678,10 @@ namespace Opc.Ua.SourceGeneration
 
                     return result;
                 }
+                finally
+                {
+                    ExitLock();
+                }
             }
 
             /// <summary>
@@ -691,7 +696,8 @@ namespace Opc.Ua.SourceGeneration
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::Opc.Ua.DateTimeUtc timestamp)
             {
-                lock (Lock)
+                EnterLock();
+                try
                 {
                     if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.ChildDataType}} newValue))
                     {
@@ -700,6 +706,10 @@ namespace Opc.Ua.SourceGeneration
                     UpdateChildVariableStatus(m_variable.{{Tokens.ChildPath}}, ref statusCode, ref timestamp);
                     m_value.{{Tokens.ChildPath}} = {{Tokens.ValueWrite}};
                     UpdateParent(context, ref statusCode, ref timestamp);
+                }
+                finally
+                {
+                    ExitLock();
                 }
 
                 return global::Opc.Ua.ServiceResult.Good;
@@ -725,7 +735,7 @@ namespace Opc.Ua.SourceGeneration
                 public {{Tokens.ClassName}}Value(
                     {{Tokens.ClassName}}State variable,
                     {{Tokens.DataType}}? value,
-                    object dataLock)
+                    global::System.Threading.Lock? dataLock)
                     : base(dataLock)
                 {
                     m_value = value;
@@ -757,7 +767,8 @@ namespace Opc.Ua.SourceGeneration
                 /// </summary>
                 private void Initialize({{Tokens.ClassName}}State variable)
                 {
-                    lock (Lock)
+                    EnterLock();
+                    try
                     {
                         m_variable = variable;
 
@@ -775,6 +786,10 @@ namespace Opc.Ua.SourceGeneration
 
                         SetUpdateList(updateList);
                     }
+                    finally
+                    {
+                        ExitLock();
+                    }
                 }
 
                 /// <inheritdoc/>
@@ -787,7 +802,8 @@ namespace Opc.Ua.SourceGeneration
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
-                    lock (Lock)
+                    EnterLock();
+                    try
                     {
                         DoBeforeReadProcessing(context, node);
 
@@ -797,6 +813,10 @@ namespace Opc.Ua.SourceGeneration
                         }
 
                         return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                    }
+                    finally
+                    {
+                        ExitLock();
                     }
                 }
 
@@ -810,7 +830,8 @@ namespace Opc.Ua.SourceGeneration
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
-                    lock (Lock)
+                    EnterLock();
+                    try
                     {
                         if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.DataType}} newValue))
                         {
@@ -824,6 +845,10 @@ namespace Opc.Ua.SourceGeneration
                             m_value = {{Tokens.ValueWrite}};
                             m_variable.UpdateChangeMasks(global::Opc.Ua.NodeStateChangeMasks.Value);
                         }
+                    }
+                    finally
+                    {
+                        ExitLock();
                     }
 
                     return global::Opc.Ua.ServiceResult.Good;
@@ -1161,12 +1186,9 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.QualifiedName browseName,
                 bool createOrReplace,
-                global::Opc.Ua.BaseInstanceState? replacement)
+                global::Opc.Ua.BaseInstanceState? replacement,
+                bool assignInstanceNodeIds = true)
             {
-                if (browseName.IsNull)
-                {
-                    return null;
-                }
                 global::Opc.Ua.BaseInstanceState? instance = null;
 
                 switch (browseName.Name)
@@ -1175,13 +1197,11 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (instance != null)
-
                 {
-
                     return instance;
-
                 }
-                return base.FindChild(context, browseName, createOrReplace, replacement);
+                return base.FindChild(
+                    context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
             }
 
             /// <inheritdoc/>
@@ -1210,7 +1230,8 @@ namespace Opc.Ua.SourceGeneration
             case "{{Tokens.ChildBrowseNameLiteral}}":
             {
                 instance = !createOrReplace ?
-                    {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(context, replacement);
+                    {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(
+                        context, replacement, assignInstanceNodeIds);
                 break;
             }
 
@@ -1409,6 +1430,20 @@ namespace Opc.Ua.SourceGeneration
             // Add {{Tokens.SymbolicName}} predefined node
             {
                 global::Opc.Ua.NodeState state = Create{{Tokens.SymbolicId}}(context);
+                state.CreateAsPredefinedNode(context);
+                nodes.Add(state);
+            }
+            """);
+
+        /// <summary>
+        /// Template for a single method state creation call.
+        /// </summary>
+        public static readonly TemplateString AddMethod = TemplateString.Parse(
+            $$"""
+            // Add {{Tokens.SymbolicName}} predefined node
+            {
+                global::Opc.Ua.NodeState state =
+                    context.CreateInstanceOf{{Tokens.SymbolicId}}();
                 state.CreateAsPredefinedNode(context);
                 nodes.Add(state);
             }

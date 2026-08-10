@@ -41,8 +41,8 @@ namespace Opc.Ua.XRegistry.Client
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This type is the sanctioned extension point. A domain registry — the PubSub Schema Registry,
-    /// a WoT registry — derives from it and adds domain-specific naming and defaults;
+    /// This type is the sanctioned extension point. A domain registry derives from it and adds
+    /// domain-specific naming and defaults;
     /// <see cref="GenericXRegistryClient"/> is the plain, sealed implementation for callers that
     /// only need the base model.
     /// </para>
@@ -58,7 +58,7 @@ namespace Opc.Ua.XRegistry.Client
     {
         /// <summary>
         /// Initializes a registry client bound to a connected <paramref name="session"/> and the
-        /// registry's companion namespace.
+        /// registry's companion namespace, using the well-known registry root Object.
         /// </summary>
         /// <param name="session">The connected session whose server hosts the registry.</param>
         /// <param name="registryNamespaceUri">The registry companion namespace URI.</param>
@@ -70,6 +70,37 @@ namespace Opc.Ua.XRegistry.Client
         protected XRegistryClient(
             ISession session,
             string registryNamespaceUri,
+            ITelemetryContext telemetry)
+            : this(session, registryNamespaceUri, default, telemetry)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a registry client bound to a connected <paramref name="session"/>, the
+        /// registry's companion namespace, and an explicit registry root Object.
+        /// <para>
+        /// A domain registry does not necessarily publish its root at
+        /// <see cref="XRegistryWellKnown.RegistryObject"/> — that identifier is provisional, and a
+        /// domain model can declare its own root, which a client typically discovers by Browse.
+        /// Passing the resolved NodeId here makes the root a construction-time input that cannot
+        /// subsequently drift.
+        /// </para>
+        /// </summary>
+        /// <param name="session">The connected session whose server hosts the registry.</param>
+        /// <param name="registryNamespaceUri">The registry companion namespace URI.</param>
+        /// <param name="registryNodeId">
+        /// The registry root Object. Pass a null NodeId to use the well-known root
+        /// <see cref="XRegistryWellKnown.RegistryObject"/> in the resolved registry namespace.
+        /// </param>
+        /// <param name="telemetry">Telemetry context used by the generated proxies.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> or
+        /// <paramref name="telemetry"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="registryNamespaceUri"/> is null/empty.</exception>
+        /// <exception cref="ServiceResultException">The server does not expose the registry namespace.</exception>
+        protected XRegistryClient(
+            ISession session,
+            string registryNamespaceUri,
+            NodeId registryNodeId,
             ITelemetryContext telemetry)
         {
             Session = session ?? throw new ArgumentNullException(nameof(session));
@@ -90,6 +121,9 @@ namespace Opc.Ua.XRegistry.Client
 
             RegistryNamespaceUri = registryNamespaceUri;
             NamespaceIndex = (ushort)index;
+            RegistryNodeId = registryNodeId.IsNull
+                ? new NodeId(XRegistryWellKnown.RegistryObject, NamespaceIndex)
+                : registryNodeId;
         }
 
         /// <summary>
@@ -108,11 +142,12 @@ namespace Opc.Ua.XRegistry.Client
         public ushort NamespaceIndex { get; }
 
         /// <summary>
-        /// Gets the NodeId of the registry root Object, which a server publishes at a well-known
-        /// identifier in its registry namespace. This is the starting point for the group lifecycle,
-        /// so a caller does not have to Browse for it.
+        /// Gets the NodeId of the registry root Object. By default this is the well-known
+        /// identifier a server publishes in its registry namespace, so a caller does not have to
+        /// Browse for it; a domain registry whose root lives elsewhere supplies it at construction.
+        /// This is the starting point for the group lifecycle.
         /// </summary>
-        public NodeId RegistryNodeId => new(XRegistryWellKnown.RegistryObject, NamespaceIndex);
+        public NodeId RegistryNodeId { get; }
 
         /// <summary>
         /// Gets the telemetry context handed to the generated proxies.

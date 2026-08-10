@@ -433,7 +433,21 @@ namespace Opc.Ua.Bindings
             {
                 if (doNotBlock)
                 {
-                    _ = Task.Run(() => callback(this));
+                    // Same contract as the inline branch below: the callback is
+                    // user code and may throw. Without this the exception is
+                    // swallowed by the unobserved-task machinery and the failure
+                    // is invisible.
+                    _ = Task.Run(() =>
+                    {
+                        try
+                        {
+                            callback(this);
+                        }
+                        catch (Exception e)
+                        {
+                            m_logger.ChannelAsyncOperationLogMessage0(e);
+                        }
+                    });
                 }
                 else
                 {

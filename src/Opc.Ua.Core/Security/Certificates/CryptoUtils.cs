@@ -723,6 +723,18 @@ namespace Opc.Ua
 
             if (signingKey != null)
             {
+#if NET6_0_OR_GREATER
+                // Write the signature straight into the space reserved for it
+                // instead of allocating a hash array and copying it across.
+                if (!hmac!.TryComputeHash(
+                        dataArray.AsSpan(0, data.Offset + data.Count),
+                        dataArray.AsSpan(data.Offset + data.Count, hashLength),
+                        out int written) ||
+                    written != hashLength)
+                {
+                    throw new CryptographicException("Could not compute the symmetric signature.");
+                }
+#else
                 byte[] hash = hmac!.ComputeHash(dataArray, 0, data.Offset + data.Count);
 
                 Buffer.BlockCopy(
@@ -731,11 +743,12 @@ namespace Opc.Ua
                     dataArray,
                     data.Offset + data.Count,
                     hash.Length);
+#endif
 
                 data = new ArraySegment<byte>(
                     dataArray,
                     data.Offset,
-                    data.Count + hash.Length);
+                    data.Count + hashLength);
             }
 
             if (!signOnly)
@@ -1027,15 +1040,52 @@ namespace Opc.Ua
         }
 #endif
 
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// The largest symmetric signature any supported policy produces, SHA-512.
+        /// </summary>
+        private const int kMaxSymmetricHashLength = 64;
+#endif
+
         /// <summary>
         /// Decrypts the buffer using the algorithm specified by the security policy.
         /// </summary>
+        /// <param name="data">
+        /// The buffer to decrypt and verify, decrypted in place.
+        /// </param>
+        /// <param name="securityPolicy">
+        /// The security policy whose algorithms are applied.
+        /// </param>
+        /// <param name="encryptingKey">
+        /// The symmetric decryption key.
+        /// </param>
+        /// <param name="iv">
+        /// The initialization vector.
+        /// </param>
+        /// <param name="signingKey">
+        /// The signing key, or <see langword="null"/> when the buffer is unsigned.
+        /// </param>
+        /// <param name="signOnly">
+        /// <see langword="true"/> when the buffer is signed but not encrypted.
+        /// </param>
+        /// <param name="tokenId">
+        /// The channel token id, used by the AEAD algorithms to derive the nonce.
+        /// </param>
+        /// <param name="lastSequenceNumber">
+        /// The sequence number, used by the AEAD algorithms to derive the nonce.
+        /// </param>
         /// <exception cref="CryptographicException"></exception>
         /// <exception cref="NotSupportedException"></exception>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ServiceResultException">
         /// The signature HMAC could not be created.
         /// </exception>
+        /// <remarks>
+        /// This overload preserves the signature that shipped before an HMAC
+        /// could be supplied, so assemblies compiled against it keep working
+        /// without a recompile. It creates and disposes an HMAC per call; pass
+        /// one to the other overload to avoid that.
+        /// </remarks>
         public static ArraySegment<byte> SymmetricDecryptAndVerify(
            ArraySegment<byte> data,
            SecurityPolicyInfo securityPolicy,
@@ -1045,6 +1095,72 @@ namespace Opc.Ua
            bool signOnly = false,
            uint tokenId = 0,
            uint lastSequenceNumber = 0)
+        {
+            return SymmetricDecryptAndVerify(
+                data,
+                securityPolicy,
+                encryptingKey,
+                iv,
+                signingKey,
+                signOnly,
+                tokenId,
+                lastSequenceNumber,
+                null);
+        }
+
+        /// <summary>
+        /// Decrypts the buffer using the algorithm specified by the security
+        /// policy, reusing a caller supplied HMAC.
+        /// </summary>
+        /// <param name="data">
+        /// The buffer to decrypt and verify, decrypted in place.
+        /// </param>
+        /// <param name="securityPolicy">
+        /// The security policy whose algorithms are applied.
+        /// </param>
+        /// <param name="encryptingKey">
+        /// The symmetric decryption key.
+        /// </param>
+        /// <param name="iv">
+        /// The initialization vector.
+        /// </param>
+        /// <param name="signingKey">
+        /// The signing key, or <see langword="null"/> when the buffer is unsigned.
+        /// </param>
+        /// <param name="signOnly">
+        /// <see langword="true"/> when the buffer is signed but not encrypted.
+        /// </param>
+        /// <param name="tokenId">
+        /// The channel token id, used by the AEAD algorithms to derive the nonce.
+        /// </param>
+        /// <param name="lastSequenceNumber">
+        /// The sequence number, used by the AEAD algorithms to derive the nonce.
+        /// </param>
+        /// <param name="hmac">
+        /// An HMAC to reuse for signature verification. When <see langword="null"/>
+        /// one is created from the signing key and disposed before returning. The
+        /// channel keeps one per token, which avoids allocating one per chunk.
+        /// </param>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The signature HMAC could not be created.
+        /// </exception>
+        /// <remarks>
+        /// Every parameter is required so that a call using the defaults of the
+        /// shorter overload stays unambiguous.
+        /// </remarks>
+        public static ArraySegment<byte> SymmetricDecryptAndVerify(
+           ArraySegment<byte> data,
+           SecurityPolicyInfo securityPolicy,
+           byte[] encryptingKey,
+           byte[] iv,
+           byte[]? signingKey,
+           bool signOnly,
+           uint tokenId,
+           uint lastSequenceNumber,
+           HMAC? hmac)
         {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
@@ -1103,21 +1219,58 @@ namespace Opc.Ua
 
             if (signingKey != null)
             {
-                using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey) ??
-                    throw new ServiceResultException(
-                        StatusCodes.BadSecurityChecksFailed,
-                        "Could not create signature HMAC.");
-                byte[] hash = hmac.ComputeHash(dataArray, 0, data.Offset + data.Count - (hmac.HashSize / 8));
-                for (int ii = 0; ii < hash.Length; ii++)
-                {
-                    int index = data.Offset + data.Count - hash.Length + ii;
-                    isNotValid |= dataArray[index] != hash[ii] ? 1 : 0;
-                }
+                // Only create and own an HMAC when the caller did not supply one.
+                HMAC? ownedHmac = hmac != null
+                    ? null
+                    : securityPolicy.CreateSignatureHmac(signingKey) ??
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "Could not create signature HMAC.");
 
-                data = new ArraySegment<byte>(
-                    dataArray,
-                    data.Offset,
-                    data.Count - hash.Length);
+                try
+                {
+                    HMAC signer = hmac ?? ownedHmac!;
+                    int hashLength = signer.HashSize / 8;
+                    int signedLength = data.Offset + data.Count - hashLength;
+
+#if NET6_0_OR_GREATER
+                    if (hashLength > kMaxSymmetricHashLength)
+                    {
+                        throw new CryptographicException(
+                            $"A symmetric signature of {hashLength} bytes is longer than any " +
+                            "supported security policy produces.");
+                    }
+
+                    Span<byte> hash = stackalloc byte[kMaxSymmetricHashLength];
+                    hash = hash[..hashLength];
+
+                    if (!signer.TryComputeHash(
+                            dataArray.AsSpan(0, signedLength),
+                            hash,
+                            out int written) ||
+                        written != hashLength)
+                    {
+                        throw new CryptographicException(
+                            "Could not compute the symmetric signature.");
+                    }
+#else
+                    byte[] hash = signer.ComputeHash(dataArray, 0, signedLength);
+#endif
+
+                    for (int ii = 0; ii < hashLength; ii++)
+                    {
+                        isNotValid |= dataArray[signedLength + ii] != hash[ii] ? 1 : 0;
+                    }
+
+                    data = new ArraySegment<byte>(
+                        dataArray,
+                        data.Offset,
+                        data.Count - hashLength);
+                }
+                finally
+                {
+                    ownedHmac?.Dispose();
+                }
             }
 
             if (!signOnly)

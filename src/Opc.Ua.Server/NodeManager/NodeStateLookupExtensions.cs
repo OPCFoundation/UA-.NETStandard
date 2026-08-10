@@ -34,11 +34,12 @@ namespace Opc.Ua.Server.NodeManager
 {
     /// <summary>
     /// Linear-scan + dictionary lookups over a node-manager's predefined
-    /// node collection. Surfaces the three patterns that node-manager
+    /// node collection. Surfaces the patterns that node-manager
     /// subclasses repeatedly hand-roll against
     /// <c>CustomNodeManager.PredefinedNodes</c> /
     /// <c>AsyncCustomNodeManager.PredefinedNodes</c>:
-    /// browse-name root lookup, NodeId lookup, and TypeDefinitionId scan.
+    /// browse-name root lookup, NodeId lookup, TypeDefinitionId scan, and
+    /// DataType scan.
     /// </summary>
     public static class NodeStateLookupExtensions
     {
@@ -134,6 +135,43 @@ namespace Opc.Ua.Server.NodeManager
                 }
             }
             return results;
+        }
+
+        /// <summary>
+        /// Returns every <see cref="BaseVariableState"/> in
+        /// <paramref name="nodes"/> whose
+        /// <see cref="BaseVariableState.DataType"/> equals
+        /// <paramref name="dataTypeId"/>. The list is empty when no match
+        /// exists; non-variable nodes are skipped.
+        /// </summary>
+        /// <param name="nodes">
+        /// The set to scan, typically <c>PredefinedNodes.Values</c>.
+        /// </param>
+        /// <param name="dataTypeId">
+        /// DataType NodeId to match (e.g. a known <c>DataTypeIds</c>
+        /// constant).
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodes"/> is <see langword="null"/>.
+        /// </exception>
+        public static ArrayOf<NodeState> FindByDataType(
+            this IEnumerable<NodeState> nodes,
+            NodeId dataTypeId)
+        {
+            if (nodes == null)
+            {
+                throw new ArgumentNullException(nameof(nodes));
+            }
+            var results = new List<NodeState>();
+            foreach (NodeState node in nodes)
+            {
+                if (node is BaseVariableState variable &&
+                    variable.DataType == dataTypeId)
+                {
+                    results.Add(node);
+                }
+            }
+            return new ArrayOf<NodeState>(results.ToArray());
         }
     }
 }

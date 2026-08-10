@@ -32,7 +32,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.SourceGeneration
 {
-    internal static class SourceGenerator
+    internal static partial class SourceGenerator
     {
         /// <summary>
         /// The namespace prefix for generated code
@@ -76,6 +76,27 @@ namespace Opc.Ua.SourceGeneration
                 "referenced assembly '{1}' under prefix '{2}'; skipping local generation"),
             category: Name,
             DiagnosticSeverity.Info,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor FluentAccessorsOnlyModelError = new(
+            id: "MODELGEN014",
+            title: "Fluent-accessors-only model cannot be generated",
+            messageFormat: (LocalizableString)("Cannot generate fluent accessors only for model " +
+                "URI '{0}', prefix '{1}', input '{2}': {3}"),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor FluentAccessorsOnlyOptionsError = new(
+            id: "MODELGEN015",
+            title: "Invalid fluent-accessors-only configuration",
+            messageFormat: (LocalizableString)"Invalid fluent-accessors-only configuration: {0}",
+            category: Name,
+            DiagnosticSeverity.Error,
             isEnabledByDefault: true,
             helpLinkUri: "www.opcfoundation.org",
             customTags: ["opcua"]);
@@ -240,6 +261,93 @@ namespace Opc.Ua.SourceGeneration
             id: "MODELGEN029",
             title: "NodeSet identifier file contains an invalid row",
             messageFormat: (LocalizableString)"NodeSet '{0}' identifier file '{1}' contains invalid row '{3}'",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// A WoT (<c>.tm.json</c>/<c>.td.json</c>/<c>.tm.jsonld</c>/<c>.td.jsonld</c>,
+        /// or opted-in <c>.jsonld</c>) AdditionalFile could not even be parsed as
+        /// JSON, could not be read, or exceeded a configured resource bound before
+        /// any structured conversion diagnostics were available. The input is
+        /// skipped; other inputs continue to be processed.
+        /// </summary>
+        public static readonly DiagnosticDescriptor WotParseError = new(
+            id: "MODELGEN030",
+            title: "WoT model could not be parsed",
+            messageFormat: (LocalizableString)"WoT model '{0}' could not be parsed: {1}",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// The WoT-to-NodeSet2 converter reported an error-severity
+        /// <c>WotDiagnostic</c> (for example a resource bound, a missing
+        /// preservation envelope/native mapping, a dependency/resolver
+        /// failure, or another conversion error). The stable
+        /// <c>Opc.Ua.Wot.WotDiagnosticCode</c> is embedded in the message.
+        /// The affected WoT input is excluded from generation; other inputs
+        /// continue to be processed.
+        /// </summary>
+        public static readonly DiagnosticDescriptor WotConversionError = new(
+            id: "MODELGEN031",
+            title: "WoT model could not be converted to a NodeSet2 model",
+            messageFormat: (LocalizableString)"WoT model '{0}': {1}",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// The WoT-to-NodeSet2 converter reported a warning-severity
+        /// <c>WotDiagnostic</c> (for example an unresolved dependency/resolver
+        /// reference or a lossy synthesis). Generation continues using the
+        /// best-effort result.
+        /// </summary>
+        public static readonly DiagnosticDescriptor WotConversionWarning = new(
+            id: "MODELGEN032",
+            title: "WoT model conversion produced a warning",
+            messageFormat: (LocalizableString)"WoT model '{0}': {1}",
+            category: Name,
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// The WoT-to-NodeSet2 converter reported an info-severity
+        /// <c>WotDiagnostic</c> (for example a deterministically generated
+        /// NodeId). Provided for visibility only.
+        /// </summary>
+        public static readonly DiagnosticDescriptor WotConversionInfo = new(
+            id: "MODELGEN033",
+            title: "WoT model conversion note",
+            messageFormat: (LocalizableString)"WoT model '{0}': {1}",
+            category: Name,
+            DiagnosticSeverity.Info,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// The in-memory NodeSet2 virtual path synthesized for a WoT
+        /// AdditionalFile collides with an explicitly supplied
+        /// <c>.NodeSet2.xml</c> input or with the virtual path synthesized for
+        /// another WoT input (for example <c>Foo.tm.json</c> and
+        /// <c>Foo.td.json</c> both mapping to <c>Foo.NodeSet2.xml</c>). The
+        /// colliding WoT input is excluded from generation.
+        /// </summary>
+        public static readonly DiagnosticDescriptor WotVirtualPathCollision = new(
+            id: "MODELGEN034",
+            title: "WoT model virtual NodeSet2 path collides with another input",
+            messageFormat: (LocalizableString)("The in-memory NodeSet2 path '{1}' generated for " +
+                "WoT model '{0}' collides with input '{2}'; rename one of the inputs or set " +
+                "distinct ModelSourceGeneratorName/ModelSourceGeneratorPrefix metadata"),
             category: Name,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true,

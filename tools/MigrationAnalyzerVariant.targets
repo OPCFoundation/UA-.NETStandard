@@ -1,0 +1,26 @@
+<Project>
+  <!--
+    Build settings shared by every migration analyzer variant. A variant is one
+    build of an analyzer assembly against one Roslyn API version; the variant
+    projects only set `$(RoslynApiVersion)` and import the assembly's
+    `*.Sources.targets`, which in turn imports this file.
+
+    The assemblies are single-file Roslyn components with no runtime closure of
+    their own, so they are packaged straight into
+    `analyzers/dotnet/<roslyn>/cs` by the Opc.Ua.MigrationAnalyzer nuspec.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="$(RoslynApiVersion)" PrivateAssets="all" />
+    <!-- Microsoft.CodeAnalysis.CSharp declares an exact [version] range on
+         Microsoft.CodeAnalysis.Common, so the central pin has to be overridden
+         in lockstep or restore fails with NU1109. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" VersionOverride="$(RoslynApiVersion)" PrivateAssets="all" />
+    <PackageReference Update="NETStandard.Library" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

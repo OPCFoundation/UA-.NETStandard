@@ -56,7 +56,8 @@ namespace Opc.Ua.Client
     /// delegated to the inner session.
     /// </para>
     /// </remarks>
-    public partial class ManagedSession : IManagedSession
+    public partial class ManagedSession : IManagedSession,
+        ModelChange.INamespaceTableRefresher
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
@@ -1849,6 +1850,11 @@ namespace Opc.Ua.Client
             UnsubscribeCertificateChanges();
             await StopRevalidationLoopAsync().ConfigureAwait(false);
 
+            // After unsubscribing (no new work can arrive) and before the inner
+            // session goes away: a certificate reload already scheduled
+            // reconnects through it.
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+
             // Tear down streaming subscription and model change tracker
             // before closing the session so any in-flight publish work
             // completes against a still-valid session.
@@ -1947,6 +1953,8 @@ namespace Opc.Ua.Client
         // TODO: move ManagedSession to async-only disposal.
         private CancellationTokenSource? m_identityRefreshCancellation;
 #pragma warning restore CA2213
+        private readonly BackgroundTaskScope m_backgroundWork =
+            new(nameof(ManagedSession), AmbientMessageContext.Telemetry);
         private Task? m_identityRefreshTask;
         private TaskCompletionSource<object?>? m_identityRefreshAttemptCompletion;
         private long m_identityRefreshAttemptVersion;

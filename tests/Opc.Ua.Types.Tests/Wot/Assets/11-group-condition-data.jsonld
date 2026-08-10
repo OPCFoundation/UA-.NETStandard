@@ -1,0 +1,35 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing", "uav:projection"],
+  "id": "urn:dev:opcua:asset:pump-01:condition-data",
+  "title": "Condition data",
+  "description": "A second data set over the same source: the condition signals of Pump 01. Two data sets over one document need no coordination, because neither of them edits it.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": "nosec_sc",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pump",
+      "href": "./01-opcua-td-pump.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "source"
+    }
+  ],
+  "properties": {
+    "dischargePressure": {
+      "tm:ref": "./01-opcua-td-pump.jsonld#/properties/dischargePressure",
+      "uav:semanticId": "http://example.com/ontology/ConditionSignal"
+    },
+    "motorTemperature": {
+      "tm:ref": "./01-opcua-td-pump.jsonld#/properties/motorTemperature",
+      "uav:semanticId": "http://example.com/ontology/ConditionSignal"
+    }
+  }
+}

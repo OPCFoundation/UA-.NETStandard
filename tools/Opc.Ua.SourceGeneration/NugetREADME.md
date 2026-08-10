@@ -20,13 +20,20 @@ Reference the generator as an **analyzer** (no runtime dependency):
 
 ```xml
 <ItemGroup>
-  <ProjectReference Include="...\Opc.Ua.SourceGeneration.csproj">
+  <ProjectReference Include="../Opc.Ua.SourceGeneration.csproj">
     <OutputItemType>Analyzer</OutputItemType>
     <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
   </ProjectReference>
   <AdditionalFiles Include="MyCompanionSpec.NodeSet2.xml" />
 </ItemGroup>
 ```
+
+`AdditionalFiles` inputs may also be `NodeSet2`/`ModelDesign` XML, or a WoT
+Thing Model/Thing Description (`.tm.json`, `.td.json`, `.tm.jsonld`,
+`.td.jsonld`, or an opted-in plain `.jsonld`) which is converted to a NodeSet2
+document entirely in memory before generation. See
+[`readme.md`](readme.md#generate-code-from-wot-thing-models--thing-descriptions)
+for details, per-file options and diagnostics.
 
 ## Target frameworks
 
@@ -36,4 +43,6 @@ Reference the generator as an **analyzer** (no runtime dependency):
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the
-[Source-Generated Data Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/SourceGeneratedDataTypes.md).
+[Source-Generated Data Types guide][source-generated-data-types].
+
+[source-generated-data-types]: https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/SourceGeneratedDataTypes.md

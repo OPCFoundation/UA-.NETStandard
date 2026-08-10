@@ -47,5 +47,6 @@ namespace Opc.Ua
         public const int LocalizedText = 40;
         public const int Matrix = 50;
         public const int XmlSchemaValidator = 60;
+        public const int BackgroundTaskScope = 70;
     }
 }

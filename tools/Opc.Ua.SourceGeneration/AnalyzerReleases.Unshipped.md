@@ -11,6 +11,8 @@ MODELGEN010 | ModelSourceGenerator | Warning | [NodeManager] attribute binding e
 MODELGEN011 | ModelSourceGenerator | Error | [NodeManager] class must be partial
 MODELGEN012 | ModelSourceGenerator | Info | Multiple referenced assemblies expose same model
 MODELGEN013 | ModelSourceGenerator | Info | Model already provided by referenced assembly
+MODELGEN014 | ModelSourceGenerator | Error | Fluent-accessors-only model cannot be generated
+MODELGEN015 | ModelSourceGenerator | Error | Invalid fluent-accessors-only configuration
 MODELGEN020 | ModelSourceGenerator | Warning | BrowseName requires C# string-literal escaping (UASG_BROWSENAME_UNSAFE)
 MODELGEN021 | ModelSourceGenerator | Error | [DataType] namespace could not be resolved
 MODELGEN022 | ModelSourceGenerator | Error | NodeSet identifier file is missing
@@ -21,3 +23,8 @@ MODELGEN026 | ModelSourceGenerator | Error | NodeSet identifier file numeric ide
 MODELGEN027 | ModelSourceGenerator | Error | NodeSet identifier file node class does not match
 MODELGEN028 | ModelSourceGenerator | Error | NodeSet identifier file is assigned to multiple models
 MODELGEN029 | ModelSourceGenerator | Error | NodeSet identifier file contains an invalid row
+MODELGEN030 | ModelSourceGenerator | Error | WoT model could not be parsed
+MODELGEN031 | ModelSourceGenerator | Error | WoT model could not be converted to a NodeSet2 model
+MODELGEN032 | ModelSourceGenerator | Warning | WoT model conversion produced a warning
+MODELGEN033 | ModelSourceGenerator | Info | WoT model conversion note
+MODELGEN034 | ModelSourceGenerator | Error | WoT model virtual NodeSet2 path collides with another input

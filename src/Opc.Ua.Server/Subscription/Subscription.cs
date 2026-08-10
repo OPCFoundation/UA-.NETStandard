@@ -410,24 +410,67 @@ namespace Opc.Ua.Server
         public bool IsDurable { get; private set; }
 
         /// <summary>
-        /// Gets the lock that must be acquired before accessing the contents of the Diagnostics property.
+        /// Applies an update to the subscription diagnostics while holding the
+        /// subscription's diagnostics lock.
         /// </summary>
-        public object DiagnosticsLock => Diagnostics;
+        /// <remarks>
+        /// Replaces the former <c>DiagnosticsLock</c> and <c>DiagnosticsWriteLock</c>
+        /// properties. The subscription owns its lock and never hands it out, so callers
+        /// cannot participate in - or deadlock against - the server's locking order. The
+        /// diagnostic nodes are marked dirty inside the critical section; the old
+        /// <c>DiagnosticsWriteLock</c> getter did that outside the lock it then returned.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if update is null.</exception>
+        public void UpdateDiagnostics(Action<SubscriptionDiagnosticsDataType> update)
+        {
+            if (update == null)
+            {
+                throw new ArgumentNullException(nameof(update));
+            }
+
+            lock (m_diagnosticsLock)
+            {
+                update.Invoke(Diagnostics);
+                MarkDiagnosticsDirty();
+            }
+        }
 
         /// <summary>
-        /// Gets the lock that must be acquired before updating the contents of the Diagnostics property.
+        /// Reads a value derived from the subscription diagnostics while holding the
+        /// subscription's diagnostics lock.
         /// </summary>
-        public object DiagnosticsWriteLock
+        /// <remarks>
+        /// Do not let the diagnostics object itself escape the callback: once the lock is
+        /// released, any field read from it is unsynchronized.
+        /// </remarks>
+        /// <typeparam name="TResult">The type of the value produced.</typeparam>
+        /// <param name="read">The projection applied to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if read is null.</exception>
+        public TResult ReadDiagnostics<TResult>(
+            Func<SubscriptionDiagnosticsDataType, TResult> read)
         {
-            get
+            if (read == null)
             {
-                // mark diagnostic nodes dirty
-                if (m_server != null && m_server.DiagnosticsNodeManager != null)
-                {
-                    m_server.DiagnosticsNodeManager.ForceDiagnosticsScan();
-                }
-                return DiagnosticsLock;
+                throw new ArgumentNullException(nameof(read));
             }
+
+            lock (m_diagnosticsLock)
+            {
+                return read.Invoke(Diagnostics);
+            }
+        }
+
+        /// <summary>
+        /// Marks the diagnostic nodes dirty so the next scan refreshes them.
+        /// </summary>
+        /// <remarks>
+        /// Must be called with <c>m_diagnosticsLock</c> held. Sets a flag consumed by the
+        /// read paths and the periodic scan timer; it does not perform a scan.
+        /// </remarks>
+        private void MarkDiagnosticsDirty()
+        {
+            m_server?.DiagnosticsNodeManager?.ForceDiagnosticsScan();
         }
 
         /// <summary>
@@ -483,7 +526,7 @@ namespace Opc.Ua.Server
                     {
                         IsDetached: true
                     } &&
-                    AreSameNodeManager(monitoredItem.Value.NodeManager, nodeManager));
+                    IsOwnedBy(monitoredItem.Value, nodeManager));
             }
         }
 
@@ -503,7 +546,7 @@ namespace Opc.Ua.Server
                             {
                                 IsDetached: true
                             } &&
-                            AreSameNodeManager(monitoredItem.NodeManager, nodeManager))
+                            IsOwnedBy(monitoredItem, nodeManager))
                 ];
             }
         }
@@ -560,12 +603,25 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static bool AreSameNodeManager(
-            IAsyncNodeManager first,
-            IAsyncNodeManager second)
+        private static bool IsOwnedBy(
+            IMonitoredItem monitoredItem,
+            IAsyncNodeManager nodeManager)
         {
-            return ReferenceEquals(first, second) ||
-                ReferenceEquals(first.SyncNodeManager, second.SyncNodeManager);
+            IAsyncNodeManager? monitoredItemOwner = monitoredItem.NodeManager;
+            if (monitoredItemOwner is null)
+            {
+                return false;
+            }
+            if (ReferenceEquals(monitoredItemOwner, nodeManager))
+            {
+                return true;
+            }
+
+            INodeManager? monitoredItemSync = monitoredItemOwner.SyncNodeManager;
+            INodeManager? nodeManagerSync = nodeManager.SyncNodeManager;
+            return monitoredItemSync is not null &&
+                nodeManagerSync is not null &&
+                ReferenceEquals(monitoredItemSync, nodeManagerSync);
         }
 
         /// <summary>
@@ -619,6 +675,13 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                // OPC 10000-4 §5.14.1.2, Table 79 handles TransferSubscriptions as a single transition
+                // that sets the new Session, returns the response and issues Good_SubscriptionTransferred.
+                if (m_transferInProgress)
+                {
+                    return PublishingState.Idle;
+                }
+
                 long currentTime = m_timeProvider.GetTimestampMilliseconds();
 
                 // check if publish interval has elapsed.
@@ -644,10 +707,11 @@ namespace Opc.Ua.Server
                 {
                     m_lifetimeCounter++;
 
-                    lock (DiagnosticsWriteLock)
+                    lock (m_diagnosticsLock)
                     {
                         Diagnostics.LatePublishRequestCount++;
                         Diagnostics.CurrentLifetimeCount = m_lifetimeCounter;
+                        MarkDiagnosticsDirty();
                     }
 
                     if (m_lifetimeCounter >= m_maxLifetimeCount)
@@ -660,9 +724,10 @@ namespace Opc.Ua.Server
                 // increment keep alive counter.
                 m_keepAliveCounter++;
 
-                lock (DiagnosticsWriteLock)
+                lock (m_diagnosticsLock)
                 {
                     Diagnostics.CurrentKeepAliveCount = m_keepAliveCounter;
+                    MarkDiagnosticsDirty();
                 }
 
                 // check for monitored items.
@@ -766,7 +831,10 @@ namespace Opc.Ua.Server
         /// <param name="context">The session to which the subscription is transferred.</param>
         /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default)
+        public async ValueTask TransferSessionAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            CancellationToken cancellationToken = default)
         {
             ISession destinationSession = context.Session;
             ISession? sourceSession;
@@ -783,7 +851,13 @@ namespace Opc.Ua.Server
             }
 
             await m_server.NodeManager
-                .TransferMonitoredItemsAsync(context, sendInitialValues, monitoredItems, errors, cancellationToken)
+                .TransferMonitoredItemsAsync(
+                    context,
+                    sendInitialValues,
+                    monitoredItems,
+                    errors,
+                    new MonitoredItemTransferOptions(),
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             int badTransfers = 0;
@@ -797,7 +871,7 @@ namespace Opc.Ua.Server
 
             if (badTransfers > 0)
             {
-                m_logger.FailedToTransferCountMonitoredItems(badTransfers);
+                m_logger.FailedToTransferCountMonitoredItems(badTransfers, Id, SessionId);
             }
 
             lock (m_lock)
@@ -815,9 +889,10 @@ namespace Opc.Ua.Server
                 UpdateOwnerIdentity(destinationSession);
             }
 
-            lock (DiagnosticsWriteLock)
+            lock (m_diagnosticsLock)
             {
                 Diagnostics.SessionId = destinationSession.Id;
+                MarkDiagnosticsDirty();
             }
         }
 
@@ -855,6 +930,322 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reserves the subscription for transfer while it is still owned by the expected source session.
+        /// </summary>
+        /// <param name="sourceSession">The session that currently owns the subscription.</param>
+        /// <returns><c>true</c> when the transfer reservation was acquired.</returns>
+        internal bool TryBeginTransfer(ISession? sourceSession)
+        {
+            lock (m_lock)
+            {
+                if (m_transferInProgress ||
+                    m_expired ||
+                    !ReferenceEquals(Session, sourceSession))
+                {
+                    return false;
+                }
+
+                m_transferInProgress = true;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Prepares monitored item state for a session transfer without making the new owner visible yet.
+        /// </summary>
+        /// <param name="context">The operation context for the destination session.</param>
+        /// <param name="sourceSession">The session that currently owns the subscription.</param>
+        /// <param name="sendInitialValues">Whether initial values should be sent after transfer commits.</param>
+        /// <param name="cancellationToken">The token that aborts transfer preparation.</param>
+        /// <returns>A prepared transfer that can be committed or rolled back by the caller.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The subscription is no longer reserved by the source session.
+        /// </exception>
+        internal async ValueTask<PreparedSessionTransfer> PrepareSessionTransferAsync(
+            OperationContext context,
+            ISession? sourceSession,
+            bool sendInitialValues,
+            CancellationToken cancellationToken)
+        {
+            List<IMonitoredItem> monitoredItems;
+            lock (m_lock)
+            {
+                if (!m_transferInProgress ||
+                    !ReferenceEquals(Session, sourceSession))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "Subscription source changed during transfer.");
+                }
+                monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+            }
+
+            var errors = new List<ServiceResult>(monitoredItems.Count);
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                errors.Add(null!);
+            }
+
+            IMonitoredItemTransferTransaction? monitoredItemTransaction = null;
+            if (m_server.NodeManager is IMonitoredItemTransferCoordinator coordinator)
+            {
+                monitoredItemTransaction = await coordinator.PrepareMonitoredItemsTransferAsync(
+                    context,
+                    sendInitialValues,
+                    monitoredItems,
+                    errors,
+                    new MonitoredItemTransferOptions
+                    {
+                        DeferInitialValues = sendInitialValues
+                    },
+                    cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                var fallbackTransaction = new ResendStateTransferTransaction(
+                    monitoredItems);
+                try
+                {
+                    // The non-coordinator contract has no commit callback.
+                    // Keep legacy eager resend semantics instead of
+                    // requesting deferral that cannot be committed here.
+                    await m_server.NodeManager.TransferMonitoredItemsAsync(
+                        context,
+                        sendInitialValues,
+                        monitoredItems,
+                        errors,
+                        new MonitoredItemTransferOptions(),
+                        cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    fallbackTransaction.Rollback();
+                    throw;
+                }
+                monitoredItemTransaction = fallbackTransaction;
+            }
+
+            int badTransfers = 0;
+            for (int ii = 0; ii < errors.Count; ii++)
+            {
+                if (ServiceResult.IsBad(errors[ii]))
+                {
+                    badTransfers++;
+                }
+            }
+            if (badTransfers > 0)
+            {
+                m_logger.FailedToTransferCountMonitoredItems(badTransfers, Id, SessionId);
+            }
+
+            return new PreparedSessionTransfer(
+                this,
+                sourceSession,
+                context.Session,
+                monitoredItemTransaction);
+        }
+
+        /// <summary>
+        /// Releases the transfer reservation after the destination session is already the owner.
+        /// </summary>
+        /// <param name="destinationSession">The session that must currently own the subscription.</param>
+        /// <exception cref="ServiceResultException">Ownership changed before transfer completion.</exception>
+        internal void CompleteTransfer(ISession destinationSession)
+        {
+            lock (m_lock)
+            {
+                if (!m_transferInProgress ||
+                    !ReferenceEquals(Session, destinationSession))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "Subscription ownership changed while completing transfer.");
+                }
+                m_transferInProgress = false;
+            }
+        }
+
+        /// <summary>
+        /// Releases a transfer reservation without changing ownership when preparation cannot continue.
+        /// </summary>
+        /// <param name="sourceSession">The source session that still owns the subscription.</param>
+        internal void AbortTransfer(ISession? sourceSession)
+        {
+            lock (m_lock)
+            {
+                if (m_transferInProgress &&
+                    ReferenceEquals(Session, sourceSession))
+                {
+                    m_transferInProgress = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Represents a prepared subscription transfer whose ownership and monitored item effects can
+        /// still be committed or rolled back.
+        /// </summary>
+        internal sealed class PreparedSessionTransfer
+        {
+            /// <summary>
+            /// Initializes a prepared transfer with the monitored item transaction to commit.
+            /// </summary>
+            /// <param name="subscription">The subscription being transferred.</param>
+            /// <param name="sourceSession">The session that owned the subscription when preparation started.</param>
+            /// <param name="destinationSession">The session that will own the subscription after commit.</param>
+            /// <param name="monitoredItemTransaction">The prepared monitored item transfer, if one was needed.</param>
+            public PreparedSessionTransfer(
+                Subscription subscription,
+                ISession? sourceSession,
+                ISession destinationSession,
+                IMonitoredItemTransferTransaction? monitoredItemTransaction)
+            {
+                m_subscription = subscription;
+                m_sourceSession = sourceSession;
+                m_destinationSession = destinationSession;
+                m_monitoredItemTransaction = monitoredItemTransaction;
+            }
+
+            /// <summary>
+            /// Moves subscription ownership and diagnostics to the destination session.
+            /// </summary>
+            /// <exception cref="ServiceResultException">
+            /// The subscription is no longer owned by the source session.
+            /// </exception>
+            public void CommitOwnership()
+            {
+                lock (m_subscription.m_lock)
+                {
+                    if (!m_subscription.m_transferInProgress ||
+                        !ReferenceEquals(m_subscription.Session, m_sourceSession))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSubscriptionIdInvalid,
+                            "Subscription ownership changed during transfer.");
+                    }
+                    m_subscription.Session = m_destinationSession;
+                }
+
+                m_subscription.UpdateDiagnostics(
+                    diagnostics => diagnostics.SessionId = m_destinationSession.Id);
+            }
+
+            /// <summary>
+            /// Makes the prepared monitored item transfer effects visible after ownership commits.
+            /// </summary>
+            public void CommitMonitoredItemEffects()
+            {
+                m_monitoredItemTransaction?.Commit();
+            }
+
+            /// <summary>
+            /// Restores source ownership when a later transfer step fails.
+            /// </summary>
+            /// <param name="cancellationToken">The unused cancellation token.</param>
+            /// <returns>A task that completes when rollback has finished.</returns>
+            /// <exception cref="AggregateException">One or more rollback steps failed.</exception>
+            public ValueTask RollbackAsync(CancellationToken cancellationToken)
+            {
+                _ = cancellationToken;
+                var rollbackErrors = new List<Exception>();
+                try
+                {
+                    lock (m_subscription.m_lock)
+                    {
+                        if (ReferenceEquals(m_subscription.Session, m_destinationSession))
+                        {
+                            m_subscription.Session = m_sourceSession!;
+                        }
+                        else if (!ReferenceEquals(m_subscription.Session, m_sourceSession))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadSubscriptionIdInvalid,
+                                "Subscription ownership changed while rolling back transfer.");
+                        }
+                    }
+
+                    m_subscription.UpdateDiagnostics(
+                        diagnostics => diagnostics.SessionId = m_sourceSession?.Id ?? default);
+                }
+                catch (Exception error)
+                {
+                    rollbackErrors.Add(error);
+                }
+
+                if (rollbackErrors.Count > 0)
+                {
+                    throw new AggregateException(
+                        "The subscription transfer could not be fully rolled back.",
+                        rollbackErrors);
+                }
+
+                return default;
+            }
+
+            /// <summary>
+            /// Completes the prepared transfer after all transfer steps have succeeded.
+            /// </summary>
+            public void Complete()
+            {
+            }
+
+            private readonly Subscription m_subscription;
+            private readonly ISession? m_sourceSession;
+            private readonly ISession m_destinationSession;
+            private readonly IMonitoredItemTransferTransaction? m_monitoredItemTransaction;
+        }
+
+        private sealed class ResendStateTransferTransaction :
+            IMonitoredItemTransferTransaction
+        {
+            /// <summary>
+            /// Captures resend-data state so the legacy transfer path can be rolled back.
+            /// </summary>
+            /// <param name="monitoredItems">The monitored items whose resend state is captured.</param>
+            public ResendStateTransferTransaction(IList<IMonitoredItem> monitoredItems)
+            {
+                m_monitoredItems = monitoredItems;
+                m_resendStates = new bool[monitoredItems.Count];
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    m_resendStates[ii] = monitoredItems[ii]?.IsResendData ?? false;
+                }
+            }
+
+            /// <summary>
+            /// Completes the legacy transfer transaction; no deferred work is required.
+            /// </summary>
+            public void Commit()
+            {
+            }
+
+            /// <summary>
+            /// Restores each monitored item's resend-data trigger to the captured value.
+            /// </summary>
+            public void Rollback()
+            {
+                if (Interlocked.Exchange(ref m_rolledBack, 1) != 0)
+                {
+                    return;
+                }
+
+                for (int ii = 0; ii < m_monitoredItems.Count; ii++)
+                {
+                    if (m_monitoredItems[ii] is IMonitoredItemTransferState transferState)
+                    {
+                        transferState.RestoreResendDataTrigger(m_resendStates[ii]);
+                    }
+                }
+            }
+
+            private readonly IList<IMonitoredItem> m_monitoredItems;
+            private readonly bool[] m_resendStates;
+            private int m_rolledBack;
+        }
+
+        /// <summary>
         /// Restores ownership if a transfer failed after assigning its destination.
         /// </summary>
         internal bool TryRestoreSessionAfterFailedTransfer(
@@ -881,9 +1272,10 @@ namespace Opc.Ua.Server
                 }
             }
 
-            lock (DiagnosticsWriteLock)
+            lock (m_diagnosticsLock)
             {
                 Diagnostics.SessionId = sourceSession?.Id ?? default;
+                MarkDiagnosticsDirty();
             }
             return true;
         }
@@ -935,9 +1327,10 @@ namespace Opc.Ua.Server
                 Session = null!;
             }
 
-            lock (DiagnosticsWriteLock)
+            lock (m_diagnosticsLock)
             {
                 Diagnostics.SessionId = default;
+                MarkDiagnosticsDirty();
             }
             return true;
         }
@@ -949,9 +1342,10 @@ namespace Opc.Ua.Server
         {
             m_keepAliveCounter = 0;
 
-            lock (DiagnosticsWriteLock)
+            lock (m_diagnosticsLock)
             {
                 Diagnostics.CurrentKeepAliveCount = 0;
+                MarkDiagnosticsDirty();
             }
         }
 
@@ -962,9 +1356,10 @@ namespace Opc.Ua.Server
         {
             m_lifetimeCounter = 0;
 
-            lock (DiagnosticsWriteLock)
+            lock (m_diagnosticsLock)
             {
                 Diagnostics.CurrentLifetimeCount = 0;
+                MarkDiagnosticsDirty();
             }
         }
 
@@ -984,9 +1379,10 @@ namespace Opc.Ua.Server
         /// </summary>
         public void QueueOverflowHandler()
         {
-            lock (DiagnosticsWriteLock)
+            lock (m_diagnosticsLock)
             {
                 Diagnostics.MonitoringQueueOverflowCount++;
+                MarkDiagnosticsDirty();
             }
         }
 
@@ -1050,9 +1446,10 @@ namespace Opc.Ua.Server
                 try
                 {
                     // update diagnostics.
-                    lock (DiagnosticsWriteLock)
+                    lock (m_diagnosticsLock)
                     {
                         Diagnostics.PublishRequestCount++;
+                        MarkDiagnosticsDirty();
                     }
 
                     message = InnerPublish(
@@ -1060,9 +1457,10 @@ namespace Opc.Ua.Server
                         out availableSequenceNumbers,
                         out moreNotifications);
 
-                    lock (DiagnosticsWriteLock)
+                    lock (m_diagnosticsLock)
                     {
                         Diagnostics.UnacknowledgedMessageCount = (uint)availableSequenceNumbers.Count;
+                        MarkDiagnosticsDirty();
                     }
                 }
                 finally
@@ -1096,9 +1494,10 @@ namespace Opc.Ua.Server
                 message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
                 message.PublishTime = DateTimeUtc.Now;
 
-                lock (DiagnosticsWriteLock)
+                lock (m_diagnosticsLock)
                 {
                     Diagnostics.NextSequenceNumber = m_messageQueue.NextSequenceNumber;
+                    MarkDiagnosticsDirty();
                 }
 
                 var notification = (StatusChangeNotification)StatusChangeNotificationActivator.Instance.CreateInstance();
@@ -1123,9 +1522,10 @@ namespace Opc.Ua.Server
                 message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
                 message.PublishTime = DateTimeUtc.Now;
 
-                lock (DiagnosticsWriteLock)
+                lock (m_diagnosticsLock)
                 {
                     Diagnostics.NextSequenceNumber = m_messageQueue.NextSequenceNumber;
+                    MarkDiagnosticsDirty();
                 }
 
                 var notification = (StatusChangeNotification)StatusChangeNotificationActivator.Instance.CreateInstance();
@@ -1240,13 +1640,14 @@ namespace Opc.Ua.Server
                         // add to list of messages to send.
                         messages.Add(message);
 
-                        lock (DiagnosticsWriteLock)
+                        lock (m_diagnosticsLock)
                         {
                             Diagnostics.DataChangeNotificationsCount += (uint)(dataChangeCount -
                                 datachanges.Count);
                             Diagnostics.EventNotificationsCount += (uint)(eventCount -
                                 events.Count);
                             Diagnostics.NotificationsCount += (uint)notificationCount;
+                            MarkDiagnosticsDirty();
                         }
 
                         //stop fetching messages from MIs when message queue is full to avoid discards
@@ -1276,19 +1677,20 @@ namespace Opc.Ua.Server
                     // add to list of messages to send.
                     messages.Add(message);
 
-                    lock (DiagnosticsWriteLock)
+                    lock (m_diagnosticsLock)
                     {
                         Diagnostics.DataChangeNotificationsCount += (uint)(dataChangeCount -
                             datachanges.Count);
                         Diagnostics.EventNotificationsCount += (uint)(eventCount - events.Count);
                         Diagnostics.NotificationsCount += (uint)notificationCount;
+                        MarkDiagnosticsDirty();
                     }
                 }
 
                 // check for missing notifications.
                 if (!keepAliveIfNoData && messages.Count == 0)
                 {
-                    m_logger.OopsMonitoredItemsQueuedButNoNotificationsAvailable();
+                    m_logger.OopsMonitoredItemsQueuedButNoNotificationsAvailable(SessionId, Id);
 
                     m_waitingForPublish = false;
 
@@ -1333,9 +1735,10 @@ namespace Opc.Ua.Server
 
             if (newlyUnacknowledgedCount > 0)
             {
-                lock (DiagnosticsWriteLock)
+                lock (m_diagnosticsLock)
                 {
                     Diagnostics.UnacknowledgedMessageCount += newlyUnacknowledgedCount;
+                    MarkDiagnosticsDirty();
                 }
             }
 
@@ -1375,9 +1778,10 @@ namespace Opc.Ua.Server
             message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
             message.PublishTime = DateTimeUtc.Now;
 
-            lock (DiagnosticsWriteLock)
+            lock (m_diagnosticsLock)
             {
                 Diagnostics.NextSequenceNumber = m_messageQueue.NextSequenceNumber;
+                MarkDiagnosticsDirty();
             }
 
             uint notificationLimit = m_maxNotificationsPerPublish == 0
@@ -1447,9 +1851,10 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
-            lock (DiagnosticsWriteLock)
+            lock (m_diagnosticsLock)
             {
                 Diagnostics.RepublishMessageRequestCount++;
+                MarkDiagnosticsDirty();
             }
 
             lock (m_lock)
@@ -1460,19 +1865,21 @@ namespace Opc.Ua.Server
                 // clear lifetime counter.
                 ResetLifetimeCount();
 
-                lock (DiagnosticsWriteLock)
+                lock (m_diagnosticsLock)
                 {
                     Diagnostics.RepublishRequestCount++;
                     Diagnostics.RepublishMessageRequestCount++;
+                    MarkDiagnosticsDirty();
                 }
 
                 // find message.
                 NotificationMessage? sentMessage = m_messageQueue.FindForRepublish(retransmitSequenceNumber);
                 if (sentMessage != null)
                 {
-                    lock (DiagnosticsWriteLock)
+                    lock (m_diagnosticsLock)
                     {
                         Diagnostics.RepublishMessageCount++;
+                        MarkDiagnosticsDirty();
                     }
 
                     return sentMessage;
@@ -1524,7 +1931,7 @@ namespace Opc.Ua.Server
                 Priority = priority;
 
                 // update diagnostics
-                lock (DiagnosticsWriteLock)
+                lock (m_diagnosticsLock)
                 {
                     Diagnostics.ModifyCount++;
                     Diagnostics.PublishingInterval = m_publishingInterval;
@@ -1532,6 +1939,7 @@ namespace Opc.Ua.Server
                     Diagnostics.MaxLifetimeCount = m_maxLifetimeCount;
                     Diagnostics.Priority = Priority;
                     Diagnostics.MaxNotificationsPerPublish = m_maxNotificationsPerPublish;
+                    MarkDiagnosticsDirty();
                 }
 
                 TraceState(LogLevel.Information, TraceStateId.Config, "MODIFIED");
@@ -1557,7 +1965,7 @@ namespace Opc.Ua.Server
                     m_publishingEnabled = publishingEnabled;
 
                     // update diagnostics
-                    lock (DiagnosticsWriteLock)
+                    lock (m_diagnosticsLock)
                     {
                         Diagnostics.PublishingEnabled = m_publishingEnabled;
 
@@ -1569,6 +1977,7 @@ namespace Opc.Ua.Server
                         {
                             Diagnostics.DisableCount++;
                         }
+                        MarkDiagnosticsDirty();
                     }
                 }
 
@@ -1931,13 +2340,14 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode)
         {
             // update diagnostics
-            lock (DiagnosticsWriteLock)
+            lock (m_diagnosticsLock)
             {
                 if (monitoringMode == MonitoringMode.Disabled)
                 {
                     Diagnostics.DisabledMonitoredItemCount++;
                 }
                 Diagnostics.MonitoredItemCount++;
+                MarkDiagnosticsDirty();
             }
         }
 
@@ -1960,13 +2370,14 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode)
         {
             // update diagnostics
-            lock (DiagnosticsWriteLock)
+            lock (m_diagnosticsLock)
             {
                 if (monitoringMode == MonitoringMode.Disabled)
                 {
                     Diagnostics.DisabledMonitoredItemCount--;
                 }
                 Diagnostics.MonitoredItemCount--;
+                MarkDiagnosticsDirty();
             }
         }
 
@@ -1981,7 +2392,7 @@ namespace Opc.Ua.Server
             if (newMode != oldMode)
             {
                 // update diagnostics
-                lock (DiagnosticsWriteLock)
+                lock (m_diagnosticsLock)
                 {
                     if (newMode == MonitoringMode.Disabled)
                     {
@@ -1991,6 +2402,7 @@ namespace Opc.Ua.Server
                     {
                         Diagnostics.DisabledMonitoredItemCount--;
                     }
+                    MarkDiagnosticsDirty();
                 }
             }
         }
@@ -2790,10 +3202,11 @@ namespace Opc.Ua.Server
                 m_maxLifetimeCount = maxLifetimeCount;
 
                 // update diagnostics
-                lock (DiagnosticsWriteLock)
+                lock (m_diagnosticsLock)
                 {
                     Diagnostics.ModifyCount++;
                     Diagnostics.MaxLifetimeCount = m_maxLifetimeCount;
+                    MarkDiagnosticsDirty();
                 }
 
                 TraceState(LogLevel.Information, TraceStateId.Config, "SET DURABLE");
@@ -2912,7 +3325,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref Variant value)
         {
-            lock (DiagnosticsLock)
+            lock (m_diagnosticsLock)
             {
                 value = Variant.FromStructure(Diagnostics);
             }
@@ -2929,6 +3342,13 @@ namespace Opc.Ua.Server
             if (m_expired)
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+            }
+
+            if (m_transferInProgress)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSubscriptionIdInvalid,
+                    "Subscription transfer is in progress.");
             }
 
             if (!ReferenceEquals(context.Session, Session))
@@ -3017,8 +3437,9 @@ namespace Opc.Ua.Server
                 case TraceStateId.Items:
                     m_logger.Log(
                         logLevel,
-                        "Subscription {Subscription}, Id={SubscriptionId}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}",
+                        "Subscription {Subscription}, SessionId={SessionId}, Id={SubscriptionId}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}",
                         context,
+                        Session?.Id,
                         Id,
                         monitoredItems,
                         itemsToCheck,
@@ -3028,8 +3449,9 @@ namespace Opc.Ua.Server
                 case TraceStateId.Monitor:
                     m_logger.Log(
                         logLevel,
-                        "Subscription {Subscription}, Id={SubscriptionId}, KeepAliveCounter={KeepAliveCounter}, LifeTimeCount={LifeTimeCount}, WaitingForPublish={WaitingForPublish}, SeqNo={SequenceNumber}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}, MessageCount={MessageCount}",
+                        "Subscription {Subscription}, SessionId={SessionId}, Id={SubscriptionId}, KeepAliveCounter={KeepAliveCounter}, LifeTimeCount={LifeTimeCount}, WaitingForPublish={WaitingForPublish}, SeqNo={SequenceNumber}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}, MessageCount={MessageCount}",
                         context,
+                        Session?.Id,
                         Id,
                         m_keepAliveCounter,
                         m_lifetimeCounter,
@@ -3047,6 +3469,13 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Guards the subscription diagnostics. Never exposed: callers reach the
+        /// diagnostics through <see cref="UpdateDiagnostics"/> and
+        /// <see cref="ReadDiagnostics{TResult}"/>.
+        /// </summary>
+        private readonly Lock m_diagnosticsLock = new();
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private IUserIdentity? m_savedOwnerIdentity;
@@ -3069,6 +3498,7 @@ namespace Opc.Ua.Server
         private readonly NodeId m_diagnosticsId;
         private bool m_refreshInProgress;
         private bool m_expired;
+        private bool m_transferInProgress;
         private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private readonly bool m_supportsDurable;
         private readonly ILogger m_logger;
@@ -3079,18 +3509,39 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SubscriptionLog
     {
+        /// <summary>
+        /// Logs that deleting monitored items for a subscription failed.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 0, Level = LogLevel.Error,
             Message = "Delete items for subscription failed.")]
         public static partial void DeleteItemsForSubscriptionFailed(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs the number of monitored items that could not be transferred.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 1, Level = LogLevel.Trace,
-            Message = "Failed to transfer {Count} Monitored Items")]
-        public static partial void FailedToTransferCountMonitoredItems(this ILogger logger, int count);
+            Message = "Failed to transfer {Count} Monitored Items, " +
+                "SubscriptionId={SubscriptionId}, SessionId={SessionId}")]
+        public static partial void FailedToTransferCountMonitoredItems(
+            this ILogger logger,
+            int count,
+            uint subscriptionId,
+            NodeId? sessionId);
 
+        /// <summary>
+        /// Logs an invariant violation where monitored items were queued without available notifications.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 2, Level = LogLevel.Error,
-            Message = "Oops! MonitoredItems queued but no notifications available.")]
-        public static partial void OopsMonitoredItemsQueuedButNoNotificationsAvailable(this ILogger logger);
+            Message = "Oops! MonitoredItems queued but no notifications available. " +
+                "SessionId={SessionId}, SubscriptionId={SubscriptionId}")]
+        public static partial void OopsMonitoredItemsQueuedButNoNotificationsAvailable(
+            this ILogger logger,
+            NodeId? sessionId,
+            uint subscriptionId);
 
+        /// <summary>
+        /// Logs that durable subscription setup was requested without a durable monitored item queue factory.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 3, Level = LogLevel.Error,
             Message = "SetSubscriptionDurable requested for subscription with id {SubscriptionId}, but no " +
                 "IMonitoredItemQueueFactory that supports durable queues was registered")]

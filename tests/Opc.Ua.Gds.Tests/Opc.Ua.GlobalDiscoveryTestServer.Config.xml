@@ -158,7 +158,6 @@
     <MaxMessageQueueSize>100</MaxMessageQueueSize>
     <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
-    <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
     <AvailableSamplingRates />
     <RegistrationEndpoint>
       <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>

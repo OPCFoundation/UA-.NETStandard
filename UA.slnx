@@ -12,6 +12,14 @@
     <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalClient/MinimalClient.csproj" />
     <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
+    <Project Path="samples/GeneratorServer/GeneratorServer.csproj" />
+    <Project Path="samples/SiteCompositionServer/SiteCompositionServer.csproj" />
+    <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
+    <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
+    <Project Path="samples/WotCon/FlatTagServer/FlatTagServer.csproj" />
+    <Project Path="samples/Robotics/MinimalRobotServer/MinimalRobotServer.csproj" />
+    <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
+    <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
   </Folder>
@@ -67,6 +75,17 @@
     <Project Path="src/Opc.Ua.Di.Client/Opc.Ua.Di.Client.csproj" />
     <Project Path="src/Opc.Ua.Di.Server/Opc.Ua.Di.Server.csproj" />
     <Project Path="src/Opc.Ua.Di/Opc.Ua.Di.csproj" />
+    <Project Path="src/Opc.Ua.OpenUsd/Opc.Ua.OpenUsd.csproj" />
+    <Project Path="src/Opc.Ua.OpenUsd.Server/Opc.Ua.OpenUsd.Server.csproj" />
+    <Project Path="src/Opc.Ua.OpenUsd.Client/Opc.Ua.OpenUsd.Client.csproj" />
+    <Project Path="src/Opc.Ua.OpenUsdScene/Opc.Ua.OpenUsdScene.csproj" />
+    <Project Path="src/Opc.Ua.OpenUsdScene.Server/Opc.Ua.OpenUsdScene.Server.csproj" />
+    <Project Path="src/Opc.Ua.Positioning/Opc.Ua.Positioning.csproj" />
+    <Project Path="src/Opc.Ua.Positioning.Client/Opc.Ua.Positioning.Client.csproj" />
+    <Project Path="src/Opc.Ua.Positioning.Server/Opc.Ua.Positioning.Server.csproj" />
+    <Project Path="src/Opc.Ua.Robotics/Opc.Ua.Robotics.csproj" />
+    <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
+    <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
     <Project Path="src/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
@@ -93,6 +112,8 @@
     <Project Path="src/Opc.Ua.Redundancy.Client/Opc.Ua.Redundancy.Client.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Kubernetes/Opc.Ua.Redundancy.Kubernetes.csproj" />
     <Project Path="src/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj" />
+    <Project Path="src/Opc.Ua.WotCon.Bindings/Opc.Ua.WotCon.Bindings.csproj" />
+    <Project Path="src/Opc.Ua.WotCon.Bindings.Mqtt/Opc.Ua.WotCon.Bindings.Mqtt.csproj" />
     <Project Path="src/Opc.Ua.WotCon.Client/Opc.Ua.WotCon.Client.csproj" />
     <Project Path="src/Opc.Ua.WotCon.Server/Opc.Ua.WotCon.Server.csproj" />
     <Project Path="src/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
@@ -101,6 +122,7 @@
     <Project Path="src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj" />
     <Project Path="src/Opc.Ua.Core.Schema/Opc.Ua.Core.Schema.csproj" />
     <Project Path="src/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
+    <Project Path="src/Opc.Ua.Security.Pkcs11/Opc.Ua.Security.Pkcs11.csproj" />
     <Project Path="src/Opc.Ua.Types/Opc.Ua.Types.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
@@ -112,6 +134,7 @@
     <File Path="azure-pipelines-preview.yml" />
     <File Path="azure-pipelines.yml" />
     <File Path="common.props" />
+    <File Path="coverage-thresholds.json" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
     <File Path="README.md" />
@@ -131,6 +154,7 @@
     <File Path=".github/workflows/stability-test.yml" />
   </Folder>
   <Folder Name="/Solution Items/Azurepipelines/">
+    <File Path=".azurepipelines/check-coverage.ps1" />
     <File Path=".azurepipelines/ci.yml" />
     <File Path=".azurepipelines/get-matrix.ps1" />
     <File Path=".azurepipelines/get-root.ps1" />
@@ -140,7 +164,6 @@
     <File Path=".azurepipelines/signlistRelease.txt" />
     <File Path=".azurepipelines/sln.yml" />
     <File Path=".azurepipelines/test.yml" />
-    <File Path=".azurepipelines/testcc.yml" />
   </Folder>
   <Folder Name="/Solution Items/Nuget/">
     <File Path="nuget/Opc.Ua.nuspec" />
@@ -225,6 +248,9 @@
     <Project Path="tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.OpenUsd.Tests/Opc.Ua.OpenUsd.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Robotics.Intent.Tests/Opc.Ua.Robotics.Intent.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Diagnostics.Tests/Opc.Ua.Core.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Bindings.Https.WebApi.Tests/Opc.Ua.Bindings.Https.WebApi.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
@@ -247,8 +273,10 @@
     <Project Path="tests/Opc.Ua.PubSub.Schema.Tests/Opc.Ua.PubSub.Schema.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Diagnostics.Tests/Opc.Ua.PubSub.Diagnostics.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.XRegistry.Tests/Opc.Ua.XRegistry.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
@@ -262,6 +290,8 @@
     <Project Path="tests/Opc.Ua.Tools.Tests/Opc.Ua.Tools.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
     <Project Path="tests/Opc.Ua.WotCon.Tests/Opc.Ua.WotCon.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.WotCon.Bindings.Tests/Opc.Ua.WotCon.Bindings.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.WotCon.Samples.Tests/Opc.Ua.WotCon.Samples.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/TestFramework/">
     <Project Path="tests/Opc.Ua.Test.Common/Opc.Ua.Test.Common.csproj" />
@@ -271,17 +301,30 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Diagnostics/Opc.Ua.Mcp.Diagnostics.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.PubSub/Opc.Ua.Mcp.PubSub.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.PubSub.Diagnostics/Opc.Ua.Mcp.PubSub.Diagnostics.csproj" />
+    <Project Path="tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj" />
+    <Project Path="tools/Opc.Ua.OpenUsd.Connector.Viewer/Opc.Ua.OpenUsd.Connector.Viewer.csproj" />
   </Folder>
   <Folder Name="/tools/MigrationAnalyzer/">
     <Project Path="tools/Opc.Ua.MigrationAnalyzer.CodeFixer/Opc.Ua.MigrationAnalyzer.CodeFixer.csproj" />
     <Project Path="tools/Opc.Ua.MigrationAnalyzer.Core/Opc.Ua.MigrationAnalyzer.Core.csproj" />
     <Project Path="tools/Opc.Ua.MigrationAnalyzer.Generator/Opc.Ua.MigrationAnalyzer.Generator.csproj" />
     <Project Path="tools/Opc.Ua.MigrationAnalyzer/Opc.Ua.MigrationAnalyzer.csproj" />
+    <Project Path="tools/Opc.Ua.MigrationAnalyzer.Roslyn4_14/Opc.Ua.MigrationAnalyzer.Roslyn4_14.csproj" />
+    <Project Path="tools/Opc.Ua.MigrationAnalyzer.CodeFixer.Roslyn4_14/Opc.Ua.MigrationAnalyzer.CodeFixer.Roslyn4_14.csproj" />
+    <Project Path="tools/Opc.Ua.MigrationAnalyzer.Generator.Roslyn4_14/Opc.Ua.MigrationAnalyzer.Generator.Roslyn4_14.csproj" />
   </Folder>
   <Folder Name="/tools/SourceGeneration/">
     <Project Path="tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj" />
+    <Project Path="tools/Opc.Ua.SourceGeneration.Pack/Opc.Ua.SourceGeneration.Pack.csproj" />
     <Project Path="tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj" />
+    <Project Path="tools/Opc.Ua.SourceGeneration.Stack.Pack/Opc.Ua.SourceGeneration.Stack.Pack.csproj" />
     <Project Path="tools/Opc.Ua.SourceGeneration.Tester/Opc.Ua.SourceGeneration.Tester.csproj" />
     <Project Path="tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
+    <Project Path="tools/Opc.Ua.SourceGeneration.Roslyn4_14/Opc.Ua.SourceGeneration.Roslyn4_14.csproj" />
+    <Project Path="tools/Opc.Ua.SourceGeneration.Stack.Roslyn4_14/Opc.Ua.SourceGeneration.Stack.Roslyn4_14.csproj" />
   </Folder>
 </Solution>

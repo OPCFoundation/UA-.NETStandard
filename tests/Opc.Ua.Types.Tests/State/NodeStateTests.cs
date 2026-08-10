@@ -2501,6 +2501,36 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void CopyingANodeDoesNotConsumeNodeIdsFromTheFactory()
+        {
+            var source = new MethodState(null)
+            {
+                NodeId = new NodeId(4000, 0),
+                BrowseName = QualifiedName.From("Move"),
+                DisplayName = LocalizedText.From("Move")
+            };
+            PropertyState<ArrayOf<Argument>> sourceArguments =
+                source.CreateOrReplaceInputArguments(m_context, null);
+            sourceArguments.NodeId = new NodeId(4001, 0);
+
+            var factory = new CountingNodeIdFactory();
+            var context = new SystemContext(m_telemetry)
+            {
+                NamespaceUris = m_context.NamespaceUris,
+                ServerUris = m_context.ServerUris,
+                NodeIdFactory = factory
+            };
+
+            var copy = new MethodState(null);
+            copy.Create(context, source);
+
+            Assert.That(factory.Count, Is.Zero);
+            Assert.That(copy.NodeId, Is.EqualTo(source.NodeId));
+            Assert.That(copy.InputArguments, Is.Not.Null);
+            Assert.That(copy.InputArguments.NodeId, Is.EqualTo(sourceArguments.NodeId));
+        }
+
+        [Test]
         public void AssignNodeIdsWithNoFactoryIsNoOp()
         {
             BaseObjectState node = CreateObjectNode();
@@ -2590,6 +2620,21 @@ namespace Opc.Ua.Types.Tests.State
             BaseInstanceState found = root.FindChild(m_context, path, 0);
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(QualifiedName.From("Leaf")));
+        }
+
+        /// <summary>
+        /// Counts how often a NodeId was requested and hands out a fresh one
+        /// every time, so a test can prove a code path never reached it.
+        /// </summary>
+        private sealed class CountingNodeIdFactory : INodeIdFactory
+        {
+            public int Count { get; private set; }
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                Count++;
+                return new NodeId((uint)(90000 + Count), 0);
+            }
         }
     }
 }

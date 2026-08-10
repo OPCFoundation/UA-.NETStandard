@@ -170,6 +170,9 @@ namespace Opc.Ua.SourceGeneration
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, FluentBuilderTemplates.File);
 
+            template.AddReplacement(
+                Tokens.ModelUri,
+                EscapeStringLiteral(m_context.ModelDesign.TargetNamespace.Value));
             template.AddReplacement(Tokens.NamespacePrefix, outputNamespace);
 
             // Render the typed manager interface, the typed manager
@@ -469,18 +472,22 @@ namespace Opc.Ua.SourceGeneration
             string leafName = ResolveLeafName(root, relativePath, method);
             string parentKey = ResolveParentKey(root, relativePath, leafName);
             string className = ComposeWrapperClassName(leafName, suffix: "MethodBuilder");
+            MethodDesign effectiveMethod = method.IsOverridden()
+                ? (MethodDesign)method.GetMergedInstance()
+                : method;
+            (Parameter[] inputs, Parameter[] outputs) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(effectiveMethod);
             m_methodWrappers[key] = new MethodWrapper
             {
                 Key = key,
                 ClassName = className,
                 LeafName = leafName,
                 ParentKey = parentKey,
-                Inputs = MethodDesignArgumentResolver.ResolveMethodInputs(method),
-                Outputs = MethodDesignArgumentResolver.ResolveMethodOutputs(method)
+                Inputs = inputs,
+                Outputs = outputs
             };
         }
 
-        // Validation
         /// <summary>
         /// Wires each wrapper to its direct child object/method wrappers
         /// so the recursive emitter can walk the tree depth-first. Sorts
@@ -672,6 +679,15 @@ namespace Opc.Ua.SourceGeneration
                 "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "VariableFromTypeId",
                 "global::Opc.Ua.NodeId typeDefinitionId, global::Opc.Ua.QualifiedName browseName",
                 "typeDefinitionId, browseName",
+                typeArg: "TValue", noConstraint: true);
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "VariableFromDataTypeId",
+                "global::Opc.Ua.NodeId dataTypeId", "dataTypeId",
+                typeArg: "TValue", noConstraint: true);
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "VariableFromDataTypeId",
+                "global::Opc.Ua.NodeId dataTypeId, global::Opc.Ua.QualifiedName browseName",
+                "dataTypeId, browseName",
                 typeArg: "TValue", noConstraint: true);
 
             // Typed top-level accessors.
@@ -1069,9 +1085,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string stateName = typeName.EndsWith("Type", StringComparison.Ordinal)
-                ? typeName[..^"Type".Length] + "State"
-                : typeName + "State";
+            if (!string.IsNullOrEmpty(type.ClassName))
+            {
+                return type.GetClassName(m_context.ModelDesign.Namespaces) + "State";
+            }
+            string className = typeName.EndsWith("Type", StringComparison.Ordinal)
+                ? typeName[..^"Type".Length]
+                : typeName;
+            string stateName = className + "State";
             string nsUri = type.SymbolicName?.Namespace;
             string prefix = ResolveCSharpNamespaceForUri(nsUri);
             return string.IsNullOrEmpty(prefix)
@@ -1095,6 +1116,10 @@ namespace Opc.Ua.SourceGeneration
             if (typeDef == null || string.IsNullOrEmpty(typeDef.Name))
             {
                 return ResolveStateClrType(child);
+            }
+            if (child.TypeDefinitionNode is ObjectTypeDesign objectType)
+            {
+                return ResolveObjectTypeStateClr(objectType);
             }
             string stateName = typeDef.Name.EndsWith("Type", StringComparison.Ordinal)
                 ? typeDef.Name[..^"Type".Length] + "State"
@@ -1941,7 +1966,9 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             public string WrapperClassName;
 
-            /// <summary>Key into <c>m_wrappers</c> for object children.</summary>
+            /// <summary>
+            /// Key into <c>m_wrappers</c> for object children.
+            /// </summary>
             public string ChildKey;
 
             /// <summary>

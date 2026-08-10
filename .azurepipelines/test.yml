@@ -17,6 +17,26 @@ parameters:
 - name: customtestarget
   type: string
   default: ''
+# Test project discovery.  The defaults fan out over every *.Tests.csproj except
+# the tiers that are deliberately kept out of mainline CI (see #3810): AoT has
+# its own stage, and the stress / durable tiers run nightly.
+- name: projectfilename
+  type: string
+  default: '*.Tests.csproj'
+- name: excludeprojects
+  type: string
+  default: 'Opc.Ua.Aot.Tests.csproj,Opc.Ua.Stress.Tests.csproj,Opc.Ua.Subscriptions.Durable.Tests.csproj'
+# NUnit category filter passed to 'dotnet test'.  The default keeps the
+# long-running and stress tiers out of the fast legs; pass an empty string to
+# run everything (used by the scheduled long-running stage).
+- name: testfilter
+  type: string
+  default: 'TestCategory!=LongRunning&TestCategory!=Stress'
+# --blame-hang-timeout for a single test.  Raise it together with testfilter
+# when a leg deliberately includes the long-running tier.
+- name: hangtimeout
+  type: string
+  default: '10m'
 # Set hosted=true to force all jobs in this template invocation onto
 # Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
 # Use this for stages that target macOS, which the managed pool does not
@@ -33,19 +53,28 @@ parameters:
 - name: windowsImage
   type: string
   default: 'windows-2025-vs2026'
-# Optional job-level condition forwarded to both the testprep… and testall… jobs.
+# Optional job-level condition forwarded to the testprep… and testall… jobs.
 # When unset (the overwhelming majority of callers) no `condition:` line is
 # emitted - preserves today's "always run" behaviour exactly.  When set, both
 # jobs receive the same condition so the entire test invocation is gated
 # together (used by the root pipeline to skip macOS test invocations on draft
-# GitHub PRs).  The forwarded condition is always wrapped in succeeded() so a
-# build cancellation still propagates to these jobs - without the wrapper an
-# Azure Pipelines `condition:` re-evaluates to true during cancel and the job
-# keeps running (see "Job will continue running after cancellation was
-# requested because its condition re-evaluated to true" warnings).
+# GitHub PRs).  Pass the condition *bare*, without a succeeded() wrapper: the
+# jobs wrap it in succeeded() so a build cancellation still propagates to them -
+# without the wrapper an Azure Pipelines `condition:` re-evaluates to true during
+# cancel and the job keeps running (see "Job will continue running after
+# cancellation was requested because its condition re-evaluated to true"
+# warnings).
 - name: condition
   type: string
   default: ''
+# Collect code coverage in every test job of this invocation and publish each
+# matrix entry's raw Cobertura fragment as a pipeline artifact.  The 'Code
+# coverage' stage (.azurepipelines/coverage.yml) collects every fragment the run
+# produced, merges them once and evaluates the thresholds - this template only
+# produces the inputs, it does not gate anything.
+- name: coverage
+  type: boolean
+  default: true
 jobs:
 - job: testprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
@@ -68,7 +97,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName *.Tests.csproj -ExcludeFileName "Opc.Ua.Aot.Tests.csproj,Opc.Ua.Stress.Tests.csproj,Opc.Ua.Subscriptions.Durable.Tests.csproj" -AgentTable ${{ parameters.agents }}
+      arguments: -FileName ${{ parameters.projectfilename }} -ExcludeFileName "${{ parameters.excludeprojects }}" -AgentTable ${{ parameters.agents }}
 - job: testall${{ parameters.jobnamesuffix }}
   displayName: Tests (${{ parameters.framework }})
   dependsOn: testprep${{ parameters.jobnamesuffix }}
@@ -85,6 +114,27 @@ jobs:
       DotCliCommandline: '--framework ${{ parameters.framework }}'
     ${{ else }}:
       DotCliCommandline: '/p:CustomTestTarget=${{ parameters.customtestarget }}'
+    # /p:CollectCoverage=true does not switch coverlet's msbuild integration on
+    # (the XPlat data collector does the instrumentation); it only turns
+    # ContinuousIntegrationBuild off in common.props.  Without that, SourceLink
+    # rewrites the source paths embedded in the pdb to deterministic '/_/...'
+    # paths and the coverage report can no longer be mapped back onto the files
+    # in the working tree, which the changed-lines gate needs.
+    #
+    # coverlet.collector 10.x ships build assets for net8.0+ only, so a .NET
+    # Framework test host cannot load the 'XPlat Code Coverage' collector at all
+    # (VSTest only warns and produces no report).  Those legs - anything running
+    # on net48 / net472, which includes the netstandard2.0 leg because it hosts
+    # its tests on net48 - therefore run without the collector, and their gate
+    # job below degrades to the test-result check.
+    ${{ if and(parameters.coverage, not(startsWith(parameters.framework, 'net4')), not(startsWith(parameters.customtestarget, 'net4'))) }}:
+      CoverageArgs: '/p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./tests/coverlet.runsettings.xml'
+    ${{ else }}:
+      CoverageArgs: ''
+    ${{ if ne(parameters.testfilter, '') }}:
+      TestFilterArgs: '--filter "${{ parameters.testfilter }}"'
+    ${{ else }}:
+      TestFilterArgs: ''
   pool:
     ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
       name: ${{ parameters.poolName }}
@@ -124,9 +174,7 @@ jobs:
     # Only the Opc.Ua.Encoders.Fuzz.Tests matrix entry consumes these crash-seed
     # assets; gating the download saves a secure-file fetch + ~28k 'inflating:
     # crash-*' log lines on every other matrix entry (observed pre-fix on mac
-    # build 14598 log 652).  testcc.yml still pulls the artifacts unconditionally
-    # because that single combined coverage job runs every *.Tests.csproj
-    # including Fuzz.Tests in one go.
+    # build 14598 log 652).
     condition: contains(variables['file'], 'Fuzz.Tests')
     inputs:
       secureFile: 'FuzzingArtifacts.zip'
@@ -161,11 +209,12 @@ jobs:
       command: test
       projects: $(file)
       # --blame-hang-timeout/--blame-hang-dump-type: kill (and name) any single test
-      # that exceeds 10 min so silent hangs surface as "Test <Name> exceeded the
-      # configured timeout" instead of burning the full 90-min step timeout with no
-      # diagnostic info (observed on mac PR build 14598 log 933: 28 min of silence
-      # after the previous test before the step timeout fired). LongRunning/Stress
-      # tests are already filtered out, so 10 min is well above any legitimate run.
+      # that exceeds the configured hangtimeout so silent hangs surface as
+      # "Test <Name> exceeded the configured timeout" instead of burning the full
+      # 90-min step timeout with no diagnostic info (observed on mac PR build 14598
+      # log 933: 28 min of silence after the previous test before the step timeout
+      # fired). The 10-min default is well above any legitimate run once the
+      # LongRunning/Stress tiers are filtered out; legs that include them raise it.
       # --blame-hang-dump-type mini: capture a minidump on hang so we can root-cause
       # teardown / shutdown hangs (observed on mac PR builds for Opc.Ua.History.Tests:
       # all tests pass, then a ~10-min silent teardown -> hang dump -> exit 1). A mini
@@ -182,7 +231,7 @@ jobs:
       # opcfoundation.visualstudio.com (observed on mac PR build 14614 log 737:
       # all 707 tests passed, then post-test publish errored with
       # "nodename nor servname provided, or not known" and failed the job).
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress" --blame-hang-timeout 10m --blame-hang-dump-type mini --logger trx --results-directory $(Agent.TempDirectory)'
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} ${{ variables.CoverageArgs }} ${{ variables.TestFilterArgs }} --blame-hang-timeout ${{ parameters.hangtimeout }} --blame-hang-dump-type mini --logger trx --results-directory $(Agent.TempDirectory)'
       publishTestResults: false
   - task: PublishTestResults@2
     displayName: 'Publish Test Results ${{ parameters.configuration }} (${{ parameters.framework }})'
@@ -276,6 +325,45 @@ jobs:
         }
         Write-Host "No test failures recorded across $total test(s); treating the run as successful (tolerating any non-zero test-host exit after a fully green run)."
         exit 0
+  # Hand the raw per-project Cobertura report to the 'Code coverage' stage
+  # instead of letting a gate job re-run the whole suite with coverage enabled.
+  # Re-running defeats the point of fanning the suite out across matrix jobs and
+  # reliably blew the stage timeout.  The artifact name is unique per matrix
+  # entry (System.JobId); the coverage stage collects 'coverage-*' across every
+  # stage of the run and merges them once.
+  - ${{ if and(parameters.coverage, not(startsWith(parameters.framework, 'net4')), not(startsWith(parameters.customtestarget, 'net4'))) }}:
+    - task: CopyFiles@2
+      displayName: 'Stage code coverage'
+      condition: succeededOrFailed()
+      continueOnError: true
+      inputs:
+        SourceFolder: '$(Agent.TempDirectory)'
+        Contents: '**/*.cobertura.xml'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)/coverage'
+        # Not flattened: the collector writes every report as 'coverage.cobertura.xml'
+        # below a per-run guid folder, so flattening would drop all but one.
+        flattenFolders: false
+    - task: PowerShell@2
+      name: coverageProbe
+      displayName: 'Detect code coverage'
+      condition: succeededOrFailed()
+      inputs:
+        targetType: inline
+        pwsh: true
+        script: |
+          $dir = '$(Build.ArtifactStagingDirectory)/coverage'
+          $found = (Test-Path $dir) -and
+              @(Get-ChildItem -Path $dir -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue).Count -gt 0
+          Write-Host "Code coverage reports present: $found"
+          Write-Host "##vso[task.setvariable variable=HAS_COVERAGE;isOutput=true]$($found.ToString().ToLowerInvariant())"
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish code coverage'
+      # Only publish when the probe found a report; PublishPipelineArtifact@1
+      # warns on an empty targetPath and would light the step up yellow.
+      condition: and(succeededOrFailed(), eq(variables['coverageProbe.HAS_COVERAGE'], 'true'))
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/coverage'
+        artifact: 'coverage-${{ parameters.jobnamesuffix }}-$(System.JobId)'
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Fuzzing artifacts on failure'
     condition: and(failed(), contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))

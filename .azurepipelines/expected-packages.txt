@@ -1,0 +1,64 @@
+# Every NuGet package the preview pipeline is expected to produce from
+# `dotnet pack preview-pack.slnx`, one package id per line.
+#
+# `validate-source-generator-packages.ps1` fails the build when the packed output
+# does not match this list exactly. The point is that adding, removing or renaming
+# a shipped package has to be a conscious, reviewed act - a package silently
+# disappearing (or a private build-time project accidentally becoming packable)
+# is otherwise invisible until consumers notice.
+#
+# Lines starting with '#' and blank lines are ignored. The list covers the modern
+# `dotnet pack` output only; the hand-authored `nuget/*.nuspec` packages are packed
+# in a later pipeline step and are not part of this check.
+#
+# To update: run `dotnet pack preview-pack.slnx` and reconcile the produced
+# package ids with this file in the same pull request that changes them.
+
+OPCFoundation.NetStandard.Opc.Ua.Bindings.Https
+OPCFoundation.NetStandard.Opc.Ua.Client
+OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
+OPCFoundation.NetStandard.Opc.Ua.Configuration
+OPCFoundation.NetStandard.Opc.Ua.Core
+OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics
+OPCFoundation.NetStandard.Opc.Ua.Core.Schema
+OPCFoundation.NetStandard.Opc.Ua.Core.Types
+OPCFoundation.NetStandard.Opc.Ua.Di
+OPCFoundation.NetStandard.Opc.Ua.Di.Client
+OPCFoundation.NetStandard.Opc.Ua.Di.Server
+OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common
+OPCFoundation.NetStandard.Opc.Ua.Gds.Common
+OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common
+OPCFoundation.NetStandard.Opc.Ua.ISA95
+OPCFoundation.NetStandard.Opc.Ua.ISA95.Client
+OPCFoundation.NetStandard.Opc.Ua.ISA95.Server
+OPCFoundation.NetStandard.Opc.Ua.Lds.Server
+OPCFoundation.NetStandard.Opc.Ua.Mcp
+OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer
+OPCFoundation.NetStandard.Opc.Ua.PubSub
+OPCFoundation.NetStandard.Opc.Ua.PubSub.Adapter
+OPCFoundation.NetStandard.Opc.Ua.PubSub.Diagnostics
+OPCFoundation.NetStandard.Opc.Ua.PubSub.Eth
+OPCFoundation.NetStandard.Opc.Ua.PubSub.Kafka
+OPCFoundation.NetStandard.Opc.Ua.PubSub.Mqtt
+OPCFoundation.NetStandard.Opc.Ua.PubSub.Schema
+OPCFoundation.NetStandard.Opc.Ua.PubSub.Server
+OPCFoundation.NetStandard.Opc.Ua.PubSub.Udp
+OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers
+OPCFoundation.NetStandard.Opc.Ua.Redundancy
+OPCFoundation.NetStandard.Opc.Ua.Redundancy.Client
+OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes
+OPCFoundation.NetStandard.Opc.Ua.Redundancy.PubSub
+OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server
+OPCFoundation.NetStandard.Opc.Ua.Security.Certificates
+OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11
+OPCFoundation.NetStandard.Opc.Ua.Server
+OPCFoundation.NetStandard.Opc.Ua.SourceGeneration
+OPCFoundation.NetStandard.Opc.Ua.SourceGeneration.Core
+OPCFoundation.NetStandard.Opc.Ua.SourceGeneration.Stack
+OPCFoundation.NetStandard.Opc.Ua.Types
+OPCFoundation.NetStandard.Opc.Ua.WotCon
+OPCFoundation.NetStandard.Opc.Ua.WotCon.Client
+OPCFoundation.NetStandard.Opc.Ua.WotCon.Server
+OPCFoundation.NetStandard.Opc.Ua.XRegistry
+OPCFoundation.NetStandard.Opc.Ua.XRegistry.Client
+OPCFoundation.NetStandard.Opc.Ua.XRegistry.Server
