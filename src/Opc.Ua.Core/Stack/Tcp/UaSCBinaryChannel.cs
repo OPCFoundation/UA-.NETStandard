@@ -1009,6 +1009,84 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Sends a message on the caller's stack instead of queuing it.
+        /// </summary>
+        /// <param name="buffer">The encoded message. Ownership transfers.</param>
+        /// <param name="state">Passed to <see cref="HandleWriteComplete"/>.</param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown synchronously if no transport is attached.
+        /// </exception>
+        /// <remarks>
+        /// Reserved for the terminal error message a faulting channel sends
+        /// immediately before closing its transport. A queued write would be
+        /// discarded by that close, and the peer would see the connection drop
+        /// rather than the reason for it.
+        /// <para>
+        /// The entitlement to re-enter the gate is deliberately *not* dropped
+        /// here, unlike a queued write. This runs on the caller's stack, so the
+        /// completion callback a synchronous send triggers is the caller's own
+        /// re-entry and must be allowed; disclaiming would leave it blocking on
+        /// a gate the very same thread holds.
+        /// </para>
+        /// </remarks>
+        protected void WriteMessageInline(ArraySegment<byte> buffer, object? state)
+        {
+            IUaSCByteTransport transport = m_transport
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "The transport was closed by the remote application.");
+
+            Interlocked.Increment(ref m_activeWriteRequests);
+            ReadOnlyMemory<byte> chunk = new(buffer.GetArray(), buffer.Offset, buffer.Count);
+
+            _ = SendInlineAsync(transport, chunk, buffer.GetArray(), state);
+        }
+
+        private async Task SendInlineAsync(
+            IUaSCByteTransport transport,
+            ReadOnlyMemory<byte> chunk,
+            byte[] backingBuffer,
+            object? state)
+        {
+            ServiceResult result = ServiceResult.Good;
+            int sent = chunk.Length;
+
+            try
+            {
+                await transport.SendChunkAsync(chunk, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre)
+            {
+                sent = 0;
+                result = sre.Result;
+            }
+            catch (Exception ex)
+            {
+                sent = 0;
+                result = ServiceResult.Create(
+                    ex,
+                    StatusCodes.BadTcpInternalError,
+                    "Unexpected error during write operation.");
+            }
+            finally
+            {
+                try
+                {
+                    if (backingBuffer != null)
+                    {
+                        BufferManager.ReturnBuffer(backingBuffer, "SendInlineAsync");
+                    }
+                }
+                catch
+                {
+                    // Best-effort: a double-return throws but should not mask the write result.
+                }
+
+                HandleWriteComplete(null, state, sent, result);
+            }
+        }
+
         private async Task WriteSingleChunkAsync(
             IUaSCByteTransport transport,
             ReadOnlyMemory<byte> chunk,
