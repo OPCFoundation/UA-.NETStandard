@@ -247,10 +247,10 @@ The synchronous overload could not verify a user token that required
 decryption, so on a secure endpoint it failed closed and directed callers to
 the asynchronous path anyway.
 
-`ISession.SaveHistoryContinuationPoint` and
-`ISession.RestoreHistoryContinuationPoint` no longer pass `object`. They use
-`IHistoryContinuationPoint`, which carries the point's own `Guid Id` and
-extends `IDisposable`:
+The history continuation points moved off `ISession` onto
+`ISession.ContinuationPoints`, and no longer pass `object`. `SaveHistory` and
+`RestoreHistory` use `IHistoryContinuationPoint`, which carries the point's own
+`Guid Id` and extends `IDisposable`:
 
 ```csharp
 // was
@@ -258,8 +258,8 @@ session.SaveHistoryContinuationPoint(state.Id, state);
 object? restored = session.RestoreHistoryContinuationPoint(bytes);
 
 // now
-session.SaveHistoryContinuationPoint(state);          // the point carries its Id
-IHistoryContinuationPoint? restored = session.RestoreHistoryContinuationPoint(bytes);
+session.ContinuationPoints.SaveHistory(state);   // the point carries its Id
+IHistoryContinuationPoint? restored = session.ContinuationPoints.RestoreHistory(bytes);
 ```
 
 Implement `IHistoryContinuationPoint` on whatever type you store. The session

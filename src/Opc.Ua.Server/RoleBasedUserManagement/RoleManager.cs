@@ -48,7 +48,7 @@ namespace Opc.Ua.Server
     /// server restarts. Integrators that need persistence should implement
     /// <see cref="IRoleManager"/> directly and inject the instance via
     /// <see cref="StandardServer.CreateRoleManager"/>, or by registering it in
-/// the service container.
+    /// the service container.
     /// </remarks>
     public sealed class RoleManager : IRoleManager, IDisposable
     {

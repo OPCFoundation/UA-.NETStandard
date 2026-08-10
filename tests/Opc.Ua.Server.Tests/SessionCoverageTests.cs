@@ -624,7 +624,7 @@ namespace Opc.Ua.Server.Tests
                     new SignatureData(),
                     default,
                     new SignatureData(),
-                CancellationToken.None).ConfigureAwait(false);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(handler, Is.Not.Null);
             Assert.That(policy, Is.Not.Null);
@@ -680,7 +680,7 @@ namespace Opc.Ua.Server.Tests
                     new SignatureData(),
                     new ExtensionObject(userToken),
                     new SignatureData(),
-                CancellationToken.None).ConfigureAwait(false);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(handler, Is.Not.Null);
             Assert.That(policy, Is.Not.Null);
