@@ -379,7 +379,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The diagnostics associated with the session.
         /// </summary>
+        /// <remarks>
+        /// Not on <see cref="ISession"/>: it is the mutable structure the diagnostics lock
+        /// protects, so handing it out lets a caller read a field the owner may be writing.
+        /// Callers reach values through <see cref="ReadDiagnostics{TResult}"/>, or through
+        /// <see cref="SessionName"/> and <see cref="ClientApplicationUri"/> for the two the
+        /// server itself needs.
+        /// </remarks>
         public SessionDiagnosticsDataType SessionDiagnostics { get; }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Read from the field rather than from the diagnostics: it is assigned once during
+        /// construction and never changes, so no lock is involved.
+        /// </remarks>
+        public string SessionName => m_sessionName;
+
+        /// <inheritdoc/>
+        public string? ClientApplicationUri
+            => ReadDiagnostics(diagnostics => diagnostics.ClientDescription?.ApplicationUri);
 
         /// <summary>
         /// The client Nonce associated with the session.

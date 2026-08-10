@@ -370,11 +370,11 @@ namespace Opc.Ua.Server.Tests
             (RequestHeader requestHeader, SecureChannelContext channelCtx, ISession session) =
                 await CreateAndActivateAsync("ValidateRequestWriteCount").ConfigureAwait(false);
 
-            uint before = session.SessionDiagnostics.WriteCount.TotalCount;
+            uint before = session.ReadDiagnostics(d => d.WriteCount.TotalCount);
 
             session.ValidateRequest(requestHeader, channelCtx, RequestType.Write);
 
-            Assert.That(session.SessionDiagnostics.WriteCount.TotalCount,
+            Assert.That(session.ReadDiagnostics(d => d.WriteCount.TotalCount),
                 Is.GreaterThan(before));
         }
 
@@ -384,11 +384,11 @@ namespace Opc.Ua.Server.Tests
             (RequestHeader requestHeader, SecureChannelContext channelCtx, ISession session) =
                 await CreateAndActivateAsync("ValidateRequestBrowseCount").ConfigureAwait(false);
 
-            uint before = session.SessionDiagnostics.BrowseCount.TotalCount;
+            uint before = session.ReadDiagnostics(d => d.BrowseCount.TotalCount);
 
             session.ValidateRequest(requestHeader, channelCtx, RequestType.Browse);
 
-            Assert.That(session.SessionDiagnostics.BrowseCount.TotalCount,
+            Assert.That(session.ReadDiagnostics(d => d.BrowseCount.TotalCount),
                 Is.GreaterThan(before));
         }
 
@@ -398,11 +398,11 @@ namespace Opc.Ua.Server.Tests
             (RequestHeader requestHeader, SecureChannelContext channelCtx, ISession session) =
                 await CreateAndActivateAsync("ValidateRequestTranslateCount").ConfigureAwait(false);
 
-            uint before = session.SessionDiagnostics.TranslateBrowsePathsToNodeIdsCount.TotalCount;
+            uint before = session.ReadDiagnostics(d => d.TranslateBrowsePathsToNodeIdsCount.TotalCount);
 
             session.ValidateRequest(requestHeader, channelCtx, RequestType.TranslateBrowsePathsToNodeIds);
 
-            Assert.That(session.SessionDiagnostics.TranslateBrowsePathsToNodeIdsCount.TotalCount,
+            Assert.That(session.ReadDiagnostics(d => d.TranslateBrowsePathsToNodeIdsCount.TotalCount),
                 Is.GreaterThan(before));
         }
 
@@ -412,11 +412,11 @@ namespace Opc.Ua.Server.Tests
             (RequestHeader requestHeader, SecureChannelContext channelCtx, ISession session) =
                 await CreateAndActivateAsync("ValidateRequestTotalCount").ConfigureAwait(false);
 
-            uint before = session.SessionDiagnostics.TotalRequestCount.TotalCount;
+            uint before = session.ReadDiagnostics(d => d.TotalRequestCount.TotalCount);
 
             session.ValidateRequest(requestHeader, channelCtx, RequestType.Read);
 
-            Assert.That(session.SessionDiagnostics.TotalRequestCount.TotalCount,
+            Assert.That(session.ReadDiagnostics(d => d.TotalRequestCount.TotalCount),
                 Is.EqualTo(before + 1));
         }
 
@@ -426,7 +426,7 @@ namespace Opc.Ua.Server.Tests
             const string sessionName = "DiagnosticsNameTest";
             (_, _, ISession session) = await CreateAndActivateAsync(sessionName).ConfigureAwait(false);
 
-            Assert.That(session.SessionDiagnostics.SessionName, Is.EqualTo(sessionName));
+            Assert.That(session.ReadDiagnostics(d => d.SessionName), Is.EqualTo(sessionName));
         }
 
         [Test]
@@ -435,7 +435,7 @@ namespace Opc.Ua.Server.Tests
             (_, _, ISession session) =
                 await CreateAndActivateAsync("DiagnosticsTimeout").ConfigureAwait(false);
 
-            Assert.That(session.SessionDiagnostics.ActualSessionTimeout, Is.GreaterThan(0.0));
+            Assert.That(session.ReadDiagnostics(d => d.ActualSessionTimeout), Is.GreaterThan(0.0));
         }
     }
 }
