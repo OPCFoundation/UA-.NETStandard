@@ -381,6 +381,26 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         /// <summary>
+        /// An invalid format specifier must throw on every target framework, the
+        /// way DateTime.TryFormat does, rather than being reported as a failed
+        /// format on some of them.
+        /// </summary>
+        [Test]
+        public void TryFormatShouldThrowOnAnInvalidFormat()
+        {
+            var date = new DateTimeUtc(new DateTime(2023, 1, 1, 12, 30, 45, DateTimeKind.Utc));
+            byte[] buffer = new byte[100];
+
+            Assert.That(
+                () => date.TryFormat(
+                    buffer,
+                    out int _,
+                    "Q".AsSpan(),
+                    CultureInfo.InvariantCulture),
+                Throws.TypeOf<FormatException>());
+        }
+
+        /// <summary>
         /// A destination too small to hold the value must be reported as a failure
         /// and must not be written to. Reporting success for a truncated timestamp
         /// hands the caller a corrupt value it believes is complete.

@@ -46,6 +46,50 @@ namespace Opc.Ua.Security.Certificates
     public static class PEMReader
     {
         /// <summary>
+        /// The maximum number of PEM blocks read from a single blob.
+        /// </summary>
+        private const int kMaxPemBlocks = 99;
+
+        /// <summary>
+        /// Reads the next object from the PEM stream, skipping any block this
+        /// version of BouncyCastle refuses to parse.
+        /// </summary>
+        /// <remarks>
+        /// BouncyCastle 2.7.0 and later reject a certificate that violates
+        /// RFC 5280, an empty issuer distinguished name being the case seen in
+        /// practice. The offending block has already been consumed by the time
+        /// the exception surfaces, so reading on skips just that entry rather
+        /// than abandoning the whole file: one malformed certificate must not
+        /// hide the private key, or the valid certificates, that follow it.
+        /// </remarks>
+        /// <param name="pemReader">
+        /// The reader to advance.
+        /// </param>
+        /// <param name="blocksRead">
+        /// Counts the blocks consumed so far, bounding a blob made up entirely
+        /// of unparseable entries.
+        /// </param>
+        /// <returns>
+        /// The next object that could be parsed, or null at the end of the blob.
+        /// </returns>
+        private static object? ReadNextObject(PemReader pemReader, ref int blocksRead)
+        {
+            while (blocksRead < kMaxPemBlocks)
+            {
+                blocksRead++;
+                try
+                {
+                    return pemReader.ReadObject();
+                }
+                catch (PemException)
+                {
+                    // Skip the block and keep reading.
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Checks if the PEM data contains a private key.
         /// </summary>
         /// <param name="pemDataBlob">The PEM data as a byte span.</param>
@@ -57,7 +101,8 @@ namespace Opc.Ua.Security.Certificates
             using var pemReader = new PemReader(reader);
             try
             {
-                object pemObject = pemReader.ReadObject();
+                int blocksRead = 0;
+                object? pemObject = ReadNextObject(pemReader, ref blocksRead);
                 while (pemObject != null)
                 {
                     // Check for AsymmetricCipherKeyPair (private key)
@@ -75,7 +120,7 @@ namespace Opc.Ua.Security.Certificates
                     {
                         return true;
                     }
-                    pemObject = pemReader.ReadObject();
+                    pemObject = ReadNextObject(pemReader, ref blocksRead);
                 }
             }
             finally
@@ -101,32 +146,10 @@ namespace Opc.Ua.Security.Certificates
                 int certCount = 0;
                 try
                 {
-                    // Every iteration consumes one PEM block, so the attempt bound
-                    // also terminates a file made up entirely of unparseable blocks.
-                    const int maxBlocks = 99;
-                    for (int attempt = 0; attempt < maxBlocks && certCount < maxBlocks; attempt++)
+                    int blocksRead = 0;
+                    object? pemObject = ReadNextObject(pemReader, ref blocksRead);
+                    while (pemObject != null && certCount < kMaxPemBlocks)
                     {
-                        object pemObject;
-                        try
-                        {
-                            pemObject = pemReader.ReadObject();
-                        }
-                        catch (PemException)
-                        {
-                            // BouncyCastle 2.7.0 and later refuse to parse a certificate
-                            // that violates RFC 5280, an empty issuer distinguished name
-                            // being the case seen in practice. The block has already been
-                            // consumed at that point, so skip it and keep reading instead
-                            // of discarding the whole file - a single malformed
-                            // certificate must not empty an otherwise usable trust list.
-                            continue;
-                        }
-
-                        if (pemObject == null)
-                        {
-                            break;
-                        }
-
                         if (pemObject is Org.BouncyCastle.X509.X509Certificate bcCert)
                         {
                             byte[] rawData = bcCert.GetEncoded();
@@ -139,12 +162,15 @@ namespace Opc.Ua.Security.Certificates
                             if (DistinguishedNameUtils.HasEmptyDistinguishedName(cert))
                             {
                                 cert.Dispose();
-                                continue;
                             }
-
-                            certificates.Add(cert);
-                            certCount++;
+                            else
+                            {
+                                certificates.Add(cert);
+                                certCount++;
+                            }
                         }
+
+                        pemObject = ReadNextObject(pemReader, ref blocksRead);
                     }
                 }
                 finally
@@ -207,7 +233,8 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 // find the private key in the PEM blob
-                object pemObject = pemReader.ReadObject();
+                int blocksRead = 0;
+                object? pemObject = ReadNextObject(pemReader, ref blocksRead);
                 while (pemObject != null)
                 {
                     if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keypair)
@@ -231,7 +258,7 @@ namespace Opc.Ua.Security.Certificates
                     }
 
                     // read next object
-                    pemObject = pemReader.ReadObject();
+                    pemObject = ReadNextObject(pemReader, ref blocksRead);
                 }
             }
             finally

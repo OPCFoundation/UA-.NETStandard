@@ -426,11 +426,13 @@ namespace Opc.Ua
                 bytesWritten = encoded.Length;
                 return true;
             }
-            // ToString throws FormatException for an invalid format string and
-            // ArgumentException for an unusable provider. EncoderFallbackException
-            // derives from ArgumentException, so an unencodable character is covered
-            // too - Encoding.UTF8 replaces rather than throws in any case.
-            catch (Exception ex) when (ex is FormatException or ArgumentException)
+            // ToString throws FormatException for an invalid format string. That is
+            // deliberately not caught: DateTime.TryFormat throws it too, so letting
+            // it propagate keeps this method behaving the same on every target
+            // framework. ArgumentException covers an unusable provider, and
+            // EncoderFallbackException derives from it, so an unencodable character
+            // is handled too - Encoding.UTF8 replaces rather than throws in any case.
+            catch (ArgumentException)
             {
                 bytesWritten = 0;
                 return false;
