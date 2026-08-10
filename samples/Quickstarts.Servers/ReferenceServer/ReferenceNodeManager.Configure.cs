@@ -101,44 +101,17 @@ namespace Quickstarts.ReferenceServer
             builder.CTT.DataAccess.DataAccess_SelectionList.DataAccess_SelectionList_Colors
                 .OnWrite(OnWriteSelectionList);
 
-            // UserAccessLevel and AccessLevelEx cannot be expressed in the
-            // NodeSet2 model (Prio 1 impossible): the UANodeSet loader always
-            // derives UserAccessLevel from AccessLevel and has no element for
-            // AccessLevelEx. They are applied here through the fluent .Node
-            // escape hatch (Prio 2). Only nodes whose UserAccessLevel diverges
-            // from their AccessLevel need this; the loader default already
-            // matches for every other node.
-            SetUserAccessLevel(
-                builder.CTT.AccessRights.AccessRights_AccessAll.AccessRights_AccessAll_RO_NotUser,
-                AccessLevels.None);
-            SetUserAccessLevel(
-                builder.CTT.AccessRights.AccessRights_AccessAll.AccessRights_AccessAll_WO_NotUser,
-                AccessLevels.None);
-            SetUserAccessLevel(
-                builder.CTT.AccessRights.AccessRights_AccessAll.AccessRights_AccessAll_RW_NotUser,
-                AccessLevels.CurrentRead);
-            SetUserAccessLevel(
-                builder.CTT.AccessRights.AccessRights_AccessAll.AccessRights_AccessAll_RO_User1_RW,
-                AccessLevels.CurrentReadOrWrite);
-            SetUserAccessLevel(
-                builder.CTT.AccessRights.AccessRights_AccessAll.AccessRights_AccessAll_RO_Group1_RW,
-                AccessLevels.CurrentReadOrWrite);
-            SetUserAccessLevel(
-                builder.CTT.AccessRights.AccessRights_AccessUser1.AccessRights_AccessUser1_RO,
-                (byte)(AccessLevels.CurrentRead | AccessLevels.HistoryRead));
-
             // AccessLevelEx advertises non-atomic read/write on the read/write
-            // static scalar (Prio 1 impossible, see above).
+            // static scalar. It cannot be expressed in the NodeSet2 model (the
+            // UANodeSet schema has no AccessLevelEx attribute), so it is applied
+            // here through the fluent .Node escape hatch (Prio 2). The divergent
+            // UserAccessLevel values, in contrast, are now baked directly into
+            // the NodeSet2 model (Prio 1) and loaded by the source generator.
             ((BaseVariableState)builder.CTT.Scalar.Scalar_Static
                 .Scalar_Static_NonatomicReadWrite.Node).AccessLevelEx =
                 AccessLevels.CurrentReadOrWrite
                 | (uint)AccessLevelExType.NonatomicRead
                 | (uint)AccessLevelExType.NonatomicWrite;
-
-            static void SetUserAccessLevel(INodeBuilder node, byte userAccessLevel)
-            {
-                ((BaseVariableState)node.Node).UserAccessLevel = userAccessLevel;
-            }
         }
     }
 }

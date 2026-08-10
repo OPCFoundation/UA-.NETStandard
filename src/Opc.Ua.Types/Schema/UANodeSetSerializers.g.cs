@@ -504,7 +504,7 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
             if (((global::System.UInt32)o.@AccessLevel) != (System.UInt32)(1)) {
                 WriteAttribute(@"AccessLevel", @"", System.Xml.XmlConvert.ToString((global::System.UInt32)((global::System.UInt32)o.@AccessLevel)));
             }
-            if (((global::System.UInt32)o.@UserAccessLevel) != (System.UInt32)(1)) {
+            if (o.@UserAccessLevelSpecified) {
                 WriteAttribute(@"UserAccessLevel", @"", System.Xml.XmlConvert.ToString((global::System.UInt32)((global::System.UInt32)o.@UserAccessLevel)));
             }
             if (!((global::System.Double)o.@MinimumSamplingInterval).Equals(0)) {
@@ -2384,6 +2384,7 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                 }
                 else if (!paramsRead[23] && ((object) Reader.LocalName == (object)id53_UserAccessLevel && (object) Reader.NamespaceURI == (object)id3_Item)) {
                     o.@UserAccessLevel = System.Xml.XmlConvert.ToUInt32(Reader.Value);
+                    o.@UserAccessLevelSpecified = true;
                     paramsRead[23] = true;
                 }
                 else if (!paramsRead[24] && ((object) Reader.LocalName == (object)id54_MinimumSamplingInterval && (object) Reader.NamespaceURI == (object)id3_Item)) {

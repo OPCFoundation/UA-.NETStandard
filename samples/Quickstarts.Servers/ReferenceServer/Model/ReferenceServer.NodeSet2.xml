@@ -59490,7 +59490,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_RO_NotUser" BrowseName="1:AccessRights_AccessAll_RO_NotUser" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16" AccessLevel="5" Historizing="true">
+  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_RO_NotUser" BrowseName="1:AccessRights_AccessAll_RO_NotUser" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16" AccessLevel="5" UserAccessLevel="0" Historizing="true">
     <DisplayName Locale="en">RO_NotUser</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -59587,7 +59587,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_WO_NotUser" BrowseName="1:AccessRights_AccessAll_WO_NotUser" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16" AccessLevel="2">
+  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_WO_NotUser" BrowseName="1:AccessRights_AccessAll_WO_NotUser" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16" AccessLevel="2" UserAccessLevel="0">
     <DisplayName Locale="en">WO_NotUser</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -59596,7 +59596,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Int16 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">11405</Int16></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_RW_NotUser" BrowseName="1:AccessRights_AccessAll_RW_NotUser" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_RW_NotUser" BrowseName="1:AccessRights_AccessAll_RW_NotUser" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16" AccessLevel="15" UserAccessLevel="1" Historizing="true">
     <DisplayName Locale="en">RW_NotUser</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -59693,7 +59693,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_RO_User1_RW" BrowseName="1:AccessRights_AccessAll_RO_User1_RW" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16">
+  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_RO_User1_RW" BrowseName="1:AccessRights_AccessAll_RO_User1_RW" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16" UserAccessLevel="3">
     <DisplayName Locale="en">RO_User1_RW</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -59702,7 +59702,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Int16 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">-1197</Int16></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_RO_Group1_RW" BrowseName="1:AccessRights_AccessAll_RO_Group1_RW" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16">
+  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_RO_Group1_RW" BrowseName="1:AccessRights_AccessAll_RO_Group1_RW" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16" UserAccessLevel="3">
     <DisplayName Locale="en">RO_Group1_RW</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -59721,7 +59721,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=AccessRights</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;s=AccessRights_AccessUser1_RO" BrowseName="1:AccessRights_AccessUser1_RO" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessUser1" DataType="Int16">
+  <UAVariable NodeId="ns=1;s=AccessRights_AccessUser1_RO" BrowseName="1:AccessRights_AccessUser1_RO" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessUser1" DataType="Int16" UserAccessLevel="5">
     <DisplayName Locale="en">RO</DisplayName>
     <Description>Default Description</Description>
     <References>

@@ -975,6 +975,15 @@ namespace Opc.Ua.Schema.Model
         [XmlIgnore]
         public uint? RawAccessLevel { get; set; }
 
+        /// <summary>
+        /// The verbatim OPC UA UserAccessLevel bitmask imported from a
+        /// NodeSet2 model when the <c>UserAccessLevel</c> attribute is
+        /// explicitly present. When <c>null</c> the UserAccessLevel is
+        /// derived from the AccessLevel, matching the runtime importer.
+        /// </summary>
+        [XmlIgnore]
+        public uint? RawUserAccessLevel { get; set; }
+
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
@@ -998,6 +1007,7 @@ namespace Opc.Ua.Schema.Model
                 AccessLevel == other.AccessLevel &&
                 AccessLevelSpecified == other.AccessLevelSpecified &&
                 RawAccessLevel == other.RawAccessLevel &&
+                RawUserAccessLevel == other.RawUserAccessLevel &&
                 InstanceAccessLevel == other.InstanceAccessLevel &&
                 InstanceAccessLevelSpecified == other.InstanceAccessLevelSpecified &&
                 MinimumSamplingInterval == other.MinimumSamplingInterval &&
@@ -1018,6 +1028,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(AccessLevel);
             hash.Add(AccessLevelSpecified);
             hash.Add(RawAccessLevel);
+            hash.Add(RawUserAccessLevel);
             hash.Add(InstanceAccessLevel);
             hash.Add(InstanceAccessLevelSpecified);
             hash.Add(MinimumSamplingInterval);
