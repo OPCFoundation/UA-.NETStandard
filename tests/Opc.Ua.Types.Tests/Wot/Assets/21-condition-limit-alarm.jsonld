@@ -1,0 +1,258 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "pump": "http://example.com/demo/pump"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": "uav:object",
+  "id": "urn:dev:opcua:pump-01-conditions",
+  "title": "Pump 01 Conditions",
+  "description": "A Thing Description showing a high-temperature OPC UA LimitAlarmType notification paired with acknowledge and confirm actions.",
+  "uav:browseName": "pump:Pump",
+  "uav:id": "nsu=http://example.com/demo/pump;s=Pump",
+  "securityDefinitions": {
+    "opcua_channel_sc": {
+      "scheme": "uav:channelsec",
+      "uav:securityMode": "SignAndEncrypt",
+      "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+    },
+    "opcua_authentication_sc": {
+      "scheme": "uav:authentication",
+      "uav:userIdentityToken": "UserName"
+    },
+    "opcua_sc": {
+      "scheme": "combo",
+      "allOf": [
+        "opcua_channel_sc",
+        "opcua_authentication_sc"
+      ]
+    }
+  },
+  "security": "opcua_sc",
+  "base": "opc.tcp://opcuademo.com:4840",
+  "events": {
+    "highTemperature": {
+      "@type": "uav:eventType",
+      "title": "High Temperature",
+      "uav:isEvent": true,
+      "uav:browseName": "pump:HighTemperatureAlarmType",
+      "uav:conditionType": "ua:LimitAlarmType",
+      "uav:conditionTypeId": "i=2955",
+      "data": {
+        "type": "object",
+        "required": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "ConditionId",
+          "ConditionName",
+          "BranchId",
+          "Retain",
+          "ConditionClassId",
+          "ConditionClassName",
+          "Quality",
+          "LastSeverity",
+          "Comment",
+          "ClientUserId",
+          "EnabledState"
+        ],
+        "properties": {
+          "EventId": {
+            "type": "string",
+            "contentEncoding": "base64"
+          },
+          "EventType": {
+            "type": "string"
+          },
+          "SourceNode": {
+            "type": "string"
+          },
+          "SourceName": {
+            "type": "string"
+          },
+          "Time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ReceiveTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "Message": {
+            "type": "string"
+          },
+          "Severity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "ConditionId": {
+            "type": "string"
+          },
+          "ConditionName": {
+            "type": "string"
+          },
+          "BranchId": {
+            "type": "string"
+          },
+          "Retain": {
+            "type": "boolean"
+          },
+          "ConditionClassId": {
+            "type": "string"
+          },
+          "ConditionClassName": {
+            "type": "string"
+          },
+          "Quality": {
+            "type": "string"
+          },
+          "LastSeverity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "Comment": {
+            "type": "string"
+          },
+          "ClientUserId": {
+            "type": "string"
+          },
+          "EnabledState": {
+            "type": "object",
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            }
+          },
+          "AckedState": {
+            "type": "object",
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            }
+          },
+          "ConfirmedState": {
+            "type": "object",
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            }
+          },
+          "ActiveState": {
+            "type": "object",
+            "properties": {
+              "Id": {
+                "type": "boolean"
+              },
+              "Name": {
+                "type": "string"
+              }
+            }
+          },
+          "HighLimit": {
+            "type": "number",
+            "unit": "Cel"
+          }
+        }
+      },
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump",
+          "contentType": "application/octet-stream",
+          "op": [
+            "subscribeevent",
+            "unsubscribeevent"
+          ]
+        }
+      ]
+    }
+  },
+  "actions": {
+    "acknowledgeHighTemperature": {
+      "@type": "uav:method",
+      "title": "Acknowledge High Temperature",
+      "uav:browseName": "Acknowledge",
+      "uav:browsePath": "/Objects/pump:Pump/pump:HighTemperature/Acknowledge",
+      "uav:conditionAction": "Acknowledge",
+      "uav:actsOn": "highTemperature",
+      "input": {
+        "type": "object",
+        "required": [
+          "EventId"
+        ],
+        "properties": {
+          "EventId": {
+            "type": "string",
+            "contentEncoding": "base64"
+          },
+          "Comment": {
+            "type": "string"
+          }
+        }
+      },
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=HighTemperature.Acknowledge",
+          "contentType": "application/octet-stream",
+          "op": [
+            "invokeaction"
+          ]
+        }
+      ]
+    },
+    "confirmHighTemperature": {
+      "@type": "uav:method",
+      "title": "Confirm High Temperature",
+      "uav:browseName": "Confirm",
+      "uav:browsePath": "/Objects/pump:Pump/pump:HighTemperature/Confirm",
+      "uav:conditionAction": "Confirm",
+      "uav:actsOn": "highTemperature",
+      "input": {
+        "type": "object",
+        "required": [
+          "EventId"
+        ],
+        "properties": {
+          "EventId": {
+            "type": "string",
+            "contentEncoding": "base64"
+          },
+          "Comment": {
+            "type": "string"
+          }
+        }
+      },
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=HighTemperature.Confirm",
+          "contentType": "application/octet-stream",
+          "op": [
+            "invokeaction"
+          ]
+        }
+      ]
+    }
+  }
+}

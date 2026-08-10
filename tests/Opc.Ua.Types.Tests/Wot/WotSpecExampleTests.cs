@@ -36,6 +36,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Export;
 using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
@@ -293,8 +294,34 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Example 22 is the specification's own worked example of WoT Binding
+        /// Section 5.2.1, so converting it is the end-to-end check that a
+        /// document binds to a type that already exists rather than projecting
+        /// an untyped node.
+        /// </summary>
+        [Test]
+        public void TypeBindingExampleBindsTheProjectedObjectToTheNamedType()
+        {
+            using WotDocument document = WotDocument.Parse(ReadExample(TypeBindingExample));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Value, Is.Not.Null);
+
+            UANode root = result.Value.Items.First(i => i is UAObject);
+            Reference typeDefinition = root.References.First(r =>
+                string.Equals(r.ReferenceType, "HasTypeDefinition", StringComparison.Ordinal));
+
+            Assert.That(
+                typeDefinition.Value,
+                Is.Not.EqualTo(WotVocabulary.BaseObjectType),
+                "The example carries a ua:HasTypeDefinition link, so the projected " +
+                "Object must be bound to that type rather than to BaseObjectType.");
+        }
+
         private const string ResourcePrefix = "Wot.Assets.";
         private const string ProjectionExample = "07-projection-predictive-maintenance.jsonld";
         private const string ResolvedExample = "08-projection-resolved.jsonld";
+        private const string TypeBindingExample = "22-type-binding-and-instance-reference.jsonld";
     }
 }

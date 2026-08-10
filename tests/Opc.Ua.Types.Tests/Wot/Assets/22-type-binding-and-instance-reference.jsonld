@@ -1,0 +1,45 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "pump": "http://example.com/demo/pump"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing", "uav:object", "pump:TankType"],
+  "id": "urn:dev:opcua:tank:tank-07",
+  "title": "Tank 07",
+  "description": "A Thing Description bound to an existing type by both forms of Section 5.2.1 - the readable compact name in @type and the definitive ExpandedNodeId on a ua:HasTypeDefinition link - and carrying a typed reference to the instance projected by another Thing Description. That reference belongs to this tank and not to any tank type: the pump it is served by is a fact about this installation, so nothing in the type graph carries it and no type-level declaration is required.",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": "nosec_sc",
+  "properties": {
+    "level": {
+      "type": "number",
+      "unit": "m",
+      "readOnly": true,
+      "uav:browseName": "pump:Level",
+      "forms": [{ "href": "/tank-07/Level", "op": ["readproperty", "observeproperty"] }]
+    }
+  },
+  "links": [
+    {
+      "rel": "ua:HasTypeDefinition",
+      "href": "nsu=http://example.com/demo/pump;i=1042"
+    },
+    {
+      "rel": "pump:MaterialReference",
+      "href": "./01-opcua-td-pump.jsonld",
+      "uav:refName": "ServedBy",
+      "uav:refId": "nsu=http://example.com/demo/pump;i=5001",
+      "type": "application/td+json"
+    },
+    {
+      "rel": "ua:Organizes",
+      "href": "./10-group-process-data.jsonld",
+      "uav:refName": "ProcessData",
+      "type": "application/td+json"
+    }
+  ]
+}

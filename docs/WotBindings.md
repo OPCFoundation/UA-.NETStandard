@@ -823,6 +823,7 @@ The specification defines ten conformance units and four recommended profiles
 | **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
 | **WoT-ExactRoundtrip** | covered | the envelope-free roundtrip invariants, including residue |
 | **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems |
+| **WoT-ConditionMapping** | **not covered** | Section 13 (`uav:conditionType`, `uav:conditionTypeId`, `uav:conditionAction`, `uav:actsOn`) is not implemented. The unit is independently claimable and is not part of any recommended profile, so the profiles below are unaffected. |
 | **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary`, all Section 6 terms with their validation rules |
 | **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
 | **WoT-Projection** | covered | `WotProjection`, `WotProjectionResolver` and, for materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost` |
@@ -832,12 +833,14 @@ All four profiles - **WoT-Reader**, **WoT-Modeller**, **WoT-Converter** and
 
 ### How this is checked
 
-The specification publishes twenty worked examples, and two of them are a golden
-pair: a projection document and the resolved view it is defined to resolve to.
-`WotSpecExampleTests` embeds all twenty and runs the pair through the resolver,
-asserting against the specification's own expected output rather than against our
-reading of the prose. That covers, in one document, all three selection forms, the
-bulk naming rule, the security closure naming and the provenance term.
+The specification publishes twenty-two worked examples, and two of them are a
+golden pair: a projection document and the resolved view it is defined to
+resolve to. `WotSpecExampleTests` embeds all twenty-two and runs the pair
+through the resolver, asserting against the specification's own expected output
+rather than against our reading of the prose. That covers, in one document, all
+three selection forms, the bulk naming rule, the security closure naming and the
+provenance term. Example 22 is additionally converted to check that a document
+binds the node it projects to an existing type (Section 5.2.1).
 
 ### Compatibility switch for non-portable identifiers
 
