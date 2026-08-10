@@ -101,6 +101,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Administration:
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Robotics:
+                case McpToolProfile.Vision:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

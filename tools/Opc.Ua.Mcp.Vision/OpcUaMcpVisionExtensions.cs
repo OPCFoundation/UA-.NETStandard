@@ -35,31 +35,31 @@ using Opc.Ua.Mcp.Tools;
 namespace Opc.Ua.Mcp
 {
     /// <summary>
-    /// Registers the OPC UA Robot Intent MCP tools and the runtime they need on a host.
+    /// Registers the OPC UA Vision MCP tools and the runtime they need on a host.
     /// </summary>
-    public static class OpcUaMcpRoboticsExtensions
+    public static class OpcUaMcpVisionExtensions
     {
         /// <summary>
-        /// Registers the Robot Intent controller manager the Robotics tools resolve.
+        /// Registers the Vision client accessor the Vision tools resolve.
         /// </summary>
-        public static IServiceCollection AddOpcUaMcpRobotics(this IServiceCollection services)
+        public static IServiceCollection AddOpcUaMcpVision(this IServiceCollection services)
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            services.AddSingleton<RoboticsIntentManager>();
+            services.AddSingleton<VisionClientAccessor>();
             return services;
         }
 
         /// <summary>
-        /// Registers the Robot Intent tools when <paramref name="toolProfile"/> selects them.
+        /// Registers the Vision tools when <paramref name="toolProfile"/> selects them.
         /// </summary>
         /// <remarks>
-        /// The bounded <see cref="McpToolProfile.Robotics"/> catalogue also carries the connection
-        /// tools, because every Robot Intent tool resolves a named OPC UA session and only those
+        /// The bounded <see cref="McpToolProfile.Vision"/> catalogue also carries the connection
+        /// tools, because every Vision tool resolves a named OPC UA session and only those
         /// tools can open one. <see cref="McpToolProfile.Full"/> already carries them through the
         /// core package, so they are not added twice.
         /// </remarks>
-        public static IMcpServerBuilder WithOpcUaRoboticsTools(
+        public static IMcpServerBuilder WithOpcUaVisionTools(
             this IMcpServerBuilder mcpServerBuilder,
             McpToolProfile toolProfile = McpToolProfile.Full)
         {
@@ -67,20 +67,22 @@ namespace Opc.Ua.Mcp
 
             switch (toolProfile)
             {
-                case McpToolProfile.Robotics:
+                case McpToolProfile.Vision:
                 case McpToolProfile.Full:
                     mcpServerBuilder
-                        .WithTools<RoboticsDiscoveryTools>()
-                        .WithTools<RoboticsMonitoringTools>()
-                        .WithTools<RoboticsControlTools>()
-                        .WithTools<RoboticsMissionTools>();
+                        .WithTools<VisionDiscoveryTools>()
+                        .WithTools<VisionMonitoringTools>()
+                        .WithTools<VisionSeeingTools>()
+                        .WithTools<VisionInferenceTools>()
+                        .WithTools<VisionFeedbackTools>()
+                        .WithTools<VisionGeometryTools>();
 
-                    if (toolProfile == McpToolProfile.Robotics)
+                    if (toolProfile == McpToolProfile.Vision)
                     {
-                        // Every Robot Intent tool resolves a named OPC UA session and only the
-                        // connection tools can open one, so the bounded robotics catalogue has to
-                        // carry them to be usable at all. Full already gets them from the core
-                        // package, so adding them there would register the same tools twice.
+                        // Every Vision tool resolves a named OPC UA session and only the connection
+                        // tools can open one, so the bounded vision catalogue has to carry them to
+                        // be usable at all. Full already gets them from the core package, so adding
+                        // them there would register the same tools twice.
                         mcpServerBuilder.WithTools<ConnectionTools>();
                     }
 
@@ -90,7 +92,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Administration:
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Diagnostics:
-                case McpToolProfile.Vision:
+                case McpToolProfile.Robotics:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

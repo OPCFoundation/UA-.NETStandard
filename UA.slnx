@@ -23,6 +23,7 @@
     <Project Path="samples/Robotics/MinimalRobotServer/MinimalRobotServer.csproj" />
     <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
+    <Project Path="samples/Vision/BinPickingCell/BinPickingCell.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
   </Folder>
@@ -314,6 +315,7 @@
     <Project Path="tools/Opc.Ua.Mcp.PubSub/Opc.Ua.Mcp.PubSub.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.PubSub.Diagnostics/Opc.Ua.Mcp.PubSub.Diagnostics.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Robotics/Opc.Ua.Mcp.Robotics.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Vision/Opc.Ua.Mcp.Vision.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector.Viewer/Opc.Ua.OpenUsd.Connector.Viewer.csproj" />
   </Folder>

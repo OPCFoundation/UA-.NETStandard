@@ -190,6 +190,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Robotics:
+                case McpToolProfile.Vision:
                     break;
                 case McpToolProfile.Full:
                     AddFullTools(mcpServerBuilder);

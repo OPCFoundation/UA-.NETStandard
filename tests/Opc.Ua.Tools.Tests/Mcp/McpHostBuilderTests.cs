@@ -315,6 +315,12 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(robotics, Does.Contain("robotics_submit_linear_move"));
             Assert.That(robotics, Does.Contain("Connect"));
 
+            HashSet<string> vision = GetToolNames(McpToolProfile.Vision, false);
+            Assert.That(vision, Does.Contain("vision_list_sensors"));
+            Assert.That(vision, Does.Contain("vision_get_frame"));
+            Assert.That(vision, Does.Contain("Connect"));
+            Assert.That(vision, Does.Not.Contain("robotics_list_controllers"));
+
             Assert.That(full, Does.Contain("Browse"));
             Assert.That(full, Does.Contain("ListCertificates"));
             Assert.That(full, Does.Contain("SetConfiguration"));
@@ -349,7 +355,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 HashSet<string> tools = GetToolNames(toolProfile, false);
 
                 bool needsSession = tools.Any(
-                    name => name.StartsWith("robotics_", StringComparison.Ordinal));
+                    name => name.StartsWith("robotics_", StringComparison.Ordinal) ||
+                        name.StartsWith("vision_", StringComparison.Ordinal));
 
                 if (!needsSession)
                 {
