@@ -25,8 +25,11 @@
          That is a runtime behaviour change, not just a test one: .NET's own PEM
          support on net8.0+ still accepts such a certificate, so taking 2.7.0 would
          make the same trusted-peer store load on net8.0+ and come back empty on
-         .NET Framework. Revisit together with a decision on whether the stack
-         should reject those certificates on every TFM. -->
+         .NET Framework.
+
+         Tracked by https://github.com/OPCFoundation/UA-.NETStandard/issues/4224,
+         which carries the decision on whether the stack should reject those
+         certificates on every TFM. Remove this pin when that is resolved. -->
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageVersion Include="Confluent.Kafka" Version="2.15.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
