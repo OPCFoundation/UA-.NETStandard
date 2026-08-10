@@ -56,6 +56,8 @@ string host = builder.Configuration["host"] is { Length: > 0 } configuredHost
 bool captureOnStartup = !string.Equals(builder.Configuration["captureOnStartup"], "false",
     StringComparison.OrdinalIgnoreCase);
 string? artifactDirectory = builder.Configuration["artifactDirectory"];
+BinPickingCellOptions cellOptions = BuildCellOptions(builder.Configuration);
+bool offServer = cellOptions.InferenceLocation == BinPickingInferenceLocation.EdgeOffServer;
 
 var sensorSpec = new BinPickingSensorSpec(
     StageIdentifier: stagePath,
@@ -66,10 +68,12 @@ var sensorSpec = new BinPickingSensorSpec(
 
 builder.Services.AddSingleton(stage);
 builder.Services.AddSingleton(sensorSpec);
+builder.Services.AddSingleton(cellOptions);
 builder.Services.AddSingleton<SimulatedArmExecutor>();
 builder.Services.AddSingleton<BinPickingRobotCell>();
 builder.Services.AddSingleton<BinPickingWorldState>();
 builder.Services.AddSingleton<BinPickingGroundTruthInferenceProvider>();
+builder.Services.AddSingleton<BinPickingAgentInferenceProvider>();
 builder.Services.AddSingleton<BinPickingVisionCell>();
 builder.Services.AddSingleton<BinPickingMediaProvider>();
 builder.Services.AddOpenUsdSceneCameraCaptureProvider();
@@ -80,11 +84,21 @@ builder.Services.AddHostedService(services =>
         services.GetRequiredService<ILogger<BinPickingCaptureProof>>(),
         enabled: captureOnStartup,
         artifactDirectory: artifactDirectory));
-builder.Services.AddHostedService(services =>
-    new BinPickingInferenceProof(
-        services.GetRequiredService<BinPickingGroundTruthInferenceProvider>(),
-        services.GetRequiredService<BinPickingWorldState>(),
-        services.GetRequiredService<ILogger<BinPickingInferenceProof>>()));
+if (offServer)
+{
+    builder.Services.AddHostedService(services =>
+        new BinPickingOffServerProof(
+            services.GetRequiredService<BinPickingAgentInferenceProvider>(),
+            services.GetRequiredService<ILogger<BinPickingOffServerProof>>()));
+}
+else
+{
+    builder.Services.AddHostedService(services =>
+        new BinPickingInferenceProof(
+            services.GetRequiredService<BinPickingGroundTruthInferenceProvider>(),
+            services.GetRequiredService<BinPickingWorldState>(),
+            services.GetRequiredService<ILogger<BinPickingInferenceProof>>()));
+}
 
 builder.Services
     .AddOpcUa()
@@ -126,3 +140,15 @@ builder.Services
 
 using IHost app = builder.Build();
 await app.RunAsync().ConfigureAwait(false);
+
+static BinPickingCellOptions BuildCellOptions(Microsoft.Extensions.Configuration.IConfiguration configuration)
+{
+    string? raw = configuration["inferenceLocation"];
+    // A parse failure just means "use the OnServer default"; the out value is set for us
+    // and the caller does not need a separate error path for an unknown key.
+    _ = BinPickingCellOptions.TryParseLocation(raw, out BinPickingInferenceLocation location);
+    return new BinPickingCellOptions
+    {
+        InferenceLocation = location
+    };
+}

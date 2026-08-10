@@ -41,5 +41,7 @@ namespace Vision.BinPickingCell
         public const int Startup = 60;
         public const int Inference = 80;
         public const int Proof = 100;
+        public const int Agent = 140;
+        public const int OffServerProof = 180;
     }
 }

@@ -87,13 +87,17 @@ namespace Vision.BinPickingCell
             ILogger<BinPickingVisionCell> logger,
             BinPickingMediaProvider mediaProvider,
             BinPickingCellStage stage,
-            BinPickingGroundTruthInferenceProvider inferenceProvider)
+            BinPickingGroundTruthInferenceProvider inferenceProvider,
+            BinPickingAgentInferenceProvider agentProvider,
+            BinPickingCellOptions options)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_mediaProvider = mediaProvider ?? throw new ArgumentNullException(nameof(mediaProvider));
             m_stage = stage ?? throw new ArgumentNullException(nameof(stage));
             m_inferenceProvider = inferenceProvider
                 ?? throw new ArgumentNullException(nameof(inferenceProvider));
+            m_agentProvider = agentProvider ?? throw new ArgumentNullException(nameof(agentProvider));
+            m_options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         /// <summary>
@@ -113,7 +117,8 @@ namespace Vision.BinPickingCell
             m_logger.VisionCellReady(
                 m_frames.Count,
                 m_stage.CellStagePath,
-                m_mediaProvider.Backend);
+                m_mediaProvider.Backend,
+                m_options.InferenceLocation);
         }
 
         private void AddFrames(IVisionBuildContext context)
@@ -157,11 +162,30 @@ namespace Vision.BinPickingCell
         private void AddPipeline(IVisionBuildContext context)
         {
             NodeId deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
-            context.Nodes.AddPipeline(PipelineBrowseName, pipe => pipe
-                .WithPipelineId(PipelineId)
-                .WithSensor(FindSensor(context, SensorTwinBrowseName)?.NodeId ?? NodeId.Null)
-                .WithDeployment(deployment)
-                .UseInferenceProvider(m_inferenceProvider, onServer: true));
+            bool offServer = m_options.InferenceLocation == BinPickingInferenceLocation.EdgeOffServer;
+            context.Nodes.AddPipeline(PipelineBrowseName, pipe =>
+            {
+                pipe.WithPipelineId(PipelineId)
+                    .WithSensor(FindSensor(context, SensorTwinBrowseName)?.NodeId ?? NodeId.Null)
+                    .WithDeployment(deployment);
+                if (offServer)
+                {
+                    // Off-server perception: publish the OffServer facet, and register the same
+                    // agent object as both provider (so RunInference explains the mode with
+                    // BadNotSupported) and feedback sink (so SubmitDetections/Correction arrive
+                    // at a single owner). The ground-truth provider is not wired — the two
+                    // paths never run at the same time.
+                    pipe.UseInferenceProvider(m_agentProvider, onServer: false)
+                        .UseFeedbackSink(m_agentProvider);
+                }
+                else
+                {
+                    // On-server ground truth: publish the OnServer facet and register the
+                    // deterministic detector. No feedback sink — a client cannot submit
+                    // detections when nothing on the Server side is designed to consume them.
+                    pipe.UseInferenceProvider(m_inferenceProvider, onServer: true);
+                }
+            });
         }
 
         private async ValueTask FinalizePipelineAsync(
@@ -196,7 +220,14 @@ namespace Vision.BinPickingCell
                 intrinsics.Width,
                 intrinsics.Height,
                 CameraInWorldPose());
-            m_inferenceProvider.Attach(target);
+            if (m_options.InferenceLocation == BinPickingInferenceLocation.EdgeOffServer)
+            {
+                m_agentProvider.Attach(target);
+            }
+            else
+            {
+                m_inferenceProvider.Attach(target);
+            }
         }
 
         private static InferencePipelineState? FindPipeline(IVisionBuildContext context, string browseName)
@@ -407,6 +438,8 @@ namespace Vision.BinPickingCell
         private readonly BinPickingMediaProvider m_mediaProvider;
         private readonly BinPickingCellStage m_stage;
         private readonly BinPickingGroundTruthInferenceProvider m_inferenceProvider;
+        private readonly BinPickingAgentInferenceProvider m_agentProvider;
+        private readonly BinPickingCellOptions m_options;
         private readonly List<string> m_frames = [];
     }
 
@@ -415,9 +448,10 @@ namespace Vision.BinPickingCell
         [LoggerMessage(EventId = BinPickingCellEventIds.Configurator + 10,
             Level = LogLevel.Information,
             Message = "Vision side of BinPickingCell ready ({FrameCount} frames, " +
-                "stage {StageIdentifier}, backend {Backend}).")]
+                "stage {StageIdentifier}, backend {Backend}, InferenceLocation={InferenceLocation}).")]
         public static partial void VisionCellReady(
             this ILogger<BinPickingVisionCell> logger,
-            int frameCount, string stageIdentifier, SceneCameraCaptureBackend backend);
+            int frameCount, string stageIdentifier, SceneCameraCaptureBackend backend,
+            BinPickingInferenceLocation inferenceLocation);
     }
 }
