@@ -163,15 +163,6 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
 
-            if (toolProfile is McpToolProfile.Diagnostics or McpToolProfile.Robotics)
-            {
-                // These two profiles pair tools from two packages. Capturing
-                // traffic is only useful next to the connection tools that
-                // generate it, and every robotics tool resolves a named OPC UA
-                // session, which only the connection tools can open.
-                mcpServerBuilder.WithTools<ConnectionTools>();
-            }
-
             mcpServerBuilder.WithResources<SessionResources>();
         }
 

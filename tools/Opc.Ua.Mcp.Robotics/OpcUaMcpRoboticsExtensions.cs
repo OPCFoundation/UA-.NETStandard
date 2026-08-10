@@ -53,6 +53,12 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Registers the Robot Intent tools when <paramref name="toolProfile"/> selects them.
         /// </summary>
+        /// <remarks>
+        /// The bounded <see cref="McpToolProfile.Robotics"/> catalogue also carries the connection
+        /// tools, because every Robot Intent tool resolves a named OPC UA session and only those
+        /// tools can open one. <see cref="McpToolProfile.Full"/> already carries them through the
+        /// core package, so they are not added twice.
+        /// </remarks>
         public static IMcpServerBuilder WithOpcUaRoboticsTools(
             this IMcpServerBuilder mcpServerBuilder,
             McpToolProfile toolProfile = McpToolProfile.Full)
@@ -68,6 +74,16 @@ namespace Opc.Ua.Mcp
                         .WithTools<RoboticsMonitoringTools>()
                         .WithTools<RoboticsControlTools>()
                         .WithTools<RoboticsMissionTools>();
+
+                    if (toolProfile == McpToolProfile.Robotics)
+                    {
+                        // Every Robot Intent tool resolves a named OPC UA session and only the
+                        // connection tools can open one, so the bounded robotics catalogue has to
+                        // carry them to be usable at all. Full already gets them from the core
+                        // package, so adding them there would register the same tools twice.
+                        mcpServerBuilder.WithTools<ConnectionTools>();
+                    }
+
                     break;
                 case McpToolProfile.Core:
                 case McpToolProfile.Services:

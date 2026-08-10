@@ -235,12 +235,10 @@ the command-prim watcher only when renderer picking is unavailable, `Renderer` r
 `CommandPrim` uses the fallback directly. Misses do not submit intents. For the fallback, set a `targetPrim`
 relationship, string attribute, or token attribute on `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`)
 and the callback fires when that target changes.
-The gaps this used to work around were tracked in `marcschier/openusd-dotnet` issues #1, #5, #8, #9, #10 and #11, all
-of which remain fixed in `0.6.0-alpha`.
 
 > The viewport requires .NET 10 and the OpenUSD packages (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
 > which are published on nuget.org, so a plain restore is enough. The RID-agnostic runtime metapackages resolve the
-> correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. With `0.6.0-alpha`, a
+> correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. With `0.7.0-alpha`, a
 > RID-less build or publish on a supported host copies that host's OpenUSD native payload. Use an explicit RID when
 > publishing for another platform. Publish the connector and the viewport into the *same* directory, substituting your
 > own RID:
