@@ -61,7 +61,7 @@ namespace Opc.Ua.Core.Tests.Types
         [Test]
         public void GetRandomNodeIdWithoutBoundaryValuesIsNeverNull()
         {
-            var generator = new DataGenerator(null, NUnitTelemetryContext.Create());
+            var generator = new DataGenerator(new RandomSource(42), NUnitTelemetryContext.Create());
 
             for (int ii = 0; ii < 20000; ii++)
             {
