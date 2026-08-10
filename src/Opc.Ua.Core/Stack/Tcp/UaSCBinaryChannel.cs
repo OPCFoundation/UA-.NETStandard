@@ -1122,7 +1122,7 @@ namespace Opc.Ua.Bindings
                 {
                     // Best-effort: a double-return throws but should not mask the write result.
                 }
-                HandleWriteComplete(null, state, sent, result);
+                ReportWriteComplete(null, state, sent, result);
             }
         }
 
@@ -1156,8 +1156,42 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                HandleWriteComplete(buffers, state, sent, result);
+                ReportWriteComplete(buffers, state, sent, result);
             }
+        }
+
+        /// <summary>
+        /// Reports a completed write without holding up the writes queued behind
+        /// it.
+        /// </summary>
+        /// <remarks>
+        /// The write chain exists to keep chunks in the order their sequence
+        /// numbers were assigned, which only concerns reaching the transport.
+        /// Reporting completion does not, and some channels implement it by
+        /// entering the gate — so leaving it in the chain would make every
+        /// subsequent write on the channel wait for a contended gate, throttling
+        /// a busy publisher badly enough to change its behaviour.
+        /// </remarks>
+        private void ReportWriteComplete(
+            BufferCollection? buffers,
+            object? state,
+            int sent,
+            ServiceResult result)
+        {
+            _ = Task.Run(() =>
+            {
+                // Detached, and the gate may be held by whoever queued the write.
+                Gate.LeaveInheritedContext();
+
+                try
+                {
+                    HandleWriteComplete(buffers, state, sent, result);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.UaSCChannelWriteCompletionFailed(ex, ChannelId);
+                }
+            });
         }
 
         /// <summary>
@@ -1680,6 +1714,13 @@ namespace Opc.Ua.Bindings
             Message = "ChannelId {ChannelId}: Could not deliver the error message describing why " +
                 "the channel faulted. The peer will see the connection close instead.")]
         public static partial void UaSCChannelTerminalWriteFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 14, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: Reporting a completed write failed.")]
+        public static partial void UaSCChannelWriteCompletionFailed(
             this ILogger logger,
             Exception exception,
             uint channelId);
