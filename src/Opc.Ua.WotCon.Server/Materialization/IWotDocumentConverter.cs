@@ -144,13 +144,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 using var document = WotDocument.Parse(content.Span.ToArray(), m_options);
                 var resolver = new SnapshotThingResolver(snapshot, contents);
+
+                // WoT Binding Section 5.1.5: the sibling documents of this
+                // conversion are the first part of the local context, so a
+                // Section 5.2.1 type binding naming a type another document in
+                // the same registry projects resolves without an AddressSpace.
+                var nodeResolver = new SnapshotWotNodeResolver(snapshot, contents, m_options);
                 // One resolution context per top-level conversion, seeded from
                 // the configured converter options, so depth/document/byte
                 // bounds and cycle detection apply across every link resolved
                 // while converting this resource.
                 var resolution = new WotResolutionContext(m_options.ToResolverOptions());
                 WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
-                    document, m_options, resolver, resolution, cancellationToken).ConfigureAwait(false);
+                    document, m_options, resolver, resolution, nodeResolver, cancellationToken)
+                    .ConfigureAwait(false);
                 ImmutableArray<string>.Builder errors = ImmutableArray.CreateBuilder<string>();
                 foreach (WotDiagnostic diagnostic in result.Diagnostics)
                 {

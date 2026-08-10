@@ -842,6 +842,51 @@ three selection forms, the bulk naming rule, the security closure naming and the
 provenance term. Example 22 is additionally converted to check that a document
 binds the node it projects to an existing type (Section 5.2.1).
 
+### Resolving a type binding: the local context
+
+Section 5.2.1 lets a document bind the node it projects to a type that already
+exists rather than to `BaseObjectType`. Section 5.1.5 defines where that name is
+looked up — the *local context*, which has two parts consulted in order:
+
+1. the other WoT documents being converted alongside this one, and
+2. a loaded AddressSpace.
+
+The order matters. A set of documents authored together resolves to itself, so
+loading an unrelated companion model can never change what an existing document
+projects to.
+
+`IWotNodeResolver` (in `Opc.Ua.Types`) is one part of that context.
+`WotCompositeNodeResolver` composes parts in the specified order and is what a
+converter is handed. A compact model name is a hint and may match none, one or
+several nodes; an `ExpandedNodeId` is definitive and matches one or none.
+
+| Implementation | Part of the context | Assembly |
+| --- | --- | --- |
+| `SnapshotWotNodeResolver` | the sibling documents of the conversion | `Opc.Ua.WotCon.Server` |
+| `NullWotNodeResolver` | holds nothing; the default | `Opc.Ua.Types` |
+
+`SnapshotWotNodeResolver` indexes the registry snapshot being converted. Only
+Thing Models are indexed: a Thing Model projects its root as a `UAObjectType`
+and so is what a type binding can name, whereas a Thing Description projects an
+instance and is never a type-binding target. The identity it indexes by is
+derived through `WotNodeSetConverter.TryDescribeProjectedType`, the same rules
+the conversion itself uses, so an index entry and the projected node cannot
+disagree.
+
+Two behaviours are deliberate and worth knowing:
+
+* A binding is told apart from an ordinary `@type` annotation **by namespace,
+  not by whether the lookup succeeds**. A name in a namespace the local context
+  holds is a binding, so failing to resolve it is an error rather than a reason
+  to quietly treat it as an annotation.
+* An unresolved or ambiguous binding **fails the projection**. It never falls
+  back to `BaseObjectType`, because silently mistyping a node is worse than
+  refusing to project it.
+
+A host that supplies no resolver gets `NullWotNodeResolver`, which holds
+nothing. A document that names no existing type still converts; one that does is
+reported as unresolved rather than mistyped.
+
 ### Compatibility switch for non-portable identifiers
 
 Release 1.1 rejects two identifier forms that OPC 10101 v1.00 permitted. Both are

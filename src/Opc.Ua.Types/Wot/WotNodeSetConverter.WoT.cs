@@ -229,6 +229,69 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Describes the ObjectType a Thing Model projects, without converting
+        /// it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A Thing Model projects its root as a <c>UAObjectType</c>, so it is
+        /// what a WoT Binding Section 5.2.1 type binding in a sibling document
+        /// names. A Thing Description projects an instance and is therefore
+        /// never a type-binding target, so this returns <c>false</c> for one.
+        /// </para>
+        /// <para>
+        /// This exists so an <see cref="IWotNodeResolver"/> over a set of
+        /// sibling documents can index them by identity without paying for a
+        /// full conversion, and so that identity is derived by exactly the same
+        /// rules the conversion uses rather than by a copy that can drift.
+        /// </para>
+        /// </remarks>
+        /// <param name="document">The document to describe.</param>
+        /// <param name="namespaceUri">
+        /// The NamespaceUri the document projects into.
+        /// </param>
+        /// <param name="browseName">The projected type's unqualified BrowseName.</param>
+        /// <param name="nodeId">
+        /// The projected type's identity, as a portable ExpandedNodeId string.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when <paramref name="document"/> is a Thing Model.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="document"/> is <c>null</c>.
+        /// </exception>
+        public static bool TryDescribeProjectedType(
+            WotDocument document,
+            out string namespaceUri,
+            out string browseName,
+            out string nodeId)
+        {
+            if (document is null)
+            {
+                throw new ArgumentNullException(nameof(document));
+            }
+
+            namespaceUri = string.Empty;
+            browseName = string.Empty;
+            nodeId = string.Empty;
+            if (document.Kind != WotDocumentKind.ThingModel)
+            {
+                return false;
+            }
+
+            namespaceUri = DeriveModelUri(document);
+            browseName = LocalName(GetUavString(document, "browseName")) ??
+                SanitizeName(document.Title) ?? "Thing";
+
+            // An authored uav:id is already the portable form; otherwise the
+            // conversion generates "ns=1;s=<root>" against a namespace table
+            // whose index 1 is the model URI.
+            nodeId = GetUavString(document, "id") ??
+                "nsu=" + namespaceUri + ";s=" + browseName;
+            return true;
+        }
+
         private static UANodeSet? ToNodeSetCore(
             WotDocument document,
             WotNodeSetConverterOptions? options,
