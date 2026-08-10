@@ -2810,14 +2810,11 @@ namespace Opc.Ua.Server
         )]
         public ServerStatusDataType GetStatus()
         {
-            lock (Lock!)
+            if (m_serverInternal == null)
             {
-                if (m_serverInternal == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadServerHalted);
-                }
-                return m_serverInternal.NonThreadSafeStatus.Value;
+                throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
+            return m_serverInternal.NonThreadSafeStatus.Value;
         }
 
         /// <inheritdoc/>
