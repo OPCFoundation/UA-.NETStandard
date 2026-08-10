@@ -86,7 +86,7 @@ namespace Opc.Ua.Mcp.Tools
                 return [];
             }
 
-            using JsonDocument document = JsonDocument.Parse(stepsJson);
+            using JsonDocument document = ParseDocument(stepsJson, nameof(stepsJson), "Mission steps JSON");
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
                 throw new ArgumentException("Mission steps JSON must be an array.", nameof(stepsJson));
@@ -122,7 +122,10 @@ namespace Opc.Ua.Mcp.Tools
                 return [];
             }
 
-            using JsonDocument document = JsonDocument.Parse(transitionsJson);
+            using JsonDocument document = ParseDocument(
+                transitionsJson,
+                nameof(transitionsJson),
+                "Mission transitions JSON");
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
                 throw new ArgumentException("Mission transitions JSON must be an array.", nameof(transitionsJson));
@@ -296,13 +299,47 @@ namespace Opc.Ua.Mcp.Tools
 
         private static JsonDocument ParseObject(string? json)
         {
-            JsonDocument document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
+            JsonDocument document = ParseDocument(
+                string.IsNullOrWhiteSpace(json) ? "{}" : json,
+                nameof(json),
+                "Intent JSON");
             if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
                 document.Dispose();
                 throw new ArgumentException("Intent JSON must be an object.", nameof(json));
             }
             return document;
+        }
+
+        /// <summary>
+        /// Parses agent-supplied JSON, reporting a syntax error as an argument
+        /// error.
+        /// </summary>
+        /// <remarks>
+        /// The text comes from a language model, so malformed input is expected
+        /// rather than exceptional. <see cref="JsonDocument.Parse(string, JsonDocumentOptions)"/>
+        /// signals it with a <see cref="JsonException"/>, which does not match
+        /// what the tool descriptions promise the agent, and which a caller
+        /// distinguishing bad input from a genuine fault would have to know to
+        /// catch separately. Every rejection from this class is an
+        /// <see cref="ArgumentException"/>; the original error is kept as the
+        /// inner exception so the position information is not lost.
+        /// </remarks>
+        private static JsonDocument ParseDocument(string json, string paramName, string description)
+        {
+            try
+            {
+                return JsonDocument.Parse(json);
+            }
+            catch (JsonException ex)
+            {
+                throw new ArgumentException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"{description} is not valid JSON: {ex.Message}"),
+                    paramName,
+                    ex);
+            }
         }
 
         private static Pose3DDataType GetPose(JsonElement root, string name)
@@ -464,7 +501,24 @@ namespace Opc.Ua.Mcp.Tools
         private static NodeId GetNode(JsonElement root, string propertyName)
         {
             string? value = GetString(root, propertyName);
-            return string.IsNullOrWhiteSpace(value) ? NodeId.Null : OpcUaJsonHelper.ParseNodeId(value);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return NodeId.Null;
+            }
+
+            // NodeId.Parse signals a bad identifier with either ArgumentException
+            // or ServiceResultException depending on the error; TryParse collapses
+            // both into the argument error the tool descriptions promise.
+            if (!NodeId.TryParse(value, out NodeId nodeId))
+            {
+                throw new ArgumentException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Property '{propertyName}' is not a valid NodeId: '{value}'."),
+                    propertyName);
+            }
+
+            return nodeId;
         }
 
         private static Variant GetVariant(JsonElement root, string propertyName, string? dataType)

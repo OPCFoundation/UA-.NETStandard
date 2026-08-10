@@ -535,6 +535,12 @@ namespace Opc.Ua.Export
                         continue;
                     }
 
+                    // Add throws on a duplicate key and AddOrUpdate is not
+                    // available on netstandard2.0. Handle is a general-purpose
+                    // slot, so a caller can legitimately present the same
+                    // instance again carrying an authored parent; the most
+                    // recent import wins rather than throwing.
+                    s_unresolvedParents.Remove(instance);
                     s_unresolvedParents.Add(instance, new UnresolvedParent(parentNodeId));
                 }
             }
