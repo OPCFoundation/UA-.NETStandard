@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
   <!-- Roslyn API versions the analyzers and source generators are built against.
        The central pins below track the newest of them so that the primary
        analyzer variants and the projects that test them resolve identically. -->
@@ -71,6 +71,13 @@
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.1.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.300" />
+    <!-- AI Model Management sample. Azure.Identity is only for the workload-identity
+         path, where no secret is stored at all. The inference backend deliberately
+         speaks the OpenAI-compatible contract over a hand-written typed HTTP client
+         rather than through an SDK: the same contract reaches both a hosted service
+         and an on-device runtime, and taking Microsoft.Extensions.AI would have
+         forced a System.Text.Json bump on every project in this repository. -->
+    <PackageVersion Include="Azure.Identity" Version="1.21.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
     <PackageVersion Include="System.CommandLine" Version="2.0.9" />
     <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />

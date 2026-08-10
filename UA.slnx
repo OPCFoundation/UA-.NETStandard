@@ -17,6 +17,9 @@
     <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
     <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
     <Project Path="samples/WotCon/FlatTagServer/FlatTagServer.csproj" />
+    <Project Path="samples/AiModelManagement/AiModelManagement.Bridge/AiModelManagement.Bridge.csproj" />
+    <Project Path="samples/AiModelManagement/AiModelManagementServer/AiModelManagementServer.csproj" />
+    <Project Path="samples/AiModelManagement/AiModelManagementClient/AiModelManagementClient.csproj" />
     <Project Path="samples/Robotics/MinimalRobotServer/MinimalRobotServer.csproj" />
     <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
@@ -279,6 +282,7 @@
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.XRegistry.Tests/Opc.Ua.XRegistry.Tests.csproj" />
+    <Project Path="tests/AiModelManagement.Tests/AiModelManagement.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Kubernetes.Tests/Opc.Ua.Redundancy.Kubernetes.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj" />
