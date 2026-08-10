@@ -60005,48 +60005,527 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Methods</Reference>
     </References>
   </UAMethod>
-  <UAMethod NodeId="ns=1;s=Methods_Add" BrowseName="1:Methods_Add" ParentNodeId="ns=1;s=Methods">
+  <UAMethod NodeId="ns=1;s=Methods_Add" BrowseName="1:Methods_Add" ParentNodeId="ns=1;s=Methods" MethodDeclarationId="ns=1;s=AddMethodType">
     <DisplayName Locale="en">Add</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Methods</Reference>
     </References>
   </UAMethod>
-  <UAMethod NodeId="ns=1;s=Methods_Multiply" BrowseName="1:Methods_Multiply" ParentNodeId="ns=1;s=Methods">
+  <UAMethod NodeId="ns=1;s=Methods_Multiply" BrowseName="1:Methods_Multiply" ParentNodeId="ns=1;s=Methods" MethodDeclarationId="ns=1;s=MultiplyMethodType">
     <DisplayName Locale="en">Multiply</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Methods</Reference>
     </References>
   </UAMethod>
-  <UAMethod NodeId="ns=1;s=Methods_Divide" BrowseName="1:Methods_Divide" ParentNodeId="ns=1;s=Methods">
+  <UAMethod NodeId="ns=1;s=Methods_Divide" BrowseName="1:Methods_Divide" ParentNodeId="ns=1;s=Methods" MethodDeclarationId="ns=1;s=DivideMethodType">
     <DisplayName Locale="en">Divide</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Methods</Reference>
     </References>
   </UAMethod>
-  <UAMethod NodeId="ns=1;s=Methods_Substract" BrowseName="1:Methods_Substract" ParentNodeId="ns=1;s=Methods">
+  <UAMethod NodeId="ns=1;s=Methods_Substract" BrowseName="1:Methods_Substract" ParentNodeId="ns=1;s=Methods" MethodDeclarationId="ns=1;s=SubstractMethodType">
     <DisplayName Locale="en">Substract</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Methods</Reference>
     </References>
   </UAMethod>
-  <UAMethod NodeId="ns=1;s=Methods_Hello" BrowseName="1:Methods_Hello" ParentNodeId="ns=1;s=Methods">
+  <UAMethod NodeId="ns=1;s=Methods_Hello" BrowseName="1:Methods_Hello" ParentNodeId="ns=1;s=Methods" MethodDeclarationId="ns=1;s=HelloMethodType">
     <DisplayName Locale="en">Hello</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Methods</Reference>
     </References>
   </UAMethod>
-  <UAMethod NodeId="ns=1;s=Methods_Input" BrowseName="1:Methods_Input" ParentNodeId="ns=1;s=Methods">
+  <UAMethod NodeId="ns=1;s=Methods_Input" BrowseName="1:Methods_Input" ParentNodeId="ns=1;s=Methods" MethodDeclarationId="ns=1;s=InputMethodType">
     <DisplayName Locale="en">Input</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Methods</Reference>
     </References>
   </UAMethod>
-  <UAMethod NodeId="ns=1;s=Methods_Output" BrowseName="1:Methods_Output" ParentNodeId="ns=1;s=Methods">
+  <UAMethod NodeId="ns=1;s=Methods_Output" BrowseName="1:Methods_Output" ParentNodeId="ns=1;s=Methods" MethodDeclarationId="ns=1;s=OutputMethodType">
     <DisplayName Locale="en">Output</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Methods</Reference>
     </References>
   </UAMethod>
+  <UAMethod NodeId="ns=1;s=AddMethodType" BrowseName="1:AddMethodType">
+    <DisplayName>AddMethodType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;s=AddMethodType_InputArguments</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=AddMethodType_OutputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=AddMethodType_InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=AddMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=AddMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Float value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=10</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Float value</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>UInt32 value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=7</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>UInt32 value</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=AddMethodType_OutputArguments" BrowseName="OutputArguments" ParentNodeId="ns=1;s=AddMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=AddMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Add Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=10</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Add Result</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=MultiplyMethodType" BrowseName="1:MultiplyMethodType">
+    <DisplayName>MultiplyMethodType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;s=MultiplyMethodType_InputArguments</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=MultiplyMethodType_OutputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=MultiplyMethodType_InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=MultiplyMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=MultiplyMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Int16 value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=4</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Int16 value</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>UInt16 value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=5</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>UInt16 value</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=MultiplyMethodType_OutputArguments" BrowseName="OutputArguments" ParentNodeId="ns=1;s=MultiplyMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=MultiplyMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Multiply Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=6</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Multiply Result</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=DivideMethodType" BrowseName="1:DivideMethodType">
+    <DisplayName>DivideMethodType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;s=DivideMethodType_InputArguments</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=DivideMethodType_OutputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=DivideMethodType_InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=DivideMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DivideMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Int32 value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=6</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Int32 value</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>UInt16 value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=5</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>UInt16 value</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=DivideMethodType_OutputArguments" BrowseName="OutputArguments" ParentNodeId="ns=1;s=DivideMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DivideMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Divide Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=10</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Divide Result</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=SubstractMethodType" BrowseName="1:SubstractMethodType">
+    <DisplayName>SubstractMethodType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;s=SubstractMethodType_InputArguments</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=SubstractMethodType_OutputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=SubstractMethodType_InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=SubstractMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=SubstractMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Int16 value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=4</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Int16 value</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Byte value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=3</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Byte value</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=SubstractMethodType_OutputArguments" BrowseName="OutputArguments" ParentNodeId="ns=1;s=SubstractMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=SubstractMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Substract Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=4</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Substract Result</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=HelloMethodType" BrowseName="1:HelloMethodType">
+    <DisplayName>HelloMethodType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;s=HelloMethodType_InputArguments</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;s=HelloMethodType_OutputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=HelloMethodType_InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=HelloMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=HelloMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>String value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>String value</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=HelloMethodType_OutputArguments" BrowseName="OutputArguments" ParentNodeId="ns=1;s=HelloMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=HelloMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Hello Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Hello Result</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=InputMethodType" BrowseName="1:InputMethodType">
+    <DisplayName>InputMethodType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;s=InputMethodType_InputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=InputMethodType_InputArguments" BrowseName="InputArguments" ParentNodeId="ns=1;s=InputMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=InputMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>String value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>String value</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;s=OutputMethodType" BrowseName="1:OutputMethodType">
+    <DisplayName>OutputMethodType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;s=OutputMethodType_OutputArguments</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;s=OutputMethodType_OutputArguments" BrowseName="OutputArguments" ParentNodeId="ns=1;s=OutputMethodType" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=OutputMethodType</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Output Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Output Result</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
   <UAObject NodeId="ns=1;s=Views" BrowseName="1:Views" ParentNodeId="ns=1;s=CTT">
     <DisplayName Locale="en">Views</DisplayName>
     <References>
