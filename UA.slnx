@@ -90,6 +90,9 @@
     <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />
     <Project Path="src/Opc.Ua.Vision/Opc.Ua.Vision.csproj" />
+    <Project Path="src/Opc.Ua.Vision.Client/Opc.Ua.Vision.Client.csproj" />
+    <Project Path="src/Opc.Ua.Vision.Server/Opc.Ua.Vision.Server.csproj" />
+    <Project Path="src/Opc.Ua.Vision.OpenUsd/Opc.Ua.Vision.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
     <Project Path="src/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />

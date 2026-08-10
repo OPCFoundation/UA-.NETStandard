@@ -1,0 +1,383 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using OpenUsd;
+using OpenUsd.Rendering;
+using OpenUsd.Rendering.Silk;
+using Opc.Ua.Vision.OpenUsd.Encoding;
+using Opc.Ua.Vision.OpenUsd.Rendering;
+
+namespace Opc.Ua.Vision.OpenUsd
+{
+    /// <summary>
+    /// <see cref="ISceneCameraCaptureProvider"/> backed by the OpenUSD
+    /// Silk rendering stack. Probes a graphics device on construction and
+    /// then serves capture requests by opening the requested stage, building
+    /// a fresh <c>OpenUsdSilkSession</c> per request, resolving the camera
+    /// prim to a <c>CameraState</c>, calling <c>SilkFrameCapture.Capture</c>,
+    /// and encoding the resulting RGBA8 buffer as PNG.
+    /// </summary>
+    /// <remarks>
+    /// One session per request is a deliberate design choice: reusing a
+    /// session and passing a different <c>CameraState</c> is known to
+    /// silently produce an all-zero frame with <c>DrawCount == 0</c>, which
+    /// would be indistinguishable from a black scene to any caller.
+    /// Session creation is only 1-7 ms on WARP, so the cost is negligible;
+    /// in return every capture is guarded and its results are trustworthy.
+    /// </remarks>
+    public sealed class OpenUsdSceneCameraCaptureProvider : ISceneCameraCaptureProvider, IDisposable
+    {
+        private readonly OpenUsdSceneCaptureOptions m_options;
+        private readonly ILogger m_logger;
+        private readonly string? m_pluginPath;
+        private readonly ISilkGraphicsDevice? m_device;
+        private readonly SceneCameraCaptureBackend m_backend;
+        private readonly string? m_backendUnavailableReason;
+        private readonly SemaphoreSlim m_captureGate = new(1, 1);
+        private int m_disposed;
+
+        /// <summary>
+        /// Initializes a provider with default options and no telemetry.
+        /// </summary>
+        public OpenUsdSceneCameraCaptureProvider()
+            : this(new OpenUsdSceneCaptureOptions(), telemetry: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a provider with the supplied options, threading the
+        /// host's <see cref="ITelemetryContext"/> for source-generated
+        /// logging. The device probe runs synchronously here so
+        /// <see cref="Backend"/> is populated by the time the constructor
+        /// returns.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
+        public OpenUsdSceneCameraCaptureProvider(
+            OpenUsdSceneCaptureOptions options, ITelemetryContext? telemetry)
+        {
+            m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_logger = telemetry.CreateLogger<OpenUsdSceneCameraCaptureProvider>();
+            m_pluginPath = ResolvePluginPath(options.PluginPath);
+
+            if (DeviceSelector.TrySelectDevice(
+                options, m_logger, out SelectedSilkDevice selected, out string reason))
+            {
+                m_device = selected.Device;
+                m_backend = selected.Backend;
+                m_backendUnavailableReason = null;
+            }
+            else
+            {
+                m_device = null;
+                m_backendUnavailableReason = reason;
+                m_backend = new SceneCameraCaptureBackend
+                {
+                    Name = "None",
+                    IsAvailable = false,
+                    IsSoftware = false,
+                    UnavailableReason = reason,
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public SceneCameraCaptureBackend Backend => m_backend;
+
+        /// <summary>
+        /// The plugin path the provider probed for on construction; useful
+        /// for a diagnostic /health endpoint.
+        /// </summary>
+        public string? PluginPath => m_pluginPath;
+
+        /// <inheritdoc/>
+        public async ValueTask<SceneCameraCaptureResult> CaptureAsync(
+            SceneCameraCaptureRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            ThrowIfDisposed();
+            cancellationToken.ThrowIfCancellationRequested();
+
+            long start = Stopwatch.GetTimestamp();
+            DateTime timestamp = request.TimestampUtc ?? DateTime.UtcNow;
+
+            SceneCameraCaptureResult? validation = ValidateRequest(request, timestamp, start);
+            if (validation is not null)
+            {
+                return validation;
+            }
+            if (m_device is null)
+            {
+                return NoBackend(request, timestamp, start);
+            }
+
+            await m_captureGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await Task.Run(
+                    () => CaptureCore(request, timestamp, start, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_captureGate.Release();
+            }
+        }
+
+        private SceneCameraCaptureResult CaptureCore(
+            SceneCameraCaptureRequest request,
+            DateTime timestamp,
+            long start,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            UsdStage? stage = null;
+            OpenUsdSilkSession? session = null;
+            try
+            {
+                try
+                {
+                    stage = UsdStage.Open(request.StageIdentifier);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    m_logger.StageOpenFailed(request.StageIdentifier, ex);
+                    return Failure(SceneCameraCaptureStatus.StageOpenFailed,
+                        $"UsdStage.Open('{request.StageIdentifier}') failed: {ex.Message}",
+                        request, timestamp, start);
+                }
+
+                CameraState camera;
+                try
+                {
+                    camera = string.IsNullOrEmpty(request.PrimPath)
+                        ? CameraState.Default
+                        : CameraStateResolver.ResolveFromPrim(
+                            stage, request.PrimPath!, request.TimeCode);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    m_logger.CameraResolveFailed(request.PrimPath ?? string.Empty,
+                        request.StageIdentifier, ex);
+                    return Failure(SceneCameraCaptureStatus.CameraResolveFailed,
+                        $"Resolving camera prim '{request.PrimPath}' failed: {ex.Message}",
+                        request, timestamp, start);
+                }
+
+                try
+                {
+                    session = m_pluginPath is null
+                        ? OpenUsdSilkRuntime.Create(string.Empty, request.StageIdentifier)
+                        : OpenUsdSilkRuntime.Create(m_pluginPath, request.StageIdentifier);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    m_logger.RenderFailed(m_backend.Name, ex);
+                    return Failure(SceneCameraCaptureStatus.RenderFailed,
+                        $"OpenUsdSilkRuntime.Create failed: {ex.Message}",
+                        request, timestamp, start);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                SilkFrameCaptureResult frame;
+                try
+                {
+                    frame = SilkFrameCapture.Capture(
+                        session!, m_device!, request.Width, request.Height,
+                        request.TimeCode, camera);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    m_logger.RenderFailed(m_backend.Name, ex);
+                    return Failure(SceneCameraCaptureStatus.RenderFailed,
+                        $"SilkFrameCapture.Capture failed on {m_backend.Name}: {ex.Message}",
+                        request, timestamp, start);
+                }
+
+                BlankFrameCheck guard = BlankFrameGuard.Check(frame);
+                if (guard.IsBlank)
+                {
+                    m_logger.BlankFrameDetected(guard.DrawCount, guard.MeshCount, guard.IsUniform);
+                    return Failure(SceneCameraCaptureStatus.BlankFrame,
+                        guard.Reason ?? "render produced no visible geometry",
+                        request, timestamp, start, frame.Width, frame.Height);
+                }
+
+                byte[] png;
+                try
+                {
+                    png = PngEncoder.EncodeRgba8(frame.Width, frame.Height, frame.Rgba.Span);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException and not IOException)
+                {
+                    m_logger.EncodingFailed(frame.Width, frame.Height, ex);
+                    return Failure(SceneCameraCaptureStatus.EncodingFailed,
+                        $"PNG encoding failed: {ex.Message}",
+                        request, timestamp, start, frame.Width, frame.Height);
+                }
+
+                TimeSpan elapsed = Stopwatch.GetElapsedTime(start);
+                m_logger.CaptureSucceeded(frame.Width, frame.Height, (long)elapsed.TotalMilliseconds,
+                    guard.DrawCount, guard.MeshCount, m_backend.Name);
+                return new SceneCameraCaptureResult
+                {
+                    Status = SceneCameraCaptureStatus.Succeeded,
+                    Reason = null,
+                    Image = ByteString.From(png),
+                    Format = request.Format,
+                    Width = frame.Width,
+                    Height = frame.Height,
+                    TimestampUtc = timestamp,
+                    Elapsed = elapsed,
+                    Backend = m_backend,
+                };
+            }
+            finally
+            {
+                session?.Dispose();
+                stage?.Dispose();
+            }
+        }
+
+        private SceneCameraCaptureResult? ValidateRequest(
+            SceneCameraCaptureRequest request, DateTime timestamp, long start)
+        {
+            if (string.IsNullOrWhiteSpace(request.StageIdentifier))
+            {
+                return Failure(SceneCameraCaptureStatus.InvalidRequest,
+                    "StageIdentifier must not be empty.", request, timestamp, start);
+            }
+            if (request.Width <= 0 || request.Height <= 0)
+            {
+                return Failure(SceneCameraCaptureStatus.InvalidRequest,
+                    $"Width and height must be positive (got {request.Width}x{request.Height}).",
+                    request, timestamp, start);
+            }
+            if (request.Width > m_options.MaxFrameWidth || request.Height > m_options.MaxFrameHeight)
+            {
+                return Failure(SceneCameraCaptureStatus.InvalidRequest,
+                    $"Requested frame size {request.Width}x{request.Height} exceeds the configured maximum " +
+                    $"{m_options.MaxFrameWidth}x{m_options.MaxFrameHeight}.",
+                    request, timestamp, start);
+            }
+            if (request.Format != SceneCameraImageFormat.Png)
+            {
+                return Failure(SceneCameraCaptureStatus.InvalidRequest,
+                    $"Image format {request.Format} is not supported by this provider.",
+                    request, timestamp, start);
+            }
+            return null;
+        }
+
+        private SceneCameraCaptureResult NoBackend(
+            SceneCameraCaptureRequest request, DateTime timestamp, long start)
+        {
+            return new SceneCameraCaptureResult
+            {
+                Status = SceneCameraCaptureStatus.NoRenderingBackend,
+                Reason = m_backendUnavailableReason
+                    ?? "No graphics backend is available on this host.",
+                Image = default,
+                Format = request.Format,
+                Width = 0,
+                Height = 0,
+                TimestampUtc = timestamp,
+                Elapsed = Stopwatch.GetElapsedTime(start),
+                Backend = m_backend,
+            };
+        }
+
+        private SceneCameraCaptureResult Failure(
+            SceneCameraCaptureStatus status,
+            string reason,
+            SceneCameraCaptureRequest request,
+            DateTime timestamp,
+            long start,
+            int width = 0,
+            int height = 0)
+        {
+            return new SceneCameraCaptureResult
+            {
+                Status = status,
+                Reason = reason,
+                Image = default,
+                Format = request.Format,
+                Width = width == 0 ? request.Width : width,
+                Height = height == 0 ? request.Height : height,
+                TimestampUtc = timestamp,
+                Elapsed = Stopwatch.GetElapsedTime(start),
+                Backend = m_backend,
+            };
+        }
+
+        private static string? ResolvePluginPath(string? configured)
+        {
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                return Directory.Exists(configured) ? configured : null;
+            }
+            string candidate = Path.Combine(AppContext.BaseDirectory, "plugin", "usd");
+            return Directory.Exists(candidate) ? candidate : null;
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(OpenUsdSceneCameraCaptureProvider));
+            }
+        }
+
+        /// <summary>
+        /// Disposes the shared graphics device and internal synchronization
+        /// primitive. In-flight captures are allowed to finish; further
+        /// calls throw <see cref="ObjectDisposedException"/>.
+        /// </summary>
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+            m_captureGate.Dispose();
+            m_device?.Dispose();
+        }
+    }
+}
