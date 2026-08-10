@@ -124,12 +124,15 @@ namespace Opc.Ua
                 m_builder.Registry.RegisterFor(m_purpose, m_securityPolicyUri, provider);
             }
 
-            if (m_purpose.Equals(CryptoPurpose.RandomNumberGeneration) &&
+            if (m_securityPolicyUri == null &&
+                m_purpose.Equals(CryptoPurpose.RandomNumberGeneration) &&
                 provider is IRandomSource randomSource)
             {
                 // Nonces are created from many places that have no container in
                 // scope, so the source is published to the process here rather
-                // than resolved per call site.
+                // than resolved per call site. Only an unscoped binding may do
+                // this: a binding made for one security policy must not redirect
+                // nonce generation for every other policy as well.
                 Nonce.SetRandomSource(randomSource);
             }
 

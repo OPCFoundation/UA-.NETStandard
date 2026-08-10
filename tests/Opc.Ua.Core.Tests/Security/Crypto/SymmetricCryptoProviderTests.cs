@@ -579,4 +579,80 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             public ArrayOf<CryptoCapability> Capabilities { get; }
         }
     }
+
+    /// <summary>
+    /// Covers how a random source binding reaches <see cref="Nonce"/>. The
+    /// nonce source is process-wide, so these cases cannot run in parallel with
+    /// anything that draws a nonce.
+    /// </summary>
+    [TestFixture]
+    [Category("CryptoProvider")]
+    [NonParallelizable]
+    [SetCulture("en-us")]
+    public class RandomSourceBindingTests
+    {
+        [TearDown]
+        public void ResetNonceSource()
+        {
+            Nonce.SetRandomSource(null);
+        }
+
+        [Test]
+        public void UnscopedRandomBindingBecomesTheNonceSource()
+        {
+            var source = new CountingRandomSource();
+            var registry = new CryptoProviderRegistry();
+
+            new CryptoProviderBuilder(registry)
+                .For(CryptoPurpose.RandomNumberGeneration)
+                .Use(source);
+
+            Nonce.CreateRandomNonceData(32, false, null);
+
+            Assert.That(source.Calls, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void PolicyScopedRandomBindingDoesNotEscapeItsPolicy()
+        {
+            var source = new CountingRandomSource();
+            var registry = new CryptoProviderRegistry();
+
+            new CryptoProviderBuilder(registry)
+                .For(CryptoPurpose.RandomNumberGeneration, SecurityPolicies.Basic256Sha256)
+                .Use(source);
+
+            Nonce.CreateRandomNonceData(32, false, null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(source.Calls, Is.Zero,
+                    "A binding scoped to one security policy must not redirect every nonce in the process.");
+                Assert.That(
+                    registry.Resolve(
+                        CryptoPurpose.RandomNumberGeneration,
+                        SecurityPolicies.Basic256Sha256),
+                    Is.SameAs(source),
+                    "The scoped binding must still be registered for its own policy.");
+            });
+        }
+
+        private sealed class CountingRandomSource : ICryptoProvider, IRandomSource
+        {
+            public int Calls { get; private set; }
+
+            public string Name => "Counting";
+
+            public CryptoValidationStatus Validation => CryptoValidationStatus.Platform;
+
+            public ArrayOf<CryptoCapability> Capabilities { get; } =
+                new(new[] { new CryptoCapability(CryptoPurpose.RandomNumberGeneration) });
+
+            public void GetBytes(Span<byte> buffer)
+            {
+                Calls++;
+                PlatformRandomSource.Instance.GetBytes(buffer);
+            }
+        }
+    }
 }

@@ -757,7 +757,8 @@ namespace Opc.Ua.PubSub.Application
                 m_telemetry,
                 m_timeProvider,
                 nonceProvider: null,
-                m_securityPolicySelector);
+                m_securityPolicySelector,
+                policies: m_policies);
         }
 
         internal IReadOnlyList<EndpointDescription> SecurityKeyServiceEndpoints => m_sksEndpoints;

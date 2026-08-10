@@ -151,7 +151,19 @@ namespace Opc.Ua.Bindings
                 return new ValueTask<Releaser>(TakeOwnership(recordThread: false));
             }
 
-            return AwaitEntryAsync(wait);
+            // The holder must be published from the caller's frame. An
+            // AsyncLocal written inside an async method's continuation is
+            // discarded when that method completes, because the caller's
+            // execution context is restored over it — so a holder created in
+            // AwaitEntryAsync would never reach the caller, and the caller would
+            // hold the semaphore while believing it did not. Publishing the
+            // object here and raising its depth once the wait completes works
+            // because mutating a shared object is visible to every context that
+            // already references it.
+            var pending = new Holder { Depth = 0 };
+            m_current.Value = pending;
+
+            return AwaitEntryAsync(wait, pending);
         }
 
         /// <summary>
@@ -182,10 +194,33 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public bool IsHeldByCurrentContext => m_current.Value is { Depth: > 0 };
 
-        private async ValueTask<Releaser> AwaitEntryAsync(Task wait)
+        /// <summary>
+        /// Whether the gate is held by any context.
+        /// </summary>
+        /// <remarks>
+        /// Used by tests that need to establish contention before entering.
+        /// </remarks>
+        internal bool IsHeldBySomeContextForTest => m_semaphore.CurrentCount == 0;
+
+        private async ValueTask<Releaser> AwaitEntryAsync(Task wait, Holder holder)
         {
-            await wait.ConfigureAwait(false);
-            return TakeOwnership(recordThread: false);
+            try
+            {
+                await wait.ConfigureAwait(false);
+            }
+            catch
+            {
+                // The wait was cancelled, so the published holder never took
+                // ownership. Leaving it at depth zero makes it inert.
+                holder.Depth = 0;
+                throw;
+            }
+
+            // Thread identity is deliberately not recorded here: see
+            // TakeOwnership for why an asynchronous holder must not claim one.
+            holder.Depth = 1;
+
+            return new Releaser(this, holder, owner: true);
         }
 
         private Releaser TakeOwnership(bool recordThread = true)

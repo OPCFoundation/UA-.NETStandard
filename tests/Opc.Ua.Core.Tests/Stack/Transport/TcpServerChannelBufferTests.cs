@@ -65,7 +65,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             Assert.That(
-                await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
+                await CompletesWithinAsync(transport.FirstSendStarted, 30).ConfigureAwait(false),
                 Is.True);
             Assert.That(pool.RentCount, Is.EqualTo(responseCount));
             Assert.That(pool.OutstandingCount, Is.EqualTo(responseCount));
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             Assert.That(
-                await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
+                await CompletesWithinAsync(transport.FirstSendStarted, 30).ConfigureAwait(false),
                 Is.True);
             Assert.That(pool.OutstandingCount, Is.EqualTo(responseCount));
 
@@ -182,7 +182,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
 
                 Assert.That(
-                    await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
+                    await CompletesWithinAsync(transport.FirstSendStarted, 30).ConfigureAwait(false),
                     Is.True);
                 Assert.That(pool.OutstandingCount, Is.EqualTo(responseCount));
 
@@ -527,6 +527,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public Task AllSendsStarted => m_allSendsStarted.Task;
 
+            /// <summary>
+            /// Completes as soon as one send has begun. Writes are serialized so
+            /// that chunks reach the wire in the order their sequence numbers
+            /// were assigned, so only one send is ever in flight; a test that
+            /// needs sends to be blocked waits on this rather than on all of
+            /// them having started.
+            /// </summary>
+            public Task FirstSendStarted => m_firstSendStarted.Task;
+
             public byte[] LastSentChunk
             {
                 get
@@ -633,6 +642,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             private async ValueTask WaitForCompletionAsync()
             {
+                m_firstSendStarted.TrySetResult(true);
                 if (Interlocked.Increment(ref m_sendCount) == m_expectedSendCount)
                 {
                     m_allSendsStarted.TrySetResult(true);
@@ -646,6 +656,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             private readonly List<byte[]> m_sentChunks = [];
 
             private readonly TaskCompletionSource<bool> m_allSendsStarted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource<bool> m_firstSendStarted =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             private readonly TaskCompletionSource<bool> m_completion =

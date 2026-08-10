@@ -297,6 +297,11 @@ services.AddOpcUa()
 hardware offload.** A device round trip per message would destroy throughput, and nothing here makes that
 viable.
 
+`RandomNumberGeneration` is the one purpose with process-wide reach: nonces are created from many places
+that have no container in scope, so an **unscoped** binding also becomes the process's nonce source. A
+binding made for a single security policy — `.For(purpose, policyUri).Use(module)` — deliberately does
+not, because it would otherwise redirect nonce generation for every other policy as well.
+
 ### What it costs when you do not use it
 
 Nothing, by construction. `CryptoProviderFacets` returns `null` both when no registry is configured and
@@ -378,6 +383,22 @@ algorithms a policy needs is ignored rather than used, so a configuration mistak
 does not stop publishing. `IPubSubSecurityPolicy` is unchanged — a provider is
 supplied through the constructor, so implementations of that interface outside
 this stack are unaffected.
+
+The wrapper resolver selects the bundle it wraps with from the registered
+policies rather than from a static default, which is what makes the registration
+above take effect. Outside the container, `PubSubApplicationBuilder` does the
+same with the policies it holds, and `WithSecurityPolicySelector` overrides the
+choice per connection:
+
+```csharp
+var module = new ValidatedModule();
+
+new PubSubApplicationBuilder(telemetry)
+    .WithSecurityPolicySelector(
+        (_, _) => new PubSubAes256CtrPolicy(module))
+    // ...
+    .Build();
+```
 
 ### What device custody can and cannot mean here
 

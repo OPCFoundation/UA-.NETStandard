@@ -55,8 +55,22 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            builder.Services.TryAddSingleton<ICryptoProviderRegistry>(
-                _ => new CryptoProviderRegistry());
+            builder.Services.TryAddSingleton<ICryptoProviderRegistry>(sp =>
+            {
+                var registry = new CryptoProviderRegistry();
+
+                // Bindings are registered as separate services so that several
+                // independent AddCryptoProvider calls compose. They are applied
+                // here, when the registry is first resolved, because that is the
+                // only point at which every one of them is known.
+                foreach (CryptoProviderConfiguration configuration in
+                    sp.GetServices<CryptoProviderConfiguration>())
+                {
+                    configuration.Apply(registry);
+                }
+
+                return registry;
+            });
 
             return builder;
         }

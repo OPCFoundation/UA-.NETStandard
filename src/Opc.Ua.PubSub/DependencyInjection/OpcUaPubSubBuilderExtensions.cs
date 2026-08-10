@@ -253,7 +253,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 new PubSubSecurityWrapperResolver(
                     sp.GetServices<IPubSubSecurityKeyProvider>(),
                     sp.GetRequiredService<ITelemetryContext>(),
-                    sp.GetService<TimeProvider>()));
+                    sp.GetService<TimeProvider>(),
+                    // The registered bundles carry the symmetric crypto provider
+                    // resolved above, so the per-message cryptography runs on it
+                    // rather than on the provider-less static defaults.
+                    policies: sp.GetServices<IPubSubSecurityPolicy>()));
 
             // Configuration store: file-based if a path is supplied, otherwise inline.
             services.TryAddSingleton<IPubSubConfigurationStore>(sp =>

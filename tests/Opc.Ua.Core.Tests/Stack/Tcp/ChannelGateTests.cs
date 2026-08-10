@@ -486,6 +486,90 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
             }
         }
 
+        /// <summary>
+        /// A contended acquisition must leave the caller holding the gate, not
+        /// merely owning the semaphore.
+        /// </summary>
+        /// <remarks>
+        /// The holder is published by writing an <see cref="AsyncLocal{T}"/>. On
+        /// the contended path that write happens inside the awaiting state
+        /// machine, and an async method's context is not restored into its
+        /// caller — so the caller would come back holding the semaphore but with
+        /// no record of it, and the next re-entrant acquisition would block on a
+        /// gate its own context already owns.
+        /// <para>
+        /// Every re-entrant path in the channel reaches this:
+        /// <c>HandleIncomingMessageAsync</c> enters with <c>EnterAsync</c> and
+        /// calls <c>ForceChannelFault</c>, which enters with <c>Enter</c>.
+        /// </para>
+        /// </remarks>
+        [Test]
+        public async Task ContendedEntryStillRecordsTheHolderAsync()
+        {
+            var gate = new ChannelGate();
+            var blocking = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var aboutToEnter = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // Hold the gate from an unrelated context so the entry below must wait.
+            Task holder = Task.Run(async () =>
+            {
+                gate.LeaveInheritedContext();
+
+                using (await gate.EnterAsync().ConfigureAwait(false))
+                {
+                    await blocking.Task.ConfigureAwait(false);
+                }
+            });
+
+            while (!gate.IsHeldBySomeContextForTest)
+            {
+                await Task.Delay(5).ConfigureAwait(false);
+            }
+
+            Task<bool> contended = Task.Run(async () =>
+            {
+                gate.LeaveInheritedContext();
+
+                aboutToEnter.TrySetResult(true);
+
+                using (await gate.EnterAsync().ConfigureAwait(false))
+                {
+                    if (!gate.IsHeldByCurrentContext)
+                    {
+                        return false;
+                    }
+
+                    // Re-entering must not block. This is what ForceChannelFault
+                    // does from inside HandleIncomingMessageAsync.
+                    using (gate.Enter())
+                    {
+                        return true;
+                    }
+                }
+            });
+
+            // Let the contender actually block on the semaphore before the holder
+            // lets go, so the contended path is the one under test.
+            await aboutToEnter.Task.ConfigureAwait(false);
+            await Task.Delay(250).ConfigureAwait(false);
+
+            blocking.TrySetResult(true);
+            await holder.ConfigureAwait(false);
+
+            Task first = await Task.WhenAny(contended, Task.Delay(5000)).ConfigureAwait(false);
+
+            Assert.That(
+                first,
+                Is.SameAs(contended),
+                "a contended acquisition left the caller unable to re-enter");
+            Assert.That(
+                await contended.ConfigureAwait(false),
+                Is.True,
+                "a contended acquisition did not record the holder");
+        }
+
         private static void InterlockedMax(ref int target, int value)
         {
             int current = Volatile.Read(ref target);

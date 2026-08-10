@@ -933,7 +933,8 @@ namespace Opc.Ua.Bindings
             // holding it: started inline, the synchronous prologue would run on
             // the caller's stack, disclaim the caller's own entitlement and then
             // block on a gate that this very thread holds.
-            _ = Task.Run(() => WriteSingleChunkAsync(transport, chunk, buffer.GetArray(), state));
+            byte[] backingBuffer = buffer.GetArray();
+            QueueWrite(() => WriteSingleChunkAsync(transport, chunk, backingBuffer, state));
         }
 
         /// <summary>
@@ -964,7 +965,39 @@ namespace Opc.Ua.Bindings
 
             // Queued rather than started inline, for the reason given in
             // BeginWriteMessage(ArraySegment{byte}, object).
-            _ = Task.Run(() => WriteBuffersAsync(transport, buffers, state));
+            QueueWrite(() => WriteBuffersAsync(transport, buffers, state));
+        }
+
+        /// <summary>
+        /// Queues a write so that it runs off the caller's stack but still in
+        /// the order the caller issued it.
+        /// </summary>
+        /// <remarks>
+        /// Both matter. Running off the caller's stack is required because the
+        /// write reports completion through <see cref="HandleWriteComplete"/>,
+        /// which enters the gate the caller may be holding. Preserving order is
+        /// required because sequence numbers are assigned under that gate, and a
+        /// peer rejects a chunk whose sequence number does not follow its
+        /// predecessor. Independently queued work items carry no such guarantee,
+        /// so each write is appended to a chain and cannot start before the one
+        /// issued before it has finished.
+        /// </remarks>
+        private void QueueWrite(Func<Task> write)
+        {
+            lock (m_writeChainLock)
+            {
+                // No ExecuteSynchronously: the continuation must reach the pool
+                // rather than run on whichever thread completed its predecessor,
+                // which may be the caller's.
+                m_writeChain = m_writeChain
+                    .ContinueWith(
+                        static (_, state) => ((Func<Task>)state!)(),
+                        write,
+                        CancellationToken.None,
+                        TaskContinuationOptions.DenyChildAttach,
+                        TaskScheduler.Default)
+                    .Unwrap();
+            }
         }
 
         private async Task WriteSingleChunkAsync(
@@ -1395,6 +1428,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private int m_state;
         private int m_activeWriteRequests;
+        private readonly Lock m_writeChainLock = new();
+        private Task m_writeChain = Task.CompletedTask;
         private long m_lastActiveTimestamp;
         private readonly string m_contextId;
         private readonly ILogger m_logger;
