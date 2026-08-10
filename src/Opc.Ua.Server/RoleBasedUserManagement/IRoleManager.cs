@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// want to back roles with a custom store (e.g. an LDAP directory or a
     /// database) implement this interface and inject an instance via
     /// <see cref="StandardServer.CreateRoleManager"/>, or by registering it in
-/// the service container.
+    /// the service container.
     /// </summary>
     /// <remarks>
     /// <para>
