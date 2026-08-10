@@ -217,13 +217,14 @@ namespace Quickstarts.ReferenceServer
             {
                 FolderState root = CreateFolder("CTT");
 
-                // Prio 1 / Prio 2 not possible: registering the CTT root with
-                // the node manager's runtime notifier table so events raised on
-                // the folder are routed to subscriptions. The EventNotifier
-                // attribute and the Server -> HasNotifier reference are baked
-                // into the NodeSet2 model, but the in-memory notifier
-                // registration is a runtime-only operation.
-                await AddRootNotifierAsync(root, cancellationToken).ConfigureAwait(false);
+                // Prio 1 (model): the CTT root is registered as a root notifier
+                // directly from the NodeSet2 model. The EventNotifier attribute
+                // and the inverse Server -> HasNotifier reference are baked into
+                // the model, so base.AddReverseReferencesAsync (called above)
+                // detects the inverse HasNotifier reference to the external
+                // Server object and auto-registers the folder with the runtime
+                // notifier table. No explicit AddRootNotifierAsync call is
+                // required.
 
                 // The entire CTT address space - every folder, variable, value
                 // and static attribute (AccessLevel, UserAccessLevel,
