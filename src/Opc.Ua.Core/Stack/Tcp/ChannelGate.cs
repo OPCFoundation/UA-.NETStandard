@@ -86,6 +86,14 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// This is the direct replacement for <c>lock (DataLock)</c> and behaves
         /// the same way, including when the caller already holds the gate.
+        /// <para>
+        /// <b>The handle this returns must not be held across an
+        /// <see langword="await"/>.</b> It records the acquiring thread so that an
+        /// inline completion callback can re-enter, and once the frame suspends
+        /// that thread returns to the pool: unrelated work scheduled onto it would
+        /// then be recognised as the holder. Use <see cref="EnterAsync"/> on any
+        /// path that awaits.
+        /// </para>
         /// </remarks>
         public Releaser Enter()
         {
@@ -140,7 +148,7 @@ namespace Opc.Ua.Bindings
             // targets, so the status is read directly.
             if (wait.Status == TaskStatus.RanToCompletion)
             {
-                return new ValueTask<Releaser>(TakeOwnership());
+                return new ValueTask<Releaser>(TakeOwnership(recordThread: false));
             }
 
             return AwaitEntryAsync(wait);
@@ -177,15 +185,26 @@ namespace Opc.Ua.Bindings
         private async ValueTask<Releaser> AwaitEntryAsync(Task wait)
         {
             await wait.ConfigureAwait(false);
-            return TakeOwnership();
+            return TakeOwnership(recordThread: false);
         }
 
-        private Releaser TakeOwnership()
+        private Releaser TakeOwnership(bool recordThread = true)
         {
             var holder = new Holder { Depth = 1 };
             m_current.Value = holder;
-            m_owner = holder;
-            m_owningThreadId = Environment.CurrentManagedThreadId;
+
+            // Thread identity is only recorded for a synchronous entry. An
+            // asynchronous holder releases its thread at every await, and the
+            // thread pool is free to run something else on it — including a
+            // continuation of this very channel. Honouring thread identity for
+            // such a holder would let that unrelated work believe it already
+            // held the gate and run inside the guarded region.
+            if (recordThread)
+            {
+                m_owner = holder;
+                m_owningThreadId = Environment.CurrentManagedThreadId;
+            }
+
             return new Releaser(this, holder, owner: true);
         }
 

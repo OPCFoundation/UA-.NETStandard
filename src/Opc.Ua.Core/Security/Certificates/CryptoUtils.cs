@@ -504,14 +504,16 @@ namespace Opc.Ua
             AsymmetricSignatureAlgorithm algorithm,
             CancellationToken ct = default)
         {
+            if (algorithm == AsymmetricSignatureAlgorithm.None)
+            {
+                // Checked before the certificate, because a channel with no
+                // security signs nothing and carries no certificate to check.
+                return new ValueTask<byte[]?>((byte[]?)null);
+            }
+
             if (signingCertificate is null)
             {
                 throw new ArgumentNullException(nameof(signingCertificate));
-            }
-
-            if (algorithm == AsymmetricSignatureAlgorithm.None)
-            {
-                return new ValueTask<byte[]?>((byte[]?)null);
             }
 
             if (TryGetAsymmetricSignatureParameters(

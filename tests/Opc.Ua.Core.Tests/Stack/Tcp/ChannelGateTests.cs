@@ -402,6 +402,52 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
             return captured!;
         }
 
+        /// <summary>
+        /// A synchronous holder that suspends releases its thread, and the pool is
+        /// free to run something else on it. That work must not be mistaken for
+        /// the holder.
+        /// </summary>
+        /// <remarks>
+        /// This is the defect that hung the Server integration suite: a
+        /// <see cref="ChannelGate.Enter"/> handle was held across an
+        /// <see langword="await"/> in the token renewal path, so an unrelated
+        /// continuation reusing the thread re-entered the guarded region and
+        /// decremented the holder's depth, releasing the gate while the holder was
+        /// still inside.
+        /// </remarks>
+        [Test]
+        public async Task WorkReusingASuspendedHoldersThreadDoesNotInheritTheGateAsync()
+        {
+            var gate = new ChannelGate();
+            int managedThreadId = Environment.CurrentManagedThreadId;
+
+            using (await gate.EnterAsync().ConfigureAwait(false))
+            {
+                // Simulates a pool thread being reused while the holder is
+                // suspended: same thread identity, unrelated logical context.
+                bool observed = await Task.Factory.StartNew(
+                    () =>
+                    {
+                        gate.LeaveInheritedContext();
+                        return gate.IsHeldByCurrentContext;
+                    },
+                    CancellationToken.None,
+                    TaskCreationOptions.None,
+                    TaskScheduler.Default).ConfigureAwait(false);
+
+                Assert.That(
+                    observed,
+                    Is.False,
+                    "an asynchronous holder must not grant entry by thread identity");
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(gate.IsHeldByCurrentContext, Is.False);
+                Assert.That(managedThreadId, Is.GreaterThan(0));
+            });
+        }
+
         private static void InterlockedMax(ref int target, int value)
         {
             int current = Volatile.Read(ref target);
