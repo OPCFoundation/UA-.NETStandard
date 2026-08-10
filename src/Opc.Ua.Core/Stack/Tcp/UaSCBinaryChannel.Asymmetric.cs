@@ -1423,6 +1423,11 @@ namespace Opc.Ua.Bindings
         /// The signature from the OpenSecureChannel request, when the security
         /// policy binds it.
         /// </param>
+        /// <param name="onSenderCertificateParsed">
+        /// Invoked with the sender's certificate as soon as it has been parsed,
+        /// before anything that can reject the message. Ownership transfers to
+        /// the callback, which must dispose it.
+        /// </param>
         /// <param name="ct">Cancels the operation.</param>
         /// <returns>The message body and everything parsed alongside it.</returns>
         /// <exception cref="ServiceResultException"></exception>
@@ -1431,11 +1436,21 @@ namespace Opc.Ua.Bindings
         /// <see cref="ReadAsymmetricMessage"/> and shares its header and body
         /// handling; only the certificate validation and the decryption are
         /// awaited. With a software key neither suspends.
+        /// <para>
+        /// The callback exists because this returns its results rather than
+        /// writing them to <c>out</c> parameters, which an asynchronous method
+        /// cannot have. An <c>out</c> parameter reaches the caller even when the
+        /// method goes on to throw; a return value does not. Without it the
+        /// certificate of a *rejected* sender would never reach the caller — so
+        /// it would neither be disposed nor reported to the audit, which is
+        /// exactly the case the audit exists for.
+        /// </para>
         /// </remarks>
         protected async ValueTask<AsymmetricMessage> ReadAsymmetricMessageAsync(
             ArraySegment<byte> buffer,
             Certificate? receiverCertificate,
             byte[]? oscRequestSignature,
+            Action<Certificate?>? onSenderCertificateParsed,
             CancellationToken ct)
         {
             int headerSize;
@@ -1450,6 +1465,8 @@ namespace Opc.Ua.Bindings
                     out channelId,
                     out senderCertificate,
                     out string securityPolicyUri);
+
+                onSenderCertificateParsed?.Invoke(senderCertificate);
 
                 using (senderCertificateChain)
                 {

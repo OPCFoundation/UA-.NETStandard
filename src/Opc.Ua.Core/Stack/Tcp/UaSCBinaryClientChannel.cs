@@ -701,6 +701,10 @@ namespace Opc.Ua.Bindings
                     messageChunk,
                     ClientCertificate,
                     State == TcpChannelState.Opening ? m_oscRequestSignature : null,
+                    // Taken before validation can reject the message, so a
+                    // rejected server certificate is still disposed by the catch
+                    // below rather than leaked.
+                    parsed => serverCertificate = parsed,
                     ct).ConfigureAwait(false);
 
                 messageBody = message.Body;

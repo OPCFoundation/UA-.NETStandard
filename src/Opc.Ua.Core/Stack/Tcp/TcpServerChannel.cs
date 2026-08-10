@@ -645,6 +645,10 @@ namespace Opc.Ua.Bindings
                     messageChunk,
                     ServerCertificate,
                     null,
+                    // Taken before validation can reject the message, so the
+                    // certificate of a rejected sender is still reported to the
+                    // audit and disposed by the catch below.
+                    parsed => clientCertificate = parsed,
                     ct).ConfigureAwait(false);
 
                 messageBody = message.Body;
