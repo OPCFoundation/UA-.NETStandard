@@ -146,7 +146,7 @@ namespace Opc.Ua.Security.Certificates
                 }
                 else if (keyAlgorithmOid == Oids.ECPublicKey)
                 {
-                    return VerifyEcdsaSignature(publicKeyBytes, hashAlgorithm);
+                    return VerifyEcdsaSignature(hashAlgorithm);
                 }
                 else
                 {
@@ -258,11 +258,15 @@ namespace Opc.Ua.Security.Certificates
                 RSASignaturePadding.Pkcs1);
         }
 
-        private bool VerifyEcdsaSignature(byte[] publicKeyBytes, HashAlgorithmName hashAlgorithm)
+        private bool VerifyEcdsaSignature(HashAlgorithmName hashAlgorithm)
         {
 #if NET6_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-            // ImportSubjectPublicKeyInfo is .NET Core 3.0 API and is part of the
-            // netstandard2.1 surface, so this path is not limited to net6.0+.
+            // Unlike the RSA path this does not take the parsed public key bit
+            // string: ImportSubjectPublicKeyInfo wants the whole
+            // SubjectPublicKeyInfo, because for EC the curve lives in the
+            // algorithm parameters rather than in the key itself.
+            // That API is .NET Core 3.0 and part of the netstandard2.1 surface,
+            // so this path is not limited to net6.0+.
             using var ecdsa = ECDsa.Create();
             try
             {

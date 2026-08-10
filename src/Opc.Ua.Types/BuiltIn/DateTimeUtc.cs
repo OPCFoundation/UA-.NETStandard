@@ -422,10 +422,14 @@ namespace Opc.Ua
                     bytesWritten = 0;
                     return false;
                 }
-                encoded.CopyTo(utf8Destination);
+                encoded.AsSpan().CopyTo(utf8Destination);
                 bytesWritten = encoded.Length;
                 return true;
             }
+            // ToString throws FormatException for an invalid format string and
+            // ArgumentException for an unusable provider. EncoderFallbackException
+            // derives from ArgumentException, so an unencodable character is covered
+            // too - Encoding.UTF8 replaces rather than throws in any case.
             catch (Exception ex) when (ex is FormatException or ArgumentException)
             {
                 bytesWritten = 0;
