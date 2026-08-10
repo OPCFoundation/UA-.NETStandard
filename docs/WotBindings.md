@@ -823,7 +823,7 @@ The specification defines ten conformance units and four recommended profiles
 | **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
 | **WoT-ExactRoundtrip** | covered | the envelope-free roundtrip invariants, including residue |
 | **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems |
-| **WoT-ConditionMapping** | **not covered** | Section 13 (`uav:conditionType`, `uav:conditionTypeId`, `uav:conditionAction`, `uav:actsOn`) is not implemented. The unit is independently claimable and is not part of any recommended profile, so the profiles below are unaffected. |
+| **WoT-ConditionMapping** | covered | Section 13 (`uav:conditionType`, `uav:conditionTypeId`, `uav:conditionAction`, `uav:actsOn`) in `WotNodeSetConverter.Conditions`, with the Condition supertype resolution and the Section 13.3/13.4 conformance rules |
 | **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary`, all Section 6 terms with their validation rules |
 | **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
 | **WoT-Projection** | covered | `WotProjection`, `WotProjectionResolver` and, for materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost` |
@@ -886,6 +886,49 @@ Two behaviours are deliberate and worth knowing:
 A host that supplies no resolver gets `NullWotNodeResolver`, which holds
 nothing. A document that names no existing type still converts; one that does is
 reported as unresolved rather than mistyped.
+
+### Alarms and Conditions
+
+Section 13 maps an OPC 10000-9 Condition to a WoT event affordance for the
+notification and action affordances for the Condition Methods. Four terms carry
+it:
+
+| Term | Domain | Meaning |
+| --- | --- | --- |
+| `uav:conditionType` | event affordance | The compact model name of the ConditionType the event projects, e.g. `ua:LimitAlarmType` |
+| `uav:conditionTypeId` | event affordance | The definitive ExpandedNodeId of the same ConditionType |
+| `uav:conditionAction` | action affordance | The Condition Method invoked. Closed set: `Acknowledge`, `Confirm`, `AddComment`, `Enable`, `Disable` |
+| `uav:actsOn` | action affordance | The event affordance, in the same document, whose Condition the action acts on |
+
+A projected Condition event derives from the ConditionType it names rather than
+from `BaseEventType`. That is the whole point of the mapping: a Client browsing
+a type that fell back to `BaseEventType` would see none of the Condition state
+and could not tell an alarm from an ordinary event.
+
+The two forms follow the hint-plus-pin pattern of Section 5.3.
+`uav:conditionTypeId` is definitive and wins. `uav:conditionType` is a readable
+hint, resolved for the four ConditionTypes Section 13.1 scopes —
+`ConditionType`, `AcknowledgeableConditionType`, `AlarmConditionType` and
+`LimitAlarmType`. A name outside that set must be pinned; an unpinned one is
+reported rather than guessed.
+
+Four rules are enforced, each because breaking it yields a document a consumer
+can read but cannot act on:
+
+| Rule | Section | Diagnostic |
+| --- | --- | --- |
+| A Condition event declares `EventId` in its `data` | 13.3 | `ConditionEventIdMissing` |
+| `uav:conditionAction` is in the closed set | 13.2 | `InvalidConditionAction` |
+| `uav:actsOn` names a Condition event in the same document | 13.4 | `InvalidConditionTarget` |
+| `Acknowledge` / `Confirm` / `AddComment` declare an `EventId` input | 13.4 | `ConditionActionInputMissing` |
+
+`EventId` names the Event occurrence, so without it a consumer can receive a
+notification but can never identify the occurrence to acknowledge, confirm or
+comment on. `Enable` and `Disable` act on the Condition instance rather than one
+occurrence and are deliberately exempt from the input rule.
+
+Shelving, suppression, dialog conditions and `ConditionRefresh` are outside the
+mapping, as Section 13.1 scopes it.
 
 ### Compatibility switch for non-portable identifiers
 

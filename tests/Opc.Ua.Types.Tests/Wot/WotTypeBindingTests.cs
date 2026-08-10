@@ -124,6 +124,29 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Ambiguity dominates. Where several binding links are declared the
+        /// converter is not entitled to choose one, so it must not also judge
+        /// one arbitrary candidate and report a second, misleading defect.
+        /// </summary>
+        [Test]
+        public void AnAmbiguousBindingIsNotAlsoReportedAsInvalid()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"links\":[" +
+                "{\"rel\":\"ua:HasTypeDefinition\",\"href\":\"   \"}," +
+                "{\"rel\":\"ua:HasTypeDefinition\",\"href\":\"nsu=urn:test:pump;i=1043\"}]");
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.AmbiguousTypeBinding),
+                Is.True,
+                "Several binding links must be reported as ambiguous.");
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidTypeBinding),
+                Is.False,
+                "An ambiguous document must not also be judged on one candidate.");
+        }
+
+        /// <summary>
         /// A binding link with no usable identifier is a defect: the whole
         /// point of the definitive form is that it identifies exactly one Node.
         /// </summary>

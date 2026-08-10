@@ -45,12 +45,12 @@ namespace Opc.Ua.Wot
         Any,
 
         /// <summary>
-        /// An ObjectType, as a Thing Description projecting an Object requires.
+        /// An ObjectType. A name that types an Object must resolve to one.
         /// </summary>
         ObjectType,
 
         /// <summary>
-        /// A VariableType, as a document projecting a Variable requires.
+        /// A VariableType. A name that types a Variable must resolve to one.
         /// </summary>
         VariableType
     }

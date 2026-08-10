@@ -453,6 +453,20 @@ namespace Opc.Ua.Wot
             return Encoding.UTF8.GetString(stream.ToArray());
         }
 
+        /// <summary>
+        /// Gets whether a link's <c>rel</c> is one the readable mapping already
+        /// expresses, so it need not be preserved as residue.
+        /// </summary>
+        /// <remarks>
+        /// The prefixes tested here are fixed, not context-bound, so an ordinal
+        /// comparison against the literal is exact. WoT Binding Section 4
+        /// requires a conforming document to bind <c>uav</c> to the Binding
+        /// namespace and forbids rebinding it; Section 6.5.1 reserves <c>ua</c>
+        /// for <c>http://opcfoundation.org/UA/</c>; and <c>tm</c> is fixed by
+        /// the W3C WoT Thing Description 1.1 context. JSON-LD terms are
+        /// case-sensitive, so the comparison must be ordinal and never
+        /// ignore-case.
+        /// </remarks>
         private static bool IsMappedLink(string? rel, JsonElement link)
         {
             if (rel is "tm:extends")

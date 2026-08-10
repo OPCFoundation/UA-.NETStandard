@@ -291,7 +291,43 @@ namespace Opc.Ua.Wot
         /// mistyped node is worse than a reported failure: a Client browsing
         /// for the companion type would not find it and nothing would say why.
         /// </summary>
-        UnresolvedTypeBinding = 6021
+        UnresolvedTypeBinding = 6021,
+
+        /// <summary>
+        /// An event affordance declares <c>uav:conditionType</c> but its
+        /// <c>data</c> object does not declare <c>EventId</c> (WoT Binding
+        /// Section 13.3). <c>EventId</c> names the Event occurrence, so without
+        /// it a consumer can receive the notification but can never identify
+        /// the occurrence to acknowledge, confirm or comment on.
+        /// </summary>
+        ConditionEventIdMissing = 6022,
+
+        /// <summary>
+        /// A <c>uav:conditionAction</c> names something outside the closed set
+        /// of Condition Methods this Binding maps (WoT Binding Section 13.2):
+        /// <c>Acknowledge</c>, <c>Confirm</c>, <c>AddComment</c>,
+        /// <c>Enable</c>, <c>Disable</c>.
+        /// </summary>
+        InvalidConditionAction = 6023,
+
+        /// <summary>
+        /// An action affordance declares <c>uav:conditionAction</c> without a
+        /// <c>uav:actsOn</c> naming an event affordance in the same document
+        /// that carries <c>uav:conditionType</c> (WoT Binding Section 13.4). A
+        /// Condition Method acts on a Condition, so an action that does not say
+        /// which one cannot be invoked.
+        /// </summary>
+        InvalidConditionTarget = 6024,
+
+        /// <summary>
+        /// An <c>Acknowledge</c>, <c>Confirm</c> or <c>AddComment</c> action
+        /// does not declare <c>EventId</c> as an input (WoT Binding Section
+        /// 13.4). These Methods act on one Event occurrence, so the input is
+        /// what binds the invocation to the notification the consumer received.
+        /// <c>Enable</c> and <c>Disable</c> act on the Condition instance and
+        /// are not subject to this rule.
+        /// </summary>
+        ConditionActionInputMissing = 6025
     }
 
     /// <summary>

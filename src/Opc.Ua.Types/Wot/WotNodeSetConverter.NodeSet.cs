@@ -870,6 +870,23 @@ namespace Opc.Ua.Wot
             return IsModelConceptRelation(document, link, rel);
         }
 
+        /// <summary>
+        /// Gets whether a link's <c>rel</c> is a compact model name naming a
+        /// ReferenceType, rather than a Binding term or an external relation.
+        /// </summary>
+        /// <remarks>
+        /// Only the reserved prefixes are matched as literals; every other
+        /// prefix is resolved through the document's <c>@context</c> by
+        /// <see cref="TryGetContextNamespace(WotDocument, string, out string)"/>,
+        /// because an author chooses those freely. The literals are exact
+        /// because WoT Binding Section 4 requires a conforming document to bind
+        /// <c>uav</c> to the Binding namespace and forbids rebinding it,
+        /// Section 6.5.1 reserves <c>ua</c> for
+        /// <c>http://opcfoundation.org/UA/</c>, and <c>tm</c> is fixed by the
+        /// W3C WoT Thing Description 1.1 context. JSON-LD terms are
+        /// case-sensitive, so every comparison is ordinal and never
+        /// ignore-case.
+        /// </remarks>
         private static bool IsModelConceptRelation(
             WotDocument document,
             JsonElement link,

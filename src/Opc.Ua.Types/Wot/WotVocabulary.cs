@@ -88,6 +88,46 @@ namespace Opc.Ua.Wot
         // Term naming the group an organizing link reaches (Section 12.7).
         public const string RefNameAnnotation = "uav:refName";
 
+        /// <summary>
+        /// The ConditionTypes of OPC 10000-9 that WoT Binding Section 13 maps.
+        /// </summary>
+        /// <remarks>
+        /// Section 13.1 scopes the mapping to exactly these four, so this is
+        /// the whole set rather than a convenience subset. Shelving,
+        /// suppression, dialog conditions and <c>ConditionRefresh</c> are
+        /// outside the mapping. A ConditionType outside this set is named by
+        /// <c>uav:conditionTypeId</c>, which is definitive and needs no lookup.
+        /// </remarks>
+        private static readonly Dictionary<string, string> s_conditionTypeNameToNodeId =
+            new(StringComparer.Ordinal)
+            {
+                ["ConditionType"] = "i=2782",
+                ["AcknowledgeableConditionType"] = "i=2881",
+                ["AlarmConditionType"] = "i=2915",
+                ["LimitAlarmType"] = "i=2955"
+            };
+
+        /// <summary>
+        /// Resolves the NodeId of a ConditionType named by its BrowseName in
+        /// the base OPC UA namespace.
+        /// </summary>
+        /// <param name="browseName">The unqualified BrowseName.</param>
+        /// <param name="nodeId">The NodeId, when the name is one this maps.</param>
+        /// <returns><c>true</c> when the name resolved.</returns>
+        public static bool TryGetConditionTypeNodeId(
+            string? browseName,
+            out string nodeId)
+        {
+            if (browseName is not null &&
+                s_conditionTypeNameToNodeId.TryGetValue(browseName, out string? found))
+            {
+                nodeId = found;
+                return true;
+            }
+            nodeId = string.Empty;
+            return false;
+        }
+
         private static readonly Dictionary<string, string> s_referenceTypeNameToNodeId =
             new(StringComparer.Ordinal)
             {

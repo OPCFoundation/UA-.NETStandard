@@ -546,6 +546,7 @@ namespace Opc.Ua.Wot
             ValidateEventAnnotations(document, diagnostics);
             ValidateModelConceptNames(document, diagnostics);
             ValidateModelVocabulary(document, diagnostics);
+            ValidateConditions(document, diagnostics);
 
             string modelUri = DeriveModelUri(document);
             string rootLocal = LocalName(GetUavString(document, "browseName")) ??
@@ -854,7 +855,8 @@ namespace Opc.Ua.Wot
                 {
                     ReferenceType = "HasSubtype",
                     IsForward = false,
-                    Value = WotVocabulary.BaseEventType
+                    Value = ResolveConditionSupertype(
+                        document, eventAffordance, key, nodeSet, diagnostics)
                 }
             ];
 
@@ -1706,6 +1708,64 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Resolves the EventType a projected event derives from.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// WoT Binding Section 13 projects a Condition notification as an event
+        /// affordance, and the type it derives from is the ConditionType the
+        /// affordance names rather than <c>BaseEventType</c>. Getting this
+        /// wrong would lose the Condition state model entirely: a Client
+        /// browsing the projected type would see none of the Condition fields
+        /// and could not tell an alarm from an ordinary event.
+        /// </para>
+        /// <para>
+        /// Section 13.2 uses the hint-plus-pin pattern of Section 5.3.
+        /// <c>uav:conditionTypeId</c> is definitive and wins; the compact name
+        /// in <c>uav:conditionType</c> is a hint, resolved here for the four
+        /// ConditionTypes Section 13.1 scopes. A name outside that set that
+        /// carries no pin is reported rather than guessed, because deriving
+        /// from the wrong supertype is worse than saying so.
+        /// </para>
+        /// </remarks>
+        private static string ResolveConditionSupertype(
+            WotDocument document,
+            JsonElement eventAffordance,
+            string key,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            string? pinned = GetElementString(eventAffordance, ConditionTypeIdTerm);
+            if (pinned is not null)
+            {
+                return ToNodeSetNodeId(pinned, nodeSet, diagnostics);
+            }
+
+            string? hint = GetElementString(eventAffordance, ConditionTypeTerm);
+            if (hint is null)
+            {
+                return WotVocabulary.BaseEventType;
+            }
+
+            // Only the base OPC UA namespace can be resolved without a local
+            // context; a companion ConditionType has to be pinned.
+            if (TrySplitCompactModelName(hint, out string prefix, out string local) &&
+                string.Equals(prefix, "ua", StringComparison.Ordinal) &&
+                WotVocabulary.TryGetConditionTypeNodeId(local, out string nodeId))
+            {
+                return nodeId;
+            }
+
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.UnresolvedTypeBinding,
+                $"'{hint}' is not a ConditionType this Binding resolves. Pin it with " +
+                $"'{ConditionTypeIdTerm}' (WoT Binding Section 13.2).",
+                WotLocation.FromPointer("/events/" + key + "/" + ConditionTypeTerm)));
+            return WotVocabulary.BaseEventType;
+        }
+
+        /// <summary>
         /// Reads the definitive type binding a document declares through
         /// <c>ua:HasTypeDefinition</c> links (WoT Binding Section 5.2.1).
         /// </summary>
@@ -1731,9 +1791,14 @@ namespace Opc.Ua.Wot
             WotDocument document,
             List<WotDiagnostic> diagnostics)
         {
-            string? bound = null;
+            JsonElement candidate = default;
             int count = 0;
 
+            // Count every candidate before judging any of them. Ambiguity
+            // dominates: where a document declares more than one such link it
+            // is ambiguous, and validating one arbitrary candidate on top of
+            // that would report a second, misleading error about a link the
+            // converter was never entitled to choose.
             foreach (JsonElement link in document.Links)
             {
                 if (link.ValueKind != JsonValueKind.Object ||
@@ -1745,28 +1810,10 @@ namespace Opc.Ua.Wot
                 }
 
                 count++;
-                if (count > 1)
+                if (count == 1)
                 {
-                    continue;
+                    candidate = link;
                 }
-
-                string? href = link.TryGetProperty("href", out JsonElement hrefElement) &&
-                    hrefElement.ValueKind == JsonValueKind.String
-                        ? hrefElement.GetString()
-                        : null;
-
-                if (string.IsNullOrWhiteSpace(href))
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.InvalidTypeBinding,
-                        $"A '{TypeBindingRel}' link (WoT Binding Section 5.2.1) must carry the " +
-                        "ExpandedNodeId of the type in its 'href'.",
-                        new WotLocation(jsonPointer: "/links")));
-                    continue;
-                }
-
-                bound = href;
             }
 
             if (count > 1)
@@ -1780,7 +1827,28 @@ namespace Opc.Ua.Wot
                 return null;
             }
 
-            return bound;
+            if (count == 0)
+            {
+                return null;
+            }
+
+            string? href = candidate.TryGetProperty("href", out JsonElement hrefElement) &&
+                hrefElement.ValueKind == JsonValueKind.String
+                    ? hrefElement.GetString()
+                    : null;
+
+            if (string.IsNullOrWhiteSpace(href))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidTypeBinding,
+                    $"A '{TypeBindingRel}' link (WoT Binding Section 5.2.1) must carry the " +
+                    "ExpandedNodeId of the type in its 'href'.",
+                    new WotLocation(jsonPointer: "/links")));
+                return null;
+            }
+
+            return href;
         }
 
         /// <summary>
