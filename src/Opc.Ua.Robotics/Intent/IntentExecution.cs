@@ -42,10 +42,25 @@ namespace Opc.Ua.RobotIntent
         /// Creates an execution context.
         /// </summary>
         public IntentExecution(string intentId, IntentDataType intent, IIntentProgress progress)
+            : this(intentId, intent, progress, NodeId.Null, string.Empty)
+        {
+        }
+
+        /// <summary>
+        /// Creates an execution context for a controller.
+        /// </summary>
+        public IntentExecution(
+            string intentId,
+            IntentDataType intent,
+            IIntentProgress progress,
+            NodeId controllerId,
+            string controllerName = "")
         {
             IntentId = intentId ?? throw new ArgumentNullException(nameof(intentId));
             Intent = intent ?? throw new ArgumentNullException(nameof(intent));
             Progress = progress ?? throw new ArgumentNullException(nameof(progress));
+            ControllerId = controllerId;
+            ControllerName = controllerName ?? string.Empty;
         }
 
         /// <summary>
@@ -62,6 +77,16 @@ namespace Opc.Ua.RobotIntent
         /// Progress and pose reporting for this execution.
         /// </summary>
         public IIntentProgress Progress { get; }
+
+        /// <summary>
+        /// The NodeId of the IntentControllerType object that owns this execution, or NodeId.Null if unavailable.
+        /// </summary>
+        public NodeId ControllerId { get; }
+
+        /// <summary>
+        /// The browse-name text of the IntentControllerType object that owns this execution, or an empty string if unavailable.
+        /// </summary>
+        public string ControllerName { get; }
 
         /// <summary>
         /// The mission this intent belongs to, or an empty string when it was

@@ -29,7 +29,9 @@
 
 #if NET10_0
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using NUnit.Framework;
 using Opc.Ua.Mcp.Serialization;
@@ -40,16 +42,110 @@ namespace Opc.Ua.Tools.Tests.Mcp
     public sealed class OpcUaJsonHelperTests
     {
         [Test]
-        public void SerializeUsesCamelCaseAndOmitsNulls()
+        public void SerializeWritesDictionaryKeysVerbatimAndKeepsNulls()
         {
-            string json = OpcUaJsonHelper.Serialize(new
+            string json = OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
             {
-                FirstValue = "abc",
-                SecondValue = (string?)null
+                ["firstValue"] = "abc",
+                ["secondValue"] = null
             });
 
             Assert.That(json, Does.Contain("firstValue"));
-            Assert.That(json, Does.Not.Contain("secondValue"));
+            Assert.That(json, Does.Contain("\"secondValue\": null"));
+        }
+
+        [Test]
+        public void SerializeRejectsValuesThatWouldRequireReflection()
+        {
+            // Serialize is trim- and AOT-safe, so it only accepts the JSON-friendly shapes
+            // the conversion helpers in this class produce. Arbitrary object graphs would
+            // need the reflection-based serializer and are refused rather than mangled.
+            Assert.That(
+                () => OpcUaJsonHelper.Serialize(new StringBuilder("nope")),
+                Throws.TypeOf<NotSupportedException>());
+        }
+
+        /// <summary>
+        /// Serialize writes JSON directly with a <see cref="Utf8JsonWriter"/> instead of the
+        /// reflection-based serializer. These cases cover every shape the conversion helpers
+        /// in this class emit and assert the output is byte-for-byte what the reflection-based
+        /// serializer produced, so the AOT change cannot alter any tool's result.
+        /// </summary>
+        private static IEnumerable<TestCaseData> JsonFriendlyValues()
+        {
+            yield return new TestCaseData(new Dictionary<string, object?>
+            {
+                ["error"] = true,
+                ["statusCode"] = "BadNodeIdUnknown",
+                ["message"] = "no such node",
+                ["innerMessage"] = null
+            }).SetName("ErrorResult");
+
+            yield return new TestCaseData(new Dictionary<string, object?>
+            {
+                ["sbyte"] = (sbyte)-1,
+                ["byte"] = (byte)2,
+                ["short"] = (short)-3,
+                ["ushort"] = (ushort)4,
+                ["int"] = 5,
+                ["uint"] = 6u,
+                ["long"] = 7L,
+                ["ulong"] = 8ul,
+                ["float"] = 9.5f,
+                ["double"] = 10.25,
+                ["decimal"] = 11.125m
+            }).SetName("AllNumericScalars");
+
+            yield return new TestCaseData(new Dictionary<string, object?>
+            {
+                ["timestamp"] = new DateTime(2026, 2, 3, 4, 5, 6, DateTimeKind.Utc),
+                ["offset"] = new DateTimeOffset(2026, 2, 3, 4, 5, 6, TimeSpan.Zero),
+                ["guid"] = new Guid("72962b91-fa75-4ae6-8d28-b404dc7daf63"),
+                ["bytes"] = new byte[] { 1, 2, 3 },
+                ["char"] = 'x'
+            }).SetName("ScalarsWithCustomFormatting");
+
+            yield return new TestCaseData(new List<object>
+            {
+                new Dictionary<string, object?> { ["nodeId"] = "ns=2;s=A", ["value"] = 1 },
+                new Dictionary<string, object?> { ["nodeId"] = "ns=2;s=B", ["value"] = null }
+            }).SetName("ListOfDictionaries");
+
+            yield return new TestCaseData(new Dictionary<string, object?>
+            {
+                ["endpoints"] = new List<object?>
+                {
+                    new Dictionary<string, object?>
+                    {
+                        ["endpointUrl"] = "opc.tcp://host:4840",
+                        ["userIdentityTokens"] = new List<object?>
+                        {
+                            new Dictionary<string, object?> { ["tokenType"] = "Anonymous" }
+                        }
+                    }
+                },
+                ["empty"] = new List<object?>()
+            }).SetName("NestedSequences");
+
+            // Strings that force the encoder to escape; proves the writer inherits the
+            // same JavaScriptEncoder the reflection-based serializer used.
+            yield return new TestCaseData(new Dictionary<string, object?>
+            {
+                ["quote"] = "he said \"hi\"",
+                ["angle"] = "<tag>&amp;",
+                ["unicode"] = "grüße \u00b5s",
+                ["newline"] = "line1\nline2"
+            }).SetName("StringsNeedingEscaping");
+        }
+
+        [TestCaseSource(nameof(JsonFriendlyValues))]
+        public void SerializeMatchesTheReflectionBasedSerializer(object value)
+        {
+            string expected = JsonSerializer.Serialize(value, OpcUaJsonHelper.JsonOptions);
+
+            string actual = OpcUaJsonHelper.Serialize(value);
+
+            Assert.That(actual, Is.EqualTo(expected));
         }
 
         [TestCase("i=85")]

@@ -78,33 +78,69 @@ dotnet run --project samples/Robotics/IntentViewerClient -- `
 In headless mode the four targets are offered as a console menu instead of as prims to click, and
 everything downstream of the pick — submission, tracking, cancellation, command authority — is identical.
 
+### Agent-driven pallet stacking
+
+`IntentViewerClient --mcp` is the agent entry point for the intent sample. Start `IntentEnabledRobot`,
+then run the viewer with MCP over stdio for a headless agent or over HTTP when the OpenUSD viewport is
+open. The agent and the human viewer share the same OPC UA `SampleSession`, so MCP calls, operation
+monitoring, payload outputs and OpenUSD live bindings all describe the same robot.
+
+A well-behaved agent starts with discovery, not motion:
+
+1. `robotics_list_controllers`
+2. `robotics_read_controller` to inspect `SupportedIntents`, `SupportedFacets`, frames, tools,
+   locations and outputs
+3. `robotics_read_state` to verify `Ready`, mode, safety and current command owner
+4. `robotics_request_control` before any command
+
+The pallet demonstration deliberately proves refusal handling before the successful plan. Another
+session holds command authority, the agent submits a move, receives `Accepted=false` with
+`Failure=ControlNotOwned`, reads the enum and message, releases or waits for the owner, requests
+authority itself, and only then replans. It must not retry the refused submission blindly.
+
+The stacking plan uses the published model seam. Parts begin under `/World/Payloads/BinParts`, the
+held part is driven by `HeldPartPosition` and `HeldPartVisible`, and completed slots are driven by
+`PayloadSlotNNFilled`. The viewer and connector do not contain pallet logic; they just render the
+server-published bindings. The agent can pick from `Bin`, move the held part to row/layer coordinates
+near `Fixture`, place it, then submit a mission that repeats the sequence for the next slot.
+
+Agents must not assume:
+
+* command authority is implicit;
+* a supported tool means the controller supports every intent kind;
+* `SupportedIntents`, `SupportedFacets`, safety state or queue depth can be skipped;
+* a refusal should be retried without changing the plan;
+* a submitted operation is done until `robotics_wait_operation` or controller state says so.
+
 ### How a click becomes an intent
 
 The viewport is rendered by the optional [`Opc.Ua.OpenUsd.Connector.Viewer`](../../tools/Opc.Ua.OpenUsd.Connector.Viewer)
-assembly. Today, the working pick path is the command-prim fallback: clicking a target puck edits
-`/World/IntentCommand`, the viewer raises `UsdViewOptions.PrimPicked`, and the client maps that prim
-path to the `LocationType` node the server published under the controller's `Locations` folder, builds
-an intent naming that location, and submits it.
+assembly. A pick becomes an intent the same way whichever path resolves it: the viewer raises
+`UsdViewOptions.PrimPicked`, and the client maps that prim path to the `LocationType` node the server
+published under the controller's `Locations` folder, builds an intent naming that location, and submits it.
 
 `UsdViewOptions.PickMode` selects how the pick is resolved:
 
 | Mode | Behaviour |
 |---|---|
-| `Auto` (default) | Degrades immediately to the command-prim fallback with the current OpenUSD package version |
-| `Renderer` | Renderer-backed pointer pick only; does not produce picks until upstream exposes a reachable picking backend |
+| `Auto` (default) | Renderer-backed pointer picking first, falling back to the command prim only when renderer picking is unavailable |
+| `Renderer` | Renderer-backed pointer picking only |
 | `CommandPrim` | Watch `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`) and raise the callback when its `targetPrim` changes |
 
-The fallback exists because no `IRenderPickingBackend` is reachable through this OpenUSD package
-version's viewport object graph. Renderer-backed picking depends on upstream exposing such a backend;
-feature requests are filed in `marcschier/openusd-dotnet` issues #1, #5, #8, #9, #10 and #11. The
-fallback is the supported sample path today, and clicking a target genuinely commands the robot.
+Renderer-backed picking works: the OpenUSD viewer owns input handling, DPI scaling, physical-pixel
+conversion and stale-revision retry, and reports hits through the host callback. Misses do not submit
+intents. The gaps this used to work around were filed as `marcschier/openusd-dotnet` issues #1, #5, #8,
+#9, #10 and #11, and all are fixed in the package version this sample ships against. The command-prim
+path remains supported, and is what makes picking work headlessly — which is also how an
+[MCP agent](IntentViewerClient/README.md) drives the same robot.
 
 ## Prerequisites
 
 * .NET SDK 10.0.
 * The `--view` option needs the optional viewer assembly and its native OpenUSD payload, which is
-  supported on `win-x64`, `linux-x64`, and `osx-arm64`. Everything else, including both servers and the
-  headless client, runs on every platform the stack supports.
+  supported on `win-x64`, `linux-x64`, and `osx-arm64`. A RID-less build or publish on a supported host
+  uses that host's payload; publish with an explicit RID for another platform. Everything else,
+  including both servers and the headless client, runs on every platform the stack supports.
 
 ## See also
 

@@ -1,0 +1,130 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System.ComponentModel;
+using System.Threading;
+using System.Threading.Tasks;
+using ModelContextProtocol.Server;
+using Opc.Ua.Robotics.Client.Intent;
+using Opc.Ua.RobotIntent;
+
+namespace Opc.Ua.Mcp.Tools
+{
+    /// <summary>
+    /// MCP tools for Robot Intent missions.
+    /// </summary>
+    [McpServerToolType]
+    public sealed class RoboticsMissionTools
+    {
+        /// <summary>
+        /// Builds and submits a mission.
+        /// </summary>
+        [McpServerTool(Name = "robotics_submit_mission")]
+        [Description("Compiles a mission from JSON steps/transitions using the Robot Intent MissionBuilder and " +
+            "submits it. Server refusals such as NotPermittedInMode, SafetyLimitExceeded, ControlNotOwned, " +
+            "CapabilityNotSupported, ParameterInvalid, or QueueFull are returned verbatim with message; this tool " +
+            "does not retry or request command authority implicitly.")]
+        public static async Task<MissionSubmissionResult> SubmitMissionAsync(
+            RoboticsIntentManager manager,
+            [Description("Controller NodeId.")] string controllerId,
+            [Description("MissionId to submit.")] string missionId,
+            [Description("MissionUpdateId for this submission.")] uint missionUpdateId,
+            [Description("JSON array of mission steps. Each step has stepId, released, and intent { kind, ... }.")]
+            string stepsJson,
+            [Description("Optional JSON array of transitions; an omitted/empty array is a flat ordered mission.")]
+            string? transitionsJson = null,
+            [Description("Optional localized label text.")] string? label = null,
+            [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
+            CancellationToken ct = default)
+        {
+            RobotIntentControllerClient controller = manager.OpenController(controllerId, sessionName);
+            MissionDataType mission = BuildMission(missionId, missionUpdateId, stepsJson, transitionsJson, label);
+            return await controller.SubmitMissionAsync(mission, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Updates a mission horizon.
+        /// </summary>
+        [McpServerTool(Name = "robotics_update_mission")]
+        [Description("Updates a mission horizon from a JSON step list. The client API performs stale-update checks " +
+            "and the server returns the authoritative MissionUpdateResult and message; the MCP layer does not " +
+            "invent mission state or retry refused updates.")]
+        public static async Task<MissionUpdateOutcome> UpdateMissionAsync(
+            RoboticsIntentManager manager,
+            [Description("Controller NodeId.")] string controllerId,
+            [Description("MissionId to update.")] string missionId,
+            [Description("Strictly increasing MissionUpdateId.")] uint missionUpdateId,
+            [Description("JSON array of replacement horizon steps.")] string horizonStepsJson,
+            [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
+            CancellationToken ct = default)
+        {
+            RobotIntentControllerClient controller = manager.OpenController(controllerId, sessionName);
+            ArrayOf<MissionStepDataType> steps = RoboticsIntentJson.BuildMissionSteps(horizonStepsJson);
+            return await controller.UpdateMissionAsync(missionId, missionUpdateId, steps, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Cancels a mission.
+        /// </summary>
+        [McpServerTool(Name = "robotics_cancel_mission")]
+        [Description("Requests cancellation of a mission. A server refusal such as NotPermittedInMode or " +
+            "ControlNotOwned is returned by the client API; this tool never retries or submits compensating work.")]
+        public static async Task<IntentCommandOutcome> CancelMissionAsync(
+            RoboticsIntentManager manager,
+            [Description("Controller NodeId.")] string controllerId,
+            [Description("MissionId to cancel.")] string missionId,
+            [Description("Stop mode requested from the server.")] StopModeEnum stopMode = StopModeEnum.QuickStop,
+            [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
+            CancellationToken ct = default)
+        {
+            return await manager.OpenController(controllerId, sessionName).CancelMissionAsync(missionId, stopMode, ct)
+                .ConfigureAwait(false);
+        }
+
+        internal static MissionDataType BuildMission(
+            string missionId,
+            uint missionUpdateId,
+            string stepsJson,
+            string? transitionsJson,
+            string? label)
+        {
+            MissionBuilder builder = RobotIntentBuilder.Mission(missionId).WithMissionUpdateId(missionUpdateId);
+            if (!string.IsNullOrEmpty(label))
+            {
+                builder.WithLabel(new LocalizedText(label));
+            }
+
+            ArrayOf<MissionStepDataType> steps = RoboticsIntentJson.BuildMissionSteps(stepsJson);
+            ArrayOf<MissionTransitionDataType> transitions = RoboticsIntentJson.BuildMissionTransitions(transitionsJson);
+            builder.WithSteps(steps);
+            builder.WithTransitions(transitions);
+            return builder.Build();
+        }
+    }
+}
