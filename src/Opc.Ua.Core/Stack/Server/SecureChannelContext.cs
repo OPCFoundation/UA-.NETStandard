@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -114,6 +116,25 @@ namespace Opc.Ua
         /// the transport's dispatch path returns.
         /// </remarks>
         public IUserIdentity? UpstreamIdentity { get; set; }
+
+        /// <summary>
+        /// Invoked once the response to the current request has been handed
+        /// to the transport, and never invoked when no response reaches it.
+        /// </summary>
+        /// <remarks>
+        /// A service that must not act until its own response is on its way
+        /// to the client registers here. The data channel Service Set needs
+        /// it: Part 6 errata §7.4 and Part 4 errata §5.1 forbid a Server
+        /// transmitting any frame for a ChannelId "before the response
+        /// carrying that ChannelId has been handed to the transport", and the
+        /// service call itself returns well before that point.
+        /// <para>
+        /// Transports invoke this after handing the response over and isolate
+        /// it from the request loop, so a callback that throws affects only
+        /// itself. It is inert when nothing has subscribed.
+        /// </para>
+        /// </remarks>
+        public Action? ResponseDispatched { get; set; }
     }
 
     /// <summary>

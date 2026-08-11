@@ -548,6 +548,69 @@ namespace Opc.Ua.Core.DataChannels.Tests
             });
         }
 
+        /// <summary>
+        /// Part 6 errata §7.4 and Part 4 errata §5.1: a peer "shall not
+        /// transmit a DATA, GAP, END or RESET frame for a ChannelId before the
+        /// OpenDataChannel response carrying that ChannelId has been handed to
+        /// the transport", which the §5.13 state table restates by permitting
+        /// no frames at all while a channel is Opening. A source that starts
+        /// streaming the moment it is handed the channel must therefore be
+        /// queued, not transmitted.
+        /// </summary>
+        [Test]
+        public async Task DataChannelLifecycle_NoFrameIsTransmittedWhileTheChannelIsOpening()
+        {
+            var settings = new DataChannelSettings
+            {
+                Direction = DataChannelDirection.SourceToSink,
+                DeliveryMode = DataChannelDeliveryMode.ReliableOrdered,
+                MaxFrameSize = 4096,
+                InitialCredit = 65536
+            };
+
+            Assert.That(m_server.TryAllocateChannelId(out uint channelId), Is.True);
+
+            DataChannel server = m_server.Register(
+                channelId,
+                new NodeId(1u),
+                settings,
+                isSource: true);
+
+            server.Write([0x01, 0x02], DataChannelFrameFlags.MessageStart);
+
+            // Long enough for several scheduler rounds to have run.
+            await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(server.State, Is.EqualTo(DataChannelState.Opening));
+                Assert.That(
+                    m_serverTransport.Sent.Any(frame => frame.ChannelId == channelId),
+                    Is.False,
+                    "A frame was transmitted before the OpenDataChannel response was dispatched.");
+            });
+
+            DataChannel client = m_client.Register(
+                channelId,
+                new NodeId(1u),
+                settings,
+                isSource: false);
+            m_client.MarkOpen(channelId);
+
+            m_server.MarkOpen(channelId);
+
+            await WaitForAsync(
+                () => m_serverTransport.Sent.Any(
+                    frame => frame.ChannelId == channelId &&
+                        frame.FrameType == DataChannelFrameType.Data))
+                .ConfigureAwait(false);
+
+            using DataChannelMessage? delivered = await ReadWithTimeoutAsync(client)
+                .ConfigureAwait(false);
+
+            Assert.That(delivered, Is.Not.Null);
+        }
+
         private (DataChannel server, DataChannel client) OpenPair(
             DataChannelDirection direction,
             uint initialCredit = 65536,

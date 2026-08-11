@@ -129,12 +129,23 @@ namespace Opc.Ua.Bindings
         {
             Binding binding = GetBinding(secureChannelContext);
             QuicDataChannelTransport transport = GetDataTransport(binding);
-            _ = transport.BindChannelAsync(
+
+            // §7.4 requires the transportChannelId to be validated before the
+            // channel is bound, and forbids echoing a value that was not
+            // validated. Running this inline is what lets a refusal surface as
+            // the Service result rather than being lost in a discarded task.
+            transport.ValidateAndReserveChannel(
                 channelId,
                 streamId,
                 direction,
-                isOpcUaServer: true,
-                ct).AsTask();
+                isOpcUaServer: true);
+
+            // Only the wait for the client's stream to materialize is
+            // deferred: a peer-initiated QUIC stream is observable only once
+            // the peer writes to it, and a Client normally writes only after
+            // it has the OpenDataChannel response, so awaiting it here would
+            // deadlock the exchange.
+            transport.BeginInboundBind(channelId, streamId);
             return default;
         }
 

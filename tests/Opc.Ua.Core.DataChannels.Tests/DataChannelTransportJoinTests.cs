@@ -193,9 +193,152 @@ namespace Opc.Ua.Core.DataChannels.Tests
             }
         }
 
+        /// <summary>
+        /// §7.4 obliges a Server to validate <c>transportChannelId</c> before
+        /// it binds a channel, and forbids it echoing a value it has not
+        /// validated. The check runs inside the transport, so it only protects
+        /// anything if its result reaches the Service call — which is what
+        /// this exercises, rather than calling the transport directly.
+        /// </summary>
         [Test]
-        public void ClientInitiatedDirectionWithoutStreamIdIsRefused()
+        public async Task ClientNamingAStreamItCouldNotHaveOpenedIsRefusedAsync()
         {
+            await using QuicLoopback loopback = await QuicLoopback
+                .StartAsync(m_certificate!, m_bufferManager!, m_telemetry!)
+                .ConfigureAwait(false);
+
+            var secureChannelContext = SecureChannel("join-21");
+            ((IUaSCSecureChannelBoundTransport)loopback.Server)
+                .OnSecureChannelAttached(secureChannelContext.SecureChannelId);
+
+            var serverTransport = new QuicServerDataChannelTransport();
+            Assert.That(
+                serverTransport.TryGetManager(
+                    secureChannelContext,
+                    ServerCapabilities(),
+                    m_telemetry!,
+                    out DataChannelManager serverManager,
+                    out uint maxFrameSize,
+                    out _),
+                Is.True);
+
+            await using (serverManager.ConfigureAwait(false))
+            {
+                var sources = new DataChannelSourceRegistry();
+                sources.Register(new TestSource(
+                    SourceNodeId,
+                    SourceCapabilities(DataChannelDirection.SinkToSource)));
+
+                var handler = new DataChannelServiceHandler(
+                    serverManager,
+                    sources,
+                    ServerCapabilities(),
+                    new PermissiveAuthorizer(),
+                    streamAllocator: new ServerTransportAllocator(serverTransport, secureChannelContext));
+
+                // Stream id 3 is server-initiated unidirectional. Only the
+                // Server can open it, so a Client naming it is claiming a
+                // stream it does not own.
+                ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await handler
+                        .OpenDataChannelAsync(
+                            RequestContext(maxFrameSize, 3),
+                            SourceNodeId,
+                            0,
+                            Parameters(DataChannelDirection.SinkToSource),
+                            TimeoutToken())
+                        .ConfigureAwait(false));
+
+                Assert.That(
+                    exception!.StatusCode,
+                    Is.EqualTo(StatusCodes.BadDataChannelLimitsExceeded));
+            }
+        }
+
+        /// <summary>
+        /// §7.4: a stream "shall not already be bound to another data channel
+        /// on that connection". The second open has to be refused rather than
+        /// accepted with the stream echoed back.
+        /// </summary>
+        [Test]
+        public async Task ClientReusingAnAlreadyBoundStreamIsRefusedAsync()
+        {
+            await using QuicLoopback loopback = await QuicLoopback
+                .StartAsync(m_certificate!, m_bufferManager!, m_telemetry!)
+                .ConfigureAwait(false);
+
+            var secureChannelContext = SecureChannel("join-22");
+            ((IUaSCSecureChannelBoundTransport)loopback.Server)
+                .OnSecureChannelAttached(secureChannelContext.SecureChannelId);
+
+            var serverTransport = new QuicServerDataChannelTransport();
+            Assert.That(
+                serverTransport.TryGetManager(
+                    secureChannelContext,
+                    ServerCapabilities(),
+                    m_telemetry!,
+                    out DataChannelManager serverManager,
+                    out uint maxFrameSize,
+                    out _),
+                Is.True);
+
+            await using (serverManager.ConfigureAwait(false))
+            await using (var clientData = new QuicDataChannelTransport(
+                loopback.Client,
+                m_bufferManager!,
+                m_telemetry!))
+            {
+                ulong streamId = await clientData
+                    .OpenChannelStreamAsync(
+                        99,
+                        DataChannelDirection.SinkToSource,
+                        isOpcUaServer: false,
+                        TimeoutToken())
+                    .ConfigureAwait(false);
+
+                var sources = new DataChannelSourceRegistry();
+                sources.Register(new TestSource(
+                    SourceNodeId,
+                    SourceCapabilities(DataChannelDirection.SinkToSource)));
+
+                var handler = new DataChannelServiceHandler(
+                    serverManager,
+                    sources,
+                    ServerCapabilities(),
+                    new PermissiveAuthorizer(),
+                    streamAllocator: new ServerTransportAllocator(serverTransport, secureChannelContext));
+
+                OpenDataChannelResponse first = await handler
+                    .OpenDataChannelAsync(
+                        RequestContext(maxFrameSize, streamId),
+                        SourceNodeId,
+                        0,
+                        Parameters(DataChannelDirection.SinkToSource),
+                        TimeoutToken())
+                    .ConfigureAwait(false);
+
+                ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await handler
+                        .OpenDataChannelAsync(
+                            RequestContext(maxFrameSize, streamId),
+                            SourceNodeId,
+                            0,
+                            Parameters(DataChannelDirection.SinkToSource),
+                            TimeoutToken())
+                        .ConfigureAwait(false));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(first.RevisedTransportChannelId, Is.EqualTo(streamId));
+                    Assert.That(
+                        exception!.StatusCode,
+                        Is.EqualTo(StatusCodes.BadDataChannelLimitsExceeded));
+                });
+            }
+        }
+
+        [Test]
+        public void ClientInitiatedDirectionWithoutStreamIdIsRefused()        {
             var manager = new DataChannelManager(
                 new LoopbackTransport(m_bufferManager!, TimeProvider.System),
                 true,

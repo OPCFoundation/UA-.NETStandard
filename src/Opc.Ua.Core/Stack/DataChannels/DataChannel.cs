@@ -109,13 +109,13 @@ namespace Opc.Ua.Bindings
                 settings.MaxGapRuns);
             m_sendWindow = new DataChannelSendWindow(settings.InitialCredit);
             m_receiveCredit = new DataChannelReceiveCredit(settings.InitialCredit);
-            m_delivery = Channel.CreateBounded<DataChannelMessage>(
-                new BoundedChannelOptions(DeliveryQueueCapacity(settings))
+            m_delivery = Channel.CreateUnbounded<DataChannelMessage>(
+                new UnboundedChannelOptions
                 {
                     SingleReader = false,
-                    SingleWriter = true,
-                    FullMode = BoundedChannelFullMode.Wait
+                    SingleWriter = true
                 });
+            m_deliveryByteLimit = DeliveryQueueByteLimit(settings);
             m_previousMaxFrameSize = settings.MaxFrameSize;
 
             // A direction that carries no payload is considered ended at
@@ -826,6 +826,16 @@ namespace Opc.Ua.Bindings
                 m_transport.BufferManager.ReturnBuffer(buffer, nameof(DataChannel));
             }
 
+            lock (m_lock)
+            {
+                m_deliveryBytes -= length + DeliveryQueueFrameOverhead;
+
+                if (m_deliveryBytes < 0)
+                {
+                    m_deliveryBytes = 0;
+                }
+            }
+
             if (m_transport.HasTransportFlowControl)
             {
                 return;
@@ -957,11 +967,36 @@ namespace Opc.Ua.Bindings
                     outcome == DataChannelReceiveOutcome.DeliverWithGap ? missingFrom : 0,
                     outcome == DataChannelReceiveOutcome.DeliverWithGap ? missingTo : 0);
 
-                m_delivery.Writer
-                    .WriteAsync(message)
-                    .AsTask()
-                    .GetAwaiter()
-                    .GetResult();
+                long queued;
+
+                // Accounted as soon as the message exists, because every
+                // message is either handed to the queue and released by the
+                // consumer or disposed below - and both paths run through
+                // ReleaseMessage, which is the one place the budget is
+                // given back.
+                lock (m_lock)
+                {
+                    m_deliveryBytes += length + DeliveryQueueFrameOverhead;
+                    queued = m_deliveryBytes;
+                }
+
+                if (queued > m_deliveryByteLimit)
+                {
+                    // Waiting for the application to consume would stall the
+                    // reader that also carries MSG, OPN and CLO on this
+                    // SecureChannel, turning per-channel backpressure into a
+                    // connection-wide stall (§5.8). The channel is reset
+                    // instead so the fault stays where it belongs.
+                    status = StatusCodes.BadDataChannelCreditExceeded;
+                    return DataChannelFrameAction.ResetChannel;
+                }
+
+                if (!m_delivery.Writer.TryWrite(message))
+                {
+                    status = StatusCodes.BadDataChannelClosed;
+                    return DataChannelFrameAction.ResetChannel;
+                }
+
                 message = null;
             }
             catch (ChannelClosedException)
@@ -1132,18 +1167,34 @@ namespace Opc.Ua.Bindings
             m_delivery.Writer.TryComplete();
         }
 
-        private static int DeliveryQueueCapacity(DataChannelSettings settings)
+        private static long DeliveryQueueByteLimit(DataChannelSettings settings)
         {
-            ulong maxFrameSize = Math.Max(1UL, settings.MaxFrameSize);
-            ulong initialCredit = Math.Max(maxFrameSize, settings.InitialCredit);
-            ulong capacity = (initialCredit + maxFrameSize - 1) / maxFrameSize;
-            return capacity > int.MaxValue ? int.MaxValue : (int)capacity;
+            // Credit bounds the payload a receiver holds, but it does not
+            // bound the queue: a frame carrying no payload consumes no credit
+            // while still occupying a header and a queue slot. §7.4 draws the
+            // same distinction for the unknown-ChannelId buffer, which it
+            // bounds by encoded frame bytes rather than payload bytes and for
+            // exactly that reason.
+            //
+            // The budget is therefore the granted window plus the same
+            // headroom §7.4 allows for frames a receiver cannot yet place, so
+            // payload arriving within credit is never refused and a flood of
+            // empty frames is still bounded.
+            return (long)settings.InitialCredit +
+                ((long)Math.Max(1U, settings.MaxFrameSize) *
+                    DataChannelConstants.UnknownChannelBufferFrames);
         }
 
         private void RaiseStateChanged(DataChannelState state, StatusCode status)
         {
             StateChanged?.Invoke(this, new DataChannelStateChangedEventArgs(ChannelId, state, status));
         }
+
+        /// <summary>
+        /// What one queued frame costs against the delivery budget on top of
+        /// its payload, so an empty frame is never free.
+        /// </summary>
+        private const int DeliveryQueueFrameOverhead = DataChannelConstants.StreamHeaderSize;
 
         private readonly Lock m_lock = new();
         private readonly IDataChannelTransport m_transport;
@@ -1152,8 +1203,10 @@ namespace Opc.Ua.Bindings
         private readonly DataChannelSendWindow m_sendWindow;
         private readonly DataChannelReceiveCredit m_receiveCredit;
         private readonly Channel<DataChannelMessage> m_delivery;
+        private readonly long m_deliveryByteLimit;
         private readonly List<DataChannelGapRun> m_gapRuns = [];
         private readonly bool m_isSource;
+        private long m_deliveryBytes;
         private DataChannelState m_state;
         private StatusCode m_status = StatusCodes.Good;
         private bool m_outboundEnded;

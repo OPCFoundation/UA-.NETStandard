@@ -318,7 +318,12 @@ namespace Opc.Ua.Bindings
         /// The largest secured body a data channel frame may occupy on
         /// this SecureChannel.
         /// </summary>
-        internal int MaxDataChannelBodySize
+        /// <remarks>
+        /// Public because a Server has to advertise this ceiling when it
+        /// negotiates a channel, and the negotiation happens in the Server
+        /// assembly rather than here.
+        /// </remarks>
+        public int MaxDataChannelBodySize
             => DataChannelFrameCodec.MaxPayload(
                 DataChannelFramingMode.Inline,
                 SendBufferSize,

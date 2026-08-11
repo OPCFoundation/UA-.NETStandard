@@ -690,6 +690,14 @@ namespace Opc.Ua.Bindings
 
             foreach (DataChannel channel in m_channels.Values)
             {
+                // A channel whose OpenDataChannel response has not reached the
+                // transport may not carry a frame yet (§7.4), so it is not
+                // scheduled at all until MarkOpen admits it.
+                if (channel.State == DataChannelState.Opening)
+                {
+                    continue;
+                }
+
                 channel.ExpireAndReportGaps(nowTicks);
                 channel.PumpClosing();
                 channel.Deficit += channel.Quantum;

@@ -282,4 +282,4 @@ Bad_DataChannelCreditExceeded,1109
 Bad_DataChannelOfferInvalid,1110
 Bad_DataChannelFrameTypeUnsupported,1111
 Bad_DataChannelFrameInvalid,1112
-Uncertain_DataDiscarded,1111
+Uncertain_DataDiscarded,1113

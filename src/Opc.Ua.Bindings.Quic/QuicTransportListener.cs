@@ -950,12 +950,28 @@ namespace Opc.Ua.Bindings
                     .ConfigureAwait(false);
 
                 ((TcpServerChannel)channel).SendResponse(requestId, response);
+
+                NotifyResponseDispatched(context);
             }
 #pragma warning disable CA1031 // A failed request must not fault the listener.
             catch (Exception e)
 #pragma warning restore CA1031
             {
                 m_logger.QuicRequestFailed(e, requestId);
+            }
+        }
+
+        private void NotifyResponseDispatched(SecureChannelContext context)
+        {
+            try
+            {
+                context.ResponseDispatched?.Invoke();
+            }
+#pragma warning disable CA1031 // A faulty callback must not fault the listener.
+            catch (Exception e)
+#pragma warning restore CA1031
+            {
+                m_logger.QuicResponseDispatchedFailed(e);
             }
         }
 
@@ -1293,5 +1309,11 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             string subject,
             string reason);
+
+        [LoggerMessage(EventId = 8, Level = LogLevel.Warning,
+            Message = "A response dispatch callback threw.")]
+        public static partial void QuicResponseDispatchedFailed(
+            this ILogger logger,
+            Exception exception);
     }
 }

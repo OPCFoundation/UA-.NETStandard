@@ -64,6 +64,126 @@ namespace Opc.Ua.Core.DataChannels.Tests
             });
         }
 
+        /// <summary>
+        /// Part 6 errata §5.8 makes backpressure per channel: "a consumer
+        /// that cannot keep up with a video stream stalls that stream and
+        /// nothing else". Under inline framing one reader carries both the
+        /// frames and the Service traffic, so a receiver that waits for the
+        /// application before returning would stall MSG, OPN and CLO on the
+        /// whole SecureChannel. Frames far more numerous than the queue used
+        /// to hold must therefore be admitted without blocking.
+        /// </summary>
+        [Test]
+        public async Task SmallFramesWithinCreditAreDeliveredWithoutBlockingTheReceivePath()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var bufferManager = new BufferManager("data-channel-delivery-bound", 65536, telemetry);
+            await using var manager = new DataChannelManager(
+                new FlowControlledTransport(bufferManager),
+                isServer: true,
+                telemetry);
+            DataChannel channel = manager.Register(
+                1,
+                new NodeId(1u),
+                new DataChannelSettings
+                {
+                    Direction = DataChannelDirection.SourceToSink,
+                    DeliveryMode = DataChannelDeliveryMode.ReliableOrdered,
+                    MaxFrameSize = 65536,
+                    InitialCredit = 1024 * 1024
+                },
+                isSource: false);
+            manager.MarkOpen(channel.ChannelId);
+
+            // The queue used to be sized in frames from a byte credit, which
+            // left room for sixteen. Nothing consumes while these arrive.
+            const int frameCount = 256;
+
+            var delivery = Task.Run(() =>
+            {
+                for (uint ii = 0; ii < frameCount; ii++)
+                {
+                    manager.HandleFrame(DataChannelFrame.Data(
+                        channel.ChannelId,
+                        ii + 1,
+                        DataChannelFrameFlags.None,
+                        new byte[1]));
+                }
+            });
+
+            Assert.That(
+                await Task.WhenAny(delivery, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false),
+                Is.SameAs(delivery),
+                "The receive path blocked waiting for the application to consume.");
+
+            await delivery.ConfigureAwait(false);
+
+            DataChannelDiagnosticsDataType diagnostics = channel.GetDiagnostics();
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(diagnostics.FramesReceived, Is.EqualTo((ulong)frameCount));
+            });
+        }
+
+        /// <summary>
+        /// The queue budget is bounded by encoded frame bytes rather than by
+        /// payload, because a frame carrying no payload consumes no credit
+        /// while still occupying a header and a slot (§7.4 draws the same
+        /// distinction). A peer that floods empty frames is reset rather than
+        /// allowed to grow the queue without limit.
+        /// </summary>
+        [Test]
+        public async Task EmptyFramesBeyondTheDeliveryBudgetResetTheChannelRatherThanBlocking()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var bufferManager = new BufferManager("data-channel-delivery-flood", 65536, telemetry);
+            await using var manager = new DataChannelManager(
+                new FlowControlledTransport(bufferManager),
+                isServer: true,
+                telemetry);
+            DataChannel channel = manager.Register(
+                1,
+                new NodeId(1u),
+                new DataChannelSettings
+                {
+                    Direction = DataChannelDirection.SourceToSink,
+                    DeliveryMode = DataChannelDeliveryMode.ReliableOrdered,
+                    MaxFrameSize = 16,
+                    InitialCredit = 16
+                },
+                isSource: false);
+            manager.MarkOpen(channel.ChannelId);
+
+            var flood = Task.Run(() =>
+            {
+                for (uint ii = 0; ii < 1000 && channel.State == DataChannelState.Open; ii++)
+                {
+                    manager.HandleFrame(DataChannelFrame.Data(
+                        channel.ChannelId,
+                        ii + 1,
+                        DataChannelFrameFlags.None,
+                        Array.Empty<byte>()));
+                }
+            });
+
+            Assert.That(
+                await Task.WhenAny(flood, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false),
+                Is.SameAs(flood),
+                "The receive path blocked instead of bounding the queue.");
+
+            await flood.ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(
+                    channel.Status,
+                    Is.EqualTo((StatusCode)StatusCodes.BadDataChannelCreditExceeded));
+            });
+        }
+
         private sealed class FlowControlledTransport : IDataChannelTransport
         {
             public FlowControlledTransport(BufferManager bufferManager)

@@ -119,6 +119,7 @@ if (message != null)
 | Deadline expiry and per-run `GAP` emission | Complete |
 | SequenceNumber budget, renewal threshold, stall-rather-than-reuse | Complete |
 | `OpenDataChannel`, `ModifyDataChannel`, `CloseDataChannel` | Complete, and served by `StandardServer`: a real Client opens a channel through a real Session |
+| Inline framing (`opc.tcp`, `opc.wss`) on the Server | Complete. `InlineServerDataChannelTransport` resolves the UASC channel behind the request and enables the engine on it, so a Server with no transport configured still carries channels over the connection the Client already holds. A SecureChannel that can carry no frames is refused with `Bad_DataChannelTransportUnsupported` rather than accepted and then drained silently, which §5.16 requires |
 | Parameter negotiation, offers, Session scoping, authorization recheck, audit | Complete, driven from the Server rather than only callable |
 | `opc.quic` — url scheme, ALPN negotiation and enforcement, control stream, client channel and factory | Complete (`Opc.Ua.Bindings.Quic`, **net9.0+**) |
 | `opc.quic` — listener, service host, endpoint discovery, reverse connect, certificate rotation | Complete |
@@ -250,10 +251,11 @@ second. The sample measured 0.5 Mbit/s before the fix and 1.3 Gbit/s after it, a
 
 ## Test coverage
 
-The suite is 255 tests over `tests/Opc.Ua.Core.DataChannels.Tests`, covering
-**80.1%** of the lines in `Stack/DataChannels/**`, `Stack/Tcp/UaSCBinaryChannel.DataChannels.cs`
-and `Opc.Ua.Bindings.Quic`. The figure fell from 87.6% while the test count rose,
-because wiring the previously-uncalled obligations added a good deal of
+The suite is 283 tests over `tests/Opc.Ua.Core.DataChannels.Tests`, covering
+`Stack/DataChannels/**`, `Stack/Tcp/UaSCBinaryChannel.DataChannels.cs`,
+`Server/InlineServerDataChannelTransport.cs` and `Opc.Ua.Bindings.Quic`. Coverage was
+**80.1%** at 255 tests, having fallen from 87.6% while the test count rose, because
+wiring the previously-uncalled obligations added a good deal of
 production code — the server-side Service dispatch, the stream mapping, the
 certificate lifecycle — faster than tests were added for it. It is the more
 honest number: the earlier one measured a smaller body of code, much of which
@@ -301,12 +303,39 @@ more defects that the suite could not reach:
 refused every new channel after sixteen open-close cycles with none open — reachable
 only because the connection-level limit had no test at all, unlike the source limit.
 
+A later specification-compliance review found the same pattern four more times, and every
+regression test added for these goes through the production entry point rather than the
+component, because that is what the component-level tests kept missing:
+
+| Defect | Why no test caught it |
+| --- | --- |
+| `QuicServerDataChannelTransport.BindClientStreamAsync` discarded the task carrying the §7.4 `transportChannelId` checks, so a Client could name a stream it did not own and the Server answered `Good` and echoed it | The validation had tests, but they called `BindChannelAsync` directly; nothing exercised the Service path that consumes it |
+| The per-channel delivery queue was bounded in frames but derived from a byte credit, and blocked the shared receive loop when full — one unread channel stalled `MSG`, `OPN` and `CLO` for the whole SecureChannel | No test enqueued more small frames than the queue held while nothing consumed |
+| `OnResponseSent` ran before the response object was even encoded, so the scheduler could emit a frame for a ChannelId the peer had not been told about | The state model was right and unit-tested; only the call site was wrong |
+| `StandardServer` fell back to a transport whose `SendFrameAsync` returned without doing anything, so `opc.tcp` was advertised, accepted, and then silently dropped every frame | No test opened a data channel through `StandardServer` at all |
+
 ## Deviation from the errata
 
 `OpenDataChannel` in the errata carries `transportChannelId` in both the request and the
 response. No OPC UA service reuses a parameter name across the two, and the model
 compiler enforces it, so the response parameter here is `revisedTransportChannelId`. The
 errata needs the same correction.
+
+Two further corrections were raised against the errata while implementing it, and both
+are drafted in the [drafts repository](https://github.com/marcschier/opcua-drafts):
+
+- **Part 4 §9 assigns no numeric StatusCodes.** The clause lists fourteen symbolic ids
+  and says the numeric values are provisional, but never states them — while Part 3 pins
+  provisional NodeIds in the 65000+ block. These StatusCodes travel on the wire in the
+  `RESET` frame, so two implementations that each invent their own numbers cannot
+  interoperate. This implementation had to pick `1100`–`1113`, and the errata now
+  publishes the same block.
+- **Part 6 §5.7 states both scheduling obligations for senders only.** §5.8 says
+  backpressure is per channel and "stalls that stream and nothing else", but no **shall**
+  binds the receiver. Under inline framing one reader carries both the frames and the
+  Service traffic, so a receiver applying backpressure by not reading converts a
+  per-channel stall into a connection-wide one while breaking no stated rule. The errata
+  now states the receiver obligation and adds conformance unit DCF-039.
 
 ## Building
 

@@ -190,18 +190,117 @@ namespace Opc.Ua.Bindings
             bool isOpcUaServer,
             CancellationToken ct)
         {
+            ValidateAndReserveChannel(channelId, streamId, direction, isOpcUaServer);
+
+            await CompleteInboundBindAsync(channelId, streamId, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Applies the §7.4 checks a Server has to make before it binds a
+        /// channel, and reserves the stream for it.
+        /// </summary>
+        /// <remarks>
+        /// This is separated from waiting for the stream to materialize so
+        /// that a refusal reaches the caller of OpenDataChannel. §7.4
+        /// requires a Server to reject an unacceptable
+        /// <c>transportChannelId</c> and forbids it echoing a value it has
+        /// not validated, so none of these checks may be deferred to a
+        /// background continuation.
+        /// </remarks>
+        /// <param name="channelId">The data channel id.</param>
+        /// <param name="streamId">The stream id from transportChannelId.</param>
+        /// <param name="direction">The negotiated channel direction.</param>
+        /// <param name="isOpcUaServer">True when this endpoint is the OPC
+        /// UA Server role, independent of the QUIC/TLS role.</param>
+        public void ValidateAndReserveChannel(
+            uint channelId,
+            ulong streamId,
+            DataChannelDirection direction,
+            bool isOpcUaServer)
+        {
             m_transport.ValidateInboundDataChannelStream(
                 streamId,
                 IsBidirectionalStream(direction));
-
-            await m_transport.BindInboundStreamAsync(streamId, ct).ConfigureAwait(false);
 
             RecordChannel(
                 channelId,
                 streamId,
                 CanSend(direction, isOpcUaServer),
                 CanReceive(direction, isOpcUaServer));
+        }
+
+        /// <summary>
+        /// Waits for a reserved inbound stream to materialize and starts
+        /// reading it.
+        /// </summary>
+        /// <remarks>
+        /// A peer-initiated QUIC stream becomes observable only once the
+        /// peer writes to it, so this may outlive the OpenDataChannel call
+        /// that reserved it. If it fails the channel binding is dropped,
+        /// which makes every later send on that ChannelId fault rather than
+        /// travel on a stream that was never established. The stream itself
+        /// stays reserved, because §7.4 forbids rebinding a stream that has
+        /// been bound while the SecureChannel is open.
+        /// </remarks>
+        /// <param name="channelId">The data channel id.</param>
+        /// <param name="streamId">The reserved stream id.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public async ValueTask CompleteInboundBindAsync(
+            uint channelId,
+            ulong streamId,
+            CancellationToken ct)
+        {
+            try
+            {
+                await m_transport.BindInboundStreamAsync(streamId, ct).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                m_channelsByChannel.TryRemove(channelId, out _);
+                throw;
+            }
+
             StartReceiveLoopIfNeeded(channelId, streamId);
+        }
+
+        /// <summary>
+        /// Starts waiting for a reserved inbound stream without holding up
+        /// the caller.
+        /// </summary>
+        /// <remarks>
+        /// A peer-initiated QUIC stream becomes observable only once the peer
+        /// writes to it, and a Client normally waits for the OpenDataChannel
+        /// response before it writes. Awaiting the stream inside the Service
+        /// call would therefore deadlock the two ends against each other, so
+        /// the wait runs against this transport's own lifetime instead of the
+        /// request that reserved the stream.
+        /// </remarks>
+        /// <param name="channelId">The data channel id.</param>
+        /// <param name="streamId">The reserved stream id.</param>
+        public void BeginInboundBind(uint channelId, ulong streamId)
+        {
+            _ = ObserveInboundBindAsync(channelId, streamId);
+        }
+
+        private async Task ObserveInboundBindAsync(uint channelId, ulong streamId)
+        {
+            try
+            {
+                await CompleteInboundBindAsync(channelId, streamId, m_stop.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The transport is shutting down.
+            }
+            catch (Exception e)
+            {
+                // The binding has already been dropped, so the channel faults
+                // on its first send rather than appearing usable. Reported
+                // rather than discarded: a bind that never completes is
+                // otherwise invisible.
+                m_logger.QuicDataChannelBindFailed(e, channelId, streamId);
+            }
         }
 
         /// <summary>
@@ -538,5 +637,13 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint frameChannelId,
             uint streamChannelId);
+
+        [LoggerMessage(EventId = 13, Level = LogLevel.Warning,
+            Message = "opc.quic data channel {ChannelId} was never bound to stream {StreamId}.")]
+        public static partial void QuicDataChannelBindFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId,
+            ulong streamId);
     }
 }

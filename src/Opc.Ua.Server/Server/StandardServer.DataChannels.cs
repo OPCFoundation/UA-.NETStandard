@@ -94,7 +94,15 @@ namespace Opc.Ua.Server
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
-                handler.OnResponseSent(response.ChannelId);
+
+                // §7.4 and Part 4 errata §5.1: no frame may name this
+                // ChannelId until the response carrying it has been handed to
+                // the transport. The channel therefore stays in Opening until
+                // the transport reports the response on its way, rather than
+                // being opened here where the response object has not even
+                // been encoded yet.
+                uint channelId = response.ChannelId;
+                secureChannelContext.ResponseDispatched += () => handler.OnResponseSent(channelId);
                 return response;
             }
             catch (ServiceResultException e)
@@ -338,20 +346,23 @@ namespace Opc.Ua.Server
                 ServerInternal.Telemetry,
                 out manager!,
                 out maxFrameSize,
-                out isReliable) != true)
+                out isReliable) != true &&
+                !s_inlineDataChannelTransport.TryGetManager(
+                    secureChannelContext,
+                    DataChannelCapabilities,
+                    ServerInternal.Telemetry,
+                    out manager!,
+                    out maxFrameSize,
+                    out isReliable))
             {
-                var transport = new ServiceOnlyDataChannelTransport(
-                    DataChannelCapabilities.MaxFrameSize,
-                    ServerInternal.Telemetry,
-                    TimeProvider);
-                manager = new DataChannelManager(
-                    transport,
-                    isServer: true,
-                    ServerInternal.Telemetry,
-                    DataChannelCapabilities.MaxDataChannels,
-                    DataChannelCapabilities.MaxCreditPerChannel);
-                maxFrameSize = DataChannelCapabilities.MaxFrameSize;
-                isReliable = true;
+                // Accepting the Service and then dropping every frame is what
+                // Part 6 errata §5.16 forbids: a capability difference is
+                // refused at the Service level "and never by dropping frames",
+                // because a sender that believes it was delivered gets no gap
+                // to detect and no GAP frame will ever arrive.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDataChannelTransportUnsupported,
+                    "No data channel transport is attached to the SecureChannel carrying this request.");
             }
 
             var state = new DataChannelSecureChannelState(
@@ -665,40 +676,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private sealed class ServiceOnlyDataChannelTransport : IDataChannelTransport
-        {
-            public ServiceOnlyDataChannelTransport(
-                uint maxFrameSize,
-                ITelemetryContext telemetry,
-                TimeProvider timeProvider)
-            {
-                MaxFrameBodySize = (int)Math.Min(maxFrameSize, int.MaxValue);
-                BufferManager = new BufferManager(
-                    "server-data-channels-service-only",
-                    MaxFrameBodySize,
-                    telemetry);
-                TimeProvider = timeProvider;
-            }
-
-            public DataChannelFramingMode FramingMode => DataChannelFramingMode.Inline;
-
-            public int MaxFrameBodySize { get; }
-
-            public bool HasTransportFlowControl => false;
-
-            public BufferManager BufferManager { get; }
-
-            public TimeProvider TimeProvider { get; }
-
-            public ValueTask SendFrameAsync(DataChannelFrame frame, CancellationToken ct)
-            {
-                return default;
-            }
-
-            public void OnProtocolFault(DataChannelFrameError error)
-            {
-            }
-        }
+        private static readonly InlineServerDataChannelTransport s_inlineDataChannelTransport = new();
 
         private readonly ConcurrentDictionary<string, DataChannelSecureChannelState> m_dataChannelStates = new();
         private ITimer? m_dataChannelAuthorizationTimer;
