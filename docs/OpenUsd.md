@@ -148,7 +148,10 @@ Observability is threaded through `ITelemetryContext` (resolved from DI), which 
 Object and points it at a stage and prim path. The representation is an **AddIn**, so it is mounted with
 `HasAddIn` — not plain `HasComponent`. The distinction is easy to get wrong because `HasAddIn` is a *subtype* of
 `HasComponent`: an AddIn mounted with the wrong reference type still browses, still aggregates, and still works
-end to end, so only a conformance checker notices. Prefer this helper over hand-rolling the mount; the sample
+end to end, so only a conformance checker notices. The `IOpenUsdRepresentedType` model placeholder declares the
+same `HasAddIn` contract. `CreateRepresentation` is the supported authoring path; do not hand-roll a mount with
+`CreateInstanceOfOpenUsdRepresentationType` and a manually assigned reference type. Use its
+`assignNodeId: false` overload only when the enclosing runtime-created subtree assigns NodeIds later. The sample
 servers assert the reference type in their E2E suites.
 
 `UsdAssetDelivery.AttachStageAssets(context, stage, openUsdNs, assets)` serves artist-authored USD layers through the
