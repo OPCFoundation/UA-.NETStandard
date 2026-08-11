@@ -28,12 +28,12 @@ The packet-capture tools are described in detail in [Diagnostics](Diagnostics.md
 
 | Tool | Description | Parameters |
 |---|---|---|
-| `list_interfaces` | Enumerates NICs available to SharpPcap. | None |
-| `start_capture` | Starts a capture session. | `source`; optional interface, filter, endpoint, limits, folder |
+| `list_interfaces` | Enumerates NICs available to SharpPcap; `linkType` may be `null` because enumeration does not open adapters. | None |
+| `start_capture` | Starts a capture session. | `source`: `nic \| inproc-client \| inproc-server \| replay`; optional interface, filter, endpoint, limits, folder |
 | `stop_capture` | Stops an active session and finalizes artifacts. | `sessionId` |
 | `list_captures` | Lists capture sessions. | Optional `state` |
-| `get_capture` | Returns an artifact or formatted analysis. | `sessionId`, `format`, optional packet/partial controls |
-| `capture_now` | Starts, waits, stops, and returns output. | Capture options plus output `format` |
+| `get_capture` | Returns an artifact or formatted analysis. | `sessionId`; `format`: `pcap \| pcapng \| json \| csv \| text \| service-timeline`; optional packet/partial controls |
+| `capture_now` | Starts, waits, stops, and returns output. | Capture options plus the same output `format` values |
 | `list_active_channels` | Lists in-process secure channels with current tokens. | None |
 | `dump_keys` | Emits keylog data. | Optional `sessionId`, `format`, `includeExpired` |
 | `decode_pcap_with_keys` | Decodes an existing pcap and keylog offline. | `pcapPath`, `keylogPath`, `format`, optional `maxFrames` |
@@ -41,6 +41,10 @@ The packet-capture tools are described in detail in [Diagnostics](Diagnostics.md
 | `replay_pcap` | Replays as a mock server or mock client. | `pcapPath`, `keylogPath`, `mode`, endpoints, `speed` |
 | `stop_replay` | Stops an active replay session. | `sessionId` |
 | `list_replays` | Lists active and recently-completed replay sessions. | None |
+
+The canonical hyphenated values above are emitted on output. CLR enum
+names such as `InProcessClient` and `ServiceTimeline` remain accepted
+on input.
 
 ## Tool Profiles
 

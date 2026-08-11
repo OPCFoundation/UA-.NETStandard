@@ -241,6 +241,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
 
             PcapOptions options = provider.GetRequiredService<PcapOptions>();
 
+            Assert.That(Path.IsPathRooted(options.BaseFolder), Is.True);
             Assert.That(
                 options.BaseFolder,
                 Does.StartWith(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)));
@@ -248,6 +249,78 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
             Assert.That(options.BaseFolder, Does.Contain("opcua-pcap"));
             Assert.That(options.MaxActiveSessions,
                 Is.EqualTo(CaptureSessionManager.DefaultMaxActiveSessions));
+        }
+
+        [Test]
+        public void DefaultBaseFolderFallsBackToAbsoluteTemporaryPathWithoutUserProfile()
+        {
+            string temporaryFolder = Path.Combine(TempDirectory, "opcua-pcap-random-token");
+            bool temporaryFolderCreated = false;
+
+            string baseFolder = PcapOptions.CreateDefaultBaseFolder(
+                string.Empty,
+                () =>
+                {
+                    temporaryFolderCreated = true;
+                    Directory.CreateDirectory(temporaryFolder);
+                    return temporaryFolder;
+                });
+
+            Assert.That(Path.IsPathRooted(baseFolder), Is.True);
+            Assert.That(baseFolder, Is.EqualTo(Path.GetFullPath(temporaryFolder)));
+            Assert.That(temporaryFolderCreated, Is.True);
+        }
+
+        [Test]
+        public void DefaultBaseFolderIsStableWithinProcess()
+        {
+            string first = PcapOptions.DefaultBaseFolder;
+            string second = PcapOptions.DefaultBaseFolder;
+
+            Assert.That(second, Is.EqualTo(first));
+        }
+
+        [Test]
+        public void ExplicitBaseFolderDoesNotResolveTemporaryFallback()
+        {
+            bool fallbackResolved = false;
+            var options = new PcapOptions(() =>
+            {
+                fallbackResolved = true;
+                return Path.Combine(TempDirectory, "unused-fallback");
+            });
+            string configuredBaseFolder = Path.Combine(TempDirectory, "configured");
+
+            options.BaseFolder = configuredBaseFolder;
+
+            Assert.That(options.BaseFolder, Is.EqualTo(configuredBaseFolder));
+            Assert.That(fallbackResolved, Is.False);
+        }
+
+        [Test]
+        public void UserProfilePathDoesNotRequireExistingDirectory()
+        {
+            string localApplicationData = Path.Combine(
+                TempDirectory,
+                "not-created",
+                "local-share");
+            bool fallbackResolved = false;
+
+            string baseFolder = PcapOptions.CreateDefaultBaseFolder(
+                localApplicationData,
+                () =>
+                {
+                    fallbackResolved = true;
+                    return Path.Combine(TempDirectory, "fallback");
+                });
+
+            Assert.That(
+                baseFolder,
+                Is.EqualTo(Path.Combine(
+                    localApplicationData,
+                    "OPCFoundation",
+                    "opcua-pcap")));
+            Assert.That(fallbackResolved, Is.False);
         }
 
         [Test]

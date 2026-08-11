@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Pcap.Capture;
@@ -131,5 +132,27 @@ namespace Opc.Ua.Pcap.Formats
                     return false;
             }
         }
+
+        /// <summary>
+        /// Returns the canonical wire name for an output format.
+        /// </summary>
+        public static string ToWireName(this FormatKind kind)
+        {
+            return kind switch
+            {
+                FormatKind.Pcap => "pcap",
+                FormatKind.PcapNg => "pcapng",
+                FormatKind.Json => "json",
+                FormatKind.Csv => "csv",
+                FormatKind.Text => "text",
+                FormatKind.ServiceTimeline => "service-timeline",
+                _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown output format.")
+            };
+        }
+
+        /// <summary>
+        /// The canonical format names used on the wire.
+        /// </summary>
+        public const string SupportedNames = "pcap, pcapng, json, csv, text, or service-timeline";
     }
 }

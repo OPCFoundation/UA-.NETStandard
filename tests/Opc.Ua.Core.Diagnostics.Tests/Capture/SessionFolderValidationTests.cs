@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.Models;
 
 namespace Opc.Ua.Pcap.Tests.Capture
@@ -152,6 +153,57 @@ namespace Opc.Ua.Pcap.Tests.Capture
             Assert.That(nullSessionFolder.SessionFolder, Is.EqualTo(expectedNullFolder));
             Assert.That(emptySessionFolder.SessionFolder, Is.EqualTo(expectedEmptyFolder));
             Assert.That(factory.SessionFolders, Is.EqualTo([expectedNullFolder, expectedEmptyFolder]));
+        }
+
+        /// <summary>
+        /// Verifies a relative base folder is resolved once rather than being
+        /// duplicated when the generated session folder is validated.
+        /// </summary>
+        [Test]
+        public async Task StartAsyncWithRelativeBaseFolderDoesNotDuplicatePath()
+        {
+            var factory = new RecordingSourceFactory();
+            string relativeBase = "relative-pcap-" + Path.GetRandomFileName();
+            string absoluteBase = Path.GetFullPath(relativeBase);
+            Assert.That(Path.IsPathRooted(relativeBase), Is.False);
+
+            try
+            {
+                await using var manager = new CaptureSessionManager(factory, relativeBase);
+                CaptureSession session = await manager.StartAsync(
+                    new StartCaptureRequest(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                string expectedFolder = Path.Combine(absoluteBase, session.Id);
+                Assert.That(session.SessionFolder, Is.EqualTo(expectedFolder));
+                Assert.That(factory.SessionFolders, Is.EqualTo([expectedFolder]));
+            }
+            finally
+            {
+                if (Directory.Exists(absoluteBase))
+                {
+                    Directory.Delete(absoluteBase, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies the convenience constructor uses the same secure default
+        /// folder as dependency-injection registration.
+        /// </summary>
+        [Test]
+        public async Task ConvenienceConstructorUsesSecureDefaultBaseFolder()
+        {
+            var factory = new RecordingSourceFactory();
+            await using var manager = new CaptureSessionManager(factory);
+
+            CaptureSession session = await manager.StartAsync(
+                new StartCaptureRequest(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                session.SessionFolder,
+                Is.EqualTo(Path.Combine(PcapOptions.DefaultBaseFolder, session.Id)));
         }
 
         /// <summary>

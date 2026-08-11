@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Pcap.Audit;
+using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
@@ -88,7 +89,7 @@ namespace Opc.Ua.Pcap.Capture
         /// <summary>
         /// Constructs a manager that uses the supplied source factory and
         /// stores per-session artifacts under
-        /// <c>Path.GetTempPath()/opcua-pcap</c>.
+        /// <see cref="PcapOptions.DefaultBaseFolder"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// Any argument is <c>null</c>.
@@ -98,7 +99,7 @@ namespace Opc.Ua.Pcap.Capture
             ILoggerFactory? loggerFactory = null)
             : this(
                 sourceFactory,
-                Path.Combine(Path.GetTempPath(), "opcua-pcap"),
+                PcapOptions.DefaultBaseFolder,
                 loggerFactory,
                 maxActiveSessions: null,
                 auditSink: null,
@@ -191,15 +192,21 @@ namespace Opc.Ua.Pcap.Capture
             }
 
             m_sourceFactory = sourceFactory;
-            m_baseFolder = baseFolder;
+            m_baseFolder = Path.GetFullPath(baseFolder);
             m_loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
             m_logger = m_loggerFactory.CreateLogger<CaptureSessionManager>();
             m_auditSink = auditSink;
             m_escrowProvider = escrowProvider;
             MaxActiveSessions = limit;
-            Directory.CreateDirectory(m_baseFolder);
-            if (!OperatingSystem.IsWindows())
+            if (OperatingSystem.IsWindows())
             {
+                Directory.CreateDirectory(m_baseFolder);
+            }
+            else
+            {
+                Directory.CreateDirectory(
+                    m_baseFolder,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
                 File.SetUnixFileMode(
                     m_baseFolder,
                     UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
