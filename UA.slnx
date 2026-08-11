@@ -109,6 +109,9 @@
     <Project Path="src/Opc.Ua.XRegistry.Client/Opc.Ua.XRegistry.Client.csproj" />
     <Project Path="src/Opc.Ua.XRegistry.Server/Opc.Ua.XRegistry.Server.csproj" />
     <Project Path="src/Opc.Ua.Aas/Opc.Ua.Aas.csproj" />
+    <Project Path="src/Opc.Ua.Aas.Server/Opc.Ua.Aas.Server.csproj" />
+    <Project Path="src/Opc.Ua.Aas.Client/Opc.Ua.Aas.Client.csproj" />
+    <Project Path="src/Opc.Ua.Aas.WoT/Opc.Ua.Aas.WoT.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Server/Opc.Ua.Redundancy.Server.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Client/Opc.Ua.Redundancy.Client.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Kubernetes/Opc.Ua.Redundancy.Kubernetes.csproj" />
