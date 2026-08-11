@@ -77,4 +77,7 @@
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Dpp\mappings.sssom.tsv.gz" />
+  </ItemGroup>
 </Project>
