@@ -585,6 +585,13 @@ namespace Opc.Ua.Server
             string globalChannelId,
             Exception exception)
         {
+            // Part 6 errata §5.13: a closed SecureChannel faults every data
+            // channel that was riding on it. This is the only notification a
+            // Server gets that one has gone; the Session lifecycle does not
+            // cover it, because a SecureChannel may close while its Sessions
+            // are still alive and awaiting transfer.
+            AbortDataChannelsOfSecureChannel(globalChannelId, StatusCodes.BadSecureChannelClosed);
+
             ServerInternal?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception, m_logger);
         }
 

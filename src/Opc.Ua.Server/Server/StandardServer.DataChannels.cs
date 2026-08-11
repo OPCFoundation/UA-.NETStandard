@@ -11,15 +11,18 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
 
-#pragma warning disable CS1591
-            #pragma warning disable CA2000
-
 namespace Opc.Ua.Server
 {
     public partial class StandardServer
     {
+        /// <summary>
+        /// The data channel sources this Server hosts, resolved by NodeId.
+        /// </summary>
         public DataChannelSourceRegistry DataChannelSources { get; } = new();
 
+        /// <summary>
+        /// What this Server advertises it can carry.
+        /// </summary>
         public DataChannelServerCapabilities DataChannelCapabilities { get; set; } = new()
         {
             MaxDataChannels = 16,
@@ -29,12 +32,29 @@ namespace Opc.Ua.Server
             SupportedTransportProfileUris = [Profiles.UaTcpTransport]
         };
 
+        /// <summary>
+        /// Decides whether a Session may open a channel on a source, or
+        /// <c>null</c> to authorize as an equivalent Read and Write of the
+        /// source Node.
+        /// </summary>
         public IDataChannelAuthorizer? DataChannelAuthorizer { get; set; }
 
+        /// <summary>
+        /// Records every open attempt, or <c>null</c> to raise the standard
+        /// <c>AuditOpenDataChannelEventType</c>.
+        /// </summary>
         public IDataChannelAuditor? DataChannelAuditor { get; set; }
 
+        /// <summary>
+        /// The transport that carries the frames, or <c>null</c> to carry them
+        /// inline on the SecureChannel the request arrived on.
+        /// </summary>
         public IServerDataChannelTransport? DataChannelTransport { get; set; }
 
+        /// <summary>
+        /// How often open channels are re-authorized, which is what makes a
+        /// revoked permission take effect on a channel already running.
+        /// </summary>
         public TimeSpan DataChannelAuthorizationRecheckInterval { get; set; } =
             TimeSpan.FromMilliseconds(DataChannelConstants.DefaultAuthorizationRecheckInterval);
 
@@ -85,9 +105,6 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-
-                    #pragma warning restore CA2000
-        #pragma warning restore CS1591
 
         /// <inheritdoc/>
         public override async ValueTask<ModifyDataChannelResponse> ModifyDataChannelAsync(
@@ -173,6 +190,39 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Faults every data channel riding on a SecureChannel.
+        /// </summary>
+        /// <remarks>
+        /// Part 6 errata §5.13 lists "SecureChannel closed, transport lost" as
+        /// a transition to <c>Faulted</c> from any state. A channel is not a
+        /// Session-scoped resource, so nothing in the Session lifecycle
+        /// notices this on its own.
+        /// </remarks>
+        /// <param name="secureChannelId">The SecureChannel that went away.</param>
+        /// <param name="reason">Why it went away.</param>
+        public void AbortDataChannelsOfSecureChannel(string secureChannelId, StatusCode reason)
+        {
+            if (string.IsNullOrEmpty(secureChannelId) ||
+                !m_dataChannelStates.TryRemove(
+                    secureChannelId,
+                    out DataChannelSecureChannelState? state) ||
+                state == null)
+            {
+                return;
+            }
+
+            state.Manager.ChannelStateChanged -= OnDataChannelStateChanged;
+            state.Manager.AbortAll(reason);
+
+            // A transport that holds per-SecureChannel state of its own gets
+            // told too, so its streams are released rather than left bound to
+            // channels that no longer exist.
+            DataChannelTransport?.AbortSecureChannel(state.SecureChannel, reason);
+
+            _ = state.Manager.DisposeAsync().AsTask();
+        }
+
+        /// <summary>
         /// Releases the per-SecureChannel data channel state once no Session
         /// remains on that SecureChannel.
         /// </summary>
@@ -205,18 +255,11 @@ namespace Opc.Ua.Server
 
             foreach (string secureChannelId in m_dataChannelStates.Keys)
             {
-                if (live.Contains(secureChannelId))
+                if (!live.Contains(secureChannelId))
                 {
-                    continue;
-                }
-
-                if (m_dataChannelStates.TryRemove(
-                    secureChannelId,
-                    out DataChannelSecureChannelState? state) && state != null)
-                {
-                    state.Manager.ChannelStateChanged -= OnDataChannelStateChanged;
-                    state.Manager.AbortAll(StatusCodes.BadSecureChannelClosed);
-                    _ = state.Manager.DisposeAsync().AsTask();
+                    AbortDataChannelsOfSecureChannel(
+                        secureChannelId,
+                        StatusCodes.BadSecureChannelClosed);
                 }
             }
         }
@@ -419,12 +462,26 @@ namespace Opc.Ua.Server
             object? sender,
             DataChannelStateChangedEventArgs e)
         {
+            ISystemContext systemContext = ServerInternal.DefaultSystemContext;
             var values = DataChannelModel.BuildStateChangeEvent(e);
             var ev = new DataChannelStateChangeEventState(null);
-            ev.SetChildValue(ServerInternal.DefaultSystemContext, BrowseNames.ChannelId, values.ChannelId, false);
-            ev.SetChildValue(ServerInternal.DefaultSystemContext, BrowseNames.State, (int)values.State, false);
-            ev.SetChildValue(ServerInternal.DefaultSystemContext, BrowseNames.Status, values.Status, false);
-            ServerInternal.ReportEvent(ServerInternal.DefaultSystemContext, ev);
+
+            // Initialize is what populates EventId, EventType, Time and
+            // Severity. Without it TypeDefinitionId is null, so an EventFilter
+            // selecting OfType(DataChannelStateChangeEventType) never matches
+            // and the Event is emitted but invisible.
+            ev.Initialize(
+                systemContext,
+                null,
+                EventSeverity.Low,
+                new LocalizedText("DataChannelStateChangeEvent"));
+
+            ev.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
+            ev.SetChildValue(systemContext, BrowseNames.SourceName, "DataChannel/StateChange", false);
+            ev.SetChildValue(systemContext, BrowseNames.ChannelId, values.ChannelId, false);
+            ev.SetChildValue(systemContext, BrowseNames.State, (int)values.State, false);
+            ev.SetChildValue(systemContext, BrowseNames.Status, values.Status, false);
+            ServerInternal.ReportEvent(systemContext, ev);
         }
 
         private sealed record DataChannelSecureChannelState(
@@ -502,6 +559,7 @@ namespace Opc.Ua.Server
             public async ValueTask<bool> IsAuthorizedAsync(
                 DataChannelRequestContext context,
                 NodeId sourceNodeId,
+                DataChannelDirection direction,
                 CancellationToken ct)
             {
                 if (context == null || sourceNodeId.IsNull)
@@ -562,10 +620,25 @@ namespace Opc.Ua.Server
                         return false;
                     }
 
-                    ServiceResult result = MasterNodeManager.ValidateRolePermissions(
-                        operationContext,
-                        nodeMetadata,
-                        PermissionType.Read);
+                    // Each required permission is validated on its own:
+                    // ValidateRolePermissions treats a combined mask as "any
+                    // of these", so asking for Read|Write in one call would
+                    // pass for a user who only has Read - which is exactly the
+                    // case §7.2 exists to refuse.
+                    ServiceResult result = ServiceResult.Good;
+
+                    foreach (PermissionType required in RequiredPermissions(direction))
+                    {
+                        result = MasterNodeManager.ValidateRolePermissions(
+                            operationContext,
+                            nodeMetadata,
+                            required);
+
+                        if (ServiceResult.IsBad(result))
+                        {
+                            break;
+                        }
+                    }
 
                     if (ServiceResult.IsGood(result))
                     {
@@ -583,6 +656,32 @@ namespace Opc.Ua.Server
                     // the NodeManager open the channel.
                     return false;
                 }
+            }
+
+            /// <summary>
+            /// The permissions a channel of this direction requires on the
+            /// source Node, each of which has to hold on its own.
+            /// </summary>
+            /// <remarks>
+            /// Part 4 errata §7.2: a channel that carries payload towards the
+            /// source is a write, so read permission alone does not grant it.
+            /// A <c>Bidirectional</c> channel needs both, because it is both.
+            /// </remarks>
+            /// <param name="direction">The negotiated direction.</param>
+            private static PermissionType[] RequiredPermissions(DataChannelDirection direction)
+            {
+                return direction switch
+                {
+                    DataChannelDirection.SourceToSink => [PermissionType.Read],
+                    DataChannelDirection.SinkToSource => [PermissionType.Write],
+                    DataChannelDirection.Bidirectional
+                        => [PermissionType.Read, PermissionType.Write],
+
+                    // An unrecognized direction is not one this authorizer can
+                    // reason about, so it demands everything a channel could
+                    // need rather than the least.
+                    _ => [PermissionType.Read, PermissionType.Write]
+                };
             }
 
             private static OperationContext CreateReadOperationContext(

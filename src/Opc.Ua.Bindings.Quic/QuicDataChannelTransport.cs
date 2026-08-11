@@ -88,7 +88,35 @@ namespace Opc.Ua.Bindings
         /// The engine inbound frames are dispatched to. Set once the
         /// manager has been constructed around this transport.
         /// </summary>
-        public DataChannelManager? Manager { get; set; }
+        public DataChannelManager? Manager
+        {
+            get => m_manager;
+            set
+            {
+                if (ReferenceEquals(m_manager, value))
+                {
+                    return;
+                }
+
+                if (m_manager != null)
+                {
+                    m_manager.ChannelStateChanged -= OnChannelStateChanged;
+                }
+
+                m_manager = value;
+
+                if (m_manager != null)
+                {
+                    // §7.4: closing a data channel closes its QUIC stream, and
+                    // a RESET is realized as a RESET_STREAM carrying the
+                    // StatusCode. Without this the stream is never released
+                    // and counts against MaxInboundStreams for the life of the
+                    // connection, so a peer that opens and closes channels
+                    // eventually cannot open any.
+                    m_manager.ChannelStateChanged += OnChannelStateChanged;
+                }
+            }
+        }
 
         /// <summary>
         /// The identifier of the SecureChannel whose frames this transport
@@ -598,6 +626,25 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Releases a channel's stream once the channel reaches a terminal
+        /// state.
+        /// </summary>
+        /// <remarks>
+        /// §7.4 makes the stream the channel's lifetime: an orderly close
+        /// completes the writes, and a <c>RESET</c> becomes a
+        /// <c>RESET_STREAM</c> whose application error code carries the
+        /// StatusCode, which is how the peer learns of it at the transport
+        /// layer at all.
+        /// </remarks>
+        private void OnChannelStateChanged(object? sender, DataChannelStateChangedEventArgs e)
+        {
+            if (e.State is DataChannelState.Closed or DataChannelState.Faulted)
+            {
+                ReleaseChannel(e.ChannelId, e.Status);
+            }
+        }
+
+        /// <summary>
         /// MessageType, IsFinal, MessageSize and SecureChannelId.
         /// </summary>
         private const int MessageHeaderSize = 12;
@@ -609,6 +656,7 @@ namespace Opc.Ua.Bindings
         private readonly QuicMultiplexedTransport m_transport;
         private readonly CancellationTokenSource m_stop;
         private readonly ILogger m_logger;
+        private DataChannelManager? m_manager;
         private bool m_disposed;
     }
 

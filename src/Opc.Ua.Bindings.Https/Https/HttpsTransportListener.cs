@@ -1697,10 +1697,25 @@ namespace Opc.Ua.Bindings
                     .ConfigureAwait(false);
 
                 serverChannel.SendResponse(requestId, response);
+                NotifyResponseDispatched(context);
             }
             catch (Exception ex)
             {
                 m_logger.ErrorProcessingRequest(ex, requestId);
+            }
+        }
+
+        private void NotifyResponseDispatched(SecureChannelContext context)
+        {
+            try
+            {
+                context.ResponseDispatched?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                // A callback that throws must not fault the request loop; the
+                // response has already been handed to the transport.
+                m_logger.ErrorProcessingRequest(ex, 0);
             }
         }
 

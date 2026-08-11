@@ -513,6 +513,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             public ValueTask<bool> IsAuthorizedAsync(
                 DataChannelRequestContext context,
                 NodeId sourceNodeId,
+                DataChannelDirection direction,
                 CancellationToken ct)
             {
                 return new ValueTask<bool>(true);

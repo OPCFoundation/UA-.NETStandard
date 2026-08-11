@@ -71,40 +71,38 @@ namespace Opc.Ua.Bindings
                         "so the TLS peer cannot be bound to the OPC UA peer.");
             }
 
-            lock (binding.SyncRoot)
+            DataChannelManager bound = binding.EnsureManager(() =>
             {
-                if (binding.Manager == null)
+                var transport = new QuicDataChannelTransport(
+                    binding.Transport,
+                    binding.Transport.BufferManager,
+                    telemetry)
                 {
-                    var transport = new QuicDataChannelTransport(
-                        binding.Transport,
-                        binding.Transport.BufferManager,
-                        telemetry)
-                    {
-                        SecureChannelId = ParseChannelId(secureChannelContext.SecureChannelId),
-                        MaxFrameBodySize = Math.Max(
-                            0,
-                            binding.Transport.ReceiveBufferSize - MessageHeaderSize)
-                    };
+                    SecureChannelId = ParseChannelId(secureChannelContext.SecureChannelId),
+                    MaxFrameBodySize = Math.Max(
+                        0,
+                        binding.Transport.ReceiveBufferSize - MessageHeaderSize)
+                };
 
-                    binding.DataTransport = transport;
-                    binding.Manager = new DataChannelManager(
-                        transport,
-                        isServer: true,
-                        telemetry,
-                        capabilities.MaxDataChannels,
-                        capabilities.MaxCreditPerChannel);
-                    transport.Manager = binding.Manager;
-                }
+                var created = new DataChannelManager(
+                    transport,
+                    isServer: true,
+                    telemetry,
+                    capabilities.MaxDataChannels,
+                    capabilities.MaxCreditPerChannel);
 
-                manager = binding.Manager;
-                maxFrameSize = (uint)DataChannelFrameCodec.MaxPayload(
-                    DataChannelFramingMode.Quic,
-                    binding.Transport.ReceiveBufferSize,
-                    footerSize: 0,
-                    withDeadline: false);
-                isReliable = true;
-                return true;
-            }
+                transport.Manager = created;
+                return (created, transport);
+            });
+
+            manager = bound;
+            maxFrameSize = (uint)DataChannelFrameCodec.MaxPayload(
+                DataChannelFramingMode.Quic,
+                binding.Transport.ReceiveBufferSize,
+                footerSize: 0,
+                withDeadline: false);
+            isReliable = true;
+            return true;
         }
 
         /// <inheritdoc/>
@@ -155,7 +153,12 @@ namespace Opc.Ua.Bindings
             if (secureChannelContext != null &&
                 s_bindings.TryGetValue(secureChannelContext.SecureChannelId, out Binding? binding))
             {
-                binding.Transport.Close();
+                // The contract is to tear down the data channels, not the
+                // connection: the SecureChannel, the Session and the Service
+                // traffic on the same QUIC connection are unaffected by a
+                // channel fault (§5.11, "a failed stream is not a failed
+                // connection").
+                binding.TryGetManager()?.AbortAll(reason);
             }
         }
 
@@ -174,6 +177,13 @@ namespace Opc.Ua.Bindings
                 ReferenceEquals(binding.Transport, transport))
             {
                 s_bindings.TryRemove(secureChannelId, out _);
+
+                // Part 6 errata §5.13: a lost transport faults every data
+                // channel on it, from any state. No audit close event is
+                // raised for opc.quic, so dropping the binding without this
+                // would leave the peer's channels reported as Open forever
+                // and their sources never told they had ended.
+                binding.TryGetManager()?.AbortAll(StatusCodes.BadConnectionClosed);
             }
         }
 
@@ -194,15 +204,7 @@ namespace Opc.Ua.Bindings
 
         private static QuicDataChannelTransport GetDataTransport(Binding binding)
         {
-            lock (binding.SyncRoot)
-            {
-                if (binding.DataTransport == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState);
-                }
-
-                return binding.DataTransport;
-            }
+            return binding.RequireDataTransport();
         }
 
         private static uint ParseChannelId(string secureChannelId)
@@ -218,11 +220,53 @@ namespace Opc.Ua.Bindings
         {
             public QuicMultiplexedTransport Transport { get; } = transport;
 
-            public object SyncRoot { get; } = new();
+            /// <summary>
+            /// Creates the engine and its transport once, and returns the one
+            /// already in place to every later caller.
+            /// </summary>
+            /// <param name="create">Builds the pair on first use.</param>
+            public DataChannelManager EnsureManager(
+                Func<(DataChannelManager Manager, QuicDataChannelTransport Transport)> create)
+            {
+                lock (m_syncRoot)
+                {
+                    if (m_manager == null)
+                    {
+                        (m_manager, m_dataTransport) = create();
+                    }
 
-            public QuicDataChannelTransport? DataTransport { get; set; }
+                    return m_manager;
+                }
+            }
 
-            public DataChannelManager? Manager { get; set; }
+            /// <summary>
+            /// The data channel transport for this SecureChannel, which only
+            /// exists once a channel has been opened on it.
+            /// </summary>
+            public QuicDataChannelTransport RequireDataTransport()
+            {
+                lock (m_syncRoot)
+                {
+                    return m_dataTransport
+                        ?? throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+            }
+
+            /// <summary>
+            /// The engine for this SecureChannel, or <c>null</c> when no
+            /// channel has been opened on it.
+            /// </summary>
+            public DataChannelManager? TryGetManager()
+            {
+                lock (m_syncRoot)
+                {
+                    return m_manager;
+                }
+            }
+
+            private readonly Lock m_syncRoot = new();
+            private DataChannelManager? m_manager;
+            private QuicDataChannelTransport? m_dataTransport;
         }
 
         private const int MessageHeaderSize = 12;

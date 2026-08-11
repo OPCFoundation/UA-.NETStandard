@@ -41,7 +41,7 @@ namespace Opc.Ua.Bindings
     /// opc.tcp. Only the framing below the MessageChunk differs, and only
     /// data channels use the streams beside it.
     /// </remarks>
-    public class QuicTransportChannel : UaSCUaBinaryTransportChannel
+    public sealed class QuicTransportChannel : UaSCUaBinaryTransportChannel
     {
         /// <summary>
         /// Creates a QUIC transport channel.
@@ -112,7 +112,7 @@ namespace Opc.Ua.Bindings
     /// Creates <see cref="QuicTransportChannel"/> instances for the
     /// <c>opc.quic</c> url scheme.
     /// </summary>
-    public class QuicTransportChannelFactory : ITransportChannelFactory
+    public sealed class QuicTransportChannelFactory : ITransportChannelFactory
     {
         /// <summary>
         /// Creates a factory using the default buffer-manager factory.

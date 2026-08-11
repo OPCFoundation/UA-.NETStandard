@@ -110,6 +110,149 @@ namespace Opc.Ua.Core.DataChannels.Tests
             await AssertCanBindQuicPortAsync(port).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// The public seam a Client uses to reach the QUIC connection behind
+        /// its channel, so it can attach a data channel to the stream the
+        /// Server named in <c>revisedTransportChannelId</c> (§7.4) without
+        /// reflecting into this assembly.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task GetQuicTransportReachesTheConnectionBehindASecuredChannelAsync()
+        {
+            int port = GetFreeUdpPort();
+            Uri endpointUrl = EndpointUrl(port, "ClientSeam");
+            await using var listener = await OpenListenerAsync(endpointUrl).ConfigureAwait(false);
+            using var channel = CreateClientChannel();
+
+            await ConnectClientAndWaitForStatusAsync(
+                listener,
+                channel,
+                endpointUrl,
+                secure: true).ConfigureAwait(false);
+
+            // A secured channel is wrapped by the §7.6.1 peer binding, so the
+            // seam has to see through one layer as well as none.
+            QuicMultiplexedTransport? transport = channel.GetQuicTransport();
+            Assert.That(transport, Is.Not.Null);
+
+            var bufferManager = new BufferManager("quic-client-seam", 65536, m_telemetry!);
+            await using QuicDataChannelTransport dataTransport = channel.CreateDataChannelTransport(
+                bufferManager,
+                m_telemetry!);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(dataTransport.FramingMode, Is.EqualTo(DataChannelFramingMode.Quic));
+                Assert.That(dataTransport.HasTransportFlowControl, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// A channel that never connected has no QUIC connection to reach, and
+        /// the seam says so rather than handing back a transport that would
+        /// fail on first use.
+        /// </summary>
+        [Test]
+        public void CreateDataChannelTransportOnAnUnconnectedChannelIsRefused()
+        {
+            using var channel = CreateClientChannel();
+            var bufferManager = new BufferManager("quic-client-seam-unconnected", 65536, m_telemetry!);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.GetQuicTransport(), Is.Null);
+
+                ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                    () => channel.CreateDataChannelTransport(bufferManager, m_telemetry!))!;
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
+            });
+        }
+
+        [Test]
+        public void ClientSeamRejectsANullArgument()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => QuicClientChannelExtensions.GetQuicTransport(null!),
+                    Throws.ArgumentNullException);
+                Assert.That(
+                    async () => await QuicClientChannelExtensions
+                        .AttachChannelAsync(null!, 1, 4, DataChannelDirection.SourceToSink)
+                        .ConfigureAwait(false),
+                    Throws.ArgumentNullException);
+            });
+        }
+
+        /// <summary>
+        /// The reverse-connect handoff refuses cleanly rather than throwing
+        /// when there is nothing to hand off.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task TransferListenerChannelRefusesAnUnknownChannelAsync()
+        {
+            int port = GetFreeUdpPort();
+            Uri endpointUrl = EndpointUrl(port, "TransferUnknown");
+            await using var listener = await OpenListenerAsync(endpointUrl).ConfigureAwait(false);
+
+            bool transferred = await listener
+                .TransferListenerChannelAsync(4242, "urn:test:server", endpointUrl)
+                .ConfigureAwait(false);
+
+            Assert.That(transferred, Is.False);
+        }
+
+        /// <summary>
+        /// A handoff the caller declines leaves the channel intact: the
+        /// transport is re-attached and its receive loop resumed, so a
+        /// refused transfer is not a lost connection.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task TransferListenerChannelReattachesWhenTheHandoffIsDeclinedAsync()
+        {
+            int port = GetFreeUdpPort();
+            Uri endpointUrl = EndpointUrl(port, "TransferDeclined");
+            await using var listener = await OpenListenerAsync(endpointUrl).ConfigureAwait(false);
+            using var channel = CreateClientChannel();
+
+            await ConnectClientAndWaitForStatusAsync(
+                listener,
+                channel,
+                endpointUrl,
+                secure: true).ConfigureAwait(false);
+
+            uint channelId = GetSingleChannel(listener).ChannelId;
+
+            // With no ConnectionWaiting handler there is nobody to hand the
+            // transport to, so the listener shall keep it.
+            bool withoutHandler = await listener
+                .TransferListenerChannelAsync(channelId, "urn:test:server", endpointUrl)
+                .ConfigureAwait(false);
+
+            bool raised = false;
+            listener.ConnectionWaiting += (_, args) =>
+            {
+                raised = true;
+                args.Accepted = false;
+                return Task.CompletedTask;
+            };
+
+            bool declined = await listener
+                .TransferListenerChannelAsync(channelId, "urn:test:server", endpointUrl)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(withoutHandler, Is.False);
+                Assert.That(raised, Is.True);
+                Assert.That(declined, Is.False);
+                Assert.That(GetChannels(listener), Has.Count.EqualTo(1));
+            });
+        }
+
         [Test]
         [CancelAfter(30000)]
         public async Task QuicTransportChannelConnectsAndEstablishesControlStreamAsync()
@@ -298,7 +441,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
         [Test]
         [CancelAfter(30000)]
-        public async Task CloseChannelsForCertificateReturnsAffectedChannelIdsOnAKeyChangeAsync()
+        public async Task CertificateUpdateClosesChannelsBoundToTheSupersededKeyAsync()
         {
             int port = GetFreeUdpPort();
             Uri endpointUrl = EndpointUrl(port, "CertificateRotation");
@@ -320,6 +463,46 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 "certificate update did not close the superseded QUIC channel").ConfigureAwait(false);
 
             Assert.That(GetChannels(listener), Is.Empty);
+        }
+
+        [Test]
+        [CancelAfter(30000)]
+        public async Task CloseChannelsForCertificateLeavesChannelsBoundToAnotherKeyOpenAsync()
+        {
+            // Part 6 errata §7.6.1 binds a connection to the subjectPublicKeyInfo
+            // that was in force when it was established, so a notification about
+            // a key that is not the one a live connection is bound to shall not
+            // touch it. This is the branch that would tear down every live media
+            // stream on an unrelated rotation, and it is only reachable once the
+            // listener has moved off the certificate being reported - while it is
+            // still active, §7.6.2 short-circuits first.
+            int port = GetFreeUdpPort();
+            Uri endpointUrl = EndpointUrl(port, "UnrelatedKeyRotation");
+            await using var listener = await OpenListenerAsync(endpointUrl).ConfigureAwait(false);
+
+            using Certificate replacement = CreateCertificate("QuicListenerServerReplacement");
+            using var rotated = new InMemoryCertificateRegistry(replacement);
+            listener.CertificateUpdate(new AcceptAllCertificateValidator(), rotated);
+
+            using var channel = CreateClientChannel();
+            await ConnectClientAndWaitForStatusAsync(
+                listener,
+                channel,
+                endpointUrl,
+                secure: false).ConfigureAwait(false);
+            string liveChannelId = GetSingleChannel(listener).GlobalChannelId;
+
+            IReadOnlyList<string> closed = await listener
+                .CloseChannelsForCertificateAsync(m_serverCertificate!, TimeoutToken())
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(closed, Is.Empty);
+                Assert.That(
+                    GetSingleChannel(listener).GlobalChannelId,
+                    Is.EqualTo(liveChannelId));
+            });
         }
 
         [Test]

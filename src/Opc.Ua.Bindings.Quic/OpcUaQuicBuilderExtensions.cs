@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 using Opc.Ua.Bindings;
 
@@ -45,11 +46,22 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">The builder.</param>
         /// <remarks>
+        /// <para>
         /// Experimental. QUIC is available only where msquic is present;
         /// <see cref="QuicTransport.IsSupported"/> reports whether it is.
         /// Registering the binding on a platform without it is harmless —
         /// opening a listener fails with Bad_NotSupported rather than at
         /// registration.
+        /// </para>
+        /// <para>
+        /// This also registers the server-side data channel transport, so a
+        /// data channel opened on an <c>opc.quic</c> SecureChannel gets its
+        /// own QUIC stream as Part 6 errata §7.4 requires. A server built
+        /// from this container that also publishes <c>opc.tcp</c> or
+        /// <c>opc.wss</c> endpoints is unaffected: the QUIC transport
+        /// declines any SecureChannel that is not <c>opc.quic</c> and the
+        /// inline framing carries those instead.
+        /// </para>
         /// </remarks>
         public static IOpcUaBuilder AddQuicTransport(this IOpcUaBuilder builder)
         {
@@ -57,6 +69,9 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
+
+            builder.Services
+                .TryAddSingleton<IServerDataChannelTransport, QuicServerDataChannelTransport>();
 
             return builder
                 .AddCustomTransport<QuicTransportListenerFactory, QuicTransportChannelFactory>();

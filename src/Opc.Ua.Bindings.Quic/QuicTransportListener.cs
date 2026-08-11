@@ -1221,7 +1221,7 @@ namespace Opc.Ua.Bindings
         private readonly ConcurrentDictionary<QuicConnection, QuicAdmissionSnapshot>
             m_pendingConnectionEpochs = new();
         private readonly List<X509Certificate2> m_retiredTlsCertificates = [];
-        private readonly object m_certificateActivationLock = new();
+        private readonly Lock m_certificateActivationLock = new();
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",

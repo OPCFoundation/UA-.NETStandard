@@ -339,10 +339,17 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
                 await Task.Delay(100).ConfigureAwait(false);
 
-                Assert.That(
-                    transport.StartedCalls,
-                    Is.EqualTo(1),
-                    "The STR writer must wait for the earlier MSG ticket before reaching transport.");
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        streamSend.IsCompleted,
+                        Is.False,
+                        "The STR writer completed while the earlier MSG ticket was still held.");
+                    Assert.That(
+                        transport.StartedCalls,
+                        Is.EqualTo(1),
+                        "The STR writer must wait for the earlier MSG ticket before reaching transport.");
+                });
 
                 transport.AllowFirstWrite();
 

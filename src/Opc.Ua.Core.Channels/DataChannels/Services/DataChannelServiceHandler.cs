@@ -106,14 +106,24 @@ namespace Opc.Ua.Bindings
     public interface IDataChannelAuthorizer
     {
         /// <summary>
-        /// Applies the same rules a Read of the same content would.
+        /// Applies the same rules a Read of the same content would, and a
+        /// Write as well when the channel carries payload towards the source.
         /// </summary>
+        /// <remarks>
+        /// The direction is part of the decision, not a detail of it. Part 4
+        /// errata §7.2: a user permitted to watch a drive but not to command
+        /// it could otherwise open the <c>SinkToSource</c> channel that drive
+        /// advertises and send it firmware, setpoints or console input.
+        /// </remarks>
         /// <param name="context">The Session and SecureChannel.</param>
         /// <param name="sourceNodeId">The data channel source.</param>
+        /// <param name="direction">The direction the channel carries payload
+        /// in, which selects the permissions that have to hold.</param>
         /// <param name="ct">Cancellation token.</param>
         ValueTask<bool> IsAuthorizedAsync(
             DataChannelRequestContext context,
             NodeId sourceNodeId,
+            DataChannelDirection direction,
             CancellationToken ct);
     }
 
@@ -290,13 +300,6 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadDataChannelNotSupported);
             }
 
-            if (!await m_authorizer
-                .IsAuthorizedAsync(context, sourceNodeId, ct)
-                .ConfigureAwait(false))
-            {
-                return Refuse(context, sourceNodeId, attempted, StatusCodes.BadUserAccessDenied);
-            }
-
             if (source.Capabilities.MaxChannels != 0 &&
                 source.ActiveChannelCount >= source.Capabilities.MaxChannels)
             {
@@ -317,6 +320,17 @@ namespace Opc.Ua.Bindings
                 out StatusCode negotiation))
             {
                 return Refuse(context, sourceNodeId, attempted, negotiation);
+            }
+
+            // Authorized against the direction the channel will actually
+            // carry, which negotiation has only now settled, and before
+            // anything is allocated: a ChannelId and, over an outer-protocol
+            // transport, a stream are created below.
+            if (!await m_authorizer
+                .IsAuthorizedAsync(context, sourceNodeId, revised.Direction, ct)
+                .ConfigureAwait(false))
+            {
+                return Refuse(context, sourceNodeId, attempted, StatusCodes.BadUserAccessDenied);
             }
 
             if (!m_manager.TryAllocateChannelId(out uint channelId))
@@ -352,6 +366,7 @@ namespace Opc.Ua.Bindings
                 StatusCodes.Good);
 
             source.OnChannelOpened(channel);
+            TrackSourceLifetime(channel, source);
 
             return new OpenDataChannelResponse
             {
@@ -407,8 +422,16 @@ namespace Opc.Ua.Bindings
                 throw new ServiceResultException(StatusCodes.BadDataChannelNotSupported);
             }
 
+            // Direction and DeliveryMode are immutable, so they are carried
+            // from what is in force rather than taken from the request. A
+            // request that omits them - including a null request, which means
+            // "change nothing" - would otherwise be revised against their
+            // default and silently re-point a Bidirectional channel, after
+            // which the peer's own DATA starts being refused.
+            DataChannelParametersDataType effective = CloneForModify(requestedParameters, inForce);
+
             if (!DataChannelNegotiator.TryRevise(
-                requestedParameters,
+                effective,
                 source.Capabilities,
                 m_capabilities,
                 context.TransportMaxFrameSize,
@@ -434,8 +457,7 @@ namespace Opc.Ua.Bindings
         /// and closes immediately; false drains them first, bounded by
         /// DrainTimeout.</param>
         /// <param name="ct">Cancellation token.</param>
-        public async ValueTask<CloseDataChannelResponse> CloseDataChannelAsync(
-            DataChannelRequestContext context,
+        public async ValueTask<CloseDataChannelResponse> CloseDataChannelAsync(            DataChannelRequestContext context,
             uint channelId,
             StatusCode reason,
             bool deleteQueued,
@@ -529,7 +551,11 @@ namespace Opc.Ua.Bindings
 
                 if (context == null ||
                     !await m_authorizer
-                        .IsAuthorizedAsync(context, channel.SourceNodeId, ct)
+                        .IsAuthorizedAsync(
+                            context,
+                            channel.SourceNodeId,
+                            channel.Settings.Direction,
+                            ct)
                         .ConfigureAwait(false))
                 {
                     channel.Abort(StatusCodes.BadUserAccessDenied);
@@ -583,7 +609,11 @@ namespace Opc.Ua.Bindings
             // The permissions are re checked on every call, not only at
             // open.
             if (!await m_authorizer
-                .IsAuthorizedAsync(context, channel.SourceNodeId, ct)
+                .IsAuthorizedAsync(
+                    context,
+                    channel.SourceNodeId,
+                    channel.Settings.Direction,
+                    ct)
                 .ConfigureAwait(false))
             {
                 return (null, StatusCodes.BadUserAccessDenied);
@@ -668,6 +698,89 @@ namespace Opc.Ua.Bindings
             return await m_streamAllocator!
                 .AllocateServerStreamAsync(context, channelId, revised.Direction, ct)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Tells the source when its channel reaches a terminal state.
+        /// </summary>
+        /// <remarks>
+        /// The source counts its own live channels against
+        /// <see cref="DataChannelSourceCapabilities.MaxChannels"/>, and the
+        /// only place it can decrement is here. Without this the count only
+        /// ever rises and the source refuses every channel with
+        /// <c>Bad_TooManyDataChannels</c> once it has opened its limit even if
+        /// none is still open.
+        /// </remarks>
+        /// <param name="channel">The channel.</param>
+        /// <param name="source">The source that produced it.</param>
+        private void TrackSourceLifetime(DataChannel channel, IDataChannelSource source)
+        {
+            int notified = 0;
+
+            void Close(StatusCode reason)
+            {
+                if (Interlocked.Exchange(ref notified, 1) != 0)
+                {
+                    return;
+                }
+
+                channel.StateChanged -= OnStateChanged;
+
+                // The authorizing Session is deliberately still recorded: it
+                // is what lets a later Close on this identifier answer
+                // Bad_DataChannelClosed rather than Bad_DataChannelIdInvalid,
+                // which Part 4 distinguishes and a Client acts on.
+                source.OnChannelClosed(channel, reason);
+            }
+
+            void OnStateChanged(object? sender, DataChannelStateChangedEventArgs e)
+            {
+                if (e.State is DataChannelState.Closed or DataChannelState.Faulted)
+                {
+                    Close(e.Status);
+                }
+            }
+
+            channel.StateChanged += OnStateChanged;
+
+            // A channel can reach a terminal state between being registered
+            // and being subscribed to - an abort during open does exactly
+            // that - so the current state is checked once after subscribing.
+            if (channel.State is DataChannelState.Closed or DataChannelState.Faulted)
+            {
+                Close(channel.Status);
+            }
+        }
+
+        /// <summary>
+        /// Builds the parameters a ModifyDataChannel is revised against,
+        /// pinning the immutable ones to what is already in force.
+        /// </summary>
+        /// <param name="requested">What the Client asked for, or <c>null</c>
+        /// to change nothing.</param>
+        /// <param name="inForce">The parameters currently in force.</param>
+        private static DataChannelParametersDataType CloneForModify(
+            DataChannelParametersDataType? requested,
+            DataChannelParametersDataType inForce)
+        {
+            if (requested == null)
+            {
+                return inForce;
+            }
+
+            return new DataChannelParametersDataType
+            {
+                Direction = inForce.Direction,
+                DeliveryMode = inForce.DeliveryMode,
+                ContentType = requested.ContentType,
+                ContentParameters = requested.ContentParameters,
+                MaxFrameSize = requested.MaxFrameSize,
+                InitialCredit = requested.InitialCredit,
+                Priority = requested.Priority,
+                MaxBitrate = requested.MaxBitrate,
+                MaxRetransmits = requested.MaxRetransmits,
+                FrameDeadline = requested.FrameDeadline
+            };
         }
 
         private static bool IsClientInitiatedDirection(DataChannelDirection direction)

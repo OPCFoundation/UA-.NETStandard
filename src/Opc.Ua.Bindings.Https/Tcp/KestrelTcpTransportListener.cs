@@ -638,6 +638,20 @@ namespace Opc.Ua.Bindings
             _ = DispatchRequestAsync(channel, requestId, request);
         }
 
+        private void NotifyResponseDispatched(SecureChannelContext context)
+        {
+            try
+            {
+                context.ResponseDispatched?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                // A callback that throws must not fault the request loop; the
+                // response has already been handed to the transport.
+                Logger.RequestProcessingFailed(ex);
+            }
+        }
+
         private async Task DispatchRequestAsync(
             TcpListenerChannel channel,
             uint requestId,
@@ -660,6 +674,7 @@ namespace Opc.Ua.Bindings
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);
                 ((TcpServerChannel)channel).SendResponse(requestId, response);
+                NotifyResponseDispatched(context);
             }
             catch (Exception ex)
             {

@@ -14,7 +14,6 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 
-#if NET9_0_OR_GREATER
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Core.DataChannels.Tests
@@ -160,11 +159,61 @@ namespace Opc.Ua.Core.DataChannels.Tests
             };
         }
 
+        /// <summary>
+        /// Part 4 errata §7.2, DCS-023: a channel that carries payload towards
+        /// the source is a write, so read permission alone must not grant it.
+        /// A user permitted to watch a drive but not to command it could
+        /// otherwise open the SinkToSource channel that drive advertises and
+        /// send it firmware, setpoints or console input.
+        /// </summary>
+        [TestCase(DataChannelDirection.SinkToSource)]
+        [TestCase(DataChannelDirection.Bidirectional)]
+        public void OpenDataChannelAsyncWhenOnlyReadIsPermittedRefusesAnInboundDirection(
+            DataChannelDirection direction)
+        {
+            m_fixture.Metadata = Metadata(rolePermissions: [Role(PermissionType.Read)]);
+
+            AssertServiceStatus(
+                StatusCodes.BadUserAccessDenied,
+                () => m_handler.OpenDataChannelAsync(
+                    Context(),
+                    SourceNodeId,
+                    0,
+                    Parameters(direction),
+                    CancellationToken.None));
+        }
+
+        /// <summary>
+        /// The mirror of the case above: Write permission is what an inbound
+        /// direction needs, and it is enough for one.
+        /// </summary>
+        [Test]
+        public async Task OpenDataChannelAsyncWhenWriteIsPermittedGrantsAnInboundDirectionAsync()
+        {
+            m_fixture.Metadata = Metadata(rolePermissions: [Role(PermissionType.Write)]);
+
+            OpenDataChannelResponse response = await m_handler
+                .OpenDataChannelAsync(
+                    Context(),
+                    SourceNodeId,
+                    0,
+                    Parameters(DataChannelDirection.SinkToSource),
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(response.ChannelId, Is.Not.Zero);
+        }
+
         private static DataChannelParametersDataType Parameters()
+        {
+            return Parameters(DataChannelDirection.SourceToSink);
+        }
+
+        private static DataChannelParametersDataType Parameters(DataChannelDirection direction)
         {
             return new DataChannelParametersDataType
             {
-                Direction = DataChannelDirection.SourceToSink,
+                Direction = direction,
                 DeliveryMode = DataChannelDeliveryMode.ReliableOrdered,
                 ContentType = "application/octet-stream",
                 MaxFrameSize = 4096,
@@ -177,7 +226,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
         {
             return new DataChannelSourceCapabilities
             {
-                Direction = DataChannelDirection.SourceToSink,
+                Direction = DataChannelDirection.Bidirectional,
                 SupportedDeliveryModes = [DataChannelDeliveryMode.ReliableOrdered],
                 ContentType = "application/octet-stream",
                 MaxFrameSize = 65_536,
@@ -334,4 +383,3 @@ namespace Opc.Ua.Core.DataChannels.Tests
         private ITelemetryContext m_telemetry = null!;
     }
 }
-#endif

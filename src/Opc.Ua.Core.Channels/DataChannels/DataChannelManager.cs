@@ -291,6 +291,13 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// How many scheduler rounds have run, which lets a test wait for the
+        /// scheduler to have considered the channels rather than sleep for a
+        /// guess at how long that takes.
+        /// </summary>
+        internal long SchedulerRounds => Interlocked.Read(ref m_schedulerRounds);
+
+        /// <summary>
         /// Aborts every channel, used when the SecureChannel is closed or
         /// the transport is lost. Frames have nowhere to flow, so each
         /// channel enters Faulted.
@@ -683,6 +690,8 @@ namespace Opc.Ua.Bindings
 
         private async ValueTask RunRoundAsync(List<DataChannel> ready, CancellationToken ct)
         {
+            Interlocked.Increment(ref m_schedulerRounds);
+
             long nowTicks = m_transport.TimeProvider.GetUtcNow().UtcDateTime.ToFileTimeUtc();
             bool more = false;
 
@@ -922,6 +931,7 @@ namespace Opc.Ua.Bindings
         private bool m_connectionCreditReceived;
         private bool m_connectionPingOutstanding;
         private long m_lastConnectionPing;
+        private long m_schedulerRounds;
         private double m_roundTripTime;
         private bool m_disposed;
     }

@@ -591,8 +591,12 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             server.Write([0x01, 0x02], DataChannelFrameFlags.MessageStart);
 
-            // Long enough for several scheduler rounds to have run.
-            await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+            // Wait for the scheduler to have actually considered the channels
+            // several times, so the negative below is evidence that the
+            // Opening gate held rather than that nothing had run yet.
+            long roundsBefore = m_server.SchedulerRounds;
+            await WaitForAsync(() => m_server.SchedulerRounds >= roundsBefore + 3)
+                .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {

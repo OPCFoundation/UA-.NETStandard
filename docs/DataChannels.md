@@ -133,21 +133,23 @@ if (message != null)
 | Serial arithmetic, replay window, bounded GAP runs | Complete |
 | Per-direction channel and connection credit, bootstrap, replenishment | Complete for inline framing |
 | Deficit round robin, per-channel quantum, anti-starvation | Complete |
-| Per-direction state machine, half-close, reset, drain timeout | Complete |
+| Per-direction state machine, half-close, reset, drain timeout | Complete except `OpenTimeout` and `PingTimeout`, which are negotiated and carried but not yet enforced (§5.14) |
 | Deadline expiry and per-run `GAP` emission | Complete |
-| SequenceNumber budget, renewal threshold, stall-rather-than-reuse | Complete |
+| SequenceNumber budget, renewal threshold, stall-rather-than-reuse | Complete for the sender and the client-side renewal trigger; the `revisedLifetime` obligation of §5.1.1 is not implemented |
 | `OpenDataChannel`, `ModifyDataChannel`, `CloseDataChannel` | Complete, and served by `StandardServer`: a real Client opens a channel through a real Session |
-| Inline framing (`opc.tcp`, `opc.wss`) on the Server | Complete. `InlineServerDataChannelTransport` resolves the UASC channel behind the request and enables the engine on it, so a Server with no transport configured still carries channels over the connection the Client already holds. A SecureChannel that can carry no frames is refused with `Bad_DataChannelTransportUnsupported` rather than accepted and then drained silently, which §5.16 requires |
-| Parameter negotiation, offers, Session scoping, authorization recheck, audit | Complete, driven from the Server rather than only callable |
+| Inline framing (`opc.tcp`, `opc.wss`) on the Server | Complete on the raw-socket `opc.tcp` listener. `InlineServerDataChannelTransport` resolves the UASC channel behind the request and enables the engine on it, so a Server with no transport configured still carries channels over the connection the Client already holds. A SecureChannel that can carry no frames is refused with `Bad_DataChannelTransportUnsupported` rather than accepted and then drained silently, which §5.16 requires |
+| Authorization | Complete, and **direction-aware**: `SourceToSink` requires Read on the source, `SinkToSource` requires Write, `Bidirectional` requires both (Part 4 errata §7.2, DCS-023). Re-evaluated on an interval, on `ActivateSession` and on role change |
+| Parameter negotiation, Session scoping, authorization recheck, audit | Complete, driven from the Server rather than only callable. **Server-initiated offers (Part 4 §6) are not implemented**: the registry exists but nothing creates an offer or raises `DataChannelOfferedEventType`, so `TryRedeem` can only fail |
 | `opc.quic` — url scheme, ALPN negotiation and enforcement, control stream, client channel and factory | Complete (`Opc.Ua.Bindings.Quic`, **net9.0+**) |
 | `opc.quic` — listener, service host, endpoint discovery, reverse connect, certificate rotation | Complete |
-| `opc.quic` — data channels bound to per-channel streams, `RESET_STREAM` carrying the StatusCode | Complete |
+| `opc.quic` — data channels bound to per-channel streams, `RESET_STREAM` carrying the StatusCode | Complete. The stream is released when the channel reaches a terminal state, so an orderly close completes the writes and a `RESET` becomes a `RESET_STREAM` carrying the StatusCode |
 | `opc.quic` — direction to stream type and initiator (§7.4), `revisedTransportChannelId` | Complete; `SourceToSink` gets a server-initiated unidirectional stream whose id is returned to the Client |
 | `opc.quic` — TLS-to-OPC-UA key binding (§7.6.1) | Complete, and **invoked on the connect path** — it previously existed only as tested, uncalled code, which left the profile unbound |
-| `DataChannelCapabilities` model projection | Complete (`DataChannelModel`) |
+| `DataChannelCapabilities` model projection | **Not wired.** `DataChannelModel` builds the values, but the Object is never instantiated under `ServerCapabilities`, so a Client cannot read the capabilities or discover the feature through the address space (Part 3 §6, Part 4 §10) |
 | Worked sample | `samples/ConsoleDataChannelStreaming` |
 | Unreliable datagrams (§7.5) | **Not implementable on .NET.** `QuicConnection` exposes no RFC 9221 datagram API through .NET 10, so `SupportsUnreliableDatagrams` is `False` and the Server refuses `Unreliable` and `PartiallyReliable` with `Bad_DeliveryModeUnsupported` — which is what the errata requires rather than silently carrying them on the stream |
-| DI / fluent builder extension | `AddQuicTransport()` |
+| DI / fluent builder extension | Complete. `AddQuicTransport()` registers the listener and channel factories **and** the server-side data channel transport, so a DI-built Server carries channels on `opc.quic` streams with no further wiring. `UseQuicDataChannelTransport()` remains the direct-construction fallback |
+| Connection loss and SecureChannel close | Complete. A closed SecureChannel or lost transport faults every data channel riding on it (§5.13), on both the inline and `opc.quic` paths |
 
 ## Why the QUIC binding is net9.0+
 
@@ -251,10 +253,12 @@ an expiry would push `HighestReceived` past a lower-numbered frame that survived
 still to be transmitted, and the receiver would discard as a duplicate precisely the
 frame the per-run rule exists to protect.
 
-**`Paused` and `Closing` are both per direction.** Receiving `END` marks the *peer's*
+**`Closing` is per direction.** Receiving `END` marks the *peer's*
 direction ended and nothing more: it never starts the local drain clock and never stops
 the local application enqueueing. That is what makes `END` a half-close rather than a
-close, and it is why a long upload survives the other end half-closing.
+close, and it is why a long upload survives the other end half-closing. `Paused` is not
+tracked per direction — the channel carries a single state field — because credit is only
+ever withheld against the direction that carries payload towards this peer.
 
 **`IsFinal` is `F` and nothing else.** An Abort chunk's secured body is `Error` followed
 by `Reason` per OPC 10000-6 §6.7.3, so accepting `A` would let that parser read a 32-bit
@@ -269,16 +273,24 @@ second. The sample measured 0.5 Mbit/s before the fix and 1.3 Gbit/s after it, a
 
 ## Test coverage
 
-The suite is 284 tests on `net10.0` and 212 tests on `net48` over
+The suite is 311 tests on `net10.0` and 237 tests on `net48` over
 `tests/Opc.Ua.Core.DataChannels.Tests`, covering
 `Opc.Ua.Core.Channels`, `Stack/Tcp/UaSCBinaryChannel.MessageExtensions.cs`
-and `Opc.Ua.Bindings.Quic`. Coverage was
-**80.1%** at 255 tests, having fallen from 87.6% while the test count rose, because
-wiring the previously-uncalled obligations added a good deal of
-production code — the server-side Service dispatch, the stream mapping, the
-certificate lifecycle — faster than tests were added for it. It is the more
-honest number: the earlier one measured a smaller body of code, much of which
-nothing invoked. Re-measure with the repo's own settings:
+and `Opc.Ua.Bindings.Quic`. By assembly that is **92.9% line / 82.5% branch**
+for `Opc.Ua.Core.Channels` and **80.7% line / 68.3% branch** for
+`Opc.Ua.Bindings.Quic`.
+
+`DataChannelIntegrationTests` is the end-to-end leg: a real Client Session
+drives `OpenDataChannel`, `ModifyDataChannel` and `CloseDataChannel` against a
+live `StandardServer` over `opc.tcp`, and payload crosses the same
+SecureChannel inline alongside the Service traffic. It is the only place
+`Opc.Ua.Server/Server/StandardServer.DataChannels.cs` — the Service dispatch,
+the per-SecureChannel state and the authorization chain — is exercised by a
+request that actually arrived off a socket.
+
+The paths still at zero are not evenly distributed, which matters more than the
+percentage does: `opc.quic` reverse connect and the retired-key teardown of
+§7.6.1 are the largest remaining gaps. Re-measure with the repo's own settings:
 
 ```sh
 dotnet test tests/Opc.Ua.Core.DataChannels.Tests/Opc.Ua.Core.DataChannels.Tests.csproj \
@@ -286,7 +298,7 @@ dotnet test tests/Opc.Ua.Core.DataChannels.Tests/Opc.Ua.Core.DataChannels.Tests.
 ```
 
 QUIC tests are guarded by `QuicConnection.IsSupported` and `#if NET9_0_OR_GREATER`, so
-the net472 and net8.0 legs and any agent without msquic run 184 of them and skip the
+the net472 and net8.0 legs and any agent without msquic run 237 of them and skip the
 rest rather than failing. There is deliberately **no build-time coverage gate**: a gate
 would fail exactly those agents.
 
