@@ -3,8 +3,14 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>AiModelManagementClient</AssemblyName>
     <!-- net48 is deliberately absent: see AiModelManagement.Bridge.csproj. -->
-    <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
-    <RootNamespace>AiModelManagement.Client</RootNamespace>
+    <!-- net48 is deliberately absent: the AI client packages this sample builds on
+         target modern .NET only. The set still has to follow $(CustomTestTarget),
+         because a CI leg that pins the libraries to one framework would otherwise
+         leave this sample asking for frameworks they no longer build. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">net10.0</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>    <RootNamespace>AiModelManagement.Client</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
