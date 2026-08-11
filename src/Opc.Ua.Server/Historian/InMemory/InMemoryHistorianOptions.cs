@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Server.Historian.InMemory
 {
     /// <summary>
@@ -35,8 +37,15 @@ namespace Opc.Ua.Server.Historian.InMemory
     public sealed record InMemoryHistorianOptions
     {
         /// <summary>
+        /// Maximum source-timestamp age of raw samples retained per variable.
+        /// The default is one hour. Zero = unbounded.
+        /// </summary>
+        public TimeSpan RawDataRetentionPeriod { get; init; } = TimeSpan.FromHours(1);
+
+        /// <summary>
         /// Maximum number of raw samples retained per variable. Zero = unbounded.
         /// When the cap is reached the oldest samples are evicted on insert.
+        /// This limit is applied in addition to <see cref="RawDataRetentionPeriod"/>.
         /// </summary>
         public uint MaxSamplesPerNode { get; init; }
 

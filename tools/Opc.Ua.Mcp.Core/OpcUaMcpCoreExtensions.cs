@@ -261,10 +261,7 @@ namespace Opc.Ua.Mcp
                 // below, so remove it from the set of tools to register here
                 // even when a Part 4 profile listed it as owned.
                 registered.Remove(typeof(ConnectionTools));
-                foreach (Type toolType in registered)
-                {
-                    mcpServerBuilder.WithTools([toolType], serializerOptions: null);
-                }
+                RegisterCoreToolTypes(mcpServerBuilder, registered);
             }
 
             if (NeedsConnectionTools(toolProfiles))
@@ -360,6 +357,72 @@ namespace Opc.Ua.Mcp
 
         private sealed class ConnectionToolsMarker
         {
+        }
+
+        /// <summary>
+        /// Registers each tool class the composed profiles asked for, exactly
+        /// once.
+        /// </summary>
+        /// <remarks>
+        /// The set decides *what* to register and this decides *how*. It has to
+        /// be a fixed list of generic calls rather than a loop over the set: the
+        /// non-generic <c>WithTools(IEnumerable&lt;Type&gt;)</c> looks method
+        /// metadata up dynamically, which is annotated
+        /// <c>RequiresUnreferencedCode</c> and breaks the Native AOT guarantee
+        /// this repository builds under.
+        /// </remarks>
+        private static void RegisterCoreToolTypes(
+            IMcpServerBuilder mcpServerBuilder,
+            HashSet<Type> registered)
+        {
+            if (registered.Contains(typeof(AttributeServiceTools)))
+            {
+                mcpServerBuilder.WithTools<AttributeServiceTools>();
+            }
+            if (registered.Contains(typeof(ConfigurationReadTools)))
+            {
+                mcpServerBuilder.WithTools<ConfigurationReadTools>();
+            }
+            if (registered.Contains(typeof(ConfigurationUpdateTools)))
+            {
+                mcpServerBuilder.WithTools<ConfigurationUpdateTools>();
+            }
+            if (registered.Contains(typeof(ConvenienceTools)))
+            {
+                mcpServerBuilder.WithTools<ConvenienceTools>();
+            }
+            if (registered.Contains(typeof(DiscoveryServiceTools)))
+            {
+                mcpServerBuilder.WithTools<DiscoveryServiceTools>();
+            }
+            if (registered.Contains(typeof(MethodServiceTools)))
+            {
+                mcpServerBuilder.WithTools<MethodServiceTools>();
+            }
+            if (registered.Contains(typeof(MonitoredItemServiceTools)))
+            {
+                mcpServerBuilder.WithTools<MonitoredItemServiceTools>();
+            }
+            if (registered.Contains(typeof(NodeManagementServiceTools)))
+            {
+                mcpServerBuilder.WithTools<NodeManagementServiceTools>();
+            }
+            if (registered.Contains(typeof(NodeSetExportTools)))
+            {
+                mcpServerBuilder.WithTools<NodeSetExportTools>();
+            }
+            if (registered.Contains(typeof(PkiTools)))
+            {
+                mcpServerBuilder.WithTools<PkiTools>();
+            }
+            if (registered.Contains(typeof(SubscriptionServiceTools)))
+            {
+                mcpServerBuilder.WithTools<SubscriptionServiceTools>();
+            }
+            if (registered.Contains(typeof(ViewServiceTools)))
+            {
+                mcpServerBuilder.WithTools<ViewServiceTools>();
+            }
         }
 
         private static void AddCoreTools(IMcpServerBuilder mcpServerBuilder)

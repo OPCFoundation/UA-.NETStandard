@@ -29,7 +29,6 @@
 
 #if NET10_0
 using System;
-using System.Text.Json;
 using NUnit.Framework;
 using Opc.Ua.Mcp.Tools;
 using Opc.Ua.RobotIntent;
@@ -342,7 +341,31 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             Assert.That(
                 () => RoboticsIntentJson.BuildIntent("wait", "{ not json"),
-                Throws.InstanceOf<JsonException>());
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void MalformedMissionStepsJsonIsRejected()
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildMissionSteps("[{ not json"),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void MalformedMissionTransitionsJsonIsRejected()
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildMissionTransitions("[{ not json"),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void ANodeIdThatCannotBeParsedIsRejected()
+        {
+            Assert.That(
+                () => RoboticsIntentJson.BuildIntent("grasp", """{"tool":"not a node id","force":1.0}"""),
+                Throws.ArgumentException);
         }
 
         [Test]
