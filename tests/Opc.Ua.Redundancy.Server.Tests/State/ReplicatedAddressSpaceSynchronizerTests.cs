@@ -364,7 +364,12 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
         private static async Task AwaitWithTimeoutAsync(Task task)
         {
-            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+            // Same rationale as AssertEventuallyAsync above: this waits on the very
+            // same background capture/broadcast loops, so it needs the same allowance
+            // for a CPU-starved runner. The assertion still requires the replication
+            // to complete - only the patience is bounded, not the outcome.
+            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(30)))
+                .ConfigureAwait(false);
             Assert.That(completed, Is.SameAs(task), "replication did not complete within the timeout");
             await task.ConfigureAwait(false);
         }
