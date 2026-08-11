@@ -293,7 +293,7 @@ namespace Vision.BinPickingCell
                     .WithResolution(2448u, 2048u)
                     .WithFrameRate(15.0)
                     .WithBitrate(24_000_000u)
-                    .WithProfileName("main"))
+                    .WithDefaultProfileName("main"))
                 .AddClipEndpoint(ClipEndpointBrowseName, endpoint => endpoint
                     .WithEndpointId("clip-pick-frames")
                     .WithEndpointUri("opcua-inline://binpicking-cell/clips")
@@ -301,7 +301,7 @@ namespace Vision.BinPickingCell
                     .WithQuality(90u)
                     .WithResolution(1280u, 1024u)
                     .WithInlineDelivery(enabled: true, maxInlineClipSize: 8_388_608u)
-                    .WithProfileName("PickFrames"))
+                    .WithDefaultProfileName("PickFrames"))
                 .UseMediaProvider(m_mediaProvider));
         }
 

@@ -100,8 +100,8 @@ namespace Opc.Ua.AI.Server
                 (context, method, objectId, ct) => TestConnectionAsync(ct);
 
             Child<ListModelsMethodState>(m_source, BrowseNames.ListModels).OnCallAsync =
-                (context, method, objectId, filter, maxResults, ct) =>
-                    ListModelsAsync(filter, maxResults, ct);
+                (context, method, objectId, filter, maxResults, continuationPoint, ct) =>
+                    ListModelsAsync(filter, maxResults, continuationPoint, ct);
 
             Child<FolderState>(m_root!, BrowseNames.Sources).AddChild(m_source);
 
@@ -174,32 +174,72 @@ namespace Opc.Ua.AI.Server
         private async ValueTask<ListModelsMethodStateResult> ListModelsAsync(
             string filter,
             uint maxResults,
+            ByteString continuationPoint,
             CancellationToken ct)
         {
             IReadOnlyList<BackendModel> models = await m_backends.Primary
                 .ListModelsAsync(
                     string.IsNullOrEmpty(filter) ? null : filter,
-                    maxResults == 0 ? 100 : maxResults,
+                    0,
                     ct)
                 .ConfigureAwait(false);
 
-            var references = new ModelReferenceDataType[models.Count];
-
-            for (int index = 0; index < models.Count; index++)
+            // Clause 8.2. The continuation point carries the offset reached so far,
+            // so an enumeration that MaxResults truncated can be resumed rather than
+            // permanently losing everything past the bound - which against a public
+            // catalogue is most of it. An empty point starts at the beginning, and an
+            // empty point returned means the enumeration is complete.
+            int offset = ReadContinuationOffset(continuationPoint);
+            if (offset < 0 || offset > models.Count)
             {
-                references[index] = new ModelReferenceDataType
+                return new ListModelsMethodStateResult
                 {
-                    Publisher = models[index].Publisher,
-                    Name = models[index].Name,
-                    Version = models[index].Version
+                    ServiceResult = StatusCodes.BadContinuationPointInvalid,
+                    Models = ArrayOf<ModelReferenceDataType>.Empty,
+                    ContinuationPointOut = ByteString.Empty
                 };
             }
 
+            int take = maxResults == 0 ? models.Count - offset : (int)Math.Min(maxResults, (uint)(models.Count - offset));
+            var references = new ModelReferenceDataType[take];
+
+            for (int index = 0; index < take; index++)
+            {
+                BackendModel model = models[offset + index];
+                references[index] = new ModelReferenceDataType
+                {
+                    Publisher = model.Publisher,
+                    Name = model.Name,
+                    Version = model.Version
+                };
+            }
+
+            int next = offset + take;
             return new ListModelsMethodStateResult
             {
                 ServiceResult = ServiceResult.Good,
-                Models = new ArrayOf<ModelReferenceDataType>(references)
+                Models = new ArrayOf<ModelReferenceDataType>(references),
+                ContinuationPointOut = next < models.Count
+                    ? ByteString.From(BitConverter.GetBytes(next))
+                    : ByteString.Empty
             };
+        }
+
+        /// <summary>
+        /// Reads the offset a continuation point carries, or -1 when it is malformed.
+        /// </summary>
+        private static int ReadContinuationOffset(ByteString continuationPoint)
+        {
+            ReadOnlyMemory<byte> bytes = continuationPoint.Memory;
+            if (bytes.Length == 0)
+            {
+                return 0;
+            }
+            if (bytes.Length != sizeof(int))
+            {
+                return -1;
+            }
+            return BitConverter.ToInt32(bytes.Span);
         }
 
         private static AuthenticationKindEnum ToAuthenticationKind(

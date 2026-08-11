@@ -81,7 +81,9 @@ namespace Opc.Ua.Vision.Client
         /// <c>GroundTruthLabel</c> to feed a learning job.
         /// </param>
         /// <param name="detections">
-        /// The detections to publish. Must be non-empty.
+        /// The detections to publish. Non-empty unless
+        /// <paramref name="sceneIsEmpty"/> says the frame was examined and found
+        /// to contain nothing.
         /// </param>
         /// <param name="frameReference">
         /// The image the detections apply to, or <c>null</c> when the Server does
@@ -92,6 +94,12 @@ namespace Opc.Ua.Vision.Client
         /// <c>MaxInlineFeedbackImageSize</c>. Pass an empty <see cref="ByteString"/>
         /// to omit inline delivery.
         /// </param>
+        /// <param name="sceneIsEmpty">
+        /// Asserts that the frame was examined and contains nothing, which is what
+        /// makes an empty <paramref name="detections"/> a real observation rather
+        /// than a lost payload (§9.5). It is the terminating condition of a
+        /// bin-picking task and a valid negative training label.
+        /// </param>
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
@@ -100,22 +108,27 @@ namespace Opc.Ua.Vision.Client
             ArrayOf<VisionDetectionDataType> detections,
             VisionImageReferenceDataType? frameReference,
             ByteString inlineImage,
+            bool sceneIsEmpty = false,
             CancellationToken cancellationToken = default)
         {
-            if (detections.Count == 0)
+            if (detections.Count == 0 != sceneIsEmpty)
             {
-                // Part 9.5 requires Bad_InvalidArgument for an empty Detections array, so
-                // refuse here rather than let the caller discover it at the Server. Note the
-                // consequence: "I looked and the bin is empty" cannot be expressed at all,
-                // which is raised upstream rather than deviated from locally.
+                // Part 9.5 pairs the two: an empty array is a deliberate observation
+                // only when the flag says so, and the flag with detections attached
+                // asserts two contradictory things about one frame. Refusing here
+                // rather than at the Server names which of the two is wrong.
                 throw new ArgumentException(
-                    "Detections must be non-empty.", nameof(detections));
+                    sceneIsEmpty
+                        ? "Detections must be empty when sceneIsEmpty is true."
+                        : "Detections must be non-empty unless sceneIsEmpty is true.",
+                    nameof(detections));
             }
             return m_proxy.SubmitDetectionsAsync(
                 purpose,
                 detections,
                 frameReference ?? new VisionImageReferenceDataType(),
                 inlineImage,
+                sceneIsEmpty,
                 cancellationToken).AsTask();
         }
 
@@ -180,6 +193,12 @@ namespace Opc.Ua.Vision.Client
         /// The optional inline image bytes; must fit
         /// <c>MaxInlineFeedbackImageSize</c>.
         /// </param>
+        /// <param name="retractAll">
+        /// Asserts that the referenced result should contain nothing at all — the
+        /// false-positive retraction (§9.5). Both corrected arrays must be empty
+        /// when this is set, and it is the only way to correct a result down to
+        /// nothing.
+        /// </param>
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
@@ -190,6 +209,7 @@ namespace Opc.Ua.Vision.Client
             ArrayOf<VisionCharacteristicDataType> correctedCharacteristics,
             LocalizedText reason,
             ByteString inlineImage,
+            bool retractAll = false,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(resultId))
@@ -199,11 +219,22 @@ namespace Opc.Ua.Vision.Client
             }
             bool hasDetections = correctedDetections.Count > 0;
             bool hasCharacteristics = correctedCharacteristics.Count > 0;
-            if (hasDetections == hasCharacteristics)
+            if (retractAll)
             {
+                if (hasDetections || hasCharacteristics)
+                {
+                    throw new ArgumentException(
+                        "Both corrected arrays must be empty when retractAll is true.",
+                        nameof(correctedDetections));
+                }
+            }
+            else if (hasDetections == hasCharacteristics)
+            {
+                // Part 9.5 asks for AT MOST one non-empty. Both is contradictory;
+                // neither is only meaningful with retractAll.
                 throw new ArgumentException(
-                    "Exactly one of correctedDetections and correctedCharacteristics " +
-                    "must be non-empty.",
+                    "At most one of correctedDetections and correctedCharacteristics " +
+                    "may be non-empty, and one must be unless retractAll is true.",
                     nameof(correctedDetections));
             }
             return m_proxy.SubmitCorrectionAsync(
@@ -213,6 +244,7 @@ namespace Opc.Ua.Vision.Client
                 correctedCharacteristics,
                 reason.IsNull ? LocalizedText.Null : reason,
                 inlineImage,
+                retractAll,
                 cancellationToken).AsTask();
         }
 

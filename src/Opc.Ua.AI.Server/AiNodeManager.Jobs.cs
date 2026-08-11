@@ -63,6 +63,7 @@ namespace Opc.Ua.AI.Server
         private async ValueTask<InvokeAsyncMethodStateResult> StartJobAsync(
             NodeId objectId,
             ByteString payload,
+            string payloadUri,
             string contentType,
             CancellationToken ct)
         {
@@ -74,6 +75,16 @@ namespace Opc.Ua.AI.Server
                 return new InvokeAsyncMethodStateResult
                 {
                     ServiceResult = StatusCodes.BadNodeIdUnknown,
+                    Job = NodeId.Null
+                };
+            }
+
+            // Clause 8.4, as for Invoke: exactly one of Payload and PayloadUri.
+            if (payload.IsNull == string.IsNullOrEmpty(payloadUri))
+            {
+                return new InvokeAsyncMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadInvalidArgument,
                     Job = NodeId.Null
                 };
             }

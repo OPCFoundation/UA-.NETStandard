@@ -36,16 +36,21 @@ namespace Opc.Ua.Vision.Server
     /// Properties of the Vision Methods.
     /// </summary>
     /// <remarks>
-    /// The Vision NodeSet declares twelve Methods and not one Argument
-    /// Property, so nothing in the address space describes their
-    /// signatures. A Server built from it alone rejects every call that
-    /// carries arguments with <c>Bad_TooManyArguments</c>, because
-    /// <c>MethodState.Call</c> compares the supplied arguments
-    /// against an <c>InputArguments</c> Property it cannot find and
-    /// concludes that none were expected. A client cannot discover the
-    /// signatures either. The declarations below come from the Method
-    /// definitions in the specification prose and match the generated
-    /// Method state classes argument for argument.
+    /// The NodeSet now browse-names its Argument Properties correctly, so the
+    /// generated <c>CreateInstanceOf…MethodType</c> factories carry the
+    /// signatures. The builder does not use those factories, though: the
+    /// Methods here are Optional children materialised by
+    /// <c>CreateOrReplace…</c>, which constructs the state object directly and
+    /// leaves <c>InputArguments</c> unset. A Method reached that way is
+    /// uncallable — <c>MethodState.Call</c> compares the supplied arguments
+    /// against an <c>InputArguments</c> Property it cannot find and concludes
+    /// that none were expected, so every call carrying arguments is refused
+    /// with <c>Bad_TooManyArguments</c> — and a client cannot discover the
+    /// signature either. Declaring them here closes that gap. Removing this
+    /// class makes five of the eight <c>VisionMethodSurfaceTests</c> fail, which
+    /// is the check to repeat if the generator ever starts populating them.
+    /// The declarations match the specification's Method definitions and the
+    /// generated Method state classes argument for argument.
     /// </remarks>
     internal static class VisionMethodArguments
     {
@@ -78,7 +83,8 @@ namespace Opc.Ua.Vision.Server
                     VisionDataType(context, DataTypeIds.VisionDetectionDataType),
                     ValueRanks.OneDimension),
                 Argument("FrameReference", VisionDataType(context, DataTypeIds.VisionImageReferenceDataType)),
-                Argument("InlineImage", global::Opc.Ua.DataTypeIds.ByteString));
+                Argument("InlineImage", global::Opc.Ua.DataTypeIds.ByteString),
+                Argument("SceneIsEmpty", global::Opc.Ua.DataTypeIds.Boolean));
             SetOutput(context, method);
         }
 
@@ -112,7 +118,8 @@ namespace Opc.Ua.Vision.Server
                     VisionDataType(context, DataTypeIds.VisionCharacteristicDataType),
                     ValueRanks.OneDimension),
                 Argument("Reason", global::Opc.Ua.DataTypeIds.LocalizedText),
-                Argument("InlineImage", global::Opc.Ua.DataTypeIds.ByteString));
+                Argument("InlineImage", global::Opc.Ua.DataTypeIds.ByteString),
+                Argument("RetractAll", global::Opc.Ua.DataTypeIds.Boolean));
             SetOutput(context, method);
         }
 

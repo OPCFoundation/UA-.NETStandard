@@ -620,19 +620,27 @@ await feedback.SubmitDetectionsAsync(
 
 The `Purpose` values `Overlay`, `Reconciliation`, `GroundTruthLabel`
 and `Trigger` are all defined; a Server refuses the ones it does not
-permit with `Bad_NotSupported`. `SubmitCorrection` requires *exactly
-one* of the two `corrected*` arrays to be non-empty — passing both or
-neither is an argument error (§9.5). `SubmitInspectionResult`
-requires at least one characteristic.
+permit with `Bad_NotSupported`. `SubmitCorrection` accepts *at most
+one* of the two `corrected*` arrays non-empty — passing both is an
+argument error (§9.5). `SubmitInspectionResult` requires at least one
+characteristic.
 
-> **A shape the specification cannot express.** §9.5 makes an empty
-> `Detections` array `Bad_InvalidArgument`, and requires exactly one
-> corrected array to be non-empty. Between them, an agent cannot report
-> "I looked and the bin is empty", and cannot retract a false positive
-> by correcting a result down to nothing. The implementation follows the
-> specification — both are refused — and the gap is
-> [raised upstream](https://github.com/marcschier/opcua-drafts/issues/70)
-> rather than worked around here.
+> **Reporting an empty scene, and retracting a false positive.**
+> `SubmitDetections` takes a `SceneIsEmpty` flag and `SubmitCorrection`
+> a `RetractAll` flag. They exist because an empty observation is a real
+> one: "I examined this frame and there is nothing in it" is the
+> terminating condition of a bin-picking task and a valid negative
+> training label, and a false positive is corrected by asserting that
+> nothing replaces it. Neither statement can be made by submitting an
+> array, because both *are* the empty array.
+>
+> The pairing is checked in both directions. An empty `Detections`
+> without `SceneIsEmpty` is refused — the flag is what distinguishes a
+> deliberate observation from a lost payload — and `SceneIsEmpty` with
+> detections attached is refused because it asserts two contradictory
+> things about one frame. `RetractAll` behaves the same way against the
+> corrected arrays. §9.4 requires a Server to count a negative example
+> in `SamplesCollected` exactly as it counts one carrying geometry.
 
 ### Streaming detections
 
@@ -766,25 +774,6 @@ against the draft; see [Limitations](#limitations).
   Vision, USB3 Vision, GenICam or vendor-native driver in the box; a
   host implementing `IVisionMediaProvider` for a real camera is the
   supported extension point.
-- **The Vision NodeSet's Method arguments are misnamespaced.** All 13
-  `InputArguments` / `OutputArguments` Properties are browse-named
-  `1:InputArguments` — in the Vision namespace rather than the base
-  namespace where the standard Property lives — so a stack cannot find
-  them and treats every Method as taking no arguments. The Server
-  declares the signatures itself, in
-  `Opc.Ua.Vision.Server/VisionMethodArguments.cs`, so a conforming client
-  works today; the artefact defect is raised as
-  [opcua-drafts#71](https://github.com/marcschier/opcua-drafts/issues/71).
-  When it is fixed upstream, those declarations become redundant.
-- **"Nothing detected" and "that was a false positive" cannot be
-  expressed.** §9.5 makes an empty `Detections` array
-  `Bad_InvalidArgument`, and requires `SubmitCorrection` to carry
-  *exactly one* non-empty corrected array. So an agent that has emptied
-  the bin cannot report an empty observation, and a false positive
-  cannot be retracted by correcting a result down to nothing — the
-  correction has to assert something instead. The implementation
-  conforms rather than deviating; the gap is raised against the draft as
-  [opcua-drafts#70](https://github.com/marcschier/opcua-drafts/issues/70).
 - **`ConfigureVisionFor<TNodeManager>` only accepts `VisionNodeManager`.**
   Custom Vision node-manager types are not yet supported; vendor
   extension follows the same class-based-configurator pattern the

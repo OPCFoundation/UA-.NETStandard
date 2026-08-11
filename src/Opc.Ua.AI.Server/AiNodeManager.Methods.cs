@@ -54,12 +54,12 @@ namespace Opc.Ua.AI.Server
         private void WireDeploymentMethods(DeploymentState deployment)
         {
             Child<InvokeMethodState>(deployment, BrowseNames.Invoke).OnCallAsync =
-                (context, method, objectId, payload, contentType, parameters, timeout, ct) =>
-                    InvokeAsync(objectId, payload, contentType, timeout, ct);
+                (context, method, objectId, payload, payloadUri, contentType, parameters, timeout, ct) =>
+                    InvokeAsync(objectId, payload, payloadUri, contentType, timeout, ct);
 
             Child<InvokeAsyncMethodState>(deployment, BrowseNames.InvokeAsync).OnCallAsync =
-                (context, method, objectId, payload, contentType, parameters, ct) =>
-                    StartJobAsync(objectId, payload, contentType, ct);
+                (context, method, objectId, payload, payloadUri, contentType, parameters, ct) =>
+                    StartJobAsync(objectId, payload, payloadUri, contentType, ct);
 
             Child<GetCapabilitiesMethodState>(deployment, BrowseNames.GetCapabilities)
                 .OnCallAsync =
@@ -92,6 +92,7 @@ namespace Opc.Ua.AI.Server
         private async ValueTask<InvokeMethodStateResult> InvokeAsync(
             NodeId objectId,
             ByteString payload,
+            string payloadUri,
             string contentType,
             double timeout,
             CancellationToken ct)
@@ -102,6 +103,17 @@ namespace Opc.Ua.AI.Server
                 return new InvokeMethodStateResult
                 {
                     ServiceResult = StatusCodes.BadNodeIdUnknown
+                };
+            }
+
+            // Clause 8.4. Exactly one of Payload and PayloadUri says where the input
+            // is; a call supplying both would not say which was read, and one
+            // supplying neither carries no input at all.
+            if (payload.IsNull == string.IsNullOrEmpty(payloadUri))
+            {
+                return new InvokeMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadInvalidArgument
                 };
             }
 

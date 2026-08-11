@@ -291,13 +291,14 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public async Task SubmitDetectionsRefusesAnEmptyDetectionArrayWithoutCallingTheSink()
+        public async Task SubmitDetectionsRefusesAnEmptyDetectionArrayWithoutTheFlag()
         {
             var sink = new Mock<IVisionFeedbackSink>(MockBehavior.Strict);
             var harness = new FeedbackHarness(pipelineId: 612, feedbackSink: sink.Object);
 
-            // Part 9.5 lists "Detections empty" as Bad_InvalidArgument. The strict mock proves
-            // the sink is never consulted: the dispatcher owns this rule, not the sink.
+            // Part 9.5 pairs the array with the flag: an empty array without
+            // SceneIsEmpty is a lost payload, not an observation. The strict mock
+            // proves the sink is never consulted - the dispatcher owns this rule.
             SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
                 detections: ArrayOf<VisionDetectionDataType>.Empty,
@@ -309,14 +310,64 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
+        public async Task SubmitDetectionsAcceptsAnEmptyDetectionArrayWhenSceneIsEmpty()
+        {
+            var sink = new Mock<IVisionFeedbackSink>();
+            VisionSubmitDetectionsRequest? captured = null;
+            sink.Setup(s => s.SubmitDetectionsAsync(It.IsAny<VisionSubmitDetectionsRequest>(), It.IsAny<CancellationToken>()))
+                .Returns<VisionSubmitDetectionsRequest, CancellationToken>((req, _) =>
+                {
+                    captured = req;
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            var harness = new FeedbackHarness(pipelineId: 615, feedbackSink: sink.Object);
+
+            // "I examined this frame and there is nothing in it" is the terminating
+            // condition of a bin-picking task and a valid negative training label.
+            SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
+                purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
+                detections: ArrayOf<VisionDetectionDataType>.Empty,
+                frameReference: new VisionImageReferenceDataType(),
+                inlineImage: default,
+                sceneIsEmpty: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(captured, Is.Not.Null);
+                Assert.That(captured!.SceneIsEmpty, Is.True,
+                    "The sink has to see the flag; it is what distinguishes the " +
+                    "observation from an empty submission it should discard.");
+            });
+        }
+
+        [Test]
+        public async Task SubmitDetectionsRefusesSceneIsEmptyWithDetectionsAttached()
+        {
+            var sink = new Mock<IVisionFeedbackSink>(MockBehavior.Strict);
+            var harness = new FeedbackHarness(pipelineId: 616, feedbackSink: sink.Object);
+
+            // Asserting the frame is empty while attaching what was found in it says
+            // two contradictory things about one frame.
+            SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
+                purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
+                detections: OneDetection(),
+                frameReference: new VisionImageReferenceDataType(),
+                inlineImage: default,
+                sceneIsEmpty: true).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
         public async Task SubmitCorrectionRefusesWhenNeitherCorrectedArrayIsPopulated()
         {
             var sink = new Mock<IVisionFeedbackSink>(MockBehavior.Strict);
             var harness = new FeedbackHarness(pipelineId: 613, feedbackSink: sink.Object);
 
-            // Part 9.5 requires exactly one corrected array to be non-empty. "Neither" is how a
-            // caller would retract a false positive, so this refusal is the specification's
-            // choice rather than ours; the gap is raised upstream.
+            // Part 9.5 asks for at most one non-empty array, and both empty means
+            // something only when RetractAll says so.
             SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
                 resultId: "r-1",
                 purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
@@ -324,6 +375,60 @@ namespace Opc.Ua.Vision.Tests
                 correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
                 reason: default,
                 inlineImage: default).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public async Task SubmitCorrectionAcceptsBothArraysEmptyWhenRetractAllIsSet()
+        {
+            var sink = new Mock<IVisionFeedbackSink>();
+            VisionSubmitCorrectionRequest? captured = null;
+            sink.Setup(s => s.SubmitCorrectionAsync(It.IsAny<VisionSubmitCorrectionRequest>(), It.IsAny<CancellationToken>()))
+                .Returns<VisionSubmitCorrectionRequest, CancellationToken>((req, _) =>
+                {
+                    captured = req;
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            var harness = new FeedbackHarness(pipelineId: 617, feedbackSink: sink.Object);
+
+            // The false-positive retraction: correcting a result down to nothing.
+            // It is the error class an operator is most able to label with
+            // confidence, and it was inexpressible before this flag existed.
+            SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
+                resultId: "r-1",
+                purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
+                correctedDetections: ArrayOf<VisionDetectionDataType>.Empty,
+                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                reason: default,
+                inlineImage: default,
+                retractAll: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(captured, Is.Not.Null);
+                Assert.That(captured!.RetractAll, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task SubmitCorrectionRefusesRetractAllWithAReplacementAttached()
+        {
+            var sink = new Mock<IVisionFeedbackSink>(MockBehavior.Strict);
+            var harness = new FeedbackHarness(pipelineId: 618, feedbackSink: sink.Object);
+
+            // RetractAll asserts the result should contain nothing at all, so
+            // carrying a replacement contradicts it.
+            SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
+                resultId: "r-1",
+                purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
+                correctedDetections: OneDetection(),
+                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                reason: default,
+                inlineImage: default,
+                retractAll: true).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
@@ -409,7 +514,8 @@ namespace Opc.Ua.Vision.Tests
                 VisionFeedbackPurposeEnum purpose,
                 ArrayOf<VisionDetectionDataType> detections,
                 VisionImageReferenceDataType frameReference,
-                ByteString inlineImage)
+                ByteString inlineImage,
+                bool sceneIsEmpty = false)
             {
                 return await m_submitDetections!(
                     null!,
@@ -419,6 +525,7 @@ namespace Opc.Ua.Vision.Tests
                     detections,
                     frameReference,
                     inlineImage,
+                    sceneIsEmpty,
                     CancellationToken.None).ConfigureAwait(false);
             }
 
@@ -428,7 +535,8 @@ namespace Opc.Ua.Vision.Tests
                 ArrayOf<VisionDetectionDataType> correctedDetections,
                 ArrayOf<VisionCharacteristicDataType> correctedCharacteristics,
                 LocalizedText reason,
-                ByteString inlineImage)
+                ByteString inlineImage,
+                bool retractAll = false)
             {
                 Assert.That(m_submitCorrection, Is.Not.Null,
                     "This helper requires a full feedback surface; construct FeedbackHarness with feedbackWithSubmitOnly=false.");
@@ -442,6 +550,7 @@ namespace Opc.Ua.Vision.Tests
                     correctedCharacteristics,
                     reason,
                     inlineImage,
+                    retractAll,
                     CancellationToken.None).ConfigureAwait(false);
             }
 

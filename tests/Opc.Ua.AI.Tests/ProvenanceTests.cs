@@ -67,6 +67,7 @@ namespace Opc.Ua.AI.Tests
                 deployment.Invoke,
                 nm.PrimaryDeploymentId,
                 ByteString.From(Encoding.UTF8.GetBytes("{}")),
+                string.Empty,
                 "application/json",
                 ArrayOf<Opc.Ua.KeyValuePair>.Empty,
                 5000,

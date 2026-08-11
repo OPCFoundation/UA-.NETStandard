@@ -88,7 +88,8 @@ namespace Opc.Ua.Vision.Server
         VisionFeedbackPurposeEnum Purpose,
         ArrayOf<VisionDetectionDataType> Detections,
         VisionImageReferenceDataType FrameReference,
-        ByteString InlineImage);
+        ByteString InlineImage,
+        bool SceneIsEmpty = false);
 
     /// <summary>
     /// Input to
@@ -111,7 +112,8 @@ namespace Opc.Ua.Vision.Server
         ArrayOf<VisionDetectionDataType> CorrectedDetections,
         ArrayOf<VisionCharacteristicDataType> CorrectedCharacteristics,
         LocalizedText Reason,
-        ByteString InlineImage);
+        ByteString InlineImage,
+        bool RetractAll = false);
 
     /// <summary>
     /// Input to

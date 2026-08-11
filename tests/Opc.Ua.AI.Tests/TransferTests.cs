@@ -68,6 +68,7 @@ namespace Opc.Ua.AI.Tests
                 deployment.Invoke,
                 nm.PrimaryDeploymentId,
                 ByteString.From(oversize),
+                string.Empty,
                 "application/octet-stream",
                 ArrayOf<Opc.Ua.KeyValuePair>.Empty,
                 5000,

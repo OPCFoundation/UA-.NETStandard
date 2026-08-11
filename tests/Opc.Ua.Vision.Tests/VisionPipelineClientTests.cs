@@ -240,10 +240,9 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            // Part 9.5 lists "Detections empty" as Bad_InvalidArgument, so the wrapper refuses
-            // it before the call leaves the client. The consequence - that "I looked and the bin
-            // is empty" cannot be expressed at all - is raised against the draft, not worked
-            // around here.
+            // Part 9.5 pairs the array with the flag: an empty array without
+            // SceneIsEmpty is a lost payload rather than an observation, so the
+            // wrapper refuses it before the call leaves the client.
             var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Overlay,
@@ -252,6 +251,40 @@ namespace Opc.Ua.Vision.Tests
                     ByteString.Empty).ConfigureAwait(false));
 
             Assert.That(ex!.ParamName, Is.EqualTo("detections"));
+        }
+
+        [Test]
+        public async Task SubmitDetectionsRejectsSceneIsEmptyWithDetectionsAttached()
+        {
+            VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await feedback.SubmitDetectionsAsync(
+                    VisionFeedbackPurposeEnum.GroundTruthLabel,
+                    new[] { new VisionDetectionDataType { ClassLabel = "Part" } }.ToArrayOf(),
+                    null,
+                    ByteString.Empty,
+                    sceneIsEmpty: true).ConfigureAwait(false));
+
+            Assert.That(ex!.ParamName, Is.EqualTo("detections"));
+        }
+
+        [Test]
+        public async Task SubmitCorrectionRejectsRetractAllWithAReplacementAttached()
+        {
+            VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await feedback.SubmitCorrectionAsync(
+                    "r-1",
+                    VisionFeedbackPurposeEnum.GroundTruthLabel,
+                    new[] { new VisionDetectionDataType { ClassLabel = "Part" } }.ToArrayOf(),
+                    ArrayOf<VisionCharacteristicDataType>.Empty,
+                    default,
+                    ByteString.Empty,
+                    retractAll: true).ConfigureAwait(false));
+
+            Assert.That(ex!.ParamName, Is.EqualTo("correctedDetections"));
         }
 
         [Test]

@@ -78,10 +78,10 @@ namespace Opc.Ua.Vision.Tests
                     .WithMountType("C-Mount")
                     .WithLensType("Fixed"))
                 .WithIllumination(i => i
-                    .WithLampType("LED")
+                    .WithLampType(VisionLampTypeEnum.Led)
                     .WithWavelength(525)
                     .WithRelativeIntensity(0.8)
-                    .WithLightingMode("BrightField"))
+                    .WithLightingMode(VisionLightingModeEnum.Continuous))
                 .AddIntrinsicCalibration("Intr", calib => calib
                     .WithCalibrationId("intrinsic-1")
                     .WithIntrinsics(intrinsics)
@@ -101,7 +101,7 @@ namespace Opc.Ua.Vision.Tests
                     .WithResolution(1920, 1080)
                     .WithFrameRate(30.0)
                     .WithBitrate(8_000_000)
-                    .WithProfileName("main"))
+                    .WithDefaultProfileName("main"))
                 .AddClipEndpoint("Snap", ep => ep
                     .WithEndpointId("clip-1")
                     .WithEndpointUri("clip://cam-1/snap")
@@ -109,7 +109,7 @@ namespace Opc.Ua.Vision.Tests
                     .WithQuality(90)
                     .WithResolution(1920, 1080)
                     .WithInlineDelivery(true, 1_048_576)
-                    .WithProfileName("thumb"))
+                    .WithDefaultProfileName("thumb"))
                 .UseMediaProvider(mediaProvider));
 
             Assert.That(fixture.Manager.Root.Sensors, Is.Not.Null);
@@ -499,7 +499,7 @@ namespace Opc.Ua.Vision.Tests
                     .WithEndpointId("snap-1")
                     .WithClipFormat(VisionClipFormatEnum.Png)
                     .WithInlineDelivery(false, 0)
-                    .WithProfileName("noinline")));
+                    .WithDefaultProfileName("noinline")));
 
             Assert.That(FindChild(fixture.Manager.Root.Sensors!, "Cam1"),
                 Is.Not.Null);

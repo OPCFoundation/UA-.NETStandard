@@ -444,7 +444,7 @@ namespace Opc.Ua.Vision.Server
 
         private SubmitDetectionsMethodStateMethodAsyncCallHandler CreateSubmitDetectionsHandler(NodeId pipelineNodeId)
         {
-            return async (context, method, objectId, purpose, detections, frameRef, inlineImage, ct) =>
+            return async (context, method, objectId, purpose, detections, frameRef, inlineImage, sceneIsEmpty, ct) =>
             {
                 IVisionFeedbackSink? sink = ResolveFeedbackSink(pipelineNodeId);
                 if (sink == null)
@@ -455,12 +455,14 @@ namespace Opc.Ua.Vision.Server
                         ServiceResult = StatusCodes.BadNotSupported
                     };
                 }
-                if (detections.Count == 0)
+                if (detections.Count == 0 != sceneIsEmpty)
                 {
-                    // Part 9.5 states Bad_InvalidArgument for an empty Detections array.
-                    // See the note on VisionFeedbackClient.SubmitDetectionsAsync: this makes
-                    // "I looked and the bin is empty" inexpressible, which is raised upstream
-                    // rather than deviated from here.
+                    // Part 9.5. An empty Detections is accepted only when SceneIsEmpty
+                    // says the frame was examined and found to contain nothing, and is
+                    // refused otherwise - the flag is what tells a deliberate empty
+                    // observation from a lost payload. The converse is equally
+                    // inconsistent: SceneIsEmpty with detections attached asserts two
+                    // contradictory things about the same frame.
                     return new SubmitDetectionsMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadInvalidArgument
@@ -474,7 +476,8 @@ namespace Opc.Ua.Vision.Server
                             purpose,
                             detections,
                             frameRef,
-                            inlineImage),
+                            inlineImage,
+                            sceneIsEmpty),
                         ct).ConfigureAwait(false);
                     if (ServiceResult.IsGood(result))
                     {
@@ -546,7 +549,7 @@ namespace Opc.Ua.Vision.Server
 
         private SubmitCorrectionMethodStateMethodAsyncCallHandler CreateSubmitCorrectionHandler(NodeId pipelineNodeId)
         {
-            return async (context, method, objectId, resultId, purpose, detections, characteristics, reason, inlineImage, ct) =>
+            return async (context, method, objectId, resultId, purpose, detections, characteristics, reason, inlineImage, retractAll, ct) =>
             {
                 IVisionFeedbackSink? sink = ResolveFeedbackSink(pipelineNodeId);
                 if (sink == null)
@@ -567,12 +570,25 @@ namespace Opc.Ua.Vision.Server
                         ServiceResult = StatusCodes.BadInvalidArgument
                     };
                 }
-                if ((detections.Count == 0) == (characteristics.Count == 0))
+                bool hasDetections = detections.Count > 0;
+                bool hasCharacteristics = characteristics.Count > 0;
+                if (retractAll)
                 {
-                    // Part 9.5: exactly one of CorrectedDetections and CorrectedCharacteristics
-                    // shall be non-empty, so both-or-neither is Bad_InvalidArgument. "Neither"
-                    // is how a caller would retract a false positive; that gap is raised
-                    // upstream rather than deviated from here.
+                    // Part 9.5. RetractAll asserts the referenced result should contain
+                    // nothing at all, so carrying a replacement contradicts it.
+                    if (hasDetections || hasCharacteristics)
+                    {
+                        return new SubmitCorrectionMethodStateResult
+                        {
+                            ServiceResult = StatusCodes.BadInvalidArgument
+                        };
+                    }
+                }
+                else if (hasDetections == hasCharacteristics)
+                {
+                    // Part 9.5 relaxed this to AT MOST one non-empty: both populated is
+                    // still contradictory, and neither is only meaningful with RetractAll,
+                    // which is the branch above.
                     return new SubmitCorrectionMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadInvalidArgument
@@ -588,7 +604,8 @@ namespace Opc.Ua.Vision.Server
                             detections,
                             characteristics,
                             reason,
-                            inlineImage),
+                            inlineImage,
+                            retractAll),
                         ct).ConfigureAwait(false);
                     if (ServiceResult.IsGood(result))
                     {

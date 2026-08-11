@@ -177,6 +177,7 @@ namespace Opc.Ua.AI.Tests
                         deployment.InvokeAsync,
                         nm.PrimaryDeploymentId,
                         ByteString.From(Encoding.UTF8.GetBytes("{}")),
+                        string.Empty,
                         "application/json",
                         ArrayOf<Opc.Ua.KeyValuePair>.Empty,
                         CancellationToken.None).ConfigureAwait(false);

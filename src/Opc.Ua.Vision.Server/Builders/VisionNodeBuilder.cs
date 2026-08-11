@@ -644,6 +644,7 @@ namespace Opc.Ua.Vision.Server.Builders
             where TMethod : MethodState
         {
             declare(m_context.Context, method);
+            method.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
             method.MethodDeclarationId = ExpandedNodeId.ToNodeId(
                 declarationId, m_context.Context.NamespaceUris);
         }
@@ -920,10 +921,10 @@ namespace Opc.Ua.Vision.Server.Builders
             m_illumination = illumination;
         }
 
-        public IVisionIlluminationBuilder WithLampType(string lampType)
+        public IVisionIlluminationBuilder WithLampType(VisionLampTypeEnum lampType)
         {
             m_illumination.CreateOrReplaceLampType(m_context.Context, null);
-            m_illumination.LampType!.Value = lampType ?? string.Empty;
+            m_illumination.LampType!.Value = lampType;
             return this;
         }
 
@@ -941,10 +942,10 @@ namespace Opc.Ua.Vision.Server.Builders
             return this;
         }
 
-        public IVisionIlluminationBuilder WithLightingMode(string lightingMode)
+        public IVisionIlluminationBuilder WithLightingMode(VisionLightingModeEnum lightingMode)
         {
             m_illumination.CreateOrReplaceLightingMode(m_context.Context, null);
-            m_illumination.LightingMode!.Value = lightingMode ?? string.Empty;
+            m_illumination.LightingMode!.Value = lightingMode;
             return this;
         }
 
@@ -1126,10 +1127,10 @@ namespace Opc.Ua.Vision.Server.Builders
             return this;
         }
 
-        public IVisionStreamEndpointBuilder WithProfileName(string profileName)
+        public IVisionStreamEndpointBuilder WithDefaultProfileName(string defaultProfileName)
         {
-            m_endpoint.CreateOrReplaceProfileName(m_context.Context, null);
-            m_endpoint.ProfileName!.Value = profileName ?? string.Empty;
+            m_endpoint.CreateOrReplaceDefaultProfileName(m_context.Context, null);
+            m_endpoint.DefaultProfileName!.Value = defaultProfileName ?? string.Empty;
             return this;
         }
 
@@ -1202,10 +1203,10 @@ namespace Opc.Ua.Vision.Server.Builders
             return this;
         }
 
-        public IVisionClipEndpointBuilder WithProfileName(string profileName)
+        public IVisionClipEndpointBuilder WithDefaultProfileName(string defaultProfileName)
         {
-            m_endpoint.CreateOrReplaceProfileName(m_context.Context, null);
-            m_endpoint.ProfileName!.Value = profileName ?? string.Empty;
+            m_endpoint.CreateOrReplaceDefaultProfileName(m_context.Context, null);
+            m_endpoint.DefaultProfileName!.Value = defaultProfileName ?? string.Empty;
             return this;
         }
 

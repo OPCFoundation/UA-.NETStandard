@@ -270,11 +270,13 @@ namespace Vision.BinPickingCell
                     StatusCodes.BadNodeIdUnknown,
                     "The pipeline node id does not match the attached off-server pipeline.");
             }
-            // Part 9.5 requires Bad_InvalidArgument for an empty Detections array. The
-            // dispatcher refuses it before this sink is reached; the check is kept so the
-            // provider is correct when driven directly. The consequence - that "I looked and
-            // the bin is empty" is inexpressible - is raised upstream, not worked around here.
-            ServiceResult? refusal = ValidateDetections(target, request.Detections, allowEmpty: false);
+            // Part 9.5 pairs the array with the flag. SceneIsEmpty is how the agent
+            // reports an emptied bin - the terminating condition of the pick loop -
+            // so an empty array is accepted exactly when it is set. The dispatcher
+            // checks this too; the check is kept so the provider is correct when
+            // driven directly.
+            ServiceResult? refusal = ValidateDetections(
+                target, request.Detections, allowEmpty: request.SceneIsEmpty);
             if (refusal != null)
             {
                 return refusal;
@@ -379,12 +381,12 @@ namespace Vision.BinPickingCell
                     "This pipeline publishes DetectionResultType only; corrections must carry " +
                     "CorrectedDetections and not CorrectedCharacteristics.");
             }
-            // Part 9.5 requires exactly one of the corrected arrays to be non-empty, so an
-            // all-empty correction - the false-positive retraction - is refused. The dispatcher
-            // refuses it first; this keeps the provider correct when driven directly. The gap is
-            // raised upstream rather than worked around here.
+            // Part 9.5 asks for at most one non-empty corrected array, and both empty
+            // is the false-positive retraction when RetractAll says so. The dispatcher
+            // checks this too; the check is kept so the provider is correct when
+            // driven directly.
             ServiceResult? refusal = ValidateDetections(
-                target, request.CorrectedDetections, allowEmpty: false);
+                target, request.CorrectedDetections, allowEmpty: request.RetractAll);
             if (refusal != null)
             {
                 return refusal;

@@ -55,8 +55,10 @@ namespace Opc.Ua.Mcp.Tools
             "Detections are JSON: an array of objects with detectionId, classLabel, classId, confidence, " +
             "optional boundingBox2D { centerX, centerY, width, height, rotation }, optional boundingBox3D " +
             "{ center pose, size[3] }, optional pose { frameId, position[3], orientation[4], covariance[36] } " +
-            "and optional trackId. Reports the server's refusal honestly; never retries silently and never " +
-            "acquires authority as a side effect.")]
+            "and optional trackId. To report that a frame was examined and contains nothing — the " +
+            "terminating condition of a pick-and-place task, and a valid negative training label — pass " +
+            "an empty array and set sceneIsEmpty. Reports the server's refusal honestly; never retries " +
+            "silently and never acquires authority as a side effect.")]
         public static Task SubmitDetectionsAsync(
             VisionClientAccessor accessor,
             [Description("Pipeline NodeId whose Feedback object should receive the detections.")] string pipelineNodeId,
@@ -64,11 +66,15 @@ namespace Opc.Ua.Mcp.Tools
                 "or Trigger.")]
             VisionFeedbackPurposeEnum purpose,
             [Description("JSON array of detections as documented on this tool.")] string detectionsJson,
+            [Description("Set when the frame was examined and found to contain nothing. Required for an " +
+                "empty detections array, and rejected when detections are present.")]
+            bool sceneIsEmpty = false,
             [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
             CancellationToken ct = default)
         {
             ArrayOf<VisionDetectionDataType> detections = VisionJson.BuildDetections(detectionsJson);
-            return SubmitDetectionsCoreAsync(accessor, pipelineNodeId, purpose, detections, sessionName, ct);
+            return SubmitDetectionsCoreAsync(
+                accessor, pipelineNodeId, purpose, detections, sceneIsEmpty, sessionName, ct);
         }
 
         /// <summary>
@@ -107,8 +113,10 @@ namespace Opc.Ua.Mcp.Tools
             "this when the language model disagrees with a server-published detection or inspection and " +
             "wants to attach a corrected version. Use vision_submit_detections instead to publish fresh " +
             "detections without a target result, and vision_submit_inspection_result for a fresh verdict. " +
-            "Exactly one of correctedDetectionsJson or correctedCharacteristicsJson must be provided; the " +
-            "other should be null. Reports the server's refusal honestly; never retries silently.")]
+            "At most one of correctedDetectionsJson or correctedCharacteristicsJson may be provided. To " +
+            "retract a false positive — asserting the result should contain nothing at all, which is the " +
+            "error class an operator can label most confidently — omit both and set retractAll. Reports " +
+            "the server's refusal honestly; never retries silently.")]
         public static Task SubmitCorrectionAsync(
             VisionClientAccessor accessor,
             [Description("Pipeline NodeId whose Feedback object should receive the correction.")] string pipelineNodeId,
@@ -124,16 +132,28 @@ namespace Opc.Ua.Mcp.Tools
             string? correctedCharacteristicsJson = null,
             [Description("Human-readable reason attached to the correction.")]
             string? reason = null,
+            [Description("Set to retract the referenced result entirely, asserting it should contain " +
+                "nothing. Requires both corrected arrays to be omitted.")]
+            bool retractAll = false,
             [Description("Session name to use; defaults to the only active session.")] string? sessionName = null,
             CancellationToken ct = default)
         {
             bool hasDetections = !string.IsNullOrWhiteSpace(correctedDetectionsJson);
             bool hasCharacteristics = !string.IsNullOrWhiteSpace(correctedCharacteristicsJson);
-            if (hasDetections == hasCharacteristics)
+            if (retractAll)
+            {
+                if (hasDetections || hasCharacteristics)
+                {
+                    throw new ArgumentException(
+                        "Both corrected arrays must be omitted when retractAll is set.",
+                        nameof(correctedDetectionsJson));
+                }
+            }
+            else if (hasDetections == hasCharacteristics)
             {
                 throw new ArgumentException(
-                    "Exactly one of correctedDetectionsJson and correctedCharacteristicsJson must be " +
-                    "provided.",
+                    "Provide exactly one of correctedDetectionsJson and correctedCharacteristicsJson, " +
+                    "or set retractAll to retract the result entirely.",
                     nameof(correctedDetectionsJson));
             }
             ArrayOf<VisionDetectionDataType> detections = hasDetections
@@ -153,6 +173,7 @@ namespace Opc.Ua.Mcp.Tools
                 detections,
                 characteristics,
                 localizedReason,
+                retractAll,
                 sessionName,
                 ct);
         }
@@ -189,13 +210,15 @@ namespace Opc.Ua.Mcp.Tools
             string pipelineNodeId,
             VisionFeedbackPurposeEnum purpose,
             ArrayOf<VisionDetectionDataType> detections,
+            bool sceneIsEmpty,
             string? sessionName,
             CancellationToken ct)
         {
             VisionFeedbackClient feedback = await accessor.OpenPipelineFeedbackAsync(
                 pipelineNodeId, sessionName, ct).ConfigureAwait(false);
             await feedback.SubmitDetectionsAsync(
-                purpose, detections, frameReference: null, inlineImage: ByteString.Empty, ct)
+                purpose, detections, frameReference: null, inlineImage: ByteString.Empty,
+                sceneIsEmpty, ct)
                 .ConfigureAwait(false);
         }
 
@@ -222,6 +245,7 @@ namespace Opc.Ua.Mcp.Tools
             ArrayOf<VisionDetectionDataType> detections,
             ArrayOf<VisionCharacteristicDataType> characteristics,
             LocalizedText reason,
+            bool retractAll,
             string? sessionName,
             CancellationToken ct)
         {
@@ -234,6 +258,7 @@ namespace Opc.Ua.Mcp.Tools
                 characteristics,
                 reason,
                 inlineImage: ByteString.Empty,
+                retractAll,
                 ct).ConfigureAwait(false);
         }
 

@@ -125,7 +125,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public async Task SubmitCorrectionDeclaresAllSixArgumentsInOrder()
+        public async Task SubmitCorrectionDeclaresAllSevenArgumentsInOrder()
         {
             InferencePipelineState pipeline = await BuildPipelineAsync(
                 withInference: false, withFeedback: true).ConfigureAwait(false);
@@ -144,8 +144,35 @@ namespace Opc.Ua.Vision.Tests
                 "CorrectedDetections",
                 "CorrectedCharacteristics",
                 "Reason",
-                "InlineImage"
+                "InlineImage",
+                "RetractAll"
             }).AsCollection, "The order is positional on the wire, so it must match the spec.");
+        }
+
+        [Test]
+        public async Task SubmitDetectionsDeclaresTheSceneIsEmptyFlagLast()
+        {
+            InferencePipelineState pipeline = await BuildPipelineAsync(
+                withInference: false, withFeedback: true).ConfigureAwait(false);
+            SubmitDetectionsMethodState method = pipeline.Feedback!.SubmitDetections!;
+
+            var names = new List<string>();
+            for (int ii = 0; ii < method.InputArguments!.Value.Count; ii++)
+            {
+                names.Add(method.InputArguments!.Value[ii].Name ?? string.Empty);
+            }
+
+            Assert.That(names, Is.EqualTo(new[]
+            {
+                "Purpose",
+                "Detections",
+                "FrameReference",
+                "InlineImage",
+                "SceneIsEmpty"
+            }).AsCollection,
+                "SceneIsEmpty is what makes an empty Detections array a real " +
+                "observation, so it has to reach the wire in the position the " +
+                "specification gives it.");
         }
 
         [Test]

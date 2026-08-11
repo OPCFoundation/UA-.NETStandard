@@ -307,7 +307,7 @@ namespace Opc.Ua.Vision.Server.Builders
         /// <summary>
         /// Sets the lamp type.
         /// </summary>
-        IVisionIlluminationBuilder WithLampType(string lampType);
+        IVisionIlluminationBuilder WithLampType(VisionLampTypeEnum lampType);
 
         /// <summary>
         /// Sets the peak wavelength in nanometres.
@@ -322,7 +322,7 @@ namespace Opc.Ua.Vision.Server.Builders
         /// <summary>
         /// Sets the lighting mode label.
         /// </summary>
-        IVisionIlluminationBuilder WithLightingMode(string lightingMode);
+        IVisionIlluminationBuilder WithLightingMode(VisionLightingModeEnum lightingMode);
     }
 
     /// <summary>
@@ -427,7 +427,7 @@ namespace Opc.Ua.Vision.Server.Builders
         /// <summary>
         /// Sets the profile name.
         /// </summary>
-        IVisionStreamEndpointBuilder WithProfileName(string profileName);
+        IVisionStreamEndpointBuilder WithDefaultProfileName(string defaultProfileName);
     }
 
     /// <summary>
@@ -474,7 +474,7 @@ namespace Opc.Ua.Vision.Server.Builders
         /// <summary>
         /// Sets the profile name.
         /// </summary>
-        IVisionClipEndpointBuilder WithProfileName(string profileName);
+        IVisionClipEndpointBuilder WithDefaultProfileName(string defaultProfileName);
     }
 
     /// <summary>
