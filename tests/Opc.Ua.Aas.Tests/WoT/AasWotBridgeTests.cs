@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text.Json;
 using NUnit.Framework;
 using Opc.Ua.Aas.WoT;
@@ -434,10 +433,8 @@ namespace Opc.Ua.Aas.Tests.WoT
 
         private static AASReferenceDataType Reference()
         {
-#pragma warning disable SYSLIB0050 // TODO: remove when recursive generated default constructors are fixed.
-            var reference = (AASReferenceDataType)FormatterServices.GetUninitializedObject(typeof(AASReferenceDataType));
-            var key = (AASKeyDataType)FormatterServices.GetUninitializedObject(typeof(AASKeyDataType));
-#pragma warning restore SYSLIB0050
+            var reference = new AASReferenceDataType();
+            var key = new AASKeyDataType();
             key.Type = AASKeyTypesDataType.GlobalReference;
             key.Value = "reference";
             reference.Type = AASReferenceTypesDataType.ExternalReference;

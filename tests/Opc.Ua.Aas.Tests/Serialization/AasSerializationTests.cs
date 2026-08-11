@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.IO;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -317,11 +316,9 @@ namespace Opc.Ua.Aas.Tests.Serialization
         }
 
         private static T Generated<T>()
-            where T : class
+            where T : class, new()
         {
-#pragma warning disable SYSLIB0050 // TODO: remove when recursive generated default constructors are fixed.
-            return (T)FormatterServices.GetUninitializedObject(typeof(T));
-#pragma warning restore SYSLIB0050
+            return new T();
         }
     }
 }

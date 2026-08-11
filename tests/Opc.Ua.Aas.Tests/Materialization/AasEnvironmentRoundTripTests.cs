@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization;
 using NUnit.Framework;
 using Opc.Ua.Export;
 
@@ -512,11 +511,9 @@ namespace Opc.Ua.Aas.Tests.Materialization
         }
 
         private static T Generated<T>()
-            where T : class
+            where T : class, new()
         {
-#pragma warning disable SYSLIB0050 // TODO: remove when recursive generated default constructors are fixed.
-            return (T)FormatterServices.GetUninitializedObject(typeof(T));
-#pragma warning restore SYSLIB0050
+            return new T();
         }
     }
 }

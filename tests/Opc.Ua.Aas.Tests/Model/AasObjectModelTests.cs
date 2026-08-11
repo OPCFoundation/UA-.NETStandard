@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Runtime.Serialization;
 using NUnit.Framework;
 
 namespace Opc.Ua.Aas.Tests.Model
@@ -294,11 +293,9 @@ namespace Opc.Ua.Aas.Tests.Model
         }
 
         private static T Generated<T>()
-            where T : class
+            where T : class, new()
         {
-#pragma warning disable SYSLIB0050 // TODO: remove when recursive generated default constructors are fixed.
-            return (T)FormatterServices.GetUninitializedObject(typeof(T));
-#pragma warning restore SYSLIB0050
+            return new T();
         }
     }
 }

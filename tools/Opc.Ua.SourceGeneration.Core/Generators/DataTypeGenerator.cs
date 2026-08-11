@@ -1456,6 +1456,20 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+
+            if (IsRecursiveStructureField(field))
+            {
+                // A structure field with no declared default value is normally
+                // initialized eagerly with new T(). When T can reach itself
+                // through such fields the constructor would recurse until the
+                // stack overflows, so the field is left null and the caller
+                // assigns it on demand. Optional fields are absent by default
+                // anyway, and a mandatory recursive field has no finite
+                // default value.
+                context.Out.WriteLine("{0} = default;", field.GetChildFieldName());
+                return null;
+            }
+
             string value = field.DataTypeNode.GetValueAsCode(
                 field.ValueRank,
                 field.DefaultValue,
@@ -1742,6 +1756,100 @@ namespace Opc.Ua.SourceGeneration
                 "DataTypes.i",
                 internalAccess: true,
                 [.. m_initializers.Values]);
+        }
+
+        /// <summary>
+        /// Determines whether eagerly constructing <paramref name="field"/>
+        /// with <c>new T()</c> would recurse without terminating, which
+        /// happens when the field's structure type can reach the type that
+        /// declares the field. Only such cycle-closing fields are left null;
+        /// a field whose structure type merely contains a recursive type of
+        /// its own still terminates once that inner cycle is broken.
+        /// </summary>
+        private static bool IsRecursiveStructureField(Parameter field)
+        {
+            if (!IsEagerlyConstructedStructure(field) ||
+                field.Parent is not DataTypeDesign declaringType)
+            {
+                return false;
+            }
+            return CanReach(field.DataTypeNode, declaringType, []);
+        }
+
+        /// <summary>
+        /// Determines whether default construction of <paramref name="from"/>
+        /// re-enters the constructor of <paramref name="target"/>. Because a
+        /// constructor runs its base constructors first, reaching any type
+        /// derived from <paramref name="target"/> re-enters it as well.
+        /// </summary>
+        private static bool CanReach(
+            DataTypeDesign from,
+            DataTypeDesign target,
+            HashSet<XmlQualifiedName> visited)
+        {
+            if (from?.SymbolicId == null || !visited.Add(from.SymbolicId))
+            {
+                return false;
+            }
+            if (IsSameOrDerivedFrom(from, target))
+            {
+                return true;
+            }
+            for (TypeDesign type = from; type != null; type = type.BaseTypeNode)
+            {
+                if (type is not DataTypeDesign structure ||
+                    structure.Fields == null)
+                {
+                    continue;
+                }
+                foreach (Parameter declared in structure.Fields)
+                {
+                    if (IsEagerlyConstructedStructure(declared) &&
+                        CanReach(declared.DataTypeNode, target, visited))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Determines whether <paramref name="type"/> is
+        /// <paramref name="target"/> or inherits from it.
+        /// </summary>
+        private static bool IsSameOrDerivedFrom(
+            DataTypeDesign type,
+            DataTypeDesign target)
+        {
+            if (target?.SymbolicId == null)
+            {
+                return false;
+            }
+            for (TypeDesign current = type;
+                current != null;
+                current = current.BaseTypeNode)
+            {
+                if (target.SymbolicId.Equals(current.SymbolicId))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Determines whether the field is a scalar structure that
+        /// <see cref="ModelDesignExtensions.GetValueAsCode"/> initializes with
+        /// <c>new T()</c>.
+        /// </summary>
+        private static bool IsEagerlyConstructedStructure(Parameter field)
+        {
+            return field?.DataTypeNode != null &&
+                field.ValueRank == ValueRank.Scalar &&
+                field.DefaultValue == null &&
+                field.DataTypeNode.BasicDataType == BasicDataType.UserDefined &&
+                !field.DataTypeNode.IsEnumeration;
         }
 
         private const string kNamespaceTableContextVariable = "namespaceUris";
