@@ -115,6 +115,31 @@ namespace Opc.Ua.Aas.Tests.Identity
                 Is.EqualTo(value));
         }
 
+        [Test]
+        public void ARunOfConsecutiveEscapesDecodesAsOneUtf8Sequence()
+        {
+            // Four escaped scalar values in a row produce five octets with
+            // nothing between them, so a decoder that assumes one escape run is
+            // at most one UTF-8 sequence fails here.
+            const string value = "\u0000\u001F\u007F\u009F";
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(AasNodeIdEncoding.Escape(value), Is.EqualTo("%00%1F%7F%C2%9F"));
+                Assert.That(AasNodeIdEncoding.Unescape("%00%1F%7F%C2%9F"), Is.EqualTo(value));
+            });
+        }
+
+        [Test]
+        public void ALongRunOfConsecutiveEscapesRoundTrips()
+        {
+            string value = new('\u0001', 64);
+
+            Assert.That(
+                AasNodeIdEncoding.Unescape(AasNodeIdEncoding.Escape(value)),
+                Is.EqualTo(value));
+        }
+
         [TestCase("%41", TestName = "RejectsAnEscapeWhoseValueWouldNotBeEscaped")]
         [TestCase("%0a", TestName = "RejectsLowercaseHexadecimal")]
         [TestCase("%0", TestName = "RejectsATruncatedEscape")]

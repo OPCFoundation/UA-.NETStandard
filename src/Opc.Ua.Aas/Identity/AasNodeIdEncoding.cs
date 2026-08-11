@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
@@ -94,7 +95,11 @@ namespace Opc.Ua.Aas
         /// <exception cref="ArgumentNullException"><paramref name="value"/> is <c>null</c>.</exception>
         public static string Escape(string value)
         {
-            ArgumentNullException.ThrowIfNull(value);
+            if (value is null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
 
             if (!NeedsEscaping(value))
             {
@@ -134,7 +139,11 @@ namespace Opc.Ua.Aas
         /// <exception cref="FormatException"><paramref name="value"/> is not in canonical escaped form.</exception>
         public static string Unescape(string value)
         {
-            ArgumentNullException.ThrowIfNull(value);
+            if (value is null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
 
             if (!TryUnescape(value, out string? decoded, out string? error))
             {
@@ -166,8 +175,7 @@ namespace Opc.Ua.Aas
             }
 
             var builder = new StringBuilder(value.Length);
-            byte[]? pending = null;
-            int pendingCount = 0;
+            List<byte>? pending = null;
 
             for (int i = 0; i < value.Length; i++)
             {
@@ -185,8 +193,8 @@ namespace Opc.Ua.Aas
                         return false;
                     }
 
-                    if (pendingCount > 0 &&
-                        !FlushPendingBytes(builder, pending!, ref pendingCount, out error))
+                    if (pending is { Count: > 0 } &&
+                        !FlushPendingBytes(builder, pending, out error))
                     {
                         return false;
                     }
@@ -215,22 +223,17 @@ namespace Opc.Ua.Aas
                     return false;
                 }
 
-                pending ??= new byte[4];
-                if (pendingCount == pending.Length)
-                {
-                    error = string.Format(
-                        CultureInfo.InvariantCulture,
-                        "The escape sequence ending at index {0} is longer than any UTF-8 encoding.",
-                        i);
-                    return false;
-                }
-
-                pending[pendingCount++] = octet;
+                // A run of escapes is decoded as one UTF-8 sequence rather than
+                // byte by byte, because one escaped scalar value spans up to
+                // four octets and consecutive escaped scalar values are not
+                // separated by anything.
+                pending ??= [];
+                pending.Add(octet);
                 i += 2;
             }
 
-            if (pendingCount > 0 &&
-                !FlushPendingBytes(builder, pending!, ref pendingCount, out error))
+            if (pending is { Count: > 0 } &&
+                !FlushPendingBytes(builder, pending, out error))
             {
                 return false;
             }
@@ -250,7 +253,11 @@ namespace Opc.Ua.Aas
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="kind"/> is <see cref="AasNodeKind.SubmodelElement"/>.</exception>
         public static string CreateIdentifiableId(AasNodeKind kind, string id)
         {
-            ArgumentNullException.ThrowIfNull(id);
+            if (id is null)
+            {
+                throw new ArgumentNullException(nameof(id));
+            }
+
 
             if (kind == AasNodeKind.SubmodelElement)
             {
@@ -278,8 +285,16 @@ namespace Opc.Ua.Aas
         /// <exception cref="ArgumentNullException"><paramref name="ownerId"/> or <paramref name="idShortPath"/> is <c>null</c>.</exception>
         public static string CreateElementId(string ownerId, string idShortPath)
         {
-            ArgumentNullException.ThrowIfNull(ownerId);
-            ArgumentNullException.ThrowIfNull(idShortPath);
+            if (ownerId is null)
+            {
+                throw new ArgumentNullException(nameof(ownerId));
+            }
+
+            if (idShortPath is null)
+            {
+                throw new ArgumentNullException(nameof(idShortPath));
+            }
+
 
             string encodedOwner = Escape(ownerId);
             string encodedPath = Escape(idShortPath);
@@ -366,7 +381,11 @@ namespace Opc.Ua.Aas
         /// <exception cref="ArgumentNullException"><paramref name="identifier"/> is <c>null</c>.</exception>
         public static bool IsWithinLengthLimit(string identifier)
         {
-            ArgumentNullException.ThrowIfNull(identifier);
+            if (identifier is null)
+            {
+                throw new ArgumentNullException(nameof(identifier));
+            }
+
             return identifier.Length <= MaxIdentifierLength;
         }
 
@@ -435,7 +454,15 @@ namespace Opc.Ua.Aas
                 return false;
             }
 
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP
             if (!int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out length))
+#else
+            if (!int.TryParse(
+                identifier.Substring(start, cursor - start),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out length))
+#endif
             {
                 return false;
             }
@@ -478,8 +505,7 @@ namespace Opc.Ua.Aas
 
         private static bool FlushPendingBytes(
             StringBuilder builder,
-            byte[] pending,
-            ref int pendingCount,
+            List<byte> pending,
             [NotNullWhen(false)] out string? error)
         {
             error = null;
@@ -487,7 +513,7 @@ namespace Opc.Ua.Aas
             string decoded;
             try
             {
-                decoded = s_strictUtf8.GetString(pending, 0, pendingCount);
+                decoded = s_strictUtf8.GetString(pending.ToArray());
             }
             catch (DecoderFallbackException)
             {
@@ -508,22 +534,20 @@ namespace Opc.Ua.Aas
             }
 
             builder.Append(decoded);
-            pendingCount = 0;
+            pending.Clear();
             return true;
         }
 
         private static void AppendUtf8Escaped(StringBuilder builder, char c)
         {
-            Span<byte> octets = stackalloc byte[4];
-            Span<char> one = stackalloc char[1];
-            one[0] = c;
-
-            int written = Encoding.UTF8.GetBytes(one, octets);
-            for (int i = 0; i < written; i++)
+            // A lone surrogate cannot be encoded; the caller only reaches this
+            // path for '%' and the C0/C1 controls, none of which is one.
+            byte[] octets = Encoding.UTF8.GetBytes(c.ToString());
+            foreach (byte octet in octets)
             {
                 builder.Append('%');
-                builder.Append(s_upperHex[octets[i] >> 4]);
-                builder.Append(s_upperHex[octets[i] & 0x0F]);
+                builder.Append(s_upperHex[octet >> 4]);
+                builder.Append(s_upperHex[octet & 0x0F]);
             }
         }
 
