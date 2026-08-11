@@ -67,6 +67,7 @@ namespace Opc.Ua.Vision.Server.Builders
             var builder = new VisionImageSensorBuilder(m_context, m_registry, m_dispatcher, sensor, browseName);
             configure(builder);
             builder.Finalize(sensorsFolder);
+            m_context.EnqueueForRegistration(sensor);
             return this;
         }
 
@@ -92,6 +93,7 @@ namespace Opc.Ua.Vision.Server.Builders
             var builder = new VisionDepth3DSensorBuilder(m_context, m_registry, m_dispatcher, sensor, browseName);
             configure(builder);
             builder.Finalize(sensorsFolder);
+            m_context.EnqueueForRegistration(sensor);
             return this;
         }
 
@@ -117,6 +119,7 @@ namespace Opc.Ua.Vision.Server.Builders
             var builder = new VisionGenericSensorBuilder(m_context, m_registry, m_dispatcher, sensor, browseName);
             configure(builder);
             builder.Finalize(sensorsFolder);
+            m_context.EnqueueForRegistration(sensor);
             return this;
         }
 
@@ -142,6 +145,7 @@ namespace Opc.Ua.Vision.Server.Builders
             var builder = new VisionFrameBuilder(m_context, m_registry, frame, browseName);
             configure(builder);
             builder.Finalize(framesFolder);
+            m_context.EnqueueForRegistration(frame);
             return this;
         }
 
@@ -167,6 +171,7 @@ namespace Opc.Ua.Vision.Server.Builders
             var builder = new VisionPipelineBuilder(m_context, m_registry, m_dispatcher, pipeline, browseName);
             configure(builder);
             builder.Finalize(pipelinesFolder);
+            m_context.EnqueueForRegistration(pipeline);
             return this;
         }
 
@@ -179,13 +184,17 @@ namespace Opc.Ua.Vision.Server.Builders
         private FolderState EnsurePipelinesFolder()
         {
             m_context.Root.CreateOrReplacePipelines(m_context.Context, null);
-            return m_context.Root.Pipelines!;
+            FolderState pipelines = m_context.Root.Pipelines!;
+            m_context.EnqueueForRegistration(pipelines);
+            return pipelines;
         }
 
         private FolderState EnsureFramesFolder()
         {
             m_context.Root.CreateOrReplaceFrames(m_context.Context, null);
-            return m_context.Root.Frames!;
+            FolderState frames = m_context.Root.Frames!;
+            m_context.EnqueueForRegistration(frames);
+            return frames;
         }
 
         private readonly VisionBuildContext m_context;

@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Server;
 using Opc.Ua.Vision.Server.Builders;
@@ -120,6 +122,34 @@ namespace Opc.Ua.Vision.Server
             return m_services.GetRequiredService<T>();
         }
 
+        internal void EnqueueForRegistration(NodeState node)
+        {
+            if (node == null || node.NodeId.IsNull)
+            {
+                return;
+            }
+            if (m_pendingRegistrationSet.Add(node))
+            {
+                m_pendingRegistrations.Add(node);
+            }
+        }
+
+        internal async ValueTask FlushPendingRegistrationsAsync(CancellationToken cancellationToken)
+        {
+            for (int ii = 0; ii < m_pendingRegistrations.Count; ii++)
+            {
+                NodeState node = m_pendingRegistrations[ii];
+                if (Manager.FindPredefinedNode<NodeState>(node.NodeId) == null)
+                {
+                    await Manager.AddPredefinedNodeAsync(node, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            m_pendingRegistrations.Clear();
+            m_pendingRegistrationSet.Clear();
+        }
+
         private readonly IServiceProvider? m_services;
+        private readonly List<NodeState> m_pendingRegistrations = [];
+        private readonly HashSet<NodeState> m_pendingRegistrationSet = [];
     }
 }
