@@ -270,11 +270,11 @@ namespace Vision.BinPickingCell
                     StatusCodes.BadNodeIdUnknown,
                     "The pipeline node id does not match the attached off-server pipeline.");
             }
-            // An empty detection set is a real observation, not a malformed submission: once the
-            // agent has emptied the bin, "I looked and there is nothing there" is the correct
-            // answer, and refusing it would force a correct agent to either invent a detection or
-            // treat a true statement as an error.
-            ServiceResult? refusal = ValidateDetections(target, request.Detections, allowEmpty: true);
+            // Part 9.5 requires Bad_InvalidArgument for an empty Detections array. The
+            // dispatcher refuses it before this sink is reached; the check is kept so the
+            // provider is correct when driven directly. The consequence - that "I looked and
+            // the bin is empty" is inexpressible - is raised upstream, not worked around here.
+            ServiceResult? refusal = ValidateDetections(target, request.Detections, allowEmpty: false);
             if (refusal != null)
             {
                 return refusal;
@@ -379,11 +379,12 @@ namespace Vision.BinPickingCell
                     "This pipeline publishes DetectionResultType only; corrections must carry " +
                     "CorrectedDetections and not CorrectedCharacteristics.");
             }
-            // An empty correction retracts every detection in the original result. That is the
-            // false-positive case - the model saw something that was not there - and it is one of
-            // the most useful labels a correction can carry, so it must not be refused.
+            // Part 9.5 requires exactly one of the corrected arrays to be non-empty, so an
+            // all-empty correction - the false-positive retraction - is refused. The dispatcher
+            // refuses it first; this keeps the provider correct when driven directly. The gap is
+            // raised upstream rather than worked around here.
             ServiceResult? refusal = ValidateDetections(
-                target, request.CorrectedDetections, allowEmpty: true);
+                target, request.CorrectedDetections, allowEmpty: false);
             if (refusal != null)
             {
                 return refusal;

@@ -102,10 +102,15 @@ namespace Opc.Ua.Vision.Client
             ByteString inlineImage,
             CancellationToken cancellationToken = default)
         {
-            // An empty detection set is a real observation, not a malformed call: "I looked and
-            // there is nothing there" is the correct answer once a bin has been emptied, and the
-            // server accepts it for that reason. Rejecting it here would force a correct caller
-            // to invent a detection.
+            if (detections.Count == 0)
+            {
+                // Part 9.5 requires Bad_InvalidArgument for an empty Detections array, so
+                // refuse here rather than let the caller discover it at the Server. Note the
+                // consequence: "I looked and the bin is empty" cannot be expressed at all,
+                // which is raised upstream rather than deviated from locally.
+                throw new ArgumentException(
+                    "Detections must be non-empty.", nameof(detections));
+            }
             return m_proxy.SubmitDetectionsAsync(
                 purpose,
                 detections,

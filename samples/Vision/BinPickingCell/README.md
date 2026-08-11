@@ -240,12 +240,14 @@ with `Bad_InvalidArgument` and a message the agent can act on:
 - **More than 15 detections in a single submission** — refused as
   implausible for the five-part cell.
 
-But an **empty** detection set is accepted, because "I looked and the
-bin is empty" is a correct observation, and refusing it would force a
-correct agent either to invent a detection or to treat a true statement
-as an error. Likewise, `SubmitCorrection` with an empty
-corrected-detection array is the false-positive retraction shape — the
-agent is retracting a previous detection without asserting a new one.
+An **empty** detection set is refused too. §9.5 lists "`Detections`
+empty" as `Bad_InvalidArgument`, and requires `SubmitCorrection` to
+carry *exactly one* non-empty corrected array. The cell conforms, which
+has a consequence worth knowing: an agent that has emptied the bin
+cannot report "I looked and there is nothing there", and a false
+positive cannot be retracted by correcting a result down to nothing.
+Both are raised against the draft rather than worked around here — see
+the [Vision developer guide](../../../docs/Vision.md#limitations).
 
 `SubmitInspectionResult` is refused with `Bad_NotSupported` regardless
 of the arguments: this pipeline is a detection pipeline, not an

@@ -455,6 +455,17 @@ namespace Opc.Ua.Vision.Server
                         ServiceResult = StatusCodes.BadNotSupported
                     };
                 }
+                if (detections.Count == 0)
+                {
+                    // Part 9.5 states Bad_InvalidArgument for an empty Detections array.
+                    // See the note on VisionFeedbackClient.SubmitDetectionsAsync: this makes
+                    // "I looked and the bin is empty" inexpressible, which is raised upstream
+                    // rather than deviated from here.
+                    return new SubmitDetectionsMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadInvalidArgument
+                    };
+                }
                 try
                 {
                     ServiceResult result = await sink.SubmitDetectionsAsync(
@@ -551,6 +562,17 @@ namespace Opc.Ua.Vision.Server
                     // ResultId identifies the result being corrected. Forwarding an empty one
                     // would ask the sink to correct an unnamed result, so refuse instead of
                     // quietly substituting a value the caller never supplied.
+                    return new SubmitCorrectionMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadInvalidArgument
+                    };
+                }
+                if ((detections.Count == 0) == (characteristics.Count == 0))
+                {
+                    // Part 9.5: exactly one of CorrectedDetections and CorrectedCharacteristics
+                    // shall be non-empty, so both-or-neither is Bad_InvalidArgument. "Neither"
+                    // is how a caller would retract a false positive; that gap is raised
+                    // upstream rather than deviated from here.
                     return new SubmitCorrectionMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadInvalidArgument

@@ -88,7 +88,7 @@ namespace Opc.Ua.Vision.Tests
             var harness = new FeedbackHarness(pipelineId: 602, feedbackSink: sink.Object);
             var frameRef = new VisionImageReferenceDataType { Uri = "opc.tcp://cam/frame/42" };
             ByteString inline = ByteString.From(new byte[] { 1, 2, 3, 4 });
-            ArrayOf<VisionDetectionDataType> detections = ArrayOf<VisionDetectionDataType>.Empty;
+            ArrayOf<VisionDetectionDataType> detections = OneDetection();
 
             SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
@@ -134,7 +134,7 @@ namespace Opc.Ua.Vision.Tests
 
             SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
-                detections: ArrayOf<VisionDetectionDataType>.Empty,
+                detections: OneDetection(),
                 frameReference: new VisionImageReferenceDataType(),
                 inlineImage: default).ConfigureAwait(false);
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(
                 async () => await harness.InvokeSubmitDetections(
                     purpose: VisionFeedbackPurposeEnum.Reconciliation,
-                    detections: ArrayOf<VisionDetectionDataType>.Empty,
+                    detections: OneDetection(),
                     frameReference: new VisionImageReferenceDataType(),
                     inlineImage: default).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>(),
@@ -191,7 +191,7 @@ namespace Opc.Ua.Vision.Tests
             SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
                 resultId: "r-42",
                 purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
-                correctedDetections: ArrayOf<VisionDetectionDataType>.Empty,
+                correctedDetections: OneDetection(),
                 correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
                 reason: new LocalizedText("en", "manual correction"),
                 inlineImage: default).ConfigureAwait(false);
@@ -248,7 +248,7 @@ namespace Opc.Ua.Vision.Tests
             SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
                 resultId: "r-1",
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
-                correctedDetections: ArrayOf<VisionDetectionDataType>.Empty,
+                correctedDetections: OneDetection(),
                 correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
                 reason: default,
                 inlineImage: default).ConfigureAwait(false);
@@ -267,7 +267,7 @@ namespace Opc.Ua.Vision.Tests
             SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
                 resultId: "r-1",
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
-                correctedDetections: ArrayOf<VisionDetectionDataType>.Empty,
+                correctedDetections: OneDetection(),
                 correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
                 reason: default,
                 inlineImage: default).ConfigureAwait(false);
@@ -288,6 +288,79 @@ namespace Opc.Ua.Vision.Tests
 
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
                 "AttachFeedbackMethods must tolerate a partial feedback surface — a missing SubmitCorrection method must not cause an NRE when SubmitDetections is invoked.");
+        }
+
+        [Test]
+        public async Task SubmitDetectionsRefusesAnEmptyDetectionArrayWithoutCallingTheSink()
+        {
+            var sink = new Mock<IVisionFeedbackSink>(MockBehavior.Strict);
+            var harness = new FeedbackHarness(pipelineId: 612, feedbackSink: sink.Object);
+
+            // Part 9.5 lists "Detections empty" as Bad_InvalidArgument. The strict mock proves
+            // the sink is never consulted: the dispatcher owns this rule, not the sink.
+            SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
+                purpose: VisionFeedbackPurposeEnum.Reconciliation,
+                detections: ArrayOf<VisionDetectionDataType>.Empty,
+                frameReference: new VisionImageReferenceDataType(),
+                inlineImage: default).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public async Task SubmitCorrectionRefusesWhenNeitherCorrectedArrayIsPopulated()
+        {
+            var sink = new Mock<IVisionFeedbackSink>(MockBehavior.Strict);
+            var harness = new FeedbackHarness(pipelineId: 613, feedbackSink: sink.Object);
+
+            // Part 9.5 requires exactly one corrected array to be non-empty. "Neither" is how a
+            // caller would retract a false positive, so this refusal is the specification's
+            // choice rather than ours; the gap is raised upstream.
+            SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
+                resultId: "r-1",
+                purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
+                correctedDetections: ArrayOf<VisionDetectionDataType>.Empty,
+                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                reason: default,
+                inlineImage: default).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public async Task SubmitCorrectionRefusesWhenBothCorrectedArraysArePopulated()
+        {
+            var sink = new Mock<IVisionFeedbackSink>(MockBehavior.Strict);
+            var harness = new FeedbackHarness(pipelineId: 614, feedbackSink: sink.Object);
+
+            SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
+                resultId: "r-1",
+                purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
+                correctedDetections: OneDetection(),
+                correctedCharacteristics: OneCharacteristic(),
+                reason: default,
+                inlineImage: default).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
+
+        private static ArrayOf<VisionDetectionDataType> OneDetection()
+        {
+            return new[]
+            {
+                new VisionDetectionDataType { ClassLabel = "Part", Confidence = 0.9 }
+            }.ToArrayOf();
+        }
+
+        private static ArrayOf<VisionCharacteristicDataType> OneCharacteristic()
+        {
+            return new[]
+            {
+                new VisionCharacteristicDataType { Name = "Diameter" }
+            }.ToArrayOf();
         }
 
         private sealed class FeedbackHarness

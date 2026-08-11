@@ -622,18 +622,17 @@ The `Purpose` values `Overlay`, `Reconciliation`, `GroundTruthLabel`
 and `Trigger` are all defined; a Server refuses the ones it does not
 permit with `Bad_NotSupported`. `SubmitCorrection` requires *exactly
 one* of the two `corrected*` arrays to be non-empty — passing both or
-neither is an argument error (§9.4.1). `SubmitInspectionResult`
+neither is an argument error (§9.5). `SubmitInspectionResult`
 requires at least one characteristic.
 
-> **Known client-wrapper discrepancy.** The wrapper's
-> `SubmitDetectionsAsync` throws `ArgumentException` when the `detections`
-> array is empty, but §9 permits an empty submission as the correct answer
-> to "I looked and the bin is empty", and the sample cell's server-side
-> agent provider intentionally accepts it. Call `SubmitCorrection` with an
-> empty corrected-detections array (via the "characteristics" branch) or
-> the generated `VisionFeedbackTypeClient.SubmitDetectionsAsync` proxy
-> directly when the false-positive retraction shape matters — see
-> [Feedback validation](#feedback-validation).
+> **A shape the specification cannot express.** §9.5 makes an empty
+> `Detections` array `Bad_InvalidArgument`, and requires exactly one
+> corrected array to be non-empty. Between them, an agent cannot report
+> "I looked and the bin is empty", and cannot retract a false positive
+> by correcting a result down to nothing. The implementation follows the
+> specification — both are refused — and the gap is
+> [raised upstream](https://github.com/marcschier/opcua-drafts/issues/70)
+> rather than worked around here.
 
 ### Streaming detections
 
@@ -743,18 +742,19 @@ on:
 - **Zero-norm quaternion or pose with fewer than three position
   components** — refused with the detection index.
 
-But an **empty** detection set is accepted, because "I looked and the
-bin is empty" is a correct observation, and refusing it would force a
-correct agent to either invent a detection or treat a true statement as
-an error. Likewise, a `SubmitCorrection` with an empty corrected-
-detection array is the false-positive retraction shape.
+An **empty** detection set is refused too, with `Bad_InvalidArgument`,
+because §9.5 states it plainly: "`Detections` empty" is an argument
+error. So is a `SubmitCorrection` whose corrected arrays are both empty
+or both populated — §9.5 requires *exactly one* to be non-empty.
 
-The client wrapper `VisionFeedbackClient.SubmitDetectionsAsync` currently
-throws `ArgumentException` on an empty array, so an agent that needs to
-submit the retraction shape has to call the generated
-`VisionFeedbackTypeClient` proxy directly or use the `Correction` path.
-This is a wrapper-side check that should be relaxed to match §9 and the
-server-side behaviour; see [Limitations](#limitations).
+That is worth dwelling on, because it means two useful statements cannot
+be made at all. An agent that has emptied the bin cannot report "I looked
+and there is nothing there"; it must either invent a detection or say
+nothing. And a false positive — the model saw something that was not
+there — cannot be retracted by correcting the result down to an empty
+set, which is one of the more valuable labels a correction could carry.
+The implementation conforms rather than deviating, and the gap is raised
+against the draft; see [Limitations](#limitations).
 
 ## Limitations
 
@@ -766,26 +766,19 @@ server-side behaviour; see [Limitations](#limitations).
   Vision, USB3 Vision, GenICam or vendor-native driver in the box; a
   host implementing `IVisionMediaProvider` for a real camera is the
   supported extension point.
-- **`VisionFeedbackClient.SubmitDetectionsAsync` refuses empty
-  detections client-side.** §9 and the sample cell accept the empty
-  submission as a valid "bin is empty" observation. This is a wrapper
-  bug scheduled for the next revision — until then, use the generated
-  `VisionFeedbackTypeClient` proxy or the correction path to submit the
-  retraction shape.
+- **"Nothing detected" and "that was a false positive" cannot be
+  expressed.** §9.5 makes an empty `Detections` array
+  `Bad_InvalidArgument`, and requires `SubmitCorrection` to carry
+  *exactly one* non-empty corrected array. So an agent that has emptied
+  the bin cannot report an empty observation, and a false positive
+  cannot be retracted by correcting a result down to nothing — the
+  correction has to assert something instead. The implementation
+  conforms rather than deviating; the gap is raised against the draft as
+  [opcua-drafts#70](https://github.com/marcschier/opcua-drafts/issues/70).
 - **`ConfigureVisionFor<TNodeManager>` only accepts `VisionNodeManager`.**
   Custom Vision node-manager types are not yet supported; vendor
   extension follows the same class-based-configurator pattern the
   Robotics guide describes.
-- **The sample cell's pipeline is not discoverable from a browse of the
-  Pipelines folder** in the current fluent builder wiring: the reference
-  from the Vision root to the Pipelines folder is visible, but browsing
-  from the folder itself yields `BadNodeIdUnknown`, so
-  `DiscoverPipelinesAsync` sees no pipeline instance. This is a
-  concurrent-agent-side wiring issue in the sample cell; the on-server
-  `BinPickingInferenceProof` diagnostic already proves the underlying
-  provider and world-state updates work end-to-end when driven directly.
-  See [`samples/Vision/BinPickingClient/README.md`](../samples/Vision/BinPickingClient/README.md#notes-on-vision-inference-in-the-current-cell)
-  for the current workaround.
 - **Learning jobs are modelled but not driven.** `InferencePipelineType`
   carries a `LearningJob` optional child and the facet calculator
   publishes `VIS-Learning` when one is bound, but the standalone

@@ -236,21 +236,22 @@ namespace Opc.Ua.Vision.Tests
     public sealed class VisionFeedbackClientTests
     {
         [Test]
-        public async Task SubmitDetectionsAcceptsEmptyDetectionsAsAnEmptyBinObservation()
+        public async Task SubmitDetectionsRejectsEmptyDetections()
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            // An empty detection set is a real observation, not a malformed call: once a bin has
-            // been emptied, "I looked and there is nothing there" is the correct answer, and the
-            // server accepts it for exactly that reason. Rejecting it here would force a correct
-            // caller to invent a detection.
-            Assert.That(
-                async () => await feedback.SubmitDetectionsAsync(
+            // Part 9.5 lists "Detections empty" as Bad_InvalidArgument, so the wrapper refuses
+            // it before the call leaves the client. The consequence - that "I looked and the bin
+            // is empty" cannot be expressed at all - is raised against the draft, not worked
+            // around here.
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Overlay,
                     ArrayOf<VisionDetectionDataType>.Empty,
                     null,
-                    ByteString.Empty).ConfigureAwait(false),
-                Throws.Nothing);
+                    ByteString.Empty).ConfigureAwait(false));
+
+            Assert.That(ex!.ParamName, Is.EqualTo("detections"));
         }
 
         [Test]
