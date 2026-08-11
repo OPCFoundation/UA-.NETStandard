@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,17 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Inline data channel framing over the UASC binary channel: a frame
-    /// is one STR MessageChunk, written to the connection exactly as a
-    /// MSG chunk is.
+    /// Inline data channel framing over the UASC binary channel, expressed as
+    /// an extension that owns the STR MessageType.
     /// </summary>
     public partial class UaSCUaBinaryChannel
     {
@@ -46,13 +42,13 @@ namespace Opc.Ua.Bindings
         /// when the feature is not enabled.
         /// </summary>
         /// <remarks>
-        /// Experimental. Until <see cref="EnableDataChannels"/> is called
-        /// the STR dispatch is inert and an incoming frame closes the
+        /// Experimental. Until <see cref="EnableDataChannels"/> is called the
+        /// STR dispatch is inert and an incoming frame closes the
         /// SecureChannel, which is what the interoperability rule of the
-        /// Part 6 errata 5.16 requires of a peer that does not implement
-        /// this specification.
+        /// Part 6 errata 5.16 requires of a peer that does not implement this
+        /// specification.
         /// </remarks>
-        public DataChannelManager? DataChannels => m_dataChannels;
+        public DataChannelManager? DataChannels => m_dataChannels?.Manager;
 
         /// <summary>
         /// Enables the data channel feature on this SecureChannel.
@@ -70,119 +66,33 @@ namespace Opc.Ua.Bindings
             ushort maxDataChannels = 16,
             uint maxCreditPerChannel = 1024 * 1024)
         {
-            DataChannelManager? existing = m_dataChannels;
+            DataChannelExtension? existing = m_dataChannels;
 
             if (existing != null)
             {
-                return existing;
+                return existing.Manager;
             }
 
-            var transport = new UaSCDataChannelTransport(this);
-            var manager = new DataChannelManager(
-                transport,
+            var extension = new DataChannelExtension(
+                this,
                 isServer,
                 telemetry,
                 maxDataChannels,
                 maxCreditPerChannel);
 
-            DataChannelManager? raced = Interlocked.CompareExchange(
-                ref m_dataChannels,
-                manager,
-                null);
+            var registered = (DataChannelExtension)RegisterMessageExtension(extension);
 
-            if (raced != null)
+            if (ReferenceEquals(registered, extension))
             {
-                _ = manager.DisposeAsync().AsTask();
-                return raced;
+                m_isDataChannelSource = isServer;
+            }
+            else
+            {
+                _ = extension.Manager.DisposeAsync().AsTask();
             }
 
-            m_isDataChannelSource = isServer;
-            return manager;
-        }
-
-        /// <summary>
-        /// Processes an incoming STR chunk.
-        /// </summary>
-        /// <param name="messageType">The message type and chunk type.</param>
-        /// <param name="messageChunk">The chunk.</param>
-        /// <param name="isRequest">True when the chunk was sent by the
-        /// client, which selects the key set used to verify it.</param>
-        /// <returns>False, because this method never takes ownership of
-        /// the buffer.</returns>
-        protected bool ProcessStreamMessage(
-            uint messageType,
-            ArraySegment<byte> messageChunk,
-            bool isRequest)
-        {
-            DataChannelManager? manager = m_dataChannels;
-
-            if (manager == null)
-            {
-                // A peer shall not transmit a STR frame until an
-                // OpenDataChannel on this SecureChannel has completed, so
-                // a frame arriving here is either an unsolicited probe or
-                // a corrupted stream. It is never silently dropped.
-                m_logger.DataChannelFeatureDisabled();
-                OnDataChannelProtocolFault(DataChannelFrameError.InvalidControlChannelFrame);
-                return false;
-            }
-
-            ArraySegment<byte> body;
-            uint requestId;
-
-            try
-            {
-                body = ReadSymmetricMessage(
-                    messageChunk,
-                    isRequest,
-                    out ChannelToken _,
-                    out requestId,
-                    out uint sequenceNumber);
-
-                if (!VerifySequenceNumber(sequenceNumber, nameof(ProcessStreamMessage)))
-                {
-                    OnDataChannelProtocolFault(DataChannelFrameError.MalformedHeader);
-                    return false;
-                }
-            }
-            catch (ServiceResultException)
-            {
-                OnDataChannelProtocolFault(DataChannelFrameError.MalformedHeader);
-                return false;
-            }
-
-            if (!DataChannelFrameCodec.TryValidateChunkHeaders(
-                messageType,
-                requestId,
-                out DataChannelFrameError headerError))
-            {
-                OnDataChannelProtocolFault(headerError);
-                return false;
-            }
-
-            if (!DataChannelFrameCodec.TryDecode(
-                new ReadOnlyMemory<byte>(body.GetArray(), body.Offset, body.Count),
-                ReceiveBufferSize,
-                out DataChannelFrame frame,
-                out DataChannelFrameError error))
-            {
-                if (error.IsFatal())
-                {
-                    OnDataChannelProtocolFault(error);
-                    return false;
-                }
-
-                if (manager.TryGetChannel(frame.ChannelId, out DataChannel? faulted) &&
-                    faulted != null)
-                {
-                    faulted.Reset(error.ToStatusCode());
-                }
-
-                return false;
-            }
-
-            manager.HandleFrame(frame);
-            return false;
+            m_dataChannels = registered;
+            return registered.Manager;
         }
 
         /// <summary>
@@ -194,7 +104,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                SynchronizeSequenceBudget();
+                m_sequenceBudget.ObserveConsumed(SequenceNumbersIssuedUnderCurrentToken);
                 return m_sequenceBudget;
             }
         }
@@ -205,114 +115,7 @@ namespace Opc.Ua.Bindings
         /// channel should initiate OpenSecureChannel with
         /// RenewalRequest ahead of the normal lifetime based renewal.
         /// </summary>
-        public bool IsSequenceRenewalDue
-        {
-            get
-            {
-                SynchronizeSequenceBudget();
-                return m_sequenceBudget.ShouldRenew;
-            }
-        }
-
-        /// <summary>
-        /// Writes one data channel frame as a STR chunk.
-        /// </summary>
-        /// <param name="frame">The frame.</param>
-        /// <param name="ct">Cancellation token.</param>
-        internal async ValueTask SendDataChannelFrameAsync(
-            DataChannelFrame frame,
-            CancellationToken ct)
-        {
-            int size = frame.EncodedSize;
-            byte[] body = BufferManager.TakeBuffer(size, nameof(SendDataChannelFrameAsync), ct);
-
-            BufferCollection? chunks = null;
-            SendGateTicket? sendTicket = null;
-            bool sendTurnAcquired = false;
-
-            try
-            {
-                // A STR chunk shares the SecureChannel's symmetric keys and
-                // its single monotonic SequenceNumber space with Service
-                // traffic (§5.1), so securing one has to be serialized
-                // against the Service path exactly as the Service path
-                // serializes against itself. Without this the scheduler
-                // thread and a Service response reach the same HMAC
-                // concurrently — which throws outright on Windows, where the
-                // CNG hash provider refuses concurrent use — and race for
-                // SequenceNumbers, which silently emits duplicates and is
-                // fatal to the channel. Only the securing is held under the
-                // lock; the send is awaited outside it so a slow peer cannot
-                // block Service traffic.
-                lock (DataLock)
-                {
-                    ChannelToken token = CurrentToken
-                        ?? throw ServiceResultException.Create(
-                            StatusCodes.BadSecureChannelClosed,
-                            "The SecureChannel has no active token.");
-
-                    // Initiating renewal is not sufficient on its own, because
-                    // a slow renewal can still be overtaken. A sender stalls
-                    // its data channels rather than emitting a chunk that
-                    // would reuse a SequenceNumber under the current TokenId.
-                    SynchronizeSequenceBudget();
-
-                    if (!m_sequenceBudget.TryConsume())
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadSecureChannelTokenUnknown,
-                            "The SequenceNumber space under the current SecurityToken is exhausted.");
-                    }
-
-                    int written = DataChannelFrameCodec.Encode(body.AsSpan(0, size), frame);
-
-                    chunks = WriteSymmetricMessage(
-                        TcpMessageType.Stream,
-                        DataChannelConstants.FrameRequestId,
-                        token,
-                        new ArraySegment<byte>(body, 0, written),
-                        m_isDataChannelSource ? false : true,
-                        out bool limitsExceeded,
-                        out sendTicket);
-
-                    if (limitsExceeded)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDataChannelLimitsExceeded,
-                            "The data channel frame exceeds the negotiated buffer size.");
-                    }
-                }
-
-                IUaSCByteTransport transport = GetDataChannelTransport();
-                await AwaitSendTurnAsync(sendTicket, ct).ConfigureAwait(false);
-                sendTurnAcquired = true;
-                await transport.SendChunkAsync(chunks, ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                if (sendTurnAcquired)
-                {
-                    ReleaseSendTicket(sendTicket!);
-                }
-
-                chunks?.Release(BufferManager, nameof(SendDataChannelFrameAsync));
-                BufferManager.ReturnBuffer(body, nameof(SendDataChannelFrameAsync));
-            }
-        }
-
-        /// <summary>
-        /// Reports a fault whose blast radius is the whole SecureChannel.
-        /// The default closes the connection; the listener and client
-        /// channels override it with their own fault machinery.
-        /// </summary>
-        /// <param name="error">Why the frame was rejected.</param>
-        protected virtual void OnDataChannelProtocolFault(DataChannelFrameError error)
-        {
-            OnTransportError(ServiceResult.Create(
-                StatusCodes.BadTcpMessageTypeInvalid,
-                "A data channel frame violated the framing rules: {0}.",
-                error));
-        }
+        public bool IsSequenceRenewalDue => SequenceBudget.ShouldRenew;
 
         /// <summary>
         /// The largest secured body a data channel frame may occupy on
@@ -330,96 +133,8 @@ namespace Opc.Ua.Bindings
                 SymmetricSignatureSize + 2,
                 withDeadline: true);
 
-        private IUaSCByteTransport GetDataChannelTransport()
-        {
-            IUaSCByteTransport? transport = m_transport;
-
-            return transport ?? throw ServiceResultException.Create(
-                StatusCodes.BadConnectionClosed,
-                "The transport was closed by the remote application.");
-        }
-
-        private void SynchronizeSequenceBudget()
-        {
-            // m_sequenceNumber counts for the lifetime of the channel, but
-            // the budget is per SecurityToken, so what is consumed under the
-            // current token is the distance from the value the counter held
-            // when that token was activated. Observing the raw counter would
-            // undo every reset the moment it was made, leaving the budget
-            // permanently exhausted on a long lived channel even though each
-            // new token brings a fresh space.
-            long issued = Interlocked.Read(ref m_sequenceNumber);
-            long baseline = Interlocked.Read(ref m_sequenceBudgetBaseline);
-
-            if (issued < baseline)
-            {
-                // The space wrapped under this token, so the count restarts
-                // from the new origin rather than going negative.
-                Interlocked.Exchange(ref m_sequenceBudgetBaseline, 0);
-                baseline = 0;
-            }
-
-            m_sequenceBudget.ObserveConsumed(issued - baseline);
-        }
-
-        /// <summary>
-        /// Rebases the SequenceNumber budget on a newly activated
-        /// SecurityToken. The space is per token, so a new token restores
-        /// the budget the data channel sender stalls against
-        /// (Part 6 errata 5.1.1).
-        /// </summary>
-        private protected void ResetSequenceBudget()
-        {
-            Interlocked.Exchange(
-                ref m_sequenceBudgetBaseline,
-                Interlocked.Read(ref m_sequenceNumber));
-
-            m_sequenceBudget.OnTokenActivated();
-        }
-
-        /// <summary>
-        /// Adapts the UASC binary channel to the data channel engine.
-        /// </summary>
-        private sealed class UaSCDataChannelTransport : IDataChannelTransport
-        {
-            public UaSCDataChannelTransport(UaSCUaBinaryChannel owner)
-            {
-                m_owner = owner;
-            }
-
-            /// <inheritdoc/>
-            public DataChannelFramingMode FramingMode => DataChannelFramingMode.Inline;
-
-            /// <inheritdoc/>
-            public int MaxFrameBodySize => m_owner.MaxDataChannelBodySize;
-
-            /// <inheritdoc/>
-            public bool HasTransportFlowControl => false;
-
-            /// <inheritdoc/>
-            public BufferManager BufferManager => m_owner.BufferManager;
-
-            /// <inheritdoc/>
-            public TimeProvider TimeProvider => m_owner.TimeProvider;
-
-            /// <inheritdoc/>
-            public ValueTask SendFrameAsync(DataChannelFrame frame, CancellationToken ct)
-            {
-                return m_owner.SendDataChannelFrameAsync(frame, ct);
-            }
-
-            /// <inheritdoc/>
-            public void OnProtocolFault(DataChannelFrameError error)
-            {
-                m_owner.OnDataChannelProtocolFault(error);
-            }
-
-            private readonly UaSCUaBinaryChannel m_owner;
-        }
-
-        private DataChannelManager? m_dataChannels;
         private readonly DataChannelSequenceBudget m_sequenceBudget = new();
-        private long m_sequenceBudgetBaseline;
+        private DataChannelExtension? m_dataChannels;
         private bool m_isDataChannelSource;
     }
 
@@ -433,6 +148,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Finds the server-side UASC channel that owns a SecureChannel.
         /// </summary>
+        /// <param name="secureChannelId">The SecureChannel identifier.</param>
+        /// <param name="channel">The channel that owns it.</param>
         public static bool TryGet(
             string secureChannelId,
             out UaSCUaBinaryChannel? channel)

@@ -200,9 +200,10 @@ namespace Opc.Ua.Bindings
             RenewedToken = null;
 
             // The SequenceNumber space is per token, so a new token
-            // restores the budget the data channel sender stalls against
+            // restores the budget an extension stalls against
             // (Part 6 errata 5.1.1).
-            ResetSequenceBudget();
+            NotifySecurityTokenActivated();
+            m_sequenceBudget.OnTokenActivated();
 
             TokenActivatedCallback?.Invoke(token, PreviousToken);
 

@@ -337,6 +337,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             DataChannelManager manager = channel.EnableDataChannels(
                 isServer: false,
                 NUnitTelemetryContext.Create());
+            channel.TrackProtocolFaults();
 
             DataChannel dataChannel = manager.Register(
                 DataChannelId,
@@ -460,7 +461,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             public bool DispatchStream(byte[] chunk)
             {
-                return ProcessStreamMessage(
+                return ProcessExtensionMessage(
                     BitConverter.ToUInt32(chunk, 0),
                     new ArraySegment<byte>(chunk),
                     isRequest: true);
@@ -471,9 +472,20 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 Transport = transport;
             }
 
-            protected override void OnDataChannelProtocolFault(DataChannelFrameError error)
+            /// <summary>
+            /// Records the typed framing faults the data channel extension
+            /// raises. The channel itself only sees a transport error, so the
+            /// rule that was broken has to be observed at the extension.
+            /// </summary>
+            public void TrackProtocolFaults()
             {
-                m_protocolFaults.Add(error);
+                if (TryGetMessageExtension(
+                        TcpMessageType.Stream,
+                        out ISecureChannelMessageExtension? extension) &&
+                    extension is DataChannelExtension dataChannels)
+                {
+                    dataChannels.ProtocolFault += (_, error) => m_protocolFaults.Add(error);
+                }
             }
 
             private readonly List<DataChannelFrameError> m_protocolFaults = [];

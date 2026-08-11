@@ -306,6 +306,8 @@ namespace Opc.Ua.Bindings
                 // accepted immediately and any in flight are cancelled.
                 m_backgroundWork.Dispose();
 
+                NotifyChannelClosed();
+
                 m_receiveLoopCts?.Cancel();
                 FaultSendGate();
                 IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
