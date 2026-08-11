@@ -126,6 +126,12 @@ namespace Opc.Ua.Wot
         /// </summary>
         ResidueConflict = 3005,
 
+        /// <summary>
+        /// A readable affordance is not represented by the authoritative
+        /// native projection carried in <c>uav:nodes</c>.
+        /// </summary>
+        NativeProjectionUncoveredAffordance = 3006,
+
         /// <summary>A referenced target could not be resolved to a NodeId.</summary>
         UnresolvedReference = 4000,
 

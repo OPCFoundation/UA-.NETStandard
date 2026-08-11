@@ -1073,11 +1073,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 .ConfigureAwait(false);
             viewHandles.Add(viewHandle);
 
-            string message = viewHandle.Message.Length != 0
-                ? viewHandle.Message
-                : "Materialized projection View organizing " +
-                    plan.OrganizedNodeIds.Count.ToString(CultureInfo.InvariantCulture) +
-                    " Node(s).";
+            WoTOutcomeEnum outcome = plan.Omissions.Count == 0
+                ? WoTOutcomeEnum.Success
+                : WoTOutcomeEnum.Warning;
+            string message = FormatProjectionViewMessage(plan, viewHandle);
             viewResults.Add(new WoTResourceLoadResultDataType
             {
                 Xid = member.Xid,
@@ -1085,7 +1084,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ResourceId = member.ResourceId,
                 VersionId = member.DefaultVersionId ?? string.Empty,
                 Kind = member.Kind,
-                Outcome = WoTOutcomeEnum.Success,
+                Outcome = outcome,
                 Phase = WoTPhaseEnum.Activation,
                 LoadState = WoTLoadStateEnum.Active,
                 Generation = generation,
@@ -1105,7 +1104,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 SuccessValidation(),
                 OmissionDiagnostics(plan.Omissions),
                 DateTime.UtcNow));
-            RaiseResource(member, generation, WoTOutcomeEnum.Success, WoTLoadStateEnum.Active);
+            RaiseResource(member, generation, outcome, WoTLoadStateEnum.Active);
         }
 
         private NodeId ComputeResourceNodeId(WotResource member)
@@ -1146,6 +1145,46 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 builder.Add(omissions[i]);
             }
             return builder.ToImmutable();
+        }
+
+        private static string FormatProjectionViewMessage(
+            WotViewProjectionPlan plan,
+            WotViewProjectionHandle viewHandle)
+        {
+            int organizedCount = CountOrganizedMembers(plan);
+            if (plan.Omissions.Count == 0)
+            {
+                return viewHandle.Message.Length != 0
+                    ? viewHandle.Message
+                    : "Materialized projection View organizing " +
+                        organizedCount.ToString(CultureInfo.InvariantCulture) + " Node(s).";
+            }
+
+            int selectedCount = organizedCount + plan.Omissions.Count;
+            string summary = organizedCount == 0
+                ? "Materialized projection View organizing 0 Node(s); omitted all " +
+                    selectedCount.ToString(CultureInfo.InvariantCulture) + " selected member(s)."
+                : "Materialized projection View organizing " +
+                    organizedCount.ToString(CultureInfo.InvariantCulture) + " of " +
+                    selectedCount.ToString(CultureInfo.InvariantCulture) +
+                    " selected member(s); omitted " +
+                    plan.Omissions.Count.ToString(CultureInfo.InvariantCulture) + ".";
+            return viewHandle.Message.Length == 0 ? summary : summary + " " + viewHandle.Message;
+        }
+
+        private static int CountOrganizedMembers(WotViewProjectionPlan plan)
+        {
+            return plan.OrganizedNodeIds.Count + CountOrganizedMembers(plan.Groups);
+        }
+
+        private static int CountOrganizedMembers(ArrayOf<WotOrganizationalGroup> groups)
+        {
+            int count = 0;
+            for (int i = 0; i < groups.Count; i++)
+            {
+                count += groups[i].OrganizedNodeIds.Count + CountOrganizedMembers(groups[i].Groups);
+            }
+            return count;
         }
 
         private static string FormatDiagnostics(ArrayOf<WotDiagnostic> diagnostics, string fallback)

@@ -68,7 +68,11 @@ try
     {
         Console.WriteLine(
             $"  {resource.ResourceId}: {resource.Phase}/{resource.Outcome} " +
-            $"({resource.LoadState}) {resource.Message}");
+            $"({resource.LoadState})");
+        if (!string.IsNullOrWhiteSpace(resource.Message))
+        {
+            Console.WriteLine($"    Message: {resource.Message}");
+        }
     }
 
     Console.WriteLine("Materialized Pump browse:");

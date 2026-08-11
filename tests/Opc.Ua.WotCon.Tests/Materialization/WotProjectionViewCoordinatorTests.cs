@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -181,10 +182,67 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "An unlocatable selection must be recorded as an omission.");
             WoTResourceLoadResultDataType projection =
                 result.Results.Single(r => r.ResourceId == "view-4");
+            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning),
+                "A View that selected a member but organized none must not report plain Success.");
             Assert.That(projection.LoadState, Is.EqualTo(WoTLoadStateEnum.Active),
                 "Omission is not a failure; the resource still reaches Active.");
+            Assert.That(projection.Message, Does.Contain("organizing 0 Node(s)"));
+            Assert.That(projection.Message, Does.Contain("omitted all"));
             Assert.That(projection.Message, Does.Contain("omitted"),
                 "The omission must be reported in the load-result Message.");
+        }
+
+        [Test]
+        public async Task ProjectionViewWithSomeSelectionsOmittedReportsWarning()
+        {
+            ConfigureSourceRoot("src-partial-a", "PartialSourceA");
+            await RegisterTd("src-partial-a", Td("urn:src-partial-a", "valueA"));
+            await RegisterTd("src-partial-b", Td("urn:src-partial-b", "valueB"));
+            await RegisterTd("view-partial",
+                Projection(
+                    "urn:view:partial",
+                    "http://example.com/scenario/Partial",
+                    "urn:src-partial-a",
+                    "urn:src-partial-b"));
+
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            WotViewProjectionRequest request =
+                m_viewHost.Applied.Single(v => v.ResourceXid.EndsWith("/view-partial",
+                    StringComparison.Ordinal));
+            Assert.That(request.Plan.OrganizedNodeIds, Has.Count.EqualTo(1));
+            Assert.That(request.Plan.Omissions, Has.Count.EqualTo(1));
+            WoTResourceLoadResultDataType projection =
+                result.Results.Single(r => r.ResourceId == "view-partial");
+            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+            Assert.That(projection.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+            Assert.That(projection.Message, Does.Contain("organizing 1 of 2"));
+            Assert.That(projection.Message, Does.Contain("omitted 1"));
+            Assert.That(projection.Message, Does.Contain("urn:src-partial-b"));
+        }
+
+        [Test]
+        public async Task ProjectionViewWithAllSelectionsMaterializedReportsSuccess()
+        {
+            ConfigureSourceRoot("src-clean", "CleanSource");
+            await RegisterTd("src-clean", TestMaterialization.Td("urn:src-clean"));
+            await RegisterTd("view-clean",
+                Projection(
+                    "urn:view:clean",
+                    "http://example.com/scenario/Clean",
+                    "urn:src-clean"));
+
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            WotViewProjectionRequest request = m_viewHost.Applied.Single();
+            Assert.That(request.Plan.OrganizedNodeIds, Has.Count.EqualTo(1));
+            Assert.That(request.Plan.Omissions, Is.Empty);
+            WoTResourceLoadResultDataType projection =
+                result.Results.Single(r => r.ResourceId == "view-clean");
+            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(projection.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+            Assert.That(projection.Message, Does.Contain("organizing 1 Node(s)"));
+            Assert.That(projection.Message, Does.Not.Contain("omitted"));
         }
 
         [Test]
@@ -237,6 +295,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }).AsTask();
         }
 
+        private void ConfigureSourceRoot(string resourceId, string rootIdentifier)
+        {
+            NamespaceTable namespaces = m_coordinator.ServerNamespaceUris ?? new NamespaceTable();
+            string modelUri = $"urn:wot:{WotRegistryGroups.ThingDescriptions}/{resourceId}";
+            namespaces.GetIndexOrAppend(modelUri);
+            m_coordinator.ServerNamespaceUris = namespaces;
+            m_converter.SetRootNodeId(resourceId, new ExpandedNodeId(rootIdentifier, modelUri));
+        }
+
         private static byte[] Projection(string id, string scenario, params string[] projectHrefs)
         {
             var builder = new StringBuilder();
@@ -263,6 +330,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .Append("\"uav:selectAll\":true}");
             }
             builder.Append("]}");
+            return Encoding.UTF8.GetBytes(builder.ToString());
+        }
+
+        private static byte[] Td(string id, string propertyName)
+        {
+            var builder = new StringBuilder();
+            builder.Append("{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",")
+                .Append("\"@type\":\"uav:object\",")
+                .Append("\"id\":\"").Append(id).Append("\",")
+                .Append("\"title\":\"").Append(id).Append("\",")
+                .Append("\"properties\":{\"").Append(propertyName)
+                .Append("\":{\"type\":\"number\",\"forms\":[{\"href\":\"x\"}]}}}");
             return Encoding.UTF8.GetBytes(builder.ToString());
         }
     }

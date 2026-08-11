@@ -367,7 +367,11 @@ namespace Opc.Ua.Wot
                 }
                 if (document.TryGetNativeProjection(out JsonElement projection))
                 {
-                    ValidateNativeConsistency(restored, projection, options, diagnostics);
+                    UANodeSet? projected = ValidateNativeConsistency(restored, projection, options, diagnostics);
+                    if (projected is not null)
+                    {
+                        ValidateNativeAffordanceCoverage(document, projected, diagnostics);
+                    }
                 }
                 WotJsonResidue.Replace(restored, document, options, diagnostics);
                 return restored;
@@ -381,6 +385,7 @@ namespace Opc.Ua.Wot
                     diagnostics);
                 if (restored is not null)
                 {
+                    ValidateNativeAffordanceCoverage(document, restored, diagnostics);
                     WotJsonResidue.Replace(restored, document, options, diagnostics);
                 }
                 return restored;
@@ -535,7 +540,7 @@ namespace Opc.Ua.Wot
             return nodeSet;
         }
 
-        private static void ValidateNativeConsistency(
+        private static UANodeSet? ValidateNativeConsistency(
             UANodeSet baseline,
             JsonElement projection,
             WotNodeSetConverterOptions options,
@@ -553,7 +558,7 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.NativeProjectionConflict,
                     FirstDiagnosticMessage(nativeDiagnostics) ??
                     "The native projection could not be reconstructed."));
-                return;
+                return null;
             }
 
             NodeSetComparisonResult comparison =
@@ -567,6 +572,152 @@ namespace Opc.Ua.Wot
                         ? comparison.Differences[0]
                         : "The native projection conflicts with the preservation baseline."));
             }
+            return projected;
+        }
+
+        private static void ValidateNativeAffordanceCoverage(
+            WotDocument document,
+            UANodeSet projected,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (document.Properties.Count == 0 &&
+                document.Actions.Count == 0 &&
+                document.Events.Count == 0)
+            {
+                return;
+            }
+
+            var nodeIds = new HashSet<string>(StringComparer.Ordinal);
+            var browseNames = new HashSet<string>(StringComparer.Ordinal);
+            if (projected.Items is not null)
+            {
+                foreach (UANode node in projected.Items)
+                {
+                    if (!string.IsNullOrEmpty(node.NodeId))
+                    {
+                        nodeIds.Add(node.NodeId);
+                    }
+                    if (!string.IsNullOrEmpty(node.BrowseName))
+                    {
+                        browseNames.Add(node.BrowseName);
+                    }
+                }
+            }
+
+            var identityContext = new UANodeSet
+            {
+                NamespaceUris = projected.NamespaceUris is null
+                    ? null
+                    : (string[])projected.NamespaceUris.Clone()
+            };
+            string rootLocal = LocalName(GetUavString(document, "browseName")) ??
+                SanitizeName(document.Title) ?? "Thing";
+
+            ValidateNativeAffordanceCoverage(
+                document,
+                document.Properties,
+                "properties",
+                "property",
+                rootLocal,
+                identityContext,
+                nodeIds,
+                browseNames,
+                diagnostics);
+            ValidateNativeAffordanceCoverage(
+                document,
+                document.Actions,
+                "actions",
+                "action",
+                rootLocal,
+                identityContext,
+                nodeIds,
+                browseNames,
+                diagnostics);
+            ValidateNativeAffordanceCoverage(
+                document,
+                document.Events,
+                "events",
+                "event",
+                rootLocal,
+                identityContext,
+                nodeIds,
+                browseNames,
+                diagnostics);
+        }
+
+        private static void ValidateNativeAffordanceCoverage(
+            WotDocument document,
+            IReadOnlyDictionary<string, JsonElement> affordances,
+            string collectionName,
+            string affordanceKind,
+            string rootLocal,
+            UANodeSet identityContext,
+            HashSet<string> nodeIds,
+            HashSet<string> browseNames,
+            List<WotDiagnostic> diagnostics)
+        {
+            foreach (KeyValuePair<string, JsonElement> affordance in affordances)
+            {
+                if (IsNativeAffordanceCovered(
+                    document,
+                    affordance.Key,
+                    affordance.Value,
+                    rootLocal,
+                    identityContext,
+                    nodeIds,
+                    browseNames))
+                {
+                    continue;
+                }
+
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Warning,
+                    WotDiagnosticCode.NativeProjectionUncoveredAffordance,
+                    "The document carries uav:nodes, but its native projection " +
+                    $"does not contain a node for the {affordanceKind} affordance " +
+                    $"'{affordance.Key}'. The projection is authoritative, so " +
+                    "that readable affordance does not contribute to the restored NodeSet.",
+                    WotLocation.FromPointer(
+                        "/" + collectionName + "/" + EscapeJsonPointerToken(affordance.Key))));
+            }
+        }
+
+        private static bool IsNativeAffordanceCovered(
+            WotDocument document,
+            string key,
+            JsonElement affordance,
+            string rootLocal,
+            UANodeSet identityContext,
+            HashSet<string> nodeIds,
+            HashSet<string> browseNames)
+        {
+            string local = LocalName(GetElementString(affordance, "uav:browseName")) ?? key;
+            string? authoredNodeId = GetElementString(affordance, "uav:id");
+            string expectedNodeId = authoredNodeId is null
+                ? GenerateNodeId(rootLocal + "/" + local)
+                : ToNodeSetNodeId(authoredNodeId, identityContext, []);
+            if (authoredNodeId is not null)
+            {
+                return nodeIds.Contains(expectedNodeId);
+            }
+
+            string? authoredBrowseName = GetElementString(affordance, "uav:browseName");
+            string expectedBrowseName = authoredBrowseName is null
+                ? "1:" + local
+                : ToNodeSetQualifiedName(document, authoredBrowseName, identityContext, []);
+            return nodeIds.Contains(expectedNodeId) || browseNames.Contains(expectedBrowseName);
+        }
+
+        private static string EscapeJsonPointerToken(string token)
+        {
+            if (!token.Contains('~', StringComparison.Ordinal) &&
+                !token.Contains('/', StringComparison.Ordinal))
+            {
+                return token;
+            }
+            return token
+                .Replace("~", "~0", StringComparison.Ordinal)
+                .Replace("/", "~1", StringComparison.Ordinal);
         }
 
         private static UANodeSet? Synthesize(
