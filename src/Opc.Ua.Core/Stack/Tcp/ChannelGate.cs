@@ -44,7 +44,7 @@ namespace Opc.Ua.Bindings
     /// once a private key may be served over a network.
     /// <para>
     /// It is <b>re-entrant</b>, because the code it replaces relies on that:
-    /// <c>HandleIncomingMessage</c> holds the lock and calls
+    /// <c>HandleIncomingMessageAsync</c> holds the lock and calls
     /// <c>ForceChannelFault</c>, which takes it again, and there are seven more
     /// paths like it. A plain <see cref="SemaphoreSlim"/> would deadlock on each
     /// of them. Re-entrancy is tracked per logical call context, which is what a
@@ -68,6 +68,29 @@ namespace Opc.Ua.Bindings
     /// wait handle if <see cref="SemaphoreSlim.AvailableWaitHandle"/> is read, and
     /// it never is.
     /// </para>
+    /// <para>
+    /// <b>What it costs.</b> Measured by <c>ChannelGateBenchmarks</c> against the
+    /// monitor it replaced: an uncontended acquisition is about 41 ns and 96 bytes
+    /// where the monitor was 13 ns and nothing, and a nested acquisition adds
+    /// about 5 ns and nothing. The per-message work the gate is taken around —
+    /// <c>SymmetricChannelCryptoBenchmarks.EncryptSignThenDecryptVerify</c> — is
+    /// about 10,500 ns, so the gate is under half a percent of it. The
+    /// asynchronous entry completes synchronously when uncontended, which a test
+    /// asserts, so it costs no suspension.
+    /// </para>
+    /// <para>
+    /// The 96 bytes are not a task: they are the execution context copy that
+    /// writing an <see cref="AsyncLocal{T}"/> makes, plus the holder. Returning
+    /// the acquisition through an <c>IValueTaskSource&lt;T&gt;</c>, or pooling
+    /// the <see cref="ValueTask{TResult}"/>, therefore cannot remove them — the
+    /// uncontended path already allocates no task at all. It would only affect
+    /// the contended path, where the cost is dominated by waiting, and it would
+    /// be unsafe here: a pooled token may be consumed exactly once, while
+    /// <see cref="Releaser"/> is a copyable struct. Recycling the holder is
+    /// unsafe for the same reason re-entrancy works at all — a forked context
+    /// keeps a reference to it, and would read a recycled one as its own
+    /// entitlement.
+    /// </para>
     /// </remarks>
     // CA1001: the semaphore is deliberately not disposed. This type replaces a
     // monitor, which has no disposed state, and channel teardown enters the gate
@@ -84,8 +107,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <returns>A handle that leaves the gate when disposed.</returns>
         /// <remarks>
-        /// This is the direct replacement for <c>lock (DataLock)</c> and behaves
-        /// the same way, including when the caller already holds the gate.
+        /// This is the direct replacement for the monitor the channel used to
+        /// take and behaves the same way, including when the caller already
+        /// holds the gate.
         /// <para>
         /// <b>The handle this returns must not be held across an
         /// <see langword="await"/>.</b> It records the acquiring thread so that an

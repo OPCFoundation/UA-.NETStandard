@@ -20,6 +20,7 @@ exactly as it did before the provider model existed.
 - [Substituting the symmetric primitives](#substituting-the-symmetric-primitives)
 - [Using a key served over a network](#using-a-key-served-over-a-network)
 - [PubSub](#pubsub)
+- [Contributing a security policy](#contributing-a-security-policy)
 - [Limitations](#limitations)
 
 ## The short version
@@ -406,8 +407,7 @@ new PubSubApplicationBuilder(telemetry)
 memory.** `GetSecurityKeys` (Part 14 §8.3.2) returns raw key bytes over the wire,
 so the property the client and server side achieve — the key never leaves the
 device — **cannot** be achieved for PubSub through the SKS pull profile. That is
-a property of the specification, not of this stack, and no amount of API here
-changes it.
+a property of the specification, not of this stack.
 
 Introducing a wrapped-key envelope would change what is on the wire and break
 interoperability with third-party key services and publishers, so it is
@@ -424,6 +424,53 @@ What is achievable, and is supported:
   ring disposes keys as it retires them, and the intermediate copies made while
   unpacking an SKS response are cleared rather than left in the heap.
 
+## Contributing a security policy
+
+The policy set is no longer fixed at compile time. A provider that implements a profile this stack does
+not ship — a national or vendor profile, or one added by a later specification — can make it visible at
+runtime by constructing a `SecurityPolicyInfo` and registering it:
+
+```csharp
+using IDisposable registration = SecurityPolicies.Register(
+    new SecurityPolicyInfo("urn:vendor:SecurityPolicy#CustomProfile", "CustomProfile")
+    {
+        PlatformSupport = () => true,
+        SupportedCertificateTypes = [ObjectTypeIds.RsaSha256ApplicationCertificateType],
+        IsDefault = true
+    });
+```
+
+or through the builder, alongside the provider that performs its cryptography:
+
+```csharp
+services.AddOpcUa()
+    .AddCryptoProvider(crypto => crypto
+        .For(CryptoPurpose.ChannelSymmetric, "urn:vendor:SecurityPolicy#CustomProfile").Use(module))
+    .AddSecurityPolicy(customPolicy);
+```
+
+A registered policy is discoverable through the same API as a built-in one — `GetInfo`, `GetUri`,
+`GetDisplayName`, `GetDisplayNames` and the default-URI helpers — because those are now driven from one
+table rather than from reflection over the constants. Registering a URI or name that already exists
+throws unless `replaceExisting: true` is passed, which makes shadowing a built-in policy deliberate and
+reversible: disposing the returned registration restores what was there before.
+
+`PlatformSupport` is what decides whether the policy is offered on the machine it is running on, so a
+policy whose algorithms are unavailable is filtered out the same way the built-in ones are. The
+`ECC_curve25519` and `ECC_curve448` profiles are the worked example: they ship in the tree but are not
+advertised, and a consumer can light them up from outside without rebuilding the stack — which is what
+`RegisterLightsUpCurvePoliciesFromOutsideCore` asserts.
+
+Registering a policy makes it **advertised and resolvable**; it does not by itself supply the
+cryptography behind it. For the two curve profiles above, the in-tree key agreement is still behind a
+compile-time symbol that no project defines and a BouncyCastle dependency, so a deployment that lights
+them up supplies the operations through a provider, exactly as [the sections above](#substituting-the-symmetric-primitives)
+describe. That is the intended division: the policy set says *what* is offered, the provider says *who*
+performs it.
+
+Removing the reflection that used to build these tables also removed the last reflection in
+`Opc.Ua.Core.Security.Constants`, which is why this is also a trimming and Native AOT improvement.
+
 ## Limitations
 
 - **HTTPS with a device-held key does not work on Windows or macOS.** SChannel and the macOS Security
@@ -433,8 +480,6 @@ What is achievable, and is supported:
   per channel token; a device round trip per message would destroy throughput. Hardware is used only for
   the operations that happen when a channel opens or a session is activated. Substituting a *software*
   implementation is supported — see above.
-- **A provider cannot yet contribute a new security policy.** The policy set is fixed at compile time.
-  Adding one still requires changing the stack.
 - **Certificate issuance cannot be made asynchronous at all.** `X509SignatureGenerator.SignData` is
   called by .NET's own `CertificateRequest` and CRL builders, so signing a certificate, a certificate
   request or a revocation list with a remote key occupies a thread by construction. Service faults and

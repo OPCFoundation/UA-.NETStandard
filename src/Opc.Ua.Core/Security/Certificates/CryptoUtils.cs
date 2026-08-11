@@ -181,36 +181,7 @@ namespace Opc.Ua
         /// <returns>the ECCCurve, null if certificatate type id has no matching supported ECC curve</returns>
         public static ECCurve? GetCurveFromCertificateTypeId(NodeId certificateType)
         {
-            ECCurve? curve = null;
-
-            if (certificateType == ObjectTypeIds.EccApplicationCertificateType ||
-                certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
-            {
-                curve = ECCurve.NamedCurves.nistP256;
-            }
-            else if (certificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
-            {
-                curve = ECCurve.NamedCurves.nistP384;
-            }
-            else if (certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
-            {
-                curve = ECCurve.NamedCurves.brainpoolP256r1;
-            }
-            else if (certificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
-            {
-                curve = ECCurve.NamedCurves.brainpoolP384r1;
-            }
-#if CURVE25519
-            else if (certificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType)
-            {
-                curve = default(ECCurve);
-            }
-            else if (certificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType)
-            {
-                curve = default(ECCurve);
-            }
-#endif
-            return curve;
+            return SecurityPolicies.GetCurveFromCertificateTypeId(certificateType);
         }
 
         /// <summary>
@@ -498,6 +469,7 @@ namespace Opc.Ua
         /// <see cref="Sign(ArraySegment{byte}, Certificate, AsymmetricSignatureAlgorithm)"/>,
         /// including the order in which everything around the call happens.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ValueTask<byte[]?> SignAsync(
             ArraySegment<byte> dataToSign,
             Certificate signingCertificate,

@@ -146,7 +146,7 @@ namespace Opc.Ua.PubSub.Security.Policies
             try
             {
                 Span<byte> computed = rented.AsSpan(0, SignatureLength);
-                                if (m_provider != null)
+                if (m_provider != null)
                 {
                     m_provider.Sign(
                         SymmetricSignatureAlgorithm.HmacSha256, signingKey, data, computed);

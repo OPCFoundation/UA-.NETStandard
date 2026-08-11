@@ -588,31 +588,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends a OpenSecureChannel request.
         /// </summary>
-        [Obsolete("Use WriteAsymmetricMessageAsync, which does not occupy a thread " +
-            "while a private key served over a network signs the message.")]
-        protected BufferCollection WriteAsymmetricMessage(
-            uint messageType,
-            uint requestId,
-            Certificate senderCertificate,
-            Certificate receiverCertificate,
-            ArraySegment<byte> messageBody)
-        {
-#pragma warning disable CS0618 // The obsolete pair is retained together.
-            return WriteAsymmetricMessage(
-                messageType,
-                requestId,
-                senderCertificate,
-                null,
-                receiverCertificate,
-                messageBody,
-                null,
-                out _);
-#pragma warning restore CS0618
-        }
-
-        /// <summary>
-        /// Sends a OpenSecureChannel request.
-        /// </summary>
         /// <param name="messageType">The UA TCP message type (for example, Open or OpenFinal).</param>
         /// <param name="requestId">The request identifier used in the sequence header.</param>
         /// <param name="senderCertificate">The certificate used to sign the asymmetric message.</param>
@@ -623,9 +598,14 @@ namespace Opc.Ua.Bindings
         /// <param name="signature">Returns the signature generated for the message being written.</param>
         /// <exception cref="InvalidDataException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        [Obsolete("Use WriteAsymmetricMessageAsync, which does not occupy a thread " +
-            "while a private key served over a network signs the message.")]
-        protected BufferCollection WriteAsymmetricMessage(
+        /// <remarks>
+        /// Not part of the surface a channel outside this assembly can use:
+        /// <see cref="WriteAsymmetricMessageAsync"/> is, and it does not occupy a
+        /// thread while a private key served over a network signs the message.
+        /// This remains only for the fault and reconnect paths inside this
+        /// assembly, which are reached from call sites that cannot await.
+        /// </remarks>
+        private protected BufferCollection WriteAsymmetricMessage(
             uint messageType,
             uint requestId,
             Certificate? senderCertificate,

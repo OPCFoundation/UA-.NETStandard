@@ -51,23 +51,98 @@ namespace Opc.Ua
             }
 
             Uri = uri;
-            Name = name ?? SecurityPolicies.GetDisplayName(uri) ?? uri;
+            Name = name ?? SecurityPolicies.GetNameFromUri(uri);
+        }
+
+        /// <summary>
+        /// Creates a copy of an existing security policy.
+        /// </summary>
+        /// <param name="policy">The policy to copy.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="policy"/> is <c>null</c>.
+        /// </exception>
+        public SecurityPolicyInfo(SecurityPolicyInfo policy)
+        {
+            if (policy is null)
+            {
+                throw new ArgumentNullException(nameof(policy));
+            }
+
+            Name = policy.Name;
+            Uri = policy.Uri;
+            IsDeprecated = policy.IsDeprecated;
+            IsFipsApproved = policy.IsFipsApproved;
+            SymmetricSignatureAlgorithm = policy.SymmetricSignatureAlgorithm;
+            SymmetricEncryptionAlgorithm = policy.SymmetricEncryptionAlgorithm;
+            AsymmetricSignatureAlgorithm = policy.AsymmetricSignatureAlgorithm;
+            AsymmetricEncryptionAlgorithm = policy.AsymmetricEncryptionAlgorithm;
+            MinAsymmetricKeyLength = policy.MinAsymmetricKeyLength;
+            MaxAsymmetricKeyLength = policy.MaxAsymmetricKeyLength;
+            KeyDerivationAlgorithm = policy.KeyDerivationAlgorithm;
+            DerivedSignatureKeyLength = policy.DerivedSignatureKeyLength;
+            CertificateSignatureAlgorithm = policy.CertificateSignatureAlgorithm;
+            CertificateKeyFamily = policy.CertificateKeyFamily;
+            CertificateKeyAlgorithm = policy.CertificateKeyAlgorithm;
+            EphemeralKeyAlgorithm = policy.EphemeralKeyAlgorithm;
+            CertificateThumbprintAlgorithm = policy.CertificateThumbprintAlgorithm;
+            SecureChannelNonceLength = policy.SecureChannelNonceLength;
+            InitializationVectorLength = policy.InitializationVectorLength;
+            SymmetricSignatureLength = policy.SymmetricSignatureLength;
+            SymmetricEncryptionKeyLength = policy.SymmetricEncryptionKeyLength;
+            LegacySequenceNumbers = policy.LegacySequenceNumbers;
+            SecureChannelEnhancements = policy.SecureChannelEnhancements;
+            PlatformSupport = policy.PlatformSupport;
+            SupportedCertificateTypes = policy.SupportedCertificateTypes;
+            CertificateCurve = policy.CertificateCurve;
+            IsDefault = policy.IsDefault;
+            IsDefaultEcc = policy.IsDefaultEcc;
+            IsDefaultDeprecated = policy.IsDefaultDeprecated;
         }
 
         /// <summary>
         /// Short name for the policy.
         /// </summary>
-        public string Name { get; }
+        public string Name { get; init; }
 
         /// <summary>
         /// The unique identifier for the policy.
         /// </summary>
-        public string Uri { get; }
+        public string Uri { get; init; }
 
         /// <summary>
         /// Returns true if the policy is considered deprecated and should not be used for new deployments.
         /// </summary>
-        public bool IsDeprecated { get; private set; }
+        public bool IsDeprecated { get; init; }
+
+        /// <summary>
+        /// Returns true when this policy can be used on the current platform.
+        /// </summary>
+        public Func<bool>? PlatformSupport { get; init; }
+
+        /// <summary>
+        /// The application certificate types that can be used with this policy.
+        /// </summary>
+        public ArrayOf<NodeId> SupportedCertificateTypes { get; init; } = [];
+
+        /// <summary>
+        /// The ECC curve associated with this policy's application certificate type.
+        /// </summary>
+        public ECCurve? CertificateCurve { get; init; }
+
+        /// <summary>
+        /// Returns true when this policy is included in the default RSA policy list.
+        /// </summary>
+        public bool IsDefault { get; init; }
+
+        /// <summary>
+        /// Returns true when this policy is included in the default ECC policy list.
+        /// </summary>
+        public bool IsDefaultEcc { get; init; }
+
+        /// <summary>
+        /// Returns true when this policy is included in the default deprecated policy list.
+        /// </summary>
+        public bool IsDefaultDeprecated { get; init; }
 
         /// <summary>
         /// Returns true if every algorithm the policy uses is approved for
@@ -86,98 +161,98 @@ namespace Opc.Ua
         /// policies, is deprecated for new signatures by SP 800-131A.
         /// </para>
         /// </remarks>
-        public bool IsFipsApproved { get; private set; }
+        public bool IsFipsApproved { get; init; }
 
         /// <summary>
         /// The symmetric signature algorithm to use.
         /// </summary>
-        public SymmetricSignatureAlgorithm SymmetricSignatureAlgorithm { get; private set; }
+        public SymmetricSignatureAlgorithm SymmetricSignatureAlgorithm { get; init; }
 
         /// <summary>
         /// The symmetric encryption algorithm to use.
         /// </summary>
-        public SymmetricEncryptionAlgorithm SymmetricEncryptionAlgorithm { get; private set; }
+        public SymmetricEncryptionAlgorithm SymmetricEncryptionAlgorithm { get; init; }
 
         /// <summary>
         /// The asymmetric signature algorithm to use.
         /// </summary>
-        public AsymmetricSignatureAlgorithm AsymmetricSignatureAlgorithm { get; private set; }
+        public AsymmetricSignatureAlgorithm AsymmetricSignatureAlgorithm { get; init; }
 
         /// <summary>
         /// The symmetric encryption algorithm to use.
         /// </summary>
-        public AsymmetricEncryptionAlgorithm AsymmetricEncryptionAlgorithm { get; private set; }
+        public AsymmetricEncryptionAlgorithm AsymmetricEncryptionAlgorithm { get; init; }
 
         /// <summary>
         /// The minimum length, in bits, for an asymmetric key.
         /// </summary>
-        public int MinAsymmetricKeyLength { get; private set; }
+        public int MinAsymmetricKeyLength { get; init; }
 
         /// <summary>
         /// The maximum length, in bits, for an asymmetric key.
         /// </summary>
-        public int MaxAsymmetricKeyLength { get; private set; }
+        public int MaxAsymmetricKeyLength { get; init; }
 
         /// <summary>
         /// The key derivation algorithm to use.
         /// </summary>
-        public KeyDerivationAlgorithm KeyDerivationAlgorithm { get; private set; }
+        public KeyDerivationAlgorithm KeyDerivationAlgorithm { get; init; }
 
         /// <summary>
         /// The length in bytes of the derived key used for message authentication.
         /// </summary>
-        public int DerivedSignatureKeyLength { get; private set; }
+        public int DerivedSignatureKeyLength { get; init; }
 
         /// <summary>
         /// The asymmetric signature algorithm used to sign certificates.
         /// </summary>
-        public AsymmetricSignatureAlgorithm CertificateSignatureAlgorithm { get; private set; }
+        public AsymmetricSignatureAlgorithm CertificateSignatureAlgorithm { get; init; }
 
         /// <summary>
         /// Returns algorithm family used to create asymmetric key pairs used with Certificates.
         /// </summary>
-        public CertificateKeyFamily CertificateKeyFamily { get; private set; }
+        public CertificateKeyFamily CertificateKeyFamily { get; init; }
 
         /// <summary>
         /// The algorithm used to create asymmetric key pairs used with Certificates.
         /// </summary>
-        public CertificateKeyAlgorithm CertificateKeyAlgorithm { get; private set; }
+        public CertificateKeyAlgorithm CertificateKeyAlgorithm { get; init; }
 
         /// <summary>
         /// The algorithm used to create asymmetric key pairs used for EphemeralKeys.
         /// </summary>
-        public CertificateKeyAlgorithm EphemeralKeyAlgorithm { get; private set; }
+        public CertificateKeyAlgorithm EphemeralKeyAlgorithm { get; init; }
 
         /// <summary>
         /// The algorithm used to calculate the thumbprint of the certificate.
         /// </summary>
-        public CertificateThumbprintAlgorithm CertificateThumbprintAlgorithm { get; private set; }
+        public CertificateThumbprintAlgorithm CertificateThumbprintAlgorithm { get; init; }
 
         /// <summary>
         /// The length, in bytes, of the Nonces used when opening a SecureChannel.
         /// </summary>
-        public int SecureChannelNonceLength { get; private set; }
+        public int SecureChannelNonceLength { get; init; }
 
         /// <summary>
         /// The length, in bytes, of the data used to initialize the symmetric algorithm.
         /// </summary>
-        public int InitializationVectorLength { get; private set; }
+        public int InitializationVectorLength { get; init; }
 
         /// <summary>
         /// The length, in bytes, of the symmetric signature.
         /// </summary>
-        public int SymmetricSignatureLength { get; private set; }
+        public int SymmetricSignatureLength { get; init; }
 
         /// <summary>
         /// The length, in bytes, of the symmetric encryption key.
         /// </summary>
-        public int SymmetricEncryptionKeyLength { get; private set; }
+        public int SymmetricEncryptionKeyLength { get; init; }
 
         /// <summary>
         /// If TRUE, the 1024 based SequenceNumber rules apply to the SecurityPolicy.
         /// If FALSE, the 0 based SequenceNumber rules apply.
         /// </summary>
-        public bool LegacySequenceNumbers { get; private set; }
+        public bool LegacySequenceNumbers { get; init; }
 
         /// <summary>
         /// If TRUE, the enhancements to the SecureChannel are required for the SecurityPolicy.
@@ -186,7 +261,7 @@ namespace Opc.Ua
         /// • Chained symmetric key derivation when renewing SecureChannels.
         /// • Allow padding when using Authenticated Encryption;
         /// </summary>
-        public bool SecureChannelEnhancements { get; private set; }
+        public bool SecureChannelEnhancements { get; init; }
 
         /// <summary>
         /// Whether the padding is required with symmetric encryption.
@@ -391,7 +466,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.None,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.None,
             SecureChannelEnhancements = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1,
+            IsDefault = false
         };
 
         /// <summary>
@@ -419,7 +495,9 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha1,
             IsDeprecated = true,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1,
+            SupportedCertificateTypes = [ObjectTypeIds.RsaMinApplicationCertificateType, ObjectTypeIds.RsaSha256ApplicationCertificateType],
+            IsDefaultDeprecated = true
         };
 
         /// <summary>
@@ -447,7 +525,9 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha1,
             IsDeprecated = true,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1,
+            SupportedCertificateTypes = [ObjectTypeIds.RsaMinApplicationCertificateType, ObjectTypeIds.RsaSha256ApplicationCertificateType],
+            IsDefaultDeprecated = true
         };
 
         /// <summary>
@@ -474,7 +554,9 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
             IsDeprecated = false,
             IsFipsApproved = true,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1,
+            SupportedCertificateTypes = [ObjectTypeIds.RsaSha256ApplicationCertificateType],
+            IsDefault = true
         };
 
         /// <summary>
@@ -501,7 +583,9 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
             IsDeprecated = false,
             IsFipsApproved = true,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1,
+            SupportedCertificateTypes = [ObjectTypeIds.RsaSha256ApplicationCertificateType],
+            IsDefault = true
         };
 
         /// <summary>
@@ -528,7 +612,10 @@ namespace Opc.Ua
             SymmetricSignatureLength = 256 / 8,
             IsDeprecated = false,
             IsFipsApproved = true,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1,
+            SupportedCertificateTypes = [ObjectTypeIds.RsaSha256ApplicationCertificateType],
+            IsDefault = true,
+            PlatformSupport = () => RsaUtils.IsSupportingRSAPssSign.Value
         };
 
         /// <summary>
@@ -556,7 +643,10 @@ namespace Opc.Ua
             SecureChannelEnhancements = false,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.EccCurve25519ApplicationCertificateType],
+            CertificateCurve = default(ECCurve),
+            PlatformSupport = SecurityPolicies.UnsupportedPolicy
         };
 
         /// <summary>
@@ -584,7 +674,10 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.EccCurve25519ApplicationCertificateType],
+            CertificateCurve = default(ECCurve),
+            PlatformSupport = SecurityPolicies.UnsupportedPolicy
         };
 
         /// <summary>
@@ -612,7 +705,10 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.EccCurve25519ApplicationCertificateType],
+            CertificateCurve = default(ECCurve),
+            PlatformSupport = SecurityPolicies.UnsupportedPolicy
         };
 
         /// <summary>
@@ -640,7 +736,10 @@ namespace Opc.Ua
             SecureChannelEnhancements = false,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
+            SupportedCertificateTypes = [ObjectTypeIds.EccCurve448ApplicationCertificateType],
+            CertificateCurve = default(ECCurve),
+            PlatformSupport = SecurityPolicies.UnsupportedPolicy
         };
 
         /// <summary>
@@ -668,7 +767,10 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
+            SupportedCertificateTypes = [ObjectTypeIds.EccCurve448ApplicationCertificateType],
+            CertificateCurve = default(ECCurve),
+            PlatformSupport = SecurityPolicies.UnsupportedPolicy
         };
 
         /// <summary>
@@ -696,7 +798,10 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
+            SupportedCertificateTypes = [ObjectTypeIds.EccCurve448ApplicationCertificateType],
+            CertificateCurve = default(ECCurve),
+            PlatformSupport = SecurityPolicies.UnsupportedPolicy
         };
 
         /// <summary>
@@ -724,7 +829,11 @@ namespace Opc.Ua
             SecureChannelEnhancements = false,
             IsDeprecated = false,
             IsFipsApproved = true,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.EccNistP256ApplicationCertificateType, ObjectTypeIds.EccNistP384ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.nistP256,
+            IsDefaultEcc = true,
+            PlatformSupport = () => SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType)
         };
 
         /// <summary>
@@ -752,7 +861,11 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = true,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.EccNistP256ApplicationCertificateType, ObjectTypeIds.EccNistP384ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.nistP256,
+            PlatformSupport = () => SecurityPolicies.SupportsAesGcmPolicy() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType)
         };
 
         /// <summary>
@@ -780,7 +893,11 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.EccNistP256ApplicationCertificateType, ObjectTypeIds.EccNistP384ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.nistP256,
+            PlatformSupport = () => SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType)
         };
 
         /// <summary>
@@ -808,7 +925,11 @@ namespace Opc.Ua
             SecureChannelEnhancements = false,
             IsDeprecated = false,
             IsFipsApproved = true,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
+            SupportedCertificateTypes = [ObjectTypeIds.EccNistP384ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.nistP384,
+            IsDefaultEcc = true,
+            PlatformSupport = () => SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType)
         };
 
         /// <summary>
@@ -836,7 +957,11 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = true,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
+            SupportedCertificateTypes = [ObjectTypeIds.EccNistP384ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.nistP384,
+            PlatformSupport = () => SecurityPolicies.SupportsAesGcmPolicy() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType)
         };
 
         /// <summary>
@@ -864,7 +989,11 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
+            SupportedCertificateTypes = [ObjectTypeIds.EccNistP384ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.nistP384,
+            PlatformSupport = () => SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType)
         };
 
         /// <summary>
@@ -892,7 +1021,12 @@ namespace Opc.Ua
             SecureChannelEnhancements = false,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType, ObjectTypeIds
+                .EccBrainpoolP384r1ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.brainpoolP256r1,
+            IsDefaultEcc = true,
+            PlatformSupport = () => SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
         };
 
         /// <summary>
@@ -920,7 +1054,12 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType, ObjectTypeIds
+                .EccBrainpoolP384r1ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.brainpoolP256r1,
+            PlatformSupport = () => SecurityPolicies.SupportsAesGcmPolicy() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
         };
 
         /// <summary>
@@ -948,7 +1087,12 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType, ObjectTypeIds
+                .EccBrainpoolP384r1ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.brainpoolP256r1,
+            PlatformSupport = () => SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
         };
 
         /// <summary>
@@ -976,7 +1120,11 @@ namespace Opc.Ua
             SecureChannelEnhancements = false,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
+            SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.brainpoolP384r1,
+            IsDefaultEcc = true,
+            PlatformSupport = () => SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
         };
 
         /// <summary>
@@ -1004,7 +1152,11 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
+            SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.brainpoolP384r1,
+            PlatformSupport = () => SecurityPolicies.SupportsAesGcmPolicy() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
         };
 
         /// <summary>
@@ -1032,7 +1184,11 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
+            SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType],
+            CertificateCurve = ECCurve.NamedCurves.brainpoolP384r1,
+            PlatformSupport = () => SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
         };
 
         /// <summary>
@@ -1060,7 +1216,9 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = true,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.RsaSha256ApplicationCertificateType],
+            PlatformSupport = SecurityPolicies.SupportsAesGcmPolicy
         };
 
         /// <summary>
@@ -1088,7 +1246,9 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false,
             IsFipsApproved = false,
-            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
+            SupportedCertificateTypes = [ObjectTypeIds.RsaSha256ApplicationCertificateType],
+            PlatformSupport = SecurityPolicies.SupportsChaCha20Poly1305Policy
         };
     }
 

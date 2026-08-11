@@ -994,11 +994,11 @@ namespace Opc.Ua.Bindings
                 byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
 
                 // secure message.
-#pragma warning disable CS0618 // The fault path is exceptional and is reached from
-                // synchronous call sites, including the public Reconnect override. Signing
-                // here with a key served over a network still occupies a thread; that is
-                // recorded as a residual limitation rather than cascading async through
-                // eight fault call sites.
+                // The fault path is exceptional and is reached from synchronous call
+                // sites, including the public Reconnect override. Signing here with a
+                // key served over a network still occupies a thread; that is recorded
+                // as a residual limitation rather than cascading async through eight
+                // fault call sites.
                 chunksToSend = WriteAsymmetricMessage(
                     TcpMessageType.Open,
                     requestId,
@@ -1008,7 +1008,6 @@ namespace Opc.Ua.Bindings
                     new ArraySegment<byte>(buffer, 0, buffer.Length),
                     !renew ? m_oscRequestSignature : null,
                     out _);
-#pragma warning restore CS0618
 
                 // write the message to the server.
                 BeginWriteMessage(chunksToSend, null);
@@ -1066,7 +1065,6 @@ namespace Opc.Ua.Bindings
 
             byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
 
-#pragma warning disable CS0618 // See the remarks above.
             BufferCollection chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
                 requestId,
@@ -1076,7 +1074,6 @@ namespace Opc.Ua.Bindings
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
                 !renew ? m_oscRequestSignature : null,
                 out byte[] signature);
-#pragma warning restore CS0618
 
             if (!renew)
             {

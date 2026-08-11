@@ -151,8 +151,8 @@ warning to act on rather than a break.
 
 ## Migrating channel subclasses that guarded state with DataLock
 
-`UaSCBinaryChannel.DataLock` is `[Obsolete]`. The channel no longer
-serialises any of its own state on it, so taking it excludes nothing.
+`UaSCBinaryChannel.DataLock` has been **removed**. The channel no longer
+serialises any of its own state on it, so taking it excluded nothing.
 
 A monitor cannot be held across an `await`, and the secure channel open
 path has to be able to await once a private key may be served over a
@@ -189,18 +189,17 @@ implementation detail, and can no longer do so.
 
 ## Migrating channel subclasses that override HandleIncomingMessage
 
-`UaSCBinaryChannel.HandleIncomingMessage` and `OnChunkReceived` are
-`[Obsolete]`, as is the `WriteAsymmetricMessage` overload that returns
-the signature through an `out` parameter. The receive loop now calls
+`UaSCBinaryChannel.HandleIncomingMessage` and `OnChunkReceived` have been
+**removed**, as has the `protected WriteAsymmetricMessage` overload that
+returned the signature through an `out` parameter. The receive loop calls
 `HandleIncomingMessageAsync` and `OnChunkReceivedAsync`, so that the
 secure channel open path can await a private key served over a network —
 see [Crypto provider](CryptoProvider.md).
 
-**Existing overrides keep working.** The default
-`HandleIncomingMessageAsync` calls the synchronous
-`HandleIncomingMessage`, so a subclass that overrides only the
-synchronous one behaves exactly as before. Override the asynchronous one
-to stop occupying a thread:
+A synchronous override cannot be kept working underneath the
+asynchronous path without defeating the point of it, so **an existing
+override must be moved**. The signature gains a `CancellationToken` and
+returns `ValueTask<bool>`:
 
 ```csharp
 // before
@@ -218,13 +217,26 @@ protected override async ValueTask<bool> HandleIncomingMessageAsync(
 }
 ```
 
+An override that has nothing to await can return a completed value
+without going asynchronous at all:
+
+```csharp
+protected override ValueTask<bool> HandleIncomingMessageAsync(
+    uint messageType, ArraySegment<byte> messageChunk, CancellationToken ct)
+{
+    return new ValueTask<bool>(HandleSynchronously(messageType, messageChunk));
+}
+```
+
 The buffer-ownership contract is unchanged: return `true` when the
 implementor takes ownership of the chunk, and it will not be returned to
 the buffer manager for you.
 
 `ReadAsymmetricMessageAsync` and `WriteAsymmetricMessageAsync` return
 `AsymmetricMessage` and `AsymmetricWriteResult` rather than using `out`
-parameters, which an asynchronous method cannot have.
+parameters, which an asynchronous method cannot have. Use
+`WriteAsymmetricMessageAsync` in place of the removed synchronous
+overload.
 
 ## Migrating from 1.05.377 to 1.05.378
 

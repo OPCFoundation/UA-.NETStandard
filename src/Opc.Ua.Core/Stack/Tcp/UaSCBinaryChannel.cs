@@ -637,81 +637,18 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Dispatches a complete UASC <c>MessageChunk</c> pulled from the
-        /// transport's receive loop into the channel pipeline.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        [Obsolete("Override OnChunkReceivedAsync instead. The receive loop no longer " +
-            "calls this, because the secure channel open path has to be able to await.")]
-        protected virtual void OnChunkReceived(ArraySegment<byte> message)
-        {
-            try
-            {
-                if (message.Count > ReceiveBufferSize)
-                {
-                    var result = ServiceResult.Create(
-                        StatusCodes.BadTcpMessageTooLarge,
-                        "Message size {0} bytes exceeds the negotiated receive buffer size of {1} bytes.",
-                        message.Count,
-                        ReceiveBufferSize);
-                    BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
-                    OnTransportError(result);
-                    return;
-                }
-
-                uint messageType = BitConverter.ToUInt32(message.GetArray(), message.Offset);
-
-#pragma warning disable CS0618 // The synchronous pair is retained together.
-                if (!HandleIncomingMessage(messageType, message))
-#pragma warning restore CS0618
-                {
-                    BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
-                }
-            }
-            catch (Exception e)
-            {
-                HandleMessageProcessingError(
-                    e,
-                    StatusCodes.BadTcpInternalError,
-                    "An error occurred receiving a message.");
-                BufferManager.ReturnBuffer(message.Array, "OnChunkReceived");
-            }
-        }
-
-        /// <summary>
         /// Processes an incoming message.
         /// </summary>
         /// <param name="messageType">The UA TCP message type.</param>
         /// <param name="messageChunk">The chunk to process.</param>
         /// <param name="ct">Cancels the processing.</param>
         /// <returns>True if the implementor takes ownership of the buffer.</returns>
-        /// <remarks>
-        /// The default implementation defers to the synchronous
-        /// <see cref="HandleIncomingMessage"/>, so a channel outside this stack
-        /// that overrides only that one keeps working.
-        /// </remarks>
         protected virtual ValueTask<bool> HandleIncomingMessageAsync(
             uint messageType,
             ArraySegment<byte> messageChunk,
             CancellationToken ct)
         {
-#pragma warning disable CS0618 // Deferring to it is what keeps existing overrides working.
-            return new ValueTask<bool>(HandleIncomingMessage(messageType, messageChunk));
-#pragma warning restore CS0618
-        }
-
-        /// <summary>
-        /// Processes an incoming message.
-        /// </summary>
-        /// <returns>True if the implementor takes ownership of the buffer.</returns>
-        [Obsolete("Override HandleIncomingMessageAsync instead. This is still called " +
-            "by the default asynchronous implementation, so an existing override keeps " +
-            "working, but it cannot await a private key served over a network.")]
-        protected virtual bool HandleIncomingMessage(
-            uint messageType,
-            ArraySegment<byte> messageChunk)
-        {
-            return false;
+            return new ValueTask<bool>(false);
         }
 
         /// <summary>
@@ -766,7 +703,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Starts the long-running receive loop that pulls UASC chunks from
         /// the current <see cref="Transport"/> and dispatches them into the
-        /// channel via <see cref="OnChunkReceived"/>. Idempotent: subsequent
+        /// channel via <see cref="OnChunkReceivedAsync"/>. Idempotent: subsequent
         /// calls are no-ops while a loop is already running on the current
         /// transport.
         /// </summary>
@@ -1330,8 +1267,8 @@ namespace Opc.Ua.Bindings
         /// Serialises access to the channel's state.
         /// </summary>
         /// <remarks>
-        /// This replaces the monitor that <see cref="DataLock"/> used to be taken
-        /// on. A monitor cannot be held across an <see langword="await"/>, and the
+        /// This replaces the monitor the channel used to serialise its state on.
+        /// A monitor cannot be held across an <see langword="await"/>, and the
         /// secure channel open path has to await once a private key may be served
         /// over a network.
         /// <para>
@@ -1342,17 +1279,6 @@ namespace Opc.Ua.Bindings
         /// </para>
         /// </remarks>
         internal ChannelGate Gate { get; } = new();
-
-        /// <summary>
-        /// The synchronization object for the channel.
-        /// </summary>
-        [Obsolete(
-            "The channel no longer serialises its state on this monitor, so taking " +
-            "it excludes nothing. Derived types outside this assembly that guarded " +
-            "channel state with it must be reviewed; there is no replacement that " +
-            "can be offered across an assembly boundary, because the gate that " +
-            "replaced it has to be entered asynchronously on the open path.")]
-        protected object DataLock { get; } = new();
 
         /// <summary>
         /// The byte-level transport that carries UASC chunks for the channel.

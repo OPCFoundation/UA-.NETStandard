@@ -30,6 +30,8 @@
 // CA2000: certificates are disposed by using declarations in each test.
 #pragma warning disable CA2000
 using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -41,7 +43,7 @@ namespace Opc.Ua.Core.Tests.Security
     [Category("Security")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]
     public class SecurityPoliciesTests
     {
         [Test]
@@ -66,6 +68,136 @@ namespace Opc.Ua.Core.Tests.Security
             Assert.That(SecurityPolicies.GetDisplayNames(), Does.Contain(nameof(SecurityPolicies.Basic256Sha256)));
             Assert.That(SecurityPolicies.GetDefaultDeprecatedUris(), Does.Contain(SecurityPolicies.Basic256));
             Assert.That(SecurityPolicies.GetDefaultUris(), Does.Contain(SecurityPolicies.Basic256Sha256));
+        }
+
+        [Test]
+        public void RegisterRejectsNullAndDuplicatePolicies()
+        {
+            Assert.That(
+                () => SecurityPolicies.Register(null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("securityPolicy"));
+
+            var policy = new SecurityPolicyInfo(SecurityPolicies.BaseUri + "TestDuplicatePolicy")
+            {
+                PlatformSupport = () => true
+            };
+
+            using IDisposable registration = SecurityPolicies.Register(policy);
+
+            Assert.That(
+                () => SecurityPolicies.Register(new SecurityPolicyInfo(policy.Uri, "OtherName")),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(
+                () => SecurityPolicies.Register(new SecurityPolicyInfo(SecurityPolicies.BaseUri + "OtherPolicy", policy.Name)),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(
+                () => SecurityPolicies.Register(new SecurityPolicyInfo(SecurityPolicyInfo.Basic256Sha256)),
+                Throws.TypeOf<InvalidOperationException>());
+        }
+
+        [Test]
+        public void RegisterLightsUpCurvePoliciesFromOutsideCore()
+        {
+            using IDisposable curve25519 = SecurityPolicies.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve25519, isDefaultEcc: true),
+                replaceExisting: true);
+            using IDisposable curve25519AesGcm = SecurityPolicies.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve25519_AesGcm, isDefaultEcc: false),
+                replaceExisting: true);
+            using IDisposable curve25519ChaChaPoly = SecurityPolicies.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve25519_ChaChaPoly, isDefaultEcc: false),
+                replaceExisting: true);
+            using IDisposable curve448 = SecurityPolicies.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve448, isDefaultEcc: true),
+                replaceExisting: true);
+            using IDisposable curve448AesGcm = SecurityPolicies.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve448_AesGcm, isDefaultEcc: false),
+                replaceExisting: true);
+            using IDisposable curve448ChaChaPoly = SecurityPolicies.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve448_ChaChaPoly, isDefaultEcc: false),
+                replaceExisting: true);
+
+            string[] policyUris =
+            [
+                SecurityPolicies.ECC_curve25519,
+                SecurityPolicies.ECC_curve25519_AesGcm,
+                SecurityPolicies.ECC_curve25519_ChaChaPoly,
+                SecurityPolicies.ECC_curve448,
+                SecurityPolicies.ECC_curve448_AesGcm,
+                SecurityPolicies.ECC_curve448_ChaChaPoly
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (string policyUri in policyUris)
+                {
+                    SecurityPolicyInfo info = SecurityPolicies.GetInfo(policyUri);
+                    Assert.That(info, Is.Not.Null, policyUri);
+                    Assert.That(SecurityPolicies.GetUri(info.Name), Is.EqualTo(policyUri), policyUri);
+                    Assert.That(SecurityPolicies.GetDisplayName(policyUri), Is.EqualTo(info.Name), policyUri);
+                    Assert.That(SecurityPolicies.GetDisplayNames(), Does.Contain(info.Name), policyUri);
+                }
+
+                Assert.That(SecurityPolicies.GetDefaultEccUris(), Does.Contain(SecurityPolicies.ECC_curve25519));
+                Assert.That(SecurityPolicies.GetDefaultEccUris(), Does.Contain(SecurityPolicies.ECC_curve448));
+                Assert.That(
+                    CertificateIdentifier.MapSecurityPolicyToCertificateTypes(SecurityPolicies.ECC_curve25519),
+                    Does.Contain(ObjectTypeIds.EccCurve25519ApplicationCertificateType));
+                Assert.That(
+                    CertificateIdentifier.MapSecurityPolicyToCertificateTypes(SecurityPolicies.ECC_curve448),
+                    Does.Contain(ObjectTypeIds.EccCurve448ApplicationCertificateType));
+                Assert.That(
+                    CryptoUtils.GetCurveFromCertificateTypeId(ObjectTypeIds.EccCurve25519ApplicationCertificateType),
+                    Is.Not.Null);
+                Assert.That(
+                    CryptoUtils.GetCurveFromCertificateTypeId(ObjectTypeIds.EccCurve448ApplicationCertificateType),
+                    Is.Not.Null);
+            });
+        }
+
+        [Test]
+        public void AddSecurityPolicyRegistersPoliciesThroughDependencyInjection()
+        {
+            var policy = new SecurityPolicyInfo(SecurityPolicies.BaseUri + "DependencyInjectionPolicy")
+            {
+                PlatformSupport = () => true,
+                IsDefault = true,
+                SupportedCertificateTypes = [ObjectTypeIds.RsaSha256ApplicationCertificateType]
+            };
+
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddSecurityPolicy(policy);
+
+            using (ServiceProvider provider = services.BuildServiceProvider())
+            {
+                Assert.That(provider.GetRequiredService<ISecurityPolicyRegistry>(), Is.Not.Null);
+                Assert.That(SecurityPolicies.GetInfo(policy.Uri), Is.SameAs(policy));
+                Assert.That(SecurityPolicies.GetDefaultUris(), Does.Contain(policy.Uri));
+            }
+
+            Assert.That(SecurityPolicies.GetInfo(policy.Uri), Is.Null);
+        }
+
+        [TestCaseSource(nameof(SecurityConfigurationSupportedPolicyCases))]
+        public void SecurityConfigurationBuildsExpectedSupportedPolicySet(
+            bool hasCertificateType,
+            NodeId certificateType,
+            string[] expectedPolicyUris)
+        {
+            SecurityConfiguration securityConfiguration = hasCertificateType
+                ? new SecurityConfiguration
+                {
+                    ApplicationCertificates =
+                    [
+                        CreateCertificateIdentifier(certificateType)
+                    ]
+                }
+                : new SecurityConfiguration
+                {
+                    ApplicationCertificate = new CertificateIdentifier()
+                };
+
+            Assert.That(securityConfiguration.SupportedSecurityPolicies, Is.EqualTo(SupportedOnly(expectedPolicyUris)));
         }
 
         [Test]
@@ -259,6 +391,143 @@ namespace Opc.Ua.Core.Tests.Security
                 inputs[3],
                 inputs[4],
                 inputs[5]);
+        }
+
+        private static SecurityPolicyInfo WithPlatformSupport(SecurityPolicyInfo policy, bool isDefaultEcc)
+        {
+            return new SecurityPolicyInfo(policy)
+            {
+                PlatformSupport = () => true,
+                IsDefaultEcc = isDefaultEcc
+            };
+        }
+
+        private static IEnumerable<TestCaseData> SecurityConfigurationSupportedPolicyCases()
+        {
+            yield return new TestCaseData(
+                false,
+                NodeId.Null,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.Basic256Sha256,
+                    SecurityPolicies.Aes128_Sha256_RsaOaep,
+                    SecurityPolicies.Aes256_Sha256_RsaPss,
+                    SecurityPolicies.RSA_DH_AesGcm,
+                    SecurityPolicies.RSA_DH_ChaChaPoly
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForNullCertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.Basic256Sha256,
+                    SecurityPolicies.Aes128_Sha256_RsaOaep,
+                    SecurityPolicies.Aes256_Sha256_RsaPss,
+                    SecurityPolicies.RSA_DH_AesGcm,
+                    SecurityPolicies.RSA_DH_ChaChaPoly,
+                    SecurityPolicies.Basic128Rsa15,
+                    SecurityPolicies.Basic256
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForApplicationCertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.Basic256Sha256,
+                    SecurityPolicies.Aes128_Sha256_RsaOaep,
+                    SecurityPolicies.Aes256_Sha256_RsaPss,
+                    SecurityPolicies.RSA_DH_AesGcm,
+                    SecurityPolicies.RSA_DH_ChaChaPoly,
+                    SecurityPolicies.Basic128Rsa15,
+                    SecurityPolicies.Basic256
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForRsaSha256CertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.RsaMinApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.Basic128Rsa15,
+                    SecurityPolicies.Basic256
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForRsaMinCertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.ECC_nistP256,
+                    SecurityPolicies.ECC_nistP256_AesGcm,
+                    SecurityPolicies.ECC_nistP256_ChaChaPoly
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForEccNistP256CertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.EccNistP384ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.ECC_nistP256,
+                    SecurityPolicies.ECC_nistP256_AesGcm,
+                    SecurityPolicies.ECC_nistP256_ChaChaPoly,
+                    SecurityPolicies.ECC_nistP384,
+                    SecurityPolicies.ECC_nistP384_AesGcm,
+                    SecurityPolicies.ECC_nistP384_ChaChaPoly
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForEccNistP384CertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.ECC_brainpoolP256r1,
+                    SecurityPolicies.ECC_brainpoolP256r1_AesGcm,
+                    SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForEccBrainpoolP256r1CertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.ECC_brainpoolP256r1,
+                    SecurityPolicies.ECC_brainpoolP256r1_AesGcm,
+                    SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly,
+                    SecurityPolicies.ECC_brainpoolP384r1,
+                    SecurityPolicies.ECC_brainpoolP384r1_AesGcm,
+                    SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForEccBrainpoolP384r1CertificateType");
+        }
+
+        private static string[] SupportedOnly(string[] policyUris)
+        {
+            var supportedPolicyUris = new List<string>();
+            foreach (string policyUri in policyUris)
+            {
+                if (policyUri == SecurityPolicies.None || SecurityPolicies.GetDisplayName(policyUri) != null)
+                {
+                    supportedPolicyUris.Add(policyUri);
+                }
+            }
+
+            return [.. supportedPolicyUris];
+        }
+
+        private static CertificateIdentifier CreateCertificateIdentifier(NodeId certificateType)
+        {
+            return new CertificateIdentifier
+            {
+                CertificateType = certificateType
+            };
         }
     }
 }

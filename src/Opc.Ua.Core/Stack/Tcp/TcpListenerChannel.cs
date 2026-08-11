@@ -423,7 +423,7 @@ namespace Opc.Ua.Bindings
         /// no client certificate (for example a
         /// <see cref="SecurityPolicies.None"/> channel) or is already
         /// closed/faulted. The returned reference is owned by the caller,
-        /// which must dispose it. Snapshotting under <c>DataLock</c> avoids
+        /// which must dispose it. Snapshotting under the channel gate avoids
         /// racing the channel's own disposal of its live client certificate.
         /// </summary>
         internal Certificate? SnapshotClientCertificateForRevalidation()

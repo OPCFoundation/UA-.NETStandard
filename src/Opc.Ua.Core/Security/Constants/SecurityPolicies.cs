@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,7 +38,6 @@ using Opc.Ua.Security.Certificates;
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
 #else
-using System.Linq;
 using System.Collections.ObjectModel;
 #endif
 
@@ -190,7 +188,7 @@ namespace Opc.Ua
         /// </summary>
         public const string Https = BaseUri + "Https";
 
-        private static bool SupportsAesGcmPolicy()
+        internal static bool SupportsAesGcmPolicy()
         {
 #if NET8_0_OR_GREATER
             return AesGcm.IsSupported;
@@ -199,7 +197,7 @@ namespace Opc.Ua
 #endif
         }
 
-        private static bool SupportsChaCha20Poly1305Policy()
+        internal static bool SupportsChaCha20Poly1305Policy()
         {
 #if NET8_0_OR_GREATER
             return ChaCha20Poly1305.IsSupported;
@@ -208,122 +206,24 @@ namespace Opc.Ua
 #endif
         }
 
-        private static bool IsPlatformSupportedName(string name)
+        internal static bool SupportsCertificateType(NodeId certificateType)
         {
-            // If name contains BaseUri trim the BaseUri part
-            if (name.StartsWith(BaseUri, StringComparison.Ordinal))
-            {
-                name = name[BaseUri.Length..];
-            }
+            return Utils.IsSupportedCertificateType(certificateType);
+        }
 
-            // all RSA
-            if (name.Equals(nameof(None), StringComparison.Ordinal) ||
-                name.Equals(nameof(Basic256), StringComparison.Ordinal) ||
-                name.Equals(nameof(Basic128Rsa15), StringComparison.Ordinal) ||
-                name.Equals(nameof(Basic256Sha256), StringComparison.Ordinal) ||
-                name.Equals(nameof(Aes128_Sha256_RsaOaep), StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            if (name.Equals(nameof(RSA_DH_AesGcm), StringComparison.Ordinal))
-            {
-                return SupportsAesGcmPolicy();
-            }
-
-            if (name.Equals(nameof(RSA_DH_ChaChaPoly), StringComparison.Ordinal))
-            {
-                return SupportsChaCha20Poly1305Policy();
-            }
-
-            if (name.Equals(nameof(Aes256_Sha256_RsaPss), StringComparison.Ordinal) &&
-                RsaUtils.IsSupportingRSAPssSign.Value)
-            {
-                return true;
-            }
-            if (name.Equals(nameof(ECC_nistP256), StringComparison.Ordinal))
-            {
-                return Utils.IsSupportedCertificateType(
-                    ObjectTypeIds.EccNistP256ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_nistP256_AesGcm), StringComparison.Ordinal))
-            {
-                return SupportsAesGcmPolicy() &&
-                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_nistP256_ChaChaPoly), StringComparison.Ordinal))
-            {
-                return SupportsChaCha20Poly1305Policy() &&
-                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_nistP384), StringComparison.Ordinal))
-            {
-                return Utils.IsSupportedCertificateType(
-                    ObjectTypeIds.EccNistP384ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_nistP384_AesGcm), StringComparison.Ordinal))
-            {
-                return SupportsAesGcmPolicy() &&
-                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_nistP384_ChaChaPoly), StringComparison.Ordinal))
-            {
-                return SupportsChaCha20Poly1305Policy() &&
-                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_brainpoolP256r1), StringComparison.Ordinal))
-            {
-                return Utils.IsSupportedCertificateType(
-                    ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_brainpoolP256r1_AesGcm), StringComparison.Ordinal))
-            {
-                return SupportsAesGcmPolicy() &&
-                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_brainpoolP256r1_ChaChaPoly), StringComparison.Ordinal))
-            {
-                return SupportsChaCha20Poly1305Policy() &&
-                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_brainpoolP384r1), StringComparison.Ordinal))
-            {
-                return Utils.IsSupportedCertificateType(
-                    ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_brainpoolP384r1_AesGcm), StringComparison.Ordinal))
-            {
-                return SupportsAesGcmPolicy() &&
-                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_brainpoolP384r1_ChaChaPoly), StringComparison.Ordinal))
-            {
-                return SupportsChaCha20Poly1305Policy() &&
-                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
-            }
-
-            if (name.Equals(nameof(ECC_curve25519), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve448), StringComparison.Ordinal))
-            {
-#if CURVE25519
-                return true;
-#endif
-            }
-            if (name.Equals(nameof(ECC_curve25519_AesGcm), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve448_AesGcm), StringComparison.Ordinal))
-            {
-#if CURVE25519
-                return SupportsAesGcmPolicy();
-#endif
-            }
-            if (name.Equals(nameof(ECC_curve25519_ChaChaPoly), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve448_ChaChaPoly), StringComparison.Ordinal))
-            {
-#if CURVE25519
-                return SupportsChaCha20Poly1305Policy();
-#endif
-            }
+        internal static bool UnsupportedPolicy()
+        {
             return false;
+        }
+
+        internal static string GetNameFromUri(string uri)
+        {
+            if (uri.StartsWith(BaseUri, StringComparison.Ordinal))
+            {
+                return uri[BaseUri.Length..];
+            }
+
+            return uri;
         }
 
         /// <summary>
@@ -337,16 +237,8 @@ namespace Opc.Ua
                 return SecurityPolicyInfo.None;
             }
 
-            // Try full URI lookup first (e.g., "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256")
-            if (s_securityPolicyUriToInfo.Value.TryGetValue(securityPolicyUri, out SecurityPolicyInfo? info) &&
-                IsPlatformSupportedName(info.Name))
-            {
-                return info;
-            }
-
-            // Try short name lookup (e.g., "Basic256Sha256")
-            if (s_securityPolicyNameToInfo.Value.TryGetValue(securityPolicyUri, out info) &&
-                IsPlatformSupportedName(info.Name))
+            if (TryGetPolicy(securityPolicyUri, out SecurityPolicyInfo? info) &&
+                IsPlatformSupported(info!))
             {
                 return info;
             }
@@ -374,13 +266,7 @@ namespace Opc.Ua
                 return SecurityPolicyInfo.None;
             }
 
-            if (s_securityPolicyUriToInfo.Value.TryGetValue(
-                    securityPolicyUri, out SecurityPolicyInfo? info))
-            {
-                return info;
-            }
-
-            return s_securityPolicyNameToInfo.Value.TryGetValue(securityPolicyUri, out info)
+            return TryGetPolicy(securityPolicyUri, out SecurityPolicyInfo? info)
                 ? info
                 : null;
         }
@@ -391,10 +277,11 @@ namespace Opc.Ua
         /// </summary>
         public static string? GetUri(string displayName)
         {
-            if (s_securityPolicyNameToUri.Value.TryGetValue(displayName, out string? policyUri) &&
-                IsPlatformSupportedName(displayName))
+            SecurityPolicySnapshot snapshot = s_snapshot;
+            if (snapshot.NameToInfo.ContainsKey(displayName) &&
+                IsPlatformSupported(snapshot.NameToInfo[displayName]))
             {
-                return policyUri;
+                return snapshot.NameToInfo[displayName].Uri;
             }
 
             return null;
@@ -406,10 +293,11 @@ namespace Opc.Ua
         /// </summary>
         public static string? GetDisplayName(string policyUri)
         {
-            if (s_securityPolicyUriToName.Value.TryGetValue(policyUri, out string? displayName) &&
-                IsPlatformSupportedName(displayName))
+            SecurityPolicySnapshot snapshot = s_snapshot;
+            if (snapshot.UriToInfo.ContainsKey(policyUri) &&
+                IsPlatformSupported(snapshot.UriToInfo[policyUri]))
             {
-                return displayName;
+                return snapshot.UriToInfo[policyUri].Name;
             }
 
             return null;
@@ -426,7 +314,7 @@ namespace Opc.Ua
         /// </remarks>
         public static bool IsValidSecurityPolicyUri(string policyUri)
         {
-            return s_securityPolicyUriToName.Value.ContainsKey(policyUri);
+            return s_snapshot.UriToInfo.ContainsKey(policyUri);
         }
 
         /// <summary>
@@ -434,13 +322,14 @@ namespace Opc.Ua
         /// </summary>
         public static string[] GetDisplayNames()
         {
-            var names = new List<string>(s_securityPolicyUriToName.Value.Count);
+            SecurityPolicySnapshot snapshot = s_snapshot;
+            var names = new List<string>(snapshot.Policies.Length);
 
-            foreach (string displayName in s_securityPolicyUriToName.Value.Values)
+            foreach (SecurityPolicyInfo info in snapshot.Policies)
             {
-                if (IsPlatformSupportedName(displayName))
+                if (IsPlatformSupported(info))
                 {
-                    names.Add(displayName);
+                    names.Add(info.Name);
                 }
             }
 
@@ -452,17 +341,7 @@ namespace Opc.Ua
         /// </summary>
         public static string[] GetDefaultDeprecatedUris()
         {
-            string[] defaultNames = [nameof(Basic128Rsa15), nameof(Basic256)];
-            var defaultUris = new List<string>();
-            foreach (string name in defaultNames)
-            {
-                string? uri = GetUri(name);
-                if (uri != null)
-                {
-                    defaultUris.Add(uri);
-                }
-            }
-            return [.. defaultUris];
+            return GetOrderedUris(s_defaultDeprecatedPolicyUris, policy => policy.IsDefaultDeprecated);
         }
 
         /// <summary>
@@ -470,22 +349,7 @@ namespace Opc.Ua
         /// </summary>
         public static string[] GetDefaultUris()
         {
-            string[] defaultNames =
-            [
-                nameof(Basic256Sha256),
-                nameof(Aes128_Sha256_RsaOaep),
-                nameof(Aes256_Sha256_RsaPss)
-            ];
-            var defaultUris = new List<string>();
-            foreach (string name in defaultNames)
-            {
-                string? uri = GetUri(name);
-                if (uri != null)
-                {
-                    defaultUris.Add(uri);
-                }
-            }
-            return [.. defaultUris];
+            return GetOrderedUris(s_defaultPolicyUris, policy => policy.IsDefault);
         }
 
         /// <summary>
@@ -493,23 +357,27 @@ namespace Opc.Ua
         /// </summary>
         public static string[] GetDefaultEccUris()
         {
-            string[] defaultNames =
-            [
-                nameof(ECC_nistP256),
-                nameof(ECC_nistP384),
-                nameof(ECC_brainpoolP256r1),
-                nameof(ECC_brainpoolP384r1)
-            ];
-            var defaultUris = new List<string>();
-            foreach (string name in defaultNames)
-            {
-                string? uri = GetUri(name);
-                if (uri != null)
-                {
-                    defaultUris.Add(uri);
-                }
-            }
-            return [.. defaultUris];
+            return GetOrderedUris(s_defaultEccPolicyUris, policy => policy.IsDefaultEcc);
+        }
+
+        /// <summary>
+        /// Registers a security policy and makes it visible to the security policy lookup helpers.
+        /// </summary>
+        /// <param name="securityPolicy">The security policy to register.</param>
+        /// <param name="replaceExisting">
+        /// When <c>true</c>, an existing policy with the same URI or name is deliberately replaced until
+        /// the returned registration is disposed.
+        /// </param>
+        /// <returns>A registration that restores the previous snapshot when disposed.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="securityPolicy"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// A policy with the same URI or name already exists and <paramref name="replaceExisting"/> is <c>false</c>.
+        /// </exception>
+        public static IDisposable Register(SecurityPolicyInfo securityPolicy, bool replaceExisting = false)
+        {
+            return RegisterCore(securityPolicy, replaceExisting);
         }
 
         /// <summary>
@@ -900,6 +768,7 @@ namespace Opc.Ua
         /// so a software key behaves exactly as it does through
         /// <see cref="CreateSignatureData(SecurityPolicyInfo, Certificate, byte[])"/>.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
         public static async ValueTask<SignatureData> CreateSignatureDataAsync(
             SecurityPolicyInfo securityPolicy,
             Certificate localCertificate,
@@ -1094,109 +963,498 @@ namespace Opc.Ua
                 signature.Algorithm ?? string.Empty);
         }
 
-        /// <summary>
-        /// Creates a dictionary of uris to name excluding base uri
-        /// </summary>
-        private static readonly Lazy<IReadOnlyDictionary<string, string>> s_securityPolicyUriToName =
-            new(() =>
-            {
-#if NET8_0_OR_GREATER
-                return s_securityPolicyNameToUri!.Value.ToFrozenDictionary(k => k.Value, k => k.Key);
-#else
-                return new ReadOnlyDictionary<string, string>(
-                    s_securityPolicyNameToUri!.Value.ToDictionary(k => k.Value, k => k.Key));
-#endif
-            });
+        private static bool TryGetPolicy(string policyUriOrName, out SecurityPolicyInfo? info)
+        {
+            SecurityPolicySnapshot snapshot = s_snapshot;
 
-        /// <summary>
-        /// Creates a dictionary for names to uri excluding base uri
-        /// </summary>
-        private static readonly Lazy<IReadOnlyDictionary<string, string>> s_securityPolicyNameToUri =
-            new(() =>
+            if (snapshot.UriToInfo.ContainsKey(policyUriOrName))
             {
-                FieldInfo[] fields = typeof(SecurityPolicies).GetFields(
-                    BindingFlags.Public | BindingFlags.Static);
+                info = snapshot.UriToInfo[policyUriOrName];
+                return true;
+            }
 
-                var keyValuePairs = new Dictionary<string, string>();
-                foreach (FieldInfo field in fields)
+            if (snapshot.NameToInfo.ContainsKey(policyUriOrName))
+            {
+                info = snapshot.NameToInfo[policyUriOrName];
+                return true;
+            }
+
+            info = null;
+            return false;
+        }
+
+        private static bool IsPlatformSupported(SecurityPolicyInfo policy)
+        {
+            return policy.PlatformSupport?.Invoke() ?? true;
+        }
+
+        private static string[] GetOrderedUris(string[] builtInOrder, Func<SecurityPolicyInfo, bool> predicate)
+        {
+            SecurityPolicySnapshot snapshot = s_snapshot;
+            var defaultUris = new List<string>();
+
+            foreach (string policyUri in builtInOrder)
+            {
+                if (snapshot.UriToInfo.ContainsKey(policyUri))
                 {
-                    string? policyUri = (string?)field.GetValue(typeof(SecurityPolicies));
-                    if (policyUri == null ||
-                        field.Name == nameof(BaseUri) ||
-                        field.Name == nameof(Https) ||
-                        !policyUri.StartsWith(BaseUri, StringComparison.Ordinal))
+                    SecurityPolicyInfo policy = snapshot.UriToInfo[policyUri];
+                    if (predicate(policy) && IsPlatformSupported(policy))
                     {
-                        continue;
+                        defaultUris.Add(policy.Uri);
                     }
-
-                    keyValuePairs.Add(field.Name, policyUri);
                 }
-#if NET8_0_OR_GREATER
-                return keyValuePairs.ToFrozenDictionary();
-#else
-                return new ReadOnlyDictionary<string, string>(keyValuePairs);
-#endif
-            });
+            }
 
-        /// <summary>
-        /// Creates a dictionary of uris to SecurityPolicyInfo excluding base uri
-        /// </summary>
-        private static readonly Lazy<IReadOnlyDictionary<string, SecurityPolicyInfo>> s_securityPolicyUriToInfo =
-            new(() =>
+            foreach (SecurityPolicyInfo policy in snapshot.Policies)
             {
-#if NET8_0_OR_GREATER
-                return s_securityPolicyNameToInfo!.Value.ToFrozenDictionary(k => k.Value.Uri, k => k.Value);
-#else
-                return new ReadOnlyDictionary<string, SecurityPolicyInfo>(
-                    s_securityPolicyNameToInfo!.Value.ToDictionary(k => k.Value.Uri, k => k.Value));
-#endif
-            });
-
-        /// <summary>
-        /// Creates a dictionary for names to SecurityPolicyInfo excluding base uri
-        /// </summary>
-        private static readonly Lazy<IReadOnlyDictionary<string, SecurityPolicyInfo>> s_securityPolicyNameToInfo =
-            new(() =>
-            {
-                FieldInfo[] policyFields = typeof(SecurityPolicies).GetFields(
-                    BindingFlags.Public | BindingFlags.Static);
-
-                FieldInfo[] infoFields = typeof(SecurityPolicyInfo).GetFields(
-                    BindingFlags.Public | BindingFlags.Static);
-
-                var keyValuePairs = new Dictionary<string, SecurityPolicyInfo>();
-                foreach (FieldInfo field in policyFields)
+                if (!Contains(defaultUris, policy.Uri) &&
+                    predicate(policy) &&
+                    IsPlatformSupported(policy))
                 {
-                    string? policyUri = (string?)field.GetValue(typeof(SecurityPolicies));
-                    if (policyUri == null ||
-                        field.Name == nameof(BaseUri) ||
-                        field.Name == nameof(Https) ||
-                        !policyUri.StartsWith(BaseUri, StringComparison.Ordinal))
+                    defaultUris.Add(policy.Uri);
+                }
+            }
+
+            return [.. defaultUris];
+        }
+
+        private static bool ContainsCertificateType(SecurityPolicyInfo policy, NodeId certificateType)
+        {
+            foreach (NodeId supportedCertificateType in policy.SupportedCertificateTypes)
+            {
+                if (supportedCertificateType == certificateType)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        internal static ArrayOf<string> GetSupportedUrisForCertificateType(NodeId certificateType)
+        {
+            SecurityPolicySnapshot snapshot = s_snapshot;
+            var securityPolicies = new List<string>();
+
+            foreach (string policyUri in GetBuiltInPolicyOrder(certificateType))
+            {
+                if (snapshot.UriToInfo.ContainsKey(policyUri))
+                {
+                    SecurityPolicyInfo policy = snapshot.UriToInfo[policyUri];
+                    if (IsPlatformSupported(policy))
+                    {
+                        securityPolicies.Add(policy.Uri);
+                    }
+                }
+            }
+
+            foreach (SecurityPolicyInfo policy in snapshot.Policies)
+            {
+                if (Contains(securityPolicies, policy.Uri))
+                {
+                    continue;
+                }
+
+                if (!IsPlatformSupported(policy))
+                {
+                    continue;
+                }
+
+                if (certificateType.IsNull)
+                {
+                    if (!policy.IsDeprecated &&
+                        policy.CertificateKeyFamily == CertificateKeyFamily.RSA &&
+                        ContainsCertificateType(policy, ObjectTypeIds.RsaSha256ApplicationCertificateType))
+                    {
+                        securityPolicies.Add(policy.Uri);
+                    }
+
+                    continue;
+                }
+
+                if (ContainsCertificateType(policy, certificateType))
+                {
+                    securityPolicies.Add(policy.Uri);
+                }
+                else if (certificateType == ObjectTypeIds.ApplicationCertificateType &&
+                    policy.CertificateKeyFamily == CertificateKeyFamily.RSA &&
+                    (ContainsCertificateType(policy, ObjectTypeIds.RsaSha256ApplicationCertificateType) ||
+                        ContainsCertificateType(policy, ObjectTypeIds.RsaMinApplicationCertificateType)))
+                {
+                    securityPolicies.Add(policy.Uri);
+                }
+            }
+
+            return securityPolicies.ToArrayOf();
+        }
+
+        private static string[] GetBuiltInPolicyOrder(NodeId certificateType)
+        {
+            if (certificateType.IsNull)
+            {
+                return s_defaultCertificatePolicyUris;
+            }
+
+            if (certificateType == ObjectTypeIds.RsaMinApplicationCertificateType)
+            {
+                return s_defaultDeprecatedPolicyUris;
+            }
+
+            if (certificateType == ObjectTypeIds.ApplicationCertificateType ||
+                certificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                return s_defaultRsaCertificatePolicyUris;
+            }
+
+            if (certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
+            {
+                return s_eccNistP256PolicyUris;
+            }
+
+            if (certificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
+            {
+                return s_eccNistP384PolicyUris;
+            }
+
+            if (certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+            {
+                return s_eccBrainpoolP256r1PolicyUris;
+            }
+
+            if (certificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
+            {
+                return s_eccBrainpoolP384r1PolicyUris;
+            }
+
+            if (certificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType)
+            {
+                return s_eccCurve25519PolicyUris;
+            }
+
+            if (certificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType)
+            {
+                return s_eccCurve448PolicyUris;
+            }
+
+            return [];
+        }
+
+        private static bool Contains(List<string> values, string value)
+        {
+            foreach (string item in values)
+            {
+                if (item.Equals(value, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        internal static ECCurve? GetCurveFromCertificateTypeId(NodeId certificateType)
+        {
+            SecurityPolicySnapshot snapshot = s_snapshot;
+
+            if (certificateType == ObjectTypeIds.EccApplicationCertificateType)
+            {
+                return ECCurve.NamedCurves.nistP256;
+            }
+
+            foreach (SecurityPolicyInfo policy in snapshot.Policies)
+            {
+                if (policy.CertificateCurve.HasValue &&
+                    policy.SupportedCertificateTypes.Count > 0 &&
+                    policy.SupportedCertificateTypes[0] == certificateType)
+                {
+                    return policy.CertificateCurve.Value;
+                }
+            }
+
+            return null;
+        }
+
+        internal static ArrayOf<NodeId> GetCertificateTypes(string securityPolicyUri)
+        {
+            return TryGetPolicy(securityPolicyUri, out SecurityPolicyInfo? info)
+                ? info!.SupportedCertificateTypes
+                : [];
+        }
+
+        private static SecurityPolicyRegistration RegisterCore(SecurityPolicyInfo securityPolicy, bool replaceExisting)
+        {
+            if (securityPolicy is null)
+            {
+                throw new ArgumentNullException(nameof(securityPolicy));
+            }
+
+            lock (s_registrationLock)
+            {
+                SecurityPolicySnapshot snapshot = s_snapshot;
+                var policies = new List<SecurityPolicyInfo>(snapshot.Policies);
+                SecurityPolicyInfo? previous = null;
+                int previousIndex = -1;
+
+                for (int ii = 0; ii < policies.Count; ii++)
+                {
+                    SecurityPolicyInfo existing = policies[ii];
+                    if (existing.Uri.Equals(securityPolicy.Uri, StringComparison.Ordinal) ||
+                        existing.Name.Equals(securityPolicy.Name, StringComparison.Ordinal))
+                    {
+                        if (!replaceExisting)
+                        {
+                            throw new InvalidOperationException(
+                                "A security policy with the same URI or name is already registered.");
+                        }
+
+                        previous = existing;
+                        previousIndex = ii;
+                        break;
+                    }
+                }
+
+                if (previousIndex >= 0)
+                {
+                    policies[previousIndex] = securityPolicy;
+                }
+                else
+                {
+                    policies.Add(securityPolicy);
+                }
+
+                s_snapshot = SecurityPolicySnapshot.Create([.. policies]);
+
+                return new SecurityPolicyRegistration(securityPolicy, previous, previousIndex);
+            }
+        }
+
+        private static void Unregister(SecurityPolicyInfo policy, SecurityPolicyInfo? previous, int previousIndex)
+        {
+            lock (s_registrationLock)
+            {
+                SecurityPolicySnapshot snapshot = s_snapshot;
+                var policies = new List<SecurityPolicyInfo>(snapshot.Policies);
+
+                for (int ii = 0; ii < policies.Count; ii++)
+                {
+                    if (!policies[ii].Uri.Equals(policy.Uri, StringComparison.Ordinal))
                     {
                         continue;
                     }
 
-                    // Find the corresponding SecurityPolicyInfo field by name
-                    FieldInfo? infoField = Array.Find(infoFields, f => f.Name == field.Name);
-                    if (infoField != null && infoField.FieldType == typeof(SecurityPolicyInfo))
+                    if (!ReferenceEquals(policies[ii], policy))
                     {
-                        var info = (SecurityPolicyInfo?)infoField.GetValue(null);
-                        if (info != null)
-                        {
-                            keyValuePairs.Add(field.Name, info);
-                        }
+                        return;
+                    }
+
+                    if (previous != null && previousIndex >= 0)
+                    {
+                        policies[ii] = previous;
                     }
                     else
                     {
-                        // Fallback to creating a minimal instance for unknown policies
-                        keyValuePairs.Add(field.Name, new SecurityPolicyInfo(policyUri, field.Name));
+                        policies.RemoveAt(ii);
                     }
+
+                    s_snapshot = SecurityPolicySnapshot.Create([.. policies]);
+                    return;
                 }
+            }
+        }
+
+        private static SecurityPolicySnapshot CreateBuiltInSnapshot()
+        {
+            return SecurityPolicySnapshot.Create(
+            [
+                SecurityPolicyInfo.None,
+                SecurityPolicyInfo.Basic128Rsa15,
+                SecurityPolicyInfo.Basic256,
+                SecurityPolicyInfo.Aes128_Sha256_RsaOaep,
+                SecurityPolicyInfo.Basic256Sha256,
+                SecurityPolicyInfo.Aes256_Sha256_RsaPss,
+                SecurityPolicyInfo.RSA_DH_AesGcm,
+                SecurityPolicyInfo.RSA_DH_ChaChaPoly,
+                SecurityPolicyInfo.ECC_nistP256,
+                SecurityPolicyInfo.ECC_nistP256_AesGcm,
+                SecurityPolicyInfo.ECC_nistP256_ChaChaPoly,
+                SecurityPolicyInfo.ECC_nistP384,
+                SecurityPolicyInfo.ECC_nistP384_AesGcm,
+                SecurityPolicyInfo.ECC_nistP384_ChaChaPoly,
+                SecurityPolicyInfo.ECC_brainpoolP256r1,
+                SecurityPolicyInfo.ECC_brainpoolP256r1_AesGcm,
+                SecurityPolicyInfo.ECC_brainpoolP256r1_ChaChaPoly,
+                SecurityPolicyInfo.ECC_brainpoolP384r1,
+                SecurityPolicyInfo.ECC_brainpoolP384r1_AesGcm,
+                SecurityPolicyInfo.ECC_brainpoolP384r1_ChaChaPoly,
+                SecurityPolicyInfo.ECC_curve25519,
+                SecurityPolicyInfo.ECC_curve25519_AesGcm,
+                SecurityPolicyInfo.ECC_curve25519_ChaChaPoly,
+                SecurityPolicyInfo.ECC_curve448,
+                SecurityPolicyInfo.ECC_curve448_AesGcm,
+                SecurityPolicyInfo.ECC_curve448_ChaChaPoly
+            ]);
+        }
+
+        private static readonly Lock s_registrationLock = new();
+
+        private static volatile SecurityPolicySnapshot s_snapshot = CreateBuiltInSnapshot();
+
+        private static readonly string[] s_defaultPolicyUris =
+        [
+            Basic256Sha256,
+            Aes128_Sha256_RsaOaep,
+            Aes256_Sha256_RsaPss
+        ];
+
+        private static readonly string[] s_defaultDeprecatedPolicyUris =
+        [
+            Basic128Rsa15,
+            Basic256
+        ];
+
+        private static readonly string[] s_defaultEccPolicyUris =
+        [
+            ECC_nistP256,
+            ECC_nistP384,
+            ECC_brainpoolP256r1,
+            ECC_brainpoolP384r1
+        ];
+
+        private static readonly string[] s_defaultCertificatePolicyUris =
+        [
+            Basic256Sha256,
+            Aes128_Sha256_RsaOaep,
+            Aes256_Sha256_RsaPss,
+            RSA_DH_AesGcm,
+            RSA_DH_ChaChaPoly
+        ];
+
+        private static readonly string[] s_defaultRsaCertificatePolicyUris =
+        [
+            Basic256Sha256,
+            Aes128_Sha256_RsaOaep,
+            Aes256_Sha256_RsaPss,
+            RSA_DH_AesGcm,
+            RSA_DH_ChaChaPoly,
+            Basic128Rsa15,
+            Basic256
+        ];
+
+        private static readonly string[] s_eccNistP256PolicyUris =
+        [
+            ECC_nistP256,
+            ECC_nistP256_AesGcm,
+            ECC_nistP256_ChaChaPoly
+        ];
+
+        private static readonly string[] s_eccNistP384PolicyUris =
+        [
+            ECC_nistP256,
+            ECC_nistP256_AesGcm,
+            ECC_nistP256_ChaChaPoly,
+            ECC_nistP384,
+            ECC_nistP384_AesGcm,
+            ECC_nistP384_ChaChaPoly
+        ];
+
+        private static readonly string[] s_eccBrainpoolP256r1PolicyUris =
+        [
+            ECC_brainpoolP256r1,
+            ECC_brainpoolP256r1_AesGcm,
+            ECC_brainpoolP256r1_ChaChaPoly
+        ];
+
+        private static readonly string[] s_eccBrainpoolP384r1PolicyUris =
+        [
+            ECC_brainpoolP256r1,
+            ECC_brainpoolP256r1_AesGcm,
+            ECC_brainpoolP256r1_ChaChaPoly,
+            ECC_brainpoolP384r1,
+            ECC_brainpoolP384r1_AesGcm,
+            ECC_brainpoolP384r1_ChaChaPoly
+        ];
+
+        private static readonly string[] s_eccCurve25519PolicyUris =
+        [
+            ECC_curve25519,
+            ECC_curve25519_AesGcm,
+            ECC_curve25519_ChaChaPoly
+        ];
+
+        private static readonly string[] s_eccCurve448PolicyUris =
+        [
+            ECC_curve448,
+            ECC_curve448_AesGcm,
+            ECC_curve448_ChaChaPoly
+        ];
+
+        private sealed class SecurityPolicyRegistration : IDisposable
+        {
+            public SecurityPolicyRegistration(
+                SecurityPolicyInfo policy,
+                SecurityPolicyInfo? previous,
+                int previousIndex)
+            {
+                m_policy = policy;
+                m_previous = previous;
+                m_previousIndex = previousIndex;
+            }
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    Unregister(m_policy, m_previous, m_previousIndex);
+                }
+            }
+
+            private readonly SecurityPolicyInfo m_policy;
+            private readonly SecurityPolicyInfo? m_previous;
+            private readonly int m_previousIndex;
+            private int m_disposed;
+        }
+
+        private sealed class SecurityPolicySnapshot
+        {
+            private SecurityPolicySnapshot(
+                SecurityPolicyInfo[] policies,
+                IReadOnlyDictionary<string, SecurityPolicyInfo> nameToInfo,
+                IReadOnlyDictionary<string, SecurityPolicyInfo> uriToInfo)
+            {
+                Policies = policies;
+                NameToInfo = nameToInfo;
+                UriToInfo = uriToInfo;
+            }
+
+            public SecurityPolicyInfo[] Policies { get; }
+
+            public IReadOnlyDictionary<string, SecurityPolicyInfo> NameToInfo { get; }
+
+            public IReadOnlyDictionary<string, SecurityPolicyInfo> UriToInfo { get; }
+
+            public static SecurityPolicySnapshot Create(SecurityPolicyInfo[] policies)
+            {
+                var nameToInfo = new Dictionary<string, SecurityPolicyInfo>(StringComparer.Ordinal);
+                var uriToInfo = new Dictionary<string, SecurityPolicyInfo>(StringComparer.Ordinal);
+
+                foreach (SecurityPolicyInfo policy in policies)
+                {
+                    nameToInfo.Add(policy.Name, policy);
+                    uriToInfo.Add(policy.Uri, policy);
+                }
+
 #if NET8_0_OR_GREATER
-                return keyValuePairs.ToFrozenDictionary();
+                return new SecurityPolicySnapshot(
+                    policies,
+                    nameToInfo.ToFrozenDictionary(StringComparer.Ordinal),
+                    uriToInfo.ToFrozenDictionary(StringComparer.Ordinal));
 #else
-                return new ReadOnlyDictionary<string, SecurityPolicyInfo>(keyValuePairs);
+                return new SecurityPolicySnapshot(
+                    policies,
+                    new ReadOnlyDictionary<string, SecurityPolicyInfo>(nameToInfo),
+                    new ReadOnlyDictionary<string, SecurityPolicyInfo>(uriToInfo));
 #endif
-            });
+            }
+        }
     }
 }
