@@ -34,7 +34,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.WotCon.Client;
 using AggregationClient;
@@ -208,6 +210,16 @@ namespace Opc.Ua.WotCon.Samples.Tests
             return WotClientConnection.CreateAsync(options, cancellationToken);
         }
 
+        public Task<OpcUaClientConnection> ConnectSourceAAsync(
+            CancellationToken cancellationToken)
+        {
+            return OpcUaClientConnection.CreateAsync(
+                Root,
+                ClientOptions.SourceAEndpoint,
+                ClientOptions.ApplicationName + ".SourceA" + Guid.NewGuid().ToString("N"),
+                cancellationToken);
+        }
+
         public string CreateDocumentsCopy()
         {
             string target = Path.Combine(Root, "Documents", Guid.NewGuid().ToString("N"));
@@ -321,6 +333,95 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
             throw new DirectoryNotFoundException(
                 "The checked-in samples\\AggregationClient\\Documents directory was not found.");
+        }
+    }
+
+    internal sealed class OpcUaClientConnection : IAsyncDisposable
+    {
+        private OpcUaClientConnection(IHost host, ManagedSession session)
+        {
+            Host = host;
+            Session = session;
+        }
+
+        public IHost Host { get; }
+
+        public ManagedSession Session { get; }
+
+        public static async Task<OpcUaClientConnection> CreateAsync(
+            string root,
+            string endpointUrl,
+            string applicationName,
+            CancellationToken cancellationToken)
+        {
+            IHost host = BuildClientHost(root, endpointUrl, applicationName);
+            try
+            {
+                await host.StartAsync(cancellationToken).ConfigureAwait(false);
+                Func<CancellationToken, Task<ManagedSession>> connect =
+                    host.Services.GetRequiredService<
+                        Func<CancellationToken, Task<ManagedSession>>>();
+                ManagedSession session = await connect(cancellationToken).ConfigureAwait(false);
+                await session.FetchNamespaceTablesAsync(cancellationToken).ConfigureAwait(false);
+                session.MessageContext.NamespaceUris.Update(session.NamespaceUris.ToArray());
+                return new OpcUaClientConnection(host, session);
+            }
+            catch
+            {
+                await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                host.Dispose();
+                throw;
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            try
+            {
+                await Session.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                await Host.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                Host.Dispose();
+            }
+        }
+
+        private static IHost BuildClientHost(
+            string root,
+            string endpointUrl,
+            string applicationName)
+        {
+            HostApplicationBuilder builder = Microsoft.Extensions.Hosting.Host
+                .CreateApplicationBuilder();
+            builder.Logging.ClearProviders();
+            builder.Services
+                .AddOpcUa()
+                .AddOpcTcpTransport()
+                .AddClient(client =>
+                {
+                    client.ApplicationName = applicationName;
+                    client.ApplicationUri = "urn:localhost:OPCFoundation:" + applicationName;
+                    client.ProductUri = "uri:opcfoundation.org:WotSampleTestClient";
+                    client.PkiRoot = Path.Combine(
+                        root,
+                        "Clients",
+                        Guid.NewGuid().ToString("N"),
+                        "pki");
+                    client.AutoAcceptUntrustedCertificates = true;
+                    client.Session = new ManagedSessionOptions
+                    {
+                        SessionName = applicationName,
+                        SessionTimeout = TimeSpan.FromSeconds(60)
+                    };
+                })
+                .AddDiscoveryAndConnect(discovery =>
+                {
+                    discovery.DiscoveryUrl = endpointUrl;
+                    discovery.SecurityMode = MessageSecurityMode.None;
+                    discovery.SecurityPolicyUri = SecurityPolicies.None;
+                });
+            return builder.Build();
         }
     }
 
