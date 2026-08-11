@@ -296,89 +296,6 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private ServiceResult OnWriteEnabled(
-            ISystemContext context,
-            NodeState node,
-            ref Variant value)
-        {
-            try
-            {
-                // The fluent simulation loop keeps firing at its fixed interval;
-                // the OnTick handler simply skips its work while disabled, so
-                // toggling this flag is all that is required to pause/resume.
-                m_simulationEnabled = (bool)value;
-
-                return ServiceResult.Good;
-            }
-            catch (Exception e)
-            {
-                m_logger.ErrorWritingEnabledVariable(e);
-                return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Enabled variable.");
-            }
-        }
-
-        /// <summary>
-        /// Raises an event when an event trigger variable is written.
-        /// </summary>
-        private ServiceResult OnWriteTriggerNode(
-            ISystemContext context,
-            NodeState node,
-            ref Variant value)
-        {
-            var e = new BaseEventState(null);
-            e.Initialize(
-                context,
-                node,
-                EventSeverity.Medium,
-                new LocalizedText($"Trigger event from '{node.DisplayName.Text}'"));
-            Server.ReportEvent(context, e);
-            return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Validates writes to a selection-list variable, rejecting values that
-        /// are not contained in the node's baked <c>Selections</c> array.
-        /// </summary>
-        private static ServiceResult OnWriteSelectionList(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref Variant value,
-            ref StatusCode statusCode,
-            ref DateTimeUtc timestamp)
-        {
-            if (!indexRange.IsNull)
-            {
-                return StatusCodes.BadIndexRangeInvalid;
-            }
-
-            if (!value.TryGetValue(out string? selection))
-            {
-                return StatusCodes.BadTypeMismatch;
-            }
-
-            if (node.FindChild(
-                context,
-                new QualifiedName(Opc.Ua.BrowseNames.Selections)) is not
-                BaseVariableState selectionsNode ||
-                !selectionsNode.WrappedValue.TryGetValue(out ArrayOf<string> allowedSelections) ||
-                allowedSelections.IsNull)
-            {
-                return StatusCodes.BadConfigurationError;
-            }
-
-            foreach (string allowedSelection in allowedSelections)
-            {
-                if (string.Equals(selection, allowedSelection, StringComparison.Ordinal))
-                {
-                    return ServiceResult.Good;
-                }
-            }
-
-            return StatusCodes.BadOutOfRange;
-        }
-
         /// <summary>
         /// Creates a new folder.
         /// </summary>
@@ -388,145 +305,28 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Finds a variable materialized from the model.
-        /// </summary>
-        private BaseDataVariableState CreateVariable(string path)
-        {
-            BaseDataVariableState variable = FindPredefinedNode<BaseDataVariableState>(
-                new NodeId(path, NamespaceIndex));
-            if (variable == null)
-            {
-                return null!;
-            }
-
-            return variable;
-        }
-
-        /// <summary>
-        /// Finds a variable materialized from the model, and registers
-        /// it for the value simulation.
-        /// </summary>
-        private BaseDataVariableState CreateDynamicVariable(string path)
-        {
-            BaseDataVariableState variable = CreateVariable(path);
-            m_dynamicNodes.Add(variable);
-            return variable;
-        }
-
-        /// <summary>
-        /// Re-seeds and registers a numbered set of dynamic variables materialized from the model.
-        /// </summary>
-        private BaseDataVariableState[] CreateDynamicVariables(string path, string name, uint numVariables)
-        {
-            var itemsCreated = new List<BaseDataVariableState>();
-            for (uint i = 0; i < numVariables; i++)
-            {
-                string newName = string.Format(
-                    CultureInfo.InvariantCulture,
-                    "{0}_{1}",
-                    name,
-                    i.ToString("00", CultureInfo.InvariantCulture));
-                string newPath = string.Format(
-                    CultureInfo.InvariantCulture,
-                    "{0}_{1}",
-                    path,
-                    newName);
-                itemsCreated.Add(CreateDynamicVariable(newPath));
-            } //for i
-            return [.. itemsCreated];
-        }
-
-        /// <summary>
-        /// Registers the simulated CTT variables (all baked into the NodeSet2
-        /// model) with the runtime dynamic-node list so the periodic
+        /// Discovers the simulated CTT variables from the loaded NodeSet2 model
+        /// and collects them into the runtime dynamic-node list so the periodic
         /// <see cref="RunSimulationStepAsync"/> loop can push fresh random
-        /// values to them.
+        /// values to them. The simulated nodes are exactly the data variables
+        /// under the "Scalar_Simulation" subtree (their string node ids are
+        /// prefixed "Scalar_Simulation_"), excluding the two control variables
+        /// (Interval and Enabled), so no hard-coded node list is required.
         /// </summary>
         private void RegisterSimulationVariables()
         {
-            const string scalarSimulation = "Scalar_Simulation_";
-            CreateDynamicVariable(scalarSimulation + "Boolean");
-            CreateDynamicVariable(scalarSimulation + "Byte");
-            CreateDynamicVariable(scalarSimulation + "ByteString");
-            CreateDynamicVariable(scalarSimulation + "DateTime");
-            CreateDynamicVariable(scalarSimulation + "Double");
-            CreateDynamicVariable(scalarSimulation + "Duration");
-            CreateDynamicVariable(scalarSimulation + "Float");
-            CreateDynamicVariable(scalarSimulation + "Guid");
-            CreateDynamicVariable(scalarSimulation + "Int16");
-            CreateDynamicVariable(scalarSimulation + "Int32");
-            CreateDynamicVariable(scalarSimulation + "Int64");
-            CreateDynamicVariable(scalarSimulation + "Integer");
-            CreateDynamicVariable(scalarSimulation + "LocaleId");
-            CreateDynamicVariable(scalarSimulation + "LocalizedText");
-            CreateDynamicVariable(scalarSimulation + "NodeId");
-            CreateDynamicVariable(scalarSimulation + "Number");
-            CreateDynamicVariable(scalarSimulation + "QualifiedName");
-            CreateDynamicVariable(scalarSimulation + "SByte");
-            CreateDynamicVariable(scalarSimulation + "String");
-            CreateDynamicVariable(scalarSimulation + "UInt16");
-            CreateDynamicVariable(scalarSimulation + "UInt32");
-            CreateDynamicVariable(scalarSimulation + "UInt64");
-            CreateDynamicVariable(scalarSimulation + "UInteger");
-            CreateDynamicVariable(scalarSimulation + "UtcTime");
-            CreateDynamicVariable(scalarSimulation + "Variant");
-            CreateDynamicVariable(scalarSimulation + "XmlElement");
-
-            const string simulationArrays = "Scalar_Simulation_Arrays_";
-            CreateDynamicVariable(simulationArrays + "Boolean");
-            CreateDynamicVariable(simulationArrays + "Byte");
-            CreateDynamicVariable(simulationArrays + "ByteString");
-            CreateDynamicVariable(simulationArrays + "DateTime");
-            CreateDynamicVariable(simulationArrays + "Double");
-            CreateDynamicVariable(simulationArrays + "Duration");
-            CreateDynamicVariable(simulationArrays + "Float");
-            CreateDynamicVariable(simulationArrays + "Guid");
-            CreateDynamicVariable(simulationArrays + "Int16");
-            CreateDynamicVariable(simulationArrays + "Int32");
-            CreateDynamicVariable(simulationArrays + "Int64");
-            CreateDynamicVariable(simulationArrays + "Integer");
-            CreateDynamicVariable(simulationArrays + "LocaleId");
-            CreateDynamicVariable(simulationArrays + "LocalizedText");
-            CreateDynamicVariable(simulationArrays + "NodeId");
-            CreateDynamicVariable(simulationArrays + "Number");
-            CreateDynamicVariable(simulationArrays + "QualifiedName");
-            CreateDynamicVariable(simulationArrays + "SByte");
-            CreateDynamicVariable(simulationArrays + "String");
-            CreateDynamicVariable(simulationArrays + "UInt16");
-            CreateDynamicVariable(simulationArrays + "UInt32");
-            CreateDynamicVariable(simulationArrays + "UInt64");
-            CreateDynamicVariable(simulationArrays + "UInteger");
-            CreateDynamicVariable(simulationArrays + "UtcTime");
-            CreateDynamicVariable(simulationArrays + "Variant");
-            CreateDynamicVariable(simulationArrays + "XmlElement");
-
-            const string massSimulation = "Scalar_Simulation_Mass_";
-            CreateDynamicVariables(massSimulation + "Boolean", "Boolean", 100);
-            CreateDynamicVariables(massSimulation + "Byte", "Byte", 100);
-            CreateDynamicVariables(massSimulation + "ByteString", "ByteString", 100);
-            CreateDynamicVariables(massSimulation + "DateTime", "DateTime", 100);
-            CreateDynamicVariables(massSimulation + "Double", "Double", 100);
-            CreateDynamicVariables(massSimulation + "Duration", "Duration", 100);
-            CreateDynamicVariables(massSimulation + "Float", "Float", 100);
-            CreateDynamicVariables(massSimulation + "Guid", "Guid", 100);
-            CreateDynamicVariables(massSimulation + "Int16", "Int16", 100);
-            CreateDynamicVariables(massSimulation + "Int32", "Int32", 100);
-            CreateDynamicVariables(massSimulation + "Int64", "Int64", 100);
-            CreateDynamicVariables(massSimulation + "Integer", "Integer", 100);
-            CreateDynamicVariables(massSimulation + "LocaleId", "LocaleId", 100);
-            CreateDynamicVariables(massSimulation + "LocalizedText", "LocalizedText", 100);
-            CreateDynamicVariables(massSimulation + "NodeId", "NodeId", 100);
-            CreateDynamicVariables(massSimulation + "Number", "Number", 100);
-            CreateDynamicVariables(massSimulation + "QualifiedName", "QualifiedName", 100);
-            CreateDynamicVariables(massSimulation + "SByte", "SByte", 100);
-            CreateDynamicVariables(massSimulation + "String", "String", 100);
-            CreateDynamicVariables(massSimulation + "UInt16", "UInt16", 100);
-            CreateDynamicVariables(massSimulation + "UInt32", "UInt32", 100);
-            CreateDynamicVariables(massSimulation + "UInt64", "UInt64", 100);
-            CreateDynamicVariables(massSimulation + "UInteger", "UInteger", 100);
-            CreateDynamicVariables(massSimulation + "UtcTime", "UtcTime", 100);
-            CreateDynamicVariables(massSimulation + "Variant", "Variant", 100);
-            CreateDynamicVariables(massSimulation + "XmlElement", "XmlElement", 100);
+            m_dynamicNodes.Clear();
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is BaseDataVariableState variable &&
+                    variable.NodeId.TryGetValue(out string identifier) &&
+                    identifier.StartsWith(SimulationNodePrefix, StringComparison.Ordinal) &&
+                    !string.Equals(identifier, SimulationIntervalNodeName, StringComparison.Ordinal) &&
+                    !string.Equals(identifier, SimulationEnabledNodeName, StringComparison.Ordinal))
+                {
+                    m_dynamicNodes.Add(variable);
+                }
+            }
         }
 
         private void ResetRandomGenerator(int seed, int boundaryValueFrequency = 0)
@@ -655,60 +455,6 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        /// <summary>
-        /// Returns a unique handle for the node.
-        /// </summary>
-        protected override ValueTask<NodeHandle> GetManagerHandleAsync(
-            ServerSystemContext context,
-            NodeId nodeId,
-            IDictionary<NodeId, NodeState> cache,
-            CancellationToken cancellationToken = default)
-        {
-            // quickly exclude nodes that are not in the namespace.
-            if (!IsNodeIdInNamespace(nodeId))
-            {
-                return default;
-            }
-
-            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
-            {
-                return default;
-            }
-
-            return new ValueTask<NodeHandle>(new NodeHandle
-            {
-                NodeId = nodeId,
-                Node = node,
-                Validated = true
-            });
-        }
-
-        /// <summary>
-        /// Verifies that the specified node exists.
-        /// </summary>
-        protected override ValueTask<NodeState> ValidateNodeAsync(
-            ServerSystemContext context,
-            NodeHandle handle,
-            IDictionary<NodeId, NodeState> cache,
-            CancellationToken cancellationToken = default)
-        {
-            // not valid if no root.
-            if (handle == null)
-            {
-                return default;
-            }
-
-            // check if previously validated.
-            if (handle.Validated)
-            {
-                return new ValueTask<NodeState>(handle.Node);
-            }
-
-            // TBD
-
-            return default;
-        }
-
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private RandomSource m_randomSource = null!;
         private DataGenerator m_generator = null!;
@@ -732,6 +478,25 @@ namespace Quickstarts.ReferenceServer
         /// array so its value and ArrayDimensions attribute stay deterministic.
         /// </summary>
         private const uint MultiDimensionalArrayLength = 3;
+
+        /// <summary>
+        /// String node-id prefix shared by every variable under the
+        /// "Scalar_Simulation" subtree. Used to discover the simulated nodes
+        /// from the loaded model.
+        /// </summary>
+        private const string SimulationNodePrefix = "Scalar_Simulation_";
+
+        /// <summary>
+        /// String node id of the read-only simulation Interval control variable,
+        /// excluded from the discovered dynamic-node set.
+        /// </summary>
+        private const string SimulationIntervalNodeName = "Scalar_Simulation_Interval";
+
+        /// <summary>
+        /// String node id of the simulation Enabled control variable, excluded
+        /// from the discovered dynamic-node set.
+        /// </summary>
+        private const string SimulationEnabledNodeName = "Scalar_Simulation_Enabled";
 
         /// <summary>
         /// NodeId identifier of the historizing node whose historian intentionally
@@ -856,106 +621,6 @@ namespace Quickstarts.ReferenceServer
             "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"
         }.ToArrayOf();
 
-        /// <summary>
-        /// Identifiers of the nodes that support history archiving.
-        /// </summary>
-        private static readonly string[] HistoricalNodeNames =
-        [
-            "Scalar_Static_Boolean",
-            "Scalar_Static_SByte",
-            "Scalar_Static_Byte",
-            "Scalar_Static_Int16",
-            "Scalar_Static_UInt16",
-            "Scalar_Static_Int32",
-            "Scalar_Static_UInt32",
-            "Scalar_Static_Int64",
-            "Scalar_Static_UInt64",
-            "Scalar_Static_Float",
-            "Scalar_Static_Double",
-            "Scalar_Static_String",
-            "Scalar_Static_DateTime",
-            "Scalar_Static_Guid",
-            "Scalar_Static_ByteString",
-            "Aggregates_Boolean",
-            "Aggregates_Int32",
-            "Aggregates_Float",
-            "Aggregates_Double",
-            "Aggregates_String"
-        ];
-
-        /// <summary>
-        /// Identifiers of the one-dimensional array nodes that support history
-        /// archiving. These map to the CTT "HA Profile > Arrays" node ids and
-        /// mirror the element types historized for the scalar nodes.
-        /// </summary>
-        private static readonly string[] HistoricalArrayNodeNames =
-        [
-            "Scalar_Static_Arrays_Boolean",
-            "Scalar_Static_Arrays_SByte",
-            "Scalar_Static_Arrays_Byte",
-            "Scalar_Static_Arrays_Int16",
-            "Scalar_Static_Arrays_UInt16",
-            "Scalar_Static_Arrays_Int32",
-            "Scalar_Static_Arrays_UInt32",
-            "Scalar_Static_Arrays_Int64",
-            "Scalar_Static_Arrays_UInt64",
-            "Scalar_Static_Arrays_Float",
-            "Scalar_Static_Arrays_Double",
-            "Scalar_Static_Arrays_String",
-            "Scalar_Static_Arrays_DateTime",
-            "Scalar_Static_Arrays_ByteString"
-        ];
-
-        /// <summary>
-        /// Identifiers of the two-dimensional array (matrix) nodes that support
-        /// history archiving. These map to the CTT "HA Profile > Arrays" 2D node
-        /// ids and mirror the element types historized for the one-dimensional
-        /// array nodes.
-        /// </summary>
-        private static readonly string[] HistoricalMatrixNodeNames =
-        [
-            "Scalar_Static_Arrays2D_Boolean",
-            "Scalar_Static_Arrays2D_SByte",
-            "Scalar_Static_Arrays2D_Byte",
-            "Scalar_Static_Arrays2D_Int16",
-            "Scalar_Static_Arrays2D_UInt16",
-            "Scalar_Static_Arrays2D_Int32",
-            "Scalar_Static_Arrays2D_UInt32",
-            "Scalar_Static_Arrays2D_Int64",
-            "Scalar_Static_Arrays2D_UInt64",
-            "Scalar_Static_Arrays2D_Float",
-            "Scalar_Static_Arrays2D_Double",
-            "Scalar_Static_Arrays2D_String",
-            "Scalar_Static_Arrays2D_DateTime",
-            "Scalar_Static_Arrays2D_ByteString"
-        ];
-
-        /// <summary>
-        /// Identifiers of the structure nodes that support history archiving.
-        /// These back the CTT "HA Profile > StructureNodeSupportingHistory"
-        /// slot.
-        /// </summary>
-        private static readonly string[] HistoricalStructureNodeNames =
-        [
-            "Scalar_Static_Decimal"
-        ];
-
-        /// <summary>
-        /// Identifiers of the AccessRights nodes that are marked as supporting
-        /// history archiving so History Access clients (and the CTT) can
-        /// exercise access-right handling on historizing nodes. These nodes are
-        /// registered with the historian and seeded with the same deterministic
-        /// sample set as the other historized test nodes.
-        /// </summary>
-        private static readonly string[] AccessRightsHistoricalNodeNames =
-        [
-            "AccessRights_AccessAll_RO",
-            "AccessRights_AccessAll_WO",
-            "AccessRights_AccessAll_NoAccess",
-            "AccessRights_AccessAll_RW_NotUser",
-            "AccessRights_AccessAll_RO_NotUser"
-        ];
-
         /// <inheritdoc/>
         protected override IHistorianProvider? GetHistorianProvider(NodeState node)
         {
@@ -1005,37 +670,36 @@ namespace Quickstarts.ReferenceServer
             HistorianNodeCapabilities noServerTimestampCapabilities =
                 capabilities with { ServerTimestampSupported = false };
 
-            foreach (string name in HistoricalNodeNames
-                .Concat(HistoricalArrayNodeNames)
-                .Concat(HistoricalMatrixNodeNames)
-                .Concat(HistoricalStructureNodeNames)
-                .Concat(AccessRightsHistoricalNodeNames)
-                .Append(NodeDoesNotSupportServerTimestampNodeName)
-                )
+            // Discover the historized nodes directly from the loaded model:
+            // every variable that carries Historizing="true" (baked into the
+            // NodeSet2 model together with the HistoryRead / HistoryWrite
+            // access-level bits) is a history node. Snapshot them first because
+            // installing each node's HA Configuration companion below adds nodes
+            // to PredefinedNodes, which would otherwise invalidate the
+            // enumerator.
+            List<BaseVariableState> historizedNodes = [];
+            foreach (NodeState node in PredefinedNodes.Values)
             {
-                var nodeId = new NodeId(name, NamespaceIndex);
-
-                if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
+                if (node is BaseVariableState variable && variable.Historizing)
                 {
-                    continue;
+                    historizedNodes.Add(variable);
                 }
+            }
 
-                if (node is not BaseVariableState variable)
-                {
-                    continue;
-                }
+            foreach (BaseVariableState variable in historizedNodes)
+            {
+                var nodeId = (NodeId)variable.NodeId;
 
-                // Prio 1 (model): Historizing and the HistoryRead / HistoryWrite
-                // access-level bits are baked into the NodeSet2 model (the
-                // historized nodes carry Historizing="true" and AccessLevel="15";
-                // UserAccessLevel is derived from AccessLevel by the loader when
-                // the attribute is absent). Only the runtime historian
+                // The dedicated node whose historian does not support server
+                // timestamps is identified by its node id; everything else uses
+                // the shared capabilities. Only the runtime historian
                 // registration and seeding remain here.
+                bool noServerTimestamp = nodeId.TryGetValue(out string identifier) &&
+                    string.Equals(identifier, NodeDoesNotSupportServerTimestampNodeName, StringComparison.Ordinal);
+
                 m_historian.Register(
                     nodeId,
-                    name == NodeDoesNotSupportServerTimestampNodeName
-                        ? noServerTimestampCapabilities
-                        : capabilities);
+                    noServerTimestamp ? noServerTimestampCapabilities : capabilities);
 
                 await SeedHistoricalNodeAsync(variable, cancellationToken).ConfigureAwait(false);
 
@@ -1255,18 +919,6 @@ namespace Quickstarts.ReferenceServer
             return result.ToMatrixOf();
         }
     }
-
-    public static class VariableExtensions
-    {
-        public static BaseDataVariableState MinimumSamplingInterval(
-            this BaseDataVariableState variable,
-            int minimumSamplingInterval)
-        {
-            variable.MinimumSamplingInterval = minimumSamplingInterval;
-            return variable;
-        }
-    }
-
     internal static partial class ReferenceNodeManagerLog
     {
         [LoggerMessage(

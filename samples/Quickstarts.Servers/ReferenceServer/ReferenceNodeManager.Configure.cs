@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Opc.Ua;
 using Opc.Ua.Server.Fluent;
 
@@ -86,13 +87,44 @@ namespace Quickstarts.ReferenceServer
             // write behaviour is wired here (Prio 2). The Interval control
             // variable is read-only (its AccessLevel is baked without
             // CurrentWrite), so it carries no write handler and the simulation
-            // loop below runs at a fixed interval.
+            // loop below runs at a fixed interval. The fluent simulation loop
+            // keeps firing at its fixed interval; the OnTick handler simply
+            // skips its work while disabled, so toggling this flag is all that
+            // is required to pause/resume.
             builder.CTT.Scalar.Scalar_Simulation.Scalar_Simulation_Enabled
-                .OnWrite(OnWriteEnabled);
+                .OnWrite((ISystemContext context, NodeState node, ref Variant value) =>
+                {
+                    try
+                    {
+                        m_simulationEnabled = (bool)value;
+                        return ServiceResult.Good;
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.ErrorWritingEnabledVariable(e);
+                        return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Enabled variable.");
+                    }
+                });
+
+            // The two event-trigger variables raise a simple event when written.
             builder.CTT.NodeIds.NodeIds_Events.NodeIds_Events_TriggerNode01
-                .OnWrite(OnWriteTriggerNode);
+                .OnWrite((ISystemContext context, NodeState node, ref Variant value)
+                    => RaiseTriggerEvent(context, node));
             builder.CTT.NodeIds.NodeIds_Events.NodeIds_Events_TriggerNode02
-                .OnWrite(OnWriteTriggerNode);
+                .OnWrite((ISystemContext context, NodeState node, ref Variant value)
+                    => RaiseTriggerEvent(context, node));
+
+            ServiceResult RaiseTriggerEvent(ISystemContext context, NodeState node)
+            {
+                var e = new BaseEventState(null);
+                e.Initialize(
+                    context,
+                    node,
+                    EventSeverity.Medium,
+                    new LocalizedText($"Trigger event from '{node.DisplayName.Text}'"));
+                Server.ReportEvent(context, e);
+                return ServiceResult.Good;
+            }
 
             // The selection-list write validation rejects values outside the
             // baked Selections array. The node, its Value and the Selections /
@@ -100,7 +132,45 @@ namespace Quickstarts.ReferenceServer
             // into the NodeSet2 model; only the write behaviour is wired here
             // (Prio 2).
             builder.CTT.DataAccess.DataAccess_SelectionList.DataAccess_SelectionList_Colors
-                .OnWrite(OnWriteSelectionList);
+                .OnWrite((
+                    ISystemContext context,
+                    NodeState node,
+                    NumericRange indexRange,
+                    QualifiedName dataEncoding,
+                    ref Variant value,
+                    ref StatusCode statusCode,
+                    ref DateTimeUtc timestamp) =>
+                {
+                    if (!indexRange.IsNull)
+                    {
+                        return StatusCodes.BadIndexRangeInvalid;
+                    }
+
+                    if (!value.TryGetValue(out string? selection))
+                    {
+                        return StatusCodes.BadTypeMismatch;
+                    }
+
+                    if (node.FindChild(
+                        context,
+                        new QualifiedName(Opc.Ua.BrowseNames.Selections)) is not
+                        BaseVariableState selectionsNode ||
+                        !selectionsNode.WrappedValue.TryGetValue(out ArrayOf<string> allowedSelections) ||
+                        allowedSelections.IsNull)
+                    {
+                        return StatusCodes.BadConfigurationError;
+                    }
+
+                    foreach (string allowedSelection in allowedSelections)
+                    {
+                        if (string.Equals(selection, allowedSelection, StringComparison.Ordinal))
+                        {
+                            return ServiceResult.Good;
+                        }
+                    }
+
+                    return StatusCodes.BadOutOfRange;
+                });
 
             // AccessLevelEx advertises non-atomic read/write on the read/write
             // static scalar. It cannot be expressed in the NodeSet2 model (the
