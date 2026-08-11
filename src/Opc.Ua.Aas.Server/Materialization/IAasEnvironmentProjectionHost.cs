@@ -45,5 +45,32 @@ namespace Opc.Ua.Aas.Server.Materialization
             IAasValueProvider valueProvider,
             IAasOperationHandler operationHandler,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Shadow-reloads a live environment projection.
+        /// </summary>
+        ValueTask<AasEnvironmentProjectionHandle> ShadowReloadAsync(
+            AasEnvironmentProjectionHandle current,
+            AasEnvironment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reloads a live environment projection and immediately retires the previous generation.
+        /// </summary>
+        ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
+            AasEnvironmentProjectionHandle current,
+            AasEnvironment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes a live environment projection.
+        /// </summary>
+        ValueTask RemoveAsync(
+            AasEnvironmentProjectionHandle handle,
+            CancellationToken cancellationToken = default);
     }
 }

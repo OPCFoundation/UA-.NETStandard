@@ -58,6 +58,71 @@ namespace Opc.Ua.Aas.Server.Materialization
             IAasOperationHandler operationHandler,
             CancellationToken cancellationToken = default)
         {
+            RuntimeNodeSetOptions options = CreateOptions(environment, valueProvider, operationHandler);
+            NodeManagerRegistration registration = await m_lifecycle
+                .AddRuntimeNodeSetAsync(options, callerContext: null, cancellationToken)
+                .ConfigureAwait(false);
+            return new AasEnvironmentProjectionHandle(registration);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<AasEnvironmentProjectionHandle> ShadowReloadAsync(
+            AasEnvironmentProjectionHandle current,
+            AasEnvironment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default)
+        {
+            if (current is null)
+            {
+                throw new ArgumentNullException(nameof(current));
+            }
+
+            RuntimeNodeSetOptions options = CreateOptions(environment, valueProvider, operationHandler);
+            NodeManagerRegistration registration = await m_lifecycle
+                .ShadowReloadRuntimeNodeSetAsync(current.Registration, options, cancellationToken)
+                .ConfigureAwait(false);
+            return new AasEnvironmentProjectionHandle(registration);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
+            AasEnvironmentProjectionHandle current,
+            AasEnvironment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default)
+        {
+            if (current is null)
+            {
+                throw new ArgumentNullException(nameof(current));
+            }
+
+            RuntimeNodeSetOptions options = CreateOptions(environment, valueProvider, operationHandler);
+            NodeManagerRegistration registration = await m_lifecycle
+                .ImmediateReloadRuntimeNodeSetAsync(current.Registration, options, cancellationToken)
+                .ConfigureAwait(false);
+            return new AasEnvironmentProjectionHandle(registration);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask RemoveAsync(
+            AasEnvironmentProjectionHandle handle,
+            CancellationToken cancellationToken = default)
+        {
+            if (handle is null)
+            {
+                throw new ArgumentNullException(nameof(handle));
+            }
+
+            return m_lifecycle.RemoveAsync(handle.Registration, callerContext: null, cancellationToken);
+        }
+
+        private static RuntimeNodeSetOptions CreateOptions(
+            AasEnvironment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler)
+        {
             if (environment is null)
             {
                 throw new ArgumentNullException(nameof(environment));
@@ -87,7 +152,7 @@ namespace Opc.Ua.Aas.Server.Materialization
 #pragma warning disable CA2000
             var runtime = new AasEnvironmentRuntime(environment, valueProvider, operationHandler);
 #pragma warning restore CA2000
-            var options = new RuntimeNodeSetOptions
+            return new RuntimeNodeSetOptions
             {
                 Sources = new ArrayOf<RuntimeNodeSetSource>(new[]
                 {
@@ -100,10 +165,6 @@ namespace Opc.Ua.Aas.Server.Materialization
                 AllowLifecycleFromRequestCallback = true,
                 ConfigureAsync = runtime.ConfigureAsync
             };
-            NodeManagerRegistration registration = await m_lifecycle
-                .AddRuntimeNodeSetAsync(options, callerContext: null, cancellationToken)
-                .ConfigureAwait(false);
-            return new AasEnvironmentProjectionHandle(registration);
         }
 
         private static byte[] SerializeNodeSet(UANodeSet nodeSet)
