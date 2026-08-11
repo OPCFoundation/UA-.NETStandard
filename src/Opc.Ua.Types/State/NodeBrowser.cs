@@ -29,13 +29,18 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// An interface to an object that browses the references of an node.
     /// </summary>
+    /// <remarks>
+    /// A browser is single-consumer: it is owned by whoever created it and must not be used
+    /// from more than one thread at a time. A browser that outlives a single service call -
+    /// one parked in a continuation point for <c>BrowseNext</c>, for example - is serialized
+    /// by its owner, not by the browser itself.
+    /// </remarks>
     public interface INodeBrowser : IDisposable
     {
         /// <summary>
@@ -50,8 +55,25 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A thread safe object which browses the references for an node.
+    /// An object which browses the references for a node.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Instances are single-consumer, as described on <see cref="INodeBrowser"/>: the type
+    /// performs no synchronization of its own and a derived browser is not expected to add
+    /// any. Both server browse paths already serialize access on the owning side, so the
+    /// former <c>DataLock</c> only added an inheritance-level locking contract that no
+    /// derived type could reason about.
+    /// </para>
+    /// <para>
+    /// The reference set is copied into the browser while the owning <see cref="NodeState"/>
+    /// holds its browse lock, so the browser is a point-in-time copy: changes made to the node
+    /// afterwards do not appear in it. It is not an atomic snapshot across the node's
+    /// collections - see <see cref="NodeState.CreateBrowser"/> for what is and is not
+    /// guaranteed. A derived browser that reaches an underlying system does so lazily in
+    /// <see cref="Next"/>, outside any node lock.
+    /// </para>
+    /// </remarks>
     public class NodeBrowser : INodeBrowser
     {
         /// <summary>
@@ -115,25 +137,22 @@ namespace Opc.Ua
         /// </summary>
         public virtual IReference? Next()
         {
-            lock (DataLock)
+            IReference reference;
+
+            // always return the previous pushed reference first.
+            if (m_pushBack != null)
             {
-                IReference reference;
-
-                // always return the previous pushed reference first.
-                if (m_pushBack != null)
-                {
-                    reference = m_pushBack;
-                    m_pushBack = null;
-                    return reference;
-                }
-
-                if (m_index < m_references.Count)
-                {
-                    return m_references[m_index++];
-                }
-
-                return null;
+                reference = m_pushBack;
+                m_pushBack = null;
+                return reference;
             }
+
+            if (m_index < m_references.Count)
+            {
+                return m_references[m_index++];
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -141,10 +160,7 @@ namespace Opc.Ua
         /// </summary>
         public virtual void Push(IReference reference)
         {
-            lock (DataLock)
-            {
-                m_pushBack = reference;
-            }
+            m_pushBack = reference;
         }
 
         /// <summary>
@@ -186,7 +202,7 @@ namespace Opc.Ua
 
             // check subtypes if possible.
             if (IncludeSubtypes &&
-                SystemContext != null &&
+                SystemContext?.TypeTable != null &&
                 SystemContext.TypeTable.IsTypeOf(referenceType, ReferenceType))
             {
                 return true;
@@ -200,10 +216,7 @@ namespace Opc.Ua
         /// </summary>
         public virtual void Add(IReference reference)
         {
-            lock (DataLock)
-            {
-                AddReference(reference);
-            }
+            AddReference(reference);
         }
 
         /// <summary>
@@ -214,16 +227,13 @@ namespace Opc.Ua
         /// </remarks>
         public virtual void Add(NodeId referenceTypeId, bool isInverse, NodeState target)
         {
-            lock (DataLock)
+            // do not return add target unless the browse name matches.
+            if (!BrowseName.IsNull && target.BrowseName != BrowseName)
             {
-                // do not return add target unless the browse name matches.
-                if (!BrowseName.IsNull && target.BrowseName != BrowseName)
-                {
-                    return;
-                }
-
-                AddReference(new NodeStateReference(referenceTypeId, isInverse, target));
+                return;
             }
+
+            AddReference(new NodeStateReference(referenceTypeId, isInverse, target));
         }
 
         /// <summary>
@@ -231,25 +241,8 @@ namespace Opc.Ua
         /// </summary>
         public virtual void Add(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
         {
-            lock (DataLock)
-            {
-                AddReference(new NodeStateReference(referenceTypeId, isInverse, targetId));
-            }
+            AddReference(new NodeStateReference(referenceTypeId, isInverse, targetId));
         }
-
-        /// <summary>
-        /// The synchronization lock used by the browser.
-        /// </summary>
-        /// <remarks>
-        /// Exposed to derived browsers because a subclass that extends <see cref="Next"/>
-        /// must be able to make its own enumeration state atomic with the base browser's.
-        /// <see cref="System.Threading.Lock"/> is re-entrant, so a derived
-        /// <c>Next</c> that acquires this lock and then calls <c>base.Next()</c> is safe.
-        /// Handing the lock to subclasses is nevertheless a locking contract in the
-        /// inheritance surface; replacing it with a base-owned acquisition is tracked by
-        /// https://github.com/OPCFoundation/UA-.NETStandard/issues/4215.
-        /// </remarks>
-        protected Lock DataLock { get; } = new();
 
         /// <summary>
         /// The table of types known to the UA server.

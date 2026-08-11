@@ -202,9 +202,9 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "Diagnostics locks are no longer exposed",
             "'{0}.{1}' was removed in 2.0 — apply the change through '{0}.{2}' instead of taking the lock yourself",
             DiagnosticSeverity.Warning,
-            "IServerInternal, ISession and ISubscription no longer expose DiagnosticsLock / DiagnosticsWriteLock. A caller could not see what else took those locks, in what order, or for how long, and holding one across a call back into the stack could deadlock. Each owner now applies the mutation itself through UpdateDiagnostics / UpdateServerDiagnostics, and ISession and ISubscription add ReadDiagnostics for projections. Do not let the diagnostics object escape the callback: once it returns the lock is released. This rule reports rather than fixes, because turning a lock statement body into a lambda depends on what the body captures and returns.");
+            "IServerInternal, ISession and ISubscription no longer expose DiagnosticsLock / DiagnosticsWriteLock. A caller could not see what else took those locks, in what order, or for how long, and holding one across a call back into the stack could deadlock. Each owner now applies the mutation itself through UpdateDiagnostics / UpdateServerDiagnostics, with ISession.ReadDiagnostics / ISubscription.ReadDiagnostics for projections. Do not let the diagnostics object escape the callback: once it returns the lock is released. This rule reports rather than fixes, because turning a lock statement body into a lambda depends on what the body captures and returns.");
 
-        public static readonly DiagnosticDescriptor UA0025_RemovedNodeDataLock = Create(
+                    public static readonly DiagnosticDescriptor UA0025_RemovedNodeDataLock = Create(
             DiagnosticIds.UA0025,
             "ILocalNode.DataLock is no longer exposed",
             "'{0}.DataLock' was removed in 2.0 — the node synchronizes its own state, so take a lock you own if the surrounding operation still needs to be atomic",
@@ -217,5 +217,19 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "'{0}.Lock' was removed in 2.0 — construct the value with a lock you own and take that one instead",
             DiagnosticSeverity.Warning,
             "BaseVariableValue handed out the synchronization primitive that guards its value, so a caller could hold it across a callback into the stack. The value now owns it: derived value classes synchronize through the protected EnterLock / ExitLock pair, and a component that has to make its own state atomic with the value passes a lock it already owns to the BaseVariableValue constructor - which is how the server keeps its status and its diagnostics mutually exclusive - and takes that lock directly.");
+
+        public static readonly DiagnosticDescriptor UA0027_RemovedNodeBrowserDataLock = Create(
+            DiagnosticIds.UA0027,
+            "NodeBrowser no longer exposes a synchronization lock",
+            "'NodeBrowser.DataLock' was removed in 2.0 — a browser is single-consumer, so drop the lock instead of replacing it",
+            DiagnosticSeverity.Warning,
+            "NodeBrowser no longer exposes a protected DataLock. A browser is single-consumer: it belongs to whoever created it, and both server browse paths already serialize access on the owning side (BrowserContext for the async node manager, a lock around the continuation point's browser for CustomNodeManager2). The exposed lock therefore only added an inheritance-level locking contract that a derived browser could not reason about — it could be held across a call into another module with nothing in the type system saying for how long. A derived browser that took DataLock inside its Next() override should simply remove the lock statement and keep the body. If a browser really is shared between threads, serialize it where it is owned, not inside the browser. See docs/migrate/2.0.x/node-states.md.");
+
+        public static readonly DiagnosticDescriptor UA0028_RemovedPropertiesLock = Create(
+            DiagnosticIds.UA0028,
+            "ApplicationConfiguration.PropertiesLock is no longer exposed",
+            "'ApplicationConfiguration.PropertiesLock' was removed in 2.0 — Properties synchronizes itself, so drop the lock and use GetOrAddProperty(...) if a read and a write have to be atomic",
+            DiagnosticSeverity.Warning,
+            "ApplicationConfiguration.PropertiesLock returned the properties dictionary itself, so the lock was the data it guarded: every caller that took it shared one monitor with the dictionary and with every other caller, in an order none of them could see. Properties is now a concurrent dictionary, so each individual operation is atomic without a lock. The only combination that needs more than one operation is get-or-add, which GetOrAddProperty covers; it deliberately does not invoke the factory under a lock, so a caller cannot hold a critical section across a callback. This rule reports rather than fixes, because whether a lock body becomes a plain call or a GetOrAddProperty depends on what the body does.");
     }
 }

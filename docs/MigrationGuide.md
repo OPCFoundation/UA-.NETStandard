@@ -77,8 +77,8 @@ session.UpdateDiagnostics(diagnostics => diagnostics.ClientLastContactTime = now
 subscription.UpdateDiagnostics(diagnostics => diagnostics.NextSequenceNumber = next);
 ```
 
-To read a value derived from the diagnostics, use the read counterpart, which
-holds the same lock for the duration of the projection:
+To read a value derived from the session or subscription diagnostics, use the
+read counterpart, which holds the same lock for the duration of the projection:
 
 ```csharp
 uint count = session.ReadDiagnostics(diagnostics => diagnostics.RepublishRequestCount);
@@ -172,6 +172,114 @@ lock (m_diagnosticsLock)
 Analyzer `UA0026` flags the removed member. Note that regenerating the model
 sources with the 2.0 generator produces the `EnterLock()` / `ExitLock()` form
 already, so this only affects hand-written derived value classes and callers.
+
+## Migrating code that locked on a NodeState or a NodeBrowser
+
+A `NodeState` guards its own attributes, children, notifiers and references, and
+`NodeState.CreateBrowser` guards the browser it builds. Nothing in the stack
+takes a lock on a node instance any more, so neither should a caller:
+
+```csharp
+// was — the node manager reached for the node's monitor from outside the node
+lock (source)
+{
+    browser = source.CreateBrowser(context, view, referenceType, includeSubtypes,
+        browseDirection, default, null, false);
+}
+
+// now
+INodeBrowser browser = source.CreateBrowser(context, view, referenceType,
+    includeSubtypes, browseDirection, default, null, false);
+```
+
+`lock (node)` was also the only way to make a check-then-act pair atomic. Use
+`NodeState.AddReferenceIfMissing` instead, which does the check and the insert
+under the node's own lock:
+
+```csharp
+// was
+lock (node)
+{
+    if (!node.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
+    {
+        node.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+    }
+}
+
+// now
+node.AddReferenceIfMissing(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+```
+
+`NodeBrowser.DataLock` is gone with it. A browser is **single-consumer**: it
+belongs to whoever created it and performs no synchronization of its own. A
+derived browser that took `DataLock` inside its `Next()` override drops the
+`lock` statement and keeps the body. Where a browser genuinely outlives one
+service call — the instance parked in a continuation point for `BrowseNext` —
+its owner serializes it, as the stack does for its own continuation points.
+
+A node type that overrides `CreateBrowser` and builds its own browser instead of
+delegating to the base implementation must fill it through
+`PopulateBrowserSynchronized` rather than calling `PopulateBrowser` directly,
+otherwise its browser is assembled from separately locked reads and can observe
+a node halfway through a change.
+
+Analyzer `UA0027` flags `NodeBrowser.DataLock`. See
+[migrate/2.0.x/node-states.md](migrate/2.0.x/node-states.md).
+
+## Migrating code that used ApplicationConfiguration.PropertiesLock
+
+`ApplicationConfiguration.PropertiesLock` was removed. It returned the
+properties dictionary itself, so `lock (configuration.PropertiesLock)` was
+`lock (configuration.Properties)`: the lock was the data it guarded, shared
+between the configuration and every caller, taken in an order none of them could
+see.
+
+`Properties` is now a concurrent dictionary, so each individual operation is
+already atomic and most callers simply drop the `lock`:
+
+```csharp
+// was
+lock (configuration.PropertiesLock)
+{
+    configuration.Properties["MyKey"] = value;
+}
+
+// now
+configuration.Properties["MyKey"] = value;
+```
+
+The one combination that needs more than a single operation is get-or-add, which
+has its own member:
+
+```csharp
+// was
+lock (configuration.PropertiesLock)
+{
+    if (configuration.Properties.TryGetValue("MyKey", out object? existing))
+    {
+        return (MyType)existing;
+    }
+    var created = Build();
+    configuration.Properties["MyKey"] = created;
+    return created;
+}
+
+// now
+return configuration.GetOrAddProperty("MyKey", Build);
+```
+
+`GetOrAddProperty` deliberately does **not** invoke the factory under a lock, so
+a caller cannot hold a critical section across a callback. Under contention the
+factory may run more than once; only one result is published and every caller
+receives that same instance, so keep the factory free of side effects that would
+matter if it ran twice.
+
+One behaviour change is worth knowing: enumerating `Properties` while another
+thread writes no longer throws `InvalidOperationException`. It yields a
+moment-in-time view instead. Code that relied on the exception to detect
+concurrent modification has to detect it some other way.
+
+Analyzer `UA0028` flags the removed member.
 
 ## Migrating node types that override FindChild or CreateChild
 `NodeState.FindChild` and `NodeState.CreateChild` take

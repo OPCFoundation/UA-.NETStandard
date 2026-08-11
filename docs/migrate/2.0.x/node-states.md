@@ -1,6 +1,6 @@
 # Node States and INodeCache
 
-> **When to read this:** Read this when migrating custom NodeManagers, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, or `INodeCache.InvalidateNode`.
+> **When to read this:** Read this when migrating custom NodeManagers, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
 
 ## Node States
 
@@ -177,6 +177,87 @@ already do. See
 2.0 introduces `INodeManager3`, an extension of `INodeManager2` that surfaces explicit hooks for per-role permission evaluation and for resolving the target of a `Call` request. `CustomNodeManager2` implements the new members with safe defaults that mirror the previous behavior, so node managers that already derive from `CustomNodeManager2` need no changes.
 
 Custom node managers that implement `INodeManager` / `INodeManager2` **directly** (not via `CustomNodeManager2`) silently lose the new behavior: the server probes for `INodeManager3` at the call site, and node managers that do not implement it fall through to the legacy code path. This is not a build break - it is a silent feature-availability regression. Either derive from `CustomNodeManager2` or implement `INodeManager3` explicitly to participate in role-permission evaluation and the new method-resolution contract.
+
+### NodeState guards itself; NodeBrowser is single-consumer (UA0027)
+
+In 1.5.378 a caller wanting a consistent view of a node took a lock on the node
+instance itself — `lock (source)` — and `NodeBrowser` handed its own lock to
+derived browsers through `protected object DataLock`. Both are gone in 2.0.
+
+**`NodeState` guards its own state.** Attributes, children, notifiers and
+references each have a private lock inside the node, and
+`NodeState.CreateBrowser` holds a browse lock while it assembles the browser.
+No code in the stack locks a node instance, and no caller should:
+
+```csharp
+// was
+lock (source)
+{
+    browser = source.CreateBrowser(context, view, referenceType, includeSubtypes,
+        browseDirection, default, null, false);
+}
+
+// now
+INodeBrowser browser = source.CreateBrowser(context, view, referenceType,
+    includeSubtypes, browseDirection, default, null, false);
+```
+
+Locking the node was also the only way to make a check-then-act pair atomic.
+`ReferenceExists` and `AddReference` each guard themselves, but the pair does
+not, so use `AddReferenceIfMissing`:
+
+```csharp
+// was
+lock (node)
+{
+    if (!node.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
+    {
+        node.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+    }
+}
+
+// now
+node.AddReferenceIfMissing(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+```
+
+**`NodeBrowser.DataLock` is removed.** A browser is single-consumer: it belongs
+to whoever created it and performs no synchronization of its own. The exposed
+lock was an inheritance-level locking contract that a derived browser could not
+reason about — nothing said how long it could be held or what else took it —
+while both server browse paths already serialize on the owning side. A derived
+browser drops the `lock` statement and keeps the body:
+
+```csharp
+// was
+public override IReference Next()
+{
+    lock (DataLock)
+    {
+        IReference reference = base.Next();
+        ...
+    }
+}
+
+// now
+public override IReference Next()
+{
+    IReference reference = base.Next();
+    ...
+}
+```
+
+If a browser really is shared between threads — the instance parked in a
+continuation point for `BrowseNext` is the canonical case — serialize it where
+it is owned, not inside the browser.
+
+**Overriding `CreateBrowser`.** A node type that builds its own browser instead
+of delegating to `base.CreateBrowser` must fill it through the new
+`protected NodeState.PopulateBrowserSynchronized`, not by calling
+`PopulateBrowser` directly. `PopulateBrowser` is invoked with the node's browse
+lock held, so an override must not block on external work such as I/O; defer
+that to the browser's own `Next()`.
+
+Analyzer `UA0027` reports every remaining `NodeBrowser.DataLock` reference.
 
 ## `INodeCache` changes
 
