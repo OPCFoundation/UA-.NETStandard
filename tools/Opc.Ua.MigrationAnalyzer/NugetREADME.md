@@ -11,7 +11,7 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
   [2.0 migration guide](../../docs/migrate/2.0.x/README.md)
   and, where safe, applies the fix automatically;
 - a Roslyn **source generator** (`Opc.Ua.MigrationAnalyzer.Generator.dll`) that
-  emits per-consumer `internal sealed [Obsolete] class <Name>Collection : List<TElement>`
+  emits per-consumer `public sealed [Obsolete] class <Name>Collection : List<TElement>`
   shims for every `<Type>Collection` wrapper the consumer references but that
   2.0 removed — **including** model-compiled `<UserType>Collection` patterns,
   not just the built-in ones. Element types renamed across the
@@ -24,12 +24,9 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
   re-supplies the obsolete extension surface 2.0 moved or removed, so most
   consumer projects still compile after the upgrade.
 
-> ℹ **The generator emits `internal` types by design** — they never leak through
-> the consumer's public API surface. If your consumer has *public* methods or
-> properties that return / accept a `<Type>Collection`, you'll hit `CS0050:
-> Inconsistent accessibility`. That's the intended signal that your **public
-> API** has to migrate to `List<T>` / `ArrayOf<T>` first; internal call sites
-> keep compiling under the shim so you can iterate at your own pace.
+> ℹ **The generator emits `public` shim types** so legacy `<Type>Collection` usage
+> can continue compiling while you migrate incrementally. Keep treating each
+> `[Obsolete]` + `UA0002` site as a migration step to `List<T>` / `ArrayOf<T>`.
 
 ## How to migrate
 
@@ -137,21 +134,32 @@ whole block once the MigrationAnalyzer package is removed.
 
 ## Packaging note
 
-The package ships **two analyzer DLLs** under `analyzers/dotnet/cs/`:
+The package ships **three Roslyn component DLLs** under
+`analyzers/dotnet/roslyn<major>.<minor>/cs/`. The .NET SDK loads that folder when its
+compiler supports the Roslyn API and ignores it otherwise, so an older host cleanly
+skips the analyzer rather than failing to load it:
 
-- `Opc.Ua.MigrationAnalyzer.dll` — the analyzer assembly. Targets `Microsoft.CodeAnalysis 4.x`
-  (the stable analyzer API) and references **only** `Microsoft.CodeAnalysis.CSharp` so it
-  loads cleanly in csc.exe's analyzer host (which ships only `Microsoft.CodeAnalysis.dll`
-  + `CSharp.dll`, not `Workspaces`). All `DiagnosticAnalyzer` types live here.
+| Roslyn API | Minimum host |
+| --- | --- |
+| 4.14 | Visual Studio 2022 17.14 / .NET 9 SDK |
+| 5.0 | Visual Studio 2026 18.0 / .NET 10 SDK |
+
+- `Opc.Ua.MigrationAnalyzer.dll` — the analyzer assembly. References **only**
+  `Microsoft.CodeAnalysis.CSharp` so it loads cleanly in csc.exe's analyzer host
+  (which ships only `Microsoft.CodeAnalysis.dll` + `CSharp.dll`, not `Workspaces`).
+  All `DiagnosticAnalyzer` types live here.
 - `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` — the code-fix assembly. References
   `Microsoft.CodeAnalysis.CSharp.Workspaces` and hosts all `CodeFixProvider` types.
   Loaded only by Workspaces-aware hosts (Visual Studio / `dotnet format`).
+- `Opc.Ua.MigrationAnalyzer.Generator.dll` — the source generator that emits the
+  `<Type>Collection` shims.
 
-This split is necessary because shipping a single DLL that references `Workspaces`
-silently fails to load in csc.exe at command-line build time — csc loads the assembly
-but JIT-resolution of `Workspaces` types fails (DLL not in bincore), and the analyzer
-host swallows the load failure, producing zero diagnostics. Splitting keeps the
-analyzer host happy while preserving full IDE/`dotnet format` code-fix functionality.
+The analyzer / code-fix split is necessary because shipping a single DLL that
+references `Workspaces` silently fails to load in csc.exe at command-line build time —
+csc loads the assembly but JIT-resolution of `Workspaces` types fails (DLL not in
+bincore), and the analyzer host swallows the load failure, producing zero diagnostics.
+Splitting keeps the analyzer host happy while preserving full IDE/`dotnet format`
+code-fix functionality.
 
 `RS1038` (suggesting separation) is the Roslyn rule that recommends this layout;
 it is satisfied implicitly by the two-DLL design.

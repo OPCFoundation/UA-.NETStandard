@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Server
 
             try
             {
-                OperationContext context = CreateOperationContext(invocation, m_serviceIdentity);
+                using OperationContext context = CreateOperationContext(invocation, m_serviceIdentity);
                 var methodToCall = new CallMethodRequest
                 {
                     ObjectId = m_objectId,

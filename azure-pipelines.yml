@@ -11,6 +11,59 @@ parameters:
   - mixed
   - managed
   - hosted
+# Which CI system owns the all-TFM solution build, the cross-platform test
+# matrix and the Native AoT run.  This is one half of a single conceptual
+# switch - the other half is CI_BUILD_BACKEND in
+# .github/workflows/buildandtest.yml.  BOTH MUST BE FLIPPED TOGETHER.
+#
+#   ado     - Azure Pipelines owns the work: the Linux all-TFM build leg, the
+#             Linux test leg and Native AoT all run on pull requests, and the
+#             equivalent GitHub Actions jobs stand down.
+#   actions - (default) the work is split across both CI systems: GitHub Actions
+#             runs the all-TFM builds, the ubuntu test matrix and AoT, and the
+#             stages below fall back to their Schedule/Manual-only cadence.
+#
+# Either way the per-(framework, configuration) coverage gate stays here, in the
+# always-on 'Fast PR test' stage, because it is the required status check.
+#
+# Note on scope: Azure Pipelines evaluates the YAML from the PR's merge ref, so
+# a PR targeting master378 or a release branch runs *that* branch's copy of this
+# file.  In practice every PR that evaluates this file targets master, which is
+# why the conditions below only need the parameter and not a target-branch test.
+- name: ciBuildBackend
+  displayName: 'CI build backend: actions splits the all-TFM build, cross-platform tests and AoT with GitHub Actions; ado runs all of it here'
+  type: string
+  default: actions
+  values:
+  - ado
+  - actions
+# Codecov is reporting only - the enforced coverage rules live in
+# coverage-thresholds.json and are applied by check-coverage.ps1 in the
+# 'Code coverage' stage.  Turn this off to stop uploading entirely; the upload
+# is skipped anyway whenever the CODECOV_TOKEN secret variable is unset, which
+# is the case for pull requests from forks.
+- name: enableCodecov
+  displayName: 'Upload the merged coverage report to codecov.io (reporting only, never gates)'
+  type: boolean
+  default: true
+# Every stage that runs tests, consumed by the two terminal stages at the bottom
+# of this file.  It is a parameter purely so the list is written once: Azure
+# Pipelines supports no YAML anchors, and a second hand-maintained copy would
+# drift.  There is no reason to override it at queue time.
+- name: testStages
+  displayName: 'Test stages rolled up by the Tests passed and Code coverage stages (do not change)'
+  type: object
+  default:
+  - build
+  - testfastpr
+  - testaot
+  - testdebug
+  - testnet90
+  - testnet80
+  - testnet472
+  - testnetstandard20
+  - testnetstandard21
+  - testnightly
 
 trigger:
   batch: 'true'
@@ -43,7 +96,7 @@ pr:
 # forces the run even when there are no commits since the previous one so
 # the badge in README.md reflects a recent green build.  All stages that
 # are gated on `ScheduledBuild` (AOT, Debug, .NET 9/8/472/netstandard,
-# Coverage, mac matrix) are automatically included because Build.Reason
+# mac matrix) are automatically included because Build.Reason
 # is 'Schedule' for these runs.
 schedules:
 - cron: '0 2 * * 0'
@@ -56,6 +109,11 @@ schedules:
 variables:
   FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
+  # 'True' when Azure Pipelines owns the build/test matrix that GitHub Actions
+  # otherwise runs (see the ciBuildBackend parameter).  Native AoT, normally
+  # Schedule/Manual-only here, additionally runs on pull requests while this is
+  # True, because it is then the only place that work happens.
+  AdoOwnsMatrix: ${{ eq(parameters.ciBuildBackend, 'ado') }}
   # macOS jobs always run on Microsoft-hosted agents because Managed DevOps Pools
   # does not provide macOS images.
   macImage: 'macOS-15'
@@ -103,15 +161,35 @@ stages:
       poolImage: ${{ variables.hostWindowsImage }}
       poolName: ${{ variables.hostPoolName }}
       jobnamesuffix: win2025
-      # PR builds discover every *.slnx and restrict to a small TFM set so each
-      # matrix job's bin tree fits on the managed-pool agent's small temp
-      # disk; master/scheduled/manual/fork-PR builds also discover every
-      # *.slnx but fan out across all supported TFMs.
+      # Every build discovers every *.slnx.  The TFM fan-out differs by run
+      # type: master/scheduled/manual builds cover all supported TFMs here,
+      # while PR builds are narrowed so the managed pool is not swamped.
       solutions: ''
-      ${{ if eq(variables.FullBuild, 'False') }}:
-        tfms: 'net10.0,net48'
-      ${{ else }}:
+      ${{ if ne(variables.FullBuild, 'False') }}:
         tfms: 'net472,net48,netstandard2.0,netstandard2.1,net8.0,net9.0,net10.0'
+      ${{ elseif eq(parameters.ciBuildBackend, 'ado') }}:
+        # ADO owns the all-TFM PR build that GitHub Actions normally runs, so a
+        # PR has to cover all seven TFMs.  Windows takes the .NET Framework
+        # targets and the Linux leg below takes the modern ones - the same split
+        # the build-all-tfm-windows / build-all-tfm-linux jobs use - which keeps
+        # full coverage without fanning every TFM across both pools.
+        tfms: 'net472,net48,netstandard2.0'
+      ${{ else }}:
+        # GitHub Actions owns the all-TFM build; this PR gate only needs the two
+        # TFMs the contribution guide requires.
+        tfms: 'net10.0,net48'
+  - ${{ if eq(parameters.ciBuildBackend, 'ado') }}:
+    # Replaces the GitHub Actions build-all-tfm-linux job: proves UA.slnx still
+    # compiles on Linux for every Linux-capable TFM.  Release only, because this
+    # leg exists to catch TFM/platform breaks rather than to exercise Debug.
+    - template: .azurepipelines/sln.yml
+      parameters:
+        poolImage: ${{ variables.mgdLinuxImage }}
+        poolName: ${{ variables.mgdPoolName }}
+        jobnamesuffix: linuxalltfm
+        solutions: 'UA.slnx'
+        configurations: 'Release'
+        tfms: 'netstandard2.1,net8.0,net9.0,net10.0'
 - stage: testfastpr
   dependsOn: []
   displayName: 'Fast PR test'
@@ -128,7 +206,14 @@ stages:
     parameters:
       configuration: Release
       framework: net10.0
-      agents: '@{ windows = "${{ variables.mgdWindowsImage }}" }'
+      # With the default ciBuildBackend=actions this leg stays Windows-only
+      # because the GitHub Actions build-and-test job provides the Linux
+      # coverage.  When ADO owns the matrix it also covers Linux, replacing
+      # that job.
+      ${{ if eq(parameters.ciBuildBackend, 'ado') }}:
+        agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux = "${{ variables.mgdLinuxImage }}" }'
+      ${{ else }}:
+        agents: '@{ windows = "${{ variables.mgdWindowsImage }}" }'
       jobnamesuffix: net100
       customtestarget: net10.0
       poolName: ${{ variables.mgdPoolName }}
@@ -145,11 +230,17 @@ stages:
       windowsImage: ${{ variables.mgdWindowsImage }}
       # macOS runs only on Schedule/Manual (nightly + on-demand), not on
       # PR or master push, to keep the PR gate fast and Windows-focused.
-      condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+      # Passed bare: test.yml wraps it in succeeded() for the test jobs and in
+      # not(canceled()) for the coverage gate, which has to report a failure
+      # rather than skip when a test job failed.
+      condition: ne(variables.ScheduledBuild, 'False')
 - stage: testaot
   dependsOn: []
   displayName: 'Test Native AoT'
-  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  # Native AoT is Schedule/Manual-only while GitHub Actions runs its own ubuntu
+  # AoT job.  When ADO owns the matrix this is the only place AoT runs, so it
+  # has to gate pull requests too.
+  condition: and(succeeded(), or(ne(variables.ScheduledBuild, 'False'), ne(variables.AdoOwnsMatrix, 'False')))
   jobs:
   - template: .azurepipelines/test-aot.yml
     parameters:
@@ -276,15 +367,111 @@ stages:
       hosted: true
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-- stage: coverage
-  dependsOn: [testdebug,testfastpr]
-  displayName: 'Code Coverage'
+- stage: testnightly
+  dependsOn: [build]
+  displayName: 'Test long-running tiers'
+  # Tiers that the fast legs deliberately filter out and that used to be dragged
+  # in only by the combined coverage job that re-ran the whole suite.  That job
+  # is gone, so they get their own Schedule/Manual stage here.  The stress tier
+  # keeps running from .github/workflows/stress-test.yml.
   condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
-  - template: .azurepipelines/testcc.yml
+  # Mainline projects with no category filter, so the LongRunning tier (today
+  # Opc.Ua.Subscriptions.Tests) is exercised.  A single Linux leg is enough -
+  # the cross-platform matrix is already covered by the filtered stages.
+  - template: .azurepipelines/test.yml
     parameters:
-      configuration: Release
-      poolImage: ${{ variables.hostLinuxImage }}
       framework: net10.0
-      jobnamesuffix: net100cc
+      configuration: Release
+      jobnamesuffix: net100longrunning
+      customtestarget: net10.0
+      testfilter: ''
+      hangtimeout: '30m'
+      # A tier, not a mainline leg: it re-runs a subset of the same projects
+      # with the filter lifted, so folding its numbers into the merged report
+      # would double-count. Skip coverage collection here.
+      coverage: false
+      agents: '@{ linux = "${{ variables.hostLinuxImage }}" }'
       poolName: ${{ variables.hostPoolName }}
+      windowsImage: ${{ variables.hostWindowsImage }}
+  # Durable-subscription tier, kept out of the mainline matrix by #3810.
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: net10.0
+      configuration: Release
+      jobnamesuffix: net100durable
+      customtestarget: net10.0
+      projectfilename: 'Opc.Ua.Subscriptions.Durable.Tests.csproj'
+      excludeprojects: ''
+      testfilter: ''
+      hangtimeout: '30m'
+      coverage: false
+      agents: '@{ windows = "${{ variables.hostWindowsImage }}"; linux = "${{ variables.hostLinuxImage }}" }'
+      poolName: ${{ variables.hostPoolName }}
+      windowsImage: ${{ variables.hostWindowsImage }}
+
+
+# Required check.  Rolls every test stage up into a single status so the GitHub
+# branch ruleset does not have to name matrix-generated jobs, whose names change
+# whenever a test project or an agent is added.
+#
+# The verdict lives entirely in the stage `condition`, which is the one place
+# Azure Pipelines reliably exposes stage results.  Two earlier attempts failed:
+# a stage-scoped `$[ ]` variable is evaluated when the JOB is prepared, where
+# `dependencies` means sibling jobs, so `convertToJson(dependencies)` resolved
+# to '{}' (build 16520); and `convertToJson(stageDependencies)` at job scope
+# blew the expression memory limit, because this pipeline's ~115 jobs carry
+# large output variables such as the serialised test matrix (build 16583).
+# Reading `dependencies.<stage>.result` here costs nothing and is the documented
+# usage.
+#
+# 'Skipped' is accepted because the Schedule/Manual-only stages report exactly
+# that on a pull request.  When a stage genuinely fails the condition is false,
+# this stage is skipped, and Azure Pipelines then posts NO check for it - which
+# leaves the required check permanently unfulfilled and blocks the merge.  That
+# is deliberately fail-closed: the failing job itself is already red, and a
+# required check that never reports can never be mistaken for a passing one.
+- stage: gate
+  displayName: 'Tests passed'
+  dependsOn: ${{ parameters.testStages }}
+  condition: |
+    and(
+      not(canceled()),
+      in(dependencies.build.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testfastpr.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testaot.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testdebug.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnet90.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnet80.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnet472.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnetstandard20.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnetstandard21.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
+      in(dependencies.testnightly.result, 'Succeeded', 'SucceededWithIssues', 'Skipped')
+    )
+  jobs:
+  - job: gate
+    displayName: Verify stage results
+    timeoutInMinutes: 10
+    pool:
+      ${{ if ne(variables.hostPoolName, '') }}:
+        name: ${{ variables.hostPoolName }}
+        demands:
+          - ImageOverride -equals ${{ variables.hostLinuxImage }}
+      ${{ else }}:
+        vmImage: ${{ variables.hostLinuxImage }}
+    steps:
+    # Nothing is built or read from the tree; reaching this job IS the verdict.
+    - checkout: none
+    - pwsh: |
+        Write-Host 'Every test stage succeeded or was intentionally skipped.'
+      displayName: 'Tests passed'
+# Advisory check.  Merges every Cobertura fragment the run produced and
+# evaluates coverage-thresholds.json once.  It reports a clean failure when the
+# thresholds are missed so the miss is visible, but it must NOT be added to the
+# GitHub branch ruleset - 'Tests passed' above is the required check.
+- template: .azurepipelines/coverage.yml
+  parameters:
+    poolName: ${{ variables.hostPoolName }}
+    poolImage: ${{ variables.hostLinuxImage }}
+    stages: ${{ parameters.testStages }}
+    enableCodecov: ${{ parameters.enableCodecov }}

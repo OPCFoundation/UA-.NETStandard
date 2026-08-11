@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 
 namespace Opc.Ua
@@ -42,6 +43,29 @@ namespace Opc.Ua
     /// </remarks>
     public static class NodeInstanceExtensions
     {
+        /// <summary>
+        /// Returns the context's <see cref="ISystemContext.NodeIdFactory"/>,
+        /// throwing when the context suppresses NodeId assignment.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="ISystemContext.NodeIdFactory"/> is nullable because a
+        /// node copy deliberately hides the factory from the children it
+        /// materialises. Builders that mint a fresh instance NodeId cannot
+        /// work without one, so they state that requirement here and fail with
+        /// a diagnosable error rather than a <see cref="NullReferenceException"/>.
+        /// </remarks>
+        /// <param name="context">The system context.</param>
+        /// <returns>The node id factory.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The context does not supply a factory.
+        /// </exception>
+        public static INodeIdFactory RequireNodeIdFactory(this ISystemContext context)
+        {
+            return context?.NodeIdFactory ?? throw new InvalidOperationException(
+                "The system context does not supply a NodeIdFactory, so a new " +
+                "instance NodeId cannot be assigned.");
+        }
+
         /// <summary>
         /// Recursively assigns per-instance NodeIds to every descendant of
         /// <paramref name="node"/> using the active
@@ -210,6 +234,42 @@ namespace Opc.Ua
                 }
                 AssignChildNodeIds(context, child, mappingTable);
             }
+        }
+
+        /// <summary>
+        /// Assigns a per-instance NodeId to a child that a
+        /// <c>CreateOrReplace&lt;Child&gt;</c> helper just materialised, and
+        /// rebases its descendants. A child whose NodeId the caller already
+        /// assigned is left untouched.
+        /// </summary>
+        /// <param name="context">
+        /// The system context supplying the NodeIdFactory.
+        /// </param>
+        /// <param name="owner">
+        /// The node owning the child. Its subtree carries the references that
+        /// must be remapped.
+        /// </param>
+        /// <param name="child">The child to rebase.</param>
+        /// <param name="assignInstanceNodeIds">
+        /// When <c>false</c> the call is a no-op. Lets callers that build
+        /// declaration subtrees keep their type-level NodeIds.
+        /// </param>
+        internal static void AssignNewChildInstanceNodeIds(
+            this ISystemContext context,
+            NodeState owner,
+            NodeState child,
+            bool assignInstanceNodeIds)
+        {
+            if (!assignInstanceNodeIds ||
+                context?.NodeIdFactory == null ||
+                child == null ||
+                !child.NodeId.IsNull)
+            {
+                return;
+            }
+
+            NodeId previousNodeId = context.AssignInstanceNodeId(child);
+            context.AssignInstanceChildNodeIds(child, previousNodeId, owner);
         }
     }
 }

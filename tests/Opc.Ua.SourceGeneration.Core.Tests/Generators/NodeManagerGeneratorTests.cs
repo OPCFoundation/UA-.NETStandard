@@ -239,6 +239,128 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// A child materialised onto an already-instantiated tree (through
+        /// NodeState.CreateChild / ReplaceChild or by hand) must receive a
+        /// per-instance NodeId, otherwise sibling instances of the same type
+        /// collide on the type-level NodeIds.
+        /// </summary>
+        [Test]
+        public void CreateOrReplaceChildAssignsInstanceNodeIdsByDefault()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+            string source = files.Values.Single(value =>
+                value.Contains(" CreateOrReplaceRed(", StringComparison.Ordinal));
+            string createOrReplace = ExtractInstanceMethodBody(source, "CreateOrReplaceRed");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(createOrReplace, Does.Contain("bool assignInstanceNodeIds = true"),
+                    "Assignment must be the default so hand-written node managers get it for free.");
+                Assert.That(createOrReplace, Does.Contain(
+                    "if (assignInstanceNodeIds && context.NodeIdFactory != null)"));
+                Assert.That(createOrReplace, Does.Contain("childState.NodeId.IsNull ||"),
+                    "A NodeId the caller already assigned must never be overwritten.");
+                Assert.That(createOrReplace, Does.Contain(
+                    "global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId("));
+                Assert.That(createOrReplace, Does.Contain(
+                    "global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds("));
+            });
+        }
+
+        /// <summary>
+        /// Every FindChild override a generated type emits carries the
+        /// assignment argument with its <c>true</c> default: the caller states
+        /// its intent, so no second overload, capability property or context
+        /// wrapper is needed to reach the override.
+        /// </summary>
+        [Test]
+        public void GeneratedTypesEmitOneFindChildOverrideCarryingTheAssignmentFlag()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+            string source = files.Values.Single(value =>
+                value.Contains(" CreateOrReplaceRed(", StringComparison.Ordinal));
+
+            const string signature =
+                "protected override global::Opc.Ua.BaseInstanceState? FindChild(";
+            var parameterLists = new List<string>();
+            for (int index = source.IndexOf(signature, StringComparison.Ordinal);
+                index >= 0;
+                index = source.IndexOf(signature, index + signature.Length, StringComparison.Ordinal))
+            {
+                int start = index + signature.Length;
+                int end = source.IndexOf(')', start);
+                parameterLists.Add(source.Substring(start, end - start));
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(parameterLists, Is.Not.Empty,
+                    "A type declaring children must resolve them in a FindChild override.");
+                Assert.That(parameterLists, Has.All.Contains("bool assignInstanceNodeIds = true"),
+                    "Every override must carry the argument, and repeat the default so " +
+                    "callers keep the 1.5.378 behaviour.");
+                Assert.That(source, Does.Not.Contain("SupportsInstanceNodeIdAssignmentControl"),
+                    "Assignment control is stated per call, not advertised per type.");
+                Assert.That(source, Does.Contain("return base.FindChild("),
+                    "An unmatched browse name must pass the request on to the base.");
+                Assert.That(source, Does.Contain(
+                    "context, browseName, createOrReplace, replacement, assignInstanceNodeIds);"),
+                    "The request must be forwarded verbatim to the base.");
+            });
+        }
+
+        /// <summary>
+        /// The generated factories build declaration subtrees whose NodeIds
+        /// must stay at their type-level values - the enclosing
+        /// CreateInstanceOf&lt;Type&gt; factory rebases the finished subtree in
+        /// a single pass - so every factory call site opts out.
+        /// </summary>
+        [Test]
+        public void TypeFactoriesOptOutOfCreateOrReplaceNodeIdAssignment()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+            string ex = files
+                .Single(kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            string[] callSites = [.. ex
+                .Split('\n')
+                .Where(line => line.Contains("state.CreateOrReplace", StringComparison.Ordinal))];
+
+            Assert.That(callSites, Is.Not.Empty);
+            Assert.That(callSites, Has.All.Contains("assignInstanceNodeIds: false"));
+        }
+
+        /// <summary>
+        /// An explicit browse name marks a dynamically materialised instance,
+        /// so the subtree is rebased onto per-instance NodeIds even when the
+        /// caller attaches the parent itself and passes none to the factory.
+        /// </summary>
+        [Test]
+        public void CreateInstanceOfFactoriesRebaseWithoutAnExplicitParent()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+            string ex = files
+                .Single(kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            foreach (string factory in new[]
+            {
+                "CreateInstanceOfRestrictedObjectType",
+                "CreateInstanceOfRestrictedVariableType",
+                "CreateInstanceOfRestrictedMethodType"
+            })
+            {
+                string body = ExtractFactoryBody(ex, factory);
+                Assert.That(body, Does.Contain(
+                    "if (!browseName.IsNull && context.NodeIdFactory != null)"),
+                    factory + " should rebase whenever a browse name is supplied.");
+                Assert.That(body, Does.Not.Contain("parent != null && !browseName.IsNull"),
+                    factory + " should no longer require an explicit parent to rebase.");
+            }
+        }
+
+        /// <summary>
         /// Extracts the body of a generated factory method (from the line that
         /// declares it through the matching closing brace) so individual
         /// factories can be asserted on without false matches from other

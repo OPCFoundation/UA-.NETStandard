@@ -213,42 +213,31 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
-        /// This method is called at the being of the thread that processes a request.
+        /// Rejects writes made without a user identity.
         /// </summary>
+        /// <param name="context">The context of the request that was validated.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected override async ValueTask<OperationContext> ValidateRequestAsync(
-            SecureChannelContext secureChannelContext,
-            [NotNull] RequestHeader? requestHeader,
-            RequestType requestType,
-            RequestLifetime requestLifetime)
+        protected override ValueTask OnRequestValidatedAsync(OperationContext context)
         {
-            OperationContext context = await base.ValidateRequestAsync(
-                secureChannelContext,
-                requestHeader,
-                requestType,
-                requestLifetime).ConfigureAwait(false);
-
-            if (requestType == RequestType.Write)
+            if (context.RequestType == RequestType.Write &&
+                context.UserIdentity.TokenType == UserTokenType.Anonymous)
             {
                 // reject all writes if no user provided.
-                if (context.UserIdentity.TokenType == UserTokenType.Anonymous)
-                {
-                    // construct translation object with default text.
-                    var info = new TranslationInfo(
-                        "NoWriteAllowed",
-                        "en-US",
-                        "Must provide a valid user before calling write.");
+                // construct translation object with default text.
+                var info = new TranslationInfo(
+                    "NoWriteAllowed",
+                    "en-US",
+                    "Must provide a valid user before calling write.");
 
-                    // create an exception with a vendor defined sub-code.
-                    throw new ServiceResultException(
-                        new ServiceResult(
-                            Namespaces.OpcUaGds,
-                            new StatusCode(StatusCodes.BadUserAccessDenied.Code, "NoWriteAllowed"),
-                            new LocalizedText(info)));
-                }
+                // create an exception with a vendor defined sub-code.
+                throw new ServiceResultException(
+                    new ServiceResult(
+                        Namespaces.OpcUaGds,
+                        new StatusCode(StatusCodes.BadUserAccessDenied.Code, "NoWriteAllowed"),
+                        new LocalizedText(info)));
             }
 
-            return context;
+            return default;
         }
 
         private bool IsApplicationCertificateRegistered(Certificate applicationInstanceCertificate)

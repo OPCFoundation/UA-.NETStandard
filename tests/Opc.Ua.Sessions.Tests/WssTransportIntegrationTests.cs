@@ -33,10 +33,12 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Authentication;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
@@ -178,6 +180,87 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(refs.Count, Is.GreaterThan(0));
 
             await session.CloseAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task UpdateBeforeConnectUsesApplicationCertificateValidationAsync()
+        {
+            ConfiguredEndpoint endpoint = await m_clientFixture
+                .GetEndpointAsync(m_endpointUrl, SecurityPolicies.Basic256Sha256)
+                .ConfigureAwait(false);
+
+            using ISession session = await m_clientFixture.SessionFactory
+                .CreateAsync(
+                    m_clientFixture.Config,
+                    endpoint,
+                    updateBeforeConnect: true,
+                    checkDomain: false,
+                    nameof(UpdateBeforeConnectUsesApplicationCertificateValidationAsync),
+                    m_clientFixture.SessionTimeout,
+                    identity: null,
+                    preferredLocales: default)
+                .ConfigureAwait(false);
+
+            Assert.That(session.Connected, Is.True);
+            await session.CloseAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public void UpdateBeforeConnectRejectsUntrustedDiscoveryCertificate()
+        {
+            ICertificateValidatorEx certificateManager = m_clientFixture.Config.CertificateManager;
+            Func<Certificate, ServiceResult, bool>? previousAcceptError = certificateManager.AcceptError;
+            certificateManager.AcceptError = (_, _) => false;
+            try
+            {
+                ConfiguredEndpoint endpoint = new ConfiguredEndpoint(
+                    null,
+                    new EndpointDescription
+                    {
+                        EndpointUrl = m_endpointUrl.ToString(),
+                        SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                    });
+
+                // The endpoint has not been discovered/trusted yet, so
+                // UpdateBeforeConnect must run discovery through the
+                // application's CertificateManager. Rejecting every error
+                // deterministically fails discovery over the WSS transport
+                // (the TLS handshake is aborted by the RemoteCertificateValidationCallback
+                // fed by the CertificateManager) and proves the application's
+                // certificate validator is actually consulted rather than a
+                // non-certificate-aware fallback path.
+                Exception ex = Assert.CatchAsync(
+                    async () => await m_clientFixture.SessionFactory
+                        .CreateAsync(
+                            m_clientFixture.Config,
+                            endpoint,
+                            updateBeforeConnect: true,
+                            checkDomain: false,
+                            nameof(UpdateBeforeConnectRejectsUntrustedDiscoveryCertificate),
+                            m_clientFixture.SessionTimeout,
+                            identity: null,
+                            preferredLocales: default)
+                        .ConfigureAwait(false));
+                Assert.That(
+                    GetInnerMostException(ex),
+                    Is.InstanceOf<AuthenticationException>(),
+                    "Discovery must fail at the TLS handshake because the application's " +
+                    "CertificateManager rejected the discovery server's certificate.");
+            }
+            finally
+            {
+                certificateManager.AcceptError = previousAcceptError;
+            }
+        }
+
+        private static Exception GetInnerMostException(Exception ex)
+        {
+            while (ex.InnerException != null)
+            {
+                ex = ex.InnerException;
+            }
+            return ex;
         }
     }
 }

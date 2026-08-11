@@ -37,6 +37,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
+using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
 
 namespace Opc.Ua.Schema.Model
@@ -422,6 +423,23 @@ namespace Opc.Ua.Schema.Model
                 return new XmlQualifiedName(input.SymbolicName, browseName.Namespace);
             }
 
+            // A placeholder browse name "<Name>" (no explicit SymbolicName in the
+            // NodeSet) follows the ModelCompiler convention of mapping to
+            // "Name_Placeholder" so generated identifiers match those produced
+            // from the equivalent ModelDesign source (e.g. a combined NodeSet
+            // that incorporates a model authored as ModelDesign). The raw browse
+            // name is used because ImportQualifiedName rewrites '<' and '>' to '_'.
+            string rawName = QualifiedName.Parse(input.BrowseName).Name;
+            if (rawName != null &&
+                rawName.Length > 2 &&
+                rawName[0] == '<' &&
+                rawName[^1] == '>')
+            {
+                return new XmlQualifiedName(
+                    ToSymbolicName(rawName[1..^1]) + "_Placeholder",
+                    browseName.Namespace);
+            }
+
             return new XmlQualifiedName(ToSymbolicName(browseName.Name), browseName.Namespace);
         }
 
@@ -665,12 +683,15 @@ namespace Opc.Ua.Schema.Model
             if (input.Value != null)
             {
                 XmlDecoder decoder = CreateDecoder(input.Value);
-                output.DecodedValue = decoder.ReadVariantValue(null, default).AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                output.DecodedValue = decoder
+                    .ReadVariantValue(null, default)
+                    .AsBoxedObject(Variant.BoxingBehavior.Legacy);
                 decoder.Close();
             }
 
             DataTypeDesign dataType = FindNode<DataTypeDesign>(ImportNodeId(input.DataType)) ??
-                throw new InvalidDataException($"Could not find DataType Node for '{input.BrowseName}/{input.DataType}'.");
+                throw new InvalidDataException(
+                    $"Could not find DataType Node for '{input.BrowseName}/{input.DataType}'.");
 
             output.DataType = dataType.SymbolicId;
             output.DataTypeNode = dataType;
@@ -841,7 +862,9 @@ namespace Opc.Ua.Schema.Model
                         }
 
                         DataTypeDesign dataType = FindNode<DataTypeDesign>(ImportNodeId(ii.DataType)) ??
-                            throw new InvalidDataException($"Could not find DataType Node for Field '{input.BrowseName}/{ii.Name}/{ii.DataType}'.");
+                            throw new InvalidDataException(
+                                "Could not find DataType Node for Field " +
+                                $"'{input.BrowseName}/{ii.Name}/{ii.DataType}'.");
 
                         field.DataType = dataType.SymbolicId;
                         field.DataTypeNode = dataType;
@@ -948,15 +971,24 @@ namespace Opc.Ua.Schema.Model
             output.AccessLevel = ImportAccessLevel(input.AccessLevel);
             output.AccessLevelSpecified = true;
 
+            // The ModelDesign AccessLevel enumeration cannot express
+            // combinations such as CurrentRead | HistoryRead (5), so the
+            // verbatim bitmask is carried alongside it and preferred by
+            // code generation. See GetAccessLevelAsCode.
+            output.RawAccessLevel = input.AccessLevel;
+
             if (input.Value != null)
             {
                 XmlDecoder decoder = CreateDecoder(input.Value);
-                output.DecodedValue = decoder.ReadVariantValue(null, default).AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                output.DecodedValue = decoder
+                    .ReadVariantValue(null, default)
+                    .AsBoxedObject(Variant.BoxingBehavior.Legacy);
                 decoder.Close();
             }
 
             DataTypeDesign dataType = FindNode<DataTypeDesign>(ImportNodeId(input.DataType)) ??
-                throw new InvalidDataException($"Could not find DataType Node for '{input.BrowseName}/{input.DataType}'.");
+                throw new InvalidDataException(
+                    $"Could not find DataType Node for '{input.BrowseName}/{input.DataType}'.");
 
             output.DataType = dataType.SymbolicId;
             output.DataTypeNode = dataType;
@@ -968,44 +1000,129 @@ namespace Opc.Ua.Schema.Model
             System.Xml.XmlElement input)
         {
             var output = new List<Parameter>();
-
-            if (input != null)
+            if (input == null)
             {
-                XmlDecoder decoder = CreateDecoder(input, sourceNodeSetUri);
-                Variant value = decoder.ReadVariantValue(null, default);
-                decoder.Close();
-
-                foreach (Argument argument in value.GetStructureArray<Argument>())
-                {
-                    DataTypeDesign dataType = FindNode<DataTypeDesign>(argument.DataType) ??
-                        throw new InvalidDataException(
-                            $"Method ({method.SymbolicId.Name}) argument ({argument.Name}) datatype ({argument.DataType}) not found.");
-
-                    var parameter = new Parameter
-                    {
-                        Name = argument.Name,
-                        ArrayDimensions = ImportArrayDimensions(argument.ArrayDimensions),
-                        ValueRank = ImportValueRank(argument.ValueRank),
-                        Parent = method,
-                        DataType = dataType.SymbolicId,
-                        DataTypeNode = dataType,
-                        Description = null
-                    };
-
-                    if (!string.IsNullOrEmpty(argument.Description.Text))
-                    {
-                        parameter.Description = new LocalizedText
-                        {
-                            Value = argument.Description.Text,
-                            IsAutogenerated = false
-                        };
-                    }
-
-                    output.Add(parameter);
-                }
+                return output;
             }
 
+            XmlDecoder decoder = CreateDecoder(input, sourceNodeSetUri);
+            Variant value = decoder.ReadVariantValue(null, default);
+            decoder.Close();
+
+            foreach (Argument argument in value.GetStructureArray<Argument>())
+            {
+                DataTypeDesign dataType = FindNode<DataTypeDesign>(argument.DataType) ??
+                    throw new InvalidDataException(
+                        $"Method ({method.SymbolicId.Name}) argument ({argument.Name}) " +
+                        $"datatype ({argument.DataType}) not found.");
+
+                var parameter = new Parameter
+                {
+                    Name = argument.Name,
+                    ArrayDimensions = ImportArrayDimensions(argument.ArrayDimensions),
+                    ValueRank = ImportValueRank(argument.ValueRank),
+                    Parent = method,
+                    DataType = dataType.SymbolicId,
+                    DataTypeNode = dataType,
+                    Description = null
+                };
+
+                if (!string.IsNullOrEmpty(argument.Description.Text))
+                {
+                    parameter.Description = new LocalizedText
+                    {
+                        Value = argument.Description.Text,
+                        IsAutogenerated = false
+                    };
+                }
+
+                output.Add(parameter);
+            }
+
+            if (output.Count == 0)
+            {
+                output.AddRange(ImportArgumentsFromXml(method, input));
+            }
             return output;
+        }
+
+        private List<Parameter> ImportArgumentsFromXml(
+            MethodDesign method,
+            System.Xml.XmlElement input)
+        {
+            var output = new List<Parameter>();
+            foreach (System.Xml.XmlElement argument in FindElements(input, "Argument"))
+            {
+                string name = GetElementValue(argument, "Name");
+                string dataTypeText = GetElementValue(argument, "DataType", "Identifier");
+                NodeId dataTypeId = ImportNodeId(dataTypeText);
+                DataTypeDesign dataType = FindNode<DataTypeDesign>(dataTypeId) ??
+                    throw new InvalidDataException(
+                        $"Method ({method.SymbolicId.Name}) argument ({name}) datatype ({dataTypeText}) not found.");
+                string valueRankText = GetElementValue(argument, "ValueRank");
+                int valueRank = int.TryParse(
+                    valueRankText,
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out int parsedValueRank)
+                        ? parsedValueRank
+                        : -1;
+                string description = GetElementValue(argument, "Description", "Text");
+                output.Add(new Parameter
+                {
+                    Name = name,
+                    ArrayDimensions = GetElementValue(argument, "ArrayDimensions"),
+                    ValueRank = ImportValueRank(valueRank),
+                    Parent = method,
+                    DataType = dataType.SymbolicId,
+                    DataTypeNode = dataType,
+                    Description = string.IsNullOrEmpty(description)
+                        ? null
+                        : new LocalizedText
+                        {
+                            Value = description,
+                            IsAutogenerated = false
+                        }
+                });
+            }
+            return output;
+        }
+
+        private static IEnumerable<System.Xml.XmlElement> FindElements(
+            System.Xml.XmlElement element,
+            string localName)
+        {
+            foreach (XmlNode child in element.ChildNodes)
+            {
+                if (child is not System.Xml.XmlElement childElement)
+                {
+                    continue;
+                }
+
+                if (childElement.LocalName == localName)
+                {
+                    yield return childElement;
+                }
+
+                foreach (System.Xml.XmlElement descendant in FindElements(childElement, localName))
+                {
+                    yield return descendant;
+                }
+            }
+        }
+
+        private static string GetElementValue(
+            System.Xml.XmlElement element,
+            params string[] path)
+        {
+            System.Xml.XmlElement current = element;
+            foreach (string localName in path)
+            {
+                current = current?.ChildNodes
+                    .OfType<System.Xml.XmlElement>()
+                    .FirstOrDefault(child => child.LocalName == localName);
+            }
+            return current?.InnerText;
         }
 
         private void UpdateMethodDesign(UAMethod input, MethodDesign output)
@@ -1041,34 +1158,68 @@ namespace Opc.Ua.Schema.Model
                 output.MethodDeclarationNode = FindNode<MethodDesign>(methodId);
             }
 
+            UpdateMethodArguments(input, output);
+        }
+
+        private void UpdateMethodArguments(UAMethod input, MethodDesign output)
+        {
+            var propertyIds = new List<ExpandedNodeId>();
             if (input.References != null)
             {
-                foreach (Export.Reference ii in input.References)
+                foreach (Export.Reference reference in input.References)
                 {
-                    ReferenceNode reference = ImportReference(ii);
-
-                    if (reference.ReferenceTypeId == ReferenceTypes.HasProperty && !reference.IsInverse)
+                    ReferenceNode importedReference = ImportReference(reference);
+                    if (importedReference.ReferenceTypeId == ReferenceTypes.HasProperty &&
+                        !importedReference.IsInverse)
                     {
-                        VariableDesign property = FindNode<VariableDesign>(reference.TargetId);
-
-                        if (property != null && property.DefaultValue != null)
-                        {
-                            if (property.BrowseName == BrowseNames.InputArguments)
-                            {
-                                output.InputArguments =
-                                    [.. ImportArguments(output, property.SymbolicId.Namespace, property.DefaultValue)];
-                                output.HasArguments = true;
-                            }
-                            else if (property.BrowseName == BrowseNames.OutputArguments)
-                            {
-                                output.OutputArguments =
-                                    [.. ImportArguments(output, property.SymbolicId.Namespace, property.DefaultValue)];
-                                output.HasArguments = true;
-                            }
-                        }
+                        propertyIds.Add(importedReference.TargetId);
                     }
                 }
             }
+
+            foreach (UAVariable property in m_nodeset.Items.OfType<UAVariable>())
+            {
+                if (ImportNodeId(property.ParentNodeId) != ImportNodeId(input.NodeId) ||
+                    property.References == null)
+                {
+                    continue;
+                }
+
+                if (property.References.Any(reference =>
+                    {
+                        ReferenceNode importedReference = ImportReference(reference);
+                        return importedReference.ReferenceTypeId == ReferenceTypes.HasProperty &&
+                            importedReference.IsInverse &&
+                            importedReference.TargetId == ImportNodeId(input.NodeId);
+                    }))
+                {
+                    propertyIds.Add(ImportNodeId(property.NodeId));
+                }
+            }
+
+            foreach (ExpandedNodeId propertyId in propertyIds.Distinct())
+            {
+                VariableDesign property = FindNode<VariableDesign>(propertyId);
+                if (property?.DefaultValue == null)
+                {
+                    continue;
+                }
+
+                if (property.BrowseName == BrowseNames.InputArguments)
+                {
+                    output.InputArguments =
+                        [.. ImportArguments(output, property.SymbolicId.Namespace, property.DefaultValue)];
+                    output.HasArguments = true;
+                }
+                else if (property.BrowseName == BrowseNames.OutputArguments)
+                {
+                    output.OutputArguments =
+                        [.. ImportArguments(output, property.SymbolicId.Namespace, property.DefaultValue)];
+                    output.HasArguments = true;
+                }
+            }
+
+            output.AssignMethodArgumentCodeNames();
         }
 
         private void LinkChildToParent(UAInstance input)
@@ -1085,7 +1236,9 @@ namespace Opc.Ua.Schema.Model
             bool nonHierarchical = false;
 
             UANode parentNode = FindNode(m_nodeset, parentId) ??
-                throw new InvalidDataException($"ParentNode ({input.ParentNodeId}) not found for node {input.NodeId} ({input.BrowseName}).");
+                throw new InvalidDataException(
+                    $"ParentNode ({input.ParentNodeId}) not found for node " +
+                    $"{input.NodeId} ({input.BrowseName}).");
 
             if (!m_settings.NodesById.TryGetValue(parentId, out NodeDesign parent))
             {
@@ -1161,7 +1314,8 @@ namespace Opc.Ua.Schema.Model
             if (referenceType == null)
             {
                 throw new InvalidDataException(
-                    $"HierarchicalReference from ParentNode ({input.ParentNodeId}) to Node {input.NodeId} ({input.BrowseName}) not found.");
+                    $"HierarchicalReference from ParentNode ({input.ParentNodeId}) to Node " +
+                    $"{input.NodeId} ({input.BrowseName}) not found.");
             }
 
             if (!nonHierarchical && m_settings.NodesById.TryGetValue(nodeId, out NodeDesign child))
@@ -1211,6 +1365,11 @@ namespace Opc.Ua.Schema.Model
             output.SymbolicId = m_symbolicIds[input.NodeId];
             output.SymbolicName = ImportSymbolicName(input);
             output.Extensions = input.Extensions;
+
+            output.SymbolicName = NormalizeSymbolicNameNamespace(
+                input,
+                output.SymbolicId,
+                output.SymbolicName);
 
             if (input is UAType &&
                 output.SymbolicId.Name.EndsWith(
@@ -1281,6 +1440,22 @@ namespace Opc.Ua.Schema.Model
             return output;
         }
 
+        internal static XmlQualifiedName NormalizeSymbolicNameNamespace(
+            UANode input,
+            XmlQualifiedName symbolicId,
+            XmlQualifiedName symbolicName)
+        {
+            if (input is UAType &&
+                symbolicId != null &&
+                symbolicName != null &&
+                symbolicId.Namespace != symbolicName.Namespace)
+            {
+                return new XmlQualifiedName(symbolicName.Name, symbolicId.Namespace);
+            }
+
+            return symbolicName;
+        }
+
         private UANode FindNode(UANodeSet nodeset, ExpandedNodeId targetId)
         {
             if (targetId.IsNull)
@@ -1336,12 +1511,14 @@ namespace Opc.Ua.Schema.Model
 
             if (typeDefinitionId == ObjectTypeIds.DataTypeEncodingType)
             {
-                if (input.SymbolicName.Contains("Default", StringComparison.Ordinal) &&
+                if (!string.IsNullOrEmpty(input.SymbolicName) &&
+                    input.SymbolicName.Contains("Default", StringComparison.Ordinal) &&
                     input.SymbolicName.Contains("XML", StringComparison.OrdinalIgnoreCase) &&
                     input.SymbolicName != "DefaultXml")
                 {
                     throw new InvalidDataException(
-                        $"{input.SymbolicName} is not a valid symbolic name for a DataTypeEncoding node (should be 'DefaultXml').");
+                        $"{input.SymbolicName} is not a valid symbolic name for a " +
+                        "DataTypeEncoding node (should be 'DefaultXml').");
                 }
 
                 NodeId dataTypeId = FindTarget(input, ReferenceTypeIds.HasEncoding, true);
@@ -1783,8 +1960,20 @@ namespace Opc.Ua.Schema.Model
                         NodeId childId = ImportNodeId(instance.NodeId);
 
                         if (parentId.NamespaceIndex != childId.NamespaceIndex)
-
                         {
+                            instance.ParentNodeId = null;
+                        }
+                        else if (FindTarget(
+                            node,
+                            ReferenceTypeIds.HasTypeDefinition,
+                            false) == ObjectTypeIds.DataTypeEncodingType)
+                        {
+                            // DataTypeEncoding objects are independent address-space
+                            // nodes even when an exporter sets ParentNodeId to the
+                            // owning DataType. Keeping that parent absorbs the
+                            // encoding into DataType.Children, excludes it from the
+                            // top-level model items and prevents the NodeManager
+                            // generator from registering the encoding node.
                             instance.ParentNodeId = null;
                         }
                     }
@@ -1822,6 +2011,16 @@ namespace Opc.Ua.Schema.Model
             foreach (UANode node in m_nodeset.Items)
             {
                 ImportNode(node);
+            }
+
+            foreach (UANode node in m_nodeset.Items)
+            {
+                if (node is UAMethod method &&
+                    m_settings.NodesById.TryGetValue(ImportNodeId(method.NodeId), out NodeDesign design) &&
+                    design is MethodDesign methodDesign)
+                {
+                    UpdateMethodArguments(method, methodDesign);
+                }
             }
 
             foreach (UANode node in m_nodeset.Items)
@@ -1866,7 +2065,10 @@ namespace Opc.Ua.Schema.Model
             Dictionary<XmlQualifiedName, MethodDesign> methods = [];
             CollectMethodDefinitions(dictionary.TargetNamespace, methods);
 
-            items.AddRange(methods.Values);
+            items.AddRange(methods
+                .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
+                .ThenBy(entry => entry.Key.Name, StringComparer.Ordinal)
+                .Select(entry => entry.Value));
 
             foreach (NodeDesign item in items)
             {
@@ -1912,49 +2114,285 @@ namespace Opc.Ua.Schema.Model
             return dictionary;
         }
 
+        internal IEnumerable<NodesetImportedSymbol> GetImportedSymbols(string modelUri)
+        {
+            m_symbolicIds.Clear();
+
+            foreach (UANode node in m_nodeset.Items)
+            {
+                if (node is UAObject)
+                {
+                    if (string.IsNullOrEmpty(node.SymbolicName))
+                    {
+                        switch (node.BrowseName)
+                        {
+                            case BrowseNames.DefaultBinary:
+                                node.SymbolicName = nameof(BrowseNames.DefaultBinary);
+                                break;
+                            case BrowseNames.DefaultXml:
+                                node.SymbolicName = nameof(BrowseNames.DefaultXml);
+                                break;
+                        }
+                    }
+                    else if (node.SymbolicName == "DefaultXML")
+                    {
+                        node.SymbolicName = nameof(BrowseNames.DefaultXml);
+                    }
+                }
+
+                if (node is UAInstance instance &&
+                    instance.ParentNodeId == null &&
+                    instance.References != null)
+                {
+                    foreach (Export.Reference reference in instance.References
+                        .Where(reference => !reference.IsForward))
+                    {
+                        NodeId referenceTypeId = ImportNodeId(reference.ReferenceType);
+                        if (referenceTypeId == ReferenceTypeIds.HasProperty ||
+                            referenceTypeId == ReferenceTypeIds.HasComponent)
+                        {
+                            instance.ParentNodeId = reference.Value;
+                            break;
+                        }
+                    }
+                }
+
+                XmlQualifiedName symbolicId = BuildSymbolicId(node);
+                while (m_symbolicIds.Values.Any(existing => existing == symbolicId))
+                {
+                    symbolicId = new XmlQualifiedName(
+                        $"{symbolicId.Name}_{NodeId.Parse(node.NodeId).IdentifierAsString}",
+                        symbolicId.Namespace);
+                }
+
+                m_symbolicIds[node.NodeId] = symbolicId;
+            }
+
+            foreach (UANode node in m_nodeset.Items)
+            {
+                NodeId nodeId = ImportNodeId(node.NodeId, false);
+                if (!nodeId.TryGetValue(out uint numericId))
+                {
+                    continue;
+                }
+
+                XmlQualifiedName symbolicId = m_symbolicIds[node.NodeId];
+                if (!string.Equals(symbolicId.Namespace, modelUri, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                yield return new NodesetImportedSymbol(
+                    symbolicId.Name,
+                    numericId,
+                    node switch
+                    {
+                        UAObject => NodeClass.Object,
+                        UAVariable => NodeClass.Variable,
+                        UAMethod => NodeClass.Method,
+                        UAObjectType => NodeClass.ObjectType,
+                        UAVariableType => NodeClass.VariableType,
+                        UAReferenceType => NodeClass.ReferenceType,
+                        UADataType => NodeClass.DataType,
+                        UAView => NodeClass.View,
+                        _ => NodeClass.Unspecified
+                    });
+            }
+        }
+
         private void CollectMethodDefinitions(
             string targetNamespace,
             Dictionary<XmlQualifiedName, MethodDesign> methods)
         {
+            // Index the explicit method nodes already present in the model by
+            // their symbolic name. A concrete method with arguments normally
+            // gets a synthesized "<Name>MethodType" declaration, but a combined
+            // NodeSet may already ship that method-type node explicitly (e.g.
+            // an incorporated companion specification method type).
+            // Reuse the existing declaration in that case so code generation
+            // does not emit two identifiers with the same name.
+            Dictionary<XmlQualifiedName, MethodDesign> existingByName = [];
             foreach (NodeDesign node in m_settings.NodesById.Values)
             {
-                if (node is MethodDesign method)
+                if (node is MethodDesign existing &&
+                    existing.SymbolicName != null &&
+                    !existingByName.ContainsKey(existing.SymbolicName))
                 {
-                    if (node.SymbolicId.Namespace != targetNamespace)
+                    existingByName.Add(existing.SymbolicName, existing);
+                }
+            }
+
+            MethodDesign[] candidates =
+            [
+                .. m_settings.NodesById.Values
+                    .OfType<MethodDesign>()
+                    .Where(method =>
+                        method.SymbolicId.Namespace == targetNamespace &&
+                        MethodDesignArgumentResolver.HasDeclaredArguments(method))
+                    .OrderBy(method => method.SymbolicId.Namespace, StringComparer.Ordinal)
+                    .ThenBy(method => method.SymbolicId.Name, StringComparer.Ordinal)
+            ];
+            var groupedCandidates =
+                new Dictionary<XmlQualifiedName, List<List<MethodDesign>>>();
+
+            foreach (MethodDesign method in candidates)
+            {
+                if (method.MethodDeclarationNode != null)
+                {
+                    MethodDesign definition =
+                        MethodDesignArgumentResolver.ResolveMethodDefinition(
+                            method.MethodDeclarationNode);
+                    if (MethodDesignArgumentResolver.HaveSameDeclaredSignature(
+                        method,
+                        definition))
                     {
                         continue;
                     }
-                    if (method.HasArguments && method.MethodDeclarationNode == null)
+                }
+
+                // Skip methods whose BrowseName belongs to a base namespace
+                // (e.g. the Core FileType Open/Close/Read/Write methods that a
+                // FileType instance re-declares): they are instances of a
+                // base-type method and must reuse that base method type rather
+                // than get a synthesized method type in this model.
+                if (method.SymbolicName != null &&
+                    method.SymbolicName.Namespace != targetNamespace)
+                {
+                    continue;
+                }
+
+                // Skip a standalone node that already is a method type (no owning
+                // parent and the conventional "MethodType" name, e.g. an
+                // incorporated companion specification method type.
+                // Synthesizing a declaration for it would emit a spurious
+                // "<Name>MethodTypeMethodType" node. A parentless method that is
+                // merely a declaration target of another method still needs one.
+                if (method.Parent == null &&
+                    method.SymbolicName != null &&
+                    method.SymbolicName.Name.EndsWith("MethodType", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var baseName = new XmlQualifiedName(
+                    method.SymbolicName.Name + "MethodType",
+                    method.SymbolicId.Namespace);
+                if (!groupedCandidates.TryGetValue(
+                    baseName,
+                    out List<List<MethodDesign>> signatureGroups))
+                {
+                    groupedCandidates.Add(baseName, signatureGroups = []);
+                }
+
+                List<MethodDesign> signatureGroup = signatureGroups.FirstOrDefault(
+                    group => MethodDesignArgumentResolver.HaveSameDeclaredSignature(
+                        group[0],
+                        method));
+                if (signatureGroup == null)
+                {
+                    signatureGroups.Add([method]);
+                }
+                else
+                {
+                    signatureGroup.Add(method);
+                }
+            }
+
+            var reservedNames = new HashSet<XmlQualifiedName>(
+                m_settings.NodesByQName.Keys);
+            foreach (KeyValuePair<XmlQualifiedName, List<List<MethodDesign>>> entry
+                in groupedCandidates
+                    .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
+                    .ThenBy(entry => entry.Key.Name, StringComparer.Ordinal))
+            {
+                bool qualifyWithOwner = entry.Value.Count > 1 ||
+                    reservedNames.Contains(entry.Key);
+                foreach (List<MethodDesign> signatureGroup in entry.Value)
+                {
+                    MethodDesign representative = signatureGroup[0];
+                    string preferredName = qualifyWithOwner
+                        ? GetOwnerQualifiedMethodTypeName(representative)
+                        : entry.Key.Name;
+                    var name = new XmlQualifiedName(
+                        preferredName,
+                        representative.SymbolicId.Namespace);
+                    int suffix = 2;
+                    while (reservedNames.Contains(name) || methods.ContainsKey(name))
                     {
-                        var name = new XmlQualifiedName(
-                            node.SymbolicName.Name + "MethodType",
-                            node.SymbolicId.Namespace);
+                        string stem = preferredName.EndsWith(
+                            "MethodType",
+                            StringComparison.Ordinal)
+                                ? preferredName[..^"MethodType".Length]
+                                : preferredName;
+                        name = new XmlQualifiedName(
+                            stem +
+                                suffix.ToString(CultureInfo.InvariantCulture) +
+                                "MethodType",
+                            representative.SymbolicId.Namespace);
+                        suffix++;
+                    }
 
-                        if (methods.ContainsKey(name))
+                    // Prefer an explicit method-type declaration already in
+                    // the model over synthesizing a colliding duplicate. The
+                    // concrete method carries the authoritative argument
+                    // definitions, so copy them onto the reused declaration
+                    // to guarantee code generation emits the correct method
+                    // signature and result even when the incorporated
+                    // NodeSet declares the method-type argument nodes apart
+                    // from the concrete method.
+                    if (existingByName.TryGetValue(name, out MethodDesign declared) &&
+                        !signatureGroup.Any(method => ReferenceEquals(declared, method)))
+                    {
+                        declared.InputArguments = representative.InputArguments;
+                        declared.OutputArguments = representative.OutputArguments;
+                        declared.HasArguments = true;
+                        foreach (MethodDesign method in signatureGroup)
                         {
-                            continue;
+                            method.MethodDeclarationNode = declared;
+                            method.TypeDefinition = null;
+                            method.MethodType = null;
                         }
+                        reservedNames.Add(name);
+                        continue;
+                    }
 
-                        var declaration = new MethodDesign
+                    var declaration = new MethodDesign
+                    {
+                        SymbolicId = name,
+                        SymbolicName = name,
+                        BrowseName = name.Name,
+                        DisplayName = new LocalizedText
                         {
-                            SymbolicId = name,
-                            SymbolicName = name,
-                            BrowseName = name.Name,
-                            DisplayName = new LocalizedText
-                            {
-                                Value = name.Name,
-                                IsAutogenerated = true
-                            },
-                            InputArguments = method.InputArguments,
-                            OutputArguments = method.OutputArguments,
-                            HasArguments = true
-                        };
+                            Value = name.Name,
+                            IsAutogenerated = true
+                        },
+                        InputArguments = representative.InputArguments,
+                        OutputArguments = representative.OutputArguments,
+                        HasArguments = true
+                    };
 
-                        methods.Add(declaration.SymbolicName, declaration);
+                    methods.Add(declaration.SymbolicName, declaration);
+                    reservedNames.Add(declaration.SymbolicName);
+                    foreach (MethodDesign method in signatureGroup)
+                    {
                         method.MethodDeclarationNode = declaration;
+                        method.TypeDefinition = null;
+                        method.MethodType = null;
                     }
                 }
             }
+        }
+
+        private static string GetOwnerQualifiedMethodTypeName(MethodDesign method)
+        {
+            string ownerName = method.SymbolicId.Name;
+            string methodSuffix = "_" + method.SymbolicName.Name;
+            if (ownerName.EndsWith(methodSuffix, StringComparison.Ordinal))
+            {
+                ownerName = ownerName[..^methodSuffix.Length];
+            }
+            ownerName = ownerName.Replace("_", string.Empty, StringComparison.Ordinal);
+            return method.SymbolicName.Name + ownerName + "MethodType";
         }
 
         /// <summary>
@@ -1962,6 +2400,10 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
+            // The factory knows the standard OPC UA encodeable types. Without them, structured
+            // NodeSet2 values such as method Argument lists (InputArguments/OutputArguments)
+            // cannot be decoded and the generated typed method state would lose its arguments
+            // and result fields.
             var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
             messageContext.NamespaceUris = m_settings.NamespaceUris;
             messageContext.ServerUris = m_serverUris;

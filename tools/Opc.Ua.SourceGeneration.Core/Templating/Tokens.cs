@@ -69,6 +69,10 @@ namespace Opc.Ua.SourceGeneration
         public static string Documentation => nameof(Documentation);
         public static string EmitDefaultValue => nameof(EmitDefaultValue);
         public static string EncodingMaskModifier => nameof(EncodingMaskModifier);
+        public static string EncodingMaskFieldNamesModifier =>
+            nameof(EncodingMaskFieldNamesModifier);
+        public static string EncodingMaskEncode => nameof(EncodingMaskEncode);
+        public static string EncodingMaskDecode => nameof(EncodingMaskDecode);
         public static string EnumerationName => nameof(EnumerationName);
         public static string EventNotifier => nameof(EventNotifier);
         public static string FieldIndex => nameof(FieldIndex);
@@ -201,6 +205,13 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfOptionalChildNodeStates => nameof(ListOfOptionalChildNodeStates);
         public static string ListOfReferences => nameof(ListOfReferences);
         public static string NodeIdConstant => nameof(NodeIdConstant);
+
+        public static string EventFilterParameters => nameof(EventFilterParameters);
+
+        public static string EventFilterParameterDocumentation =>
+            nameof(EventFilterParameterDocumentation);
+
+        public static string EventTypeId => nameof(EventTypeId);
         public static string InstanceNodeIdOverride => nameof(InstanceNodeIdOverride);
         public static string ListOfInstanceNodeIdBranches => nameof(ListOfInstanceNodeIdBranches);
         public static string ParentNodeIdConstant => nameof(ParentNodeIdConstant);

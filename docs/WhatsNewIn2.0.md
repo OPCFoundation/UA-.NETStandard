@@ -100,7 +100,7 @@ library hangs its own `.AddXxx(...)` extension off it. Servers run as
 `Action<T>` or `IConfiguration`; identity providers, certificate manager,
 secret store, file system, historian, alarms, and the GDS extensions all
 register through the same builder. Alongside DI, a
-[source-generated fluent server API](SourceGeneratedNodeManagers.md) lets
+[source-generated fluent server API](NodeManagers.md#source-generated-node-managers) lets
 applications stand up a server from a model design XML with a few
 `.AddXxx().WithYyy()` calls; the
 [`ManagedSession`](Sessions.md#3-managedsession--the-connection-state-machine-facade)
@@ -121,7 +121,7 @@ library.
 
 The new source-generation pipeline emits the typical OPC UA boilerplate
 from model design XML rather than hand-written code. The
-[NodeManager generator](SourceGeneratedNodeManagers.md) produces a fully
+[NodeManager generator](NodeManagers.md#source-generated-node-managers) produces a fully
 async, fluent NodeManager skeleton plus typed `*State` properties for every
 node; the [DataType generator](SourceGeneratedDataTypes.md) emits
 `IEncodeable` implementations from POCO classes; and a new generator emits
@@ -179,6 +179,21 @@ server- and client-side implementations:
   sub-type extensions, lock service, software-update package store, and
   client helpers. See [Device Integration](DeviceIntegration.md) and
   [Software Update](SoftwareUpdate.md).
+- **Parts 210 and 211 — Relative Spatial Location and Global Positioning**:
+  source-generated released RSL/GPOS models, standalone and composed server
+  hosting, technology-neutral position providers, typed clients and streams,
+  frame-chain resolution, WGS84/ENU conversion, and rigid/similarity/affine
+  Zone fitting. The robot/OpenUSD sample publishes independently configurable
+  mobile robot poses. See [Positioning](Positioning.md).
+- **OPC 40010-1 — Robotics** (over **OPC 40001-1 — Industrial Automation**):
+  the `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client`
+  library trio over Device Integration, with source-generated Robotics 1.02
+  and IA models, `AddRobotics` / `ConfigureRobotics` hosting, ordered model
+  providers, and validated fluent topology builders that assemble motion
+  device systems, controllers, motion devices, axes, power trains, motors,
+  gears, drives, safety states, and task controls with the correct
+  companion-spec references. See [Robotics](Robotics.md), including the draft
+  Robot Intent task-level command model.
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a
@@ -232,6 +247,21 @@ is bridge-compatible with legacy .NET / OPC UA implementations. The server
 ships with [client lockout](RoleBasedUserManagement.md) for failed
 authentication attempts, and `SubCA` revocation no longer auto-creates an
 empty CRL on the issuing CA.
+
+Cryptography is now pluggable. A [`CryptoProvider`](CryptoProvider.md) model
+lets an application route cryptographic operations to another library, an
+offboard service or hardware, chosen per purpose and per security policy and
+injected through `AddCryptoProvider(…)`. The default is unchanged and costs
+nothing: everything resolves to platform cryptography until something is bound.
+Private keys no longer have to be owned by the certificate — a key can be held
+detached, in a TPM, a smart card or an HSM, and never enter process memory.
+`Certificate.CopyWithDetachedPrivateKey` is the seam that makes this work on
+every platform, which `X509Certificate2.CopyWithPrivateKey` does not.
+The optional `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package adds a
+PKCS#11 certificate store addressed by RFC 7512 `pkcs11:` URIs. Which
+cryptographic module performed an operation, and whether it carries any
+validation, is auditable through logs, metrics and the address space, and can
+be constrained with a compliance policy.
 
 ## By layer
 
@@ -418,7 +448,10 @@ loggers, meters, and activities all hang off the same context object, and
 log redaction is wired through the audit APIs. Tests have been
 reorganised for faster CI, with several integration suites separated from
 unit suites, and code-coverage gates apply to all non-test, non-application
-projects.
+projects. Those gates now run inside the pipeline itself - an absolute
+project floor plus a changed-lines check - instead of relying on an external
+coverage service; see
+[Continuous integration](DeveloperGuide.md#continuous-integration).
 
 ## Further reading
 
@@ -436,7 +469,7 @@ projects.
 - [Dependency Injection](DependencyInjection.md),
   [Native AOT](NativeAoT.md),
   [Diagnostics](Diagnostics.md),
-  [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md),
+  [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers),
   [Source-Generated DataTypes](SourceGeneratedDataTypes.md).
 - Companion specs:
   [Alarms and Conditions](AlarmsAndConditions.md),
@@ -445,6 +478,7 @@ projects.
   [State Machines](StateMachines.md),
   [Alias Names](AliasNames.md),
   [Device Integration](DeviceIntegration.md),
+  [Relative Spatial Location and Global Positioning](Positioning.md),
   [Software Update](SoftwareUpdate.md),
   [WoT Connectivity](WoTConnectivity.md),
   [Subscriptions and Monitored Items](Subscriptions.md),

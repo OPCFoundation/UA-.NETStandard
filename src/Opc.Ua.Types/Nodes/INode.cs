@@ -71,12 +71,6 @@ namespace Opc.Ua
     public interface ILocalNode : INode
     {
         /// <summary>
-        /// A synchronization object that can be used to safely access the node.
-        /// </summary>
-        /// <value>The data lock.</value>
-        object DataLock { get; }
-
-        /// <summary>
         /// A handle assigned to the node.
         /// </summary>
         /// <value>The handle.</value>

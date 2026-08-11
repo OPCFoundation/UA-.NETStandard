@@ -57,6 +57,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
             "SharpPcap requires dynamic native libpcap/Npcap loading and is not NativeAOT/trimming safe.";
 
         private readonly ILogger m_logger;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private readonly Lock m_lock = new();
 
         private LibPcapLiveDevice? m_device;
@@ -82,6 +83,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
         {
             ILoggerFactory factory = loggerFactory ?? NullLoggerFactory.Instance;
             m_logger = factory.CreateLogger<NicCaptureSource>();
+            m_backgroundWork = new BackgroundTaskScope(nameof(NicCaptureSource));
         }
 
         /// <inheritdoc/>
@@ -271,6 +273,10 @@ namespace Opc.Ua.Pcap.Capture.Sources
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            // A best-effort device stop may already be running against the same
+            // handle StopAsync is about to close.
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+
             try
             {
                 await StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -380,7 +386,13 @@ namespace Opc.Ua.Pcap.Capture.Sources
             if (bytes > m_maxBytes || frames > m_maxFrames || DateTimeOffset.UtcNow - m_startedAt > m_maxDuration)
             {
                 m_stopRequested = true;
-                _ = Task.Run(StopDeviceCaptureBestEffort);
+                m_backgroundWork.Run(
+                    nameof(StopDeviceCaptureBestEffort),
+                    _ =>
+                    {
+                        StopDeviceCaptureBestEffort();
+                        return default;
+                    });
             }
         }
 

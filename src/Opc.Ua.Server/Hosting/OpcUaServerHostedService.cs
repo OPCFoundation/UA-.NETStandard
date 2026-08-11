@@ -40,6 +40,7 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Schema;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.Historian;
 
@@ -65,6 +66,7 @@ namespace Opc.Ua.Server.Hosting
         private readonly IEnumerable<KeyCredentialPushSubject> m_keyCredentialPushSubjects;
         private readonly IServiceProvider m_services;
         private readonly IOpcUaServerFactory m_serverFactory;
+        private readonly HostedNodeManagerLifecycle m_nodeManagerLifecycle;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; it is owned either
@@ -86,6 +88,7 @@ namespace Opc.Ua.Server.Hosting
             IEnumerable<KeyCredentialPushSubject> keyCredentialPushSubjects,
             IServiceProvider services,
             IOpcUaServerFactory serverFactory,
+            HostedNodeManagerLifecycle nodeManagerLifecycle,
             ILogger<OpcUaServerHostedService> logger,
             TimeProvider? timeProvider = null)
         {
@@ -113,6 +116,8 @@ namespace Opc.Ua.Server.Hosting
                 throw new ArgumentNullException(nameof(keyCredentialPushSubjects));
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_serverFactory = serverFactory ?? throw new ArgumentNullException(nameof(serverFactory));
+            m_nodeManagerLifecycle = nodeManagerLifecycle ??
+                throw new ArgumentNullException(nameof(nodeManagerLifecycle));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
@@ -165,6 +170,7 @@ namespace Opc.Ua.Server.Hosting
                 m_services.GetService<ServerComplexTypeOptions>();
 
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
+            m_nodeManagerLifecycle.Attach(m_server.NodeManagerLifecycle);
 
             // Complex-type loading is on by default (StandardServer.LoadComplexTypes);
             // build and register stand-in encodeables for runtime-loaded custom
@@ -422,7 +428,7 @@ namespace Opc.Ua.Server.Hosting
                 configuration.SecurityConfiguration,
                 configuration.ApplicationUri,
                 ct).ConfigureAwait(false);
-            using var certificates =
+            using CertificateEntryCollection certificates =
                 certificateManager.SnapshotApplicationCertificates();
             return certificates.Count > 0;
         }
@@ -473,6 +479,11 @@ namespace Opc.Ua.Server.Hosting
         {
             await base.StopAsync(cancellationToken).ConfigureAwait(false);
 
+            if (m_server is not null)
+            {
+                m_nodeManagerLifecycle.Detach(m_server.NodeManagerLifecycle);
+            }
+
             if (m_application != null)
             {
                 m_logger.StoppingOPCUAServer();
@@ -497,10 +508,13 @@ namespace Opc.Ua.Server.Hosting
 
         public override void Dispose()
         {
+            if (m_server is not null)
+            {
+                m_nodeManagerLifecycle.Detach(m_server.NodeManagerLifecycle);
+            }
             m_server?.Dispose();
             base.Dispose();
         }
-
     }
 
     /// <summary>
@@ -533,5 +547,4 @@ namespace Opc.Ua.Server.Hosting
             Message = "Error while stopping OPC UA server.")]
         public static partial void ErrorWhileStoppingOPCUAServer(this ILogger logger, Exception ex);
     }
-
 }

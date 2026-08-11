@@ -838,6 +838,21 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the reusable binder that backs existing FileDirectoryType nodes with file-system providers.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddFileDirectoryBinder(this IOpcUaServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<IFileDirectoryBinder, FileDirectoryBinder>();
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a fluent node manager built from a namespace URI and configuration callback.
         /// </summary>
         /// <param name="builder">The server builder.</param>
@@ -1283,6 +1298,9 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddHostedService<OpcUaServerHostedService>();
             services.AddOpcUa().AddApplicationInstance();
             services.TryAddSingleton<IOpcUaServerFactory, DefaultOpcUaServerFactory>();
+            services.TryAddSingleton<HostedNodeManagerLifecycle>();
+            services.TryAddSingleton<INodeManagerLifecycle>(services =>
+                services.GetRequiredService<HostedNodeManagerLifecycle>());
             RegisterFallbackAnonymousAuthenticator(services);
         }
 

@@ -34,6 +34,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 
 namespace Opc.Ua.WotCon.Server.Assets
@@ -186,7 +187,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                     m_options.MaxOpenFileHandlesPerAsset,
                     m_options.MaxThingDescriptionSize,
                     (td, token) => RebuildAsync(entry, td, persistOnSuccess: true, token),
-                    m_logger);
+                    m_logger,
+                    m_manager.EnforceManagementAccess);
 
                 lock (m_byName)
                 {
@@ -237,6 +239,7 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 await m_manager.DeleteAssetNodeAsync(entry.Asset, ct).ConfigureAwait(false);
                 DeleteTdFromDisk(entry.Name);
+                await RemoveFromRegistryAsync(entry.Name, ct).ConfigureAwait(false);
                 return ServiceResult.Good;
             }
             finally
@@ -286,6 +289,23 @@ namespace Opc.Ua.WotCon.Server.Assets
                     inner => m_options.Discovery.CreateThingDescriptionAsync(
                         assetName, normalizedEndpoint!.AbsoluteUri, inner),
                     ct).ConfigureAwait(false);
+
+                // §11 requires a Thing Description auto-generated from a
+                // caller-chosen endpoint to be treated as untrusted input,
+                // subject to the same Wot-Con 1.02 format validation an
+                // uploaded document gets, and to materialize nothing when it
+                // fails. The provider is pluggable and the endpoint it dialled
+                // was chosen by the caller, so neither is a trusted source.
+                if (!ThingDescriptionFormatValidator.HasIdentifyingMember(td))
+                {
+                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                    m_logger.GeneratedThingDescriptionFailedFormatValidation(assetName);
+                    return (ServiceResult.Create(StatusCodes.BadDecodingError,
+                        "The Thing Description generated for this endpoint is not a Thing " +
+                        "Description: it must carry a 'name' or 'title'."),
+                        NodeId.Null);
+                }
+
                 AssetEntry entry = FindByNodeId(assetId)
                     ?? throw new InvalidOperationException("Asset disappeared after creation.");
 
@@ -342,7 +362,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 IReadOnlyList<string> endpoints = await m_options.Discovery.DiscoverAsync(ct)
                     .ConfigureAwait(false);
-                return (ServiceResult.Good, endpoints);
+                return (ServiceResult.Good, FilterDiscoveredEndpoints(endpoints));
             }
             catch (NotSupportedException ex)
             {
@@ -509,8 +529,14 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 if (entry.Provider != null)
                 {
+                    // Retire the outgoing generation before the provider goes
+                    // away so an occurrence still in flight is dropped rather
+                    // than reported against an event type about to be removed.
+                    entry.EventGeneration = new object();
+
                     try
                     {
+                        await UnsubscribeEventsAsync(entry, entry.Provider, ct).ConfigureAwait(false);
                         await entry.Provider.DisposeAsync().ConfigureAwait(false);
                     }
                     catch (Exception ex)
@@ -564,6 +590,37 @@ namespace Opc.Ua.WotCon.Server.Assets
                         BuildActionNode(entry, kv.Key, kv.Value);
                     }
                 }
+                if (td.Events != null)
+                {
+                    var seen = new HashSet<string>(
+                        StringComparer.Ordinal);
+                    foreach (KeyValuePair<string, WotEvent> kv
+                        in td.Events)
+                    {
+                        if (!TryValidateChildName(entry.Name, "event", kv.Key))
+                        {
+                            continue;
+                        }
+                        if (!seen.Add(kv.Key))
+                        {
+                            m_logger.SkippingDuplicateTdEvent(
+                                WotChildNameValidator.SanitiseForLog(kv.Key),
+                                entry.Name);
+                            continue;
+                        }
+                        BuildEventNode(entry, kv.Key, kv.Value);
+                    }
+                }
+
+                if (entry.Events.Count > 0)
+                {
+                    // The asset raises every occurrence for the lifetime of
+                    // the TD generation; the server's subscription machinery
+                    // decides which clients receive it, so there is no
+                    // per-monitored-item subscribe/unsubscribe here.
+                    await m_manager.EnableAssetEventsAsync(entry.Asset, ct).ConfigureAwait(false);
+                    await SubscribeEventsAsync(entry, ct).ConfigureAwait(false);
+                }
 
                 if (!string.IsNullOrEmpty(td.Base))
                 {
@@ -574,10 +631,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.Asset.ClearChangeMasks(m_manager.SystemContext, includeChildren: true);
 
                 if (persistOnSuccess)
-
                 {
                     PersistTdToDisk(entry.Name, td);
                 }
+
+                await MirrorToRegistryAsync(entry.Name, td, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -599,6 +657,12 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.Asset.RemoveChild(kv.Value.Method);
             }
             entry.Actions.Clear();
+
+            // Event types are not children of the asset object; they are
+            // owned by the node manager, so only the tag map is cleared here
+            // and the type nodes are dropped by RemoveEventTypes.
+            RemoveEventTypes(entry);
+            entry.Events.Clear();
         }
 
         /// <summary>
@@ -641,7 +705,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 BrowseName = new QualifiedName(name, ns),
                 DisplayName = new LocalizedText(property.Title ?? name),
                 Description = property.Description != null ? new LocalizedText(property.Description) : LocalizedText.Null,
-                DataType = mapped ? dataType : DataTypeIds.BaseDataType,
+                DataType = mapped ? dataType : Ua.DataTypeIds.BaseDataType,
                 ValueRank = mapped ? valueRank : ValueRanks.Scalar,
                 AccessLevel = property.ReadOnly ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite,
                 UserAccessLevel = property.ReadOnly ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite,
@@ -721,7 +785,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_in");
                 inputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.InputArguments);
                 inputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.InputArguments);
-                inputProperty.DataType = DataTypeIds.Argument;
+                inputProperty.DataType = Ua.DataTypeIds.Argument;
                 inputProperty.ValueRank = ValueRanks.OneDimension;
                 inputProperty.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
                 inputProperty.TypeDefinitionId = VariableTypeIds.PropertyType;
@@ -741,7 +805,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_out");
                 outputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.OutputArguments);
                 outputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.OutputArguments);
-                outputProperty.DataType = DataTypeIds.Argument;
+                outputProperty.DataType = Ua.DataTypeIds.Argument;
                 outputProperty.ValueRank = ValueRanks.OneDimension;
                 outputProperty.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
                 outputProperty.TypeDefinitionId = VariableTypeIds.PropertyType;
@@ -763,6 +827,209 @@ namespace Opc.Ua.WotCon.Server.Assets
                 InvokeActionAsync(entry, tag, inputArguments, outputArguments, ct);
 
             entry.Actions[nodeId] = (method, tag);
+        }
+
+        /// <summary>
+        /// Materialises a TD event affordance as an OPC UA EventType
+        /// (OPC 10100-1 §6.3.10) whose fields come from the event's
+        /// <c>data</c> schema, and makes the owning asset a notifier for it.
+        /// </summary>
+        private void BuildEventNode(AssetEntry entry, string name, WotEvent evt)
+        {
+            ushort ns = m_manager.AssetNamespaceIndex;
+            NodeId eventTypeId = m_manager.AllocateChildNodeId(entry.Name, "events", name);
+
+            var eventType = new BaseObjectTypeState
+            {
+                SymbolicName = name,
+                NodeId = eventTypeId,
+                BrowseName = new QualifiedName(name, ns),
+                DisplayName = new LocalizedText(evt.Title ?? name),
+                Description = evt.Description != null
+                    ? new LocalizedText(evt.Description)
+                    : LocalizedText.Null,
+                SuperTypeId = Ua.ObjectTypeIds.BaseEventType,
+                IsAbstract = false
+            };
+            eventType.AddReference(
+                Ua.ReferenceTypeIds.HasSubtype, isInverse: true, Ua.ObjectTypeIds.BaseEventType);
+
+            IReadOnlyList<Argument> fields = WotActionMapper.BuildArguments(evt.Data);
+            foreach (Argument field in fields)
+            {
+                var property = new PropertyState(eventType)
+                {
+                    NodeId = m_manager.AllocateChildNodeId(
+                        entry.Name, "events", $"{name}_{field.Name}"),
+                    BrowseName = new QualifiedName(field.Name, ns),
+                    DisplayName = new LocalizedText(field.Name),
+                    Description = field.Description,
+                    DataType = field.DataType,
+                    ValueRank = field.ValueRank,
+                    ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty,
+                    TypeDefinitionId = VariableTypeIds.PropertyType,
+                    ModellingRuleId = Ua.ObjectIds.ModellingRule_Mandatory
+                };
+                eventType.AddChild(property);
+            }
+
+            // The asset object notifies the event, so a client subscribing to
+            // the asset (or to the Server object) receives it.
+            entry.Asset.AddReference(
+                Ua.ReferenceTypeIds.GeneratesEvent, isInverse: false, eventTypeId);
+
+            m_manager.AddEventTypeNode(eventType);
+
+            JsonElement? form = evt.Forms?.Count > 0 ? evt.Forms[0] : null;
+            ushort severity = NormaliseSeverity(evt.Severity);
+            var tag = new WotEventTag(
+                name, eventTypeId, entry.Asset.NodeId, fields, severity, form);
+
+            entry.Events[eventTypeId] = (eventType, tag);
+        }
+
+        /// <summary>
+        /// Clamps an authored severity into the OPC 10000-5 1..1000 range,
+        /// defaulting to 500 when the TD omits it. An out-of-range authored
+        /// value is clamped rather than rejected so one bad event definition
+        /// cannot fail the whole asset.
+        /// </summary>
+        private static ushort NormaliseSeverity(ushort? severity)
+        {
+            if (severity is null or 0)
+            {
+                return 500;
+            }
+            return severity.Value > 1000 ? (ushort)1000 : severity.Value;
+        }
+
+        /// <summary>
+        /// Drops the EventTypes materialised for an asset's previous TD
+        /// generation, including the asset's <c>GeneratesEvent</c> references
+        /// to them, so a re-applied TD does not accumulate stale event types.
+        /// </summary>
+        private void RemoveEventTypes(AssetEntry entry)
+        {
+            foreach (KeyValuePair<NodeId, (BaseObjectTypeState _, WotEventTag Tag)> kv in entry.Events)
+            {
+                entry.Asset.RemoveReference(
+                    Ua.ReferenceTypeIds.GeneratesEvent, isInverse: false, kv.Key);
+                m_manager.RemoveEventTypeNode(kv.Key);
+            }
+        }
+
+        /// <summary>
+        /// Subscribes the asset's provider to every materialised event
+        /// affordance. A provider that fails one subscription is logged and
+        /// the remaining affordances are still attempted, so one unsupported
+        /// event does not silence the rest.
+        /// </summary>
+        private async ValueTask SubscribeEventsAsync(AssetEntry entry, CancellationToken ct)
+        {
+            IWotAssetProvider? provider = entry.Provider;
+            if (provider == null)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<NodeId, (BaseObjectTypeState _, WotEventTag Tag)> kv in entry.Events)
+            {
+                WotEventTag tag = kv.Value.Tag;
+                object generation = entry.EventGeneration;
+                void OnEvent(
+                    WotEventTag t,
+                    IReadOnlyList<Variant> fields,
+                    LocalizedText? message,
+                    ushort? severity,
+                    DateTime timestamp)
+                {
+                    ReportWotEvent(entry, generation, t, fields, message, severity, timestamp);
+                }
+
+                try
+                {
+                    await provider
+                        .SubscribeEventAsync(tag, EventSubscriberId, OnEvent, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+                {
+                    m_logger.EventSubscribeFailed(ex, entry.Name, tag.Name);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Stops the provider's event subscriptions for the outgoing Thing
+        /// Description generation. A provider that outlives the generation
+        /// (for example a pooled or shared connection) would otherwise keep
+        /// pushing occurrences for event types that no longer exist.
+        /// </summary>
+        private async ValueTask UnsubscribeEventsAsync(
+            AssetEntry entry,
+            IWotAssetProvider provider,
+            CancellationToken ct)
+        {
+            foreach (KeyValuePair<NodeId, (BaseObjectTypeState _, WotEventTag Tag)> kv in entry.Events)
+            {
+                try
+                {
+                    await provider
+                        .UnsubscribeEventAsync(kv.Value.Tag, EventSubscriberId, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+                {
+                    m_logger.EventUnsubscribeFailed(ex, entry.Name, kv.Value.Tag.Name);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reports a provider-raised WoT event occurrence on the asset that
+        /// notifies it.
+        /// </summary>
+        private void ReportWotEvent(
+            AssetEntry entry,
+            object generation,
+            WotEventTag tag,
+            IReadOnlyList<Variant> fields,
+            LocalizedText? message,
+            ushort? severity,
+            DateTime timestamp)
+        {
+            if (!ReferenceEquals(generation, entry.EventGeneration))
+            {
+                // The Thing Description this subscription belongs to has been
+                // replaced; the event type it names no longer exists.
+                return;
+            }
+
+            ISystemContext context = m_manager.SystemContext;
+
+            var e = new BaseEventState(null);
+            e.Initialize(
+                context,
+                source: entry.Asset,
+                EventSeverity.Medium,
+                message ?? new LocalizedText(tag.Name));
+
+            e.SetChildValue(context, Ua.BrowseNames.EventType, tag.EventTypeId, false);
+            e.SetChildValue(context, Ua.BrowseNames.SourceNode, entry.Asset.NodeId, false);
+            e.SetChildValue(context, Ua.BrowseNames.SourceName, entry.Name, false);
+            e.SetChildValue(context, Ua.BrowseNames.Time, new DateTimeUtc(timestamp), false);
+            e.SetChildValue(context, Ua.BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
+            e.SetChildValue(
+                context, Ua.BrowseNames.Severity, NormaliseSeverity(severity ?? tag.Severity), false);
+
+            int count = Math.Min(fields.Count, tag.Fields.Count);
+            for (int i = 0; i < count; i++)
+            {
+                e.SetChildValue(context, new QualifiedName(
+                    tag.Fields[i].Name, m_manager.AssetNamespaceIndex), fields[i], false);
+            }
+
+            entry.Asset.ReportEvent(context, e);
         }
 
         private async ValueTask<AttributeSimpleReadResult> ReadFromProviderAsync(
@@ -899,6 +1166,69 @@ namespace Opc.Ua.WotCon.Server.Assets
             catch (Exception ex)
             {
                 m_logger.FailedToDeleteTd(ex, name);
+            }
+        }
+
+        private async ValueTask MirrorToRegistryAsync(
+            string name, ThingDescription td, CancellationToken ct)
+        {
+            IWotRegistryService? registry = m_options.RegistryBridge;
+            if (registry is null)
+            {
+                return;
+            }
+
+            try
+            {
+                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(
+                    td,
+                    ThingDescriptionJsonContext.Default.ThingDescription);
+                WotRegistryMutationResult result = await registry.UpsertResourceAsync(
+                    new WotUpsertResourceRequest
+                    {
+                        GroupId = m_options.RegistryBridgeGroupId,
+                        ResourceId = name,
+                        Kind = WoTDocumentKindEnum.ThingDescription,
+                        Content = ByteString.From(bytes),
+                        ContentType = "application/td+json",
+                        Format = "WoT-TD/1.1",
+                        Name = name,
+                        SetAsDefault = true
+                    },
+                    ct).ConfigureAwait(false);
+                if (result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed)
+                {
+                    m_logger.RegistryBridgeMirrorRejected(name, result.Outcome, result.Message);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.RegistryBridgeMirrorFailed(ex, name);
+            }
+        }
+
+        private async ValueTask RemoveFromRegistryAsync(string name, CancellationToken ct)
+        {
+            IWotRegistryService? registry = m_options.RegistryBridge;
+            if (registry is null)
+            {
+                return;
+            }
+
+            try
+            {
+                WotRegistryMutationResult result = await registry.DeleteResourceAsync(
+                    m_options.RegistryBridgeGroupId,
+                    name,
+                    cancellationToken: ct).ConfigureAwait(false);
+                if (result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed)
+                {
+                    m_logger.RegistryBridgeDeleteRejected(name, result.Outcome, result.Message);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.RegistryBridgeDeleteFailed(ex, name);
             }
         }
 
@@ -1076,6 +1406,44 @@ namespace Opc.Ua.WotCon.Server.Assets
         }
 
         /// <summary>
+        /// Applies the asset-endpoint policy to the endpoints discovery returned.
+        /// </summary>
+        /// <remarks>
+        /// WoT Connectivity §11 requires the same allowlist, trust policy and
+        /// size limits that guard a caller-supplied <c>AssetEndpoint</c> to
+        /// apply to the endpoints <c>DiscoverAssets</c> probes, because it
+        /// probes on the server's own initiative and returns the outcome to the
+        /// caller. Handing back an endpoint the policy forbids would make the
+        /// server a network probe for a caller that could not reach it directly.
+        /// </remarks>
+        /// <param name="endpoints">The endpoints discovery reported.</param>
+        /// <returns>The endpoints the policy permits.</returns>
+        private IReadOnlyList<string> FilterDiscoveredEndpoints(
+            IReadOnlyList<string> endpoints)
+        {
+            if (endpoints.Count == 0)
+            {
+                return endpoints;
+            }
+            var permitted = new List<string>(endpoints.Count);
+            foreach (string endpoint in endpoints)
+            {
+                if (ServiceResult.IsGood(AssetEndpointValidator.Validate(
+                        endpoint, m_options.AssetEndpointPolicy, out Uri? normalized)) &&
+                    normalized is not null)
+                {
+                    permitted.Add(normalized.AbsoluteUri);
+                }
+            }
+            if (permitted.Count != endpoints.Count)
+            {
+                m_logger.DiscoveredEndpointsFilteredByPolicy(
+                    endpoints.Count - permitted.Count);
+            }
+            return permitted;
+        }
+
+        /// <summary>
         /// Returns the conventional WoT status code for the supplied
         /// exception. Mapping:
         ///   <see cref="NotSupportedException"/>       => Bad_NotSupported
@@ -1096,6 +1464,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             };
         }
 
+        /// <summary>
+        /// The single subscriber id the registry uses for provider event
+        /// subscriptions: the asset raises every occurrence for the lifetime
+        /// of the TD generation rather than once per interested client.
+        /// </summary>
+        private const uint EventSubscriberId = 0;
+
         private readonly WotConnectivityNodeManager m_manager;
         private readonly WotConnectivityServerOptions m_options;
         private readonly ILogger m_logger;
@@ -1106,6 +1481,20 @@ namespace Opc.Ua.WotCon.Server.Assets
 
     internal static partial class AssetRegistryLog
     {
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 37, Level = LogLevel.Warning,
+            Message = "Skipping duplicate TD event '{ChildName}' for asset {AssetName}.")]
+        public static partial void SkippingDuplicateTdEvent(this ILogger logger, string childName, string assetName);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 38, Level = LogLevel.Warning,
+            Message = "Failed to subscribe asset {AssetName} event '{EventName}'.")]
+        public static partial void EventSubscribeFailed(
+            this ILogger logger, Exception exception, string assetName, string eventName);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 39, Level = LogLevel.Warning,
+            Message = "Failed to unsubscribe asset {AssetName} event '{EventName}'.")]
+        public static partial void EventUnsubscribeFailed(
+            this ILogger logger, Exception exception, string assetName, string eventName);
+
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 0, Level = LogLevel.Warning,
             Message = "Provider for asset {AssetName} threw on disposal")]
         public static partial void ProviderForAssetThrewOnDisposal(this ILogger logger, Exception ex, string assetName);
@@ -1140,6 +1529,17 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 6, Level = LogLevel.Error,
             Message = "DiscoverAssets failed")]
         public static partial void DiscoverAssetsFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 35, Level = LogLevel.Warning,
+            Message = "DiscoverAssets withheld {Count} endpoint(s) the asset endpoint policy forbids")]
+        public static partial void DiscoveredEndpointsFilteredByPolicy(
+            this ILogger logger, int count);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 36, Level = LogLevel.Warning,
+            Message = "Thing description generated for asset {AssetName} failed format validation " +
+                "and materialized nothing")]
+        public static partial void GeneratedThingDescriptionFailedFormatValidation(
+            this ILogger logger, string assetName);
 
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 7, Level = LogLevel.Warning,
             Message = "ConnectionTest rejected by AssetEndpointPolicy: {Status}")]
@@ -1257,5 +1657,29 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 30, Level = LogLevel.Warning,
             Message = "Provider for asset {AssetName} threw on shutdown")]
         public static partial void ProviderForAssetThrewOnShutdown(this ILogger logger, Exception ex, string assetName);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 31, Level = LogLevel.Warning,
+            Message = "Registry bridge rejected mirrored Thing Description for asset {AssetName}: {Outcome} {Message}")]
+        public static partial void RegistryBridgeMirrorRejected(
+            this ILogger logger,
+            string assetName,
+            WoTOutcomeEnum outcome,
+            string message);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 32, Level = LogLevel.Warning,
+            Message = "Registry bridge failed to mirror Thing Description for asset {AssetName}")]
+        public static partial void RegistryBridgeMirrorFailed(this ILogger logger, Exception ex, string assetName);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 33, Level = LogLevel.Warning,
+            Message = "Registry bridge rejected resource delete for asset {AssetName}: {Outcome} {Message}")]
+        public static partial void RegistryBridgeDeleteRejected(
+            this ILogger logger,
+            string assetName,
+            WoTOutcomeEnum outcome,
+            string message);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 34, Level = LogLevel.Warning,
+            Message = "Registry bridge failed to delete resource for asset {AssetName}")]
+        public static partial void RegistryBridgeDeleteFailed(this ILogger logger, Exception ex, string assetName);
     }
 }

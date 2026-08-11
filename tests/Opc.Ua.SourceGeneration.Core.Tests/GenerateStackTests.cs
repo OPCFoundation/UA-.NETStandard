@@ -95,7 +95,10 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             using var xmlStream = new MemoryStream();
             bool success = optimizationLevel
                 .CreateCompilation()
-                .AddCode(generatedText.WithOpcUaCoreStubs(), LanguageVersion.Latest) // Only support latest - internal use only
+                .AddCode(
+                    generatedText.WithOpcUaCoreStubs(
+                        includeBaseEventTypeRecord: false),
+                    LanguageVersion.Latest) // Only support latest - internal use only
                 .WithAnalyzers(withAnalyzers, out CompilationWithAnalyzers compilationWithAnalyzers)
                 .Emit(peStream, xmlDocumentationStream: xmlStream)
                 .Check(TestContext.Out, out int errorCount, out int warnCount);
@@ -173,7 +176,10 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             using var xmlStream = new MemoryStream();
             bool success = optimizationLevel
                 .CreateCompilation("Opc.Ua.Test")
-                .AddCode(generatedText.WithOpcUaCoreStubs(), LanguageVersion.Latest)
+                .AddCode(
+                    generatedText.WithOpcUaCoreStubs(
+                        includeBaseEventTypeRecord: false),
+                    LanguageVersion.Latest)
                 .Emit(peStream, xmlDocumentationStream: xmlStream)
                 .Check(TestContext.Out, out int errorCount, out int warnCount);
         }

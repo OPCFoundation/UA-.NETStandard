@@ -2428,7 +2428,13 @@ namespace Opc.Ua.Server.Tests
             var errors = new List<ServiceResult> { null };
             var operationContext = new OperationContext(new RequestHeader(), null, RequestType.TransferSubscriptions, RequestLifetime.None);
 
-            await manager.TransferMonitoredItemsAsync(operationContext, true, monitoredItems, processed, errors).ConfigureAwait(false);
+            await manager.TransferMonitoredItemsAsync(
+                operationContext,
+                true,
+                monitoredItems,
+                processed,
+                errors,
+                new MonitoredItemTransferOptions()).ConfigureAwait(false);
 
             Assert.That(processed[0], Is.True);
             Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
@@ -2445,7 +2451,13 @@ namespace Opc.Ua.Server.Tests
             var syncErrors = new List<ServiceResult> { null };
             var syncItems = new List<IMonitoredItem> { secondItem };
 
-            syncManager.TransferMonitoredItems(operationContext, true, syncItems, syncProcessed, syncErrors);
+            syncManager.TransferMonitoredItems(
+                operationContext,
+                true,
+                syncItems,
+                syncProcessed,
+                syncErrors,
+                new MonitoredItemTransferOptions());
 
             Assert.That(syncProcessed[0], Is.True);
             Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
@@ -4689,9 +4701,29 @@ namespace Opc.Ua.Server.Tests
 
         public new ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => base.MonitoredItems;
 
+        public Func<bool, CancellationToken, ValueTask> EventSubscriptionCallback { get; set; } = null!;
+
+        public Func<NodeState, CancellationToken, ValueTask> NodeRemovedCallback { get; set; } = null!;
+
         public ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
             return AddRootNotifierAsync(notifier, cancellationToken);
+        }
+
+        protected override ValueTask OnSubscribeToEventsAsync(
+            ServerSystemContext context,
+            MonitoredNode2 monitoredNode,
+            bool unsubscribe,
+            CancellationToken cancellationToken = default)
+        {
+            return EventSubscriptionCallback?.Invoke(unsubscribe, cancellationToken) ?? default;
+        }
+
+        protected override ValueTask OnNodeRemovedAsync(
+            NodeState node,
+            CancellationToken cancellationToken = default)
+        {
+            return NodeRemovedCallback?.Invoke(node, cancellationToken) ?? default;
         }
 
         public ValueTask AddPredefinedNodeWithExternalReferencesAsync(
@@ -4924,6 +4956,10 @@ namespace Opc.Ua.Server.Tests
     {
         public bool IsRestored { get; set; }
 
+        public bool IsDeleted { get; set; }
+
+        public bool IsDetached { get; set; }
+
         public bool AlwaysReportUpdates { get; set; }
 
         public uint AttributeId { get; set; }
@@ -5138,9 +5174,26 @@ namespace Opc.Ua.Server.Tests
         public new NodeIdDictionary<MonitoredNode2> MonitoredNodes => base.MonitoredNodes;
         public new ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => base.MonitoredItems;
 
+        public Action<bool> EventSubscriptionCallback { get; set; } = null!;
+
+        public Action<NodeState> NodeRemovedCallback { get; set; } = null!;
+
         public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
         {
             AddPredefinedNode(context, node);
+        }
+
+        protected override void OnSubscribeToEvents(
+            ServerSystemContext context,
+            MonitoredNode2 monitoredNode,
+            bool unsubscribe)
+        {
+            EventSubscriptionCallback?.Invoke(unsubscribe);
+        }
+
+        protected override void OnNodeRemoved(NodeState node)
+        {
+            NodeRemovedCallback?.Invoke(node);
         }
 
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)
@@ -5626,10 +5679,11 @@ namespace Opc.Ua.Server.Tests
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
             return m_adapter.TransferMonitoredItemsAsync(
-                        context, sendInitialValues, monitoredItems, processedItems, errors, cancellationToken);
+                        context, sendInitialValues, monitoredItems, processedItems, errors, transferOptions, cancellationToken);
         }
 
         public ValueTask SessionClosingAsync(

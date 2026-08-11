@@ -4,7 +4,7 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
 [![Build](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
 [![Tests](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/14/master?style=plastic&label=Tests)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=14&contextType=build)
-[![Coverage](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master/graph/badge.svg?token=vDf5AnilUt)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard)
+[![Coverage](https://img.shields.io/azure-devops/coverage/opcfoundation/opcua-netstandard/14/master?style=plastic&label=Coverage)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
 
 > 🆕 **This is version 2.0 of the OPC UA .NET Standard Stack (current `master`).**
 >
@@ -22,7 +22,7 @@ across industrial control, manufacturing, energy, and IoT systems.
 ## 📦 What it is
 
 - **A full-stack OPC UA implementation** — Core / Client / Server /
-  PubSub / GDS / LDS / Complex Types / Device Integration libraries
+  PubSub / GDS / LDS / Complex Types / Device Integration / Positioning libraries
   built on .NET, with UA-TCP and HTTPS transports.
 - **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
   .NET Framework 4.8, and .NET Standard 2.1; ships
@@ -34,8 +34,11 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **Companion-spec coverage** — Part 9 (Alarms & Conditions), Part 11
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
-  Transfer), Part 100 (Device Integration), OPC 10100-1 (WoT
-  Connectivity).
+  Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
+  Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
+  Model) with OPC-10031-4 Job Control V1/V2, OPC 10100-1 (WoT
+  Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
+  (Robotics).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
@@ -99,6 +102,20 @@ Each sample has its own `README.md` with build and run instructions.
 - [Pump Device Integration Server](samples/PumpDeviceIntegrationServer/README.md) —
   minimal Device Integration (Part 100) server using
   `Opc.Ua.Di.Server`'s fluent builder.
+- [Minimal Robot Server](samples/Robotics/MinimalRobotServer/README.md) — OPC 40010
+  Robotics with independently configurable RSL/GPOS motion and live OpenUSD
+  transforms.
+- [Intent Enabled Robot](samples/Robotics/IntentEnabledRobot/README.md) —
+  one collaborative arm exposing the draft Robot Intent command surface: task-level
+  motion verbs tracked on a Part 10 program lifecycle, with missions, command
+  authority and safety-aware refusal.
+- [Intent Viewer Client](samples/Robotics/IntentViewerClient/README.md) — click a
+  target in an OpenUSD viewport and watch the arm execute the resulting intent;
+  also runs headless.
+- [Minimal ISA-95 Server](samples/MinimalIsa95Server/README.md) —
+  minimal server hosting the OPC-10030 ISA-95 Common Model together
+  with OPC-10031-4 Job Control V1 and V2, using the typed common-model
+  builder and the in-memory Job Control provider.
 
 More sample projects are maintained in the companion
 [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples)
@@ -106,7 +123,7 @@ repository.
 
 ### Developer tools
 
-- [OPC UA MCP Server](tools/Opc.Ua.Mcp/README.md) — installable .NET tool and container that exposes OPC UA client operations as MCP tools for LLMs and Copilot.
+- [OPC UA MCP Server](tools/Opc.Ua.Mcp/README.md) — installable .NET tool and container that exposes OPC UA client operations as MCP tools for LLMs and Copilot. The tools also ship as libraries (`…Opc.Ua.Mcp.Core`, `.PubSub`, `.Diagnostics`, `.PubSub.Diagnostics`) so an application can embed them next to its own MCP tools.
 
 ## 🔧 Migrating from 1.5.378 to 2.0
 

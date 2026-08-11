@@ -327,7 +327,9 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                protected override async global::System.Threading.Tasks.ValueTask<global::Opc.Ua.ServiceResult?> CallAsync(
+                protected override async
+                    global::System.Threading.Tasks.ValueTask<global::Opc.Ua.ServiceResult?>
+                    CallAsync(
                     global::Opc.Ua.ISystemContext _context,
                     global::Opc.Ua.NodeId _objectId,
                     global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> _inputArguments,
@@ -381,7 +383,9 @@ namespace Opc.Ua.SourceGeneration
             /// <summary>
             /// Handles the asynchronous {{Tokens.ClassName}} method call.
             /// </summary>
-            public delegate global::System.Threading.Tasks.ValueTask<{{Tokens.ClassName}}Result> {{Tokens.ClassName}}MethodAsyncCallHandler(
+            public delegate
+                global::System.Threading.Tasks.ValueTask<{{Tokens.ClassName}}Result>
+                {{Tokens.ClassName}}MethodAsyncCallHandler(
                 {{Tokens.OnCallAsyncDeclaration}}
 
             """);
@@ -634,7 +638,8 @@ namespace Opc.Ua.SourceGeneration
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::Opc.Ua.DateTimeUtc timestamp)
             {
-                lock (Lock)
+                EnterLock();
+                try
                 {
                     DoBeforeReadProcessing(context, node);
 
@@ -648,10 +653,18 @@ namespace Opc.Ua.SourceGeneration
 
                     if (m_value != null)
                     {
-                        value = global::Opc.Ua.Variant.{{Tokens.VariantFrom}}(({{Tokens.ChildDataType}})m_value.{{Tokens.ChildPath}});
+                        value = global::Opc.Ua.Variant.{{Tokens.VariantFrom}}(
+                            ({{Tokens.ChildDataType}})m_value.{{Tokens.ChildPath}});
                     }
 
-                    var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                    var result = Read(
+                        context,
+                        node,
+                        indexRange,
+                        dataEncoding,
+                        ref value,
+                        ref statusCode,
+                        ref timestamp);
 
                     if (childVariable != null && global::Opc.Ua.ServiceResult.IsNotBad(result))
                     {
@@ -664,6 +677,10 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     return result;
+                }
+                finally
+                {
+                    ExitLock();
                 }
             }
 
@@ -679,7 +696,8 @@ namespace Opc.Ua.SourceGeneration
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::Opc.Ua.DateTimeUtc timestamp)
             {
-                lock (Lock)
+                EnterLock();
+                try
                 {
                     if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.ChildDataType}} newValue))
                     {
@@ -688,6 +706,10 @@ namespace Opc.Ua.SourceGeneration
                     UpdateChildVariableStatus(m_variable.{{Tokens.ChildPath}}, ref statusCode, ref timestamp);
                     m_value.{{Tokens.ChildPath}} = {{Tokens.ValueWrite}};
                     UpdateParent(context, ref statusCode, ref timestamp);
+                }
+                finally
+                {
+                    ExitLock();
                 }
 
                 return global::Opc.Ua.ServiceResult.Good;
@@ -713,7 +735,7 @@ namespace Opc.Ua.SourceGeneration
                 public {{Tokens.ClassName}}Value(
                     {{Tokens.ClassName}}State variable,
                     {{Tokens.DataType}}? value,
-                    object dataLock)
+                    global::System.Threading.Lock? dataLock)
                     : base(dataLock)
                 {
                     m_value = value;
@@ -745,7 +767,8 @@ namespace Opc.Ua.SourceGeneration
                 /// </summary>
                 private void Initialize({{Tokens.ClassName}}State variable)
                 {
-                    lock (Lock)
+                    EnterLock();
+                    try
                     {
                         m_variable = variable;
 
@@ -763,6 +786,10 @@ namespace Opc.Ua.SourceGeneration
 
                         SetUpdateList(updateList);
                     }
+                    finally
+                    {
+                        ExitLock();
+                    }
                 }
 
                 /// <inheritdoc/>
@@ -775,7 +802,8 @@ namespace Opc.Ua.SourceGeneration
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
-                    lock (Lock)
+                    EnterLock();
+                    try
                     {
                         DoBeforeReadProcessing(context, node);
 
@@ -785,6 +813,10 @@ namespace Opc.Ua.SourceGeneration
                         }
 
                         return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                    }
+                    finally
+                    {
+                        ExitLock();
                     }
                 }
 
@@ -798,7 +830,8 @@ namespace Opc.Ua.SourceGeneration
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
-                    lock (Lock)
+                    EnterLock();
+                    try
                     {
                         if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.DataType}} newValue))
                         {
@@ -812,6 +845,10 @@ namespace Opc.Ua.SourceGeneration
                             m_value = {{Tokens.ValueWrite}};
                             m_variable.UpdateChangeMasks(global::Opc.Ua.NodeStateChangeMasks.Value);
                         }
+                    }
+                    finally
+                    {
+                        ExitLock();
                     }
 
                     return global::Opc.Ua.ServiceResult.Good;
@@ -1149,12 +1186,9 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.QualifiedName browseName,
                 bool createOrReplace,
-                global::Opc.Ua.BaseInstanceState replacement)
+                global::Opc.Ua.BaseInstanceState? replacement,
+                bool assignInstanceNodeIds = true)
             {
-                if (browseName.IsNull)
-                {
-                    return null;
-                }
                 global::Opc.Ua.BaseInstanceState? instance = null;
 
                 switch (browseName.Name)
@@ -1163,13 +1197,11 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (instance != null)
-
                 {
-
                     return instance;
-
                 }
-                return base.FindChild(context, browseName, createOrReplace, replacement);
+                return base.FindChild(
+                    context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
             }
 
             /// <inheritdoc/>
@@ -1198,23 +1230,48 @@ namespace Opc.Ua.SourceGeneration
             case "{{Tokens.ChildBrowseNameLiteral}}":
             {
                 instance = !createOrReplace ?
-                    {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(context, replacement);
+                    {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(
+                        context, replacement, assignInstanceNodeIds);
                 break;
             }
 
             """);
 
         /// <summary>
-        /// Create or replace a child on the class
+        /// Create or replace a child on the class. The optional
+        /// <c>assignInstanceNodeIds</c> parameter lets the generated type and
+        /// child factories opt out of per-instance NodeId assignment: they
+        /// build declaration subtrees whose NodeIds must stay at their
+        /// type-level values (the enclosing
+        /// <c>CreateInstanceOf&lt;Type&gt;</c> factory rebases the finished
+        /// subtree in one pass). Every other caller - the generated
+        /// <c>FindChild</c> plumbing behind <c>NodeState.CreateChild</c> /
+        /// <c>NodeState.ReplaceChild</c> and hand-written node managers -
+        /// materialises children onto an already-instantiated tree and
+        /// therefore gets per-instance NodeIds by default.
         /// </summary>
         public static readonly TemplateString CreateOrReplaceChild = TemplateString.Parse(
             $$"""
             /// <summary>
             /// Create or replace the mandatory {{Tokens.ChildName}} child
             /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="replacement">
+            /// The child to adopt or to copy onto the existing child. When
+            /// <c>null</c> a new child is created.
+            /// </param>
+            /// <param name="assignInstanceNodeIds">
+            /// When <c>true</c> (the default) and the context supplies a
+            /// <see cref="global::Opc.Ua.ISystemContext.NodeIdFactory"/>, a
+            /// child that still carries a null or type-level NodeId - and its
+            /// descendants - are rebased onto per-instance NodeIds so multiple
+            /// instances of the same type never collide. A NodeId the caller
+            /// already assigned is never overwritten.
+            /// </param>
             {{Tokens.AccessorSymbol}} {{Tokens.ClassName}} CreateOrReplace{{Tokens.ChildName}}(
                 global::Opc.Ua.ISystemContext context,
-                global::Opc.Ua.BaseInstanceState replacement)
+                global::Opc.Ua.BaseInstanceState? replacement,
+                bool assignInstanceNodeIds = true)
             {
                 if (replacement is {{Tokens.ClassName}} typedReplacement)
                 {
@@ -1225,6 +1282,20 @@ namespace Opc.Ua.SourceGeneration
                 else if ({{Tokens.ChildName}} == null)
                 {
                     {{Tokens.ClassName}} child = {{Tokens.ClassFactory}}(this);
+                    // Stamp the child's identity so a path based NodeIdFactory
+                    // can derive a per-instance NodeId for it below, and so
+                    // NodeState.CreateChild returns a child that carries the
+                    // browse name it was asked for.
+                    global::Opc.Ua.NodeState childNode = child;
+                    childNode.SymbolicName = "{{Tokens.BrowseNameLiteral}}";
+                    childNode.DisplayName = new global::Opc.Ua.LocalizedText(
+                        "{{Tokens.ChildBrowseNameLiteral}}");
+                    if (context.NamespaceUris != null)
+                    {
+                        childNode.BrowseName = new global::Opc.Ua.QualifiedName(
+                            "{{Tokens.ChildBrowseNameLiteral}}",
+                            context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
+                    }
                     if (replacement != null)
                     {
                         child.Create(context, replacement);
@@ -1236,6 +1307,23 @@ namespace Opc.Ua.SourceGeneration
                     // an existing child is replaced by copying the replacement
                     // onto it, keeping the strongly typed instance.
                     {{Tokens.ChildName}}.Create(context, replacement);
+                }
+                if (assignInstanceNodeIds && context.NodeIdFactory != null)
+                {
+                    global::Opc.Ua.NodeState childState = {{Tokens.ChildName}};
+                    if (childState.NodeId.IsNull ||
+                        childState.NodeId.Equals({{Tokens.NodeIdConstant}}))
+                    {
+                        global::Opc.Ua.NodeId previousNodeId =
+                            global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(
+                                context,
+                                childState);
+                        global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(
+                            context,
+                            childState,
+                            previousNodeId,
+                            this);
+                    }
                 }
                 return {{Tokens.ChildName}};
             }
@@ -1342,6 +1430,20 @@ namespace Opc.Ua.SourceGeneration
             // Add {{Tokens.SymbolicName}} predefined node
             {
                 global::Opc.Ua.NodeState state = Create{{Tokens.SymbolicId}}(context);
+                state.CreateAsPredefinedNode(context);
+                nodes.Add(state);
+            }
+            """);
+
+        /// <summary>
+        /// Template for a single method state creation call.
+        /// </summary>
+        public static readonly TemplateString AddMethod = TemplateString.Parse(
+            $$"""
+            // Add {{Tokens.SymbolicName}} predefined node
+            {
+                global::Opc.Ua.NodeState state =
+                    context.CreateInstanceOf{{Tokens.SymbolicId}}();
                 state.CreateAsPredefinedNode(context);
                 nodes.Add(state);
             }
@@ -1722,7 +1824,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
+                if (!browseName.IsNull && context.NodeIdFactory != null)
                 {
                     global::Opc.Ua.NodeId previousNodeId =
                         global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
@@ -1733,6 +1835,50 @@ namespace Opc.Ua.SourceGeneration
                 }
                 return state;
             }
+
+            """);
+
+        /// <summary>
+        /// Creates a MethodState InputArguments or OutputArguments property.
+        /// </summary>
+        public static readonly TemplateString Create_MethodArguments = TemplateString.Parse(
+            $$"""
+            global::Opc.Ua.PropertyState<global::Opc.Ua.ArrayOf<global::Opc.Ua.Argument>> {{Tokens.PropertyName}} =
+                state.CreateOrReplace{{Tokens.BrowseName}}(context, null, assignInstanceNodeIds: false);
+            {{Tokens.PropertyName}}.SymbolicName = global::Opc.Ua.BrowseNames.{{Tokens.BrowseName}};
+            {{Tokens.PropertyName}}.BrowseName =
+                global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.{{Tokens.BrowseName}});
+            {{Tokens.PropertyName}}.DisplayName =
+                new global::Opc.Ua.LocalizedText(global::Opc.Ua.BrowseNames.{{Tokens.BrowseName}});
+            {{Tokens.PropertyName}}.TypeDefinitionId = global::Opc.Ua.VariableTypeIds.PropertyType;
+            {{Tokens.PropertyName}}.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasProperty;
+            {{Tokens.PropertyName}}.ModellingRuleId =
+                new global::Opc.Ua.NodeId(global::Opc.Ua.Objects.ModellingRule_Mandatory);
+            {{Tokens.PropertyName}}.DataType = global::Opc.Ua.DataTypeIds.Argument;
+            {{Tokens.PropertyName}}.ValueRank = global::Opc.Ua.ValueRanks.OneDimension;
+            {{Tokens.PropertyName}}.ArrayDimensions = global::Opc.Ua.ArrayOf.Wrapped(0u);
+            {{Tokens.PropertyName}}.Value = global::Opc.Ua.ArrayOf.ToArrayOf(
+                new global::Opc.Ua.Argument[]
+                {
+                    {{Tokens.ListOfValues}}
+                });
+
+            """);
+
+        /// <summary>
+        /// Overrides the value of an existing MethodState InputArguments or
+        /// OutputArguments property while leaving the identity of the property
+        /// node created by its own child factory untouched.
+        /// </summary>
+        public static readonly TemplateString Assign_MethodArgumentValues = TemplateString.Parse(
+            $$"""
+            global::Opc.Ua.PropertyState<global::Opc.Ua.ArrayOf<global::Opc.Ua.Argument>> {{Tokens.PropertyName}} =
+                state.CreateOrReplace{{Tokens.BrowseName}}(context, null, assignInstanceNodeIds: false);
+            {{Tokens.PropertyName}}.Value = global::Opc.Ua.ArrayOf.ToArrayOf(
+                new global::Opc.Ua.Argument[]
+                {
+                    {{Tokens.ListOfValues}}
+                });
 
             """);
 
@@ -1780,7 +1926,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
+                if (!browseName.IsNull && context.NodeIdFactory != null)
                 {
                     global::Opc.Ua.NodeId previousNodeId =
                         global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
@@ -1847,7 +1993,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
+                if (!browseName.IsNull && context.NodeIdFactory != null)
                 {
                     global::Opc.Ua.NodeId previousNodeId =
                         global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
@@ -2004,6 +2150,8 @@ namespace Opc.Ua.SourceGeneration
                 }
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
+                {{Tokens.ListOfInputArguments}}
+                {{Tokens.ListOfOutputArguments}}
                 if (!forInstance)
                 {
                     {{Tokens.ModellingRuleId}}
@@ -2187,6 +2335,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
+                {{Tokens.ListOfInputArguments}}
+                {{Tokens.ListOfOutputArguments}}
                 if (!forInstance)
                 {
                     {{Tokens.ModellingRuleId}}

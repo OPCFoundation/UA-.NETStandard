@@ -271,17 +271,20 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 Assert.That(code, Does.Contain(
                     """encoder.WriteVariant("VariantMatrix", global::Opc.Ua.Variant.From(VariantMatrix));"""));
                 Assert.That(code, Does.Contain(
-                    """encoder.WriteVariant("ExtensionObjectMatrix", global::Opc.Ua.Variant.From(ExtensionObjectMatrix));"""));
+                    "encoder.WriteVariant(\"ExtensionObjectMatrix\", " +
+                    "global::Opc.Ua.Variant.From(ExtensionObjectMatrix));"));
                 // AllowSubTypes -> field resolves to ExtensionObject, so it
                 // takes the same Variant.From(MatrixOf<ExtensionObject>) path
                 // as the explicit Structure field above.
                 Assert.That(code, Does.Contain(
-                    """encoder.WriteVariant("AbstractVectorMatrix", global::Opc.Ua.Variant.From(AbstractVectorMatrix));"""));
+                    "encoder.WriteVariant(\"AbstractVectorMatrix\", " +
+                    "global::Opc.Ua.Variant.From(AbstractVectorMatrix));"));
                 // Typed enum matrix uses Variant.From, same shape as other
                 // primitive matrices (the enum is a value type with a
                 // generated EnumerationBuilder).
                 Assert.That(code, Does.Contain(
-                    """encoder.WriteVariant("HeaterStatusMatrix", global::Opc.Ua.Variant.From(HeaterStatusMatrix));"""));
+                    "encoder.WriteVariant(\"HeaterStatusMatrix\", " +
+                    "global::Opc.Ua.Variant.From(HeaterStatusMatrix));"));
             });
 
             // Decode assertions.
@@ -300,13 +303,16 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 Assert.That(code, Does.Contain(
                     """VariantMatrix = decoder.ReadVariant("VariantMatrix").GetVariantMatrix();"""));
                 Assert.That(code, Does.Contain(
-                    """ExtensionObjectMatrix = decoder.ReadVariant("ExtensionObjectMatrix").GetExtensionObjectMatrix();"""));
+                    "ExtensionObjectMatrix = decoder.ReadVariant(\"ExtensionObjectMatrix\")" +
+                    ".GetExtensionObjectMatrix();"));
                 Assert.That(code, Does.Contain(
-                    """AbstractVectorMatrix = decoder.ReadVariant("AbstractVectorMatrix").GetExtensionObjectMatrix();"""));
+                    "AbstractVectorMatrix = decoder.ReadVariant(\"AbstractVectorMatrix\")" +
+                    ".GetExtensionObjectMatrix();"));
                 // Typed enum matrix decodes through GetEnumerationMatrix<T>
                 // (the EnumerationBuilder<T>-backed Variant getter).
                 Assert.That(code, Does.Contain(
-                    """HeaterStatusMatrix = decoder.ReadVariant("HeaterStatusMatrix").GetEnumerationMatrix<global::TestData.HeaterStatus>();"""));
+                    "HeaterStatusMatrix = decoder.ReadVariant(\"HeaterStatusMatrix\")" +
+                    ".GetEnumerationMatrix<global::TestData.HeaterStatus>();"));
             });
         }
 
@@ -340,7 +346,8 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 // configuration in production: Opc.Ua.Di,
                 // Opc.Ua.Gds.Common, Opc.Ua.WotCon all opt out via
                 // ModelSourceGeneratorOmitFluentApi=true).
-                OmitFluentApi = true
+                OmitFluentApi = true,
+                OmitEventRecords = true
             });
 
             var generatedText = fileSystem.CreatedFiles

@@ -32,6 +32,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Xml;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
@@ -57,6 +58,37 @@ namespace Opc.Ua.Schema.Model
         /// All types are nullable
         /// </summary>
         Nullable
+    }
+
+    /// <summary>
+    /// Identifies one generated method-argument symbol scope and the names
+    /// reserved by that scope's emitted scaffolding.
+    /// </summary>
+    internal sealed class MethodArgumentCodeNameScope
+    {
+        public MethodArgumentCodeNameScope(params string[] reservedNames)
+            : this(null, reservedNames)
+        {
+        }
+
+        public MethodArgumentCodeNameScope(
+            Func<string, bool, IEnumerable<string>> getCollisionIdentifiers,
+            params string[] reservedNames)
+        {
+            ReservedNames = reservedNames == null ? [] : [.. reservedNames];
+            m_getCollisionIdentifiers = getCollisionIdentifiers;
+        }
+
+        public IReadOnlyCollection<string> ReservedNames { get; }
+
+        public IEnumerable<string> GetCollisionIdentifiers(
+            string identifier,
+            bool output)
+        {
+            return m_getCollisionIdentifiers?.Invoke(identifier, output) ?? [identifier];
+        }
+
+        private readonly Func<string, bool, IEnumerable<string>> m_getCollisionIdentifiers;
     }
 
     /// <summary>
@@ -122,9 +154,12 @@ namespace Opc.Ua.Schema.Model
             if (instance is MethodDesign method)
             {
                 string className;
-                if (method.TypeDefinition != null)
+                XmlQualifiedName methodStateIdentity =
+                    MethodDesignArgumentResolver.ResolveMethodStateIdentity(method);
+                if (methodStateIdentity != null)
                 {
-                    className = method.TypeDefinition.AsFullyQualifiedTypeSymbol(namespaces);
+                    className =
+                        methodStateIdentity.AsFullyQualifiedTypeSymbol(namespaces);
 
                     if (className.EndsWith("MethodType", StringComparison.Ordinal))
                     {
@@ -138,14 +173,9 @@ namespace Opc.Ua.Schema.Model
                 else
                 {
                     className = method.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces);
-
-                    if (className.EndsWith("MethodType", StringComparison.Ordinal))
-                    {
-                        className = className[..^"MethodType".Length];
-                    }
                 }
 
-                if (method.HasArguments)
+                if (MethodDesignArgumentResolver.HasMethodArguments(method))
                 {
                     string typedClassName = CoreUtils.Format(
                         "{0}{1}MethodState",
@@ -506,6 +536,243 @@ namespace Opc.Ua.Schema.Model
 
             return target?.Name;
         }
+
+        /// <summary>
+        /// Returns the canonical C# identifier for a method argument.
+        /// </summary>
+        internal static string GetGeneratedCodeIdentifier(
+            this Parameter field,
+            bool upperCamelCase = false,
+            MethodArgumentCodeNameScope scope = null)
+        {
+            string name = field?.Name;
+            scope ??= s_defaultMethodArgumentCodeNameScope;
+            if (field != null)
+            {
+                lock (s_generatedCodeNamesLock)
+                {
+                    if (s_generatedCodeNames.TryGetValue(field, out GeneratedCodeNameState state) &&
+                        state.TryGetName(scope, out string generatedName) &&
+                        !string.IsNullOrEmpty(generatedName))
+                    {
+                        name = generatedName;
+                    }
+                }
+            }
+            return name.ToCSharpIdentifier(upperCamelCase);
+        }
+
+        /// <summary>
+        /// Assigns unique generated-code names against the requested scope while
+        /// preserving the authored OPC UA names.
+        /// </summary>
+        internal static void AssignMethodArgumentCodeNames(
+            this MethodDesign method,
+            MethodArgumentCodeNameScope scope = null,
+            params string[] additionalReservedNames)
+        {
+            AssignMethodArgumentCodeNames(
+                method?.InputArguments,
+                method?.OutputArguments,
+                scope,
+                additionalReservedNames);
+        }
+
+        /// <summary>
+        /// Assigns unique generated-code names for an effective method signature.
+        /// </summary>
+        internal static void AssignMethodArgumentCodeNames(
+            Parameter[] inputArguments,
+            Parameter[] outputArguments,
+            MethodArgumentCodeNameScope scope = null,
+            params string[] additionalReservedNames)
+        {
+            scope ??= s_defaultMethodArgumentCodeNameScope;
+            lock (s_generatedCodeNamesLock)
+            {
+                ClearGeneratedCodeNames(inputArguments, scope);
+                ClearGeneratedCodeNames(outputArguments, scope);
+
+                var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                AddReservedMethodArgumentNames(usedNames, scope.ReservedNames);
+                AddReservedMethodArgumentNames(usedNames, additionalReservedNames);
+                AssignUniqueGeneratedCodeNames(
+                    inputArguments,
+                    usedNames,
+                    output: false,
+                    scope);
+                AssignUniqueGeneratedCodeNames(
+                    outputArguments,
+                    usedNames,
+                    output: true,
+                    scope);
+            }
+        }
+
+        private static void AddReservedMethodArgumentNames(
+            HashSet<string> usedNames,
+            IEnumerable<string> reservedNames)
+        {
+            if (reservedNames == null)
+            {
+                return;
+            }
+            foreach (string reservedName in reservedNames)
+            {
+                if (!string.IsNullOrWhiteSpace(reservedName))
+                {
+                    usedNames.Add(GetIdentifierCollisionKey(
+                        reservedName.ToCSharpIdentifier()));
+                }
+            }
+        }
+
+        private static void AssignUniqueGeneratedCodeNames(
+            Parameter[] arguments,
+            HashSet<string> usedNames,
+            bool output,
+            MethodArgumentCodeNameScope scope)
+        {
+            if (arguments == null)
+            {
+                return;
+            }
+
+            foreach (Parameter argument in arguments)
+            {
+                if (argument == null)
+                {
+                    continue;
+                }
+
+                string identifier = argument.Name.ToCSharpIdentifier();
+                if (TryReserveGeneratedIdentifier(
+                    identifier,
+                    output,
+                    scope,
+                    usedNames))
+                {
+                    SetGeneratedCodeName(argument, identifier, scope);
+                    continue;
+                }
+
+                string stem = identifier.TrimStart('@');
+                int suffix = output ? 1 : 2;
+                while (true)
+                {
+                    string suffixText;
+                    if (output)
+                    {
+                        suffixText = suffix == 1 ?
+                            "Out" :
+                            "Out" + suffix.ToString(CultureInfo.InvariantCulture);
+                    }
+                    else
+                    {
+                        suffixText = suffix.ToString(CultureInfo.InvariantCulture);
+                    }
+
+                    string candidate = (stem + suffixText).ToCSharpIdentifier();
+                    suffix++;
+                    if (TryReserveGeneratedIdentifier(
+                        candidate,
+                        output,
+                        scope,
+                        usedNames))
+                    {
+                        SetGeneratedCodeName(argument, candidate, scope);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private static bool TryReserveGeneratedIdentifier(
+            string identifier,
+            bool output,
+            MethodArgumentCodeNameScope scope,
+            HashSet<string> usedNames)
+        {
+            string[] collisionKeys =
+            [
+                .. scope.GetCollisionIdentifiers(identifier, output)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(GetIdentifierCollisionKey)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+            ];
+            if (collisionKeys.Any(usedNames.Contains))
+            {
+                return false;
+            }
+            foreach (string collisionKey in collisionKeys)
+            {
+                usedNames.Add(collisionKey);
+            }
+            return true;
+        }
+
+        private static void ClearGeneratedCodeNames(
+            Parameter[] arguments,
+            MethodArgumentCodeNameScope scope)
+        {
+            if (arguments == null)
+            {
+                return;
+            }
+            foreach (Parameter argument in arguments)
+            {
+                if (argument != null &&
+                    s_generatedCodeNames.TryGetValue(
+                        argument,
+                        out GeneratedCodeNameState state))
+                {
+                    state.ClearName(scope);
+                }
+            }
+        }
+
+        private static string GetIdentifierCollisionKey(string identifier)
+        {
+            return identifier.TrimStart('@');
+        }
+
+        private static void SetGeneratedCodeName(
+            Parameter argument,
+            string name,
+            MethodArgumentCodeNameScope scope)
+        {
+            s_generatedCodeNames.GetOrCreateValue(argument).SetName(scope, name);
+        }
+
+        private sealed class GeneratedCodeNameState
+        {
+            public bool TryGetName(
+                MethodArgumentCodeNameScope scope,
+                out string name)
+            {
+                return m_names.TryGetValue(scope, out name);
+            }
+
+            public void SetName(
+                MethodArgumentCodeNameScope scope,
+                string name)
+            {
+                m_names[scope] = name;
+            }
+
+            public void ClearName(MethodArgumentCodeNameScope scope)
+            {
+                m_names.Remove(scope);
+            }
+
+            private readonly Dictionary<MethodArgumentCodeNameScope, string> m_names = [];
+        }
+
+        private static readonly MethodArgumentCodeNameScope
+            s_defaultMethodArgumentCodeNameScope = new();
+        private static readonly System.Threading.Lock s_generatedCodeNamesLock = new();
+        private static readonly ConditionalWeakTable<Parameter, GeneratedCodeNameState>
+            s_generatedCodeNames = new();
 
         /// <summary>
         /// Returns the field name of a child node.
@@ -2107,6 +2374,72 @@ namespace Opc.Ua.Schema.Model
                 AccessLevel.HistoryReadWrite => "global::Opc.Ua.AccessLevels.HistoryReadOrWrite",
                 _ => "global::Opc.Ua.AccessLevels.None"
             };
+        }
+
+        /// <summary>
+        /// Maps the AccessLevel of a variable onto code. NodeSet2-sourced
+        /// designs carry the verbatim bitmask, which is preferred because
+        /// the ModelDesign <see cref="AccessLevel"/> enumeration cannot
+        /// represent combinations such as <c>CurrentRead | HistoryRead</c>.
+        /// </summary>
+        public static string GetAccessLevelAsCode(this VariableDesign variable)
+        {
+            uint? rawAccessLevel = variable?.RawAccessLevel;
+            return rawAccessLevel != null
+                ? GetAccessLevelBitsAsCode(rawAccessLevel.Value)
+                : GetAccessLevelAsCode(variable?.AccessLevel ?? AccessLevel.None);
+        }
+
+        /// <summary>
+        /// Maps the UserAccessLevel of a variable onto code. Mirrors the
+        /// AccessLevel, matching the runtime NodeSet2 importer in
+        /// <c>UANodeSetHelpers</c>, which derives UserAccessLevel from
+        /// AccessLevel rather than from the (schema-defaulted)
+        /// UserAccessLevel attribute.
+        /// </summary>
+        public static string GetUserAccessLevelAsCode(this VariableDesign variable)
+        {
+            return GetAccessLevelAsCode(variable);
+        }
+
+        /// <summary>
+        /// Maps a verbatim OPC UA AccessLevel bitmask onto code, emitting
+        /// the named <c>AccessLevels</c> constants for every set bit.
+        /// </summary>
+        private static string GetAccessLevelBitsAsCode(uint accessLevel)
+        {
+            byte bits = (byte)accessLevel;
+            if (bits == 0)
+            {
+                return "global::Opc.Ua.AccessLevels.None";
+            }
+
+            var names = new List<string>();
+            AppendBit(names, bits, 0x1, "CurrentRead");
+            AppendBit(names, bits, 0x2, "CurrentWrite");
+            AppendBit(names, bits, 0x4, "HistoryRead");
+            AppendBit(names, bits, 0x8, "HistoryWrite");
+            AppendBit(names, bits, 0x10, "SemanticChange");
+            AppendBit(names, bits, 0x20, "StatusWrite");
+            AppendBit(names, bits, 0x40, "TimestampWrite");
+
+            if (names.Count == 0)
+            {
+                return CoreUtils.Format("(byte)0x{0:X2}", bits);
+            }
+            if (names.Count == 1)
+            {
+                return names[0];
+            }
+            return CoreUtils.Format("(byte)({0})", string.Join(" | ", names));
+        }
+
+        private static void AppendBit(List<string> names, byte bits, byte mask, string name)
+        {
+            if ((bits & mask) != 0)
+            {
+                names.Add("global::Opc.Ua.AccessLevels." + name);
+            }
         }
 
         public static string GetLocalizedTextAsCode(this string localizedText)

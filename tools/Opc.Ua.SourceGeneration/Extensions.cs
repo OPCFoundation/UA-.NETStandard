@@ -33,10 +33,11 @@ using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Opc.Ua.SourceGeneration
 {
-    internal static class Extensions
+    internal static partial class Extensions
     {
         /// <summary>
         /// Get options from file options
@@ -55,7 +56,8 @@ namespace Opc.Ua.SourceGeneration
                 Prefix = options.GetString(nameof(NodesetFileOptions.Prefix), false),
                 Version = options.GetString(nameof(NodesetFileOptions.Version), false),
                 Name = options.GetString(nameof(NodesetFileOptions.Name), false),
-                ModelUri = options.GetString(nameof(NodesetFileOptions.ModelUri), false)
+                ModelUri = options.GetString(nameof(NodesetFileOptions.ModelUri), false),
+                IdentifierFile = options.GetString(nameof(NodesetFileOptions.IdentifierFile), false)
             };
         }
 
@@ -64,11 +66,13 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static NodesetFileCollection ToNodeSetFileCollection(
             this ImmutableArray<(AdditionalText, NodesetFileOptions)> nodeset2Files,
+            ImmutableArray<AdditionalText> csvFiles,
             IFileSystem fileSystem,
             ITelemetryContext telemetry)
         {
             return new NodesetFileCollection(
                 [.. nodeset2Files.Select(f => (f.Item1.Path, f.Item2))],
+                [.. csvFiles.Select(f => f.Path)],
                 fileSystem,
                 telemetry);
         }
@@ -84,11 +88,98 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Identifer files are csv files
+        /// The canonical, unconditionally recognized WoT Thing Model / Thing
+        /// Description file extensions.
+        /// </summary>
+        internal static readonly string[] WotFileExtensions =
+        [
+            ".tm.json",
+            ".td.json",
+            ".tm.jsonld",
+            ".td.jsonld"
+        ];
+
+        /// <summary>
+        /// Per-file <c>AdditionalFiles</c> metadata name (without the
+        /// generator prefix) that opts a plain <c>.jsonld</c> file into WoT
+        /// model processing. Set
+        /// <c>&lt;ModelSourceGeneratorWot&gt;true&lt;/ModelSourceGeneratorWot&gt;</c>
+        /// on the <c>AdditionalFiles</c> item.
+        /// </summary>
+        private const string WotOptInPropertyName = "Wot";
+
+        /// <summary>
+        /// WoT Thing Model and Thing Description files supported as model
+        /// inputs. The canonical <c>.tm.json</c>, <c>.td.json</c>,
+        /// <c>.tm.jsonld</c> and <c>.td.jsonld</c> extensions are always
+        /// recognized. A plain <c>.jsonld</c> file is treated as arbitrary
+        /// JSON-LD — <b>not</b> consumed as a model input — unless the
+        /// AdditionalFiles item explicitly opts in with
+        /// <c>ModelSourceGeneratorWot=true</c> metadata.
+        /// </summary>
+        public static bool IsWotFile(this AdditionalText text, AnalyzerConfigOptions options)
+        {
+            string path = text.Path;
+            foreach (string extension in WotFileExtensions)
+            {
+                if (path.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            if (!path.EndsWith(".jsonld", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            // A bare .jsonld (i.e. none of the canonical suffixes above matched)
+            // is only a WoT input when explicitly opted in per-file: arbitrary
+            // JSON-LD documents must not be silently consumed as model input.
+            return options != null &&
+                options.GetBool(WotOptInPropertyName, buildProperty: false);
+        }
+
+        /// <summary>
+        /// Identifier files contain at least one legacy identifier CSV row.
         /// </summary>
         public static bool IsIdentifierFile(this AdditionalText text)
         {
-            return text.HasFileExtension("csv");
+            if (!text.HasFileExtension("csv"))
+            {
+                return false;
+            }
+
+            SourceText sourceText = text.GetText();
+            if (sourceText == null)
+            {
+                return false;
+            }
+
+            foreach (TextLine sourceLine in sourceText.Lines)
+            {
+                string line = sourceLine.ToString().TrimStart('\uFEFF').Trim();
+                if (string.IsNullOrEmpty(line) ||
+                    line.StartsWith("#", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                string[] columns = line.Split(',');
+                if (columns.Length < 2)
+                {
+                    continue;
+                }
+
+                string identifier = columns[1].Trim();
+                if (uint.TryParse(identifier, out _) ||
+                    (identifier.Length > 1 &&
+                        identifier.StartsWith("\"", StringComparison.Ordinal) &&
+                        identifier.EndsWith("\"", StringComparison.Ordinal)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

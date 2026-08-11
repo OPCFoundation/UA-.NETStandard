@@ -190,16 +190,16 @@ namespace Opc.Ua.Server
                 ClientLastContactTime = now
             };
 
-            // initialize security diagnostics.
+            // initialize security diagnostics. The Session has no authenticated
+            // user until it is activated, so ClientUserIdHistory stays empty until
+            // ActivateSession records the first ClientUserId (OPC 10000-5).
             m_securityDiagnostics = new SessionSecurityDiagnosticsDataType
             {
                 SessionId = Id,
-                ClientUserIdOfSession = Identity.DisplayName,
+                ClientUserIdOfSession = null,
                 AuthenticationMechanism = Identity.TokenType.ToString(),
                 Encoding = context.ChannelContext.MessageEncoding.ToString()
             };
-            m_securityDiagnostics.ClientUserIdHistory =
-                m_securityDiagnostics.ClientUserIdHistory.AddItem(Identity.DisplayName);
 
             EndpointDescription? description = context.ChannelContext.EndpointDescription;
 
@@ -327,14 +327,77 @@ namespace Opc.Ua.Server
         public IUserIdentityTokenHandler IdentityToken { get; private set; } = null!;
 
         /// <summary>
-        /// A lock which must be acquired before accessing the diagnostics.
+        /// Applies an update to the session diagnostics while holding the session's
+        /// diagnostics lock.
         /// </summary>
-        public object DiagnosticsLock => SessionDiagnostics;
+        /// <remarks>
+        /// Replaces the former <c>DiagnosticsLock</c> property. The session owns its lock
+        /// and never hands it out, so callers cannot participate in - or deadlock against -
+        /// the server's locking order. The update runs on the caller's thread; keep it
+        /// short and free of I/O or callbacks into the server.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if update is null.</exception>
+        public void UpdateDiagnostics(Action<SessionDiagnosticsDataType> update)
+        {
+            if (update == null)
+            {
+                throw new ArgumentNullException(nameof(update));
+            }
+
+            lock (m_diagnosticsLock)
+            {
+                update.Invoke(SessionDiagnostics);
+            }
+        }
+
+        /// <summary>
+        /// Reads a value derived from the session diagnostics while holding the session's
+        /// diagnostics lock.
+        /// </summary>
+        /// <remarks>
+        /// Use this to take a consistent snapshot of the fields needed. Do not let the
+        /// diagnostics object itself escape the callback: once the lock is released, any
+        /// field read from it is unsynchronized.
+        /// </remarks>
+        /// <typeparam name="TResult">The type of the value produced.</typeparam>
+        /// <param name="read">The projection applied to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if read is null.</exception>
+        public TResult ReadDiagnostics<TResult>(Func<SessionDiagnosticsDataType, TResult> read)
+        {
+            if (read == null)
+            {
+                throw new ArgumentNullException(nameof(read));
+            }
+
+            lock (m_diagnosticsLock)
+            {
+                return read.Invoke(SessionDiagnostics);
+            }
+        }
 
         /// <summary>
         /// The diagnostics associated with the session.
         /// </summary>
+        /// <remarks>
+        /// Not on <see cref="ISession"/>: it is the mutable structure the diagnostics lock
+        /// protects, so handing it out lets a caller read a field the owner may be writing.
+        /// Callers reach values through <see cref="ReadDiagnostics{TResult}"/>, or through
+        /// <see cref="SessionName"/> and <see cref="ClientApplicationUri"/> for the two the
+        /// server itself needs.
+        /// </remarks>
         public SessionDiagnosticsDataType SessionDiagnostics { get; }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Read from the field rather than from the diagnostics: it is assigned once during
+        /// construction and never changes, so no lock is involved.
+        /// </remarks>
+        public string SessionName => m_sessionName;
+
+        /// <inheritdoc/>
+        public string? ClientApplicationUri
+            => ReadDiagnostics(diagnostics => diagnostics.ClientDescription?.ApplicationUri);
 
         /// <summary>
         /// The client Nonce associated with the session.
@@ -363,7 +426,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (DiagnosticsLock)
+                lock (m_diagnosticsLock)
                 {
                     return m_timeProvider.GetTimestampMilliseconds() - m_lastContactTickCount >
                         (long)SessionDiagnostics.ActualSessionTimeout;
@@ -378,7 +441,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (DiagnosticsLock)
+                lock (m_diagnosticsLock)
                 {
                     return (DateTime)SessionDiagnostics.ClientLastContactTime;
                 }
@@ -393,7 +456,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (DiagnosticsLock)
+                lock (m_diagnosticsLock)
                 {
                     return m_lastContactTickCount;
                 }
@@ -404,6 +467,22 @@ namespace Opc.Ua.Server
         /// Whether the session has been activated.
         /// </summary>
         public bool Activated { get; private set; }
+
+        /// <summary>
+        /// Whether the session is being closed. Closing is entered once and never left, so a
+        /// Session that started closing never serves new work again.
+        /// </summary>
+        public bool IsClosing => Volatile.Read(ref m_closing) != 0;
+
+        /// <summary>
+        /// Marks the session as being closed. The mark is one way: once a close has started the
+        /// Session is on its way out, so nothing that would create new state for it is accepted
+        /// again, even if the close itself fails.
+        /// </summary>
+        internal void MarkClosing()
+        {
+            Volatile.Write(ref m_closing, 1);
+        }
 
         /// <summary>
         /// Set the ECC security policy URI
@@ -546,7 +625,7 @@ namespace Opc.Ua.Server
                     PreferredLocales = ids;
 
                     // update diagnostics.
-                    lock (DiagnosticsLock)
+                    lock (m_diagnosticsLock)
                     {
                         SessionDiagnostics.LocaleIds = [.. localeIds];
                     }
@@ -558,125 +637,129 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Activates the session and binds it to the current secure channel.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void ValidateBeforeActivate(
-            OperationContext context,
-            SignatureData clientSignature,
-            ExtensionObject userIdentityToken,
-            SignatureData userTokenSignature,
-            out IUserIdentityTokenHandler? identityToken,
-            out UserTokenPolicy? userTokenPolicy)
+        /// <inheritdoc/>
+        public async ValueTask<(
+            IUserIdentityTokenHandler IdentityToken,
+            UserTokenPolicy? UserTokenPolicy)> ValidateBeforeActivateAsync(
+                OperationContext context,
+                SignatureData clientSignature,
+                ExtensionObject userIdentityToken,
+                SignatureData userTokenSignature,
+                CancellationToken cancellationToken)
         {
             lock (m_lock)
             {
-                // verify that a secure channel was specified.
-                if (context.ChannelContext == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
-                }
+                ValidateChannelBeforeActivate(context, clientSignature);
+            }
 
-                // verify that the same security policy has been used.
-                EndpointDescription? endpoint = context.ChannelContext.EndpointDescription;
+            (IUserIdentityTokenHandler identityToken, UserTokenPolicy? userTokenPolicy) =
+                await ValidateUserIdentityTokenAsync(
+                    context,
+                    userIdentityToken,
+                    userTokenSignature,
+                    cancellationToken).ConfigureAwait(false);
 
-                if (endpoint!.SecurityPolicyUri != EndpointDescription.SecurityPolicyUri ||
-                    endpoint.SecurityMode != EndpointDescription.SecurityMode)
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
-                }
+            TraceState("VALIDATED");
+            return (identityToken, userTokenPolicy);
+        }
 
-                // verify the client signature.
-                if (ClientCertificate != null)
+        private void ValidateChannelBeforeActivate(
+            OperationContext context,
+            SignatureData clientSignature)
+        {
+            // verify that a secure channel was specified.
+            if (context.ChannelContext == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
+            }
+
+            // verify that the same security policy has been used.
+            EndpointDescription? endpoint = context.ChannelContext.EndpointDescription;
+
+            if (endpoint!.SecurityPolicyUri != EndpointDescription.SecurityPolicyUri ||
+                endpoint.SecurityMode != EndpointDescription.SecurityMode)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
+            }
+
+            // verify the client signature.
+            if (EndpointDescription.SecurityPolicyUri != SecurityPolicies.None &&
+                (ClientCertificate == null ||
+                    clientSignature == null ||
+                    clientSignature.Signature.IsEmpty))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadApplicationSignatureInvalid);
+            }
+
+            if (ClientCertificate != null)
+            {
+                SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(
+                    EndpointDescription.SecurityPolicyUri!)!;
+
+                byte[] clientNonceData = ClientNonce.ToArray();
+
+                byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                    context.ChannelContext.ChannelThumbprint,
+                    m_serverNonce.Data,
+                    m_serverCertificate.RawData,
+                    context.ChannelContext.ServerChannelCertificate,
+                    context.ChannelContext.ClientChannelCertificate,
+                    clientNonceData);
+
+                if (!SecurityPolicies.VerifySignatureData(
+                        clientSignature!,
+                        EndpointDescription.SecurityPolicyUri!,
+                        ClientCertificate,
+                        dataToSign))
                 {
-                    if (EndpointDescription.SecurityPolicyUri != SecurityPolicies.None &&
-                        clientSignature != null &&
-                        clientSignature.Signature.IsEmpty)
+                    // verify for certificate chain in endpoint.
+                    // validate the signature with complete chain if the check with leaf certificate failed.
+                    using CertificateCollection serverCertificateChain =
+                        Utils.ParseCertificateChainBlob(
+                            EndpointDescription.ServerCertificate,
+                            m_server.Telemetry);
+                    if (serverCertificateChain.Count > 1)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadApplicationSignatureInvalid);
-                    }
+                        var serverCertificateChainList = new List<byte>();
 
-                    SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(EndpointDescription.SecurityPolicyUri!)!;
-
-                    byte[] clientNonceData = ClientNonce.ToArray();
-
-                    byte[] dataToSign = securityPolicy!.GetClientSignatureData(
-                        context.ChannelContext.ChannelThumbprint,
-                        m_serverNonce.Data,
-                        m_serverCertificate.RawData,
-                        context.ChannelContext.ServerChannelCertificate,
-                        context.ChannelContext.ClientChannelCertificate,
-                        clientNonceData);
-
-                    if (!SecurityPolicies.VerifySignatureData(
-                            clientSignature!,
-                            EndpointDescription.SecurityPolicyUri!,
-                            ClientCertificate,
-                            dataToSign))
-                    {
-                        // verify for certificate chain in endpoint.
-                        // validate the signature with complete chain if the check with leaf certificate failed.
-                        using CertificateCollection serverCertificateChain =
-                            Utils.ParseCertificateChainBlob(
-                                EndpointDescription.ServerCertificate,
-                                m_server.Telemetry);
-                        if (serverCertificateChain.Count > 1)
+                        for (int i = 0; i < serverCertificateChain.Count; i++)
                         {
-                            var serverCertificateChainList = new List<byte>();
-
-                            for (int i = 0; i < serverCertificateChain.Count; i++)
-                            {
-                                serverCertificateChainList.AddRange(
-                                    serverCertificateChain[i].RawData);
-                            }
-
-                            byte[] serverCertificateChainData = [.. serverCertificateChainList];
-
-                            dataToSign = securityPolicy.GetClientSignatureData(
-                                context.ChannelContext.ChannelThumbprint,
-                                m_serverNonce.Data,
-                                serverCertificateChainData,
-                                context.ChannelContext.ServerChannelCertificate,
-                                context.ChannelContext.ClientChannelCertificate,
-                                clientNonceData);
-
-                            if (!SecurityPolicies.VerifySignatureData(
-                                  clientSignature!,
-                                  EndpointDescription.SecurityPolicyUri!,
-                                  ClientCertificate,
-                                  dataToSign))
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadApplicationSignatureInvalid);
-                            }
+                            serverCertificateChainList.AddRange(
+                                serverCertificateChain[i].RawData);
                         }
-                        else
+
+                        byte[] serverCertificateChainData = [.. serverCertificateChainList];
+
+                        dataToSign = securityPolicy.GetClientSignatureData(
+                            context.ChannelContext.ChannelThumbprint,
+                            m_serverNonce.Data,
+                            serverCertificateChainData,
+                            context.ChannelContext.ServerChannelCertificate,
+                            context.ChannelContext.ClientChannelCertificate,
+                            clientNonceData);
+
+                        if (!SecurityPolicies.VerifySignatureData(
+                              clientSignature!,
+                              EndpointDescription.SecurityPolicyUri!,
+                              ClientCertificate,
+                              dataToSign))
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadApplicationSignatureInvalid);
                         }
                     }
-                }
-
-                if (!Activated)
-                {
-                    // must active the session on the channel that was used to create it.
-                    if (SecureChannelId != context.ChannelContext.SecureChannelId)
+                    else
                     {
-                        throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
+                        throw new ServiceResultException(
+                            StatusCodes.BadApplicationSignatureInvalid);
                     }
                 }
+            }
 
-                // validate the user identity token.
-                identityToken = ValidateUserIdentityToken(
-                    context,
-                    userIdentityToken,
-                    userTokenSignature,
-                    out userTokenPolicy);
-
-                TraceState("VALIDATED");
+            if (!Activated && SecureChannelId != context.ChannelContext.SecureChannelId)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
             }
         }
 
@@ -728,7 +811,7 @@ namespace Opc.Ua.Server
                 m_serverNonce = serverNonce;
 
                 // update the contact time.
-                lock (DiagnosticsLock)
+                lock (m_diagnosticsLock)
                 {
                     SessionDiagnostics.ClientLastContactTime = m_timeProvider.GetUtcNow().UtcDateTime;
                     m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
@@ -751,53 +834,8 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Saves a continuation point for a session.
-        /// </summary>
-        /// <remarks>
-        /// If the session has too many continuation points the oldest one is dropped.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
-        public void SaveContinuationPoint(ContinuationPoint continuationPoint)
-        {
-            m_continuationPoints.SaveBrowse(continuationPoint);
-        }
-
-        /// <summary>
-        /// Restores a continuation point for a session.
-        /// </summary>
-        /// <remarks>
-        /// The caller is responsible for disposing the continuation point returned.
-        /// </remarks>
-        public ContinuationPoint? RestoreContinuationPoint(ByteString continuationPoint)
-        {
-            return m_continuationPoints.RestoreBrowse(continuationPoint);
-        }
-
-        /// <summary>
-        /// Saves a continuation point used for historical reads.
-        /// </summary>
-        /// <param name="id">The identifier for the continuation point.</param>
-        /// <param name="continuationPoint">The continuation point.</param>
-        /// <remarks>
-        /// If the continuationPoint implements IDisposable it will be disposed when
-        /// the Session is closed or discarded.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
-        public void SaveHistoryContinuationPoint(Guid id, object continuationPoint)
-        {
-            m_continuationPoints.SaveHistory(id, continuationPoint);
-        }
-
-        /// <summary>
-        /// Restores a previously saves history continuation point.
-        /// </summary>
-        /// <param name="continuationPoint">The identifier for the continuation point.</param>
-        /// <returns>The save continuation point. null if not found.</returns>
-        public object? RestoreHistoryContinuationPoint(ByteString continuationPoint)
-        {
-            return m_continuationPoints.RestoreHistory(continuationPoint);
-        }
+        /// <inheritdoc/>
+        public ISessionContinuationPoints ContinuationPoints => m_continuationPoints;
 
         /// <summary>
         /// Loads mirrored continuation point envelopes for a session restored on a backup replica.
@@ -839,7 +877,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref Variant value)
         {
-            lock (DiagnosticsLock)
+            lock (m_diagnosticsLock)
             {
                 value = Variant.FromStructure(SessionDiagnostics);
             }
@@ -855,7 +893,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref Variant value)
         {
-            lock (DiagnosticsLock)
+            lock (m_diagnosticsLock)
             {
                 value = Variant.FromStructure(m_securityDiagnostics);
             }
@@ -868,9 +906,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private IUserIdentityTokenHandler ValidateUserIdentityToken(
-            OperationContext context,
             ExtensionObject identityToken,
-            SignatureData userTokenSignature,
             out UserTokenPolicy? policy)
         {
             policy = null!;
@@ -994,6 +1030,144 @@ namespace Opc.Ua.Server
 
             token.UpdatePolicy(policy);
 
+            if (ServerBase.RequireEncryption(EndpointDescription))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "Secure user identity validation requires the asynchronous activation path.");
+            }
+
+            // validate user identity token.
+            return token;
+        }
+
+        private async ValueTask<(
+            IUserIdentityTokenHandler IdentityToken,
+            UserTokenPolicy? UserTokenPolicy)> ValidateUserIdentityTokenAsync(
+                OperationContext context,
+                ExtensionObject identityToken,
+                SignatureData userTokenSignature,
+                CancellationToken cancellationToken)
+        {
+            UserTokenPolicy? policy = null;
+
+            // check for anonymous (same as empty) token.
+            if (identityToken.IsNull ||
+                identityToken.TryGetValue(out AnonymousIdentityToken? _))
+            {
+                // check if an anonymous login is permitted.
+                if (!EndpointDescription.UserIdentityTokens.IsEmpty)
+                {
+                    bool found = false;
+
+                    for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
+                    {
+                        if (EndpointDescription.UserIdentityTokens[ii]
+                            .TokenType == UserTokenType.Anonymous)
+                        {
+                            found = true;
+                            policy = EndpointDescription.UserIdentityTokens[ii];
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadIdentityTokenRejected,
+                            "Anonymous user token policy not supported.");
+                    }
+                }
+
+                return (AnonymousIdentityTokenHandler.Create(policy!), policy);
+            }
+
+            IUserIdentityTokenHandler token;
+            // check for unrecognized token.
+            if (identityToken.TryGetValue(out UserIdentityToken? decodedToken))
+            {
+                token = decodedToken.AsTokenHandler();
+            }
+            else
+            {
+                // handle the use case when the UserIdentityToken is binary encoded over xml message encoding
+                if (identityToken.Encoding != ExtensionObjectEncoding.Binary ||
+                    !identityToken.TryGetAsBinary(out ByteString _))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "Invalid user identity token provided.");
+                }
+                if (BaseVariableState.DecodeExtensionObject(
+                        null!,
+                        typeof(UserIdentityToken),
+                        identityToken,
+                        false)
+                    is not UserIdentityToken newToken)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "Invalid user identity token provided.");
+                }
+
+                policy = EndpointDescription.FindUserTokenPolicy(
+                    newToken.PolicyId!,
+                    EndpointDescription.SecurityPolicyUri!) ??
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "User token policy not supported.",
+                        "Opc.Ua.Server.Session.ValidateUserIdentityTokenAsync");
+
+                UserIdentityToken? userToken;
+                switch (policy.TokenType)
+                {
+                    case UserTokenType.Anonymous:
+                        userToken = (AnonymousIdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(AnonymousIdentityToken),
+                            identityToken,
+                            true)!;
+                        break;
+                    case UserTokenType.UserName:
+                        userToken = (UserNameIdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(UserNameIdentityToken),
+                            identityToken,
+                            true)!;
+                        break;
+                    case UserTokenType.Certificate:
+                        userToken = (X509IdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(X509IdentityToken),
+                            identityToken,
+                            true)!;
+                        break;
+                    case UserTokenType.IssuedToken:
+                        userToken = (IssuedIdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(IssuedIdentityToken),
+                            identityToken,
+                            true)!;
+                        break;
+                    default:
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUserAccessDenied,
+                            "Invalid user identity token provided.");
+                }
+
+                token = userToken.AsTokenHandler()!;
+            }
+
+            // find the user token policy.
+            policy = EndpointDescription.FindUserTokenPolicy(
+                token.Token.PolicyId!,
+                EndpointDescription.SecurityPolicyUri!) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "User token policy not supported.");
+
+            token.UpdatePolicy(policy);
+
             // determine the security policy uri.
             string? securityPolicyUri = policy.SecurityPolicyUri;
 
@@ -1005,7 +1179,6 @@ namespace Opc.Ua.Server
             if (ServerBase.RequireEncryption(EndpointDescription))
             {
                 // decrypt the token.
-                // check for valid certificate.
                 m_serverCertificate ??= Certificate.FromRawData(
                     EndpointDescription.ServerCertificate) ??
                     throw ServiceResultException.ConfigurationError(
@@ -1013,23 +1186,18 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    // Sync-completing ValueTask in current implementations;
-                    // safe to block. Future async stores will require
-                    // hoisting decryption out of the lock.
-                    ValueTask decryptTask = token.DecryptAsync(
+                    await token.DecryptAsync(
                         m_serverCertificate,
                         m_serverNonce,
                         securityPolicyUri!,
                         m_server.MessageContext,
                         m_userTokenNonce,
                         ClientCertificate,
-                        m_clientIssuerCertificates);
-                    if (!decryptTask.IsCompletedSuccessfully)
-                    {
-                        decryptTask.AsTask().GetAwaiter().GetResult();
-                    }
+                        m_clientIssuerCertificates,
+                        ct: cancellationToken).ConfigureAwait(false);
                 }
-                catch (Exception e) when (e is not ServiceResultException)
+                catch (Exception e)
+                    when (e is not ServiceResultException and not OperationCanceledException)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadIdentityTokenInvalid,
@@ -1040,15 +1208,13 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri!)!;
+                    SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(
+                        securityPolicyUri!)!;
 
-                    // ValidateUserIdentityToken runs inside session activation, which
-                    // always carries a channel context.
                     SecureChannelContext channelContext = context.ChannelContext!;
-
                     byte[] clientNonceData = ClientNonce.ToArray();
 
-                    byte[] dataToSign = securityPolicy!.GetUserTokenSignatureData(
+                    byte[] dataToSign = securityPolicy.GetUserTokenSignatureData(
                         channelContext.ChannelThumbprint,
                         m_serverNonce.Data,
                         m_serverCertificate.RawData,
@@ -1057,7 +1223,11 @@ namespace Opc.Ua.Server
                         channelContext.ClientChannelCertificate,
                         clientNonceData);
 
-                    if (!VerifySync(token, dataToSign, userTokenSignature, securityPolicyUri!))
+                    if (!await token.VerifyAsync(
+                            dataToSign,
+                            userTokenSignature,
+                            securityPolicyUri!,
+                            cancellationToken).ConfigureAwait(false))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
@@ -1084,7 +1254,11 @@ namespace Opc.Ua.Server
                                 channelContext.ClientChannelCertificate,
                                 clientNonceData);
 
-                            if (!VerifySync(token, dataToSign, userTokenSignature, securityPolicyUri!))
+                            if (!await token.VerifyAsync(
+                                    dataToSign,
+                                    userTokenSignature,
+                                    securityPolicyUri!,
+                                    cancellationToken).ConfigureAwait(false))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadIdentityTokenRejected,
@@ -1101,31 +1275,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // validate user identity token.
-            return token;
-        }
-
-        /// <summary>
-        /// Synchronously invokes <see cref="IUserIdentityTokenHandler.VerifyAsync"/>
-        /// on the assumption that the underlying implementation completes
-        /// synchronously (no real I/O). Used inside locked regions of
-        /// <see cref="ValidateBeforeActivate"/> where awaiting is not
-        /// possible. Future async-store implementations will require
-        /// hoisting verification out of the lock.
-        /// </summary>
-        private static bool VerifySync(
-            IUserIdentityTokenHandler token,
-            byte[] dataToSign,
-            SignatureData userTokenSignature,
-            string securityPolicyUri)
-        {
-            ValueTask<bool> task = token.VerifyAsync(
-                dataToSign,
-                userTokenSignature,
-                securityPolicyUri);
-            return task.IsCompletedSuccessfully
-                ? task.Result
-                : task.AsTask().GetAwaiter().GetResult();
+            return (token, policy);
         }
 
         /// <summary>
@@ -1159,12 +1309,15 @@ namespace Opc.Ua.Server
                 EffectiveIdentity = effectiveIdentity!;
 
                 // update diagnostics.
-                lock (DiagnosticsLock)
+                lock (m_diagnosticsLock)
                 {
-                    m_securityDiagnostics.ClientUserIdOfSession = identity.DisplayName;
+                    string? clientUserId = ClientUserIdResolver.Resolve(
+                        identityToken,
+                        identity);
+                    m_securityDiagnostics.ClientUserIdOfSession = clientUserId;
                     m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
                     m_securityDiagnostics.ClientUserIdHistory =
-                        m_securityDiagnostics.ClientUserIdHistory.AddItem(identity.DisplayName);
+                        m_securityDiagnostics.ClientUserIdHistory.AddItem(clientUserId!);
                 }
 
                 return changed;
@@ -1182,7 +1335,7 @@ namespace Opc.Ua.Server
         {
             ServiceCounterDataType? counter = null;
 
-            lock (DiagnosticsLock)
+            lock (m_diagnosticsLock)
             {
                 if (!error)
                 {
@@ -1323,6 +1476,14 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Guards the session and security diagnostics, and the last-contact tick count that
+        /// is updated alongside them. Never exposed: callers reach the diagnostics through
+        /// <see cref="UpdateDiagnostics"/> and <see cref="ReadDiagnostics{TResult}"/>.
+        /// </summary>
+        private readonly Lock m_diagnosticsLock = new();
+        private int m_closing;
         private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;

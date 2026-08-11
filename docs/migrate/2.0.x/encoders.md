@@ -56,11 +56,17 @@ In addition to the generic Write/ReadEnumerated, the non-generic `EnumValue` var
 
 Custom encoder/decoder implementations must adjust to comply with the new interfaces.
 
+`BinaryEncoder`, `XmlEncoder` and `JsonEncoder` are now `sealed`. They were never designed as
+inheritance points, and deriving from them was not a supported extension mechanism. `BinaryEncoder`
+additionally no longer exposes the `protected virtual void Dispose(bool)` overload; its `Dispose()`
+behaviour is unchanged. Implement `IEncoder` directly instead of deriving from a built-in encoder.
+
 **Change code as follows:**
 
 - Change all `ReadEncodeable`/`WriteEncodeable` calls to use the type as part of the generic expression. E.g. `ReadEncodeable("field", typeof(T))` to `ReadEncodeable<T>("field")` and `WriteEncodeable("field", value, typeof(T))` to `WriteEncodeable("field", value)`. If value is a type that cannot be created using a parameterless constructor, pass the type id as last argument.
 - Change all `ReadEnumerated` calls to use the enumeration type as part of the generic expression. E.g. `ReadEnumerated("field", typeof(T))` to `ReadEnumerated<T>("field")`.
 - Change calls to `ReadArray`/`WriteArray` to use `ReadVariantValue` and `WriteVariantValue` and extract the value from the returned `Variant` based on the type you intended to read. A good example can be found in `BaseComplexType` `EncodeProperty` and `DecodeProperty`.
+- Replace any type deriving from `BinaryEncoder`, `XmlEncoder` or `JsonEncoder` with a direct `IEncoder` implementation, and move any `Dispose(bool)` override into that implementation's own `Dispose()`.
 
 ## Complex Types
 

@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
@@ -37,6 +39,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NUnit.Framework;
+using Opc.Ua.Export;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -64,7 +68,6 @@ namespace Opc.Ua.SourceGeneration
             OptimizationLevel optimizationLevel)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = optimizationLevel.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -80,11 +83,12 @@ namespace Opc.Ua.SourceGeneration
                     // Suppress fluent-builder emission so the generated
                     // code compiles standalone (matches model-only
                     // production csprojs).
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             // Create the driver the executes the generator
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -101,7 +105,6 @@ namespace Opc.Ua.SourceGeneration
             OptimizationLevel optimizationLevel)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = optimizationLevel.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -113,11 +116,12 @@ namespace Opc.Ua.SourceGeneration
                     // The test compilation includes Core stubs but no
                     // Server reference. Suppress fluent-builder
                     // emission so the generated code compiles standalone.
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             // Create the driver the executes the generator
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -137,12 +141,534 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(19));
         }
 
+        [Test]
+        public void GenerateAndCompileDemoModelWotNativeProjectionTest()
+        {
+            var generator = new ModelSourceGenerator();
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(
+                    new Dictionary<string, string>().WithOpcUaGeneratedStack(),
+                    LanguageVersion.CSharp13);
+            var options = DefaultWotOptions();
+
+            AdditionalText nodeSetText = EmbeddedText.From("DemoModel.NodeSet2.xml");
+            using var nodeSetStream = new MemoryStream(
+                Encoding.UTF8.GetBytes(nodeSetText.GetText()!.ToString()));
+            UANodeSet nodeSet = UANodeSet.Read(nodeSetStream)!;
+            using WotDocument wot = WotNodeSetConverter.FromNodeSet(nodeSet);
+            Assert.That(
+                wot.TryGetEnvelope(out _),
+                Is.False,
+                "Source-generation equivalence shall be proved by uav:nodes, not the envelope.");
+            AdditionalText wotText = EmbeddedText.Create(
+                "DemoModel.tm.json",
+                Encoding.UTF8.GetString(wot.Utf8Json.ToArray()));
+
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(LanguageVersion.CSharp13))
+                .AddAdditionalTexts(
+                [
+                    wotText,
+                    EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                ])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
+            Assert.That(
+                generatorResult.GeneratedSources.Any(source =>
+                    source.HintName.Contains("DemoModel", StringComparison.Ordinal)),
+                Is.True);
+        }
+
+        [TestCase("DemoModel.tm.json")]
+        [TestCase("DemoModel.td.json")]
+        [TestCase("DemoModel.tm.jsonld")]
+        [TestCase("DemoModel.td.jsonld")]
+        public void RecognizesAllSupportedWotExtensionsTest(string fileName)
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+
+            GeneratorRunResult generatorResult = RunDemoModelGenerator(
+                LanguageVersion.CSharp13,
+                EmbeddedText.Create(fileName, wotJson),
+                DefaultWotOptions());
+
+            Assert.That(
+                generatorResult.GeneratedSources.Any(source =>
+                    source.HintName.StartsWith("DemoModel.", StringComparison.Ordinal)),
+                Is.True,
+                $"'{fileName}' should be recognized as a WoT model input");
+        }
+
+        [Test]
+        public void PlainJsonLdWithoutOptInIsNotConsumedAsModelInputTest()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+
+            // No opt-in metadata is set for the plain .jsonld file: it must be
+            // treated as arbitrary JSON-LD, not as a WoT model, so the whole
+            // run has nothing to generate (and reports no diagnostics),
+            // even though the content is itself a perfectly valid WoT
+            // envelope document.
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    DefaultWotOptions(),
+                    [EmbeddedText.Create("DemoModel.jsonld", wotJson)]);
+
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(runResult.Results[0].GeneratedSources, Is.Empty);
+        }
+
+        [Test]
+        public void PlainJsonLdOptInIsConsumedAsModelInputTest()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+
+            AnalyzerOptionsProvider options = DefaultWotOptions();
+            options.TextOptions["DemoModel.jsonld"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorWot"] = "true"
+            };
+
+            GeneratorRunResult generatorResult = RunDemoModelGenerator(
+                LanguageVersion.CSharp13,
+                EmbeddedText.Create("DemoModel.jsonld", wotJson),
+                options);
+
+            Assert.That(
+                generatorResult.GeneratedSources.Any(source =>
+                    source.HintName.StartsWith("DemoModel.", StringComparison.Ordinal)),
+                Is.True,
+                "a .jsonld file with ModelSourceGeneratorWot=true should be recognized as a WoT model input");
+        }
+
+        [Test]
+        public void IgnoredOptedInPlainJsonLdProducesNoDiagnosticsOrSourcesTest()
+        {
+            var options = DefaultWotOptions();
+            options.TextOptions["Ignored.jsonld"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorWot"] = "true",
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorIgnore"] = "true"
+            };
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    options,
+                    [EmbeddedText.Create("Ignored.jsonld", "{ invalid json")]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics,
+                Is.Empty,
+                "an ignored, explicitly opted-in .jsonld file must be excluded before parsing");
+            Assert.That(
+                runResult.Results[0].GeneratedSources,
+                Is.Empty,
+                "an ignored, explicitly opted-in .jsonld file must emit no sources");
+        }
+
+        [Test]
+        public void NodeSetAndEnvelopeWotProduceEquivalentGeneratedOutputTest()
+        {
+            const LanguageVersion languageVersion = LanguageVersion.CSharp13;
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+
+            GeneratorRunResult nodeSetResult = RunDemoModelGenerator(
+                languageVersion,
+                EmbeddedText.Create("DemoModel.NodeSet2.xml", nodeSetXml),
+                DefaultWotOptions());
+            GeneratorRunResult wotResult = RunDemoModelGenerator(
+                languageVersion,
+                EmbeddedText.Create("DemoModel.tm.json", BuildDemoModelWotEnvelopeJson(nodeSetXml)),
+                DefaultWotOptions());
+
+            string[] nodeSetHints =
+            [
+                .. nodeSetResult.GeneratedSources
+                    .Select(s => s.HintName)
+                    .Where(h => h.StartsWith("DemoModel.", StringComparison.Ordinal))
+                    .OrderBy(h => h, StringComparer.Ordinal)
+            ];
+            string[] wotHints =
+            [
+                .. wotResult.GeneratedSources
+                    .Select(s => s.HintName)
+                    .Where(h => h.StartsWith("DemoModel.", StringComparison.Ordinal))
+                    .OrderBy(h => h, StringComparer.Ordinal)
+            ];
+            Assert.That(nodeSetHints, Is.Not.Empty);
+            Assert.That(
+                wotHints,
+                Is.EqualTo(nodeSetHints),
+                "a WoT envelope input should generate the same set of hint names as the equivalent NodeSet2 input");
+
+            foreach (string hint in nodeSetHints)
+            {
+                string nodeSetSource = nodeSetResult.GeneratedSources
+                    .Single(s => s.HintName == hint).SourceText.ToString();
+                string wotSource = wotResult.GeneratedSources
+                    .Single(s => s.HintName == hint).SourceText.ToString();
+                Assert.That(
+                    wotSource,
+                    Is.EqualTo(nodeSetSource),
+                    $"generated source for '{hint}' should be identical between the NodeSet2 and WoT-envelope inputs");
+            }
+        }
+
+        [Test]
+        public void MalformedWotJsonProducesDiagnosticWithoutGeneratorExceptionTest()
+        {
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    DefaultWotOptions(),
+                    [
+                        EmbeddedText.Create("Malformed.tm.json", "{ this is not valid json"),
+                        EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                    ]);
+
+            Assert.That(
+                runResult.Results[0].Exception,
+                Is.Null,
+                "a malformed WoT document must not crash the generator");
+            Assert.That(
+                diagnostics.Any(d => d.Id == "MODELGEN030"),
+                Is.True,
+                "a malformed WoT document should produce a MODELGEN030 diagnostic");
+            // The malformed WoT input must not abort generation for the rest
+            // of the compilation: DI does not depend on it and should still
+            // be generated.
+            Assert.That(runResult.Results[0].GeneratedSources, Is.Not.Empty);
+        }
+
+        [Test]
+        public void IgnoredMalformedWotJsonProducesNoDiagnosticsOrSourcesTest()
+        {
+            var options = DefaultWotOptions();
+            options.TextOptions["Malformed.tm.json"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorIgnore"] = "true"
+            };
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    options,
+                    [EmbeddedText.Create("Malformed.tm.json", "{ this is not valid json")]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics,
+                Is.Empty,
+                "an ignored WoT file must be excluded before parsing and diagnostic forwarding");
+            Assert.That(
+                runResult.Results[0].GeneratedSources,
+                Is.Empty,
+                "an ignored WoT file must emit no sources");
+        }
+
+        [Test]
+        public void WotDocumentWithoutEnvelopeNativeMappingOrRecognizedTypeProducesDiagnosticTest()
+        {
+            const string json = /*lang=json,strict*/ """{ "title": "NotARecognizedThing" }""";
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    DefaultWotOptions(),
+                    [
+                        EmbeddedText.Create("Unrecognized.td.json", json),
+                        EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                    ]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics.Any(d =>
+                    d.Id == "MODELGEN031" &&
+                    d.GetMessage(CultureInfo.InvariantCulture).Contains("WOT3001", StringComparison.Ordinal)),
+                Is.True,
+                "a document that is neither a recognized Thing Model/Description nor carries a " +
+                "preservation envelope or native mapping should report WotDiagnosticCode.NoConvertibleContent (WOT3001)");
+        }
+
+        [Test]
+        public void DigestMismatchedWotEnvelopeProducesDiagnosticWithoutGeneratorExceptionTest()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string tamperedJson = TamperEnvelopeDigestData(
+                BuildDemoModelWotEnvelopeJson(nodeSetXml, includeEnvelope: true));
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    DefaultWotOptions(),
+                    [
+                        EmbeddedText.Create("Tampered.tm.json", tamperedJson),
+                        EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                    ]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics.Any(d =>
+                    d.Id == "MODELGEN031" &&
+                    d.GetMessage(CultureInfo.InvariantCulture).Contains("WOT2006", StringComparison.Ordinal)),
+                Is.True,
+                "a tampered envelope digest should report WotDiagnosticCode.DigestMismatch (WOT2006)");
+        }
+
+        [Test]
+        public void ConversionErrorWithNonNullValueEmitsNoNodeSetEvenWhenDiagnosticSuppressedTest()
+        {
+            // A valid preservation envelope whose native projection carries a
+            // conflicting browse name: the envelope still restores a (non-null)
+            // NodeSet, but the native-consistency check reports an error. The
+            // wrapper must exclude this errored result so no generated model is
+            // emitted, independent of whether MODELGEN031 is later suppressed.
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string conflicted = TamperNativeProjectionBrowseName(
+                BuildDemoModelWotEnvelopeJson(nodeSetXml, includeEnvelope: true));
+
+            WotConversionOutcome outcome = WotNodeSetAdditionalText.Convert(
+                EmbeddedText.Create("Conflict.tm.json", conflicted),
+                new NodesetFileOptions(),
+                default);
+
+            Assert.That(
+                outcome.Diagnostics.Any(d =>
+                    d.Id == "MODELGEN031" &&
+                    d.GetMessage(CultureInfo.InvariantCulture).Contains("WOT3000", StringComparison.Ordinal)),
+                Is.True,
+                "a native-projection conflict should be reported as a MODELGEN031 error " +
+                "(WotDiagnosticCode.NativeProjectionConflict / WOT3000)");
+            Assert.That(
+                outcome.NodeSetText,
+                Is.Null,
+                "a conversion result with an error diagnostic must not yield a NodeSet even when a " +
+                "(partial) value was produced and the MODELGEN031 diagnostic could be suppressed");
+        }
+
+        [Test]
+        public void CollidingWotInputsProduceDiagnosticAndOnlyOneIsAcceptedTest()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    DefaultWotOptions(),
+                    [
+                        EmbeddedText.Create("DemoModel.tm.json", wotJson),
+                        EmbeddedText.Create("DemoModel.td.json", wotJson),
+                        EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                    ]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics.Any(d => d.Id == "MODELGEN034"),
+                Is.True,
+                "two WoT inputs synthesizing the same virtual NodeSet2 path should report MODELGEN034");
+            Assert.That(
+                runResult.Results[0].GeneratedSources
+                    .Count(s => s.HintName == "DemoModel.Constants.g.cs"),
+                Is.EqualTo(1),
+                "exactly one of the colliding inputs should be accepted, not zero or both");
+        }
+
+        [Test]
+        public void IgnoredWotInputDoesNotOwnCollisionPathAgainstActiveWotTest()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+            var options = DefaultWotOptions();
+            options.TextOptions["DemoModel.tm.json"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorIgnore"] = "true"
+            };
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    options,
+                    [
+                        EmbeddedText.Create("DemoModel.tm.json", wotJson),
+                        EmbeddedText.Create("DemoModel.td.json", wotJson),
+                        EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                    ]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics,
+                Is.Empty,
+                "an ignored WoT input must not reserve its synthesized NodeSet2 path");
+            Assert.That(
+                runResult.Results[0].GeneratedSources
+                    .Count(s => s.HintName == "DemoModel.Constants.g.cs"),
+                Is.EqualTo(1),
+                "the active WoT input should generate normally when its colliding peer is ignored");
+        }
+
+        [Test]
+        public void WotInputCollidingWithExplicitNodeSet2FileProducesDiagnosticTest()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    DefaultWotOptions(),
+                    [
+                        EmbeddedText.Create("DemoModel.NodeSet2.xml", nodeSetXml),
+                        EmbeddedText.Create("DemoModel.tm.json", wotJson),
+                        EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                    ]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics.Any(d => d.Id == "MODELGEN034"),
+                Is.True,
+                "a WoT input synthesizing the same path as an explicit NodeSet2 input should report MODELGEN034");
+            Assert.That(
+                runResult.Results[0].GeneratedSources
+                    .Count(s => s.HintName == "DemoModel.Constants.g.cs"),
+                Is.EqualTo(1),
+                "the explicit NodeSet2 input should win; the WoT input should be dropped, not duplicated");
+        }
+
+        [Test]
+        public void IgnoredWotInputDoesNotCollideWithActiveNodeSet2Test()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+            var options = DefaultWotOptions();
+            options.TextOptions["DemoModel.tm.json"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorIgnore"] = "true"
+            };
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    options,
+                    [
+                        EmbeddedText.Create("DemoModel.tm.json", wotJson),
+                        EmbeddedText.Create("DemoModel.NodeSet2.xml", nodeSetXml),
+                        EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                    ]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics,
+                Is.Empty,
+                "an ignored WoT input must not report a collision with an active NodeSet2 input");
+            Assert.That(
+                runResult.Results[0].GeneratedSources
+                    .Count(s => s.HintName == "DemoModel.Constants.g.cs"),
+                Is.EqualTo(1),
+                "the active NodeSet2 input should generate normally when the colliding WoT input is ignored");
+        }
+
+        [Test]
+        public void WotInputPreservesAdditionalFilesOptionsTest()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+
+            AnalyzerOptionsProvider options = DefaultWotOptions();
+            options.TextOptions["CustomWot.tm.json"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "CustomWotPrefix",
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorName"] = "CustomWotName",
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                    "urn:opcfoundation.org:2024-01:DemoModel",
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorVersion"] = "9.9.9"
+            };
+
+            // None of the options above throw or are rejected even though
+            // ModelUri/Version are set explicitly (matching, respectively
+            // overriding, the values already declared inside the WoT input's
+            // restored NodeSet2 <Model> element) — proving they are applied
+            // to the WoT-derived NodeSet2 file exactly as they would be to a
+            // NodeSet2/ModelDesign AdditionalFiles input.
+            GeneratorRunResult generatorResult = RunDemoModelGenerator(
+                LanguageVersion.CSharp13,
+                EmbeddedText.Create("CustomWot.tm.json", wotJson),
+                options);
+
+            Assert.That(
+                generatorResult.GeneratedSources.Any(s => s.HintName == "CustomWotPrefix.Constants.g.cs"),
+                Is.True,
+                "the Prefix metadata from the WoT AdditionalFiles item should be honored " +
+                "after wrapping the WoT input as a NodeSet2 file");
+            Assert.That(
+                generatorResult.GeneratedSources.Any(s =>
+                    s.HintName.StartsWith("DemoModel.", StringComparison.Ordinal)),
+                Is.False,
+                "the default DemoModel prefix should not be used once Prefix is overridden");
+        }
+
+        [Test]
+        public void IncrementalRerunChangesOutputForWotContentButNotForUnrelatedFilesTest()
+        {
+            var generator = new ModelSourceGenerator();
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), LanguageVersion.CSharp13);
+            AnalyzerOptionsProvider options = DefaultWotOptions();
+
+            string nodeSetXmlV1 = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            const string originalAttr = "BrowseName=\"1:Yellow\" ParentNodeId=\"ns=1;i=125\"";
+            const string renamedAttr = "BrowseName=\"1:YellowRenamedForIncrementalTest\" ParentNodeId=\"ns=1;i=125\"";
+            Assert.That(nodeSetXmlV1, Does.Contain(originalAttr));
+            string nodeSetXmlV2 = nodeSetXmlV1.Replace(originalAttr, renamedAttr, StringComparison.Ordinal);
+            Assert.That(nodeSetXmlV2, Is.Not.EqualTo(nodeSetXmlV1));
+
+            AdditionalText wotV1 = EmbeddedText.Create(
+                "DemoModel.tm.json", BuildDemoModelWotEnvelopeJson(nodeSetXmlV1));
+            AdditionalText wotV2 = EmbeddedText.Create(
+                "DemoModel.tm.json", BuildDemoModelWotEnvelopeJson(nodeSetXmlV2));
+            AdditionalText unrelatedV1 = EmbeddedText.Create("Unrelated.csv", "NodeId,BrowseName\n");
+            AdditionalText unrelatedV2 = EmbeddedText.Create("Unrelated.csv", "NodeId,BrowseName\n1,Foo\n");
+
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(LanguageVersion.CSharp13))
+                .AddAdditionalTexts([wotV1, EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml"), unrelatedV1])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation, out Compilation _, out ImmutableArray<Diagnostic> diagnostics1);
+            Assert.That(diagnostics1, Is.Empty);
+            string baseline = GetGeneratedSourcesText(driver.GetRunResult());
+
+            GeneratorDriver contentChangedDriver = driver
+                .RemoveAdditionalTexts([wotV1])
+                .AddAdditionalTexts([wotV2]);
+            contentChangedDriver = contentChangedDriver.RunGeneratorsAndUpdateCompilation(
+                compilation, out Compilation _, out ImmutableArray<Diagnostic> diagnostics2);
+            Assert.That(diagnostics2, Is.Empty);
+            string afterContentChange = GetGeneratedSourcesText(contentChangedDriver.GetRunResult());
+            Assert.That(
+                afterContentChange,
+                Is.Not.EqualTo(baseline),
+                "changing the WoT input content must change the generated output");
+
+            GeneratorDriver unrelatedChangedDriver = driver
+                .RemoveAdditionalTexts([unrelatedV1])
+                .AddAdditionalTexts([unrelatedV2]);
+            unrelatedChangedDriver = unrelatedChangedDriver.RunGeneratorsAndUpdateCompilation(
+                compilation, out Compilation _, out ImmutableArray<Diagnostic> diagnostics3);
+            Assert.That(diagnostics3, Is.Empty);
+            string afterUnrelatedChange = GetGeneratedSourcesText(unrelatedChangedDriver.GetRunResult());
+            Assert.That(
+                afterUnrelatedChange,
+                Is.EqualTo(baseline),
+                "changing an unrelated file must not change the WoT-derived generated output");
+        }
+
         [Theory]
         public void GenerateAndCompileIsa95JobControlNodeSet2Test(
             LanguageVersion languageVersion)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -150,10 +676,11 @@ namespace Opc.Ua.SourceGeneration
             var options = new AnalyzerOptionsProvider(
                 new Dictionary<string, string>
                 {
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -179,7 +706,7 @@ namespace Opc.Ua.SourceGeneration
                 .ToString();
             Assert.That(nodeSet, Does.Contain("OPC Foundation MIT License 1.00"));
 
-            XDocument document = XDocument.Parse(nodeSet);
+            var document = XDocument.Parse(nodeSet);
             XNamespace ua = "http://opcfoundation.org/UA/2011/03/UANodeSet.xsd";
             XElement root = document.Root!;
             XElement[] models = [.. root.Element(ua + "Models")!.Elements(ua + "Model")];
@@ -232,7 +759,6 @@ namespace Opc.Ua.SourceGeneration
             LanguageVersion languageVersion)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -246,11 +772,12 @@ namespace Opc.Ua.SourceGeneration
                     // The test compilation includes Core stubs but no
                     // Server reference. Suppress fluent-builder
                     // emission so the generated code compiles standalone.
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             // Create the driver that executes the generator
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -289,7 +816,6 @@ namespace Opc.Ua.SourceGeneration
             // generation fails with MODELGEN003 ("The TypeDefinition reference
             // for node Widget1 is not the expected type: ObjectTypeDesign.").
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -321,7 +847,7 @@ namespace Opc.Ua.SourceGeneration
                 };
 
             // Create the driver that executes the generator
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -354,7 +880,6 @@ namespace Opc.Ua.SourceGeneration
             LanguageVersion languageVersion)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -380,7 +905,7 @@ namespace Opc.Ua.SourceGeneration
                         "http://test.org/UA/CrossModel/Instances"
                 };
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -533,7 +1058,7 @@ namespace Opc.Ua.SourceGeneration
                 Has.Length.EqualTo(1),
                 "a selector-less binding must be reported once, not once per pass");
             Assert.That(
-                unmatched[0].GetMessage(System.Globalization.CultureInfo.InvariantCulture),
+                unmatched[0].GetMessage(CultureInfo.InvariantCulture),
                 Does.Contain("multiple models"),
                 "the diagnostic should explain the ambiguity");
         }
@@ -551,7 +1076,6 @@ namespace Opc.Ua.SourceGeneration
             RunMixedModelGenerator(LanguageVersion languageVersion, string bindingSource)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>
@@ -579,7 +1103,7 @@ namespace Opc.Ua.SourceGeneration
                         "http://test.org/UA/CrossModel/Instances"
                 };
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -596,6 +1120,159 @@ namespace Opc.Ua.SourceGeneration
                 out ImmutableArray<Diagnostic> diagnostics);
 
             return (diagnostics, driver.GetRunResult());
+        }
+
+        /// <summary>
+        /// Default per-file/global options shared by the WoT AdditionalFile
+        /// tests below.
+        /// <para>
+        /// Event records are omitted because these tests compile the DI NodeSet
+        /// only as a model dependency. Its generated alarm event records are
+        /// C# <c>record</c> types that derive from the standard UA alarm
+        /// records, which the deliberately class-based generated-stack stub in
+        /// <c>CompilerUtils</c> does not provide.
+        /// </para>
+        /// </summary>
+        private static AnalyzerOptionsProvider DefaultWotOptions()
+        {
+            return new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorStartId"] = "1000",
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
+                });
+        }
+
+        /// <summary>
+        /// Converts a NodeSet2 XML document to a native-first WoT document.
+        /// Tests that exercise envelope integrity can request the explicit
+        /// byte-preserving <c>uav:nodeSet</c> archival mode.
+        /// </summary>
+        private static string BuildDemoModelWotEnvelopeJson(
+            string nodeSetXml,
+            string title = null,
+            bool includeEnvelope = false)
+        {
+            using var nodeSetStream = new MemoryStream(Encoding.UTF8.GetBytes(nodeSetXml));
+            UANodeSet nodeSet = UANodeSet.Read(nodeSetStream)!;
+            using WotDocument wot = WotNodeSetConverter.FromNodeSet(
+                nodeSet,
+                title,
+                new WotNodeSetConverterOptions
+                {
+                    PreservationMode = includeEnvelope
+                        ? WotNodeSetPreservationMode.Always
+                        : WotNodeSetPreservationMode.Never
+                });
+            return Encoding.UTF8.GetString(wot.Utf8Json.ToArray());
+        }
+
+        /// <summary>
+        /// Flips one base64 character of the <c>uav:nodeSet</c> preservation
+        /// envelope's <c>data</c> value so the payload still decodes as valid
+        /// base64 but its SHA-256 digest no longer matches the recorded
+        /// <c>sha256</c> value.
+        /// </summary>
+        private static string TamperEnvelopeDigestData(string envelopeJson)
+        {
+            const string marker = "\"data\": \"";
+            int index = envelopeJson.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
+            char[] characters = envelopeJson.ToCharArray();
+            characters[index] = characters[index] == 'A' ? 'B' : 'A';
+            return new string(characters);
+        }
+
+        /// <summary>
+        /// Rewrites the first <c>browseName</c> of the <c>uav:nodes</c> native
+        /// projection so it conflicts with the browse name carried by the
+        /// preservation envelope. The envelope still restores a valid NodeSet, but
+        /// the native-consistency check reports a
+        /// <c>WotDiagnosticCode.NativeProjectionConflict</c> error, producing a
+        /// conversion result with a non-null value and an error diagnostic.
+        /// </summary>
+        private static string TamperNativeProjectionBrowseName(string envelopeJson)
+        {
+            int nodesStart = envelopeJson.IndexOf("\"uav:nodes\"", StringComparison.Ordinal);
+            const string marker = "\"browseName\": \"";
+            int start = envelopeJson.IndexOf(marker, nodesStart, StringComparison.Ordinal);
+            int valueStart = start + marker.Length;
+            int valueEnd = envelopeJson.IndexOf('"', valueStart);
+            return new StringBuilder(envelopeJson.Length + 9)
+                .Append(envelopeJson, 0, valueEnd)
+                .Append("_MISMATCH")
+                .Append(envelopeJson, valueEnd, envelopeJson.Length - valueEnd)
+                .ToString();
+        }
+
+        /// <summary>
+        /// Runs the generator for a single model AdditionalText (plus its
+        /// dependency on the DI companion spec) and asserts a clean,
+        /// compiling run — for tests where the WoT input is expected to
+        /// succeed outright.
+        /// </summary>
+        private static GeneratorRunResult RunDemoModelGenerator(
+            LanguageVersion languageVersion,
+            AdditionalText modelText,
+            AnalyzerOptionsProvider options)
+        {
+            var generator = new ModelSourceGenerator();
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
+
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(languageVersion))
+                .AddAdditionalTexts([modelText, EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            return GenerateAndCompile(driver, compilation);
+        }
+
+        /// <summary>
+        /// Runs the generator over the given AdditionalFiles without
+        /// asserting success — for tests that need to inspect diagnostics
+        /// produced by a malformed, unsupported or colliding WoT input.
+        /// </summary>
+        private static (ImmutableArray<Diagnostic> Diagnostics, GeneratorDriverRunResult RunResult)
+            RunGeneratorLeniently(
+                AnalyzerOptionsProvider options,
+                IEnumerable<AdditionalText> additionalTexts,
+                LanguageVersion languageVersion = LanguageVersion.CSharp13)
+        {
+            var generator = new ModelSourceGenerator();
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
+
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(languageVersion))
+                .AddAdditionalTexts([.. additionalTexts])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out Compilation _,
+                out ImmutableArray<Diagnostic> diagnostics);
+
+            return (diagnostics, driver.GetRunResult());
+        }
+
+        /// <summary>
+        /// Concatenates every generated source (ordered deterministically by
+        /// hint name) into a single comparable string, used by the
+        /// incremental re-run test to detect whether generated output
+        /// changed between runs.
+        /// </summary>
+        private static string GetGeneratedSourcesText(GeneratorDriverRunResult runResult)
+        {
+            return string.Join(
+                "\n----\n",
+                runResult.Results[0].GeneratedSources
+                    .OrderBy(s => s.HintName, StringComparer.Ordinal)
+                    .Select(s => s.HintName + ":\n" + s.SourceText));
         }
 
         private static string ValidateXmlSchema(

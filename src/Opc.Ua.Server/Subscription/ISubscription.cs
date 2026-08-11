@@ -79,14 +79,28 @@ namespace Opc.Ua.Server
         bool IsDurable { get; }
 
         /// <summary>
-        /// Gets the lock that must be acquired before accessing the contents of the Diagnostics property.
+        /// Applies an update to the subscription diagnostics while holding the
+        /// subscription's diagnostics lock.
         /// </summary>
-        object DiagnosticsLock { get; }
+        /// <remarks>
+        /// The subscription owns its lock and never exposes it, so callers cannot
+        /// participate in the server's locking order. The diagnostic nodes are marked dirty
+        /// inside the critical section.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        void UpdateDiagnostics(Action<SubscriptionDiagnosticsDataType> update);
 
         /// <summary>
-        /// Gets the lock that must be acquired before updating the contents of the Diagnostics property.
+        /// Reads a value derived from the subscription diagnostics while holding the
+        /// subscription's diagnostics lock.
         /// </summary>
-        object DiagnosticsWriteLock { get; }
+        /// <remarks>
+        /// Do not let the diagnostics object escape the callback: once the lock is
+        /// released, any field read from it is unsynchronized.
+        /// </remarks>
+        /// <typeparam name="TResult">The type of the value produced.</typeparam>
+        /// <param name="read">The projection applied to the diagnostics.</param>
+        TResult ReadDiagnostics<TResult>(Func<SubscriptionDiagnosticsDataType, TResult> read);
 
         /// <summary>
         /// Gets the current diagnostics for the subscription.
@@ -200,7 +214,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Tells the subscription that the owning session is being closed.
         /// </summary>
+        [Obsolete("Use SessionClosed(ISession) instead, which only releases the subscription when the closing session still owns it.")]
         void SessionClosed();
+
+        /// <summary>
+        /// Tells the subscription that a session is being closed, and releases the subscription
+        /// only when that session still owns it.
+        /// <para>
+        /// A subscription can be transferred to another session while the old one is closing, so
+        /// the closing session has to be passed in: clearing the owner unconditionally would strip
+        /// a subscription that has already moved on.
+        /// </para>
+        /// </summary>
+        /// <param name="closingSession">The session that is being closed.</param>
+        /// <returns><c>true</c> when the subscription was released by this call.</returns>
+        bool SessionClosed(ISession closingSession);
 
         /// <summary>
         /// Removes a message from the message queue.
@@ -244,6 +272,16 @@ namespace Opc.Ua.Server
             OperationContext context,
             out ArrayOf<uint> availableSequenceNumbers,
             out bool moreNotifications);
+
+        /// <summary>
+        /// Determines whether the authenticated owner of a target Session is compatible
+        /// with the identity that owns this subscription.
+        /// </summary>
+        /// <param name="targetSession">The target Session for a transfer request.</param>
+        /// <returns>
+        /// <c>true</c> when the target Session represents the same ClientUserId; otherwise, <c>false</c>.
+        /// </returns>
+        bool IsTransferIdentityCompatible(ISession targetSession);
 
         /// <summary>
         /// Transfers the subscription to a new session.

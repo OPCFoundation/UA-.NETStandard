@@ -376,6 +376,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             server.Setup(s => s.Telemetry).Returns(telemetry);
             server.Setup(s => s.ServerUris).Returns(serverUris);
             server.Setup(s => s.MessageContext).Returns(context);
+            server.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
             return server;
         }
 

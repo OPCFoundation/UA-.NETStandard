@@ -28,9 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Identity;
@@ -65,6 +68,7 @@ namespace Opc.Ua.Server
         Historian.IHistorianRegistryProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
+        IAsyncDisposable,
         ITimeProviderProvider
     {
         /// <summary>
@@ -128,8 +132,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Frees any unmanaged resources.
+        /// Frees resources by running the asynchronous disposal core synchronously.
         /// </summary>
+        /// <remarks>
+        /// Callers should prefer <see cref="DisposeAsync"/>. If <see cref="DisposeAsync"/> has already run,
+        /// this method is a no-op.
+        /// </remarks>
         public void Dispose()
         {
             Dispose(true);
@@ -137,28 +145,84 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Frees resources asynchronously.
         /// </summary>
-        /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+        /// <remarks>
+        /// This is the preferred disposal path. A subsequent call to <see cref="Dispose()"/> is a no-op.
+        /// </remarks>
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Runs the asynchronous disposal core synchronously when disposing managed resources.
+        /// </summary>
+        /// <param name="disposing">
+        /// <c>true</c> to release managed resources; <c>false</c> to release only unmanaged resources.
+        /// </param>
+        /// <remarks>
+        /// If <see cref="DisposeAsyncCore"/> has already run, this method is a no-op.
+        /// </remarks>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && Volatile.Read(ref m_disposed) == 0)
             {
-                m_roleStateBinding?.Dispose();
-                m_roleStateBinding = null;
-                (RoleManager as IDisposable)?.Dispose();
-                ResourceManager?.Dispose();
-                RequestManager?.Dispose();
-                AggregateManager?.Dispose();
-                ModellingRulesManager?.Dispose();
-                ConformanceUnitsManager?.Dispose();
-                (NodeManager as IDisposable)?.Dispose();
-                SessionManager?.Dispose();
-                SubscriptionManager?.Dispose();
-                MonitoredItemQueueFactory?.Dispose();
-                (AliasNameStoreRegistry as IDisposable)?.Dispose();
-                (HistorianRegistry as IDisposable)?.Dispose();
+#pragma warning disable CA2012 // Owner-approved sync dispose path blocks here; TODO: remove if contract changes.
+                DisposeAsyncCore().GetAwaiter().GetResult();
+#pragma warning restore CA2012
             }
+        }
+
+        /// <summary>
+        /// An overrideable version of asynchronous dispose.
+        /// </summary>
+        /// <remarks>
+        /// This method performs the full managed-resource cleanup. <see cref="Dispose()"/> calls this method
+        /// synchronously when callers use the synchronous disposal path.
+        /// </remarks>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+
+            m_roleStateBinding?.Dispose();
+            m_roleStateBinding = null;
+            (RoleManager as IDisposable)?.Dispose();
+            RoleManager = null!;
+            ResourceManager?.Dispose();
+            ResourceManager = null!;
+            RequestManager?.Dispose();
+            RequestManager = null!;
+            AggregateManager?.Dispose();
+            AggregateManager = null!;
+            ModellingRulesManager?.Dispose();
+            ModellingRulesManager = null!;
+            ConformanceUnitsManager?.Dispose();
+            ConformanceUnitsManager = null!;
+            (NodeManager as IDisposable)?.Dispose();
+            NodeManager = null!;
+            DiagnosticsNodeManager = null!;
+            ConfigurationNodeManager = null!;
+            CoreNodeManager = null!;
+            SessionManager?.Dispose();
+            SessionManager = null!;
+            if (SubscriptionManager is IAsyncDisposable asyncSubscriptionManager)
+            {
+                await asyncSubscriptionManager.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                SubscriptionManager?.Dispose();
+            }
+            SubscriptionManager = null!;
+            MonitoredItemQueueFactory?.Dispose();
+            MonitoredItemQueueFactory = null!;
+            (AliasNameStoreRegistry as IDisposable)?.Dispose();
+            (HistorianRegistry as IDisposable)?.Dispose();
         }
 
         /// <summary>
@@ -253,7 +317,7 @@ namespace Opc.Ua.Server
         public IRoleManager RoleManager { get; private set; } = new RoleManager();
 
         /// <inheritdoc/>
-        public IServerIdentityRegistry IdentityRegistry { get; private set; } = new ServerIdentityRegistry();
+        public IServerIdentityRegistry IdentityRegistry { get; } = new ServerIdentityRegistry();
 
         /// <inheritdoc/>
         public UserManagement.IUserManagement? UserManagement { get; private set; }
@@ -265,8 +329,26 @@ namespace Opc.Ua.Server
         public ISubscriptionManager SubscriptionManager { get; private set; } = null!;
 
         /// <summary>
+        /// Closes the bind phase. Subsystems are bound once, while the server starts;
+        /// every attempt to bind one after this fails.
+        /// </summary>
+        /// <remarks>
+        /// Calling this more than once is harmless. It is deliberately not on
+        /// <see cref="IServerInternal"/>: only the server that owns the startup sequence
+        /// decides when binding is over.
+        /// </remarks>
+        public void CompleteBindPhase()
+        {
+            m_bindPhaseComplete = true;
+        }
+
+        /// <summary>
         /// Stores the MasterNodeManager, the DiagnosticsNodeManager and the CoreNodeManager
         /// </summary>
+        /// <remarks>
+        /// Binding the master node manager also binds the three managers it owns, because
+        /// they are reached through it and have no independent lifetime.
+        /// </remarks>
         /// <param name="nodeManager">The node manager.</param>
         [MemberNotNull(
             nameof(NodeManager),
@@ -275,6 +357,7 @@ namespace Opc.Ua.Server
             nameof(CoreNodeManager))]
         public void SetNodeManager(IMasterNodeManager nodeManager)
         {
+            ThrowIfBindPhaseComplete();
             NodeManager = nodeManager;
             DiagnosticsNodeManager = nodeManager.DiagnosticsNodeManager!;
             ConfigurationNodeManager = nodeManager.ConfigurationNodeManager!;
@@ -288,6 +371,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(MainNodeManagerFactory))]
         public void SetMainNodeManagerFactory(IMainNodeManagerFactory mainNodeManagerFactory)
         {
+            ThrowIfBindPhaseComplete();
             MainNodeManagerFactory = mainNodeManagerFactory;
         }
 
@@ -311,6 +395,7 @@ namespace Opc.Ua.Server
             RequestManager requestManager,
             CancellationToken cancellationToken = default)
         {
+            ThrowIfBindPhaseComplete();
             EventManager = eventManager;
             ResourceManager = resourceManager;
             RequestManager = requestManager;
@@ -330,6 +415,7 @@ namespace Opc.Ua.Server
             ISessionManager sessionManager,
             ISubscriptionManager subscriptionManager)
         {
+            ThrowIfBindPhaseComplete();
             if (SessionManager != null)
             {
                 SessionManager.SessionCreated -= OnSessionCountChanged;
@@ -352,6 +438,7 @@ namespace Opc.Ua.Server
         public void SetMonitoredItemQueueFactory(
             IMonitoredItemQueueFactory monitoredItemQueueFactory)
         {
+            ThrowIfBindPhaseComplete();
             MonitoredItemQueueFactory = monitoredItemQueueFactory;
         }
 
@@ -362,25 +449,42 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(SubscriptionStore))]
         public void SetSubscriptionStore(ISubscriptionStore subscriptionStore)
         {
+            ThrowIfBindPhaseComplete();
             SubscriptionStore = subscriptionStore;
         }
 
         /// <inheritdoc/>
         public void SetRoleManager(IRoleManager roleManager)
         {
+            ThrowIfBindPhaseComplete();
             RoleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
-        }
-
-        /// <inheritdoc/>
-        public void SetIdentityRegistry(IServerIdentityRegistry registry)
-        {
-            IdentityRegistry = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
         /// <inheritdoc/>
         public void SetUserManagement(UserManagement.IUserManagement userManagement)
         {
+            ThrowIfBindPhaseComplete();
             UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
+        }
+
+        /// <summary>
+        /// Refuses a bind once the server has finished starting. A subsystem that could be
+        /// swapped underneath a running server would leave every component that already
+        /// resolved it holding the previous instance.
+        /// </summary>
+        /// <param name="member">The bind operation being attempted.</param>
+        /// <exception cref="ServiceResultException">The bind phase is over.</exception>
+        private void ThrowIfBindPhaseComplete([CallerMemberName] string member = "")
+        {
+            if (m_bindPhaseComplete)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "{0} ran after the server finished starting. Subsystems are bound once, " +
+                    "during startup; supply one through the matching StandardServer.Create* " +
+                    "override or by registering it in the service container.",
+                    member);
+            }
         }
 
         /// <summary>
@@ -390,6 +494,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(AggregateManager))]
         public void SetAggregateManager(AggregateManager aggregateManager)
         {
+            ThrowIfBindPhaseComplete();
             AggregateManager = aggregateManager;
         }
 
@@ -400,6 +505,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(ModellingRulesManager))]
         public void SetModellingRulesManager(ModellingRulesManager modellingRulesManager)
         {
+            ThrowIfBindPhaseComplete();
             ModellingRulesManager = modellingRulesManager;
         }
 
@@ -410,6 +516,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(ConformanceUnitsManager))]
         public void SetConformanceUnitsManager(ConformanceUnitsManager conformanceUnitsManager)
         {
+            ThrowIfBindPhaseComplete();
             ConformanceUnitsManager = conformanceUnitsManager;
         }
 
@@ -430,6 +537,49 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The default system context.</value>
         public ServerSystemContext DefaultSystemContext { get; }
+
+        /// <inheritdoc/>
+        public ServerSystemContext CreateSystemContext(ISession session)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+
+            return DefaultSystemContext.Copy(session);
+        }
+
+        /// <inheritdoc/>
+        public T? FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
+        {
+            return DiagnosticsNodeManager?.FindPredefinedNode<T>(nodeId);
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<T> FindNodeManagers<T>() where T : class
+        {
+            IMasterNodeManager? nodeManager = NodeManager;
+            if (nodeManager == null)
+            {
+                return [];
+            }
+
+            // A node manager is registered as an asynchronous manager and surfaced again
+            // through a synchronous adapter. A manager that already implements INodeManager
+            // is its own adapter, so the two lists overlap and the capability may sit on
+            // either face; both are searched and the overlap is removed.
+            //
+            // The overlap is the *same instance* appearing twice, so identity is the only
+            // correct comparison. Distinct() would use EqualityComparer<T>.Default and
+            // honour an Equals override on an implementation, silently collapsing two
+            // managers that merely compare equal.
+            List<T> asyncManagers = [.. nodeManager.AsyncNodeManagers.OfType<T>()];
+
+            return asyncManagers.Concat(
+                nodeManager.NodeManagers
+                    .OfType<T>()
+                    .Where(manager => !asyncManagers.Exists(known => ReferenceEquals(known, manager))));
+        }
 
         /// <summary>
         /// The table of namespace uris known to the server.
@@ -560,14 +710,14 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     return NonThreadSafeStatus.Value.State;
                 }
             }
             set
             {
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     NonThreadSafeStatus.Value.State = value;
                 }
@@ -581,25 +731,47 @@ namespace Opc.Ua.Server
         public ServerObjectState ServerObject { get; private set; } = null!;
 
         /// <summary>
-        /// Used to synchronize access to the server diagnostics.
+        /// Applies an update to the server diagnostics while holding the server's
+        /// diagnostics lock.
         /// </summary>
-        /// <value>The diagnostics lock.</value>
-        public object DiagnosticsLock { get; } = new object();
-
-        /// <summary>
-        /// Used to synchronize write access to
-        /// the server diagnostics.
-        /// </summary>
-        /// <value>The diagnostics lock.</value>
-        public object DiagnosticsWriteLock
+        /// <remarks>
+        /// Replaces the former <c>DiagnosticsLock</c> and <c>DiagnosticsWriteLock</c>
+        /// properties. The server owns its lock and never hands it out, so callers cannot
+        /// participate in - or deadlock against - the server's locking order. The
+        /// diagnostic nodes are marked dirty inside the critical section; the old
+        /// <c>DiagnosticsWriteLock</c> getter did that outside the lock it then returned.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        /// <exception cref="ArgumentNullException">Thrown if update is null.</exception>
+        public void UpdateServerDiagnostics(
+            Action<ServerDiagnosticsSummaryDataType> update)
         {
-            get
+            if (update == null)
             {
-                // implicitly force diagnostics update
+                throw new ArgumentNullException(nameof(update));
+            }
+
+            lock (m_diagnosticsLock)
+            {
+                update.Invoke(ServerDiagnostics);
+
+                // mark diagnostic nodes dirty
                 DiagnosticsNodeManager?.ForceDiagnosticsScan();
-                return DiagnosticsLock;
             }
         }
+
+        /// <summary>
+        /// Guards the server diagnostics and the server status value, which is constructed
+        /// with this same lock so the two stay mutually exclusive. Never exposed: callers
+        /// reach the diagnostics through <see cref="UpdateServerDiagnostics"/>, and the
+        /// status through <see cref="CurrentState"/> and <see cref="UpdateServerStatus"/>.
+        /// </summary>
+        private readonly Lock m_diagnosticsLock = new();
+
+        /// <summary>
+        /// Whether the startup sequence has finished binding subsystems.
+        /// </summary>
+        private volatile bool m_bindPhaseComplete;
 
         /// <summary>
         /// Returns the diagnostics structure for the server.
@@ -626,7 +798,7 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                lock (NonThreadSafeStatus.Lock)
+                lock (m_diagnosticsLock)
                 {
                     if (NonThreadSafeStatus.Value.State == ServerState.Running)
                     {
@@ -672,22 +844,6 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="sessionId">The session identifier.</param>
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
-        [Obsolete("Use CloseSessionAsync instead.")]
-        public void CloseSession(
-            OperationContext context,
-            NodeId sessionId,
-            bool deleteSubscriptions)
-        {
-            CloseSessionAsync(context, sessionId, deleteSubscriptions)
-                .AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Closes the specified session.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="sessionId">The session identifier.</param>
-        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
         /// <param name="cancellationToken">The cancellationToken</param>
         public async ValueTask CloseSessionAsync(
             OperationContext context,
@@ -695,11 +851,41 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
-                .ConfigureAwait(false);
-            await SubscriptionManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
-                .ConfigureAwait(false);
-            await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+            MarkSessionClosing(sessionId);
+            try
+            {
+                await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                    .ConfigureAwait(false);
+                await SubscriptionManager
+                    .SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                // The Session is marked closing for good, so it must not be left registered and
+                // serving when a NodeManager or the SubscriptionManager fails to tear its state
+                // down. The original failure still propagates to the caller.
+                await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Marks the session as closing so that nothing creates new state for it while it is being
+        /// torn down. The mark lives on the Session itself, because every caller that has to test
+        /// it already holds the Session, and it is never cleared: a Session that started closing is
+        /// on its way out.
+        /// </summary>
+        /// <param name="sessionId">The session being closed.</param>
+        private void MarkSessionClosing(NodeId sessionId)
+        {
+            foreach (ISession session in SessionManager.GetSessions())
+            {
+                if (session.Id == sessionId)
+                {
+                    (session as Session)?.MarkClosing();
+                    return;
+                }
+            }
         }
 
         /// <summary>
@@ -810,7 +996,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(action));
             }
 
-            lock (NonThreadSafeStatus.Lock)
+            lock (m_diagnosticsLock)
             {
                 action.Invoke(NonThreadSafeStatus);
             }
@@ -1039,7 +1225,7 @@ namespace Opc.Ua.Server
             NonThreadSafeStatus = new ServerStatusValue(
                 serverObject.ServerStatus,
                 serverStatus,
-                DiagnosticsLock)
+                m_diagnosticsLock)
             {
                 Timestamp = nowUtc,
                 OnBeforeRead = OnReadServerStatus
@@ -1082,6 +1268,15 @@ namespace Opc.Ua.Server
             // Initialize history capabilities and update Server EventNotifier accordingly
             await DiagnosticsNodeManager.UpdateServerEventNotifierAsync(cancellationToken)
                 .ConfigureAwait(false);
+
+            foreach (IAsyncNodeManager nodeManager in NodeManager.AsyncNodeManagers)
+            {
+                if (nodeManager is AsyncCustomNodeManager customNodeManager)
+                {
+                    await customNodeManager.PublishRootNotifierReferencesAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
 
             Auditing = m_configuration.ServerConfiguration.AuditingEnabled;
             PropertyState<bool>? auditing = serverObject.Auditing;
@@ -1134,7 +1329,7 @@ namespace Opc.Ua.Server
             BaseVariableValue variable,
             NodeState component)
         {
-            lock (NonThreadSafeStatus.Lock)
+            lock (m_diagnosticsLock)
             {
                 DateTime now = TimeProvider.GetUtcNow().UtcDateTime;
                 NonThreadSafeStatus.Timestamp = now;
@@ -1229,12 +1424,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the current diagnostics.
         /// </summary>
+        /// <summary>
+        /// Returns a copy of the current diagnostics.
+        /// </summary>
+        /// <remarks>
+        /// Takes the same lock every writer takes. Locking the diagnostics object instead
+        /// would be a different monitor, so the snapshot would not be excluded from a
+        /// concurrent <see cref="UpdateServerDiagnostics"/> and could walk the structure
+        /// while its fields were being written.
+        /// </remarks>
         private ServiceResult OnUpdateDiagnostics(
             ISystemContext context,
             NodeState node,
             ref Variant value)
         {
-            lock (ServerDiagnostics)
+            lock (m_diagnosticsLock)
             {
                 value = Variant.FromStructure(ServerDiagnostics);
             }
@@ -1249,5 +1453,6 @@ namespace Opc.Ua.Server
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
         private ArrayOf<EndpointDescription> m_serverEndpoints;
+        private int m_disposed;
     }
 }

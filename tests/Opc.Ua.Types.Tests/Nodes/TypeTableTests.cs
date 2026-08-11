@@ -124,6 +124,27 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         [Test]
+        public void AddSubtypeReparentsExistingEntry()
+        {
+            var firstParentId = new NodeId(5000);
+            var secondParentId = new NodeId(5001);
+            var childId = new NodeId(5002);
+            m_typeTable.AddSubtype(firstParentId, NodeId.Null);
+            m_typeTable.AddSubtype(secondParentId, NodeId.Null);
+            m_typeTable.AddSubtype(childId, firstParentId);
+
+            m_typeTable.AddSubtype(childId, secondParentId);
+
+            Assert.That(m_typeTable.FindSuperType(childId), Is.EqualTo(secondParentId));
+            Assert.That(
+                m_typeTable.FindSubTypes(firstParentId).ToList(),
+                Does.Not.Contain(childId));
+            Assert.That(
+                m_typeTable.FindSubTypes(secondParentId).ToList(),
+                Does.Contain(childId));
+        }
+
+        [Test]
         public void AddReferenceSubtypeRegistersTypeWithBrowseName()
         {
             var refId = new NodeId(4000);
@@ -673,6 +694,53 @@ namespace Opc.Ua.Types.Tests.Nodes
             m_typeTable.AddEncoding(s_dataTypeId, new ExpandedNodeId(s_encodingId1));
             var ext = new ExtensionObject(new ExpandedNodeId(s_encodingId1));
             Assert.That(m_typeTable.IsEncodingFor(s_dataTypeId, ext), Is.True);
+        }
+
+        [Test]
+        public void IsEncodingForExtensionObjectReturnsTrueWhenDataTypeMatches()
+        {
+            var ext = new ExtensionObject(new ExpandedNodeId(s_dataTypeId));
+
+            Assert.That(m_typeTable.IsEncodingFor(s_dataTypeId, ext), Is.True);
+        }
+
+        [Test]
+        public void IsTypeOfResolvesEquivalentAbsoluteAndLocalIds()
+        {
+            const string namespaceUri = "urn:types:test";
+            ushort namespaceIndex = m_namespaceTable.GetIndexOrAppend(namespaceUri);
+            var localTypeId = new NodeId(4000u, namespaceIndex);
+            m_typeTable.AddSubtype(localTypeId, NodeId.Null);
+            var absoluteTypeId = NodeId.ToExpandedNodeId(
+                localTypeId,
+                m_namespaceTable);
+
+            Assert.That(m_typeTable.IsTypeOf(absoluteTypeId, localTypeId), Is.True);
+        }
+
+        [Test]
+        public void IsInstanceOfDataTypeAcceptsKnownExtensionObjectTypeId()
+        {
+            m_typeTable.AddSubtype(Ua.DataTypeIds.Structure, NodeId.Null);
+            m_typeTable.AddSubtype(s_dataTypeId, Ua.DataTypeIds.Structure);
+            var extension = new ExtensionObject(
+                new ExpandedNodeId(s_dataTypeId),
+                ByteString.From([1, 2, 3]));
+            var value = new Variant(extension);
+            NodeId actualDataTypeId = value.TypeInfo.GetDataTypeId(
+                value,
+                m_namespaceTable,
+                m_typeTable);
+
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
+                value,
+                s_dataTypeId,
+                ValueRanks.Scalar,
+                m_namespaceTable,
+                m_typeTable);
+
+            Assert.That(actualDataTypeId, Is.EqualTo(s_dataTypeId));
+            Assert.That(typeInfo.IsUnknown, Is.False);
         }
 
         [Test]

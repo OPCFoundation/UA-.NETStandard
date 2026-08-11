@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Visual Studio 2022 build of the OPC UA stack source generator. Shares every source
+    file with ..\Opc.Ua.SourceGeneration.Stack through a glob-link, so only the Roslyn
+    API version differs.
+  -->
+  <Import Project="..\..\roslyn.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
+  <PropertyGroup>
+    <RoslynApiVersion>$(RoslynApiVersionVS2022)</RoslynApiVersion>
+  </PropertyGroup>
+  <Import Project="..\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.Sources.targets" />
+</Project>

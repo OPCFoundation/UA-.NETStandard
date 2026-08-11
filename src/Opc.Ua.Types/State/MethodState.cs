@@ -522,39 +522,56 @@ namespace Opc.Ua
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState? replacement)
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds = true)
         {
-            if (browseName.IsNull)
-            {
-                return null;
-            }
-            BaseInstanceState? instance = null;
             switch (browseName.Name)
             {
                 case BrowseNames.InputArguments:
-                    instance = !createOrReplace ?
-                        OutputArguments : CreateOrReplaceInputArguments(context, replacement);
-                    break;
+                    return !createOrReplace
+                        ? InputArguments
+                        : CreateOrReplaceInputArguments(
+                            context, replacement, assignInstanceNodeIds);
                 case BrowseNames.OutputArguments:
-                    instance = !createOrReplace ?
-                        OutputArguments : CreateOrReplaceOutputArguments(context, replacement);
-                    break;
+                    return !createOrReplace
+                        ? OutputArguments
+                        : CreateOrReplaceOutputArguments(
+                            context, replacement, assignInstanceNodeIds);
+                default:
+                    return base.FindChild(
+                        context, browseName, createOrReplace, replacement,
+                        assignInstanceNodeIds);
             }
-            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
         }
 
         /// <summary>
         /// Create or replace output arguments
         /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="replacement">
+        /// The child to adopt or to copy onto the existing child. When
+        /// <c>null</c> a new child is created.
+        /// </param>
+        /// <param name="assignInstanceNodeIds">
+        /// When <c>true</c> (the default) and the context supplies a
+        /// <see cref="ISystemContext.NodeIdFactory"/>, a child that does not
+        /// yet carry a NodeId - and its descendants - are assigned per-instance
+        /// NodeIds so multiple instances of the same method never collide. A
+        /// NodeId the caller already assigned is never overwritten.
+        /// </param>
         public PropertyState<ArrayOf<Argument>> CreateOrReplaceOutputArguments(
             ISystemContext context,
-            BaseInstanceState? replacement)
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds = true)
         {
             if (OutputArguments == null)
             {
                 if (replacement is not PropertyState<ArrayOf<Argument>> child)
                 {
                     child = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(this);
+                    child.SymbolicName = BrowseNames.OutputArguments;
+                    child.BrowseName = QualifiedName.From(BrowseNames.OutputArguments);
+                    child.DisplayName = LocalizedText.From(BrowseNames.OutputArguments);
                     if (replacement != null)
                     {
                         child.Create(context, replacement);
@@ -562,21 +579,38 @@ namespace Opc.Ua
                 }
                 OutputArguments = child;
             }
+            context.AssignNewChildInstanceNodeIds(this, OutputArguments, assignInstanceNodeIds);
             return OutputArguments;
         }
 
         /// <summary>
         /// Create or replace input arguments
         /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="replacement">
+        /// The child to adopt or to copy onto the existing child. When
+        /// <c>null</c> a new child is created.
+        /// </param>
+        /// <param name="assignInstanceNodeIds">
+        /// When <c>true</c> (the default) and the context supplies a
+        /// <see cref="ISystemContext.NodeIdFactory"/>, a child that does not
+        /// yet carry a NodeId - and its descendants - are assigned per-instance
+        /// NodeIds so multiple instances of the same method never collide. A
+        /// NodeId the caller already assigned is never overwritten.
+        /// </param>
         public PropertyState<ArrayOf<Argument>> CreateOrReplaceInputArguments(
             ISystemContext context,
-            BaseInstanceState? replacement)
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds = true)
         {
             if (InputArguments == null)
             {
                 if (replacement is not PropertyState<ArrayOf<Argument>> child)
                 {
                     child = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(this);
+                    child.SymbolicName = BrowseNames.InputArguments;
+                    child.BrowseName = QualifiedName.From(BrowseNames.InputArguments);
+                    child.DisplayName = LocalizedText.From(BrowseNames.InputArguments);
                     if (replacement != null)
                     {
                         child.Create(context, replacement);
@@ -584,6 +618,7 @@ namespace Opc.Ua
                 }
                 InputArguments = child;
             }
+            context.AssignNewChildInstanceNodeIds(this, InputArguments, assignInstanceNodeIds);
             return InputArguments;
         }
 

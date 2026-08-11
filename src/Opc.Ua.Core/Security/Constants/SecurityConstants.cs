@@ -140,7 +140,7 @@ namespace Opc.Ua
         /// Communicates with UA TCP over secure Websockets, UA Security and UA Binary.
         /// </summary>
         public const string UaWssTransport
-            = "http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary";
+            = "http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary";
 
         /// <summary>
         /// Communicates with UA JSON over secure Websockets.
@@ -154,7 +154,7 @@ namespace Opc.Ua
         /// restricted to <see cref="MessageSecurityMode.None"/>.
         /// </remarks>
         public const string UaWssJsonTransport
-            = "http://opcfoundation.org/UA-Profile/Transport/uawss-uajson";
+            = "http://opcfoundation.org/UA-Profile/Transport/wss-uajson";
 
         /// <summary>
         /// Communicates with UA Binary over HTTPS.

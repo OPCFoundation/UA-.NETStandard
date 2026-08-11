@@ -139,11 +139,24 @@ namespace Opc.Ua
                 ITransportChannel channel = await CreateTransportChannelAsync(
                     clientCertificate, clientCertificateChain, ct)
                     .ConfigureAwait(false);
+                bool entryClosed;
                 lock (m_lock)
                 {
-                    m_underlying = channel;
-                    m_clientCertificateVersion = clientCertificateVersion;
-                    m_activeMetricRecorded = true;
+                    entryClosed = m_state is ChannelState.Closed or ChannelState.Faulted;
+                    if (!entryClosed)
+                    {
+                        m_underlying = channel;
+                        m_clientCertificateVersion = clientCertificateVersion;
+                        m_activeMetricRecorded = true;
+                    }
+                }
+                if (entryClosed)
+                {
+                    await CloseTransportBestEffortAsync(channel).ConfigureAwait(false);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel is {0}.",
+                        State);
                 }
                 OwnerManager.RecordChannelActiveChanged(this, 1);
                 TransitionTo(ChannelState.Ready, error: null, attempt: 0);
@@ -233,6 +246,9 @@ namespace Opc.Ua
                 ?? throw new InvalidOperationException("Participant factory returned null.");
             int refCount = 0;
             int participantCount = 0;
+            ChannelState currentState;
+            ServiceResult? currentError;
+            int currentAttempt;
             bool attached = false;
             lock (m_lock)
             {
@@ -260,11 +276,22 @@ namespace Opc.Ua
                 lease.SwapEntry(this);
                 refCount = m_refcount;
                 participantCount = m_leases.Count(l => l.IsActive);
+                currentState = m_state;
+                currentError = m_lastError;
+                currentAttempt = m_lastReconnectAttempt;
             }
 
             if (attached)
             {
                 OwnerManager.OnEntryParticipantAttached(this, participant.Id, refCount, participantCount);
+                if (currentState != ChannelState.Disconnected)
+                {
+                    lease.RaiseStateChanged(new ChannelStateChange(
+                        ChannelState.Disconnected,
+                        currentState,
+                        currentError,
+                        currentAttempt));
+                }
             }
         }
 
@@ -414,11 +441,37 @@ namespace Opc.Ua
 
             if (starter)
             {
-                _ = Task.Run(() => RunReconnectCycleAsync(tcs), CancellationToken.None);
+                // The cycle's own outcome is observed through tcs, but the manager
+                // still has to know the work exists so disposal waits for it.
+                if (!OwnerManager.BackgroundWork.Run(
+                    nameof(RunReconnectCycleAsync),
+                    async _ => await RunReconnectCycleAsync(tcs).ConfigureAwait(false)))
+                {
+                    // The manager is going away; nothing will run the cycle.
+                    tcs.TrySetException(ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel manager is shutting down."));
+                }
             }
 
             return tcs.Task.WaitAsync(ct);
         }
+
+        /// <summary>
+        /// Whether the most recent reconnect cycle on this entry stopped because the
+        /// reconnect policy ran out of attempts or the caller's retry budget ran out
+        /// of time, rather than because it lost a race against a concurrent close.
+        /// </summary>
+        /// <remarks>
+        /// Both stops leave the entry <see cref="ChannelState.Faulted"/> and surface
+        /// the same <see cref="StatusCodes.BadSecureChannelClosed"/> to the caller, so
+        /// the state and status code alone cannot tell them apart. Only a genuine race
+        /// is worth retrying on a freshly swapped entry; retrying a deliberate stop
+        /// would run a second, unbudgeted reconnect cycle behind the swap back-off and
+        /// defeat the very limit that ended the first one.
+        /// </remarks>
+        internal bool ReconnectStoppedByRetryPolicy
+            => Volatile.Read(ref m_reconnectStoppedByRetryPolicy) != 0;
 
         private TimeSpan? ConsumeServerRetryAfterHint()
         {
@@ -634,6 +687,10 @@ namespace Opc.Ua
             ServiceResult? finalError = null;
             int attemptsStarted = 0;
 
+            // A fresh cycle has not yet decided to stop, so any stale verdict from
+            // an earlier cycle on this entry must not leak into it.
+            Volatile.Write(ref m_reconnectStoppedByRetryPolicy, 0);
+
             CancellationToken shutdownToken = OwnerManager.ShutdownToken;
 
             async Task StopWithFaultAsync(
@@ -649,6 +706,13 @@ namespace Opc.Ua
                 FailReady(new ServiceResultException(
                     StatusCodes.BadSecureChannelClosed,
                     message));
+
+                // Record before completing the waiters: this is a deliberate stop
+                // (the retry policy or the caller's budget said so), not a lost race
+                // against a concurrent close, and callers inspect the flag as soon
+                // as tcs completes.
+                Volatile.Write(ref m_reconnectStoppedByRetryPolicy, 1);
+
                 await NotifyParticipantsFinalAsync().ConfigureAwait(false);
                 finalOutcome = kReconnectOutcomePolicyExhausted;
                 OwnerManager.RecordReconnectAttempt(this, finalOutcome);
@@ -895,31 +959,53 @@ namespace Opc.Ua
                 clientCert, clientChain, ct).ConfigureAwait(false);
 
             ITransportChannel? old;
+            bool entryClosed;
             lock (m_lock)
             {
-                old = m_underlying;
-                m_underlying = fresh;
-                m_clientCertificateVersion = certVersion;
+                entryClosed = m_state is ChannelState.Closed or ChannelState.Faulted;
+                if (entryClosed)
+                {
+                    old = null;
+                }
+                else
+                {
+                    old = m_underlying;
+                    m_underlying = fresh;
+                    m_clientCertificateVersion = certVersion;
+                }
+            }
+            if (entryClosed)
+            {
+                await CloseTransportBestEffortAsync(fresh).ConfigureAwait(false);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel is {0}.",
+                    State);
             }
             if (old != null)
             {
-                try
-                {
-                    await old.CloseAsync(default).ConfigureAwait(false);
-                }
-                catch
-                {
-                    // best-effort
-                }
-                try
-                {
-                    OwnerManager.CloseChannel(old);
-                }
-                catch
-                {
-                    // best-effort
-                }
+                await CloseTransportBestEffortAsync(old).ConfigureAwait(false);
                 OwnerManager.OnEntryClosed(this, ChannelCloseReason.Faulted);
+            }
+        }
+
+        private async ValueTask CloseTransportBestEffortAsync(ITransportChannel channel)
+        {
+            try
+            {
+                await channel.CloseAsync(default).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                OwnerManager.Logger?.ChannelEntryLog0(ex);
+            }
+            try
+            {
+                OwnerManager.CloseChannel(channel);
+            }
+            catch (Exception ex)
+            {
+                OwnerManager.Logger?.ChannelEntryLog1(ex);
             }
         }
 
@@ -1054,6 +1140,7 @@ namespace Opc.Ua
                 .ConfigureAwait(false);
 
             var outcome = new AggregatedReactivationOutcome();
+            List<Task<bool>>? recreateTasks = null;
             for (int i = 0; i < results.Length; i++)
             {
                 switch (results[i])
@@ -1089,34 +1176,47 @@ namespace Opc.Ua
                         }
                         break;
                     case ParticipantReconnectResult.RequiresSessionRecreate:
-                        DispatchRecreate(snapshot[i].Participant);
+                        recreateTasks ??= [];
+                        recreateTasks.Add(
+                            RecreateParticipantAsync(snapshot[i].Participant));
                         break;
+                }
+            }
+            if (recreateTasks != null)
+            {
+                bool[] recreateResults = await Task.WhenAll(recreateTasks)
+                    .ConfigureAwait(false);
+                if (recreateResults.Any(static success => !success))
+                {
+                    outcome.AnyTransient = true;
                 }
             }
             return outcome;
         }
 
-        private void DispatchRecreate(IReconnectParticipant participant)
+        private async Task<bool> RecreateParticipantAsync(
+            IReconnectParticipant participant)
         {
-            CancellationToken shutdownToken = OwnerManager.ShutdownToken;
-            _ = Task.Run(async () =>
+            try
             {
-                try
-                {
-                    ValueTask work = ResolveRecreateInvocation(participant, shutdownToken);
-                    await work.ConfigureAwait(false);
-                    OwnerManager.RecordParticipantRecreate(this, participant.Id, success: true);
-                }
-                catch (OperationCanceledException)
-                {
-                    // Shutdown is best effort; recreate work observes the manager token.
-                }
-                catch (Exception ex)
-                {
-                    OwnerManager.Logger?.ChannelEntryLog7(ex, participant.Id);
-                    OwnerManager.RecordParticipantRecreate(this, participant.Id, success: false);
-                }
-            });
+                using IDisposable scope = ClientChannelManager.EnterReactivationScope();
+                ValueTask work = ResolveRecreateInvocation(
+                    participant,
+                    OwnerManager.ShutdownToken);
+                await work.ConfigureAwait(false);
+                OwnerManager.RecordParticipantRecreate(this, participant.Id, success: true);
+                return true;
+            }
+            catch (OperationCanceledException) when (OwnerManager.ShutdownToken.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                OwnerManager.Logger?.ChannelEntryLog7(ex, participant.Id);
+                OwnerManager.RecordParticipantRecreate(this, participant.Id, success: false);
+                return false;
+            }
         }
 
         private static TimeSpan ResolveParticipantTimeout(IChannelReconnectPolicy policy)
@@ -1276,8 +1376,7 @@ namespace Opc.Ua
             public bool FatalForChannel;
         }
 
-        private const string kReconnectOutcomeSuccess = "success";
-        private const string kReconnectOutcomeTransientFailure = "transient-failure";
+        private const string kReconnectOutcomeSuccess = "success";        private const string kReconnectOutcomeTransientFailure = "transient-failure";
         private const string kReconnectOutcomeFatalChannel = "fatal-channel";
         private const string kReconnectOutcomePolicyExhausted = "policy-exhausted";
         private readonly Lock m_lock = new();
@@ -1295,6 +1394,7 @@ namespace Opc.Ua
         private long m_clientCertificateVersion;
         private TaskCompletionSource<bool> m_readyGate;
         private TaskCompletionSource<bool>? m_reconnectCoalescer;
+        private int m_reconnectStoppedByRetryPolicy;
         private IRetryBudget? m_effectiveBudget;
     }
 

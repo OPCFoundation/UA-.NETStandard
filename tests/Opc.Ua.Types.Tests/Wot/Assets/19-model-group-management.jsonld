@@ -1,0 +1,26 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:projection"],
+  "id": "urn:example:model:pump-asset:management",
+  "title": "Management",
+  "description": "The type-level action group. Its three members declare Methods on the pump type, and the group materializes to the Object that Organizes them on every instance.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pumpType",
+      "href": "./02-thing-model-pump.jsonld",
+      "type": "application/tm+json",
+      "uav:routing": "source",
+      "uav:select": [
+        { "uav:affordanceKind": "action" }
+      ]
+    }
+  ]
+}

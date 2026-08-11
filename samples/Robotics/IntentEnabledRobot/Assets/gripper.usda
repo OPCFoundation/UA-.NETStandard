@@ -1,0 +1,198 @@
+#usda 1.0
+(
+    doc = """Compact two-finger parallel gripper for the MinimalIntentRobotServer sample.
+
+    The root prim mounts on the arm flange with +X as the tool approach direction. FingerLeftSlide and FingerRightSlide are the prismatic Xforms a live layer can drive to open and close the jaws; their authored translations show the gripper open at a readable default. /Gripper/Tcp lies between the fingertips and is the tool centre point used by Robot Intent targets.
+
+    Every gprim carries both a material binding and a matching primvars:displayColor, so the asset reads correctly on renderers that ignore the material graph. Meshes are doubleSided so face winding cannot cull a surface. Keep the slide prim names and their translate ops stable if the gripper geometry is refined.
+    """
+    defaultPrim = "Gripper"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Gripper" (
+    kind = "component"
+)
+{
+    def Cylinder "AdapterPlate" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        uniform token axis = "X"
+        double height = 0.0140
+        double radius = 0.0320
+        color3f[] primvars:displayColor = [(0.60, 0.61, 0.64)]
+        rel material:binding = </Gripper/Materials/Steel>
+        double3 xformOp:translate = (0.0070, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Cube "Body" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.14, 0.15, 0.17)]
+        rel material:binding = </Gripper/Materials/Anodised>
+        double3 xformOp:translate = (0.0550, 0, 0)
+        double3 xformOp:scale = (0.0450, 0.0550, 0.0320)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+
+    def Cylinder "GuideRodUpper" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        uniform token axis = "Y"
+        double height = 0.1100
+        double radius = 0.0050
+        color3f[] primvars:displayColor = [(0.60, 0.61, 0.64)]
+        rel material:binding = </Gripper/Materials/Steel>
+        double3 xformOp:translate = (0.1040, 0, 0.0200)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Cylinder "GuideRodLower" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        uniform token axis = "Y"
+        double height = 0.1100
+        double radius = 0.0050
+        color3f[] primvars:displayColor = [(0.60, 0.61, 0.64)]
+        rel material:binding = </Gripper/Materials/Steel>
+        double3 xformOp:translate = (0.1040, 0, -0.0200)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "FingerLeftSlide"
+    {
+        double3 xformOp:translate = (0, 0.0320, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Cube "Carrier" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.18, 0.19, 0.21)]
+            rel material:binding = </Gripper/Materials/Anodised>
+            double3 xformOp:translate = (0.1040, 0, 0)
+            double3 xformOp:scale = (0.0200, 0.0120, 0.0300)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Finger" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.05, 0.05, 0.06)]
+            rel material:binding = </Gripper/Materials/JawBlack>
+            double3 xformOp:translate = (0.1550, 0, 0)
+            double3 xformOp:scale = (0.0520, 0.0100, 0.0220)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Xform "FingerRightSlide"
+    {
+        double3 xformOp:translate = (0, -0.0320, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Cube "Carrier" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.18, 0.19, 0.21)]
+            rel material:binding = </Gripper/Materials/Anodised>
+            double3 xformOp:translate = (0.1040, 0, 0)
+            double3 xformOp:scale = (0.0200, 0.0120, 0.0300)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Finger" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.05, 0.05, 0.06)]
+            rel material:binding = </Gripper/Materials/JawBlack>
+            double3 xformOp:translate = (0.1550, 0, 0)
+            double3 xformOp:scale = (0.0520, 0.0100, 0.0220)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Xform "Tcp"
+    {
+        double3 xformOp:translate = (0.1850, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Sphere "Marker" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double radius = 0.0080
+            color3f[] primvars:displayColor = [(0.10, 0.38, 0.68)]
+            rel material:binding = </Gripper/Materials/TcpBlue>
+        }
+    }
+
+    def Scope "Materials"
+    {
+        def Material "Anodised"
+        {
+            token outputs:surface.connect = </Gripper/Materials/Anodised/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.14, 0.15, 0.17)
+                float inputs:roughness = 0.45
+                float inputs:metallic = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Steel"
+        {
+            token outputs:surface.connect = </Gripper/Materials/Steel/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.60, 0.61, 0.64)
+                float inputs:roughness = 0.24
+                float inputs:metallic = 1
+                token outputs:surface
+            }
+        }
+
+        def Material "JawBlack"
+        {
+            token outputs:surface.connect = </Gripper/Materials/JawBlack/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.05, 0.05, 0.06)
+                float inputs:roughness = 0.70
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "TcpBlue"
+        {
+            token outputs:surface.connect = </Gripper/Materials/TcpBlue/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.10, 0.38, 0.68)
+                float inputs:roughness = 0.40
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+    }
+}

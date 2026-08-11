@@ -68,6 +68,7 @@ namespace Opc.Ua.Client
     /// </para>
     /// </remarks>
     public partial class Session : SessionClientBatched, ISession,
+        ModelChange.INamespaceTableRefresher,
         ISnapshotRestore<SessionState>, ISnapshotRestore<SessionConfiguration>
     {
         private const int kReconnectTimeout = 15000;
@@ -375,54 +376,47 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void ValidateServerNonce(
-            IUserIdentity identity,
             ByteString serverNonce,
-            string? securityPolicyUri,
             ByteString previousServerNonce,
-            MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
+            MessageSecurityMode channelSecurityMode = MessageSecurityMode.None,
+            bool isNewNonce = true)
         {
-            // skip validation if server nonce is not used for encryption.
-            if (string.IsNullOrEmpty(securityPolicyUri) ||
-                securityPolicyUri == SecurityPolicies.None)
+            if (channelSecurityMode == MessageSecurityMode.None)
             {
                 return;
             }
 
-            if (identity != null && identity.TokenType != UserTokenType.Anonymous)
-            {
-                // the server nonce should be validated if the token includes a secret.
-                if (!Nonce.ValidateNonce(
+            // OPC 10000-4 §5.7.2.2 (Table 15) requires the nonce to have a length
+            // between 32 and 128 bytes inclusive, independent of the SecurityPolicy
+            // and of the Client's own configured NonceLength. Enforce that fixed
+            // spec range and reject all-zero nonces here rather than validating the
+            // Server nonce against the Client's local NonceLength.
+            if (serverNonce.IsNull ||
+                serverNonce.Length < 32 ||
+                serverNonce.Length > 128 ||
+                !Nonce.ValidateNonce(
                     serverNonce.ToArray(),
-                    MessageSecurityMode.SignAndEncrypt,
-                    m_configuration.SecurityConfiguration.NonceLength))
+                    MessageSecurityMode.Sign,
+                    32))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNonceInvalid,
+                    "The server nonce must contain 32 to 128 non-zero bytes.");
+            }
+
+            lock (m_lock)
+            {
+                if ((!previousServerNonce.IsNull && serverNonce == previousServerNonce) ||
+                    (isNewNonce && m_serverNonceHistory.Contains(serverNonce)))
                 {
-                    if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
-                        m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
-                    {
-                        m_logger.WarningServerNonceHasNotCorrect();
-                    }
-                    else
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadNonceInvalid,
-                            "The server nonce has not the correct length or is not random enough.");
-                    }
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNonceInvalid,
+                        "The server reused a previously returned nonce.");
                 }
 
-                // check that new nonce is different from the previously returned server nonce.
-                if (!previousServerNonce.IsEmpty && serverNonce == previousServerNonce)
+                if (isNewNonce)
                 {
-                    if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
-                        m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
-                    {
-                        m_logger.WarningServerNonceEqualPreviouslyReturned();
-                    }
-                    else
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadNonceInvalid,
-                            "Server nonce is equal with previously returned nonce.");
-                    }
+                    m_serverNonceHistory.Add(ByteString.From(serverNonce.Span));
                 }
             }
         }
@@ -467,6 +461,10 @@ namespace Opc.Ua.Client
                 {
                     return;
                 }
+
+                // Before the keep-alive timer and the channel go away: a publish
+                // notification already dispatched still reads session state.
+                await BackgroundWork.DisposeAsync().ConfigureAwait(false);
 
                 try
                 {
@@ -1083,6 +1081,12 @@ namespace Opc.Ua.Client
 
             lock (m_lock)
             {
+                m_previousServerNonce = default;
+                m_serverNonceHistory.Clear();
+                if (!m_serverNonce.IsNull)
+                {
+                    m_serverNonceHistory.Add(ByteString.From(m_serverNonce.Span));
+                }
                 SessionCreated(
                     sessionConfiguration.SessionId,
                     sessionConfiguration.AuthenticationToken);
@@ -1409,7 +1413,7 @@ namespace Opc.Ua.Client
                 base.SessionCreated(sessionId, sessionCookie);
             }
 
-            m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout);
+            m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout, SessionId);
             m_logger.MaxResponseMessageSizeValueMaxMessageSize(
                 maxMessageSize,
                 m_maxRequestMessageSize);
@@ -1431,6 +1435,19 @@ namespace Opc.Ua.Client
                     clientCertificateChainData,
                     m_clientNonce,
                     serverNonce);
+
+                // The nonce returned by CreateSession belongs to a brand-new
+                // server-side Session, so it is validated as a new nonce
+                // (isNewNonce defaults to true) and recorded in the reuse history.
+                // The lifetime history is only pre-seeded with the current nonce by
+                // Restore(); that seeded nonce is re-checked exclusively through the
+                // reactivation/reconnect paths, which pass isNewNonce:false and so
+                // never raise a false Bad_NonceInvalid for the nonce being reused as
+                // the activation signature input.
+                ValidateServerNonce(
+                    serverNonce,
+                    m_serverNonce,
+                    m_endpoint.Description.SecurityMode);
 
                 //  process additional header
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
@@ -1458,14 +1475,6 @@ namespace Opc.Ua.Client
                     // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
                     // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
                     : identityPolicy.SecurityPolicyUri!;
-
-                // validate server nonce and security parameters for user identity.
-                ValidateServerNonce(
-                    identity,
-                    serverNonce,
-                    tokenSecurityPolicyUri,
-                    m_previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
 
                 // remember the policy actually used to encrypt the user token
                 m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
@@ -1513,6 +1522,7 @@ namespace Opc.Ua.Client
                 RequestHeader? header = CreateRequestHeaderForActivateSession(tokenSecurityPolicyUri!);
 
                 // activate session.
+                ByteString activationRequestNonce = serverNonce;
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
                     header,
                     clientSignature,
@@ -1523,10 +1533,14 @@ namespace Opc.Ua.Client
                     ct)
                 .ConfigureAwait(false);
 
+                serverNonce = activateResponse.ServerNonce;
+                ValidateServerNonce(
+                    serverNonce,
+                    activationRequestNonce,
+                    m_endpoint.Description.SecurityMode);
+
                 //  process additional header
                 ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
-
-                serverNonce = activateResponse.ServerNonce;
                 ArrayOf<StatusCode> certificateResults = activateResponse.Results;
                 ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResponse.DiagnosticInfos;
 
@@ -1534,7 +1548,8 @@ namespace Opc.Ua.Client
                 {
                     m_logger.ActivateSessionResultIndexResult(
                         i,
-                        certificateResults[i]);
+                        certificateResults[i],
+                        SessionId);
                 }
 
                 // fetch namespaces.
@@ -1545,8 +1560,9 @@ namespace Opc.Ua.Client
                     // save nonces.
                     m_sessionName = sessionName;
                     m_identity = identity;
-                    m_previousServerNonce = m_serverNonce;
+                    m_previousServerNonce = activationRequestNonce;
                     m_serverNonce = serverNonce;
+                    m_sessionClientCertificate = ByteString.From(clientCertificateData.Span);
                     m_serverCertificate?.Dispose();
                     m_serverCertificate = serverCertificate;
 
@@ -1921,11 +1937,10 @@ namespace Opc.Ua.Client
 
             // validate server nonce and security parameters for user identity.
             ValidateServerNonce(
-                identity,
                 serverNonce,
-                tokenSecurityPolicyUri,
                 m_previousServerNonce,
-                m_endpoint.Description.SecurityMode);
+                m_endpoint.Description.SecurityMode,
+                isNewNonce: false);
 
             // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
             IUserIdentityTokenHandler identityToken = identity.TokenHandler.Copy();
@@ -1969,6 +1984,7 @@ namespace Opc.Ua.Client
             RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
                 tokenSecurityPolicyUri!);
 
+            ByteString activationRequestNonce = serverNonce;
             ActivateSessionResponse response = await ActivateSessionAsync(
                 requestHeader,
                 clientSignature,
@@ -1979,6 +1995,10 @@ namespace Opc.Ua.Client
                 ct).ConfigureAwait(false);
 
             serverNonce = response.ServerNonce;
+            ValidateServerNonce(
+                serverNonce,
+                activationRequestNonce,
+                m_endpoint.Description.SecurityMode);
 
             ProcessResponseAdditionalHeader(response.ResponseHeader, m_serverCertificate);
 
@@ -1990,7 +2010,7 @@ namespace Opc.Ua.Client
                     m_identity = identity;
                 }
 
-                m_previousServerNonce = m_serverNonce;
+                m_previousServerNonce = activationRequestNonce;
                 m_serverNonce = serverNonce;
                 m_preferredLocales = preferredLocales;
 
@@ -2090,7 +2110,9 @@ namespace Opc.Ua.Client
                                 .TransferAsync(this, subscriptionIds[ii], [], ct)
                                 .ConfigureAwait(false))
                         {
-                            m_logger.SubscriptionIdSubscriptionIdFailedReactivate(subscriptionIds[ii]);
+                            m_logger.SubscriptionIdSubscriptionIdFailedReactivate(
+                                subscriptionIds[ii],
+                                SessionId);
                             failedSubscriptions++;
                         }
                     }
@@ -2107,7 +2129,9 @@ namespace Opc.Ua.Client
                                 // no need to try for subscriptions which do not exist
                                 if (StatusCode.IsNotGood(resendResults[ii].StatusCode))
                                 {
-                                    m_logger.SubscriptionIdSubscriptionIdFailedResendData(subscriptionIds[ii]);
+                                    m_logger.SubscriptionIdSubscriptionIdFailedResendData(
+                                        subscriptionIds[ii],
+                                        SessionId);
                                 }
                             }
                         }
@@ -2119,7 +2143,8 @@ namespace Opc.Ua.Client
 
                     m_logger.SessionREACTIVATECountSubscriptionsCompletedFailCount(
                         subscriptions.Count,
-                        failedSubscriptions);
+                        failedSubscriptions,
+                        SessionId);
                 }
                 finally
                 {
@@ -2168,7 +2193,9 @@ namespace Opc.Ua.Client
 
                     if (!StatusCode.IsGood(responseHeader.ServiceResult))
                     {
-                        m_logger.TransferSubscriptionFailedServiceResult(responseHeader.ServiceResult);
+                        m_logger.TransferSubscriptionFailedServiceResult(
+                            responseHeader.ServiceResult,
+                            SessionId);
                         return false;
                     }
 
@@ -2200,20 +2227,25 @@ namespace Opc.Ua.Client
                             }
                             else
                             {
-                                m_logger.SubscriptionIdSubscriptionIdCouldNotBeMoved(subscriptionIds[ii]);
+                                m_logger.SubscriptionIdSubscriptionIdCouldNotBeMoved(
+                                    subscriptionIds[ii],
+                                    SessionId);
                                 failedSubscriptions++;
                             }
                         }
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
                         {
-                            m_logger.SubscriptionIdSubscriptionIdAlreadyMemberSession(subscriptionIds[ii]);
+                            m_logger.SubscriptionIdSubscriptionIdAlreadyMemberSession(
+                                subscriptionIds[ii],
+                                SessionId);
                             failedSubscriptions++;
                         }
                         else
                         {
                             m_logger.SubscriptionIdSubscriptionIdFailedTransferStatusCodeStatusCode(
                                 subscriptionIds[ii],
-                                results[ii].StatusCode);
+                                results[ii].StatusCode,
+                                SessionId);
                             failedSubscriptions++;
                         }
                     }
@@ -2222,7 +2254,8 @@ namespace Opc.Ua.Client
                 {
                     m_logger.SessionTRANSFERASYNCCountSubscriptionsFailed(
                         ex,
-                        subscriptions.Count);
+                        subscriptions.Count,
+                        SessionId);
                     failedSubscriptions++;
                 }
                 finally
@@ -2794,10 +2827,17 @@ namespace Opc.Ua.Client
             bool managedLeaseActivated = false;
             ConfiguredEndpoint targetEndpoint = endpoint ?? m_endpoint;
 
-            if (manager != null && channel == null)
+            if (manager != null)
             {
+                if (channel != null &&
+                    RequiresSessionRecreation(channel))
+                {
+                    m_instanceCertificateEntry?.Dispose();
+                    m_instanceCertificateEntry = null;
+                }
                 await LoadInstanceCertificateAsync(targetEndpoint, ct).ConfigureAwait(false);
-                if (targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
+                if (channel == null &&
+                    targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
                     m_instanceCertificateEntry != null)
                 {
 #pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
@@ -3307,6 +3347,17 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            if (RequiresAnonymousSignSessionRecreation())
+            {
+                await RecreateInPlaceCoreAsync(
+                    endpoint: null,
+                    connection,
+                    channel,
+                    budget,
+                    ct).ConfigureAwait(false);
+                return;
+            }
+
             using Activity? activity = m_telemetry.StartActivity();
             bool resetReconnect = false;
             try
@@ -3389,11 +3440,10 @@ namespace Opc.Ua.Client
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
-                    m_identity,
                     m_serverNonce,
-                    m_userTokenSecurityPolicyUri,
                     m_previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
+                    m_endpoint.Description.SecurityMode,
+                    isNewNonce: false);
 
                 // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
                 IUserIdentityTokenHandler identityToken = m_identity.TokenHandler.Copy();
@@ -3559,6 +3609,10 @@ namespace Opc.Ua.Client
                         timeout.Token).ConfigureAwait(false);
 
                     ByteString serverNonce = activateResult.ServerNonce;
+                    ValidateServerNonce(
+                        serverNonce,
+                        m_serverNonce,
+                        m_endpoint.Description.SecurityMode);
                     ArrayOf<StatusCode> certificateResults = activateResult.Results;
                     ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResult.DiagnosticInfos;
 
@@ -3592,7 +3646,8 @@ namespace Opc.Ua.Client
 
                     m_logger.ACTIVATESESSIONASYNCTimedOutGoodRequestCount(
                         GoodPublishRequestCount,
-                        OutstandingRequestCount);
+                        OutstandingRequestCount,
+                        SessionId);
                     throw new ServiceResultException(error);
                 }
             }
@@ -3638,7 +3693,8 @@ namespace Opc.Ua.Client
             {
                 m_logger.RequestingRepublishAsyncSubscriptionIdSequenceNumber(
                     subscriptionId,
-                    sequenceNumber);
+                    sequenceNumber,
+                    SessionId);
 
                 // request republish.
                 RepublishResponse response = await RepublishAsync(
@@ -3653,7 +3709,8 @@ namespace Opc.Ua.Client
                 m_logger.ReceivedRepublishAsyncSubscriptionIdSequenceNumberServiceResult(
                     subscriptionId,
                     sequenceNumber,
-                    responseHeader.ServiceResult);
+                    responseHeader.ServiceResult,
+                    SessionId);
 
                 // process response.
                 classicEngine.ProcessPublishResponse(
@@ -4036,14 +4093,15 @@ namespace Opc.Ua.Client
 
                         await CancelAsync(requestHeader, requestHandle, ct).ConfigureAwait(false);
 
-                        m_logger.CancelledPublishRequestHandleHandle(requestHandle);
+                        m_logger.CancelledPublishRequestHandleHandle(requestHandle, SessionId);
                     }
                     catch (Exception ex)
                     {
                         // Log but don't throw - we're closing anyway
                         m_logger.ErrorCancellingPublishRequestHandleHandle(
                             ex,
-                            requestHandle);
+                            requestHandle,
+                            SessionId);
                     }
                 }
             }
@@ -4226,7 +4284,8 @@ namespace Opc.Ua.Client
                             error,
                             Endpoint?.EndpointUrl,
                             GoodPublishRequestCount,
-                            OutstandingRequestCount);
+                            OutstandingRequestCount,
+                            SessionId);
                         throw new ServiceResultException(error);
                     }
 
@@ -4254,7 +4313,8 @@ namespace Opc.Ua.Client
                 {
                     m_logger.CouldNotSendKeepAliveRequest(
                         e.GetType().FullName,
-                        e.Message);
+                        e.Message,
+                        SessionId);
                 }
             }
         }
@@ -4335,7 +4395,8 @@ namespace Opc.Ua.Client
                     elapsed.TotalMilliseconds,
                     Endpoint?.EndpointUrl,
                     GoodPublishRequestCount,
-                    OutstandingRequestCount);
+                    OutstandingRequestCount,
+                    SessionId);
             }
 
             KeepAliveEventHandler? callback = m_KeepAlive;
@@ -4657,6 +4718,12 @@ namespace Opc.Ua.Client
             if (serverSignature == null || serverSignature.Signature.IsEmpty)
             {
                 m_logger.ServerSignatureNullEmpty();
+                if (m_endpoint.Description.SecurityMode != MessageSecurityMode.None)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadApplicationSignatureInvalid,
+                        "The server did not sign the secured CreateSession response.");
+                }
                 return;
             }
 
@@ -4939,7 +5006,7 @@ namespace Opc.Ua.Client
         {
             try
             {
-                m_logger.DeletingServerSubscriptionSubscriptionIdSubscriptionId(subscriptionId);
+                m_logger.DeletingServerSubscriptionSubscriptionIdSubscriptionId(subscriptionId, SessionId);
 
                 // delete the subscription.
                 ArrayOf<uint> subscriptionIds = [subscriptionId];
@@ -4967,7 +5034,8 @@ namespace Opc.Ua.Client
             {
                 m_logger.SessionUnexpectedErrorWhileDeletingSubscription(
                     e,
-                    subscriptionId);
+                    subscriptionId,
+                    SessionId);
             }
         }
 
@@ -5425,6 +5493,14 @@ namespace Opc.Ua.Client
         protected ITelemetryContext m_telemetry;
 
         /// <summary>
+        /// Owns the work the session dispatches off its own threads — publish
+        /// notifications in particular — so a faulting subscriber is reported and
+        /// nothing is still running when the session tears itself down.
+        /// </summary>
+        internal BackgroundTaskScope BackgroundWork { get; } =
+            new(nameof(Session), AmbientMessageContext.Telemetry);
+
+        /// <summary>
         /// If set to<c>true</c> then the domain in the certificate must match the endpoint used.
         /// </summary>
         protected bool m_checkDomain;
@@ -5462,6 +5538,11 @@ namespace Opc.Ua.Client
         private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
+        // OPC 10000-4 §5.7.3.1 forbids reuse of any once-used server nonce, so retain the full
+        // Session history. This state is owned by the Session and released when it is disposed;
+        // bounding or evicting entries would allow non-consecutive nonce reuse to go undetected.
+        private readonly HashSet<ByteString> m_serverNonceHistory = [];
+        private ByteString m_sessionClientCertificate;
 #pragma warning disable CA2213 // Disposed in Dispose method (m_serverCertificate?.Dispose() in cleanup path)
         private Certificate? m_serverCertificate;
 #pragma warning restore CA2213
@@ -5706,10 +5787,11 @@ namespace Opc.Ua.Client
         public static partial void CreateSessionFailedClientCertificateNULL(this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 8, Level = LogLevel.Information,
-            Message = "Revised session timeout value: {SessionTimeout}.")]
+            Message = "Revised session timeout value: {SessionTimeout}, SessionId={SessionId}.")]
         public static partial void RevisedSessionTimeoutValueSessionTimeout(
             this ILogger logger,
-            double sessionTimeout);
+            double sessionTimeout,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 9, Level = LogLevel.Information,
             Message = "Max response message size value: {MaxMessageSize}. Max request message size:" +
@@ -5720,8 +5802,12 @@ namespace Opc.Ua.Client
             uint maxRequestSize);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 10, Level = LogLevel.Information,
-            Message = "ActivateSession result[{Index}] = {Result}")]
-        public static partial void ActivateSessionResultIndexResult(this ILogger logger, int index, StatusCode result);
+            Message = "ActivateSession result[{Index}] = {Result}, SessionId={SessionId}")]
+        public static partial void ActivateSessionResultIndexResult(
+            this ILogger logger,
+            int index,
+            StatusCode result,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 11, Level = LogLevel.Error,
             Message = "Failed to activate session - closing.")]
@@ -5749,61 +5835,74 @@ namespace Opc.Ua.Client
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 15, Level = LogLevel.Error,
-            Message = "SubscriptionId {SubscriptionId} failed to reactivate.")]
+            Message = "SubscriptionId {SubscriptionId} failed to reactivate, SessionId={SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdFailedReactivate(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 16, Level = LogLevel.Error,
-            Message = "SubscriptionId {SubscriptionId} failed to resend data.")]
+            Message = "SubscriptionId {SubscriptionId} failed to resend data, SessionId={SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdFailedResendData(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 17, Level = LogLevel.Error,
             Message = "Failed to call resend data for subscriptions.")]
         public static partial void FailedCallResendDataSubscriptions(this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 18, Level = LogLevel.Information,
-            Message = "Session REACTIVATE of {Count} subscriptions completed. {FailCount} failed.")]
+            Message = "Session REACTIVATE of {Count} subscriptions completed. {FailCount} failed." +
+                " SessionId={SessionId}")]
         public static partial void SessionREACTIVATECountSubscriptionsCompletedFailCount(
             this ILogger logger,
             int count,
-            int failCount);
+            int failCount,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 19, Level = LogLevel.Information,
             Message = "No subscriptions. TransferSubscription skipped.")]
         public static partial void NoSubscriptionsTransferSubscriptionSkipped(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 20, Level = LogLevel.Error,
-            Message = "TransferSubscription failed: {ServiceResult}")]
-        public static partial void TransferSubscriptionFailedServiceResult(this ILogger logger, StatusCode serviceResult);
+            Message = "TransferSubscription failed: {ServiceResult}, SessionId={SessionId}")]
+        public static partial void TransferSubscriptionFailedServiceResult(
+            this ILogger logger,
+            StatusCode serviceResult,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 21, Level = LogLevel.Information,
-            Message = "SubscriptionId {SubscriptionId} could not be moved to session.")]
+            Message = "SubscriptionId {SubscriptionId} could not be moved to session {SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdCouldNotBeMoved(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 22, Level = LogLevel.Information,
-            Message = "SubscriptionId {SubscriptionId} is already member of the session.")]
+            Message = "SubscriptionId {SubscriptionId} is already member of the session {SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdAlreadyMemberSession(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 23, Level = LogLevel.Error,
-            Message = "SubscriptionId {SubscriptionId} failed to transfer, StatusCode={StatusCode}")]
+            Message = "SubscriptionId {SubscriptionId} failed to transfer, StatusCode={StatusCode}," +
+                " SessionId={SessionId}")]
         public static partial void SubscriptionIdSubscriptionIdFailedTransferStatusCodeStatusCode(
             this ILogger logger,
             uint subscriptionId,
-            StatusCode statusCode);
+            StatusCode statusCode,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 24, Level = LogLevel.Error,
-            Message = "Session TRANSFER ASYNC of {Count} subscriptions Failed due to unexpected Exception")]
+            Message = "Session TRANSFER ASYNC of {Count} subscriptions Failed due to unexpected Exception," +
+                " SessionId={SessionId}")]
         public static partial void SessionTRANSFERASYNCCountSubscriptionsFailed(
             this ILogger logger,
             Exception? exception,
-            int count);
+            int count,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 25, Level = LogLevel.Information,
             Message = "Session RECREATE-IN-PLACE {SessionId} starting...")]
@@ -5874,26 +5973,31 @@ namespace Opc.Ua.Client
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 39, Level = LogLevel.Warning,
-            Message = "ACTIVATE SESSION ASYNC timed out. {GoodRequestCount}/{OutstandingRequestCount}")]
+            Message = "ACTIVATE SESSION ASYNC timed out. {GoodRequestCount}/{OutstandingRequestCount}," +
+                " SessionId={SessionId}")]
         public static partial void ACTIVATESESSIONASYNCTimedOutGoodRequestCount(
             this ILogger logger,
             int goodRequestCount,
-            int outstandingRequestCount);
+            int outstandingRequestCount,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 40, Level = LogLevel.Information,
-            Message = "Requesting RepublishAsync for {SubscriptionId}-{SequenceNumber}")]
+            Message = "Requesting RepublishAsync for {SubscriptionId}-{SequenceNumber}, SessionId={SessionId}")]
         public static partial void RequestingRepublishAsyncSubscriptionIdSequenceNumber(
             this ILogger logger,
             uint subscriptionId,
-            uint sequenceNumber);
+            uint sequenceNumber,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 41, Level = LogLevel.Information,
-            Message = "Received RepublishAsync for {SubscriptionId}-{SequenceNumber}-{ServiceResult}")]
+            Message = "Received RepublishAsync for {SubscriptionId}-{SequenceNumber}-{ServiceResult}," +
+                " SessionId={SessionId}")]
         public static partial void ReceivedRepublishAsyncSubscriptionIdSequenceNumberServiceResult(
             this ILogger logger,
             uint subscriptionId,
             uint sequenceNumber,
-            StatusCode serviceResult);
+            StatusCode serviceResult,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 42, Level = LogLevel.Error,
             Message = "Transfer subscriptions failed.")]
@@ -5932,15 +6036,19 @@ namespace Opc.Ua.Client
         public static partial void CancellingCountOutstandingPublishRequests(this ILogger logger, int count);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 51, Level = LogLevel.Debug,
-            Message = "Cancelled publish request with handle {Handle}.")]
-        public static partial void CancelledPublishRequestHandleHandle(this ILogger logger, uint handle);
+            Message = "Cancelled publish request with handle {Handle}, SessionId={SessionId}.")]
+        public static partial void CancelledPublishRequestHandleHandle(
+            this ILogger logger,
+            uint handle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 52, Level = LogLevel.Warning,
-            Message = "Error cancelling publish request with handle {Handle}.")]
+            Message = "Error cancelling publish request with handle {Handle}, SessionId={SessionId}.")]
         public static partial void ErrorCancellingPublishRequestHandleHandle(
             this ILogger logger,
             Exception? exception,
-            uint handle);
+            uint handle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 53, Level = LogLevel.Warning,
             Message = "Session {SessionId}: KeepAlive ignored while reconnecting.")]
@@ -5950,20 +6058,22 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.Session + 54, Level = LogLevel.Error,
             Message = "Keep alive read failed: {ServiceResult}, EndpointUrl={EndpointUrl}," +
-                " RequestCount={Good}/{Outstanding}")]
+                " RequestCount={Good}/{Outstanding}, SessionId={SessionId}")]
         public static partial void KeepAliveReadFailedServiceResultEndpointUrl(
             this ILogger logger,
             ServiceResult serviceResult,
             string? endpointUrl,
             int good,
-            int outstanding);
+            int outstanding,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 55, Level = LogLevel.Error,
-            Message = "Could not send keep alive request: {RequestType} {Message}")]
+            Message = "Could not send keep alive request: {RequestType} {Message}, SessionId={SessionId}")]
         public static partial void CouldNotSendKeepAliveRequest(
             this ILogger logger,
             string? requestType,
-            string message);
+            string message,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 56, Level = LogLevel.Error,
             Message = "Session: Unexpected error invoking KeepAliveCallback.")]
@@ -5972,13 +6082,15 @@ namespace Opc.Ua.Client
             Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 57, Level = LogLevel.Information,
-            Message = "KEEP ALIVE LATE: {Duration}ms, EndpointUrl={EndpointUrl}, RequestCount={Good}/{Outstanding}")]
+            Message = "KEEP ALIVE LATE: {Duration}ms, EndpointUrl={EndpointUrl}," +
+                " RequestCount={Good}/{Outstanding}, SessionId={SessionId}")]
         public static partial void KEEPALIVELATEDurationMsEndpointUrl(
             this ILogger logger,
             double duration,
             string? endpointUrl,
             int good,
-            int outstanding);
+            int outstanding,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 58, Level = LogLevel.Error,
             Message = "Cannot read ServerArray node: {StatusCode} - skipping.")]
@@ -5989,17 +6101,20 @@ namespace Opc.Ua.Client
         public static partial void ServerSignatureNullEmpty(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 60, Level = LogLevel.Information,
-            Message = "Deleting server subscription for SubscriptionId={SubscriptionId}")]
+            Message = "Deleting server subscription for SubscriptionId={SubscriptionId}, SessionId={SessionId}")]
         public static partial void DeletingServerSubscriptionSubscriptionIdSubscriptionId(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 61, Level = LogLevel.Error,
-            Message = "Session: Unexpected error while deleting subscription for SubscriptionId={SubscriptionId}.")]
+            Message = "Session: Unexpected error while deleting subscription for" +
+                " SubscriptionId={SubscriptionId}, SessionId={SessionId}.")]
         public static partial void SessionUnexpectedErrorWhileDeletingSubscription(
             this ILogger logger,
             Exception? exception,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 62, Level = LogLevel.Error,
             Message = "Unexpected error calling SessionConfigurationChanged event handler.")]

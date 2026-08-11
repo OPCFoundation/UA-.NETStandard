@@ -27,14 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
 
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+#nullable enable
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -218,7 +219,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 true,
                 values.MonitoredItems,
                 values.TransferProcessed,
-                values.TransferErrors).ConfigureAwait(false);
+                values.TransferErrors,
+                new MonitoredItemTransferOptions()).ConfigureAwait(false);
             await adapter.SetMonitoringModeAsync(
                 values.Context,
                 MonitoringMode.Reporting,
@@ -381,7 +383,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 true,
                 values.MonitoredItems,
                 values.TransferProcessed,
-                values.TransferErrors).ConfigureAwait(false);
+                values.TransferErrors,
+                new MonitoredItemTransferOptions()).ConfigureAwait(false);
             await adapter.SetMonitoringModeAsync(
                 values.Context,
                 MonitoringMode.Reporting,
@@ -678,6 +681,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.MonitoredItems,
                     values.TransferProcessed,
                     values.TransferErrors,
+                    It.IsAny<MonitoredItemTransferOptions>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             manager.Setup(m => m.SetMonitoringModeAsync(
@@ -824,7 +828,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 true,
                 values.MonitoredItems,
                 values.TransferProcessed,
-                values.TransferErrors));
+                values.TransferErrors,
+                It.IsAny<MonitoredItemTransferOptions>()));
             manager.Setup(m => m.SetMonitoringMode(
                 values.Context,
                 MonitoringMode.Reporting,
@@ -975,5 +980,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public ServiceResult RoleResult { get; set; } = null!;
         }
+
     }
 }

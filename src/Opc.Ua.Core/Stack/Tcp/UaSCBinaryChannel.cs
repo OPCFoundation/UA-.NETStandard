@@ -168,6 +168,7 @@ namespace Opc.Ua.Bindings
             // create a unique contex if none provided.
             m_contextId = contextId;
             Telemetry = telemetry;
+            m_backgroundWork = new BackgroundTaskScope(nameof(UaSCUaBinaryChannel), telemetry);
             m_logger = telemetry.CreateLogger<UaSCUaBinaryChannel>();
             TimeProvider = timeProvider ?? TimeProvider.System;
             m_lastActiveTimestamp = TimeProvider.GetTimestamp();
@@ -300,6 +301,11 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
+                // Signal only: Dispose is synchronous, so it cannot await the
+                // drain without blocking. State-change notifications stop being
+                // accepted immediately and any in flight are cancelled.
+                m_backgroundWork.Dispose();
+
                 m_receiveLoopCts?.Cancel();
                 FaultSendGate();
                 IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
@@ -334,6 +340,12 @@ namespace Opc.Ua.Bindings
         /// Telemetry context for the channel
         /// </summary>
         protected ITelemetryContext Telemetry { get; }
+
+        /// <summary>
+        /// Owns the work the channel schedules off its own threads, so a faulting
+        /// subscriber is reported and nothing is scheduled after disposal.
+        /// </summary>
+        private protected BackgroundTaskScope BackgroundWork => m_backgroundWork;
 
         /// <summary>
         /// The <see cref="System.TimeProvider"/> used by this channel for
@@ -389,7 +401,17 @@ namespace Opc.Ua.Bindings
             TcpChannelStateEventHandler? stateChanged = m_stateChanged;
             if (stateChanged != null)
             {
-                _ = Task.Run(() => stateChanged?.Invoke(this, state, reason));
+                // Off the caller's thread because a subscriber must not be able to
+                // stall the channel, but owned so a throwing subscriber is reported
+                // rather than silently dropped, and so notifications stop once the
+                // channel is disposed.
+                m_backgroundWork.Run(
+                    nameof(ChannelStateChanged),
+                    _ =>
+                    {
+                        stateChanged.Invoke(this, state, reason);
+                        return default;
+                    });
             }
         }
 
@@ -1458,6 +1480,7 @@ namespace Opc.Ua.Bindings
         private BufferCollection? m_partialMessageChunks;
 
         private IUaSCByteTransport? m_transport;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private CancellationTokenSource? m_receiveLoopCts;
         private Task? m_receiveLoopTask;
         private int m_receiveLoopRunning;

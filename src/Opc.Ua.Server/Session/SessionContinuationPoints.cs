@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// them for cross-replica takeover. Keeping this here lets <see cref="Session"/> delegate through a small surface
     /// (save/restore/load/clear) instead of managing the store, lists, and dictionaries inline.
     /// </summary>
-    internal sealed class SessionContinuationPoints
+    internal sealed class SessionContinuationPoints : ISessionContinuationPoints
     {
         /// <summary>
         /// Creates the continuation-point holder for a session.
@@ -141,17 +141,146 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <inheritdoc/>
+        public void RemoveForManager(IAsyncNodeManager nodeManager)
+        {
+            RemoveBrowseForManager(nodeManager);
+            RemoveHistoryForManager(nodeManager);
+        }
+
+        public void RemoveBrowseForManager(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            List<ContinuationPoint>? removed = null;
+            lock (m_lock)
+            {
+                if (m_browse == null)
+                {
+                    return;
+                }
+
+                for (int ii = m_browse.Count - 1; ii >= 0; ii--)
+                {
+                    ContinuationPoint continuationPoint = m_browse[ii];
+                    if (!ReferenceEquals(continuationPoint.Manager, nodeManager) &&
+                        !ReferenceEquals(
+                            continuationPoint.Manager.SyncNodeManager,
+                            nodeManager.SyncNodeManager))
+                    {
+                        continue;
+                    }
+
+                    m_browse.RemoveAt(ii);
+                    removed ??= [];
+                    removed.Add(continuationPoint);
+                }
+            }
+
+            if (removed == null)
+            {
+                return;
+            }
+
+            // Persisting and disposing runs outside the lock, because a continuation point belongs
+            // to the NodeManager being retired and its disposal must not block unrelated Browse
+            // operations, or re-enter this session while the lock is held.
+            foreach (ContinuationPoint continuationPoint in removed)
+            {
+                m_store?.RemoveContinuationPoint(
+                    Id,
+                    ContinuationPointKind.Browse,
+                    continuationPoint.Id);
+                continuationPoint.Dispose();
+            }
+        }
+
         /// <summary>
-        /// Saves a history continuation point, dropping the oldest when the limit is reached. A point that implements
-        /// <see cref="IDisposable"/> is disposed when it is dropped or the session is cleared.
+        /// Drops and disposes the history continuation points that belong to a NodeManager which
+        /// is being retired, so its state is released with it instead of lingering until the
+        /// Session closes or the history limit evicts it.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager being retired.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="nodeManager"/> is <c>null</c>.</exception>
+        public void RemoveHistoryForManager(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            List<HistoryContinuationPoint>? removed = null;
+            lock (m_lock)
+            {
+                if (m_history == null)
+                {
+                    return;
+                }
+
+                for (int ii = m_history.Count - 1; ii >= 0; ii--)
+                {
+                    HistoryContinuationPoint continuationPoint = m_history[ii];
+                    if (!IsOwnedBy(continuationPoint.Value, nodeManager))
+                    {
+                        continue;
+                    }
+
+                    m_history.RemoveAt(ii);
+                    removed ??= [];
+                    removed.Add(continuationPoint);
+                }
+            }
+
+            if (removed == null)
+            {
+                return;
+            }
+
+            // Persisting and disposing runs outside the lock, for the same reason as the Browse
+            // continuation points: the state belongs to the NodeManager being retired.
+            foreach (HistoryContinuationPoint continuationPoint in removed)
+            {
+                m_store?.RemoveContinuationPoint(
+                    Id,
+                    ContinuationPointKind.History,
+                    continuationPoint.Id);
+                (continuationPoint.Value as IDisposable)?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Reports whether a history continuation point was produced by the given NodeManager.
+        /// Only the built-in historian state records its provider, so a continuation point from a
+        /// custom implementation is left alone rather than dropped on a guess.
+        /// </summary>
+        private static bool IsOwnedBy(object? continuationPoint, IAsyncNodeManager nodeManager)
+        {
+            if (continuationPoint is not Historian.HistorianContinuationState state)
+            {
+                return false;
+            }
+
+            object provider = state.Provider;
+            return ReferenceEquals(provider, nodeManager) ||
+                ReferenceEquals(provider, nodeManager.SyncNodeManager);
+        }
+
+        /// <summary>
+        /// Saves a history continuation point, dropping the oldest when the limit is reached. The
+        /// dropped point is disposed, as is every point still held when the session is cleared.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
-        public void SaveHistory(Guid id, object continuationPoint)
+        public void SaveHistory(IHistoryContinuationPoint continuationPoint)
         {
             if (continuationPoint == null)
             {
                 throw new ArgumentNullException(nameof(continuationPoint));
             }
+
+            Guid id = continuationPoint.Id;
 
             lock (m_lock)
             {
@@ -163,7 +292,7 @@ namespace Opc.Ua.Server
                     HistoryContinuationPoint oldCP = m_history[0];
                     m_history.RemoveAt(0);
                     m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.History, oldCP.Id);
-                    (oldCP.Value as IDisposable)?.Dispose();
+                    oldCP.Value.Dispose();
                 }
 
                 // create the cp.
@@ -183,7 +312,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restores (and removes) a previously saved history continuation point, or <c>null</c> when not found.
         /// </summary>
-        public object? RestoreHistory(ByteString continuationPoint)
+        public IHistoryContinuationPoint? RestoreHistory(ByteString continuationPoint)
         {
             lock (m_lock)
             {
@@ -290,7 +419,7 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < historyCPs.Count; ii++)
                 {
                     m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.History, historyCPs[ii].Id);
-                    (historyCPs[ii].Value as IDisposable)?.Dispose();
+                    historyCPs[ii].Value.Dispose();
                 }
             }
         }
@@ -336,7 +465,7 @@ namespace Opc.Ua.Server
         private sealed class HistoryContinuationPoint
         {
             public Guid Id;
-            public object? Value;
+            public IHistoryContinuationPoint Value = null!;
             public DateTime Timestamp;
         }
 

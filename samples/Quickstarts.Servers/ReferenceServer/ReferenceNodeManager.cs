@@ -6015,7 +6015,12 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private async Task EnableHistoryArchivingAsync(CancellationToken cancellationToken)
         {
-            m_historian = new InMemoryHistorianProvider();
+            m_historian = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+            {
+                // The reference server supports conformance tests that write
+                // arbitrary historical timestamps outside the seeded window.
+                RawDataRetentionPeriod = TimeSpan.Zero
+            });
 
             // Make the provider discoverable to the server-wide registry so
             // server capabilities (HistoryServerCapabilities) reflect what the
@@ -6135,7 +6140,7 @@ namespace Quickstarts.ReferenceServer
                     sourceTimestamp: now.AddSeconds(-(ii * 10)).AddMilliseconds(1234),
                     serverTimestamp: now.AddSeconds(-(ii * 10))));
             }
-            var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            using var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
             var systemContext = new ServerSystemContext(Server, opContext);
             var historianContext = new HistorianOperationContext(systemContext, opContext, null, HistoryUpdateType.Insert);
             _ = await m_historian!.InsertAsync(historianContext, nodeId, seed, cancellationToken).ConfigureAwait(false);

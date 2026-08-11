@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -918,6 +919,147 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
                 Assert.That(result.TypeInfo.IsArray, Is.True);
             });
+        }
+
+        [Test]
+        public void TryGetStructureReturnsTypedBody()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var expected = new Argument
+            {
+                Name = "Temperature",
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar
+            };
+            var variant = new Variant(new ExtensionObject(expected));
+
+            bool success = variant.TryGetStructure(context, out Argument actual);
+
+            Assert.That(success, Is.True);
+            Assert.That(actual, Is.SameAs(expected));
+        }
+
+        [Test]
+        public void TryGetStructureDecodesBinaryBody()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var variant = new Variant(CreateBinaryArgument(context, "Pressure"));
+
+            bool success = variant.TryGetStructure(context, out Argument actual);
+
+            Assert.That(success, Is.True);
+            Assert.That(actual.Name, Is.EqualTo("Pressure"));
+            Assert.That(actual.DataType, Is.EqualTo(DataTypeIds.Double));
+        }
+
+        [Test]
+        public void TryGetStructureRejectsMismatchedBody()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var variant = new Variant(new ExtensionObject(new BuildInfo
+            {
+                ProductName = "NotAnArgument"
+            }));
+
+            bool success = variant.TryGetStructure(context, out Argument actual);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual, Is.Null);
+        }
+
+        [Test]
+        public void TryGetStructureArrayDecodesEveryBinaryBody()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            ArrayOf<ExtensionObject> extensions =
+            [
+                CreateBinaryArgument(context, "First"),
+                CreateBinaryArgument(context, "Second")
+            ];
+            var variant = new Variant(extensions);
+
+            bool success = variant.TryGetStructure(context, out ArrayOf<Argument> actual);
+
+            Assert.That(success, Is.True);
+            Assert.That(actual, Has.Count.EqualTo(2));
+            Assert.That(actual[0].Name, Is.EqualTo("First"));
+            Assert.That(actual[1].Name, Is.EqualTo("Second"));
+        }
+
+        [Test]
+        public void TryGetStructureArrayRejectsMismatchedElement()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            ArrayOf<ExtensionObject> extensions =
+            [
+                CreateBinaryArgument(context, "First"),
+                new ExtensionObject(new BuildInfo { ProductName = "NotAnArgument" })
+            ];
+            var variant = new Variant(extensions);
+
+            bool success = variant.TryGetStructure(context, out ArrayOf<Argument> actual);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual, Is.Empty);
+        }
+
+        [Test]
+        public void TryGetStructureRequiresMessageContext()
+        {
+            var scalar = new Variant(new ExtensionObject(new Argument()));
+            var array = new Variant(ArrayOf.Wrapped(new ExtensionObject(new Argument())));
+
+            Assert.That(
+                () => scalar.TryGetStructure(null!, out Argument scalarValue),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("context"));
+            Assert.That(
+                () => array.TryGetStructure(null!, out ArrayOf<Argument> arrayValue),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("context"));
+        }
+
+        [Test]
+        public void TryGetStructureArrayReturnsFalseWhenVariantHoldsNoArray()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var variant = new Variant(42);
+
+            bool success = variant.TryGetStructure(context, out ArrayOf<Argument> actual);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual.IsNull, Is.True);
+        }
+
+        [Test]
+        public void TryGetStructureArrayReturnsFalseWhenVariantHoldsStringArray()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var variant = new Variant(ArrayOf.Wrapped("a", "b"));
+
+            bool success = variant.TryGetStructure(context, out ArrayOf<Argument> actual);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual.IsNull, Is.True);
+        }
+
+        private static ServiceMessageContext CreateMessageContext()
+        {
+            return ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+        }
+
+        private static ExtensionObject CreateBinaryArgument(
+            IServiceMessageContext context,
+            string name)
+        {
+            var argument = new Argument
+            {
+                Name = name,
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar
+            };
+            using var encoder = new BinaryEncoder(context);
+            argument.Encode(encoder);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            return new ExtensionObject(argument.BinaryEncodingId, ByteString.From(buffer));
         }
 
         private static IEnumerable<TestCaseData> EqualsObjectCases

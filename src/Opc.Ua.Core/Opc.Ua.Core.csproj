@@ -21,6 +21,7 @@
     <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Core" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Https" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Quic" />
+    <InternalsVisibleTo Include="Opc.Ua.Client" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics.Tests" />
   </ItemGroup>
@@ -47,7 +48,11 @@
     <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
   </ItemGroup>
   <!-- Stack source generation -->
+  <PropertyGroup>
+    <StackSourceGeneratorMode>Stack</StackSourceGeneratorMode>
+  </PropertyGroup>
   <ItemGroup>
+    <CompilerVisibleProperty Include="StackSourceGeneratorMode" />
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj">
       <OutputItemType>Analyzer</OutputItemType>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>

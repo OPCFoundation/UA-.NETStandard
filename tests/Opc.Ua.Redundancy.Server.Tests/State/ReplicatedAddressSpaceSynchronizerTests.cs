@@ -254,15 +254,8 @@ namespace Opc.Ua.Redundancy.Server.Tests
             staleVariable.StatusCode = StatusCodes.Good;
             staleVariable.Timestamp = DateTimeUtc.Now;
 
-            var rebroadcasted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            void Handler()
-            {
-                fixture.SyncA.InboundApplied -= Handler;
-                rebroadcasted.TrySetResult(true);
-            }
-
-            fixture.SyncA.InboundApplied += Handler;
+            await fixture.DrainAsync().ConfigureAwait(false);
+            long inboundApplyCount = fixture.SyncA.InboundApplyCount;
             await fixture.SyncA.SeedOrHydrateAsync().ConfigureAwait(false);
 
             await AssertEventuallyAsync(
@@ -270,7 +263,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
                     remote is BaseVariableState variable &&
                     variable.Value.Equals(new Variant(42.0)),
                 "a zero-diff merge should reconcile the stale materialized value on B").ConfigureAwait(false);
-            await AwaitWithTimeoutAsync(rebroadcasted.Task).ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(fixture.SyncA.WaitForInboundApplyAfterAsync(inboundApplyCount)).ConfigureAwait(false);
         }
 
         [Test]
@@ -371,7 +364,12 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
         private static async Task AwaitWithTimeoutAsync(Task task)
         {
-            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+            // Same rationale as AssertEventuallyAsync above: this waits on the very
+            // same background capture/broadcast loops, so it needs the same allowance
+            // for a CPU-starved runner. The assertion still requires the replication
+            // to complete - only the patience is bounded, not the outcome.
+            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(30)))
+                .ConfigureAwait(false);
             Assert.That(completed, Is.SameAs(task), "replication did not complete within the timeout");
             await task.ConfigureAwait(false);
         }
@@ -382,6 +380,11 @@ namespace Opc.Ua.Redundancy.Server.Tests
             public DictionaryAddressSpace SpaceB { get; private set; } = null!;
             public ReplicatedAddressSpaceSynchronizer SyncA => m_syncA!;
             public ReplicatedAddressSpaceSynchronizer SyncB => m_syncB!;
+
+            public ValueTask DrainAsync()
+            {
+                return m_network!.DrainAsync(default);
+            }
 
             public static async Task<TwoReplicaFixture> CreateAsync(ReplicatedAddressSpaceSynchronizerTests test)
             {

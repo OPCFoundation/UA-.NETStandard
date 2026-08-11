@@ -652,6 +652,8 @@ namespace Opc.Ua.PubSub.Application
                 catch (Exception ex)
                 {
                     m_logger.FailedToEnableConnection(ex, connection.Name);
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    throw;
                 }
             }
             // Start the metadata publisher AFTER the
@@ -1533,6 +1535,20 @@ namespace Opc.Ua.PubSub.Application
                 in snapshot.PublishedDataSetsByName)
             {
                 IPublishedDataSetSource source = ResolvePublishedDataSetSource(kvp.Key);
+                //
+                // A dataset whose source is a PublishedEventsDataType publishes
+                // occurrences rather than successive states, and is driven by
+                // the event sampler its source supplies (Part 14 §6.2.4).
+                //
+                if (source is IEventSampler sampler &&
+                    !kvp.Value.DataSetSource.IsNull &&
+                    kvp.Value.DataSetSource.TryGetValue(
+                        out PublishedEventsDataType? events) &&
+                    events is not null)
+                {
+                    publishedDataSets[kvp.Key] = new EventPublishedDataSet(kvp.Value, sampler);
+                    continue;
+                }
                 publishedDataSets[kvp.Key] = new PublishedDataSet(kvp.Value, source);
             }
 

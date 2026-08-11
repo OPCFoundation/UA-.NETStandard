@@ -253,6 +253,50 @@ namespace Opc.Ua.Types.Tests.State
                 "Custom <Model> must declare the OPC UA base namespace as a <RequiredModel>");
         }
 
+        /// <summary>
+        /// A reference type written as a bare name is an alias, and a NodeSet that
+        /// forgets to declare it in <c>&lt;Aliases&gt;</c> is a common authoring
+        /// mistake. Parsing the name as a NodeId reports only that an identifier is
+        /// missing, which names neither the value nor the fact that an alias was
+        /// expected, so the import has to say so itself.
+        /// </summary>
+        [Test]
+        public void ImportingAnUndeclaredAliasNamesTheOffendingValue()
+        {
+            const string nodeSetXml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris>
+                <Uri>urn:test:alias</Uri>
+              </NamespaceUris>
+              <Aliases>
+                <Alias Alias="HasComponent">i=47</Alias>
+              </Aliases>
+              <UAObject NodeId="ns=1;s=Thing" BrowseName="1:Thing">
+                <DisplayName>Thing</DisplayName>
+                <References>
+                  <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+                </References>
+              </UAObject>
+            </UANodeSet>
+            """;
+
+            using var stream = new MemoryStream(
+                System.Text.Encoding.UTF8.GetBytes(nodeSetXml));
+            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream);
+            Assert.That(nodeSet.Items, Is.Not.Null.And.Not.Empty,
+                "The fixture NodeSet must parse into at least one node.");
+            var imported = new NodeStateCollection();
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => nodeSet.Import(m_context, imported));
+
+            Assert.That(exception.Message, Does.Contain("Organizes"),
+                "The diagnostic must name the value that could not be resolved.");
+            Assert.That(exception.Message, Does.Contain("Aliases"),
+                "The diagnostic must point at the missing alias declaration.");
+        }
+
         [Test]
         public void SaveAsNodeSet2WithModel()
         {

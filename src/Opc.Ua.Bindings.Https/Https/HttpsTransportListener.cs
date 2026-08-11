@@ -2398,9 +2398,8 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                using CertificateCollection validationChain = CreateCertificateChain(
-                    clientCertificate,
-                    chain);
+                using CertificateCollection validationChain = CertificateValidationHelpers
+                    .BuildValidationCertificateCollection(clientCertificate, chain);
                 // CA2025: the TLS ClientCertificateValidation callback is
                 // synchronous by contract on every supported TFM, so the async UA
                 // validator is bridged with GetAwaiter().GetResult(); the validation
@@ -2425,38 +2424,6 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private static CertificateCollection CreateCertificateChain(
-            X509Certificate2 clientCertificate,
-            X509Chain? chain)
-        {
-            var validationChain = new CertificateCollection();
-            try
-            {
-                // CertificateCollection.Add retains an independent AddRef-owned handle.
-                if (chain?.ChainElements != null && chain.ChainElements.Count > 0)
-                {
-                    foreach (X509ChainElement element in chain.ChainElements)
-                    {
-                        using Certificate certificate = Certificate.FromRawData(
-                            element.Certificate.RawData);
-                        validationChain.Add(certificate);
-                    }
-                }
-                else
-                {
-                    using Certificate certificate = Certificate.FromRawData(
-                        clientCertificate.RawData);
-                    validationChain.Add(certificate);
-                }
-
-                return validationChain;
-            }
-            catch
-            {
-                validationChain.Dispose();
-                throw;
-            }
-        }
 
         /// <summary>
         /// Validate TLS client certificate at TLS handshake.

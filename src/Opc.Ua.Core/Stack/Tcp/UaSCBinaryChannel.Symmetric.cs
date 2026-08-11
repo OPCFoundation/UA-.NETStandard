@@ -788,7 +788,8 @@ namespace Opc.Ua.Bindings
                 useClientKeys ? token.ClientSigningKey : token.ServerSigningKey,
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
-                m_remoteSequenceNumber);
+                m_remoteSequenceNumber,
+                useClientKeys ? token.ClientHmac : token.ServerHmac);
         }
 
         private static readonly byte[] s_hkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");

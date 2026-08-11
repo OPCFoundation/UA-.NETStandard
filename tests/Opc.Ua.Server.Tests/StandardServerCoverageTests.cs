@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -59,6 +60,15 @@ namespace Opc.Ua.Server.Tests
             public void ValidateRequestPublic(RequestHeader requestHeader)
             {
                 ValidateRequest(requestHeader);
+            }
+
+            public ValueTask<OperationContext> ValidateRequestInScopePublicAsync()
+            {
+                return ValidateRequestAsync(
+                    null!,
+                    new RequestHeader(),
+                    RequestType.Read,
+                    RequestLifetime.None);
             }
 
             public void SetServerStatePublic(ServerState state)
@@ -99,6 +109,16 @@ namespace Opc.Ua.Server.Tests
             using var server = new TestableStandardServer(NUnitTelemetryContext.Create(), custom);
 
             Assert.That(server.TimeProviderAccessor, Is.SameAs(custom));
+        }
+
+        [Test]
+        public void DisposeCanBeCalledMoreThanOnce()
+        {
+            TestableStandardServer server = CreateServer();
+
+            server.Dispose();
+
+            Assert.DoesNotThrow(server.Dispose);
         }
 
         [Test]
@@ -145,8 +165,10 @@ namespace Opc.Ua.Server.Tests
             using TestableStandardServer server = CreateServer();
 
 #pragma warning disable CS0618 // GetStatus is obsolete but still exercised for coverage.
-            Assert.That(() => server.GetStatus(), Throws.Exception);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => server.GetStatus());
 #pragma warning restore CS0618
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerHalted));
         }
 
         [Test]
@@ -157,6 +179,22 @@ namespace Opc.Ua.Server.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => server.ValidateRequestPublic(new RequestHeader()));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerHalted));
+        }
+
+        [Test]
+        public Task ValidateRequestInScopeThrowsWhenNotStartedAsync()
+        {
+            using TestableStandardServer server = CreateServer();
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await server
+                    .ValidateRequestInScopePublicAsync()
+                    .ConfigureAwait(false));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadServerHalted));
+            return Task.CompletedTask;
         }
 
         [Test]

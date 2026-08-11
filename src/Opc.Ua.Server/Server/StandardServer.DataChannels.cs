@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Bindings;
 
 #pragma warning disable CS1591
-#pragma warning disable CA2000
+            #pragma warning disable CA2000
 
 namespace Opc.Ua.Server
 {
@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        #pragma warning restore CA2000
+                    #pragma warning restore CA2000
         #pragma warning restore CS1591
 
         /// <inheritdoc/>
@@ -328,6 +328,10 @@ namespace Opc.Ua.Server
             uint maxFrameSize;
             bool isReliable;
 
+            // CA2000 cannot follow manager ownership through the transport out parameter
+            // and the state record that owns the manager.
+            // TODO: Replace the out-parameter contract with an ownership-bearing result type.
+#pragma warning disable CA2000
             if (DataChannelTransport?.TryGetManager(
                 secureChannelContext,
                 DataChannelCapabilities,
@@ -363,6 +367,7 @@ namespace Opc.Ua.Server
                     TimeProvider),
                 maxFrameSize,
                 isReliable);
+#pragma warning restore CA2000
 
             manager.ChannelStateChanged += OnDataChannelStateChanged;
             return state;
@@ -549,7 +554,7 @@ namespace Opc.Ua.Server
                         return false;
                     }
 
-                    var operationContext = CreateReadOperationContext(context, session);
+                    using var operationContext = CreateReadOperationContext(context, session);
                     NodeMetadata? nodeMetadata = await nodeManager.GetPermissionMetadataAsync(
                             operationContext,
                             nodeHandle,

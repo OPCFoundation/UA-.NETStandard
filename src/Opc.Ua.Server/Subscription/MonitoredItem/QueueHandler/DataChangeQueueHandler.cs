@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -88,28 +89,17 @@ namespace Opc.Ua.Server
         /// <param name="queueFactory">the factory for <see cref="IDataChangeMonitoredItemQueue"/></param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="discardedValueHandler">Handler for discarded values</param>
+        /// <param name="timeProvider">
+        /// Supplies the per-sample timestamp used for sampling-interval throttling, so it can be
+        /// mocked in tests. Defaults to <see cref="TimeProvider.System"/>.
+        /// </param>
         public DataChangeQueueHandler(
             uint monitoredItemId,
             bool createDurable,
             IMonitoredItemQueueFactory queueFactory,
             ITelemetryContext telemetry,
-            Action? discardedValueHandler = null)
-            : this(monitoredItemId, createDurable, queueFactory, telemetry, discardedValueHandler, null)
-        {
-        }
-
-        /// <summary>
-        /// Creates a new Queue with an explicit <see cref="TimeProvider"/> so
-        /// the per-sample timestamp used for sampling-interval throttling can
-        /// be mocked in tests.
-        /// </summary>
-        public DataChangeQueueHandler(
-            uint monitoredItemId,
-            bool createDurable,
-            IMonitoredItemQueueFactory queueFactory,
-            ITelemetryContext telemetry,
-            Action? discardedValueHandler,
-            TimeProvider? timeProvider)
+            Action? discardedValueHandler = null,
+            TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
             m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable, monitoredItemId);
@@ -128,32 +118,27 @@ namespace Opc.Ua.Server
         /// Create a DatachangeQueueHandler from an existing queue
         /// Used for restore after a server restart
         /// </summary>
+        /// <param name="dataValueQueue">The queue to take over.</param>
+        /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
+        /// <param name="samplingInterval">The sampling interval.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="discardedValueHandler">Handler for discarded values</param>
+        /// <param name="timeProvider">
+        /// Supplies the per-sample timestamp used for sampling-interval throttling, so it can be
+        /// mocked in tests. Defaults to <see cref="TimeProvider.System"/>.
+        /// </param>
         public DataChangeQueueHandler(
             IDataChangeMonitoredItemQueue dataValueQueue,
             bool discardOldest,
             double samplingInterval,
             ITelemetryContext telemetry,
-            Action? discardedValueHandler = null)
-            : this(dataValueQueue, discardOldest, samplingInterval, telemetry, discardedValueHandler, null)
-        {
-        }
-
-        /// <summary>
-        /// Create a DatachangeQueueHandler from an existing queue with an
-        /// explicit <see cref="TimeProvider"/>.
-        /// </summary>
-        public DataChangeQueueHandler(
-            IDataChangeMonitoredItemQueue dataValueQueue,
-            bool discardOldest,
-            double samplingInterval,
-            ITelemetryContext telemetry,
-            Action? discardedValueHandler,
-            TimeProvider? timeProvider)
+            Action? discardedValueHandler = null,
+            TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
 
             m_dataValueQueue = dataValueQueue;
-            m_monitoredItemId = dataValueQueue.QueueSize;
+            m_monitoredItemId = dataValueQueue.MonitoredItemId;
             m_discardOldest = discardOldest;
             m_discardedValueHandler = discardedValueHandler!;
             m_nextSampleTime = 0;
@@ -194,6 +179,11 @@ namespace Opc.Ua.Server
                 }
             }
 
+            // The marker keeps its identity across the resize, so draining it here must not clear
+            // the flag that protects it from being discarded once it is put back.
+            DataValue required = m_required;
+            bool requiredPending = m_requiredPending;
+
             m_dataValueQueue.ResetQueue(queueSize, queueErrors);
 
             m_overflow = default;
@@ -207,6 +197,9 @@ namespace Opc.Ua.Server
                     Enqueue(existingValues[ii], existingErrors![ii]);
                 }
             }
+
+            m_required = required;
+            m_requiredPending = requiredPending;
         }
 
         /// <summary>
@@ -254,7 +247,14 @@ namespace Opc.Ua.Server
                 // check if too soon for another sample.
                 if (now < m_nextSampleTime)
                 {
-                    m_dataValueQueue.TryPeekLastValue(out DataValue overwrittenValue);
+                    if (!m_dataValueQueue.TryPeekLastValue(out DataValue overwrittenValue) ||
+                        IsRequiredMarker(overwrittenValue))
+                    {
+                        // The missing-node marker has to reach the Client, so it is never
+                        // replaced. The sample arrived too soon to be queued in its own right,
+                        // so it is dropped instead.
+                        return false;
+                    }
 
                     m_logger.OVERWRITTENVALUETOOSOONFORANOTHERSAMPLE(
                         overwrittenValue.WrappedValue,
@@ -291,6 +291,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Queues a required missing-node marker without sampling or overflow replacement.
+        /// </summary>
+        internal void QueueRequiredValue(in DataValue value, ServiceResult error)
+        {
+            EnqueueRequired(value, error);
+        }
+
+        /// <summary>
+        /// Gets whether a required missing-node marker is pending.
+        /// </summary>
+        internal bool HasRequiredValues => m_requiredPending;
+
+        /// <summary>
         /// Deques the last item
         /// </summary>
         public bool PublishSingleValue(
@@ -300,6 +313,12 @@ namespace Opc.Ua.Server
         {
             if (m_dataValueQueue.Dequeue(out value, out error))
             {
+                if (IsRequiredMarker(value))
+                {
+                    m_required = default;
+                    m_requiredPending = false;
+                }
+
                 if (m_overflowPending && m_overflow == value)
                 {
                     SetOverflowBit(ref value, ref error);
@@ -312,11 +331,13 @@ namespace Opc.Ua.Server
                     m_logger.DequeueValue(
                         value.WrappedValue,
                         value.StatusCode.Code,
-                        value.StatusCode.Overflow);
+                        value.StatusCode.Overflow,
+                        m_monitoredItemId);
                 }
 
                 return true;
             }
+
             return false;
         }
 
@@ -324,7 +345,6 @@ namespace Opc.Ua.Server
         /// Enque value
         /// </summary>
         /// <returns>true of overflow occured</returns>
-        /// <exception cref="ServiceResultException"></exception>
         private bool Enqueue(DataValue value, ServiceResult error)
         {
             // check for empty queue.
@@ -350,19 +370,20 @@ namespace Opc.Ua.Server
             // check if queue is full.
             if (m_dataValueQueue.ItemsInQueue == m_dataValueQueue.QueueSize)
             {
-                m_discardedValueHandler?.Invoke();
-
                 if (!m_discardOldest)
                 {
-                    if (m_dataValueQueue.TryPeekLastValue(out DataValue peekedLast))
+                    if (IsRequiredMarker(lastValue))
                     {
-                        ServerUtils.ReportDiscardedValue(
-                            default,
-                            m_monitoredItemId,
-                            peekedLast);
+                        // The missing-node marker has to reach the Client, so the incoming value
+                        // is discarded instead of the marker, and the marker reports the loss.
+                        DiscardIncomingValue(value, lastValue);
+                        return true;
                     }
 
-                    //set overflow bit in newest value
+                    m_discardedValueHandler?.Invoke();
+                    ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, lastValue);
+
+                    // the newest value reports the loss.
                     m_overflow = value;
                     m_overflowPending = true;
 
@@ -371,8 +392,20 @@ namespace Opc.Ua.Server
 
                     return true;
                 }
+
+                if (m_dataValueQueue.TryPeekOldestValue(out DataValue peekedOldest) &&
+                    IsRequiredMarker(peekedOldest))
+                {
+                    // The missing-node marker has to reach the Client, so the incoming value is
+                    // discarded instead of the marker, and the marker reports the loss.
+                    DiscardIncomingValue(value, peekedOldest);
+                    return true;
+                }
+
+                m_discardedValueHandler?.Invoke();
+
                 // remove oldest value.
-                if (m_dataValueQueue.Dequeue(out DataValue discardedValue, out _))
+                if (DequeueWithRetry(out DataValue discardedValue, out _))
                 {
                     ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, discardedValue);
                 }
@@ -382,7 +415,8 @@ namespace Opc.Ua.Server
                         StatusCodes.BadInternalError,
                         "Error queueing DataValue. DataValueQueue was full but it was not possible to discard the oldest value.");
                 }
-                //set overflow bit in oldest value
+
+                // the value that is now the oldest reports the loss.
                 if (m_dataValueQueue.TryPeekOldestValue(out DataValue oldestValue))
                 {
                     m_overflow = oldestValue;
@@ -393,15 +427,97 @@ namespace Opc.Ua.Server
 
                 return true;
             }
-            else
-            {
-                m_logger.ENQUEUEVALUEValueValue(value.WrappedValue);
-            }
+
+            m_logger.ENQUEUEVALUEValueValue(value.WrappedValue);
 
             m_dataValueQueue.Enqueue(value, error);
 
             return false;
         }
+
+        /// <summary>
+        /// Queues the marker that tells the Client the monitored Node is gone. It is queued like
+        /// any other value, so Part 4 5.13.1.5 ordering holds, and from then on it is the one
+        /// value that is never discarded, so a full queue cannot swallow the notification that
+        /// Part 4 5.8.4.1 requires.
+        /// <para>
+        /// The specification does not say how a mandatory data change Notification survives a full
+        /// queue: the protected, over capacity entry it defines applies to
+        /// EventQueueOverflowEventType only. Issue #4102 records the ambiguity and where to change
+        /// this if the behaviour chosen here turns out to be non-compliant.
+        /// </para>
+        /// </summary>
+        /// <param name="value">The marker value.</param>
+        /// <param name="error">The marker error.</param>
+        private void EnqueueRequired(DataValue value, ServiceResult error)
+        {
+            if (m_requiredPending)
+            {
+                // A marker is already queued and says the same thing, so a second one adds
+                // nothing and would only displace a real value.
+                return;
+            }
+
+            // No marker is queued yet, so the rule that protects it cannot reject this one.
+            Enqueue(value, error);
+            m_required = value;
+            m_requiredPending = true;
+        }
+
+        /// <summary>
+        /// Gets whether the queued value is the pending missing-node marker.
+        /// </summary>
+        /// <param name="value">The queued value.</param>
+        private bool IsRequiredMarker(in DataValue value)
+        {
+            return m_requiredPending && m_required == value;
+        }
+
+        /// <summary>
+        /// Discards the incoming value because the value it would have displaced is the marker,
+        /// and lets the marker report the loss instead.
+        /// </summary>
+        /// <param name="value">The value that is not queued.</param>
+        /// <param name="marker">The marker that keeps its place.</param>
+        private void DiscardIncomingValue(DataValue value, DataValue marker)
+        {
+            m_discardedValueHandler?.Invoke();
+            ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, value);
+            m_overflow = marker;
+            m_overflowPending = true;
+        }
+
+        /// <summary>
+        /// Dequeues a value, tolerating a durable queue that transiently reports no value while it
+        /// restores a persisted batch. The retry is bounded, because a queue that permanently
+        /// stops handing back the values it reports as queued would otherwise spin a server
+        /// thread forever.
+        /// </summary>
+        /// <param name="value">The value that was dequeued.</param>
+        /// <param name="error">The error that belongs to the value.</param>
+        private bool DequeueWithRetry(out DataValue value, out ServiceResult error)
+        {
+            var spinWait = new SpinWait();
+            for (int attempt = 0; attempt <= kMaxDrainAttempts; attempt++)
+            {
+                if (m_dataValueQueue.Dequeue(out value, out error))
+                {
+                    return true;
+                }
+
+                if (m_dataValueQueue.ItemsInQueue == 0)
+                {
+                    return false;
+                }
+
+                spinWait.SpinOnce();
+            }
+
+            value = default;
+            error = ServiceResult.Good;
+            return false;
+        }
+
 
         /// <summary>
         /// Sets the overflow bit in the value and error.
@@ -442,6 +558,13 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// The number of consecutive failed dequeue attempts tolerated while draining, before the
+        /// queue is treated as broken. A durable queue only fails transiently while it restores a
+        /// persisted batch, so exceeding this means it will not recover.
+        /// </summary>
+        private const int kMaxDrainAttempts = 10000;
+
         private readonly IDataChangeMonitoredItemQueue m_dataValueQueue;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
@@ -452,6 +575,8 @@ namespace Opc.Ua.Server
         private readonly Action m_discardedValueHandler;
         private DataValue m_overflow;
         private bool m_overflowPending;
+        private DataValue m_required;
+        private bool m_requiredPending;
     }
 
     /// <summary>

@@ -110,10 +110,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public async Task ConfigureServicesUsesProvidedMcpServerOptionsAsync()
+        public async Task ConfigureServicesUsesProvidedOpcUaMcpOptionsAsync()
         {
             var services = new ServiceCollection();
-            var expected = new Opc.Ua.Mcp.McpServerOptions
+            var expected = new Opc.Ua.Mcp.OpcUaMcpOptions
             {
                 ToolProfile = McpToolProfile.Core
             };
@@ -122,18 +122,18 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             await using ServiceProvider provider = services.BuildServiceProvider();
             Assert.That(
-                provider.GetRequiredService<Opc.Ua.Mcp.McpServerOptions>(),
+                provider.GetRequiredService<Opc.Ua.Mcp.OpcUaMcpOptions>(),
                 Is.SameAs(expected));
         }
 
         [Test]
-        public void CreateMcpServerOptionsReadsEnvironmentVariables()
+        public void CreateOpcUaMcpOptionsReadsEnvironmentVariables()
         {
             Environment.SetEnvironmentVariable(kExportRootVariable, "export-root");
             Environment.SetEnvironmentVariable(kPcapRootVariable, "pcap-root");
 
-            Opc.Ua.Mcp.McpServerOptions options =
-                McpHostBuilder.CreateMcpServerOptions();
+            Opc.Ua.Mcp.OpcUaMcpOptions options =
+                McpHostBuilder.CreateOpcUaMcpOptions();
 
             Assert.That(options.NodeSetExportRoot, Is.EqualTo("export-root"));
             Assert.That(options.PcapBaseFolder, Is.EqualTo("pcap-root"));
@@ -146,7 +146,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("pubsub", McpToolProfile.PubSub)]
         [TestCase("diagnostics", McpToolProfile.Diagnostics)]
         [TestCase("full", McpToolProfile.Full)]
-        public void CreateMcpServerOptionsParsesConfiguredProfile(
+        public void CreateOpcUaMcpOptionsParsesConfiguredProfile(
             string configuredProfile,
             McpToolProfile expectedProfile)
         {
@@ -157,7 +157,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.McpServerOptions options = McpHostBuilder.CreateMcpServerOptions(
+            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -165,7 +165,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void CreateMcpServerOptionsCliOverrideWinsOverConfiguration()
+        public void CreateOpcUaMcpOptionsCliOverrideWinsOverConfiguration()
         {
             IConfiguration configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
@@ -174,7 +174,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.McpServerOptions options = McpHostBuilder.CreateMcpServerOptions(
+            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 McpToolProfile.Core);
 
@@ -182,11 +182,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void CreateMcpServerOptionsReturnsDefaultsWhenProfileIsUnconfigured()
+        public void CreateOpcUaMcpOptionsReturnsDefaultsWhenProfileIsUnconfigured()
         {
             IConfiguration configuration = new ConfigurationBuilder().Build();
 
-            Opc.Ua.Mcp.McpServerOptions options = McpHostBuilder.CreateMcpServerOptions(
+            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -194,12 +194,12 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void CreateMcpServerOptionsReadsProfileFromEnvironment()
+        public void CreateOpcUaMcpOptionsReadsProfileFromEnvironment()
         {
             Environment.SetEnvironmentVariable(kProfileVariable, "pubsub");
             IConfiguration configuration = new ConfigurationBuilder().Build();
 
-            Opc.Ua.Mcp.McpServerOptions options = McpHostBuilder.CreateMcpServerOptions(
+            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -207,7 +207,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void CreateMcpServerOptionsRejectsUnknownConfiguredProfile()
+        public void CreateOpcUaMcpOptionsRejectsUnknownConfiguredProfile()
         {
             IConfiguration configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
@@ -217,7 +217,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 .Build();
 
             Assert.That(
-                () => McpHostBuilder.CreateMcpServerOptions(configuration, null),
+                () => McpHostBuilder.CreateOpcUaMcpOptions(configuration, null),
                 Throws.InvalidOperationException.With.Message.Contains("Unknown MCP tool profile"));
         }
 
@@ -400,7 +400,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 () => McpHostBuilder.CreatePcapOptions(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => McpHostBuilder.CreateMcpServerOptions(null!, null),
+                () => McpHostBuilder.CreateOpcUaMcpOptions(null!, null),
                 Throws.ArgumentNullException);
             Assert.That(
                 () => McpHostBuilder.AreDiagnosticsToolsEnabled(null!),

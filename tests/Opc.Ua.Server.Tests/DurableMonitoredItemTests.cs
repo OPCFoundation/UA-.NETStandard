@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -961,9 +963,10 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task DataValueQueueSamplingIntervalChangeAppliedAsync()
+        public Task DataValueQueueSamplingIntervalChangeAppliedAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var timeProvider = new FakeTimeProvider();
 
             bool called = false;
             void DiscardValueHandler() => called = true;
@@ -973,7 +976,8 @@ namespace Opc.Ua.Server.Tests
                 false,
                 m_factory.Create(telemetry),
                 telemetry,
-                DiscardValueHandler);
+                DiscardValueHandler,
+                timeProvider);
 
             queueHandler.SetQueueSize(3, true, DiagnosticsMasks.All);
 
@@ -987,7 +991,7 @@ namespace Opc.Ua.Server.Tests
             var statuscode2 = new ServiceResult(StatusCodes.Good);
             var dataValue2 = new DataValue(new Variant(false));
 
-            await Task.Delay(5).ConfigureAwait(false);
+            timeProvider.Advance(TimeSpan.FromMilliseconds(2));
 
             queueHandler.QueueValue(dataValue2, statuscode2);
 
@@ -1001,6 +1005,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo(dataValue));
             Assert.That(resultError, Is.EqualTo(statuscode));
+
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -1239,6 +1245,101 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.Throws<ServiceResultException>(
                     () => CreateDurableMonitoredItem(factory, telemetry));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DurableConsumedNodeIdUnknownIsNotRepublishedAfterRestart(
+            bool disabledBeforeStore)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IServiceMessageContext messageContext = ServiceMessageContext.Create(telemetry);
+            using var sourceFactory = new DurableMonitoredItemQueueFactory(
+                telemetry,
+                messageContext);
+            string storePath = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                $"DurableConsumedLifecycle-{Guid.NewGuid():N}");
+            try
+            {
+                IStoredMonitoredItem stored;
+                using (MonitoredItem source = CreateDurableMonitoredItem(
+                    sourceFactory,
+                    telemetry,
+                    queueSize: 4))
+                {
+                    // Production deletes a monitored node by detaching the item and marking
+                    // it deleted, so establish both flags here as well.
+                    var sourceLifecycle = (IDetachableMonitoredItem)source;
+                    sourceLifecycle.MarkNodeDeleted();
+                    sourceLifecycle.BeginDetach();
+                    var notifications = new Queue<MonitoredItemNotification>();
+                    var diagnostics = new Queue<DiagnosticInfo>();
+                    source.Publish(
+                        new OperationContext(source),
+                        notifications,
+                        diagnostics,
+                        10,
+                        telemetry.CreateLogger<DurableMonitoredItemTests>());
+
+                    Assert.That(notifications, Has.Count.EqualTo(1));
+                    Assert.That(
+                        notifications.Dequeue().Value.StatusCode,
+                        Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+
+                    if (disabledBeforeStore)
+                    {
+                        source.SetMonitoringMode(MonitoringMode.Disabled);
+                    }
+                    stored = source.ToStorableMonitoredItem();
+                    sourceFactory.PersistQueues([source.Id], storePath);
+                }
+
+                using var restoredFactory = new DurableMonitoredItemQueueFactory(
+                    telemetry,
+                    messageContext);
+                stored.RestoredDataChangeQueue =
+                    restoredFactory.RestoreDataChangeQueue(stored.Id, storePath);
+                var server = new Mock<IServerInternal>();
+                server.Setup(value => value.Telemetry).Returns(telemetry);
+                server.Setup(value => value.MonitoredItemQueueFactory).Returns(restoredFactory);
+                server.Setup(value => value.NamespaceUris).Returns(new NamespaceTable());
+                server.Setup(value => value.TypeTree)
+                    .Returns(new TypeTable(new NamespaceTable()));
+                using var restored = new MonitoredItem(
+                    server.Object,
+                    new Mock<IAsyncNodeManager>().Object,
+                    new object(),
+                    stored);
+                var restoredLifecycle = (IDetachableMonitoredItem)restored;
+                var restoredNotifications = new Queue<MonitoredItemNotification>();
+                if (disabledBeforeStore)
+                {
+                    restored.SetMonitoringMode(MonitoringMode.Reporting);
+                }
+
+                bool more = restored.Publish(
+                    new OperationContext(restored),
+                    restoredNotifications,
+                    new Queue<DiagnosticInfo>(),
+                    10,
+                    telemetry.CreateLogger<DurableMonitoredItemTests>());
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(restoredLifecycle.IsDeleted, Is.True);
+                    Assert.That(restoredLifecycle.IsDetached, Is.True);
+                    Assert.That(restoredNotifications, Is.Empty);
+                    Assert.That(more, Is.False);
+                });
+            }
+            finally
+            {
+                if (Directory.Exists(storePath))
+                {
+                    Directory.Delete(storePath, recursive: true);
+                }
             }
         }
 

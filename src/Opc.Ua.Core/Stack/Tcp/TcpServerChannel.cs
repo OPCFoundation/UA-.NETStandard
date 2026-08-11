@@ -1458,12 +1458,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void ResetQueuedResponses(Action<object?> action)
         {
-            _ = Task.Factory.StartNew(
-                action,
-                m_queuedResponses,
-                default,
-                TaskCreationOptions.DenyChildAttach,
-                TaskScheduler.Default);
+            SortedDictionary<uint, IServiceResponse> queued = m_queuedResponses;
+            BackgroundWork.Run(
+                nameof(ResetQueuedResponses),
+                _ =>
+                {
+                    action(queued);
+                    return default;
+                });
             m_queuedResponses = [];
         }
 

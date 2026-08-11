@@ -81,6 +81,80 @@ namespace Opc.Ua.Server.Tests.Redundancy
             AssertMonitoredItem((StoredMonitoredItem)actual.MonitoredItems.Single(), NewItem(100, 10));
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task StoreAndRestoreRoundTripsMonitoredItemLifecycleStateAsync(
+            bool isDeleted,
+            bool isDetached)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore active = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(101, 11);
+            var expectedItem = (StoredMonitoredItem)expected.MonitoredItems.Single();
+            expectedItem.IsDeleted = isDeleted;
+            expectedItem.IsDetached = isDetached;
+
+            await active.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
+            var actual = (StoredMonitoredItem)result.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(actual.IsDeleted, Is.EqualTo(isDeleted));
+                Assert.That(actual.IsDetached, Is.EqualTo(isDetached));
+            });
+        }
+
+        [Test]
+        public void CloneMonitoredItemPreservesLifecycleState()
+        {
+            StoredMonitoredItem item = NewItem(102, 12);
+            item.IsDeleted = true;
+            item.IsDetached = true;
+            MethodInfo clone = GetPrivateMethod(
+                "CloneMonitoredItem",
+                typeof(IStoredMonitoredItem));
+
+            var cloned = (StoredMonitoredItem)clone.Invoke(null, [item])!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(cloned, Is.Not.SameAs(item));
+                Assert.That(cloned.IsDeleted, Is.True);
+                Assert.That(cloned.IsDetached, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task RestoreVersionOneDefinitionDefaultsLifecycleStateToFalseAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            StoredSubscription legacy = NewSubscription(103, 13);
+            var legacyItem = (StoredMonitoredItem)legacy.MonitoredItems.Single();
+            legacyItem.IsDeleted = true;
+            legacyItem.IsDetached = true;
+            await kv
+                .SetAsync(
+                    SharedKeyValueSubscriptionStore.KeyFor(legacy.Id),
+                    EncodeLegacyDefinition(legacy))
+                .ConfigureAwait(false);
+            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            var restored = (StoredMonitoredItem)result.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.True);
+                Assert.That(restored.IsDeleted, Is.False);
+                Assert.That(restored.IsDetached, Is.False);
+            });
+        }
+
         [Test]
         public async Task StoreIsVisibleToSecondReplicaAsync()
         {
@@ -1176,7 +1250,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             MethodInfo? method = typeof(SharedKeyValueSubscriptionStore).GetMethod(
                 name,
-                BindingFlags.Instance | BindingFlags.NonPublic,
+                BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic,
                 null,
                 parameterTypes,
                 null);
@@ -1190,6 +1264,22 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             MethodInfo encode = GetPrivateMethod("Encode", typeof(StoredSubscription));
             return (ByteString)encode.Invoke(store, [subscription])!;
+        }
+
+        private static ByteString EncodeLegacyDefinition(StoredSubscription subscription)
+        {
+            ServiceMessageContext context = CreateContext();
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteInt32(null, 1);
+            encoder.WriteStringArray(null, context.NamespaceUris.ToArrayOf());
+            encoder.WriteStringArray(null, context.ServerUris.ToArrayOf());
+            MethodInfo encodeSubscription = GetPrivateMethod(
+                "EncodeSubscription",
+                typeof(BinaryEncoder),
+                typeof(StoredSubscription),
+                typeof(int));
+            encodeSubscription.Invoke(null, [encoder, subscription, 1]);
+            return ByteString.From(encoder.CloseAndReturnBuffer());
         }
 
         private static async Task<KeyValuePair<string, ByteString>> GetSingleGenerationRecordAsync(
@@ -1306,6 +1396,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private static void AssertMonitoredItem(StoredMonitoredItem actual, StoredMonitoredItem expected)
         {
+            Assert.That(actual.IsDeleted, Is.EqualTo(expected.IsDeleted));
+            Assert.That(actual.IsDetached, Is.EqualTo(expected.IsDetached));
             Assert.That(actual.SubscriptionId, Is.EqualTo(expected.SubscriptionId));
             Assert.That(actual.Id, Is.EqualTo(expected.Id));
             Assert.That(actual.NodeId, Is.EqualTo(expected.NodeId));

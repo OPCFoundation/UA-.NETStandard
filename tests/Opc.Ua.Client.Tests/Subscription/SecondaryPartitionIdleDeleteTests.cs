@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             int disposeCalls = 0;
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => throw new InvalidOperationException("no secondary expected"),
                 timeProvider,
@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary,
                 timeProvider,
@@ -152,7 +152,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             int disposeCalls = 0;
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary,
                 timeProvider,
@@ -198,7 +198,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             int disposeCalls = 0;
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary,
                 timeProvider,

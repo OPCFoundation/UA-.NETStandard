@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 using Moq;
 using NUnit.Framework;
 
@@ -80,6 +83,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -106,6 +110,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -128,6 +133,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockFileSystem = new Mock<IFileSystem>();
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
+                [],
                 [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
@@ -152,6 +158,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -174,6 +181,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockFileSystem = new Mock<IFileSystem>();
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
+                [],
                 [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
@@ -198,6 +206,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -221,6 +230,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockFileSystem = new Mock<IFileSystem>();
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
+                [],
                 [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
@@ -247,6 +257,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -271,6 +282,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -294,6 +306,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -303,6 +316,67 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "output",
                 mockTelemetry.Object,
                 useAllowSubtypes: useAllowSubtypes));
+        }
+
+        /// <summary>
+        /// Verifies that the original public GenerateCode signatures remain available.
+        /// </summary>
+        [Test]
+        public void GenerateCodeOriginalPublicSignaturesArePreserved()
+        {
+            AssertPublicGenerateCodeSignature(
+            [
+                typeof(DesignFileCollection),
+                typeof(IFileSystem),
+                typeof(string),
+                typeof(ITelemetryContext),
+                typeof(GeneratorOptions),
+                typeof(bool),
+                typeof(List<string>),
+                typeof(IReadOnlyDictionary<string, ModelDependencyReference>),
+                typeof(IReadOnlyList<NodeManagerAttributeBinding>),
+                typeof(Action<NodeManagerAttributeBinding, string>),
+                typeof(HashSet<NodeManagerAttributeBinding>),
+                typeof(int)
+            ]);
+            AssertPublicGenerateCodeSignature(
+            [
+                typeof(NodesetFileCollection),
+                typeof(IFileSystem),
+                typeof(string),
+                typeof(ITelemetryContext),
+                typeof(GeneratorOptions),
+                typeof(bool),
+                typeof(IReadOnlyDictionary<string, ModelDependencyReference>),
+                typeof(IReadOnlyList<NodeManagerAttributeBinding>),
+                typeof(Action<NodeManagerAttributeBinding, string>),
+                typeof(IReadOnlyDictionary<string, Dependency.ModelDependencyV1>),
+                typeof(HashSet<NodeManagerAttributeBinding>),
+                typeof(int)
+            ]);
+        }
+
+        private static void AssertPublicGenerateCodeSignature(Type[] parameterTypes)
+        {
+            MethodInfo method = typeof(Generators).GetMethod(
+                nameof(Generators.GenerateCode),
+                parameterTypes) ?? throw new AssertionException("GenerateCode signature not found.");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(method.IsPublic, Is.True);
+                Assert.That(method.IsStatic, Is.True);
+                Assert.That(method.ReturnType, Is.EqualTo(typeof(void)));
+            });
+
+            ParameterInfo[] parameters = method.GetParameters();
+            for (int ii = 4; ii < parameters.Length; ii++)
+            {
+                Assert.That(
+                    parameters[ii].IsOptional,
+                    Is.True,
+                    $"Parameter '{parameters[ii].Name}' must remain optional.");
+            }
         }
     }
 }
