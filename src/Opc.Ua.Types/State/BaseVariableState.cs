@@ -298,22 +298,31 @@ namespace Opc.Ua
         [DataMember(Name = "Value", Order = 0, IsRequired = false, EmitDefaultValue = false)]
         public Variant Value
         {
-            get => m_value;
+            get
+            {
+                lock (m_attributeLock)
+                {
+                    return m_value;
+                }
+            }
             set
             {
-                if (value != m_value)
+                lock (m_attributeLock)
                 {
-                    ChangeMasks |= NodeStateChangeMasks.Value;
+                    if (value != m_value)
+                    {
+                        ChangeMasks |= NodeStateChangeMasks.Value;
+                    }
+
+                    if (!m_valueTouched)
+                    {
+                        StatusCode = StatusCodes.Good;
+                    }
+
+                    m_value = value;
+
+                    m_valueTouched = true;
                 }
-
-                if (!m_valueTouched)
-                {
-                    StatusCode = StatusCodes.Good;
-                }
-
-                m_value = value;
-
-                m_valueTouched = true;
             }
         }
 
@@ -333,15 +342,24 @@ namespace Opc.Ua
         /// <value>The timestamp.</value>
         public DateTimeUtc Timestamp
         {
-            get => m_timestamp;
+            get
+            {
+                lock (m_attributeLock)
+                {
+                    return m_timestamp;
+                }
+            }
             set
             {
-                if (m_timestamp != value)
+                lock (m_attributeLock)
                 {
-                    ChangeMasks |= NodeStateChangeMasks.Value;
-                }
+                    if (m_timestamp != value)
+                    {
+                        ChangeMasks |= NodeStateChangeMasks.Value;
+                    }
 
-                m_timestamp = value;
+                    m_timestamp = value;
+                }
             }
         }
 
@@ -351,15 +369,24 @@ namespace Opc.Ua
         /// <value>The status code.</value>
         public StatusCode StatusCode
         {
-            get => m_statusCode;
+            get
+            {
+                lock (m_attributeLock)
+                {
+                    return m_statusCode;
+                }
+            }
             set
             {
-                if (m_statusCode != value)
+                lock (m_attributeLock)
                 {
-                    ChangeMasks |= NodeStateChangeMasks.Value;
-                }
+                    if (m_statusCode != value)
+                    {
+                        ChangeMasks |= NodeStateChangeMasks.Value;
+                    }
 
-                m_statusCode = value;
+                    m_statusCode = value;
+                }
             }
         }
 
@@ -1294,18 +1321,26 @@ namespace Opc.Ua
                 return StatusCodes.BadUserAccessDenied;
             }
 
-            // ensure a value timestamp exists.
-            if (m_timestamp == DateTimeUtc.MinValue)
+            // Snapshot the correlated fields together so a concurrent write cannot be
+            // observed half-applied, then release: everything below can dispatch to a
+            // caller-supplied handler, and holding the node's lock across one would give
+            // the node no fixed place in the lock order.
+            Variant snapshotValue;
+            StatusCode statusCode;
+            DateTimeUtc snapshotTimestamp;
+            lock (m_attributeLock)
             {
-                sourceTimestamp = DateTimeUtc.Now;
-            }
-            else
-            {
-                sourceTimestamp = m_timestamp;
+                snapshotValue = m_value;
+                statusCode = m_statusCode;
+                snapshotTimestamp = m_timestamp;
             }
 
-            value = m_value;
-            StatusCode statusCode = m_statusCode;
+            // ensure a value timestamp exists.
+            sourceTimestamp = snapshotTimestamp == DateTimeUtc.MinValue
+                ? DateTimeUtc.Now
+                : snapshotTimestamp;
+
+            value = snapshotValue;
 
             ServiceResult result = ServiceResult.Good;
 
@@ -1676,14 +1711,15 @@ namespace Opc.Ua
                     return result;
                 }
 
-                m_value = value;
-                m_statusCode = statusCode;
-                m_timestamp = sourceTimestamp;
-
-                // update timestamp if not set by function.
-                if (sourceTimestamp == DateTimeUtc.MinValue)
+                // Commit the correlated fields together so a concurrent read cannot observe
+                // the write half-applied. The handler ran outside the lock, above.
+                lock (m_attributeLock)
                 {
-                    m_timestamp = DateTimeUtc.Now;
+                    m_value = value;
+                    m_statusCode = statusCode;
+                    m_timestamp = sourceTimestamp == DateTimeUtc.MinValue
+                        ? DateTimeUtc.Now
+                        : sourceTimestamp;
                 }
 
                 ChangeMasks |= NodeStateChangeMasks.Value;
@@ -1770,10 +1806,14 @@ namespace Opc.Ua
                 }
             }
 
-            // update cached values.
-            m_value = value;
-            m_statusCode = statusCode;
-            m_timestamp = sourceTimestamp;
+            // update cached values together, so a concurrent read cannot observe the write
+            // half-applied.
+            lock (m_attributeLock)
+            {
+                m_value = value;
+                m_statusCode = statusCode;
+                m_timestamp = sourceTimestamp;
+            }
 
             ChangeMasks |= NodeStateChangeMasks.Value;
 
@@ -1818,15 +1858,7 @@ namespace Opc.Ua
                 byte userAccessLevel;
                 StatusCode cachedStatusCode;
                 DateTimeUtc cachedTimestamp;
-                // TODO: introduce a dedicated private lock object on NodeState
-                // — today's sync flow synchronises through `lock(source)` taken
-                // by external callers (e.g. CustomNodeManager2.Read), so the
-                // async path must lock on the same instance to preserve
-                // mutual exclusion. Switching to a private lock object
-                // requires updating every external `lock(source)` site.
-#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
-                lock (this)
-#pragma warning restore CA2002, RCS1059
+                lock (m_attributeLock)
                 {
                     accessLevel = m_accessLevel;
                     userAccessLevel = m_userAccessLevel;
@@ -1973,11 +2005,7 @@ namespace Opc.Ua
                 // snapshot access levels under the lock.
                 uint accessLevel;
                 byte userAccessLevel;
-                // TODO: introduce a dedicated private lock object on NodeState
-                // — see the sibling note in ReadAttributeAsync for the rationale.
-#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
-                lock (this)
-#pragma warning restore CA2002, RCS1059
+                lock (m_attributeLock)
                 {
                     accessLevel = m_accessLevel;
                     userAccessLevel = m_userAccessLevel;
@@ -2014,9 +2042,7 @@ namespace Opc.Ua
                         ? DateTimeUtc.Now
                         : sourceTimestamp;
 
-#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
-                    lock (this)
-#pragma warning restore CA2002, RCS1059
+                    lock (m_attributeLock)
                     {
                         m_value = valueToWrite;
                         m_statusCode = statusCode;
@@ -2053,9 +2079,7 @@ namespace Opc.Ua
                     return simpleResult.Result;
                 }
 
-#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
-                lock (this)
-#pragma warning restore CA2002, RCS1059
+                lock (m_attributeLock)
                 {
                     m_value = valueToWrite;
                     m_statusCode = statusCode;
@@ -2085,6 +2109,17 @@ namespace Opc.Ua
             return Value.ToString();
         }
 
+        /// <summary>
+        /// Guards the value attribute fields so the variable synchronizes itself rather
+        /// than relying on callers to take a lock on the node instance.
+        /// </summary>
+        /// <remarks>
+        /// Fully private: the lock never leaves this class, so no derived type - inside or
+        /// outside this assembly - can take it, hold it across a call back into the stack,
+        /// or otherwise participate in an ordering it cannot see. Every critical section it
+        /// guards is a field read or write in this file.
+        /// </remarks>
+        private readonly Lock m_attributeLock = new();
         private Variant m_value;
         private DateTimeUtc m_timestamp;
         private bool m_valueTouched;
@@ -2108,18 +2143,15 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with a synchronization object.
         /// </summary>
-        public BaseVariableValue(object dataLock)
+        /// <param name="dataLock">
+        /// The lock shared by every value projecting the same underlying state, or
+        /// <c>null</c> to give this value its own.
+        /// </param>
+        public BaseVariableValue(Lock? dataLock)
         {
-            Lock = dataLock;
+            m_lock = dataLock ?? new Lock();
             CopyPolicy = VariableCopyPolicy.CopyOnRead;
-
-            Lock ??= new object();
         }
-
-        /// <summary>
-        /// An object used to synchronize access to the value.
-        /// </summary>
-        public object Lock { get; }
 
         /// <summary>
         /// The behavior to use when reading or writing all or part of the object.
@@ -2141,7 +2173,7 @@ namespace Opc.Ua
         /// </summary>
         public void ChangesComplete(ISystemContext context)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 if (m_updateList != null)
                 {
@@ -2180,6 +2212,34 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Enters the lock guarding the value.
+        /// </summary>
+        /// <remarks>
+        /// The lock object itself is private, so a derived value can make its own read or
+        /// write atomic with the base class without being able to share the lock, pass it
+        /// to another component, or take it in a <c>lock</c> statement somewhere the base
+        /// class cannot see. A callback-based helper would be tighter still, but the
+        /// generated value classes wrap bodies that pass <c>ref</c> arguments, and those
+        /// cannot be captured by a lambda. Pair every call with
+        /// <see cref="ExitLock"/> in a <c>finally</c> block.
+        /// </remarks>
+        protected void EnterLock()
+        {
+            m_lock.Enter();
+        }
+
+        /// <summary>
+        /// Exits the lock guarding the value.
+        /// </summary>
+        /// <remarks>
+        /// Must be called from a <c>finally</c> block paired with <see cref="EnterLock"/>.
+        /// </remarks>
+        protected void ExitLock()
+        {
+            m_lock.Exit();
+        }
+
+        /// <summary>
         /// Reads the value or a component of the value.
         /// </summary>
         protected ServiceResult Read(
@@ -2191,7 +2251,7 @@ namespace Opc.Ua
             ref StatusCode statusCode,
             ref DateTimeUtc timestamp)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 // ensure a value timestamp exists.
                 if (Timestamp == DateTimeUtc.MinValue)
@@ -2244,7 +2304,7 @@ namespace Opc.Ua
         /// </summary>
         protected void SetUpdateList(IList<BaseInstanceState> updateList)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 m_updateList = null;
 
@@ -2268,6 +2328,19 @@ namespace Opc.Ua
         }
 
         private BaseInstanceState[]? m_updateList;
+
+        /// <summary>
+        /// The lock guarding the value.
+        /// </summary>
+        /// <remarks>
+        /// Never handed out. It may be shared through the constructor - several generated
+        /// structure variables projecting the same underlying buffer are constructed with
+        /// one lock so that a read or write spanning them is atomic, and the server passes
+        /// the lock that guards its diagnostics so server status and server diagnostics
+        /// stay mutually exclusive - but sharing is the caller's decision, made once, with
+        /// a lock the caller already owns.
+        /// </remarks>
+        private readonly Lock m_lock;
     }
 
     /// <summary>

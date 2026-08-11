@@ -196,5 +196,26 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "'{0}' was replaced in 2.0 — use the new IPubSubApplication / PubSubApplicationBuilder surface (or AddPubSub() / AddUdpTransport() / AddMqttTransport() on IOpcUaBuilder)",
             DiagnosticSeverity.Warning,
             "The 1.04-era PubSub top-level types (UaPubSubApplication, IUaPubSubConnection, IUaPublisher, UaPubSubDataStore, UaPubSubConfigurator) ship as obsolete shims in 2.0; the new top-level surface uses provider-model abstractions wired via PubSubApplicationBuilder or Microsoft.Extensions.DependencyInjection extensions (docs/migrate/2.0.x/pubsub.md).");
+
+        public static readonly DiagnosticDescriptor UA0024_RemovedDiagnosticsLock = Create(
+            DiagnosticIds.UA0024,
+            "Diagnostics locks are no longer exposed",
+            "'{0}.{1}' was removed in 2.0 — apply the change through '{0}.{2}' instead of taking the lock yourself",
+            DiagnosticSeverity.Warning,
+            "IServerInternal, ISession and ISubscription no longer expose DiagnosticsLock / DiagnosticsWriteLock. A caller could not see what else took those locks, in what order, or for how long, and holding one across a call back into the stack could deadlock. Each owner now applies the mutation itself through UpdateDiagnostics / UpdateServerDiagnostics, and ISession and ISubscription add ReadDiagnostics for projections. Do not let the diagnostics object escape the callback: once it returns the lock is released. This rule reports rather than fixes, because turning a lock statement body into a lambda depends on what the body captures and returns.");
+
+        public static readonly DiagnosticDescriptor UA0025_RemovedNodeDataLock = Create(
+            DiagnosticIds.UA0025,
+            "ILocalNode.DataLock is no longer exposed",
+            "'{0}.DataLock' was removed in 2.0 — the node synchronizes its own state, so take a lock you own if the surrounding operation still needs to be atomic",
+            DiagnosticSeverity.Warning,
+            "ILocalNode.DataLock returned the node instance itself, so every caller that took it shared one lock with the stack and with every other caller, in an order none of them could see, and holding it across a call back into the stack could deadlock. The node now guards its own state. Code that needs a wider critical section should use a lock it owns rather than one reachable from a shared node.");
+
+        public static readonly DiagnosticDescriptor UA0026_RemovedVariableValueLock = Create(
+            DiagnosticIds.UA0026,
+            "BaseVariableValue.Lock is no longer exposed",
+            "'{0}.Lock' was removed in 2.0 — construct the value with a lock you own and take that one instead",
+            DiagnosticSeverity.Warning,
+            "BaseVariableValue handed out the synchronization primitive that guards its value, so a caller could hold it across a callback into the stack. The value now owns it: derived value classes synchronize through the protected EnterLock / ExitLock pair, and a component that has to make its own state atomic with the value passes a lock it already owns to the BaseVariableValue constructor - which is how the server keeps its status and its diagnostics mutually exclusive - and takes that lock directly.");
     }
 }

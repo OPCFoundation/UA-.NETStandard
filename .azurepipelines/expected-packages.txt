@@ -50,6 +50,7 @@ OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes
 OPCFoundation.NetStandard.Opc.Ua.Redundancy.PubSub
 OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server
 OPCFoundation.NetStandard.Opc.Ua.Security.Certificates
+OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11
 OPCFoundation.NetStandard.Opc.Ua.Server
 OPCFoundation.NetStandard.Opc.Ua.SourceGeneration
 OPCFoundation.NetStandard.Opc.Ua.SourceGeneration.Core

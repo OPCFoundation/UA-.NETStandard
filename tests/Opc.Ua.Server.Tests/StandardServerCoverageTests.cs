@@ -165,8 +165,10 @@ namespace Opc.Ua.Server.Tests
             using TestableStandardServer server = CreateServer();
 
 #pragma warning disable CS0618 // GetStatus is obsolete but still exercised for coverage.
-            Assert.That(() => server.GetStatus(), Throws.Exception);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => server.GetStatus());
 #pragma warning restore CS0618
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerHalted));
         }
 
         [Test]
