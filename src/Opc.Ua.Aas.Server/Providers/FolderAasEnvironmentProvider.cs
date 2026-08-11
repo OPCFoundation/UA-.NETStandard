@@ -1,0 +1,85 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Threading;
+
+namespace Opc.Ua.Aas.Server
+{
+    /// <summary>
+    /// Supplies AAS JSON and XML documents from a folder.
+    /// </summary>
+    public sealed class FolderAasEnvironmentProvider : IAasEnvironmentProvider
+    {
+        /// <summary>
+        /// Initializes a folder-backed provider.
+        /// </summary>
+        public FolderAasEnvironmentProvider(string folderPath)
+        {
+            m_folderPath = folderPath ?? throw new ArgumentNullException(nameof(folderPath));
+        }
+
+        /// <inheritdoc/>
+        public async IAsyncEnumerable<AasEnvironment> GetEnvironmentsAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            if (!Directory.Exists(m_folderPath))
+            {
+                yield break;
+            }
+
+            foreach (string path in Directory.EnumerateFiles(m_folderPath))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string extension = Path.GetExtension(path);
+                if (!string.Equals(extension, ".json", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(extension, ".xml", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                using FileStream stream = File.OpenRead(path);
+                AasDocumentReadResult result = string.Equals(extension, ".json", StringComparison.OrdinalIgnoreCase)
+                    ? await new AasJsonReader().ReadAsync(stream, cancellationToken).ConfigureAwait(false)
+                    : await new AasXmlReader().ReadAsync(stream, cancellationToken).ConfigureAwait(false);
+                if (!result.Succeeded || result.Environment is null)
+                {
+                    throw new InvalidOperationException(
+                        $"The AAS document '{path}' could not be read: {result.Error}");
+                }
+                yield return result.Environment;
+            }
+        }
+
+        private readonly string m_folderPath;
+    }
+}

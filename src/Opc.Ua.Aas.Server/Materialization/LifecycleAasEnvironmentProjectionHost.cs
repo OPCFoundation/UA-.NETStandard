@@ -1,0 +1,138 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Export;
+using Opc.Ua.Server;
+using Opc.Ua.Server.RuntimeNodeSet;
+
+namespace Opc.Ua.Aas.Server.Materialization
+{
+    /// <summary>
+    /// Projects AAS environments with runtime NodeSet NodeManagers.
+    /// </summary>
+    public sealed class LifecycleAasEnvironmentProjectionHost : IAasEnvironmentProjectionHost
+    {
+        /// <summary>
+        /// Initializes a lifecycle projection host.
+        /// </summary>
+        public LifecycleAasEnvironmentProjectionHost(INodeManagerLifecycle lifecycle)
+        {
+            m_lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<AasEnvironmentProjectionHandle> AddAsync(
+            AasEnvironment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default)
+        {
+            if (environment is null)
+            {
+                throw new ArgumentNullException(nameof(environment));
+            }
+            if (valueProvider is null)
+            {
+                throw new ArgumentNullException(nameof(valueProvider));
+            }
+            if (operationHandler is null)
+            {
+                throw new ArgumentNullException(nameof(operationHandler));
+            }
+
+            AasMaterializationResult materialization = AasEnvironmentMaterializer.Materialize(environment);
+            if (materialization.HasErrors)
+            {
+                throw new InvalidOperationException("The AAS environment could not be materialized.");
+            }
+
+            byte[] nodeSetXml = SerializeNodeSet(materialization.NodeSet);
+
+            // ConfigureAsync returns the runtime as the IAsyncDisposable the
+            // runtime NodeSet lifecycle takes ownership of, so the lifecycle
+            // disposes it when the generation is retired. CA2000 cannot model
+            // ownership transfer through that return value.
+            // TODO: Remove this suppression when CA2000 recognizes it.
+#pragma warning disable CA2000
+            var runtime = new AasEnvironmentRuntime(environment, valueProvider, operationHandler);
+#pragma warning restore CA2000
+            var options = new RuntimeNodeSetOptions
+            {
+                Sources = new ArrayOf<RuntimeNodeSetSource>(new[]
+                {
+                    RuntimeNodeSetSource.FromStream(
+                        "AAS Environment",
+                        _ => new ValueTask<Stream>(new MemoryStream(nodeSetXml, writable: false)),
+                        new ArrayOf<string>(OwnedModelUris(materialization.NodeSet)))
+                }),
+                DefaultNamespaceUri = Namespaces.Aas,
+                AllowLifecycleFromRequestCallback = true,
+                ConfigureAsync = runtime.ConfigureAsync
+            };
+            NodeManagerRegistration registration = await m_lifecycle
+                .AddRuntimeNodeSetAsync(options, callerContext: null, cancellationToken)
+                .ConfigureAwait(false);
+            return new AasEnvironmentProjectionHandle(registration);
+        }
+
+        private static byte[] SerializeNodeSet(UANodeSet nodeSet)
+        {
+            using var stream = new MemoryStream();
+            nodeSet.Write(stream);
+            return stream.ToArray();
+        }
+
+        private static string[] OwnedModelUris(UANodeSet nodeSet)
+        {
+            if (nodeSet.Models is { Length: > 0 })
+            {
+                var result = new List<string>();
+                foreach (ModelTableEntry model in nodeSet.Models)
+                {
+                    if (!string.IsNullOrEmpty(model.ModelUri))
+                    {
+                        result.Add(model.ModelUri);
+                    }
+                }
+                if (result.Count > 0)
+                {
+                    return result.ToArray();
+                }
+            }
+            return new[] { Namespaces.Aas };
+        }
+
+        private readonly INodeManagerLifecycle m_lifecycle;
+    }
+}
