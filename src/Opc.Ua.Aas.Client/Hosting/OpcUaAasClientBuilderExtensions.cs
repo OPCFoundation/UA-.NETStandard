@@ -35,6 +35,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Aas.Client;
+using Opc.Ua.Aas.Client.Registry;
 using Opc.Ua.Aas.Client.Hosting;
 using Opc.Ua.Client;
 
@@ -167,6 +168,123 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Registers AAS registry client services.
+        /// </summary>
+        public static IOpcUaBuilder AddAasRegistryClient(
+            this IOpcUaBuilder builder,
+            Action<AasClientOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            if (configure is null)
+            {
+                builder.Services.AddOptions<AasClientOptions>();
+            }
+            else
+            {
+                builder.Services.AddOptions<AasClientOptions>().Configure(configure);
+            }
+
+            RegisterRegistryServices(builder.Services);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers AAS registry client services with options bound from the default section.
+        /// </summary>
+        public static IOpcUaBuilder AddAasRegistryClient(
+            this IOpcUaBuilder builder,
+            IConfiguration configuration)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            return builder.AddAasRegistryClient(configuration.GetSection(DefaultConfigurationSection));
+        }
+
+        /// <summary>
+        /// Registers AAS registry client services with options bound from a configuration section.
+        /// </summary>
+        public static IOpcUaBuilder AddAasRegistryClient(
+            this IOpcUaBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            builder.Services.AddOptions<AasClientOptions>().Configure(options => ConfigureFromSection(options, section));
+            RegisterRegistryServices(builder.Services);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers AAS registry client services on an existing OPC UA client builder.
+        /// </summary>
+        public static IOpcUaClientBuilder AddAasRegistryClient(
+            this IOpcUaClientBuilder builder,
+            Action<AasClientOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            new BuilderAdapter(builder.Services).AddAasRegistryClient(configure);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers AAS registry client services on an existing OPC UA client builder.
+        /// </summary>
+        public static IOpcUaClientBuilder AddAasRegistryClient(
+            this IOpcUaClientBuilder builder,
+            IConfiguration configuration)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            new BuilderAdapter(builder.Services).AddAasRegistryClient(configuration);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers AAS registry client services on an existing OPC UA client builder.
+        /// </summary>
+        public static IOpcUaClientBuilder AddAasRegistryClient(
+            this IOpcUaClientBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            new BuilderAdapter(builder.Services).AddAasRegistryClient(section);
+            return builder;
+        }
+
         private static void RegisterCoreServices(IServiceCollection services)
         {
             services.TryAddSingleton<ITelemetryContext>(
@@ -182,6 +300,26 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton(sp => new AasClientAccessor(sp));
             services.TryAddSingleton<Func<CancellationToken, Task<AasClient>>>(
                 sp => sp.GetRequiredService<AasClientAccessor>().ConnectAsync);
+
+            services.AddOpcUa();
+        }
+
+        private static void RegisterRegistryServices(IServiceCollection services)
+        {
+            services.TryAddSingleton<ITelemetryContext>(
+                sp => new ServiceProviderTelemetryContext(sp));
+
+            services.TryAddSingleton<Func<ManagedSession, CancellationToken, Task<AasRegistryClient>>>(sp =>
+            {
+                ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
+                return async (session, ct) => await AasRegistryClient
+                    .ForServerAsync(session, telemetry, ct)
+                    .ConfigureAwait(false);
+            });
+
+            services.TryAddSingleton(sp => new AasRegistryClientAccessor(sp));
+            services.TryAddSingleton<Func<CancellationToken, Task<AasRegistryClient>>>(
+                sp => sp.GetRequiredService<AasRegistryClientAccessor>().ConnectAsync);
 
             services.AddOpcUa();
         }
@@ -273,6 +411,53 @@ namespace Microsoft.Extensions.DependencyInjection
 
             private readonly IServiceProvider m_sp;
             private Task<AasClient>? m_connectTask;
+            private readonly Lock m_gate = new();
+        }
+
+        private sealed class AasRegistryClientAccessor
+        {
+            public AasRegistryClientAccessor(IServiceProvider sp)
+            {
+                m_sp = sp;
+            }
+
+            public Task<AasRegistryClient> ConnectAsync(CancellationToken ct)
+            {
+                lock (m_gate)
+                {
+                    if (m_connectTask is null ||
+                        (m_connectTask.IsCompleted && m_connectTask.Status != TaskStatus.RanToCompletion))
+                    {
+                        m_connectTask = ConnectCoreAsync(ct);
+                    }
+
+                    return m_connectTask;
+                }
+            }
+
+            private async Task<AasRegistryClient> ConnectCoreAsync(CancellationToken ct)
+            {
+                AasClientOptions options = m_sp.GetRequiredService<IOptions<AasClientOptions>>().Value;
+                if (!options.LazyConnect)
+                {
+                    throw new InvalidOperationException(
+                        "AasClientOptions.LazyConnect is false. Resolve " +
+                        "Func<ManagedSession, CancellationToken, Task<AasRegistryClient>> " +
+                        "and supply an already connected session.");
+                }
+
+                Func<CancellationToken, Task<ManagedSession>> sessionFactory =
+                    m_sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                    ?? throw new InvalidOperationException(
+                        "AddAasRegistryClient requires AddClient to have been called first so a ManagedSession factory is registered.");
+
+                ManagedSession session = await sessionFactory(ct).ConfigureAwait(false);
+                ITelemetryContext telemetry = m_sp.GetRequiredService<ITelemetryContext>();
+                return await AasRegistryClient.ForServerAsync(session, telemetry, ct).ConfigureAwait(false);
+            }
+
+            private readonly IServiceProvider m_sp;
+            private Task<AasRegistryClient>? m_connectTask;
             private readonly Lock m_gate = new();
         }
     }
