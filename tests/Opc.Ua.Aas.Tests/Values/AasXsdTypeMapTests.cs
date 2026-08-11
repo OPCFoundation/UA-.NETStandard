@@ -47,8 +47,12 @@ namespace Opc.Ua.Aas.Tests.Values
         [Test]
         public void EveryDeclaredXsdTypeIsAssignedADataType()
         {
+#if NET5_0_OR_GREATER
+            AASDataTypeDefXsdDataType[] all = Enum.GetValues<AASDataTypeDefXsdDataType>();
+#else
             var all = (AASDataTypeDefXsdDataType[])Enum
                 .GetValues(typeof(AASDataTypeDefXsdDataType));
+#endif
 
             Assert.Multiple(() =>
             {

@@ -59,9 +59,15 @@ namespace Opc.Ua.Aas.Tests.Identity
         {
             const string id = "https://fabrikam.com/ids/sm/ordering";
 
-            using var sha = SHA256.Create();
             var expectedDigest = new StringBuilder();
-            foreach (byte octet in sha.ComputeHash(Encoding.UTF8.GetBytes(id)))
+            byte[] idBytes = Encoding.UTF8.GetBytes(id);
+#if NET5_0_OR_GREATER
+            byte[] hash = SHA256.HashData(idBytes);
+#else
+            using var sha = SHA256.Create();
+            byte[] hash = sha.ComputeHash(idBytes);
+#endif
+            foreach (byte octet in hash)
             {
                 expectedDigest.Append(octet.ToString("x2", CultureInfo.InvariantCulture));
             }

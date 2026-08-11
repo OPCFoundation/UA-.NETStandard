@@ -48,10 +48,16 @@ namespace Opc.Ua.Aas.Server
             m_folderPath = folderPath ?? throw new ArgumentNullException(nameof(folderPath));
         }
 
+        /// <summary>
+        /// Gets document diagnostics collected during the last enumeration.
+        /// </summary>
+        public ArrayOf<string> Diagnostics => new(m_diagnostics.ToArray());
+
         /// <inheritdoc/>
         public async IAsyncEnumerable<AasEnvironment> GetEnvironmentsAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            m_diagnostics.Clear();
             if (!Directory.Exists(m_folderPath))
             {
                 yield break;
@@ -73,13 +79,15 @@ namespace Opc.Ua.Aas.Server
                     : await new AasXmlReader().ReadAsync(stream, cancellationToken).ConfigureAwait(false);
                 if (!result.Succeeded || result.Environment is null)
                 {
-                    throw new InvalidOperationException(
+                    m_diagnostics.Add(
                         $"The AAS document '{path}' could not be read: {result.Error}");
+                    continue;
                 }
                 yield return result.Environment;
             }
         }
 
         private readonly string m_folderPath;
+        private readonly List<string> m_diagnostics = [];
     }
 }

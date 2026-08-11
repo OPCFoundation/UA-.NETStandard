@@ -141,10 +141,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetRequiredService<IAasOperationHandler>(),
                     sp.GetRequiredService<IAasEnvironmentProjectionHost>());
             });
-            services.TryAddEnumerable(ServiceDescriptor.Singleton(
-                typeof(OpcUaServerNodeManagerRegistration),
-                sp => new OpcUaServerNodeManagerRegistration(
-                    sp.GetRequiredService<AasEnvironmentNodeManagerFactory>())));
+            services.AddSingleton(sp =>
+                new OpcUaServerNodeManagerRegistration(
+                    sp.GetRequiredService<AasEnvironmentNodeManagerFactory>()));
             services.AddOpcUa();
         }
 
