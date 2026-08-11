@@ -150,29 +150,18 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
             (m_channel?.Transport?.Features ?? TransportChannelFeatures.None) |
-            TransportChannelFeatures.DataChannels;
+            TransportChannelFeatures.MessageExtensions;
 
         /// <summary>
-        /// Enables OPC UA data channels on the current SecureChannel.
+        /// The SecureChannel behind this transport channel, or <c>null</c>
+        /// while it is not connected.
         /// </summary>
-        public DataChannelManager EnableDataChannels(
-            bool isServer,
-            ITelemetryContext telemetry,
-            ushort maxDataChannels = 16,
-            uint maxCreditPerChannel = 1024 * 1024)
-        {
-            UaSCUaBinaryClientChannel channel = m_channel ?? throw BadNotConnected();
-            return channel.EnableDataChannels(
-                isServer,
-                telemetry,
-                maxDataChannels,
-                maxCreditPerChannel);
-        }
-
-        /// <summary>
-        /// The data channels multiplexed onto the current SecureChannel, if enabled.
-        /// </summary>
-        public DataChannelManager? DataChannels => m_channel?.DataChannels;
+        /// <remarks>
+        /// Exposed so a message extension can attach itself to the channel a
+        /// Client is already using. It is the channel, not this wrapper, that
+        /// carries the MessageType an extension owns.
+        /// </remarks>
+        public UaSCUaBinaryClientChannel? SecureChannel => m_channel;
 
         /// <inheritdoc/>
         public EndpointDescription EndpointDescription

@@ -36,13 +36,31 @@ it, and a peer that does use it never speaks first: it may not transmit a frame 
 because an unrecognized `MessageType` is a protocol error that closes the SecureChannel,
 taking every Session, Subscription and Service call with it.
 
-Consumers opt in by suppressing the experimental diagnostic:
+Consumers opt in by referencing the package and suppressing the experimental diagnostic:
 
 ```xml
+<ItemGroup>
+  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Core.Channels" />
+</ItemGroup>
 <PropertyGroup>
   <NoWarn>$(NoWarn);DataChannels</NoWarn>
 </PropertyGroup>
 ```
+
+## Where the code lives
+
+The engine ships in `OPCFoundation.NetStandard.Opc.Ua.Core.Channels` rather than in
+`Opc.Ua.Core`. It is a consumer of the message-extension seam in Core: it registers as the
+owner of the `STR` MessageType, and the SecureChannel decrypts, verifies and
+sequence-checks every chunk before the engine sees it. Core itself carries no data channel
+vocabulary — `ISecureChannelMessageExtension` and `ISecureChannelMessageHost` name only "a
+MessageType that is neither a Service call nor part of establishing the SecureChannel".
+
+Two things stay in Core because they are the SecureChannel's own concerns rather than the
+feature's: `SequenceNumberBudget`, which tracks the sequence space every MessageType draws
+on, and `UaSCSecureChannelRegistry`, which maps a SecureChannel identifier to the channel
+that owns it. The `opc.quic` transport remains its own package,
+`OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`.
 
 ## Server side
 
@@ -253,8 +271,8 @@ second. The sample measured 0.5 Mbit/s before the fix and 1.3 Gbit/s after it, a
 
 The suite is 284 tests on `net10.0` and 212 tests on `net48` over
 `tests/Opc.Ua.Core.DataChannels.Tests`, covering
-`Stack/DataChannels/**`, `Stack/Tcp/UaSCBinaryChannel.DataChannels.cs`,
-`Server/InlineServerDataChannelTransport.cs` and `Opc.Ua.Bindings.Quic`. Coverage was
+`Opc.Ua.Core.Channels`, `Stack/Tcp/UaSCBinaryChannel.MessageExtensions.cs`
+and `Opc.Ua.Bindings.Quic`. Coverage was
 **80.1%** at 255 tests, having fallen from 87.6% while the test count rose, because
 wiring the previously-uncalled obligations added a good deal of
 production code — the server-side Service dispatch, the stream mapping, the

@@ -432,9 +432,11 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
         private static async Task DisposeDataChannelsAsync(TestChannel channel)
         {
-            if (channel.DataChannels != null)
+            DataChannelManager? manager = channel.GetDataChannels();
+
+            if (manager != null)
             {
-                await channel.DataChannels.DisposeAsync().ConfigureAwait(false);
+                await manager.DisposeAsync().ConfigureAwait(false);
             }
         }
 

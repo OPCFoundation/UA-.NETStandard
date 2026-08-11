@@ -65,7 +65,6 @@ namespace Opc.Ua.Bindings
         {
             m_host = host ?? throw new ArgumentNullException(nameof(host));
             m_isSource = isServer;
-            m_budget = new DataChannelSequenceBudget(host.TimeProvider);
 
             // Cached so a frame does not allocate a closure on the send path.
             m_onSecuring = ReserveSequenceNumber;
@@ -88,14 +87,7 @@ namespace Opc.Ua.Bindings
         /// under the current token. STR, MSG, OPN and CLO chunks all draw on
         /// the same space.
         /// </summary>
-        public DataChannelSequenceBudget SequenceBudget
-        {
-            get
-            {
-                m_budget.ObserveConsumed(m_host.SequenceNumbersIssued);
-                return m_budget;
-            }
-        }
+        public SequenceNumberBudget SequenceBudget => m_host.SequenceBudget;
 
         /// <summary>
         /// Raised when a frame violated the framing rules badly enough to cost
@@ -145,7 +137,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> body = message.Body;
 
             if (!DataChannelFrameCodec.TryDecode(
-                new ReadOnlyMemory<byte>(body.GetArray(), body.Offset, body.Count),
+                new ReadOnlyMemory<byte>(body.Array!, body.Offset, body.Count),
                 m_host.ReceiveBufferSize,
                 out DataChannelFrame frame,
                 out DataChannelFrameError error))
@@ -179,7 +171,8 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void OnSecurityTokenActivated()
         {
-            m_budget.OnTokenActivated();
+            // The channel rebases the budget itself, because every MessageType
+            // it carries draws on the same space.
         }
 
         /// <inheritdoc/>
@@ -243,9 +236,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private void ReserveSequenceNumber()
         {
-            m_budget.ObserveConsumed(m_host.SequenceNumbersIssued);
-
-            if (!m_budget.TryConsume())
+            if (!m_host.SequenceBudget.TryConsume())
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecureChannelTokenUnknown,
@@ -254,7 +245,6 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ISecureChannelMessageHost m_host;
-        private readonly DataChannelSequenceBudget m_budget;
         private readonly Action m_onSecuring;
         private readonly bool m_isSource;
     }

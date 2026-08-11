@@ -1483,7 +1483,7 @@ namespace Opc.Ua.Bindings
 
             if (m_logger.IsEnabled(LogLevel.Information))
             {
-                DataChannelSequenceBudget budget = SequenceBudget;
+                SequenceNumberBudget budget = SequenceBudget;
 
                 m_logger.UaSCClientLog37(
                     ChannelId,

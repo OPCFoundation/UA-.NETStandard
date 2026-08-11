@@ -129,7 +129,7 @@ namespace Opc.Ua.Bindings
         public TransportChannelFeatures Features
             => TransportChannelFeatures.Reconnect |
                TransportChannelFeatures.ReverseConnect |
-               TransportChannelFeatures.DataChannels |
+               TransportChannelFeatures.MessageExtensions |
                TransportChannelFeatures.MultiplexedStreams;
 
         /// <inheritdoc/>

@@ -15,10 +15,12 @@
 # package ids with this file in the same pull request that changes them.
 
 OPCFoundation.NetStandard.Opc.Ua.Bindings.Https
+OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic
 OPCFoundation.NetStandard.Opc.Ua.Client
 OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
 OPCFoundation.NetStandard.Opc.Ua.Configuration
 OPCFoundation.NetStandard.Opc.Ua.Core
+OPCFoundation.NetStandard.Opc.Ua.Core.Channels
 OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics
 OPCFoundation.NetStandard.Opc.Ua.Core.Schema
 OPCFoundation.NetStandard.Opc.Ua.Core.Types

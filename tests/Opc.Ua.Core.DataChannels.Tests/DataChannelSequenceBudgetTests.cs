@@ -13,13 +13,13 @@ namespace Opc.Ua.Core.DataChannels.Tests
 {
     [TestFixture]
     [Category("DataChannels")]
-    public sealed class DataChannelSequenceBudgetTests
+    public sealed class SequenceNumberBudgetTests
     {
         [Test]
         public void ObservedServiceChunksContributeToRenewalAndStallBudget()
         {
             var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
-            var budget = new DataChannelSequenceBudget(clock, capacity: 5);
+            var budget = new SequenceNumberBudget(clock, capacity: 5);
 
             budget.ObserveConsumed(4);
             clock.Advance(TimeSpan.FromSeconds(1));
@@ -45,7 +45,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
         [Test]
         public void TokenActivationResetsObservedAndConsumedBudget()
         {
-            var budget = new DataChannelSequenceBudget(capacity: 3);
+            var budget = new SequenceNumberBudget(capacity: 3);
 
             budget.ObserveSequenceNumber(2);
             Assert.That(budget.MustStall, Is.True);

@@ -201,10 +201,10 @@ namespace Opc.Ua
         ReverseConnect = 0x0040,
 
         /// <summary>
-        /// The channel can multiplex OPC UA data channels onto the
-        /// SecureChannel. Experimental.
+        /// The channel can carry MessageTypes owned by a registered
+        /// extension, for example OPC UA data channels. Experimental.
         /// </summary>
-        DataChannels = 0x0080,
+        MessageExtensions = 0x0080,
 
         /// <summary>
         /// The transport under the channel provides independently

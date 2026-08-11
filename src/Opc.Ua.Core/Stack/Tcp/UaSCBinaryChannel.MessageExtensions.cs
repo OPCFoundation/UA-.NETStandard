@@ -56,7 +56,29 @@ namespace Opc.Ua.Bindings
         TimeProvider ISecureChannelMessageHost.TimeProvider => TimeProvider;
 
         /// <inheritdoc/>
-        long ISecureChannelMessageHost.SequenceNumbersIssued => SequenceNumbersIssuedUnderCurrentToken;
+        SequenceNumberBudget ISecureChannelMessageHost.SequenceBudget => SequenceBudget;
+
+        /// <summary>
+        /// Tracks how much of the SecureChannel SequenceNumber space remains
+        /// under the current SecurityToken. Every MessageType the channel
+        /// carries draws on the same space.
+        /// </summary>
+        public SequenceNumberBudget SequenceBudget
+        {
+            get
+            {
+                m_sequenceBudget.ObserveConsumed(SequenceNumbersIssuedUnderCurrentToken);
+                return m_sequenceBudget;
+            }
+        }
+
+        /// <summary>
+        /// True when the SequenceNumber space remaining under the current
+        /// token has fallen below the renewal threshold, so the owning channel
+        /// should initiate OpenSecureChannel with RenewalRequest ahead of the
+        /// normal lifetime based renewal.
+        /// </summary>
+        public bool IsSequenceRenewalDue => SequenceBudget.ShouldRenew;
 
         /// <summary>
         /// Registers the extension that owns a MessageType on this channel.
@@ -244,6 +266,8 @@ namespace Opc.Ua.Bindings
                 ref m_sequenceNumberBaseline,
                 Interlocked.Read(ref m_sequenceNumber));
 
+            m_sequenceBudget.OnTokenActivated();
+
             if (m_messageExtensions.IsEmpty)
             {
                 return;
@@ -305,6 +329,7 @@ namespace Opc.Ua.Bindings
 
         private readonly ConcurrentDictionary<uint, ISecureChannelMessageExtension> m_messageExtensions
             = new();
+        private readonly SequenceNumberBudget m_sequenceBudget = new();
         private long m_sequenceNumberBaseline;
     }
 }

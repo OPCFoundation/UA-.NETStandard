@@ -610,8 +610,8 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
 #if NET8_0_OR_GREATER
-        [Experimental(DataChannelConstants.ExperimentalDiagnosticId,
-            UrlFormat = DataChannelConstants.ExperimentalUrlFormat)]
+        [Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
 #endif
         public async ValueTask<OpenDataChannelResponse> OpenDataChannelAsync(
             RequestHeader? requestHeader,
@@ -635,8 +635,8 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
 #if NET8_0_OR_GREATER
-        [Experimental(DataChannelConstants.ExperimentalDiagnosticId,
-            UrlFormat = DataChannelConstants.ExperimentalUrlFormat)]
+        [Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
 #endif
         public async ValueTask<ModifyDataChannelResponse> ModifyDataChannelAsync(
             RequestHeader? requestHeader,
@@ -656,8 +656,8 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
 #if NET8_0_OR_GREATER
-        [Experimental(DataChannelConstants.ExperimentalDiagnosticId,
-            UrlFormat = DataChannelConstants.ExperimentalUrlFormat)]
+        [Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
 #endif
         public async ValueTask<CloseDataChannelResponse> CloseDataChannelAsync(
             RequestHeader? requestHeader,

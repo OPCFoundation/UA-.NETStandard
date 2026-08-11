@@ -126,14 +126,14 @@ namespace Opc.Ua.Core.DataChannels.Tests
             channel.AttachTransport(transport);
             channel.Activate(SecureChannelId, TokenId);
             DataChannel sink = OpenSink(channel);
-            await PumpSchedulerRoundAsync(channel.DataChannels!).ConfigureAwait(false);
+            await PumpSchedulerRoundAsync(channel.GetDataChannels()!).ConfigureAwait(false);
             transport.ClearChunks();
 
             byte[] chunk = SpecVectors.Load("inline_data_first");
             chunk[SpecVectors.InlinePrefix + 4] = frameType;
 
             Assert.That(channel.DispatchStream(chunk), Is.False);
-            await PumpSchedulerRoundAsync(channel.DataChannels!).ConfigureAwait(false);
+            await PumpSchedulerRoundAsync(channel.GetDataChannels()!).ConfigureAwait(false);
 
             DataChannelFrame reset = await WaitForOutboundFrameAsync(transport, DataChannelFrameType.Reset)
                 .ConfigureAwait(false);
@@ -151,7 +151,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 Assert.That(expectedDecodeError.ToStatusCode(), Is.EqualTo(expectedStatus));
             });
 
-            await channel.DataChannels!.DisposeAsync().ConfigureAwait(false);
+            await channel.GetDataChannels()!.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]

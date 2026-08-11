@@ -30,9 +30,9 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Server
+
+namespace Opc.Ua.Bindings
 {
     /// <summary>
     /// Carries data channels over the SecureChannel that already exists,
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            if (!UaSCDataChannelSecureChannelRegistry.TryGet(
+            if (!UaSCSecureChannelRegistry.TryGet(
                     secureChannelContext.SecureChannelId,
                     out UaSCUaBinaryChannel? channel) ||
                 channel == null)
@@ -95,7 +95,7 @@ namespace Opc.Ua.Server
                 capabilities.MaxDataChannels,
                 capabilities.MaxCreditPerChannel);
 
-            int body = channel.MaxDataChannelBodySize;
+            int body = channel.GetMaxDataChannelBodySize();
             maxFrameSize = body <= 0 ? 0 : (uint)body;
 
             // Inline framing rides the SecureChannel, which is ordered and
@@ -132,12 +132,12 @@ namespace Opc.Ua.Server
         public void AbortSecureChannel(SecureChannelContext secureChannelContext, StatusCode reason)
         {
             if (secureChannelContext != null &&
-                UaSCDataChannelSecureChannelRegistry.TryGet(
+                UaSCSecureChannelRegistry.TryGet(
                     secureChannelContext.SecureChannelId,
                     out UaSCUaBinaryChannel? channel) &&
                 channel != null)
             {
-                channel.DataChannels?.AbortAll(reason);
+                channel.GetDataChannels()?.AbortAll(reason);
             }
         }
 

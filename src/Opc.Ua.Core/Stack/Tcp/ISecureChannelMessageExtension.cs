@@ -159,17 +159,17 @@ namespace Opc.Ua.Bindings
         TimeProvider TimeProvider { get; }
 
         /// <summary>
-        /// How many SequenceNumbers this channel has issued under the
+        /// How much of the SequenceNumber space remains under the
         /// SecurityToken currently in force.
         /// </summary>
         /// <remarks>
-        /// The SequenceNumber space is per token and is shared by every
-        /// MessageType the channel carries, so an extension that emits a large
-        /// number of messages has to watch it. Read this inside the callback
-        /// passed to <see cref="SendMessageAsync"/> to observe it consistently
-        /// with the message being sent.
+        /// The space is per token and is shared by every MessageType the
+        /// channel carries, so an extension that emits a large number of
+        /// messages has to draw on this rather than assume it is alone.
+        /// Consume it inside the callback passed to <see cref="SendMessageAsync"/>,
+        /// which is where the reservation and the send are atomic.
         /// </remarks>
-        long SequenceNumbersIssued { get; }
+        SequenceNumberBudget SequenceBudget { get; }
 
         /// <summary>
         /// Reports a fault whose blast radius is the whole SecureChannel.

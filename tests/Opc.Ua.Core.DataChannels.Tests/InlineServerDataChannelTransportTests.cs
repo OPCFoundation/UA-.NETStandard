@@ -62,7 +62,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             channel.Activate(0x0000A17C, 7);
 
             const string secureChannelId = "inline-transport-1";
-            UaSCDataChannelSecureChannelRegistry.Bind(secureChannelId, channel);
+            UaSCSecureChannelRegistry.Bind(secureChannelId, channel);
 
             try
             {
@@ -84,7 +84,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     {
                         Assert.That(maxFrameSize, Is.GreaterThan(0u));
                         Assert.That(isReliable, Is.True);
-                        Assert.That(manager, Is.SameAs(channel.DataChannels));
+                        Assert.That(manager, Is.SameAs(channel.GetDataChannels()));
                     });
 
                     DataChannel source = manager.Register(
@@ -112,7 +112,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             }
             finally
             {
-                UaSCDataChannelSecureChannelRegistry.Unbind(secureChannelId, channel);
+                UaSCSecureChannelRegistry.Unbind(secureChannelId, channel);
             }
         }
 
@@ -140,7 +140,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using InlineTestChannel channel = InlineTestChannel.Create("inline-profile", telemetry);
             const string secureChannelId = "inline-transport-2";
-            UaSCDataChannelSecureChannelRegistry.Bind(secureChannelId, channel);
+            UaSCSecureChannelRegistry.Bind(secureChannelId, channel);
 
             try
             {
@@ -159,7 +159,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             }
             finally
             {
-                UaSCDataChannelSecureChannelRegistry.Unbind(secureChannelId, channel);
+                UaSCSecureChannelRegistry.Unbind(secureChannelId, channel);
             }
         }
 

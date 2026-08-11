@@ -365,7 +365,7 @@ namespace ConsoleDataChannelStreaming
             }
             else
             {
-                clientManager = clientChannel.EnableDataChannels(
+                clientManager = clientChannel.SecureChannel!.EnableDataChannels(
                     isServer: false,
                     telemetry,
                     maxDataChannels: 16,
@@ -789,7 +789,7 @@ namespace ConsoleDataChannelStreaming
             out uint maxFrameSize,
             out bool isReliable)
         {
-            if (!UaSCDataChannelSecureChannelRegistry.TryGet(
+            if (!UaSCSecureChannelRegistry.TryGet(
                 secureChannelContext.SecureChannelId,
                 out UaSCUaBinaryChannel? channel) ||
                 channel == null)

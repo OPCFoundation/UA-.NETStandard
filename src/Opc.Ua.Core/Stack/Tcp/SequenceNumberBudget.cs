@@ -64,7 +64,7 @@ namespace Opc.Ua.Bindings
     /// than emitting a chunk that would reuse a value.
     /// </para>
     /// </remarks>
-    public sealed class DataChannelSequenceBudget
+    public sealed class SequenceNumberBudget
     {
         /// <summary>
         /// Creates a budget.
@@ -73,7 +73,7 @@ namespace Opc.Ua.Bindings
         /// emission rate.</param>
         /// <param name="capacity">The number of SequenceNumbers usable
         /// under one token. Defaults to the 32 bit space.</param>
-        public DataChannelSequenceBudget(
+        public SequenceNumberBudget(
             TimeProvider? timeProvider = null,
             uint capacity = uint.MaxValue)
         {
@@ -142,14 +142,13 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                double perMinute = ChunksPerSecond *
-                    DataChannelConstants.SequenceNumberRenewalSeconds;
+                double perMinute = ChunksPerSecond * SequenceNumberRenewalSeconds;
 
                 long rateBased = perMinute >= long.MaxValue
                     ? long.MaxValue
                     : (long)perMinute;
 
-                return Math.Min(DataChannelConstants.SequenceNumberRenewalHeadroom, rateBased);
+                return Math.Min(SequenceNumberRenewalHeadroom, rateBased);
             }
         }
 
@@ -230,5 +229,18 @@ namespace Opc.Ua.Bindings
         private readonly TimeProvider m_timeProvider;
         private long m_consumed;
         private long m_tokenStarted;
+
+        /// <summary>
+        /// The SequenceNumber headroom below which a channel initiates token
+        /// renewal ahead of the normal lifetime schedule.
+        /// </summary>
+        private const uint SequenceNumberRenewalHeadroom = 1u << 30;
+
+        /// <summary>
+        /// The window, in seconds, of expected chunk emission that also
+        /// triggers renewal when it exceeds the remaining SequenceNumber
+        /// space.
+        /// </summary>
+        private const int SequenceNumberRenewalSeconds = 60;
     }
 }

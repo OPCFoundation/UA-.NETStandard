@@ -261,7 +261,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
         [Test]
         public void DcF034RenewalIsDueBeforeTheSpaceIsExhausted()
         {
-            var budget = new DataChannelSequenceBudget(capacity: 1000);
+            var budget = new SequenceNumberBudget(capacity: 1000);
 
             Assert.That(budget.ShouldRenew, Is.False, "a fresh token has the whole space");
 
@@ -281,7 +281,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
         [Test]
         public void DcF034ASenderStallsRatherThanReusingASequenceNumber()
         {
-            var budget = new DataChannelSequenceBudget(capacity: 4);
+            var budget = new SequenceNumberBudget(capacity: 4);
 
             for (int ii = 0; ii < 4; ii++)
             {
@@ -304,7 +304,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
         [Test]
         public void ANewTokenRestoresTheWholeSpace()
         {
-            var budget = new DataChannelSequenceBudget(capacity: 4);
+            var budget = new SequenceNumberBudget(capacity: 4);
 
             for (int ii = 0; ii < 4; ii++)
             {
@@ -329,7 +329,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(
                 new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
-            var budget = new DataChannelSequenceBudget(clock);
+            var budget = new SequenceNumberBudget(clock);
 
             // Ten chunks over ten seconds is one per second, so one
             // minute of traffic is sixty values: far below the fixed
@@ -359,7 +359,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(
                 new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
-            var budget = new DataChannelSequenceBudget(clock);
+            var budget = new SequenceNumberBudget(clock);
 
             // A hundred million chunks in one second is a rate whose
             // minute of traffic exceeds the 32 bit space entirely, so the

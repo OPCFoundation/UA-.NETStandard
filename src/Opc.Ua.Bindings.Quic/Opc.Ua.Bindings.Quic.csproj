@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Core.Channels\Opc.Ua.Core.Channels.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />

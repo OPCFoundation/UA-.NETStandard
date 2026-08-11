@@ -45,14 +45,13 @@ namespace Opc.Ua.Bindings
         /// The diagnostic id suppressed by a consumer that opts in to the
         /// experimental data channel surface.
         /// </summary>
-        public const string ExperimentalDiagnosticId = "DataChannels";
+        public const string ExperimentalDiagnosticId = DataChannelFeature.ExperimentalDiagnosticId;
 
         /// <summary>
         /// The documentation url reported alongside
         /// <see cref="ExperimentalDiagnosticId"/>.
         /// </summary>
-        public const string ExperimentalUrlFormat =
-            "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DataChannels.md";
+        public const string ExperimentalUrlFormat = DataChannelFeature.ExperimentalUrlFormat;
 
         /// <summary>
         /// The connection control channel (Part 6 errata 5.6). Never

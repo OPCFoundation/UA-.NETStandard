@@ -16,35 +16,6 @@ using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// Optional transport-side binding for the DataChannel Service Set.
-    /// </summary>
-    public interface IServerDataChannelTransport
-    {
-        bool TryGetManager(
-            SecureChannelContext secureChannelContext,
-            DataChannelServerCapabilities capabilities,
-            ITelemetryContext telemetry,
-            out DataChannelManager manager,
-            out uint maxFrameSize,
-            out bool isReliable);
-
-        ValueTask<ulong> AllocateServerStreamAsync(
-            SecureChannelContext secureChannelContext,
-            uint channelId,
-            DataChannelDirection direction,
-            CancellationToken ct);
-
-        ValueTask BindClientStreamAsync(
-            SecureChannelContext secureChannelContext,
-            uint channelId,
-            ulong streamId,
-            DataChannelDirection direction,
-            CancellationToken ct);
-
-        void AbortSecureChannel(SecureChannelContext secureChannelContext, StatusCode reason);
-    }
-
     public partial class StandardServer
     {
         public DataChannelSourceRegistry DataChannelSources { get; } = new();
