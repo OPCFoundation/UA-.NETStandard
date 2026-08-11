@@ -22,6 +22,7 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="System.IO.Packaging" />
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <!-- The xRegistry abstract registry base model and its shared abstractions
          ship as their own package. The AAS registry types below derive from its
