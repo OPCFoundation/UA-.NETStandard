@@ -81,11 +81,12 @@ namespace Quickstarts.ReferenceServer
             builder.CTT.Methods.Methods_Output
                 .OnCall(() => "Output");
 
-            // Value-write handlers for the simulation control and event
-            // trigger variables. The nodes and their values are baked into the
-            // NodeSet2 model; only the write behaviour is wired here (Prio 2).
-            builder.CTT.Scalar.Scalar_Simulation.Scalar_Simulation_Interval
-                .OnWrite(OnWriteInterval);
+            // Value-write handler for the simulation Enabled control variable.
+            // The node and its value are baked into the NodeSet2 model; only the
+            // write behaviour is wired here (Prio 2). The Interval control
+            // variable is read-only (its AccessLevel is baked without
+            // CurrentWrite), so it carries no write handler and the simulation
+            // loop below runs at a fixed interval.
             builder.CTT.Scalar.Scalar_Simulation.Scalar_Simulation_Enabled
                 .OnWrite(OnWriteEnabled);
             builder.CTT.NodeIds.NodeIds_Events.NodeIds_Events_TriggerNode01
@@ -112,6 +113,24 @@ namespace Quickstarts.ReferenceServer
                 AccessLevels.CurrentReadOrWrite
                 | (uint)AccessLevelExType.NonatomicRead
                 | (uint)AccessLevelExType.NonatomicWrite;
+        }
+
+        /// <summary>
+        /// Registers the periodic value simulation on the fluent builder. The
+        /// dynamic nodes are collected imperatively in
+        /// <see cref="RegisterSimulationVariables"/> (they are baked into the
+        /// NodeSet2 model, but the fluent surface has no per-variable
+        /// random-value model), while the periodic loop that pushes fresh
+        /// random values to them is expressed here via
+        /// <c>Simulation().OnTick(...)</c>. The loop fires at a fixed interval
+        /// matching the read-only <c>Scalar_Simulation_Interval</c> node; the
+        /// tick handler skips its work while the simulation is disabled.
+        /// </summary>
+        partial void Configure(INodeManagerBuilder builder)
+        {
+            builder
+                .Simulation(s_simulationInterval)
+                .OnTick((_, _, cancellationToken) => RunSimulationStepAsync(cancellationToken));
         }
     }
 }

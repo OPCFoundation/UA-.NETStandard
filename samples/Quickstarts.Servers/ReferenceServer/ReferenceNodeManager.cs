@@ -97,23 +97,20 @@ namespace Quickstarts.ReferenceServer
         {
             if (disposing)
             {
-                // Dispose the simulation timer first so the threadpool stops
-                // scheduling DoSimulation callbacks before the semaphore is
-                // disposed. DoSimulation's own try/catch swallows the racy
-                // ObjectDisposedException on m_semaphore if a callback was
-                // already in-flight when Timer.Dispose() returned — that's
-                // an acceptable trade-off versus blocking Dispose on a
-                // Timer.Dispose(WaitHandle) which itself can throw a worse
-                // unhandled ObjectDisposedException when the supplied
-                // WaitHandle is collected before the runtime signals it.
-                m_simulationTimer?.Dispose();
-                m_simulationTimer = null;
                 m_historian?.Dispose();
                 m_historian = null;
+            }
 
+            // Let the base FluentNodeManagerBase drain the fluent simulation
+            // loop (Simulations.Dispose) before the semaphore the OnTick
+            // handler takes is disposed, so no in-flight tick can ever observe
+            // a disposed semaphore.
+            base.Dispose(disposing);
+
+            if (disposing)
+            {
                 m_semaphore?.Dispose();
             }
-            base.Dispose(disposing);
         }
 
         /// <summary>
@@ -273,12 +270,12 @@ namespace Quickstarts.ReferenceServer
                 {
                     // Prio 1 / Prio 2 not possible: the simulated variables are
                     // baked into the model, but the periodic value simulation
-                    // needs them collected into a runtime list that the
-                    // DoSimulation timer pushes fresh random values to. The
-                    // fluent Simulation().OnTick() only exposes a bare periodic
-                    // callback with no per-variable random-value model, so the
-                    // registration of the individual dynamic nodes stays
-                    // imperative.
+                    // needs them collected into a runtime list that the fluent
+                    // Simulation().OnTick() loop pushes fresh random values to.
+                    // The fluent surface exposes only a bare periodic callback
+                    // with no per-variable random-value model, so collecting the
+                    // individual dynamic nodes stays imperative here. The loop
+                    // itself is wired through the fluent builder in Configure().
                     RegisterSimulationVariables();
                 }
                 catch (Exception e)
@@ -288,49 +285,14 @@ namespace Quickstarts.ReferenceServer
 
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken).ConfigureAwait(false);
 
-                if (m_simulationEnabled)
-                {
-                    // reset random generator and generate boundary values
-                    ResetRandomGenerator(100, 1);
-
-                    TimeProvider timeProvider = (Server as ITimeProviderProvider)?.TimeProvider
-                        ?? TimeProvider.System;
-                    m_simulationTimer?.Dispose();
-                    m_simulationTimer = timeProvider.CreateTimer(
-                        DoSimulation,
-                        null,
-                        TimeSpan.FromMilliseconds(m_simulationInterval),
-                        TimeSpan.FromMilliseconds(m_simulationInterval));
-                }
+                // Reset the random generator and generate boundary values so the
+                // fluent simulation loop (registered in Configure and started
+                // after Seal) always has a generator ready for the first tick.
+                ResetRandomGenerator(100, 1);
             }
             finally
             {
                 m_semaphore.Release();
-            }
-        }
-
-        private ServiceResult OnWriteInterval(
-            ISystemContext context,
-            NodeState node,
-            ref Variant value)
-        {
-            try
-            {
-                m_simulationInterval = (ushort)value;
-
-                if (m_simulationEnabled)
-                {
-                    m_simulationTimer!.Change(
-                        TimeSpan.FromMilliseconds(100),
-                        TimeSpan.FromMilliseconds(m_simulationInterval));
-                }
-
-                return ServiceResult.Good;
-            }
-            catch (Exception e)
-            {
-                m_logger.ErrorWritingIntervalVariable(e);
-                return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Interval variable.");
             }
         }
 
@@ -341,20 +303,10 @@ namespace Quickstarts.ReferenceServer
         {
             try
             {
+                // The fluent simulation loop keeps firing at its fixed interval;
+                // the OnTick handler simply skips its work while disabled, so
+                // toggling this flag is all that is required to pause/resume.
                 m_simulationEnabled = (bool)value;
-
-                if (m_simulationEnabled)
-                {
-                    m_simulationTimer!.Change(
-                        TimeSpan.FromMilliseconds(100),
-                        TimeSpan.FromMilliseconds(m_simulationInterval));
-                }
-                else
-                {
-                    m_simulationTimer!.Change(
-                        TimeSpan.FromMilliseconds(100),
-                        TimeSpan.Zero);
-                }
 
                 return ServiceResult.Good;
             }
@@ -487,7 +439,8 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Registers the simulated CTT variables (all baked into the NodeSet2
         /// model) with the runtime dynamic-node list so the periodic
-        /// <see cref="DoSimulation"/> timer can push fresh random values to them.
+        /// <see cref="RunSimulationStepAsync"/> loop can push fresh random
+        /// values to them.
         /// </summary>
         private void RegisterSimulationVariables()
         {
@@ -670,59 +623,35 @@ namespace Quickstarts.ReferenceServer
             return dimensions;
         }
 
-        private void DoSimulation(object? state)
+        /// <summary>
+        /// Executes a single simulation tick: pushes a fresh random value to
+        /// every registered dynamic node. Invoked from the fluent
+        /// <c>Simulation().OnTick(...)</c> loop wired in <c>Configure</c>. The
+        /// loop serializes its ticks, so this never re-enters itself; the
+        /// semaphore only guards against concurrent address-space mutation
+        /// (history archiving, node loading).
+        /// </summary>
+        private async ValueTask RunSimulationStepAsync(CancellationToken cancellationToken)
         {
             if (!m_simulationEnabled)
             {
                 return;
             }
-            int running = Interlocked.Increment(ref m_simulationsRunning);
+
+            await m_semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (running > 0)
+                DateTimeUtc timeStamp = DateTimeUtc.Now;
+                foreach (BaseDataVariableState variable in m_dynamicNodes)
                 {
-                    LogLevel logLevel = running > 1 ?
-                        running > 4 ? LogLevel.Warning : LogLevel.Information :
-                        LogLevel.Debug;
-                    if (m_logger.IsEnabled(logLevel))
-                    {
-                        m_logger.Log(logLevel,
-                            "Simulation timer fired while {Count} simulations are already queued to run.",
-                            running);
-                    }
+                    variable.Value = GetNewValue(variable);
+                    variable.Timestamp = timeStamp;
+                    variable.ClearChangeMasks(SystemContext, false);
                 }
-                m_semaphore.Wait();
-                try
-                {
-                    DateTimeUtc timeStamp = DateTimeUtc.Now;
-                    foreach (BaseDataVariableState variable in m_dynamicNodes)
-                    {
-                        variable.Value = GetNewValue(variable);
-                        variable.Timestamp = timeStamp;
-                        variable.ClearChangeMasks(SystemContext, false);
-                    }
-                }
-                finally
-                {
-                    m_semaphore.Release();
-                }
-            }
-            catch (ObjectDisposedException) when (m_simulationTimer is null)
-            {
-                // Expected during teardown: Dispose() nulls m_simulationTimer and
-                // then disposes m_semaphore (see the Dispose() comment). A timer
-                // callback already in flight past the m_simulationEnabled guard
-                // will see the disposed semaphore - not a bug, just a documented
-                // race. Filter it out so the test log doesn't get a misleading
-                // "Unexpected error doing simulation" entry on every server teardown.
-            }
-            catch (Exception e)
-            {
-                m_logger.UnexpectedErrorDoingSimulation(e, running);
             }
             finally
             {
-                Interlocked.Decrement(ref m_simulationsRunning);
+                m_semaphore.Release();
             }
         }
 
@@ -783,11 +712,15 @@ namespace Quickstarts.ReferenceServer
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private RandomSource m_randomSource = null!;
         private DataGenerator m_generator = null!;
-        private ITimer? m_simulationTimer;
-        private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
-        private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
+
+        /// <summary>
+        /// Fixed tick interval of the value simulation loop. Matches the
+        /// read-only <c>Scalar_Simulation_Interval</c> value baked into the
+        /// NodeSet2 model.
+        /// </summary>
+        private static readonly TimeSpan s_simulationInterval = TimeSpan.FromMilliseconds(1000);
 
         /// <summary>
         /// Default random length used when generating single-dimension array values.
@@ -1342,22 +1275,9 @@ namespace Quickstarts.ReferenceServer
         public static partial void ErrorCreatingAddressSpace(this ILogger logger, Exception exception);
 
         [LoggerMessage(
-            EventId = QuickstartsServersEventIds.ReferenceNodeManager + 1, Level = LogLevel.Error,
-            Message = "Error writing Interval variable.")]
-        public static partial void ErrorWritingIntervalVariable(this ILogger logger, Exception exception);
-
-        [LoggerMessage(
             EventId = QuickstartsServersEventIds.ReferenceNodeManager + 2, Level = LogLevel.Error,
             Message = "Error writing Enabled variable.")]
         public static partial void ErrorWritingEnabledVariable(this ILogger logger, Exception exception);
-
-        [LoggerMessage(
-            EventId = QuickstartsServersEventIds.ReferenceNodeManager + 3, Level = LogLevel.Error,
-            Message = "Unexpected error doing simulation #{Count}.")]
-        public static partial void UnexpectedErrorDoingSimulation(
-            this ILogger logger,
-            Exception exception,
-            int count);
     }
 
 }
