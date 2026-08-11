@@ -163,6 +163,26 @@ namespace Opc.Ua.Vision.Tests
             });
         }
 
+        [Test]
+        public void EmptyRgbaBufferIsTreatedAsUniformAndBlank()
+        {
+            byte[] rgba = new byte[3];
+            SilkFrameCaptureResult capture = MakeCapture(0, 0, rgba, drawCount: 1, meshCount: 1);
+
+            BlankFrameCheck check = BlankFrameGuard.Check(capture);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(check.IsBlank, Is.True,
+                    "A buffer smaller than a single RGBA8 pixel has nothing to render, so " +
+                    "the guard must classify it as blank rather than pretend it is a good frame.");
+                Assert.That(check.IsUniform, Is.True,
+                    "The empty-buffer branch of IsUniformRgba8 returns true; the guard " +
+                    "must propagate that as IsUniform=true so callers can distinguish it " +
+                    "from a no-draws blank.");
+            });
+        }
+
         private static byte[] MakeGradient(int width, int height)
         {
             byte[] rgba = new byte[width * height * 4];
