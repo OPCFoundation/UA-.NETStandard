@@ -49,12 +49,29 @@ namespace Opc.Ua.WotCon.Server
             IReadOnlyList<Argument> inputArguments,
             IReadOnlyList<Argument> outputArguments,
             JsonElement? form)
+            : this(name, nodeId, inputArguments, outputArguments, form, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Initialises a new <see cref="WotActionTag"/>.
+        /// </summary>
+        public WotActionTag(
+            string name,
+            NodeId nodeId,
+            IReadOnlyList<Argument> inputArguments,
+            IReadOnlyList<Argument> outputArguments,
+            JsonElement? form,
+            string? conditionAction,
+            string? actsOn)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             NodeId = nodeId;
             InputArguments = inputArguments ?? throw new ArgumentNullException(nameof(inputArguments));
             OutputArguments = outputArguments ?? throw new ArgumentNullException(nameof(outputArguments));
             Form = form;
+            ConditionAction = conditionAction;
+            ActsOn = actsOn;
         }
 
         /// <summary>
@@ -76,6 +93,16 @@ namespace Opc.Ua.WotCon.Server
         /// Output arguments derived from the action's <c>output</c> JSON schema.
         /// </summary>
         public IReadOnlyList<Argument> OutputArguments { get; }
+
+        /// <summary>
+        /// Optional OPC UA Condition Method named by <c>uav:conditionAction</c>.
+        /// </summary>
+        public string? ConditionAction { get; }
+
+        /// <summary>
+        /// Optional event affordance named by <c>uav:actsOn</c>.
+        /// </summary>
+        public string? ActsOn { get; }
 
         /// <summary>
         /// Raw protocol-binding form (as parsed JSON). Providers cast or

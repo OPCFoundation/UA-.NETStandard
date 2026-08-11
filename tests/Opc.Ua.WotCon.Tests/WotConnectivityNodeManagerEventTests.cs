@@ -68,6 +68,23 @@ namespace Opc.Ua.WotCon.Tests
                 "The type has to be instantiable for the asset to raise it.");
         }
 
+        [Test]
+        public async Task RebuildMaterializesConditionEventAffordanceAsConditionTypeSubtypeAsync()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(
+                harness,
+                conditionType: "ua:AlarmConditionType").ConfigureAwait(false);
+
+            (BaseObjectTypeState eventType, _) = entry.Events.Values.First();
+
+            Assert.That(eventType.SuperTypeId, Is.EqualTo(Ua.ObjectTypeIds.AlarmConditionType),
+                "A WoT Condition affordance must materialize below the named ConditionType.");
+        }
+
         /// <summary>
         /// Without the GeneratesEvent reference and the notifier bit a client
         /// cannot discover or subscribe to the event, so both are asserted.
@@ -442,12 +459,13 @@ namespace Opc.Ua.WotCon.Tests
 
         private static async Task<AssetEntry> CreateAssetWithOverheatingEventAsync(
             ManagerHarness harness,
-            ushort? severity = null)
+            ushort? severity = null,
+            string? conditionType = null)
         {
             (_, NodeId assetId) = await harness.Registry
                 .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
-            await RebuildWithOverheatingEventAsync(harness, entry, severity)
+            await RebuildWithOverheatingEventAsync(harness, entry, severity, conditionType)
                 .ConfigureAwait(false);
             return entry;
         }
@@ -470,7 +488,8 @@ namespace Opc.Ua.WotCon.Tests
         private static ValueTask<ServiceResult> RebuildWithOverheatingEventAsync(
             ManagerHarness harness,
             AssetEntry entry,
-            ushort? severity)
+            ushort? severity,
+            string? conditionType = null)
         {
             return harness.Registry.RebuildAsync(
                 entry,
@@ -484,6 +503,7 @@ namespace Opc.Ua.WotCon.Tests
                         {
                             Title = "Overheating",
                             Severity = severity,
+                            ConditionType = conditionType,
                             Data = new WotActionSchema
                             {
                                 Type = "object",

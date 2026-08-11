@@ -29,9 +29,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -1907,7 +1910,172 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True,
                 "A BrowseName with namespace index 0 should produce a bare 'Name' portable browse name.");
         }
+
+        [Test]
+        public async Task ComponentOfLinkToRegistryDocumentEmitsInverseHasComponent()
+        {
+            byte[] childJson = ThingDescriptionWithComponentOf("urn:parent");
+            byte[] parentJson = WotTestData.Utf8(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Parent\"," +
+                "\"uav:id\":\"nsu=urn:plant;s=Parent\"}");
+
+            using WotDocument document = WotDocument.Parse(childJson);
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(
+                    document,
+                    thingResolver: new MapThingResolver(new Dictionary<string, byte[]>
+                    {
+                        ["urn:parent"] = parentJson
+                    }));
+
+            Assert.That(result.Success, Is.True);
+            AssertParentReference(result.Value!, "nsu=urn:plant;s=Parent");
+        }
+
+        [Test]
+        public async Task ComponentOfLinkToAddressSpaceNodeIdEmitsInverseHasComponent()
+        {
+            const string parentNodeId = "nsu=urn:plant;s=Line01";
+            using WotDocument document = WotDocument.Parse(
+                ThingDescriptionWithComponentOf(parentNodeId));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(
+                    document,
+                    null,
+                    null,
+                    null,
+                    nodeResolver: new MapNodeResolver(new Dictionary<string, WotResolvedNode>
+                    {
+                        [parentNodeId] = new WotResolvedNode(
+                            parentNodeId, WotExpectedNodeClass.Any)
+                    }));
+
+            Assert.That(result.Success, Is.True);
+            AssertParentReference(result.Value!, parentNodeId);
+        }
+
+        [Test]
+        public async Task ComponentOfLinkToMissingTargetFailsLoudly()
+        {
+            using WotDocument document = WotDocument.Parse(
+                ThingDescriptionWithComponentOf("nsu=urn:plant;s=Missing"));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Severity == WotDiagnosticSeverity.Error &&
+                    d.Code == WotDiagnosticCode.UnresolvedParentPlacement),
+                Is.True,
+                "An unresolved uav:componentOf link must fail rather than dropping the reference.");
+        }
+
+        [Test]
+        public async Task NoComponentOfLinkDoesNotEmitParentHasComponent()
+        {
+            byte[] json = WotTestData.Utf8(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Child\"}");
+
+            using WotDocument document = WotDocument.Parse(json);
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document);
+
+            Assert.That(result.Success, Is.True);
+            UANode root = result.Value!.Items![0];
+            Assert.That(
+                root.References?.Any(r =>
+                    !r.IsForward &&
+                    string.Equals(r.ReferenceType, "HasComponent", StringComparison.Ordinal)) ?? false,
+                Is.False,
+                "No uav:componentOf link leaves the existing Objects-folder Organizes placement to runtime import.");
+        }
+
+        private static byte[] ThingDescriptionWithComponentOf(string href)
+        {
+            return WotTestData.Utf8(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Child\"," +
+                "\"links\":[{\"rel\":\"uav:componentOf\",\"href\":\"" + href + "\"}]}");
+        }
+
+        private static void AssertParentReference(UANodeSet nodeSet, string parentNodeId)
+        {
+            UANode root = nodeSet.Items![0];
+            Assert.That(
+                root.References?.Any(r =>
+                    !r.IsForward &&
+                    string.Equals(r.ReferenceType, "HasComponent", StringComparison.Ordinal) &&
+                    string.Equals(r.Value, parentNodeId, StringComparison.Ordinal)) ?? false,
+                Is.True);
+        }
+
+        private sealed class MapThingResolver : IWotThingResolver
+        {
+            public MapThingResolver(IReadOnlyDictionary<string, byte[]> documents)
+            {
+                m_documents = documents;
+            }
+
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<WotResolverResult>(
+                    m_documents.TryGetValue(reference, out byte[] document)
+                        ? WotResolverResult.FromBytes(document)
+                        : WotResolverResult.NotFound);
+            }
+
+            private readonly IReadOnlyDictionary<string, byte[]> m_documents;
+        }
+
+        private sealed class MapNodeResolver : IWotNodeResolver
+        {
+            public MapNodeResolver(IReadOnlyDictionary<string, WotResolvedNode> nodes)
+            {
+                m_nodes = nodes;
+            }
+
+            public ValueTask<bool> HoldsNamespaceAsync(
+                string namespaceUri,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<bool>(false);
+            }
+
+            public ValueTask<ArrayOf<WotResolvedNode>> ResolveByBrowseNameAsync(
+                string namespaceUri,
+                string browseName,
+                WotExpectedNodeClass expected,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<ArrayOf<WotResolvedNode>>(ArrayOf<WotResolvedNode>.Empty);
+            }
+
+            public ValueTask<WotResolvedNode?> ResolveByNodeIdAsync(
+                string expandedNodeId,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<WotResolvedNode?>(
+                    m_nodes.TryGetValue(expandedNodeId, out WotResolvedNode node)
+                        ? node
+                        : null);
+            }
+
+            private readonly IReadOnlyDictionary<string, WotResolvedNode> m_nodes;
+        }
     }
 }
-
-

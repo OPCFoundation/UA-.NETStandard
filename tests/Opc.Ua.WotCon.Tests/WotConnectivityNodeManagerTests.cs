@@ -587,6 +587,63 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
+        public async Task ConditionActionCarriesTheStandardMethodDeclarationAndInvokesProviderAsync()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            var td = new ThingDescription
+            {
+                Name = "asset-001",
+                Base = "sim://opcua.test/wot/asset-001",
+                Actions = new Dictionary<string, WotAction>
+                {
+                    ["AcknowledgeOverheating"] = new WotAction
+                    {
+                        ConditionAction = "Acknowledge",
+                        ActsOn = "Overheating",
+                        Input = new WotActionSchema
+                        {
+                            Type = "object",
+                            Properties = new Dictionary<string, WotActionMember>
+                            {
+                                ["EventId"] = new WotActionMember { Type = "string" }
+                            }
+                        }
+                    }
+                }
+            };
+
+            await harness.Registry.RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            (MethodState method, WotActionTag tag) = entry.Actions.Values.First();
+            Assert.That(
+                method.MethodDeclarationId,
+                Is.EqualTo(Ua.MethodIds.AcknowledgeableConditionType_Acknowledge));
+            Assert.That(tag.ConditionAction, Is.EqualTo("Acknowledge"));
+            Assert.That(tag.ActsOn, Is.EqualTo("Overheating"));
+
+            var outputs = new List<Variant>();
+            ServiceResult result = await method.OnCallMethod2Async!(
+                harness.Manager.SystemContext,
+                method,
+                entry.Asset.NodeId,
+                [new Variant("event-1")],
+                outputs,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            var provider = (SimulatedWotAssetProvider)entry.Provider!;
+            Assert.That(provider.Invocations, Has.Count.EqualTo(1));
+            Assert.That(provider.Invocations[0].Name, Is.EqualTo("AcknowledgeOverheating"));
+        }
+
+        [Test]
         public async Task RebuildReplacesPreviouslyMaterialisedChildrenOnSecondCall()
         {
             using var harness = new ManagerHarness(

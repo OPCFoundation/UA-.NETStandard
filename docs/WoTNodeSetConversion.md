@@ -40,7 +40,7 @@ them.
 | Event affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Event affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<eventLocal>`. |
 | Event `title` | **Default** | No `DisplayName` field is materialized for the event type. |
-| Event type abstraction/supertype | **Default** | Event affordances materialize as non-abstract `UAObjectType` nodes with inverse `HasSubtype` to `BaseEventType` (`i=2041`) and a root `GeneratesEvent` reference. |
+| Event type abstraction/supertype | **Default** | Event affordances materialize as non-abstract `UAObjectType` nodes with inverse `HasSubtype` to `BaseEventType` (`i=2041`) and a root `GeneratesEvent` reference, unless the affordance carries `uav:conditionType` or `uav:conditionTypeId`. A Condition event derives from the named ConditionType instead (WoT Binding Section 13.2). |
 | `uav:modellingRule` on a property or action | **Default** | No `HasModellingRule` reference is materialized. |
 | `uav:hasComponent` / `uav:componentOf` entry has no matching typed ReferenceType link | **Default** | `HasComponent` is used for the component reference. |
 | Binding link has no resolvable model-name relation and no `uav:refId` | **Default** | The link maps to `Organizes`. Spec PR #19 removed `uav:componentModel`, `uav:capability` and `uav:reference`; a link now names its ReferenceType directly in `rel` (`ua:HasComponent`, `ua:HasInterface`, `ua:NonHierarchicalReferences`). |
@@ -61,6 +61,50 @@ them.
 | `uav:includeInherited` (Section 6.8) | **Default** / **Fails** | Absent: no inheritance-span flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
 | `uav:additionalProperties` (Section 6.8) | **Default** / **Fails** | Absent: no open-content flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
 | `uav:browsePathAnchor` (Section 5.1.4) | **Default** / **Fails** | Absent: a relative `uav:browsePath` resolves against the nearest enclosing `uav:id`. Malformed (not an ExpandedNodeId): `ValidationError` error; the session-local `ns=<index>` form is reported `NonPortableIdentity` (an error unless `AllowNonPortableIdentifiers` is set). Present and valid: preserved via residue. |
+
+## Consumer-visible compatibility notes
+
+Two WoT-to-NodeSet behaviours are intentionally silent because they follow the
+current WoT Binding vocabulary, but both can change what a consumer observes in
+the materialized NodeSet.
+
+### Pre-PR #19 reference vocabulary is residue
+
+Spec PR #19 removed six `uav:` terms from the Binding vocabulary:
+`uav:capability`, `uav:componentModel`, `uav:reference`,
+`uav:congruentType`, `uav:congruentTypeName` and `uav:nameNamespace`. A
+document authored against the earlier vocabulary that still carries those terms
+is not rejected. The terms are now unmapped JSON and are carried through the
+Section 9 `uav:nodes` residue mechanism, with no diagnostic.
+
+That preserves the source document for WoT &rarr; NodeSet &rarr; WoT round-trip,
+but it no longer creates the References that earlier conversions produced. A
+consumer that browses the projected NodeSet therefore will not see those legacy
+references even though conversion succeeds.
+
+Use the current vocabulary instead:
+
+| Earlier term | Current form |
+| --- | --- |
+| `uav:componentModel` | link `rel` names `ua:HasComponent` directly |
+| `uav:capability` | link `rel` names `ua:HasInterface` directly |
+| `uav:reference` | link `rel` names `ua:NonHierarchicalReferences` directly |
+| `uav:congruentType` + `uav:congruentTypeName` | Section 5.2.1 type binding with `@type` and a `ua:HasTypeDefinition` link |
+
+See [Resolving a type binding: the local context](WotBindings.md#resolving-a-type-binding-the-local-context)
+for the Section 5.2.1 binding rules.
+
+### Condition events derive from their ConditionType
+
+A projected event normally derives from `BaseEventType` (`i=2041`). If the event
+affordance carries `uav:conditionType` or `uav:conditionTypeId`, Section 13.2
+instead makes the event type derive from the named ConditionType. The Condition
+mapping is summarized in [Alarms and Conditions](WotBindings.md#alarms-and-conditions).
+
+This changes event-filter behaviour. A client filtering for `BaseEventType`
+subtypes still matches the projected Condition event, but a client that assumed
+the exact immediate supertype was `BaseEventType`, or that selects
+Condition-specific fields, observes a different type hierarchy and field set.
 
 ## Model and platform vocabulary (Section 6)
 

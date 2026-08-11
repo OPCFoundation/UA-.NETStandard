@@ -240,6 +240,34 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public async Task ProjectionConversionFailureRaisesLoadFailure()
+        {
+            var events = new List<WotMaterializationEventArgs>();
+            m_coordinator.Event += (_, e) => events.Add(e);
+
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            m_converter.MarkProjectionInvalid("td-a");
+
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            WoTResourceLoadResultDataType tdResult =
+                result.Results.Single(r => r.ResourceId == "td-a");
+            Assert.That(tdResult.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+            Assert.That(tdResult.Phase, Is.EqualTo(WoTPhaseEnum.Projection));
+            Assert.That(
+                m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "td-a")!
+                    .LoadState,
+                Is.EqualTo(WoTLoadStateEnum.Failed));
+            Assert.That(
+                events.Any(e =>
+                    e.Kind == WotMaterializationEventKind.LoadFailure &&
+                    e.Phase == WoTPhaseEnum.Projection &&
+                    e.LoadState == WoTLoadStateEnum.Failed),
+                Is.True,
+                "Projection failures must raise WoTLoadFailureEventType data, not validation failures.");
+        }
+
+        [Test]
         public async Task VersionSwitchUsesImmediateReloadWhenConfigured()
         {
             m_coordinator.RetirementPolicy = WotProjectionRetirementPolicy.Immediate;

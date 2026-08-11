@@ -40,6 +40,7 @@ using Opc.Ua.Export;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.Planners;
+using BindingAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
 
 namespace Opc.Ua.WotCon.Tests.Samples
 {
@@ -383,7 +384,16 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
             Assert.That(plan.FullySupported, Is.True);
             Assert.That(plan.CompiledForms, Is.Not.Empty);
-            Assert.That(plan.CompiledForms.All(form => !form.TargetMapping.IsEmpty), Is.True);
+            Assert.That(
+                plan.CompiledForms
+                    .Where(form => form.AffordanceKind == BindingAffordanceKind.Property)
+                    .All(form => !form.TargetMapping.IsEmpty),
+                Is.True);
+            Assert.That(
+                plan.CompiledForms
+                    .Where(form => form.AffordanceKind != BindingAffordanceKind.Property)
+                    .All(form => form.TargetMapping.IsEmpty),
+                Is.True);
         }
 
         [Test]

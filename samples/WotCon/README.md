@@ -21,6 +21,8 @@ FlatTagServer Source B ─┘                    │
 
 Source A and Source B expose deliberately flat variables. They do not expose a Pump companion-model hierarchy. The aggregation server creates that hierarchy from the WoT documents and routes each materialized variable to its selected upstream source.
 
+Each flat source exposes two upstream pump roots, `Pump1` and `Pump2`. Both roots use the same Source A / Source B split so the aggregation server can later prove that asset projections and alarms remain per-pump rather than accidentally global.
+
 ## Prerequisites
 
 The complete sample requires .NET 8, .NET 9, or .NET 10. `AggregationServer` intentionally targets only `net8.0`, `net9.0`, and `net10.0` because the OPC UA executor required by the checked-in mappings is available only on those frameworks. Legacy `CustomTestTarget` solution builds replace that project with the repository's no-op shell; those matrix builds are not runnable aggregation-server configurations. `FlatTagServer` and `AggregationClient` remain on the shared application target matrix for standalone compatibility, but a runnable end-to-end topology always requires the modern aggregation server.
@@ -41,7 +43,12 @@ dotnet run --project samples/WotCon/FlatTagServer/FlatTagServer.csproj -f net10.
   --fluidTemperature 301.15 `
   --massFlow 0.42 `
   --level 4.25 `
-  --cavitation true
+  --cavitation true `
+  --pump2DifferentialPressure 211.25 `
+  --pump2FluidTemperature 304.15 `
+  --pump2MassFlow 0.52 `
+  --pump2Level 4.75 `
+  --pump2Cavitation false
 ```
 
 Start Source B in the second terminal:
@@ -56,7 +63,12 @@ dotnet run --project samples/WotCon/FlatTagServer/FlatTagServer.csproj -f net10.
   --pumpPowerInput 17.75 `
   --pumpEfficiency 91.5 `
   --numberOfStarts 23 `
-  --motorOverheat true
+  --motorOverheat true `
+  --pump2BearingTemperature 337.15 `
+  --pump2PumpPowerInput 19.75 `
+  --pump2PumpEfficiency 89.5 `
+  --pump2NumberOfStarts 31 `
+  --pump2MotorOverheat false
 ```
 
 Start the generic aggregation server in the third terminal:
@@ -101,6 +113,16 @@ The client should report four uploaded resources, a successful refresh generatio
 | `pumpEfficiency` | `88.0` | Flat source value. |
 | `numberOfStarts` | `17` | Flat source value. |
 | `motorOverheat` | `false` | Flat source value. |
+| `pump2DifferentialPressure` | `3.25` | Pump2 flat source value. |
+| `pump2FluidTemperature` | `318.15` | Pump2 flat source value. |
+| `pump2MassFlow` | `0.275` | Pump2 flat source value. |
+| `pump2Level` | `5.5` | Pump2 flat source value. |
+| `pump2Cavitation` | `false` | Pump2 flat source value. |
+| `pump2BearingTemperature` | `331.4` | Pump2 flat source value. |
+| `pump2PumpPowerInput` | `14.25` | Pump2 flat source value. |
+| `pump2PumpEfficiency` | `84.5` | Pump2 flat source value. |
+| `pump2NumberOfStarts` | `29` | Pump2 flat source value. |
+| `pump2MotorOverheat` | `false` | Pump2 flat source value. |
 
 `AggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName` (`AggregationServer`), and `maximumDocumentBytes` (`33554432`). Its reusable `AggregationServerOptions` additionally exposes `PkiRoot` for programmatic hosts.
 

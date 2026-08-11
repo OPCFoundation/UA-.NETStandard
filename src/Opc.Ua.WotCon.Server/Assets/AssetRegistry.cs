@@ -791,6 +791,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                 Executable = true,
                 UserExecutable = true
             };
+            NodeId conditionMethodId = ResolveConditionMethod(action.ConditionAction);
+            if (!conditionMethodId.IsNull)
+            {
+                method.MethodDeclarationId = conditionMethodId;
+            }
             method.AddReference(Ua.ReferenceTypeIds.HasComponent, isInverse: true, entry.Asset.NodeId);
             entry.Asset.AddReference(Ua.ReferenceTypeIds.HasComponent, isInverse: false, method.NodeId);
             entry.Asset.AddChild(method);
@@ -840,7 +845,14 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
 
             JsonElement? form = action.Forms?.Count > 0 ? action.Forms[0] : null;
-            var tag = new WotActionTag(name, nodeId, inputArgs, outputArgs, form);
+            var tag = new WotActionTag(
+                name,
+                nodeId,
+                inputArgs,
+                outputArgs,
+                form,
+                action.ConditionAction,
+                action.ActsOn);
 
             method.OnCallMethod2Async = (
                 _,
@@ -852,6 +864,19 @@ namespace Opc.Ua.WotCon.Server.Assets
                 InvokeActionAsync(entry, tag, inputArguments, outputArguments, ct);
 
             entry.Actions[nodeId] = (method, tag);
+        }
+
+        private static NodeId ResolveConditionMethod(string? conditionAction)
+        {
+            return conditionAction switch
+            {
+                "Acknowledge" => Ua.MethodIds.AcknowledgeableConditionType_Acknowledge,
+                "Confirm" => Ua.MethodIds.AcknowledgeableConditionType_Confirm,
+                "AddComment" => Ua.MethodIds.ConditionType_AddComment,
+                "Enable" => Ua.MethodIds.ConditionType_Enable,
+                "Disable" => Ua.MethodIds.ConditionType_Disable,
+                _ => NodeId.Null
+            };
         }
 
         /// <summary>
@@ -867,6 +892,20 @@ namespace Opc.Ua.WotCon.Server.Assets
         {
             ushort ns = m_manager.AssetNamespaceIndex;
             NodeId eventTypeId = m_manager.AllocateChildNodeId(entry.Name, "events", name);
+            NodeId superTypeId = ResolveEventSuperType(evt);
+            if (superTypeId.IsNull)
+            {
+                m_logger.SkippingTd(
+                    "event",
+                    WotChildNameValidator.SanitiseForLog(name),
+                    entry.Name,
+                    "uav:conditionType could not be resolved to an OPC UA ConditionType");
+                return false;
+            }
+            if (IsKnownConditionType(superTypeId))
+            {
+                EnsureConditionTypeHierarchy();
+            }
 
             var eventType = new BaseObjectTypeState
             {
@@ -877,11 +916,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                 Description = evt.Description != null
                     ? new LocalizedText(evt.Description)
                     : LocalizedText.Null,
-                SuperTypeId = Ua.ObjectTypeIds.BaseEventType,
+                SuperTypeId = superTypeId,
                 IsAbstract = false
             };
             eventType.AddReference(
-                Ua.ReferenceTypeIds.HasSubtype, isInverse: true, Ua.ObjectTypeIds.BaseEventType);
+                Ua.ReferenceTypeIds.HasSubtype, isInverse: true, superTypeId);
 
             IReadOnlyList<Argument> fields = WotActionMapper.BuildArguments(evt.Data);
             foreach (Argument field in fields)
@@ -929,6 +968,85 @@ namespace Opc.Ua.WotCon.Server.Assets
 
             entry.Events[eventTypeId] = (eventType, tag);
             return true;
+        }
+
+        /// <summary>
+        /// Resolves the EventType supertype for a WoT event affordance.
+        /// </summary>
+        private NodeId ResolveEventSuperType(WotEvent evt)
+        {
+            if (!string.IsNullOrWhiteSpace(evt.ConditionTypeId))
+            {
+                return ParseNodeId(evt.ConditionTypeId);
+            }
+
+            if (string.IsNullOrWhiteSpace(evt.ConditionType))
+            {
+                return Ua.ObjectTypeIds.BaseEventType;
+            }
+
+            return ResolveKnownConditionType(evt.ConditionType);
+        }
+
+        private void EnsureConditionTypeHierarchy()
+        {
+            if (m_manager.Server.TypeTree is not TypeTable typeTree)
+            {
+                return;
+            }
+
+            typeTree.AddSubtype(Ua.ObjectTypeIds.ConditionType, Ua.ObjectTypeIds.BaseEventType);
+            typeTree.AddSubtype(Ua.ObjectTypeIds.AcknowledgeableConditionType, Ua.ObjectTypeIds.ConditionType);
+            typeTree.AddSubtype(Ua.ObjectTypeIds.AlarmConditionType, Ua.ObjectTypeIds.AcknowledgeableConditionType);
+            typeTree.AddSubtype(Ua.ObjectTypeIds.LimitAlarmType, Ua.ObjectTypeIds.AlarmConditionType);
+        }
+
+        private static bool IsKnownConditionType(NodeId nodeId)
+        {
+            return nodeId == Ua.ObjectTypeIds.ConditionType ||
+                nodeId == Ua.ObjectTypeIds.AcknowledgeableConditionType ||
+                nodeId == Ua.ObjectTypeIds.AlarmConditionType ||
+                nodeId == Ua.ObjectTypeIds.LimitAlarmType;
+        }
+
+        private NodeId ResolveKnownConditionType(string conditionType)
+        {
+            return LocalName(conditionType) switch
+            {
+                "ConditionType" => Ua.ObjectTypeIds.ConditionType,
+                "AcknowledgeableConditionType" => Ua.ObjectTypeIds.AcknowledgeableConditionType,
+                "AlarmConditionType" => Ua.ObjectTypeIds.AlarmConditionType,
+                "LimitAlarmType" => Ua.ObjectTypeIds.LimitAlarmType,
+                _ => NodeId.Null
+            };
+        }
+
+        private NodeId ParseNodeId(string text)
+        {
+            try
+            {
+                if (text.StartsWith("nsu=", StringComparison.Ordinal))
+                {
+                    return ExpandedNodeId.ToNodeId(
+                        ExpandedNodeId.Parse(text),
+                        m_manager.Server.NamespaceUris);
+                }
+                return NodeId.Parse(text);
+            }
+            catch (Exception ex) when (ex is FormatException or ArgumentException)
+            {
+                return NodeId.Null;
+            }
+        }
+
+        private static string LocalName(string value)
+        {
+            int separator = Math.Max(
+                value.LastIndexOf(':'),
+                Math.Max(value.LastIndexOf('#'), value.LastIndexOf('/')));
+            return separator >= 0 && separator + 1 < value.Length
+                ? value[(separator + 1)..]
+                : value;
         }
 
         /// <summary>

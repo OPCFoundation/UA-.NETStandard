@@ -510,7 +510,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     continue;
                 }
 
-                (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError) =
+                (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError, WoTPhaseEnum failurePhase) =
                     await TryConvertAsync(member, snapshot, contentCache, cancellationToken)
                         .ConfigureAwait(false);
                 if (nodeSet is not null && m_nodeSetContributors.Length > 0)
@@ -527,11 +527,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (nodeSet is null)
                 {
-                    WoTValidationOutcomeDataType validation = FormatFailure(conversionError);
                     results.Add(FailResult(
-                        member, generation, WoTPhaseEnum.FormatValidation, conversionError));
-                    projections.Add(FailProjection(member, conversionError, validation));
-                    RaiseValidationFailure(member, generation, validation, conversionError);
+                        member, generation, failurePhase, conversionError));
+                    if (failurePhase == WoTPhaseEnum.Projection)
+                    {
+                        projections.Add(FailProjection(member, conversionError));
+                        RaiseLoadFailure(member, generation, conversionError);
+                    }
+                    else
+                    {
+                        WoTValidationOutcomeDataType validation = FormatFailure(conversionError);
+                        projections.Add(FailProjection(member, conversionError, validation));
+                        RaiseValidationFailure(member, generation, validation, conversionError);
+                    }
                     return new ClosureOutcome(results.ToImmutable(), projections);
                 }
 
@@ -834,7 +842,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return (retired, dryRun ? results.ToImmutable() : []);
         }
 
-        private async ValueTask<(UANodeSet? NodeSet, ExpandedNodeId Root, string? Error)> TryConvertAsync(
+        private async ValueTask<(
+            UANodeSet? NodeSet,
+            ExpandedNodeId Root,
+            string? Error,
+            WoTPhaseEnum FailurePhase)> TryConvertAsync(
             WotResource resource,
             WotRegistrySnapshot snapshot,
             Dictionary<string, ByteString> contentCache,
@@ -843,7 +855,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotResourceVersion? version = resource.DefaultVersion;
             if (version is null)
             {
-                return (null, default, "Resource has no default version.");
+                return (
+                    null,
+                    default,
+                    "Resource has no default version.",
+                    WoTPhaseEnum.FormatValidation);
             }
             ByteString content = await ReadCachedContentAsync(contentCache, version, cancellationToken)
                 .ConfigureAwait(false);
@@ -854,9 +870,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return (null, default, output.Errors.IsDefaultOrEmpty
                     ? "The document could not be converted to a NodeSet."
-                    : string.Join("; ", output.Errors));
+                    : string.Join("; ", output.Errors), output.FailurePhase);
             }
-            return (output.NodeSet, output.RootNodeId, null);
+            return (output.NodeSet, output.RootNodeId, null, WoTPhaseEnum.Projection);
         }
 
         /// <summary>

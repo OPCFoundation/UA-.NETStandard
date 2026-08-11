@@ -46,6 +46,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public const string PumpInstanceNamespace =
             "urn:opcfoundation.org:UA:WotAggregation:PumpInstance";
 
+        private const string SourceANamespace =
+            "urn:opcfoundation.org:UA:WotAggregation:SourceA";
+        private const string SourceBNamespace =
+            "urn:opcfoundation.org:UA:WotAggregation:SourceB";
+
         public static byte[] GenerateThingModel(string sourcePath, string title)
         {
             using WotDocument document = WotNodeSetConverter.FromNodeSet(
@@ -60,6 +65,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 ReadNodeSet(sourcePath),
                 "Sample Pump Aggregate");
             JsonObject root = JsonNode.Parse(generated.Utf8Json.Span)!.AsObject();
+            root["actions"] = CreateActions();
+            root["events"] = CreateEvents();
             root["properties"] = CreateProperties();
 
             byte[] json = JsonSerializer.SerializeToUtf8Bytes(root);
@@ -178,6 +185,190 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return properties;
         }
 
+        private static JsonObject CreateActions()
+        {
+            var actions = new JsonObject();
+            AddAction(actions, "resetPump1", "Reset Pump1", "Pump1", "Reset");
+            AddAction(actions, "resetPump2", "Reset Pump2", "Pump2", "Reset");
+            AddAction(actions, "startPump1", "Start Pump1", "Pump1", "Start");
+            AddAction(actions, "startPump2", "Start Pump2", "Pump2", "Start");
+            AddAction(actions, "stopPump1", "Stop Pump1", "Pump1", "Stop");
+            AddAction(actions, "stopPump2", "Stop Pump2", "Pump2", "Stop");
+            return actions;
+        }
+
+        private static void AddAction(
+            JsonObject actions,
+            string name,
+            string title,
+            string pumpNodeId,
+            string methodName)
+        {
+            actions[name] = new JsonObject
+            {
+                ["@type"] = "uav:method",
+                ["forms"] = new JsonArray
+                {
+                    CreateActionForm("SOURCE_A_ENDPOINT", SourceANamespace, pumpNodeId, methodName),
+                    CreateActionForm("SOURCE_B_ENDPOINT", SourceBNamespace, pumpNodeId, methodName)
+                },
+                ["title"] = title
+            };
+        }
+
+        private static JsonObject CreateActionForm(
+            string source,
+            string sourceNamespace,
+            string pumpNodeId,
+            string methodName)
+        {
+            return new JsonObject
+            {
+                ["href"] = "${" + source + "}",
+                ["op"] = new JsonArray("invokeaction"),
+                ["uav:componentOf"] = $"nsu={sourceNamespace};s={pumpNodeId}",
+                ["uav:id"] = $"nsu={sourceNamespace};s={pumpNodeId}.{methodName}"
+            };
+        }
+
+        private static JsonObject CreateEvents()
+        {
+            var events = new JsonObject();
+            AddAlarmEvent(
+                events,
+                "pump1CavitationAlarm",
+                "Pump1 Cavitation Alarm",
+                "SOURCE_A_ENDPOINT",
+                SourceANamespace,
+                "Pump1");
+            AddAlarmEvent(
+                events,
+                "pump1MotorOverheatAlarm",
+                "Pump1 Motor Overheat Alarm",
+                "SOURCE_B_ENDPOINT",
+                SourceBNamespace,
+                "Pump1");
+            AddAlarmEvent(
+                events,
+                "pump2CavitationAlarm",
+                "Pump2 Cavitation Alarm",
+                "SOURCE_A_ENDPOINT",
+                SourceANamespace,
+                "Pump2");
+            AddAlarmEvent(
+                events,
+                "pump2MotorOverheatAlarm",
+                "Pump2 Motor Overheat Alarm",
+                "SOURCE_B_ENDPOINT",
+                SourceBNamespace,
+                "Pump2");
+            return events;
+        }
+
+        private static void AddAlarmEvent(
+            JsonObject events,
+            string name,
+            string title,
+            string source,
+            string sourceNamespace,
+            string pumpNodeId)
+        {
+            events[name] = new JsonObject
+            {
+                ["@type"] = "uav:eventType",
+                ["data"] = CreateAlarmDataSchema(),
+                ["forms"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["href"] = "${" + source + "}",
+                        ["op"] = new JsonArray("subscribeevent", "unsubscribeevent"),
+                        ["uav:id"] = $"nsu={sourceNamespace};s={pumpNodeId}"
+                    }
+                },
+                ["title"] = title,
+                ["uav:conditionType"] = "ua:AlarmConditionType",
+                ["uav:conditionTypeId"] = "i=2915",
+                ["uav:isEvent"] = true
+            };
+        }
+
+        private static JsonObject CreateAlarmDataSchema()
+        {
+            return new JsonObject
+            {
+                ["type"] = "object",
+                ["required"] = new JsonArray(
+                    "EventId",
+                    "EventType",
+                    "SourceNode",
+                    "SourceName",
+                    "Time",
+                    "ReceiveTime",
+                    "Message",
+                    "Severity",
+                    "ConditionId",
+                    "ConditionName",
+                    "Retain",
+                    "EnabledState",
+                    "AckedState",
+                    "ConfirmedState",
+                    "ActiveState"),
+                ["properties"] = new JsonObject
+                {
+                    ["EventId"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["contentEncoding"] = "base64"
+                    },
+                    ["EventType"] = new JsonObject { ["type"] = "string" },
+                    ["SourceNode"] = new JsonObject { ["type"] = "string" },
+                    ["SourceName"] = new JsonObject { ["type"] = "string" },
+                    ["Time"] = new JsonObject { ["type"] = "string", ["format"] = "date-time" },
+                    ["ReceiveTime"] = new JsonObject { ["type"] = "string", ["format"] = "date-time" },
+                    ["Message"] = new JsonObject { ["type"] = "string" },
+                    ["Severity"] = CreateSeveritySchema(),
+                    ["ConditionId"] = new JsonObject { ["type"] = "string" },
+                    ["ConditionName"] = new JsonObject { ["type"] = "string" },
+                    ["BranchId"] = new JsonObject { ["type"] = "string" },
+                    ["Retain"] = new JsonObject { ["type"] = "boolean" },
+                    ["ConditionClassId"] = new JsonObject { ["type"] = "string" },
+                    ["ConditionClassName"] = new JsonObject { ["type"] = "string" },
+                    ["Quality"] = new JsonObject { ["type"] = "string" },
+                    ["LastSeverity"] = CreateSeveritySchema(),
+                    ["Comment"] = new JsonObject { ["type"] = "string" },
+                    ["ClientUserId"] = new JsonObject { ["type"] = "string" },
+                    ["EnabledState"] = CreateTwoStateSchema(),
+                    ["AckedState"] = CreateTwoStateSchema(),
+                    ["ConfirmedState"] = CreateTwoStateSchema(),
+                    ["ActiveState"] = CreateTwoStateSchema()
+                }
+            };
+        }
+
+        private static JsonObject CreateSeveritySchema()
+        {
+            return new JsonObject
+            {
+                ["type"] = "integer",
+                ["minimum"] = 1,
+                ["maximum"] = 1000
+            };
+        }
+
+        private static JsonObject CreateTwoStateSchema()
+        {
+            return new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["Id"] = new JsonObject { ["type"] = "boolean" },
+                    ["Name"] = new JsonObject { ["type"] = "string" }
+                }
+            };
+        }
+
         private static void AddProperty(
             JsonObject properties,
             string name,
@@ -189,8 +380,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string path)
         {
             string sourceNamespace = source == "SOURCE_A_ENDPOINT"
-                ? "urn:opcfoundation.org:UA:WotAggregation:SourceA"
-                : "urn:opcfoundation.org:UA:WotAggregation:SourceB";
+                ? SourceANamespace
+                : SourceBNamespace;
             var property = new JsonObject
             {
                 ["@type"] = "uav:variable",

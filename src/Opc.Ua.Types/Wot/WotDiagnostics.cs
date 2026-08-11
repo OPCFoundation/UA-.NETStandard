@@ -337,7 +337,15 @@ namespace Opc.Ua.Wot
         /// <see cref="UnresolvedTypeBinding"/>, which is about the Section
         /// 5.2.1 type of the projected node rather than an event's Condition.
         /// </summary>
-        UnresolvedConditionType = 6026
+        UnresolvedConditionType = 6026,
+
+        /// <summary>
+        /// A <c>uav:componentOf</c> link names the parent of the projected
+        /// Object, but the target did not resolve to another registry
+        /// document, an existing AddressSpace Node, or the Thing Model
+        /// projection root (WoT Connectivity Section 7.3).
+        /// </summary>
+        UnresolvedParentPlacement = 6027
     }
 
     /// <summary>

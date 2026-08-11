@@ -163,11 +163,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     {
         private readonly Dictionary<string, int> m_nodeCounts = new(StringComparer.Ordinal);
         private readonly HashSet<string> m_invalid = new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_projectionInvalid = new(StringComparer.Ordinal);
 
         public void SetNodeCount(string resourceId, int nodeCount)
             => m_nodeCounts[resourceId] = nodeCount;
 
         public void MarkInvalid(string resourceId) => m_invalid.Add(resourceId);
+
+        public void MarkProjectionInvalid(string resourceId) => m_projectionInvalid.Add(resourceId);
 
         public void ClearInvalid(string resourceId) => m_invalid.Remove(resourceId);
 
@@ -189,6 +192,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 return new ValueTask<WotConversionOutput>(
                     WotConversionOutput.Failure($"Injected conversion failure for '{resource.ResourceId}'."));
+            }
+            if (m_projectionInvalid.Contains(resource.ResourceId))
+            {
+                return new ValueTask<WotConversionOutput>(
+                    WotConversionOutput.Failure(
+                        WoTPhaseEnum.Projection,
+                        $"Injected projection failure for '{resource.ResourceId}'."));
             }
             int nodeCount = m_nodeCounts.TryGetValue(resource.ResourceId, out int c) ? c : 2;
             UANodeSet nodeSet = TestNodeSets.Make(

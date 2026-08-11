@@ -106,14 +106,35 @@ namespace FlatTagServer
             }
 
             ushort namespaceIndex = NamespaceIndexes[0];
+            await AddPumpAsync(
+                references,
+                namespaceIndex,
+                "Pump1",
+                m_options.Values,
+                cancellationToken).ConfigureAwait(false);
+            await AddPumpAsync(
+                references,
+                namespaceIndex,
+                "Pump2",
+                m_options.Pump2Values,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask AddPumpAsync(
+            IList<IReference> externalReferences,
+            ushort namespaceIndex,
+            string pumpNodeId,
+            FlatTagValues values,
+            CancellationToken cancellationToken)
+        {
             BaseObjectState pump = CreateObject(
                 null,
                 namespaceIndex,
-                "Pump1",
-                "Pump1",
+                pumpNodeId,
+                pumpNodeId,
                 ReferenceTypeIds.Organizes);
             pump.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
-            references.Add(new NodeStateReference(
+            externalReferences.Add(new NodeStateReference(
                 ReferenceTypeIds.Organizes,
                 false,
                 pump.NodeId));
@@ -121,17 +142,17 @@ namespace FlatTagServer
             BaseObjectState operational = CreateObject(
                 pump,
                 namespaceIndex,
-                "Pump1.Operational",
+                pumpNodeId + ".Operational",
                 "Operational");
             BaseObjectState measurements = CreateObject(
                 operational,
                 namespaceIndex,
-                "Pump1.Operational.Measurements",
+                pumpNodeId + ".Operational.Measurements",
                 "Measurements");
             BaseObjectState events = CreateObject(
                 pump,
                 namespaceIndex,
-                "Pump1.Events",
+                pumpNodeId + ".Events",
                 "Events");
 
             // The pump is the notifier an aggregating server subscribes to. Its
@@ -143,15 +164,28 @@ namespace FlatTagServer
             events.EventNotifier = EventNotifiers.SubscribeToEvents;
             await AddRootNotifierAsync(pump, cancellationToken).ConfigureAwait(false);
 
-            AddManagementMethods(namespaceIndex, pump);
+            var signals = new List<SupervisionSignal>();
+            AddManagementMethods(namespaceIndex, pump, pumpNodeId, signals);
 
             if (m_options.SourceNamespaceUri == FlatTagServerOptions.SourceANamespaceUri)
             {
-                AddSourceAVariables(namespaceIndex, measurements, events);
+                AddSourceAVariables(
+                    namespaceIndex,
+                    pumpNodeId,
+                    measurements,
+                    events,
+                    values,
+                    signals);
             }
             else
             {
-                AddSourceBVariables(namespaceIndex, measurements, events);
+                AddSourceBVariables(
+                    namespaceIndex,
+                    pumpNodeId,
+                    measurements,
+                    events,
+                    values,
+                    signals);
             }
 
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
@@ -160,35 +194,37 @@ namespace FlatTagServer
 
         private void AddSourceAVariables(
             ushort namespaceIndex,
+            string pumpNodeId,
             BaseObjectState measurements,
-            BaseObjectState events)
+            BaseObjectState events,
+            FlatTagValues values,
+            List<SupervisionSignal> signals)
         {
-            FlatTagValues values = m_options.Values;
             CreateVariable(
                 measurements,
                 namespaceIndex,
-                "Pump1.Operational.Measurements.DifferentialPressure",
+                pumpNodeId + ".Operational.Measurements.DifferentialPressure",
                 "DifferentialPressure",
                 DataTypeIds.Double,
                 Variant.From(values.DifferentialPressure));
             CreateVariable(
                 measurements,
                 namespaceIndex,
-                "Pump1.Operational.Measurements.FluidTemperature",
+                pumpNodeId + ".Operational.Measurements.FluidTemperature",
                 "FluidTemperature",
                 DataTypeIds.Double,
                 Variant.From(values.FluidTemperature));
             CreateVariable(
                 measurements,
                 namespaceIndex,
-                "Pump1.Operational.Measurements.MassFlow",
+                pumpNodeId + ".Operational.Measurements.MassFlow",
                 "MassFlow",
                 DataTypeIds.Double,
                 Variant.From(values.MassFlow));
             CreateVariable(
                 measurements,
                 namespaceIndex,
-                "Pump1.Operational.Measurements.Level",
+                pumpNodeId + ".Operational.Measurements.Level",
                 "Level",
                 DataTypeIds.Double,
                 Variant.From(values.Level));
@@ -196,15 +232,15 @@ namespace FlatTagServer
             BaseObjectState supervision = CreateObject(
                 events,
                 namespaceIndex,
-                "Pump1.Events.SupervisionProcessFluid",
+                pumpNodeId + ".Events.SupervisionProcessFluid",
                 "SupervisionProcessFluid");
             supervision.EventNotifier = EventNotifiers.SubscribeToEvents;
-            m_signals.Add(new SupervisionSignal(
+            signals.Add(new SupervisionSignal(
                 SystemContext,
                 Server.Telemetry,
                 supervision,
                 namespaceIndex,
-                "Pump1.Events.SupervisionProcessFluid.Cavitation",
+                pumpNodeId + ".Events.SupervisionProcessFluid.Cavitation",
                 "Cavitation",
                 "CavitationAlarm",
                 severity: 700,
@@ -213,35 +249,37 @@ namespace FlatTagServer
 
         private void AddSourceBVariables(
             ushort namespaceIndex,
+            string pumpNodeId,
             BaseObjectState measurements,
-            BaseObjectState events)
+            BaseObjectState events,
+            FlatTagValues values,
+            List<SupervisionSignal> signals)
         {
-            FlatTagValues values = m_options.Values;
             CreateVariable(
                 measurements,
                 namespaceIndex,
-                "Pump1.Operational.Measurements.BearingTemperature",
+                pumpNodeId + ".Operational.Measurements.BearingTemperature",
                 "BearingTemperature",
                 DataTypeIds.Double,
                 Variant.From(values.BearingTemperature));
             CreateVariable(
                 measurements,
                 namespaceIndex,
-                "Pump1.Operational.Measurements.PumpPowerInput",
+                pumpNodeId + ".Operational.Measurements.PumpPowerInput",
                 "PumpPowerInput",
                 DataTypeIds.Double,
                 Variant.From(values.PumpPowerInput));
             CreateVariable(
                 measurements,
                 namespaceIndex,
-                "Pump1.Operational.Measurements.PumpEfficiency",
+                pumpNodeId + ".Operational.Measurements.PumpEfficiency",
                 "PumpEfficiency",
                 DataTypeIds.Double,
                 Variant.From(values.PumpEfficiency));
             CreateVariable(
                 measurements,
                 namespaceIndex,
-                "Pump1.Operational.Measurements.NumberOfStarts",
+                pumpNodeId + ".Operational.Measurements.NumberOfStarts",
                 "NumberOfStarts",
                 DataTypeIds.UInt32,
                 Variant.From(values.NumberOfStarts));
@@ -249,15 +287,15 @@ namespace FlatTagServer
             BaseObjectState supervision = CreateObject(
                 events,
                 namespaceIndex,
-                "Pump1.Events.SupervisionPumpOperation",
+                pumpNodeId + ".Events.SupervisionPumpOperation",
                 "SupervisionPumpOperation");
             supervision.EventNotifier = EventNotifiers.SubscribeToEvents;
-            m_signals.Add(new SupervisionSignal(
+            signals.Add(new SupervisionSignal(
                 SystemContext,
                 Server.Telemetry,
                 supervision,
                 namespaceIndex,
-                "Pump1.Events.SupervisionPumpOperation.MotorOverheat",
+                pumpNodeId + ".Events.SupervisionPumpOperation.MotorOverheat",
                 "MotorOverheat",
                 "MotorOverheatAlarm",
                 severity: 800,
@@ -269,14 +307,18 @@ namespace FlatTagServer
         /// members the asset's management group projects, and <c>Reset</c> is
         /// also what returns a tripped supervision signal to normal.
         /// </summary>
-        private void AddManagementMethods(ushort namespaceIndex, BaseObjectState pump)
+        private static void AddManagementMethods(
+            ushort namespaceIndex,
+            BaseObjectState pump,
+            string pumpNodeId,
+            List<SupervisionSignal> signals)
         {
-            m_running = new BaseDataVariableState(pump)
+            var running = new BaseDataVariableState(pump)
             {
                 SymbolicName = "Running",
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
-                NodeId = new NodeId("Pump1.Running", namespaceIndex),
+                NodeId = new NodeId(pumpNodeId + ".Running", namespaceIndex),
                 BrowseName = new QualifiedName("Running", namespaceIndex),
                 DisplayName = new LocalizedText("en", "Running"),
                 DataType = DataTypeIds.Boolean,
@@ -288,36 +330,36 @@ namespace FlatTagServer
                 StatusCode = StatusCodes.Good,
                 Timestamp = DateTime.UtcNow
             };
-            pump.AddChild(m_running);
+            pump.AddChild(running);
 
             CreateMethod(
                 pump,
                 namespaceIndex,
-                "Pump1.Start",
+                pumpNodeId + ".Start",
                 "Start",
                 (context, _, _, _, _, _) =>
                 {
-                    SetRunning(context, running: true);
+                    SetRunning(context, running, value: true);
                     return new ValueTask<ServiceResult>(ServiceResult.Good);
                 });
             CreateMethod(
                 pump,
                 namespaceIndex,
-                "Pump1.Stop",
+                pumpNodeId + ".Stop",
                 "Stop",
                 (context, _, _, _, _, _) =>
                 {
-                    SetRunning(context, running: false);
+                    SetRunning(context, running, value: false);
                     return new ValueTask<ServiceResult>(ServiceResult.Good);
                 });
             CreateMethod(
                 pump,
                 namespaceIndex,
-                "Pump1.Reset",
+                pumpNodeId + ".Reset",
                 "Reset",
                 (context, _, _, _, _, _) =>
                 {
-                    foreach (SupervisionSignal signal in m_signals)
+                    foreach (SupervisionSignal signal in signals)
                     {
                         if (signal.IsActive)
                         {
@@ -328,15 +370,14 @@ namespace FlatTagServer
                 });
         }
 
-        private void SetRunning(ISystemContext context, bool running)
+        private static void SetRunning(
+            ISystemContext context,
+            BaseDataVariableState running,
+            bool value)
         {
-            if (m_running is null)
-            {
-                return;
-            }
-            m_running.Value = Variant.From(running);
-            m_running.Timestamp = DateTime.UtcNow;
-            m_running.ClearChangeMasks(context, includeChildren: false);
+            running.Value = Variant.From(value);
+            running.Timestamp = DateTime.UtcNow;
+            running.ClearChangeMasks(context, includeChildren: false);
         }
 
         private static void CreateMethod(
@@ -428,7 +469,5 @@ namespace FlatTagServer
         }
 
         private readonly FlatTagServerOptions m_options;
-        private readonly List<SupervisionSignal> m_signals = [];
-        private BaseDataVariableState? m_running;
     }
 }

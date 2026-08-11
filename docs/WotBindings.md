@@ -892,6 +892,16 @@ bounded by the same `MaxResolverDocuments` / `MaxResolverTotalBytes` budget the
 rest of a conversion runs under, so a large registry cannot turn one conversion
 into unbounded parsing work.
 
+One Section 5.2.1 rule remains an explicit implementation gap: the current
+`IWotNodeResolver` contract returns only a resolved node's identity and
+NodeClass, so the converter cannot learn the resolved type's mandatory
+instance declarations. Consequently, a document member whose BrowseName matches
+a mandatory declaration of the resolved type is not yet populated into that
+declaration; it is synthesized by the existing affordance rules. Implementing
+that rule requires extending both the live AddressSpace resolver and the
+snapshot resolver, where declarations would have to be derived from sibling
+Thing Model documents rather than from materialized types.
+
 Two behaviours are deliberate and worth knowing:
 
 * A binding is told apart from an ordinary `@type` annotation **by namespace,

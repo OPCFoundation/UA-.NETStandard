@@ -85,6 +85,23 @@ namespace FlatTagServer
         /// Gets or sets the deterministic values exposed by this source.
         /// </summary>
         public FlatTagValues Values { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets the deterministic values exposed for the second pump by this source.
+        /// </summary>
+        public FlatTagValues Pump2Values { get; set; } = new()
+        {
+            DifferentialPressure = 3.25,
+            FluidTemperature = 318.15,
+            MassFlow = 0.275,
+            Level = 5.5,
+            Cavitation = false,
+            BearingTemperature = 331.4,
+            PumpPowerInput = 14.25,
+            PumpEfficiency = 84.5,
+            NumberOfStarts = 29,
+            MotorOverheat = false
+        };
     }
 
     /// <summary>

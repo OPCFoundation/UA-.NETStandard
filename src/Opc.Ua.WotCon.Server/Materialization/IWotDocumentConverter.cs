@@ -49,11 +49,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WotConversionOutput(
             UANodeSet? nodeSet,
             ImmutableArray<string> errors,
-            ExpandedNodeId rootNodeId = default)
+            ExpandedNodeId rootNodeId = default,
+            WoTPhaseEnum failurePhase = WoTPhaseEnum.FormatValidation)
         {
             NodeSet = nodeSet;
             Errors = errors.IsDefault ? [] : errors;
             RootNodeId = rootNodeId;
+            FailurePhase = failurePhase;
         }
 
         /// <summary>
@@ -74,6 +76,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// when the document has no identifiable root.
         /// </summary>
         public ExpandedNodeId RootNodeId { get; }
+
+        /// <summary>
+        /// Gets the refresh phase to report when conversion failed.
+        /// </summary>
+        public WoTPhaseEnum FailurePhase { get; }
 
         /// <summary>
         /// Gets whether the conversion succeeded.
@@ -97,6 +104,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public static WotConversionOutput Failure(params string[] errors)
         {
             return new WotConversionOutput(null, [.. errors]);
+        }
+
+        /// <summary>
+        /// Creates a failed output for the supplied refresh phase.
+        /// </summary>
+        public static WotConversionOutput Failure(WoTPhaseEnum phase, params string[] errors)
+        {
+            return new WotConversionOutput(null, [.. errors], failurePhase: phase);
         }
     }
 
@@ -222,7 +237,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (errors.Count != 0 || result.Value is null)
                 {
-                    return new WotConversionOutput(null, errors.ToImmutable());
+                    WoTPhaseEnum phase = HasProjectionFailure(result.Diagnostics)
+                        ? WoTPhaseEnum.Projection
+                        : WoTPhaseEnum.FormatValidation;
+                    return new WotConversionOutput(
+                        null, errors.ToImmutable(), failurePhase: phase);
                 }
                 return new WotConversionOutput(
                     result.Value,
@@ -237,6 +256,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return WotConversionOutput.Failure(ex.Message);
             }
+        }
+
+        private static bool HasProjectionFailure(IReadOnlyList<WotDiagnostic> diagnostics)
+        {
+            foreach (WotDiagnostic diagnostic in diagnostics)
+            {
+                if (diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                    diagnostic.Code == WotDiagnosticCode.UnresolvedParentPlacement)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
