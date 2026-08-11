@@ -146,7 +146,7 @@ namespace Opc.Ua.Security.Certificates
                 }
                 else if (keyAlgorithmOid == Oids.ECPublicKey)
                 {
-                    return VerifyEcdsaSignature(publicKeyBytes, hashAlgorithm);
+                    return VerifyEcdsaSignature(hashAlgorithm);
                 }
                 else
                 {
@@ -258,10 +258,15 @@ namespace Opc.Ua.Security.Certificates
                 RSASignaturePadding.Pkcs1);
         }
 
-        private bool VerifyEcdsaSignature(byte[] publicKeyBytes, HashAlgorithmName hashAlgorithm)
+        private bool VerifyEcdsaSignature(HashAlgorithmName hashAlgorithm)
         {
-#if NET6_0_OR_GREATER
-            // .NET 6+ has ImportSubjectPublicKeyInfo
+#if NET6_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+            // Unlike the RSA path this does not take the parsed public key bit
+            // string: ImportSubjectPublicKeyInfo wants the whole
+            // SubjectPublicKeyInfo, because for EC the curve lives in the
+            // algorithm parameters rather than in the key itself.
+            // That API is .NET Core 3.0 and part of the netstandard2.1 surface,
+            // so this path is not limited to net6.0+.
             using var ecdsa = ECDsa.Create();
             try
             {
@@ -283,15 +288,15 @@ namespace Opc.Ua.Security.Certificates
                 return false;
             }
 #else
-            // For .NET Framework 4.8 and .NET Standard 2.x, ECDSA CSR verification is not supported
-            // This is acceptable as the GDS Server primarily uses RSA certificates
+            // .NET Framework and netstandard2.0 have no ImportSubjectPublicKeyInfo,
+            // so an ECDSA CSR cannot be verified there.
             throw new NotSupportedException(
                 "ECDSA certificate signing request verification is not supported on this platform. " +
-                "Please use .NET 6.0 or later.");
+                "Please use .NET Standard 2.1, .NET 6.0 or later.");
 #endif
         }
 
-#if NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
         /// <summary>
         /// Converts ECDSA signature from DER format to IEEE P1363 format.
         /// </summary>

@@ -47,7 +47,8 @@ namespace Opc.Ua.Server
     /// this default keeps everything in memory and does not persist across
     /// server restarts. Integrators that need persistence should implement
     /// <see cref="IRoleManager"/> directly and inject the instance via
-    /// <see cref="IServerInternal.SetRoleManager"/>.
+    /// <see cref="StandardServer.CreateRoleManager"/>, or by registering it in
+    /// the service container.
     /// </remarks>
     public sealed class RoleManager : IRoleManager, IDisposable
     {

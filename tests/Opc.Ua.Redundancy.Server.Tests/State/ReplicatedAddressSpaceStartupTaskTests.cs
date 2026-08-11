@@ -88,6 +88,9 @@ namespace Opc.Ua.Redundancy.Server.Tests
             server.Setup(s => s.Telemetry).Returns(telemetry);
             server.Setup(s => s.MessageContext).Returns(messageContext);
             server.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
+            server.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
+            server.Setup(s => s.FindNodeManagers<ILocalAddressSpaceSource>())
+                .Returns([optedIn.As<ILocalAddressSpaceSource>().Object]);
 
             await using var task = new ReplicatedAddressSpaceStartupTask(
                 EmptyServices(), new ReplicatedAddressSpaceOptions());

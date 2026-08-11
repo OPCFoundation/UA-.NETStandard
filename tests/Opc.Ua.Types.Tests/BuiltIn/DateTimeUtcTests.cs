@@ -356,6 +356,75 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #endif
         }
 
+        /// <summary>
+        /// The format specifier must be honoured on every target framework. The
+        /// pre-net8 fallback used to call ToString(provider), which ignores it and
+        /// emits the general format, so "O" silently lost the fractional seconds
+        /// and the UTC designator.
+        /// </summary>
+        [Test]
+        public void TryFormatShouldHonourTheFormatSpecifier()
+        {
+            var date = new DateTimeUtc(new DateTime(2023, 1, 1, 12, 30, 45, DateTimeKind.Utc));
+            byte[] buffer = new byte[100];
+
+            bool success = date.TryFormat(
+                buffer,
+                out int bytesWritten,
+                "O".AsSpan(),
+                CultureInfo.InvariantCulture);
+
+            Assert.That(success, Is.True);
+            Assert.That(
+                Encoding.UTF8.GetString(buffer, 0, bytesWritten),
+                Is.EqualTo("2023-01-01T12:30:45.0000000Z"));
+        }
+
+        /// <summary>
+        /// An invalid format specifier must throw on every target framework, the
+        /// way DateTime.TryFormat does, rather than being reported as a failed
+        /// format on some of them.
+        /// </summary>
+        [Test]
+        public void TryFormatShouldThrowOnAnInvalidFormat()
+        {
+            var date = new DateTimeUtc(new DateTime(2023, 1, 1, 12, 30, 45, DateTimeKind.Utc));
+            byte[] buffer = new byte[100];
+
+            Assert.That(
+                () => date.TryFormat(
+                    buffer,
+                    out int _,
+                    "Q".AsSpan(),
+                    CultureInfo.InvariantCulture),
+                Throws.TypeOf<FormatException>());
+        }
+
+        /// <summary>
+        /// A destination too small to hold the value must be reported as a failure
+        /// and must not be written to. Reporting success for a truncated timestamp
+        /// hands the caller a corrupt value it believes is complete.
+        /// </summary>
+        [Test]
+        public void TryFormatShouldFailRatherThanTruncate()
+        {
+            var date = new DateTimeUtc(new DateTime(2023, 1, 1, 12, 30, 45, DateTimeKind.Utc));
+            byte[] buffer = new byte[8];
+
+            bool success = date.TryFormat(
+                buffer,
+                out int bytesWritten,
+                "O".AsSpan(),
+                CultureInfo.InvariantCulture);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(success, Is.False);
+                Assert.That(bytesWritten, Is.Zero);
+                Assert.That(buffer, Is.All.EqualTo((byte)0), "nothing may be written on failure");
+            });
+        }
+
         [TestCase(null)]
         [TestCase("d")]
         [TestCase("D")]
