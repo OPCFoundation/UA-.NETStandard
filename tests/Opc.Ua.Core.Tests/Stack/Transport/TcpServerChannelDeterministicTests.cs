@@ -459,9 +459,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return HandleIncomingMessageAsync(messageType, chunk, CancellationToken.None);
             }
 
-            public void ForceMessageLimitsExceeded()
+            public void ForceMessageLimitsExceeded(bool gateHeld = false)
             {
-                DoMessageLimitsExceeded();
+                DoMessageLimitsExceeded(gateHeld);
             }
 
             public void CallSendServiceFault(uint requestId, bool renew, ServiceResult fault)

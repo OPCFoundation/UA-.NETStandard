@@ -283,7 +283,9 @@ type test and uses where it can — user identity token signing and decryption,
 session activation, and the secure channel open and renew path. A software key
 implements neither, so those paths complete synchronously and nothing about
 their ordering changes. The secure channel no longer serialises its state on a
-monitor, and `UaSCBinaryChannel.DataLock` is `[Obsolete]`.
+monitor, and `UaSCBinaryChannel.DataLock` is `[Obsolete]`. The gate that replaced
+it is not re-entrant, so the channel calls a lock-free `Core` variant on every
+path that used to take the lock recursively.
 
 ## By layer
 

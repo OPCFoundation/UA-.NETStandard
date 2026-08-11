@@ -103,9 +103,9 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
         }
 
         /// <summary>
-        /// A bare semaphore, which is what the gate would be without
-        /// re-entrancy. The difference between this and
-        /// <see cref="GateEnterLeave"/> is what re-entrancy costs.
+        /// A bare semaphore, which is what the gate now is. The difference
+        /// between this and <see cref="GateEnterLeave"/> is what the wrapper
+        /// costs.
         /// </summary>
         /// <returns>A value, so the body cannot be optimised away.</returns>
         [Benchmark]
@@ -137,28 +137,6 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
         }
 
         /// <summary>
-        /// A nested acquisition, which the channel performs whenever a path that
-        /// holds the gate faults: it is the case a bare semaphore cannot serve.
-        /// </summary>
-        /// <returns>A value, so the body cannot be optimised away.</returns>
-        [Benchmark]
-        public int GateEnterReentrant()
-        {
-            using (ChannelGate.Releaser outer = m_gate.Enter())
-            {
-                // Deliberately nested rather than combined: the inner
-                // acquisition is the measurement, and combining the two would
-                // measure a single one.
-#pragma warning disable RCS1005
-                using (ChannelGate.Releaser nested = m_gate.Enter())
-#pragma warning restore RCS1005
-                {
-                    return ++m_sink;
-                }
-            }
-        }
-
-        /// <summary>
         /// The uncontended asynchronous acquisition, which is what the receive
         /// loop pays per chunk.
         /// </summary>
@@ -186,8 +164,7 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
                 Assert.That(MonitorEnterExit(), Is.GreaterThan(0));
                 Assert.That(SemaphoreWaitRelease(), Is.GreaterThan(0));
                 Assert.That(GateEnterLeave(), Is.GreaterThan(0));
-                Assert.That(GateEnterReentrant(), Is.GreaterThan(0));
-                Assert.That(m_gate.IsHeldByCurrentContext, Is.False);
+                Assert.That(m_gate.IsHeldBySomeContextForTest, Is.False);
             });
         }
 
@@ -211,7 +188,7 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
             Assert.That(
                 await GateEnterAsyncUncontendedAsync().ConfigureAwait(false),
                 Is.GreaterThan(0));
-            Assert.That(m_gate.IsHeldByCurrentContext, Is.False);
+            Assert.That(m_gate.IsHeldBySomeContextForTest, Is.False);
         }
 
         private ChannelGate m_gate = new();

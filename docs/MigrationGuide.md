@@ -158,8 +158,44 @@ A monitor cannot be held across an `await`, and the secure channel open
 path has to be able to await once a private key may be served over a
 network — see [Crypto provider](CryptoProvider.md). The channel now uses
 an internal gate that can be entered from a synchronous or an
-asynchronous path and that is re-entrant, which the code it replaces
-relies on.
+asynchronous path. Unlike a monitor the gate is **not re-entrant**: every
+channel path that used to take the lock while already holding it now
+calls a lock-free `Core` variant instead.
+
+That has one consequence for subclasses. The channel calls
+`HandleSocketError`, `NotifyMonitors` and `CompleteReverseHello` from
+paths that may already hold the gate, so an override of any of them must
+not call back into a channel method that takes it — `ForceChannelFault`
+and `SendResponse` in particular. Such an override would have silently
+nested before and will now block.
+
+For the same reason `SaveIntermediateChunk`, `GetSavedChunks` and
+`DoMessageLimitsExceeded` take an additional `gateHeld` argument. It says
+whether the calling frame already holds the gate, so that an override
+which tears the channel down can pick the locking or the lock-free path:
+
+```csharp
+// before
+protected override void DoMessageLimitsExceeded()
+{
+    base.DoMessageLimitsExceeded();
+    Shutdown(new ServiceResult(StatusCodes.BadResponseTooLarge));
+}
+
+// after
+protected override void DoMessageLimitsExceeded(bool gateHeld)
+{
+    base.DoMessageLimitsExceeded(gateHeld);
+
+    if (gateHeld)
+    {
+        ShutdownCore(new ServiceResult(StatusCodes.BadResponseTooLarge));
+        return;
+    }
+
+    Shutdown(new ServiceResult(StatusCodes.BadResponseTooLarge));
+}
+```
 
 There is no drop-in replacement to offer across an assembly boundary,
 because the gate has to be entered asynchronously on the open path and

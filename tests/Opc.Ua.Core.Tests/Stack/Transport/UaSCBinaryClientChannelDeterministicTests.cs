@@ -381,6 +381,32 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
         }
 
+        /// <summary>
+        /// The gate is not re-entrant, so the open-response path — which reaches
+        /// this with the gate held — must tear the channel down without taking
+        /// it again. Before this was propagated, an oversized OpenSecureChannel
+        /// response deadlocked the receive loop against itself.
+        /// </summary>
+        [Test]
+        [CancelAfter(15000)]
+        public void DoMessageLimitsExceededWithTheGateHeldDoesNotDeadlock()
+        {
+            var timeProvider = new FakeTimeProvider();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                new RecordingByteTransportFactory(),
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                timeProvider);
+            channel.CurrentState = TcpChannelState.Opening;
+
+            channel.ForceMessageLimitsExceededUnderGate();
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+        }
+
         private async Task<ServiceResultException> RunHandshakeToFaultAsync(
             Func<TestClientChannel, ValueTask<bool>> feed)
         {
@@ -595,9 +621,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return ProcessErrorMessage(chunk);
             }
 
-            public void ForceMessageLimitsExceeded()
+            public void ForceMessageLimitsExceeded(bool gateHeld = false)
             {
-                DoMessageLimitsExceeded();
+                DoMessageLimitsExceeded(gateHeld);
+            }
+
+            public void ForceMessageLimitsExceededUnderGate()
+            {
+                using (Gate.Enter())
+                {
+                    DoMessageLimitsExceeded(gateHeld: true);
+                }
             }
 
             public static ServiceResult CallReadErrorMessageBody(BinaryDecoder decoder)
