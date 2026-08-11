@@ -214,6 +214,29 @@ media endpoints) is authored through `Nodes`. The low-level members are
 present for interop with hand-written NodeManagers and for the vendor
 extension patterns the Robotics guide describes.
 
+### Without DI
+
+A `VisionNodeManager` created by hand exposes the same fluent surface
+through `ConfigureVisionAsync`:
+
+```csharp
+await manager.ConfigureVisionAsync(context =>
+{
+    context.Nodes.AddFrame("World", f => f
+        .WithFrameId("world")
+        .WithRole(VisionFrameRoleEnum.World));
+});
+```
+
+Prefer it over `CreateVisionBuildContext()`. The node manager indexes the
+Vision root when it creates the address space, so anything the builder
+grafts on afterwards has to be registered as well before it can be
+browsed or read **by its own NodeId** — which is how an ordinary client
+and the MCP discovery tools navigate. `ConfigureVisionAsync` does that
+registration when the delegate returns; a context obtained from
+`CreateVisionBuildContext()` never does, so nodes built through it stay
+reachable only by browsing forward from their parent.
+
 ## Topology builders
 
 ### Frames

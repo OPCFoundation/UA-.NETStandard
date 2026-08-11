@@ -136,7 +136,44 @@ namespace Opc.Ua.Vision.Server
         /// <summary>
         /// Creates a direct build context for non-DI configuration.
         /// </summary>
+        /// <remarks>
+        /// Nodes the builder grafts onto an already created address space
+        /// are only browsable by their own <see cref="NodeId"/> once they
+        /// have been registered with the node manager. A context created
+        /// here never registers anything on its own, so prefer
+        /// <see cref="ConfigureVisionAsync"/>, which runs the same fluent
+        /// surface and then registers everything it built.
+        /// </remarks>
         public IVisionBuildContext CreateVisionBuildContext(CancellationToken cancellationToken = default)
+        {
+            return CreateBuildContextCore(cancellationToken);
+        }
+
+        /// <summary>
+        /// Configures the Vision address space through the fluent builder
+        /// and registers every node the builder created, so each one can be
+        /// browsed and read by its own <see cref="NodeId"/>.
+        /// </summary>
+        /// <param name="configure">
+        /// Populates sensors, coordinate frames and inference pipelines.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Cancels the configuration.
+        /// </param>
+        public async ValueTask ConfigureVisionAsync(
+            Action<IVisionBuildContext> configure,
+            CancellationToken cancellationToken = default)
+        {
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            VisionBuildContext context = CreateBuildContextCore(cancellationToken);
+            configure(context);
+            await context.FlushPendingRegistrationsAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        internal VisionBuildContext CreateBuildContextCore(CancellationToken cancellationToken)
         {
             return new VisionBuildContext(
                 this,

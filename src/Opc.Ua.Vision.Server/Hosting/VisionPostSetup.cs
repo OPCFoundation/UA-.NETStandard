@@ -88,18 +88,17 @@ namespace Opc.Ua.Vision.Server.Hosting
             {
                 return;
             }
-            IVisionBuildContext context = visionManager.CreateVisionBuildContext(cancellationToken);
-            var buildContext = (VisionBuildContext)context;
+            VisionBuildContext context = visionManager.CreateBuildContextCore(cancellationToken);
             for (int ii = 0; ii < m_configurators.Count; ii++)
             {
                 IVisionPostSetupConfigurator configurator = m_configurators[ii];
                 if (configurator.TargetManagerType.IsAssignableFrom(manager.GetType()))
                 {
                     await configurator.RunAsync(context).ConfigureAwait(false);
-                    await buildContext.FlushPendingRegistrationsAsync(cancellationToken).ConfigureAwait(false);
+                    await context.FlushPendingRegistrationsAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
-            await buildContext.FlushPendingRegistrationsAsync(cancellationToken).ConfigureAwait(false);
+            await context.FlushPendingRegistrationsAsync(cancellationToken).ConfigureAwait(false);
         }
 
         internal ArrayOf<VisionMediaProviderRegistration> MediaRegistrations => m_mediaRegistrations;
