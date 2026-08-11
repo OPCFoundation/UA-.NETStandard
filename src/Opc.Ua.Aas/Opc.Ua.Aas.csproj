@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Aas</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Aas</PackageId>
+    <RootNamespace>Opc.Ua.Aas</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>OPC UA for Asset Administration Shell V3 information model — the AAS V3 metamodel and the AAS Registry built on the abstract xRegistry base, with the lossless mapping between an AAS Environment and an OPC UA AddressSpace.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Aas.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Aas.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.Aas.WoT" />
+    <InternalsVisibleTo Include="Opc.Ua.Aas.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <!-- The xRegistry abstract registry base model and its shared abstractions
+         ship as their own package. The AAS registry types below derive from its
+         RegistryType / GroupType / ResourceType, so the model is consumed from
+         there rather than vendored into this assembly. -->
+    <ProjectReference Include="..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <!-- Model-only assembly: opt out of typed-accessor emission since
+         the emitted code references Opc.Ua.Server.Fluent.* which this
+         project does not reference. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Design\Opc.Ua.Aas.NodeSet2.csv" />
+    <None Remove="Design\Opc.Ua.Aas.NodeSet2.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- xRegistry abstract registry base model (http://opcfoundation.org/UA/xRegistry/).
+         Supplied only so the AAS model below can resolve its RequiredModel;
+         generation is suppressed because the referenced Opc.Ua.XRegistry assembly
+         already provides these types. The file is linked from that package so
+         there is a single copy of the model. -->
+    <AdditionalFiles Include="..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.NodeSet2.xml">
+      <Link>Design\Opc.Ua.XRegistry.NodeSet2.xml</Link>
+      <ModelSourceGeneratorPrefix>Opc.Ua.XRegistry</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorName>XRegistry</ModelSourceGeneratorName>
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/xRegistry/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>
+    </AdditionalFiles>
+    <!-- OPC UA for Asset Administration Shell V3 (http://opcfoundation.org/UA/I4AAS/v3/).
+         Pinned verbatim from the drafts authoring repository; the generator input is
+         the single source of truth for the model, so a change is made upstream and
+         re-pinned rather than edited here. The published OPC 30270 v1.00 model of the
+         incompatible AAS v1.x metamodel keeps http://opcfoundation.org/UA/I4AAS/ and
+         is not part of this assembly. -->
+    <AdditionalFiles Include="Design\Opc.Ua.Aas.NodeSet2.xml">
+      <ModelSourceGeneratorPrefix>Opc.Ua.Aas</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorName>Aas</ModelSourceGeneratorName>
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/I4AAS/v3/</ModelSourceGeneratorModelUri>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Design\Opc.Ua.Aas.NodeSet2.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
