@@ -43,22 +43,27 @@ namespace Opc.Ua.Types.Tests.Wot
     public sealed class WotTypeBindingTests
     {
         /// <summary>
-        /// The definitive form: a <c>ua:HasTypeDefinition</c> link whose
-        /// <c>href</c> is the ExpandedNodeId of the type.
+        /// The definitive form still resolves through the Section 5.1.5 local
+        /// context. A caller that supplies none cannot resolve it, so Section
+        /// 5.2.1 fails the projection rather than emitting an unverified
+        /// HasTypeDefinition - the dangling reference would be exactly the
+        /// silently mistyped node the clause exists to prevent. The bound case
+        /// is covered by <c>WotTypeBindingResolutionTests</c>, which supplies a
+        /// local context.
         /// </summary>
         [Test]
-        public void HasTypeDefinitionLinkBindsTheProjectedObjectToThatType()
+        public void ADefinitiveLinkWithoutALocalContextIsReportedUnresolved()
         {
             WotConversionResult<UANodeSet> result = Convert(
                 "\"links\":[{\"rel\":\"ua:HasTypeDefinition\"," +
                 "\"href\":\"nsu=urn:test:pump;i=1042\"}]");
 
-            Assert.That(result.Value, Is.Not.Null);
-
-            Reference typeDefinition = TypeDefinitionOf(result.Value);
-
-            Assert.That(typeDefinition.Value, Is.Not.EqualTo(WotVocabulary.BaseObjectType),
-                "A bound document must not keep the BaseObjectType default.");
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.UnresolvedTypeBinding &&
+                    d.Severity == WotDiagnosticSeverity.Error),
+                Is.True,
+                "An identifier that cannot be resolved must be reported, not trusted.");
         }
 
         /// <summary>

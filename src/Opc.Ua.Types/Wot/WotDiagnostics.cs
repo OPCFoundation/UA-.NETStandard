@@ -327,7 +327,17 @@ namespace Opc.Ua.Wot
         /// <c>Enable</c> and <c>Disable</c> act on the Condition instance and
         /// are not subject to this rule.
         /// </summary>
-        ConditionActionInputMissing = 6025
+        ConditionActionInputMissing = 6025,
+
+        /// <summary>
+        /// A <c>uav:conditionType</c> names a ConditionType this Binding cannot
+        /// resolve (WoT Binding Section 13.2). Only the four ConditionTypes
+        /// Section 13.1 scopes resolve by name; anything else is pinned with
+        /// <c>uav:conditionTypeId</c>. This is distinct from
+        /// <see cref="UnresolvedTypeBinding"/>, which is about the Section
+        /// 5.2.1 type of the projected node rather than an event's Condition.
+        /// </summary>
+        UnresolvedConditionType = 6026
     }
 
     /// <summary>

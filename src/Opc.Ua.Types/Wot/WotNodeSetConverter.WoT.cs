@@ -1747,10 +1747,15 @@ namespace Opc.Ua.Wot
                 return WotVocabulary.BaseEventType;
             }
 
-            // Only the base OPC UA namespace can be resolved without a local
+            // §13.2 names the ConditionType with a compact model name, which
+            // §5.1.2 resolves through the document's @context rather than by
+            // its literal prefix - an author may bind a second prefix to the
+            // OPC UA namespace. Only that namespace resolves without a local
             // context; a companion ConditionType has to be pinned.
             if (TrySplitCompactModelName(hint, out string prefix, out string local) &&
-                string.Equals(prefix, "ua", StringComparison.Ordinal) &&
+                TryGetContextNamespace(document, prefix, out string namespaceUri) &&
+                string.Equals(
+                    namespaceUri, WotVocabulary.OpcUaNamespace, StringComparison.Ordinal) &&
                 WotVocabulary.TryGetConditionTypeNodeId(local, out string nodeId))
             {
                 return nodeId;
@@ -1758,7 +1763,7 @@ namespace Opc.Ua.Wot
 
             diagnostics.Add(new WotDiagnostic(
                 WotDiagnosticSeverity.Error,
-                WotDiagnosticCode.UnresolvedTypeBinding,
+                WotDiagnosticCode.UnresolvedConditionType,
                 $"'{hint}' is not a ConditionType this Binding resolves. Pin it with " +
                 $"'{ConditionTypeIdTerm}' (WoT Binding Section 13.2).",
                 WotLocation.FromPointer("/events/" + key + "/" + ConditionTypeTerm)));
@@ -1864,11 +1869,15 @@ namespace Opc.Ua.Wot
         /// unresolved or invalid one.
         /// </summary>
         /// <remarks>
-        /// When no binding was resolved — because the caller used the
-        /// synchronous entry point, which has no local context — the definitive
-        /// link is still honoured on its own. An ExpandedNodeId identifies one
-        /// Node or none and needs no lookup, so that path stays available
-        /// without a resolver.
+        /// Both forms of Section 5.2.1 resolve through the Section 5.1.5 local
+        /// context, including the definitive <c>ua:HasTypeDefinition</c> link:
+        /// its outcome table fails the projection for a link that "resolves to
+        /// nothing" just as it does for an unresolved name. Emitting an
+        /// unverified identifier would leave a dangling HasTypeDefinition,
+        /// which is the silently mistyped node the clause exists to prevent.
+        /// A caller with no local context therefore fails such a document
+        /// rather than trusting the author, and the synchronous and
+        /// asynchronous entry points agree on every document.
         /// </remarks>
         private static string? ApplyTypeBinding(
             WotDocument document,
@@ -1877,7 +1886,20 @@ namespace Opc.Ua.Wot
         {
             if (typeBinding is null)
             {
-                return ReadDefinitiveTypeBinding(document, diagnostics);
+                // The synchronous entry point has no local context, so a
+                // declared binding can only be unresolved.
+                string? link = ReadDefinitiveTypeBinding(document, diagnostics);
+                if (link is not null)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.UnresolvedTypeBinding,
+                        $"The '{TypeBindingRel}' link names '{link}', which cannot be resolved " +
+                        "without a local context (WoT Binding Section 5.1.5). Convert through " +
+                        "an entry point that supplies one.",
+                        new WotLocation(jsonPointer: "/links")));
+                }
+                return null;
             }
 
             switch (typeBinding.Outcome)
@@ -1887,7 +1909,13 @@ namespace Opc.Ua.Wot
                 case WotTypeBindingOutcome.Invalid:
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.AmbiguousTypeBinding,
+                        // Section 5.2.1 lists an invalid document and an
+                        // ambiguous name as separate outcomes, so a NodeClass
+                        // mismatch or a name and link that disagree must not be
+                        // reported as ambiguity.
+                        typeBinding.IsAmbiguous
+                            ? WotDiagnosticCode.AmbiguousTypeBinding
+                            : WotDiagnosticCode.InvalidTypeBinding,
                         typeBinding.Detail!,
                         new WotLocation(jsonPointer: "/@type")));
                     return null;
@@ -1957,7 +1985,7 @@ namespace Opc.Ua.Wot
 
             if (names.Count > 1)
             {
-                return WotTypeBinding.Invalid(
+                return WotTypeBinding.Ambiguous(
                     $"{names.Count} members of '@type' are type bindings, but a Node has " +
                     "exactly one HasTypeDefinition.");
             }
@@ -1989,7 +2017,7 @@ namespace Opc.Ua.Wot
             string name = names[0];
             TrySplitCompactModelName(name, out string prefix, out string browseName);
             TryGetContextNamespace(document, prefix, out string namespaceUri);
-            IReadOnlyList<WotResolvedNode> byName = await resolver
+            ArrayOf<WotResolvedNode> byName = await resolver
                 .ResolveByBrowseNameAsync(namespaceUri, browseName, expected, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -2000,7 +2028,7 @@ namespace Opc.Ua.Wot
                     1 => Accept(byName[0], expected, name),
                     0 => WotTypeBinding.Unresolved(
                         $"'@type' names '{name}', which the local context does not hold."),
-                    _ => WotTypeBinding.Invalid(
+                    _ => WotTypeBinding.Ambiguous(
                         $"'@type' names '{name}', which is ambiguous ({byName.Count} matches) and " +
                         $"carries no '{TypeBindingRel}' link to settle it.")
                 };

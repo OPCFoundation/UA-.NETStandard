@@ -859,9 +859,6 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// (OPC 10100-1 §6.3.10) whose fields come from the event's
         /// <c>data</c> schema, and makes the owning asset a notifier for it.
         /// </summary>
-        /// <summary>
-        /// Materialises the EventType for one event affordance.
-        /// </summary>
         /// <returns>
         /// <c>false</c> when the affordance was skipped, so the caller can
         /// report that the Thing Description was not applied in full.

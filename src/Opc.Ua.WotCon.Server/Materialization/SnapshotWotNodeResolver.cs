@@ -108,7 +108,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<WotResolvedNode>> ResolveByBrowseNameAsync(
+        public ValueTask<ArrayOf<WotResolvedNode>> ResolveByBrowseNameAsync(
             string namespaceUri,
             string browseName,
             WotExpectedNodeClass expected,
@@ -122,16 +122,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 string.IsNullOrEmpty(namespaceUri) ||
                 string.IsNullOrEmpty(browseName))
             {
-                return new ValueTask<IReadOnlyList<WotResolvedNode>>(
-                    Array.Empty<WotResolvedNode>());
+                return new ValueTask<ArrayOf<WotResolvedNode>>(ArrayOf<WotResolvedNode>.Empty);
             }
 
-            IReadOnlyList<WotResolvedNode> matches =
+            ArrayOf<WotResolvedNode> matches =
                 Index().ByBrowseName.TryGetValue(
-                    Key(namespaceUri, browseName), out List<WotResolvedNode>? found)
+                    Key(namespaceUri, browseName), out ArrayOf<WotResolvedNode> found)
                     ? found
-                    : Array.Empty<WotResolvedNode>();
-            return new ValueTask<IReadOnlyList<WotResolvedNode>>(matches);
+                    : ArrayOf<WotResolvedNode>.Empty;
+            return new ValueTask<ArrayOf<WotResolvedNode>>(matches);
         }
 
         /// <inheritdoc/>
@@ -167,6 +166,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
 
                 var built = new SnapshotIndex();
+                var buckets = new Dictionary<string, List<WotResolvedNode>>(
+                    StringComparer.Ordinal);
                 long budget = 0;
                 int indexed = 0;
                 foreach (WotResource resource in m_snapshot.AllResources())
@@ -222,25 +223,34 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         built.ByNodeId[nodeId] = node;
 
                         string key = Key(namespaceUri, browseName);
-                        if (!built.ByBrowseName.TryGetValue(
-                            key, out List<WotResolvedNode>? bucket))
+                        if (!buckets.TryGetValue(key, out List<WotResolvedNode>? bucket))
                         {
                             bucket = [];
-                            built.ByBrowseName[key] = bucket;
+                            buckets[key] = bucket;
                         }
 
+                        // One entry per indexed document, never deduplicated.
                         // Two siblings projecting the same qualified name make
-                        // it ambiguous; both are reported so the caller can say
-                        // so rather than pick one.
-                        if (!bucket.Contains(node))
-                        {
-                            bucket.Add(node);
-                        }
+                        // it ambiguous even when they also claim the same
+                        // identity - two documents claiming one type is exactly
+                        // the conflict the caller has to be told about, so
+                        // collapsing them would resolve the name uniquely and
+                        // hide it.
+                        bucket.Add(node);
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         continue;
                     }
+                }
+
+                // Frozen before publication: the index is shared by every
+                // conversion of this snapshot, so no caller may hold a
+                // reference it could mutate.
+                foreach (KeyValuePair<string, List<WotResolvedNode>> bucket in buckets)
+                {
+                    built.ByBrowseName[bucket.Key] = new ArrayOf<WotResolvedNode>(
+                        bucket.Value.ToArray());
                 }
 
                 m_index = built;
@@ -257,7 +267,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             public HashSet<string> Namespaces { get; } = new(StringComparer.Ordinal);
 
-            public Dictionary<string, List<WotResolvedNode>> ByBrowseName { get; } =
+            public Dictionary<string, ArrayOf<WotResolvedNode>> ByBrowseName { get; } =
                 new(StringComparer.Ordinal);
 
             public Dictionary<string, WotResolvedNode> ByNodeId { get; } =

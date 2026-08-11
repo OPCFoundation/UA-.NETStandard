@@ -70,11 +70,16 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Initializes a resolved binding.
         /// </summary>
-        private WotTypeBinding(WotTypeBindingOutcome outcome, string? nodeId, string? detail)
+        private WotTypeBinding(
+            WotTypeBindingOutcome outcome,
+            string? nodeId,
+            string? detail,
+            bool isAmbiguous = false)
         {
             Outcome = outcome;
             NodeId = nodeId;
             Detail = detail;
+            IsAmbiguous = isAmbiguous;
         }
 
         /// <summary>
@@ -93,6 +98,14 @@ namespace Opc.Ua.Wot
         /// <c>Unresolved</c> outcome.
         /// </summary>
         public string? Detail { get; }
+
+        /// <summary>
+        /// Gets whether an <c>Invalid</c> outcome is specifically an ambiguous
+        /// name, as opposed to the other ways Section 5.2.1 makes a document
+        /// invalid. The two are separate outcomes there and so are reported
+        /// with separate diagnostic codes.
+        /// </summary>
+        public bool IsAmbiguous { get; }
 
         /// <summary>
         /// The document declares no binding.
@@ -114,6 +127,16 @@ namespace Opc.Ua.Wot
         public static WotTypeBinding Invalid(string detail)
         {
             return new WotTypeBinding(WotTypeBindingOutcome.Invalid, null, detail);
+        }
+
+        /// <summary>
+        /// The document is invalid because a name is ambiguous and nothing
+        /// settles it.
+        /// </summary>
+        public static WotTypeBinding Ambiguous(string detail)
+        {
+            return new WotTypeBinding(
+                WotTypeBindingOutcome.Invalid, null, detail, isAmbiguous: true);
         }
 
         /// <summary>

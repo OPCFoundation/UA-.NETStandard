@@ -121,7 +121,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 result.Diagnostics.Any(d =>
-                    d.Code == WotDiagnosticCode.UnresolvedTypeBinding),
+                    d.Code == WotDiagnosticCode.UnresolvedConditionType),
                 Is.True);
         }
 

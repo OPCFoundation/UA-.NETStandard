@@ -58,7 +58,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 (WoTDocumentKindEnum.ThingModel, "tank", Tm("Tank", "i=1042")))
                 .ConfigureAwait(false);
 
-            IReadOnlyList<WotResolvedNode> matches = await resolver
+            ArrayOf<WotResolvedNode> matches = await resolver
                 .ResolveByBrowseNameAsync(
                     PumpNamespace, "Tank", WotExpectedNodeClass.ObjectType)
                 .ConfigureAwait(false);
@@ -79,7 +79,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 (WoTDocumentKindEnum.ThingDescription, "tank", Td("Tank", "i=1042")))
                 .ConfigureAwait(false);
 
-            IReadOnlyList<WotResolvedNode> matches = await resolver
+            ArrayOf<WotResolvedNode> matches = await resolver
                 .ResolveByBrowseNameAsync(
                     PumpNamespace, "Tank", WotExpectedNodeClass.ObjectType)
                 .ConfigureAwait(false);
@@ -120,7 +120,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 (WoTDocumentKindEnum.ThingModel, "tank", Tm("Tank", "i=1042")))
                 .ConfigureAwait(false);
 
-            IReadOnlyList<WotResolvedNode> matches = await resolver
+            ArrayOf<WotResolvedNode> matches = await resolver
                 .ResolveByBrowseNameAsync(
                     PumpNamespace, "Tank", WotExpectedNodeClass.VariableType)
                 .ConfigureAwait(false);
@@ -162,7 +162,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 (WoTDocumentKindEnum.ThingModel, "tank-b", Tm("Tank", "i=2042")))
                 .ConfigureAwait(false);
 
-            IReadOnlyList<WotResolvedNode> matches = await resolver
+            ArrayOf<WotResolvedNode> matches = await resolver
                 .ResolveByBrowseNameAsync(
                     PumpNamespace, "Tank", WotExpectedNodeClass.ObjectType)
                 .ConfigureAwait(false);
@@ -182,7 +182,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 (WoTDocumentKindEnum.ThingModel, "tank", Tm("Tank", "i=1042")))
                 .ConfigureAwait(false);
 
-            IReadOnlyList<WotResolvedNode> matches = await resolver
+            ArrayOf<WotResolvedNode> matches = await resolver
                 .ResolveByBrowseNameAsync(
                     PumpNamespace, "Tank", WotExpectedNodeClass.ObjectType)
                 .ConfigureAwait(false);
@@ -218,7 +218,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             var resolver = new SnapshotWotNodeResolver(service.Current, byDigest);
 
-            IReadOnlyList<WotResolvedNode> matches = await resolver
+            ArrayOf<WotResolvedNode> matches = await resolver
                 .ResolveByBrowseNameAsync(
                     PumpNamespace, "Tank", WotExpectedNodeClass.ObjectType)
                 .ConfigureAwait(false);
@@ -258,7 +258,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             int resolved = 0;
             for (int ii = 0; ii < 6; ii++)
             {
-                IReadOnlyList<WotResolvedNode> matches = await resolver
+                ArrayOf<WotResolvedNode> matches = await resolver
                     .ResolveByBrowseNameAsync(
                         PumpNamespace, "Tank" + ii, WotExpectedNodeClass.ObjectType)
                     .ConfigureAwait(false);

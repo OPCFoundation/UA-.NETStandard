@@ -301,22 +301,80 @@ namespace Opc.Ua.Types.Tests.Wot
         /// an untyped node.
         /// </summary>
         [Test]
-        public void TypeBindingExampleBindsTheProjectedObjectToTheNamedType()
+        public async Task TypeBindingExampleBindsTheProjectedObjectToTheNamedTypeAsync()
         {
             using WotDocument document = WotDocument.Parse(ReadExample(TypeBindingExample));
-            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
+            // The example binds by both forms of Section 5.2.1, so it only
+            // converts against a Section 5.1.5 local context that holds the
+            // type it names - which is the point of the example.
+            var resolver = new ExampleTypeResolver(
+                "http://example.com/demo/pump",
+                "TankType",
+                "nsu=http://example.com/demo/pump;i=1042");
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, null, null, null, resolver)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
+                Is.Empty);
             Assert.That(result.Value, Is.Not.Null);
 
             UANode root = result.Value.Items.First(i => i is UAObject);
             Reference typeDefinition = root.References.First(r =>
                 string.Equals(r.ReferenceType, "HasTypeDefinition", StringComparison.Ordinal));
 
+            // The bound type lives in the pump namespace, not the document's
+            // own, so asserting the exact node means resolving the emitted
+            // namespace index back through the NodeSet's table rather than
+            // hard-coding it.
+            var bound = NodeId.Parse(typeDefinition.Value);
+            Assert.That(bound.IdentifierAsString, Is.EqualTo("1042"));
             Assert.That(
-                typeDefinition.Value,
-                Is.Not.EqualTo(WotVocabulary.BaseObjectType),
-                "The example carries a ua:HasTypeDefinition link, so the projected " +
-                "Object must be bound to that type rather than to BaseObjectType.");
+                result.Value.NamespaceUris[bound.NamespaceIndex - 1],
+                Is.EqualTo("http://example.com/demo/pump"));
+        }
+
+        /// <summary>
+        /// A local context holding exactly one ObjectType, so the example
+        /// resolves against the type it names.
+        /// </summary>
+        private sealed class ExampleTypeResolver(
+            string heldNamespace,
+            string browseName,
+            string nodeId) : IWotNodeResolver
+        {
+            public ValueTask<bool> HoldsNamespaceAsync(
+                string namespaceUri, CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<bool>(
+                    string.Equals(namespaceUri, heldNamespace, StringComparison.Ordinal));
+            }
+
+            public ValueTask<ArrayOf<WotResolvedNode>> ResolveByBrowseNameAsync(
+                string namespaceUri,
+                string name,
+                WotExpectedNodeClass expected,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<ArrayOf<WotResolvedNode>>(
+                    string.Equals(namespaceUri, heldNamespace, StringComparison.Ordinal) &&
+                    string.Equals(name, browseName, StringComparison.Ordinal)
+                        ? new ArrayOf<WotResolvedNode>(
+                            [new WotResolvedNode(nodeId, WotExpectedNodeClass.ObjectType)])
+                        : ArrayOf<WotResolvedNode>.Empty);
+            }
+
+            public ValueTask<WotResolvedNode?> ResolveByNodeIdAsync(
+                string expandedNodeId, CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<WotResolvedNode?>(
+                    string.Equals(expandedNodeId, nodeId, StringComparison.Ordinal)
+                        ? new WotResolvedNode(nodeId, WotExpectedNodeClass.ObjectType)
+                        : null);
+            }
         }
 
         private const string ResourcePrefix = "Wot.Assets.";

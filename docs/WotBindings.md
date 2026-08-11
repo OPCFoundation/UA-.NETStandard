@@ -863,7 +863,16 @@ several nodes; an `ExpandedNodeId` is definitive and matches one or none.
 | Implementation | Part of the context | Assembly |
 | --- | --- | --- |
 | `SnapshotWotNodeResolver` | the sibling documents of the conversion | `Opc.Ua.WotCon.Server` |
+| `AddressSpaceWotNodeResolver` | the types the Server has loaded | `Opc.Ua.WotCon.Server` |
 | `NullWotNodeResolver` | holds nothing; the default | `Opc.Ua.Types` |
+
+Both halves are composed with `WotCompositeNodeResolver` in the specified
+order. The AddressSpace half is what lets a document bind to a type a companion
+model defines — the primary use of §5.2.1 — and it is wired in by
+`WotRegistryNodeManager` as soon as an `IServerInternal` exists. Without it a
+document could only bind to a type a sibling projects, and because §5.2.1
+forbids falling back to `BaseObjectType` a companion-model binding would fail
+the projection instead of resolving.
 
 `SnapshotWotNodeResolver` indexes the registry snapshot being converted. Only
 Thing Models are indexed, and the decision uses the *registry's* `Kind` rather
@@ -896,6 +905,20 @@ Two behaviours are deliberate and worth knowing:
 A host that supplies no resolver gets `NullWotNodeResolver`, which holds
 nothing. A document that names no existing type still converts; one that does is
 reported as unresolved rather than mistyped.
+
+Both forms resolve through the local context, including the definitive
+`ua:HasTypeDefinition` link: §5.2.1's outcome table fails the projection for a
+link that "resolves to nothing" exactly as it does for an unresolved name.
+Emitting an unverified identifier would leave a dangling `HasTypeDefinition`,
+which is the silently mistyped node the clause exists to prevent — so the
+synchronous and asynchronous entry points agree on every document, and a caller
+with no local context fails such a document rather than trusting the author.
+
+An ambiguous name and an otherwise invalid document are separate outcomes in
+§5.2.1 and carry separate diagnostics: `AmbiguousTypeBinding` for a name that
+matches more than one node with nothing to settle it, and `InvalidTypeBinding`
+for the rest — a resolved type of the wrong NodeClass, or a name and a link that
+disagree.
 
 ### Alarms and Conditions
 
@@ -931,6 +954,12 @@ can read but cannot act on:
 | `uav:conditionAction` is in the closed set | 13.2 | `InvalidConditionAction` |
 | `uav:actsOn` names a Condition event in the same document | 13.4 | `InvalidConditionTarget` |
 | `Acknowledge` / `Confirm` / `AddComment` declare an `EventId` input | 13.4 | `ConditionActionInputMissing` |
+| `uav:conditionType` names a ConditionType this Binding resolves | 13.2 | `UnresolvedConditionType` |
+
+The ConditionType name is a compact model name, so its prefix is resolved
+through the document's `@context` rather than matched literally: an author may
+bind a second prefix to the OPC UA namespace and `uav:conditionType` still
+resolves.
 
 `EventId` names the Event occurrence, so without it a consumer can receive a
 notification but can never identify the occurrence to acknowledge, confirm or

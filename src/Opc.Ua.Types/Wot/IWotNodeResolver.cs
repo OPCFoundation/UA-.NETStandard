@@ -131,7 +131,7 @@ namespace Opc.Ua.Wot
         /// Every match, which may be empty. More than one match makes the name
         /// ambiguous, which the caller resolves or reports.
         /// </returns>
-        ValueTask<IReadOnlyList<WotResolvedNode>> ResolveByBrowseNameAsync(
+        ValueTask<ArrayOf<WotResolvedNode>> ResolveByBrowseNameAsync(
             string namespaceUri,
             string browseName,
             WotExpectedNodeClass expected,
@@ -183,13 +183,13 @@ namespace Opc.Ua.Wot
         }
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<WotResolvedNode>> ResolveByBrowseNameAsync(
+        public ValueTask<ArrayOf<WotResolvedNode>> ResolveByBrowseNameAsync(
             string namespaceUri,
             string browseName,
             WotExpectedNodeClass expected,
             CancellationToken cancellationToken = default)
         {
-            return new ValueTask<IReadOnlyList<WotResolvedNode>>(Array.Empty<WotResolvedNode>());
+            return new ValueTask<ArrayOf<WotResolvedNode>>(ArrayOf<WotResolvedNode>.Empty);
         }
 
         /// <inheritdoc/>
@@ -244,7 +244,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <inheritdoc/>
-        public async ValueTask<IReadOnlyList<WotResolvedNode>> ResolveByBrowseNameAsync(
+        public async ValueTask<ArrayOf<WotResolvedNode>> ResolveByBrowseNameAsync(
             string namespaceUri,
             string browseName,
             WotExpectedNodeClass expected,
@@ -252,7 +252,7 @@ namespace Opc.Ua.Wot
         {
             foreach (IWotNodeResolver resolver in m_resolvers)
             {
-                IReadOnlyList<WotResolvedNode> matches = await resolver
+                ArrayOf<WotResolvedNode> matches = await resolver
                     .ResolveByBrowseNameAsync(namespaceUri, browseName, expected, cancellationToken)
                     .ConfigureAwait(false);
                 if (matches.Count > 0)
@@ -261,7 +261,7 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            return Array.Empty<WotResolvedNode>();
+            return ArrayOf<WotResolvedNode>.Empty;
         }
 
         /// <inheritdoc/>

@@ -158,7 +158,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"pump:TankType\"", TankTypeId, resolver).ConfigureAwait(false);
 
             Assert.That(
-                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.AmbiguousTypeBinding),
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidTypeBinding),
                 Is.True);
             Assert.That(TypeDefinitionOf(result.Value!), Is.EqualTo(WotVocabulary.BaseObjectType));
         }
@@ -176,7 +176,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"pump:TankType\"", TankTypeId, resolver).ConfigureAwait(false);
 
             Assert.That(
-                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.AmbiguousTypeBinding),
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidTypeBinding),
                 Is.True);
         }
 
@@ -215,7 +215,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"pump:TankType\"", link: null, resolver).ConfigureAwait(false);
 
             Assert.That(
-                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.AmbiguousTypeBinding),
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidTypeBinding),
                 Is.True);
         }
 
@@ -315,17 +315,17 @@ namespace Opc.Ua.Types.Tests.Wot
                     string.Equals(namespaceUri, heldNamespace, StringComparison.Ordinal));
             }
 
-            public ValueTask<IReadOnlyList<WotResolvedNode>> ResolveByBrowseNameAsync(
+            public ValueTask<ArrayOf<WotResolvedNode>> ResolveByBrowseNameAsync(
                 string namespaceUri,
                 string browseName,
                 WotExpectedNodeClass expected,
                 CancellationToken cancellationToken = default)
             {
-                IReadOnlyList<WotResolvedNode> matches =
+                ArrayOf<WotResolvedNode> matches =
                     ByName.TryGetValue(browseName, out List<WotResolvedNode>? found)
-                        ? found
-                        : [];
-                return new ValueTask<IReadOnlyList<WotResolvedNode>>(matches);
+                        ? new ArrayOf<WotResolvedNode>(found.ToArray())
+                        : ArrayOf<WotResolvedNode>.Empty;
+                return new ValueTask<ArrayOf<WotResolvedNode>>(matches);
             }
 
             public ValueTask<WotResolvedNode?> ResolveByNodeIdAsync(

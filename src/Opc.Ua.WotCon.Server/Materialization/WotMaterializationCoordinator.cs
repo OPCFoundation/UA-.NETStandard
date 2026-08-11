@@ -337,6 +337,28 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public NamespaceTable? ServerNamespaceUris { get; set; }
 
         /// <summary>
+        /// Sets the loaded-AddressSpace half of the WoT Binding Section 5.1.5
+        /// local context.
+        /// </summary>
+        /// <remarks>
+        /// Without it a document can only bind to a type a sibling document
+        /// projects, so every companion-model type binding of Section 5.2.1 is
+        /// unresolvable - and Section 5.2.1 forbids falling back to
+        /// <c>BaseObjectType</c>, so such a document fails to convert. A host
+        /// calls this as soon as it has an <c>IServerInternal</c>. It is
+        /// forwarded only to the built-in converter; a host that supplies its
+        /// own <see cref="IWotDocumentConverter"/> owns its local context.
+        /// </remarks>
+        /// <param name="addressSpace">The AddressSpace-backed resolver.</param>
+        public void UseAddressSpace(IWotNodeResolver? addressSpace)
+        {
+            if (m_converter is WotNodeSetDocumentConverter converter)
+            {
+                converter.AddressSpace = addressSpace;
+            }
+        }
+
+        /// <summary>
         /// Releases the mutex used to serialise refreshes.
         /// </summary>
         public void Dispose()
