@@ -53,6 +53,66 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
     {
         [Test]
         [CancelAfter(30000)]
+        public async Task CancellingAContendedEntryLeavesTheGateUsableAsync()
+        {
+            var gate = new ChannelGate();
+            var blocking = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            Task holder = Task.Run(async () =>
+            {
+                using (gate.Enter())
+                {
+                    await blocking.Task.ConfigureAwait(false);
+                }
+            });
+
+            while (!gate.IsHeldBySomeContextForTest)
+            {
+                await Task.Delay(5).ConfigureAwait(false);
+            }
+
+            using var cts = new CancellationTokenSource();
+            ValueTask<ChannelGate.Releaser> pending = gate.EnterAsync(cts.Token);
+            cts.Cancel();
+
+            Assert.That(
+                async () => await pending.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            // A cancelled wait must not have taken the gate, and must not leave
+            // the cancelled context believing it holds it.
+            Assert.That(gate.IsHeldByCurrentContext, Is.False);
+
+            blocking.TrySetResult(true);
+            await holder.ConfigureAwait(false);
+
+            using (gate.Enter())
+            {
+                Assert.That(gate.IsHeldByCurrentContext, Is.True);
+            }
+        }
+
+        [Test]
+        public void ReleasersCompareByGateAndHolder()
+        {
+            var gate = new ChannelGate();
+
+            using ChannelGate.Releaser outer = gate.Enter();
+            using ChannelGate.Releaser nested = gate.Enter();
+
+            ChannelGate.Releaser copy = outer;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(copy, Is.EqualTo(outer));
+                Assert.That(nested, Is.Not.EqualTo(outer));
+                Assert.That(copy.GetHashCode(), Is.EqualTo(outer.GetHashCode()));
+            });
+        }
+
+        [Test]
+        [CancelAfter(30000)]
         public async Task InheritedReentryDoesNotStrandTheGateAsync()
         {
             var gate = new ChannelGate();

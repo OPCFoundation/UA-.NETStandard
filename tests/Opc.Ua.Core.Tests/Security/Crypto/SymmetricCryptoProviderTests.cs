@@ -247,6 +247,323 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             Assert.That(Array.TrueForAll(buffer, b => b == 0), Is.False);
         }
 
+        [TestCase(SymmetricEncryptionAlgorithm.Aes128Gcm, 16)]
+        [TestCase(SymmetricEncryptionAlgorithm.Aes256Gcm, 32)]
+        [TestCase(SymmetricEncryptionAlgorithm.ChaCha20Poly1305, 32)]
+        public void PlatformSymmetricProviderRoundTripsAnAuthenticatedCipher(
+            SymmetricEncryptionAlgorithm algorithm,
+            int keyLength)
+        {
+            PlatformSymmetricCryptoProvider provider = PlatformSymmetricCryptoProvider.Instance;
+
+            if (!provider.Supports(algorithm))
+            {
+                Assert.Ignore($"{algorithm} is not available on this target framework.");
+            }
+
+            byte[] key = new byte[keyLength];
+            byte[] nonce = new byte[12];
+            byte[] plaintext = new byte[45];
+            byte[] associatedData = new byte[7];
+            FillRandom(key);
+            FillRandom(nonce);
+            FillRandom(plaintext);
+            FillRandom(associatedData);
+
+            byte[] ciphertext = new byte[plaintext.Length];
+            byte[] tag = new byte[16];
+            byte[] recovered = new byte[plaintext.Length];
+
+            provider.EncryptAuthenticated(
+                algorithm, key, nonce, plaintext, ciphertext, tag, associatedData);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ciphertext, Is.Not.EqualTo(plaintext));
+                Assert.That(
+                    provider.DecryptAuthenticated(
+                        algorithm, key, nonce, ciphertext, tag, recovered, associatedData),
+                    Is.True);
+                Assert.That(recovered, Is.EqualTo(plaintext));
+            });
+        }
+
+        [Test]
+        public void PlatformSymmetricProviderReportsATamperedAuthenticatedCipher()
+        {
+            PlatformSymmetricCryptoProvider provider = PlatformSymmetricCryptoProvider.Instance;
+            const SymmetricEncryptionAlgorithm algorithm = SymmetricEncryptionAlgorithm.Aes256Gcm;
+
+            if (!provider.Supports(algorithm))
+            {
+                Assert.Ignore($"{algorithm} is not available on this target framework.");
+            }
+
+            byte[] key = new byte[32];
+            byte[] nonce = new byte[12];
+            byte[] plaintext = new byte[32];
+            FillRandom(key);
+            FillRandom(nonce);
+            FillRandom(plaintext);
+
+            byte[] ciphertext = new byte[plaintext.Length];
+            byte[] tag = new byte[16];
+            byte[] recovered = new byte[plaintext.Length];
+
+            provider.EncryptAuthenticated(
+                algorithm, key, nonce, plaintext, ciphertext, tag, default);
+
+            tag[0] ^= 0xFF;
+
+            // Reported rather than thrown, so the caller can raise a protocol
+            // error instead of unwinding.
+            Assert.That(
+                provider.DecryptAuthenticated(
+                    algorithm, key, nonce, ciphertext, tag, recovered, default),
+                Is.False);
+        }
+
+        [TestCase(SymmetricSignatureAlgorithm.HmacSha1, 20)]
+        [TestCase(SymmetricSignatureAlgorithm.HmacSha256, 32)]
+        [TestCase(SymmetricSignatureAlgorithm.HmacSha384, 48)]
+        public void PlatformSymmetricProviderReportsItsSignatureLength(
+            SymmetricSignatureAlgorithm algorithm,
+            int expected)
+        {
+            PlatformSymmetricCryptoProvider provider = PlatformSymmetricCryptoProvider.Instance;
+
+            byte[] key = new byte[32];
+            byte[] data = new byte[19];
+            FillRandom(key);
+            FillRandom(data);
+
+            byte[] signature = new byte[provider.GetSignatureLength(algorithm)];
+            provider.Sign(algorithm, key, data, signature);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(provider.GetSignatureLength(algorithm), Is.EqualTo(expected));
+                Assert.That(provider.Supports(algorithm), Is.True);
+                Assert.That(provider.Verify(algorithm, key, data, signature), Is.True);
+            });
+        }
+
+        [Test]
+        public void PlatformSymmetricProviderRejectsAlgorithmsItDoesNotServe()
+        {
+            PlatformSymmetricCryptoProvider provider = PlatformSymmetricCryptoProvider.Instance;
+
+            byte[] key = new byte[32];
+            byte[] block = new byte[16];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => provider.GetSignatureLength((SymmetricSignatureAlgorithm)999),
+                    Throws.TypeOf<NotSupportedException>());
+                Assert.That(
+                    () => provider.Encrypt(
+                        SymmetricEncryptionAlgorithm.Aes256Gcm, key, block, block, block),
+                    Throws.TypeOf<NotSupportedException>(),
+                    "An authenticated cipher is not a bare block cipher.");
+                Assert.That(
+                    () => provider.EncryptAuthenticated(
+                        SymmetricEncryptionAlgorithm.Aes256Cbc,
+                        key, block, block, block, block, default),
+                    Throws.TypeOf<NotSupportedException>(),
+                    "A bare block cipher is not an authenticated cipher.");
+                Assert.That(
+                    provider.Supports((SymmetricEncryptionAlgorithm)999),
+                    Is.False);
+                Assert.That(
+                    provider.Supports((SymmetricSignatureAlgorithm)999),
+                    Is.False);
+            });
+        }
+
+        [Test]
+        public void PlatformCryptoProviderDeclaresWhatItServes()
+        {
+            PlatformCryptoProvider provider = PlatformCryptoProvider.Instance;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(provider.Name, Is.Not.Empty);
+                Assert.That(provider.Validation.IsAcceptableForFips, Is.True);
+                Assert.That(provider.Capabilities, Is.Not.Empty);
+                Assert.That(provider, Is.InstanceOf<ISymmetricCryptoProvider>());
+                Assert.That(provider, Is.InstanceOf<IKeyDerivationProvider>());
+                Assert.That(provider, Is.InstanceOf<IRandomSource>());
+            });
+        }
+
+        [Test]
+        public void PlatformCryptoProviderAgreesWithTheFacetsItExposes()
+        {
+            PlatformCryptoProvider provider = PlatformCryptoProvider.Instance;
+
+            byte[] key = new byte[32];
+            byte[] iv = new byte[16];
+            byte[] plaintext = new byte[32];
+            FillRandom(key);
+            FillRandom(iv);
+            FillRandom(plaintext);
+
+            byte[] throughFacade = new byte[plaintext.Length];
+            byte[] throughPlatform = new byte[plaintext.Length];
+
+            provider.Encrypt(
+                SymmetricEncryptionAlgorithm.Aes256Cbc, key, iv, plaintext, throughFacade);
+            PlatformSymmetricCryptoProvider.Instance.Encrypt(
+                SymmetricEncryptionAlgorithm.Aes256Cbc, key, iv, plaintext, throughPlatform);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(throughFacade, Is.EqualTo(throughPlatform));
+                Assert.That(
+                    provider.Supports(SymmetricEncryptionAlgorithm.Aes256Cbc),
+                    Is.True);
+                Assert.That(
+                    provider.Supports(SymmetricSignatureAlgorithm.HmacSha256),
+                    Is.True);
+                Assert.That(
+                    provider.GetSignatureLength(SymmetricSignatureAlgorithm.HmacSha256),
+                    Is.EqualTo(32));
+            });
+        }
+
+        [Test]
+        public void PlatformKeyDerivationRejectsAnAlgorithmItDoesNotServe()
+        {
+            PlatformKeyDerivationProvider provider = PlatformKeyDerivationProvider.Instance;
+            byte[] output = new byte[16];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(provider.Supports(KeyDerivationAlgorithm.PSha256), Is.True);
+                Assert.That(provider.Supports((KeyDerivationAlgorithm)999), Is.False);
+                Assert.That(
+                    () => provider.DeriveKey(
+                        (KeyDerivationAlgorithm)999, [1, 2, 3], [4, 5, 6], output),
+                    Throws.TypeOf<NotSupportedException>());
+            });
+        }
+
+        [Test]
+        public void PlatformCryptoProviderDelegatesEveryFacetToThePlatform()
+        {
+            PlatformCryptoProvider provider = PlatformCryptoProvider.Instance;
+
+            byte[] key = new byte[32];
+            byte[] iv = new byte[16];
+            byte[] plaintext = new byte[32];
+            byte[] secret = new byte[32];
+            byte[] seed = new byte[32];
+            FillRandom(key);
+            FillRandom(iv);
+            FillRandom(plaintext);
+            FillRandom(secret);
+            FillRandom(seed);
+
+            byte[] ciphertext = new byte[plaintext.Length];
+            byte[] recovered = new byte[plaintext.Length];
+            provider.Encrypt(
+                SymmetricEncryptionAlgorithm.Aes256Cbc, key, iv, plaintext, ciphertext);
+            provider.Decrypt(
+                SymmetricEncryptionAlgorithm.Aes256Cbc, key, iv, ciphertext, recovered);
+
+            byte[] signature = new byte[provider.GetSignatureLength(
+                SymmetricSignatureAlgorithm.HmacSha256)];
+            provider.Sign(SymmetricSignatureAlgorithm.HmacSha256, key, plaintext, signature);
+
+            byte[] derived = new byte[48];
+            byte[] expectedDerived = new byte[48];
+            provider.DeriveKey(KeyDerivationAlgorithm.PSha256, secret, seed, derived);
+            PlatformKeyDerivationProvider.Instance
+                .DeriveKey(KeyDerivationAlgorithm.PSha256, secret, seed, expectedDerived);
+
+            byte[] random = new byte[32];
+            provider.GetBytes(random);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(recovered, Is.EqualTo(plaintext));
+                Assert.That(
+                    provider.Verify(
+                        SymmetricSignatureAlgorithm.HmacSha256, key, plaintext, signature),
+                    Is.True);
+                Assert.That(derived, Is.EqualTo(expectedDerived));
+                Assert.That(Array.TrueForAll(random, b => b == 0), Is.False);
+                Assert.That(provider.Supports(KeyDerivationAlgorithm.PSha256), Is.True);
+            });
+        }
+
+        [Test]
+        public void PlatformCryptoProviderDelegatesTheAuthenticatedCipher()
+        {
+            PlatformCryptoProvider provider = PlatformCryptoProvider.Instance;
+            const SymmetricEncryptionAlgorithm algorithm = SymmetricEncryptionAlgorithm.Aes256Gcm;
+
+            if (!provider.Supports(algorithm))
+            {
+                Assert.Ignore($"{algorithm} is not available on this target framework.");
+            }
+
+            byte[] key = new byte[32];
+            byte[] nonce = new byte[12];
+            byte[] plaintext = new byte[24];
+            FillRandom(key);
+            FillRandom(nonce);
+            FillRandom(plaintext);
+
+            byte[] ciphertext = new byte[plaintext.Length];
+            byte[] tag = new byte[16];
+            byte[] recovered = new byte[plaintext.Length];
+
+            provider.EncryptAuthenticated(
+                algorithm, key, nonce, plaintext, ciphertext, tag, default);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    provider.DecryptAuthenticated(
+                        algorithm, key, nonce, ciphertext, tag, recovered, default),
+                    Is.True);
+                Assert.That(recovered, Is.EqualTo(plaintext));
+            });
+        }
+
+        [Test]
+        public void PlatformSymmetricProviderValidatesItsCounterModeArguments()
+        {
+            PlatformSymmetricCryptoProvider provider = PlatformSymmetricCryptoProvider.Instance;
+
+            byte[] key = new byte[32];
+            byte[] input = new byte[16];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => provider.Encrypt(
+                        SymmetricEncryptionAlgorithm.Aes256Ctr,
+                        key,
+                        new byte[4],
+                        input,
+                        new byte[input.Length]),
+                    Throws.TypeOf<ArgumentException>(),
+                    "Counter mode needs a nonce of exactly the reserved length.");
+                Assert.That(
+                    () => provider.Encrypt(
+                        SymmetricEncryptionAlgorithm.Aes256Ctr,
+                        key,
+                        new byte[12],
+                        input,
+                        new byte[input.Length - 1]),
+                    Throws.TypeOf<ArgumentException>(),
+                    "The destination must hold the whole result.");
+            });
+        }
+
         /// <summary>
         /// The default configuration must take the inline path, so the per
         /// message code stays free of interface dispatch.
