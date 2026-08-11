@@ -39,6 +39,26 @@ UserIdentity userIdentity = await UserIdentity.CreateAsync(
 
 ## Certificate Management
 
+### Certificates with an empty distinguished name are always rejected
+
+A certificate whose **subject or issuer is an empty distinguished name** is now rejected with the non-suppressible `Bad_CertificateInvalid`, on every target framework. An empty name is an empty `RDNSequence`: it identifies nothing, and two unrelated issuers become indistinguishable, so the certificate can never take part in a trust decision. RFC 5280 §4.1.2.4 requires a non-empty issuer, and §4.1.2.6 only permits an empty subject for an end entity carrying a critical `subjectAltName`, which a CA may never do.
+
+On 1.5.378 the outcome depended on the platform: .NET's X.509 and PEM readers accept these certificates, so they could reach a trust list and be used. The check now runs in the validator before the trust-list lookup and the chain build, so trusting such a certificate, enabling `AutoAcceptUntrustedCertificates`, or approving the error from the validation callback will not make it pass.
+
+Reading a PEM file also skips these certificates rather than importing them. `PEMReader.ImportPublicKeysFromPEM` drops only the offending entry and returns the rest, so one malformed certificate cannot empty an otherwise usable trust list.
+
+**Migration steps:**
+
+- Re-issue any certificate that carries an empty subject or issuer. There is no configuration switch to accept one.
+- If a trust list silently shrinks after the upgrade, the dropped entries carried an empty name; `DistinguishedNameUtils.HasEmptyDistinguishedName` reports the same verdict the stack applies.
+
+```csharp
+if (DistinguishedNameUtils.HasEmptyDistinguishedName(certificate))
+{
+    // Bad_CertificateInvalid - re-issue with a real subject and issuer.
+}
+```
+
 ### Certificate and CertificateCollection wrapper types
 
 `X509Certificate2` and `X509Certificate2Collection` are no longer used directly in the public API. They are replaced by `Certificate` and `CertificateCollection` (in `Opc.Ua.Security.Certificates`).

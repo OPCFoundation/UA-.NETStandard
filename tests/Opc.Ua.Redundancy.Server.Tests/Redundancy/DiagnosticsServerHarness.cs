@@ -113,6 +113,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ServerObjectState serverObject = manager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
             server.Setup(s => s.ServerObject).Returns(serverObject);
             server.Setup(s => s.DiagnosticsNodeManager).Returns(manager);
+            server.Setup(s => s.FindNodeManagers<IPredefinedNodeSubtypeReplacer>()).Returns([manager]);
+            server.Setup(s => s.FindNodeManagers<IConfigurationNodeManager>())
+                .Returns([configurationNodeManager.Object]);
+            server.Setup(s => s.FindPredefinedNode<RequestServerStateChangeMethodState>(
+                It.IsAny<NodeId>()))
+                .Returns((NodeId nodeId) => manager.FindPredefinedNode<RequestServerStateChangeMethodState>(nodeId));
             return new DiagnosticsServerHarness(server, manager);
         }
 

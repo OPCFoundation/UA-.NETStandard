@@ -97,6 +97,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             server.Setup(s => s.MessageContext).Returns(messageContext);
             server.Setup(s => s.NamespaceUris).Returns(messageContext.NamespaceUris);
             server.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
+            server.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
+            server.Setup(s => s.FindNodeManagers<ILocalAddressSpaceSource>())
+                .Returns([nodeManager.As<ILocalAddressSpaceSource>().Object]);
 
             using var kv = new InMemorySharedKeyValueStore();
             var election = new StaticLeaderElection(true);

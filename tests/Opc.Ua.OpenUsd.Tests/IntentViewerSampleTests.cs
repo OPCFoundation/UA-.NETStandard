@@ -29,6 +29,8 @@
 
 #if NET10_0
 using System;
+using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,7 +38,10 @@ using IntentViewerClient;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.OpenUsd.Client;
+using Opc.Ua.OpenUsdScene.Conversion;
+using Opc.Ua.OpenUsdScene.Scene;
 using Opc.Ua.RobotIntent;
+using Robotics.IntentEnabledRobot;
 using Robotics.IntentEnabledRobot.Kinematics;
 using Robotics.IntentEnabledRobot.Simulation;
 
@@ -51,6 +56,86 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         {
             Assert.That(IntentViewerOptions.TryParsePickMode("7", out UsdViewPickMode pickMode), Is.False);
             Assert.That(pickMode, Is.EqualTo((UsdViewPickMode)7));
+        }
+
+        [Test]
+        public void IntentViewerParsesMcpFlag()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(IntentViewerOptions.Parse([]).Mcp, Is.False);
+                Assert.That(IntentViewerOptions.Parse(["--mcp"]).Mcp, Is.True);
+            });
+        }
+
+        [Test]
+        public void IntentViewerDefaultsToStdioMcpTransport()
+        {
+            IntentViewerMcpTransportSelection selection = IntentViewerOptions.Parse([]).SelectMcpTransport();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(selection.Transport, Is.EqualTo(IntentViewerMcpTransport.Stdio));
+                Assert.That(selection.Explicit, Is.False);
+                Assert.That(selection.Message, Does.Contain("default MCP transport 'stdio'"));
+            });
+        }
+
+        [Test]
+        public void IntentViewerSelectsHttpMcpTransportWhenViewIsEnabled()
+        {
+            IntentViewerMcpTransportSelection selection = IntentViewerOptions.Parse(["--view"]).SelectMcpTransport();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(selection.Transport, Is.EqualTo(IntentViewerMcpTransport.Http));
+                Assert.That(selection.Explicit, Is.False);
+                Assert.That(selection.Message, Does.Contain("because --view is enabled"));
+                Assert.That(selection.Message, Does.Contain("stdout"));
+            });
+        }
+
+        [Test]
+        public void IntentViewerHonorsExplicitHttpMcpTransportWithView()
+        {
+            IntentViewerOptions options = IntentViewerOptions.Parse(["--view", "--transport", "http", "--port", "5201"]);
+            IntentViewerMcpTransportSelection selection = options.SelectMcpTransport();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(options.Port, Is.EqualTo(5201));
+                Assert.That(selection.Transport, Is.EqualTo(IntentViewerMcpTransport.Http));
+                Assert.That(selection.Explicit, Is.True);
+                Assert.That(selection.Message, Does.Contain("explicitly requested"));
+            });
+        }
+
+        [Test]
+        public void IntentViewerHonorsExplicitStdioMcpTransportWithViewAndWarns()
+        {
+            IntentViewerMcpTransportSelection selection =
+                IntentViewerOptions.Parse(["--view", "--transport", "stdio"]).SelectMcpTransport();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(selection.Transport, Is.EqualTo(IntentViewerMcpTransport.Stdio));
+                Assert.That(selection.Explicit, Is.True);
+                Assert.That(selection.Message, Does.Contain("WARNING"));
+                Assert.That(selection.Message, Does.Contain("protocol corruption"));
+            });
+        }
+
+        [Test]
+        public void IntentViewerAcceptsSseAsHttpMcpTransportAlias()
+        {
+            IntentViewerMcpTransportSelection selection =
+                IntentViewerOptions.Parse(["--transport", "sse"]).SelectMcpTransport();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(selection.Transport, Is.EqualTo(IntentViewerMcpTransport.Http));
+                Assert.That(selection.Explicit, Is.True);
+            });
         }
 
         [Test]
@@ -92,6 +177,37 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             string second = (string)method.Invoke(null, [])!;
 
             Assert.That(second, Is.EqualTo(first));
+        }
+
+        [Test]
+        public void IntentEnabledRobotBenchAssetParsesWithPayloadPrims()
+        {
+            using Stream stream = typeof(IntentRobotCell).Assembly.GetManifestResourceStream("Bench.usda")!;
+            using var reader = new StreamReader(stream);
+            UsdStage stage = UsdaReader.Parse(reader.ReadToEnd(), "Bench");
+
+            string[] requiredPrims =
+            [
+                "/World/Payloads/BinParts/Part01",
+                "/World/Payloads/BinParts/Part08",
+                "/World/Payloads/FixtureStack/Slot01",
+                "/World/Payloads/FixtureStack/Slot08",
+                "/World/Payloads/HeldPart"
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (string primPath in requiredPrims)
+                {
+                    Assert.That(stage.Find(primPath), Is.Not.Null, primPath);
+                }
+
+                UsdPrim heldPart = stage.Find("/World/Payloads/HeldPart")!;
+                Assert.That(
+                    heldPart.Attributes.Any(a => a.Name == "xformOp:transform"),
+                    Is.True,
+                    "The held payload must declare the transform op driven by live bindings.");
+            });
         }
 
         [Test]

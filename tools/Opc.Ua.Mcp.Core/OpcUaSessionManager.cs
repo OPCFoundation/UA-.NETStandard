@@ -118,6 +118,8 @@ namespace Opc.Ua.Mcp
             public bool IsConnected => Session.Connected;
 
             internal ConnectionValidationContext? ValidationContext { get; init; }
+
+            internal bool OwnsSession { get; init; } = true;
         }
 
         /// <summary>
@@ -327,8 +329,7 @@ namespace Opc.Ua.Mcp
                         .ConfigureAwait(false);
 
                     session.KeepAliveInterval = 5000;
-                    session.ConnectionStateChanged += (_, e) => SessionConnectionStateChanged(name, e);
-                    session.ChannelStateChanged += (_, e) => SessionChannelStateChanged(name, e);
+                    SubscribeSessionStateLogging(name, session);
 
                     m_sessions[name] = new SessionInfo
                     {
@@ -359,6 +360,54 @@ namespace Opc.Ua.Mcp
                 {
                     validationContext?.Dispose();
                 }
+            }
+            finally
+            {
+                m_lock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Registers an already-connected session without transferring ownership to the MCP session manager.
+        /// </summary>
+        public async Task<string> RegisterExistingSessionAsync(
+            string name,
+            ISession session,
+            string authType,
+            CancellationToken ct = default)
+        {
+            ObjectDisposedException.ThrowIf(m_disposed, this);
+            ArgumentException.ThrowIfNullOrWhiteSpace(name);
+            ArgumentNullException.ThrowIfNull(session);
+            ArgumentException.ThrowIfNullOrWhiteSpace(authType);
+
+            await m_lock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (m_sessions.TryGetValue(name, out SessionInfo? existing))
+                {
+                    await DisconnectInternalAsync(existing, ct).ConfigureAwait(false);
+                    m_sessions.TryRemove(name, out _);
+                }
+
+                m_sessions[name] = new SessionInfo
+                {
+                    Name = name,
+                    Session = session,
+                    Endpoint = session.ConfiguredEndpoint.Description,
+                    AuthType = authType,
+                    ConnectedAt = DateTime.UtcNow,
+                    OwnsSession = false
+                };
+
+                m_logger.Connected(name, session.SessionName, session.SessionId);
+
+                return string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Registered existing session '{0}'. SessionName={1}, SessionId={2}",
+                    name,
+                    session.SessionName,
+                    session.SessionId);
             }
             finally
             {
@@ -453,7 +502,10 @@ namespace Opc.Ua.Mcp
             {
                 try
                 {
-                    info.Session.Dispose();
+                    if (info.OwnsSession)
+                    {
+                        info.Session.Dispose();
+                    }
                 }
                 finally
                 {
@@ -467,6 +519,12 @@ namespace Opc.Ua.Mcp
 
         private static async Task DisconnectInternalAsync(SessionInfo info, CancellationToken ct)
         {
+            if (!info.OwnsSession)
+            {
+                info.ValidationContext?.Dispose();
+                return;
+            }
+
             try
             {
                 await info.Session.CloseAsync(ct).ConfigureAwait(false);
@@ -740,6 +798,12 @@ namespace Opc.Ua.Mcp
                 e.PreviousState,
                 e.NewState,
                 e.ReconnectAttempt);
+        }
+
+        private void SubscribeSessionStateLogging(string name, ManagedSession session)
+        {
+            session.ConnectionStateChanged += (_, e) => SessionConnectionStateChanged(name, e);
+            session.ChannelStateChanged += (_, e) => SessionChannelStateChanged(name, e);
         }
 
         private void SessionChannelStateChanged(string name, ChannelStateChange e)

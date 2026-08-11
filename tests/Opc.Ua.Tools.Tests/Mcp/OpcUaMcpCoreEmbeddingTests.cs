@@ -101,6 +101,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         /// </summary>
         [TestCase(McpToolProfile.PubSub)]
         [TestCase(McpToolProfile.Diagnostics)]
+        [TestCase(McpToolProfile.Robotics)]
         public void ProfilesOwnedByOtherPackagesContributeNoCoreTools(McpToolProfile profile)
         {
             var services = new ServiceCollection();
