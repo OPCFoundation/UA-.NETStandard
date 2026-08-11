@@ -15,8 +15,8 @@ a Vision server and act on what it sees.
 
 Vision layers on top of the base OPC UA namespace only — it does not require
 Devices, Machinery or Robotics. It composes cleanly with Robotics, and the
-sample [`samples/Vision/BinPickingCell`](../samples/Vision/BinPickingCell) and
-[`samples/Vision/BinPickingClient`](../samples/Vision/BinPickingClient) show a
+sample [`samples/Robotics/BinPickingCell`](../samples/Robotics/BinPickingCell) and
+[`samples/Robotics/BinPickingClient`](../samples/Robotics/BinPickingClient) show a
 worked example doing exactly that (`Vision` + `Robot Intent` in one server,
 `vision_*` + `robotics_*` MCP tools in one agent).
 
@@ -73,7 +73,7 @@ order.
 
 The example below hosts a single simulated eye-in-hand camera, one
 inference pipeline, and a two-frame tree (`world` → `flange`). It is the
-smallest useful shape; the [`BinPickingCell`](../samples/Vision/BinPickingCell)
+smallest useful shape; the [`BinPickingCell`](../samples/Robotics/BinPickingCell)
 sample is the full end-to-end version.
 
 ```csharp
@@ -683,7 +683,7 @@ one.
   `vision_compose_transform`.
 
 Profiles compose. A host that wires the `Vision` and `Robotics` profile
-sets together — the [BinPickingClient sample](../samples/Vision/BinPickingClient)
+sets together — the [BinPickingClient sample](../samples/Robotics/BinPickingClient)
 does this — exposes 62 tools in total, measured as
 `22 Vision + 4 Connection + 40 Robotics − 4 shared Connection = 62`.
 The `WithOpcUaVisionTools(McpToolProfileSet)` overload never registers
@@ -696,7 +696,7 @@ composition rules.
 
 ## Sample: bin-picking
 
-[`samples/Vision/BinPickingCell`](../samples/Vision/BinPickingCell) is
+[`samples/Robotics/BinPickingCell`](../samples/Robotics/BinPickingCell) is
 the worked reference from the *OPC UA Robotics-Vision Addendum*: a
 UR5e-style arm with a parallel gripper, an eye-in-hand camera parented
 to the flange, a bin of five parts, a fixture, and the frame tree
@@ -706,7 +706,7 @@ flange. It hosts `Robot Intent`, the Vision companion and the
 deterministic detector (`--inferenceLocation OnServer`, the default)
 or the off-server agent path (`--inferenceLocation EdgeOffServer`).
 
-[`samples/Vision/BinPickingClient`](../samples/Vision/BinPickingClient)
+[`samples/Robotics/BinPickingClient`](../samples/Robotics/BinPickingClient)
 is the paired client: `--demo` runs the whole loop without an agent,
 `--mcp` exposes the composed 62-tool MCP catalogue for a language-model
 agent, and `--view` opens the in-process OpenUSD viewport so a human

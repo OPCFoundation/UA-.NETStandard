@@ -17,14 +17,13 @@
     <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
     <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
     <Project Path="samples/WotCon/FlatTagServer/FlatTagServer.csproj" />
-    <Project Path="samples/AiModelManagement/AiModelManagement.Bridge/AiModelManagement.Bridge.csproj" />
-    <Project Path="samples/AiModelManagement/AiModelManagementServer/AiModelManagementServer.csproj" />
-    <Project Path="samples/AiModelManagement/AiModelManagementClient/AiModelManagementClient.csproj" />
+    <Project Path="samples/AI/ModelManagementServer/ModelManagementServer.csproj" />
+    <Project Path="samples/AI/ModelManagementClient/ModelManagementClient.csproj" />
     <Project Path="samples/Robotics/MinimalRobotServer/MinimalRobotServer.csproj" />
     <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
-    <Project Path="samples/Vision/BinPickingCell/BinPickingCell.csproj" />
-    <Project Path="samples/Vision/BinPickingClient/BinPickingClient.csproj" />
+    <Project Path="samples/Robotics/BinPickingCell/BinPickingCell.csproj" />
+    <Project Path="samples/Robotics/BinPickingClient/BinPickingClient.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
   </Folder>
@@ -114,6 +113,10 @@
     <Project Path="src/Opc.Ua.PubSub.Udp/Opc.Ua.PubSub.Udp.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.PubSub/Opc.Ua.Redundancy.PubSub.csproj" />
     <Project Path="src/Opc.Ua.Server/Opc.Ua.Server.csproj" />
+    <Project Path="src/Opc.Ua.AI/Opc.Ua.AI.csproj" />
+    <Project Path="src/Opc.Ua.AI.Inference/Opc.Ua.AI.Inference.csproj" />
+    <Project Path="src/Opc.Ua.AI.Server/Opc.Ua.AI.Server.csproj" />
+    <Project Path="src/Opc.Ua.AI.Client/Opc.Ua.AI.Client.csproj" />
     <Project Path="src/Opc.Ua.XRegistry/Opc.Ua.XRegistry.csproj" />
     <Project Path="src/Opc.Ua.XRegistry.Client/Opc.Ua.XRegistry.Client.csproj" />
     <Project Path="src/Opc.Ua.XRegistry.Server/Opc.Ua.XRegistry.Server.csproj" />
@@ -289,7 +292,7 @@
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.XRegistry.Tests/Opc.Ua.XRegistry.Tests.csproj" />
-    <Project Path="tests/AiModelManagement.Tests/AiModelManagement.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.AI.Tests/Opc.Ua.AI.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Kubernetes.Tests/Opc.Ua.Redundancy.Kubernetes.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj" />

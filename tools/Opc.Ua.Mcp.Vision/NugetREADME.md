@@ -66,7 +66,7 @@ builder.Services.AddMcpServer()
 ### Composed with `robotics`
 
 Use the `McpToolProfileSet` overloads to combine Vision with Robotics — the
-composition the [BinPickingClient sample](https://github.com/OPCFoundation/UA-.NETStandard/tree/main/samples/Vision/BinPickingClient)
+composition the [BinPickingClient sample](https://github.com/OPCFoundation/UA-.NETStandard/tree/main/samples/Robotics/BinPickingClient)
 runs. The core-tools overload owns and deduplicates `ConnectionTools`
 across every package that references the same MCP server:
 
