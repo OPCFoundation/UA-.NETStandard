@@ -126,52 +126,6 @@ namespace Quickstarts.ReferenceServer
                 return ServiceResult.Good;
             }
 
-            // The selection-list write validation rejects values outside the
-            // baked Selections array. The node, its Value and the Selections /
-            // SelectionDescriptions / RestrictToList properties are all baked
-            // into the NodeSet2 model; only the write behaviour is wired here
-            // (Prio 2).
-            builder.CTT.DataAccess.DataAccess_SelectionList.DataAccess_SelectionList_Colors
-                .OnWrite((
-                    ISystemContext context,
-                    NodeState node,
-                    NumericRange indexRange,
-                    QualifiedName dataEncoding,
-                    ref Variant value,
-                    ref StatusCode statusCode,
-                    ref DateTimeUtc timestamp) =>
-                {
-                    if (!indexRange.IsNull)
-                    {
-                        return StatusCodes.BadIndexRangeInvalid;
-                    }
-
-                    if (!value.TryGetValue(out string? selection))
-                    {
-                        return StatusCodes.BadTypeMismatch;
-                    }
-
-                    if (node.FindChild(
-                        context,
-                        new QualifiedName(Opc.Ua.BrowseNames.Selections)) is not
-                        BaseVariableState selectionsNode ||
-                        !selectionsNode.WrappedValue.TryGetValue(out ArrayOf<string> allowedSelections) ||
-                        allowedSelections.IsNull)
-                    {
-                        return StatusCodes.BadConfigurationError;
-                    }
-
-                    foreach (string allowedSelection in allowedSelections)
-                    {
-                        if (string.Equals(selection, allowedSelection, StringComparison.Ordinal))
-                        {
-                            return ServiceResult.Good;
-                        }
-                    }
-
-                    return StatusCodes.BadOutOfRange;
-                });
-
             // AccessLevelEx advertises non-atomic read/write on the read/write
             // static scalar. It cannot be expressed in the NodeSet2 model (the
             // UANodeSet schema has no AccessLevelEx attribute), so it is applied
