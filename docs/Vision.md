@@ -766,6 +766,16 @@ against the draft; see [Limitations](#limitations).
   Vision, USB3 Vision, GenICam or vendor-native driver in the box; a
   host implementing `IVisionMediaProvider` for a real camera is the
   supported extension point.
+- **The Vision NodeSet's Method arguments are misnamespaced.** All 13
+  `InputArguments` / `OutputArguments` Properties are browse-named
+  `1:InputArguments` — in the Vision namespace rather than the base
+  namespace where the standard Property lives — so a stack cannot find
+  them and treats every Method as taking no arguments. The Server
+  declares the signatures itself, in
+  `Opc.Ua.Vision.Server/VisionMethodArguments.cs`, so a conforming client
+  works today; the artefact defect is raised as
+  [opcua-drafts#71](https://github.com/marcschier/opcua-drafts/issues/71).
+  When it is fixed upstream, those declarations become redundant.
 - **"Nothing detected" and "that was a false positive" cannot be
   expressed.** §9.5 makes an empty `Detections` array
   `Bad_InvalidArgument`, and requires `SubmitCorrection` to carry
