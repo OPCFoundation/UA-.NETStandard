@@ -769,7 +769,14 @@ namespace Opc.Ua.Aas
             {
                 ExpandedNodeId dataType = AasXsdTypeMap.ToDataTypeId(valueType);
                 AasValueStringGuard.AssertVariableDataTypeAllowed(dataType, browseName);
-                AddProperty(nodeId, browseName, dataType, value);
+                Variant materialized = value;
+                if (value.TryGetValue(out string? lexical) &&
+                    AasLexicalCanonicalizer.TryParse(lexical, valueType, out Variant parsed, out _))
+                {
+                    materialized = parsed;
+                }
+
+                AddProperty(nodeId, browseName, dataType, materialized);
             }
 
             private void AddObject(
