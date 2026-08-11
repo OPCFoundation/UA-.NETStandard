@@ -549,7 +549,7 @@ namespace Opc.Ua.Export
         /// in memory, so a caller that wants the hierarchical reference has to
         /// add it as an external reference. This reports the parent for exactly
         /// those nodes; a node whose parent was linked normally, or that
-        /// declared no parent, returns <c>null</c>.
+        /// declared no parent, returns <see cref="NodeId.Null"/>.
         /// <para>
         /// The record is held in a table keyed by weak reference, so it does
         /// not keep an imported node alive and does not widen
@@ -559,20 +559,25 @@ namespace Opc.Ua.Export
         /// </para>
         /// </remarks>
         /// <param name="node">The imported node.</param>
-        /// <returns>The unresolved parent NodeId, or <c>null</c>.</returns>
+        /// <returns>
+        /// The unresolved parent NodeId, or <see cref="NodeId.Null"/> when the
+        /// node's parent was in the batch or it declared none.
+        /// </returns>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="node"/> is <c>null</c>.
         /// </exception>
-        public static NodeId? GetUnresolvedParentNodeId(NodeState node)
+        public static NodeId GetUnresolvedParentNodeId(NodeState node)
         {
             if (node is null)
             {
                 throw new ArgumentNullException(nameof(node));
             }
 
+            // NodeId implements INullable, so it is never wrapped in
+            // System.Nullable; NodeId.Null is how it says "none".
             return s_unresolvedParents.TryGetValue(node, out UnresolvedParent? parent)
                 ? parent.NodeId
-                : null;
+                : NodeId.Null;
         }
 
         /// <summary>

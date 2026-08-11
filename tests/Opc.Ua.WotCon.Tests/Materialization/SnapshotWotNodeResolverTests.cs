@@ -69,6 +69,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// A generated type identity must still be indexed by the same name a
+        /// binding sees, or authored and generated Thing Models resolve
+        /// differently.
+        /// </summary>
+        [Test]
+        public async Task ResolvesGeneratedTypeProjectedBySiblingThingModelAsync()
+        {
+            SnapshotWotNodeResolver resolver = await ResolverAsync(
+                (WoTDocumentKindEnum.ThingModel, "tank", TmWithoutUavId("Tank")))
+                .ConfigureAwait(false);
+
+            ArrayOf<WotResolvedNode> matches = await resolver
+                .ResolveByBrowseNameAsync(
+                    PumpNamespace, "Tank", WotExpectedNodeClass.ObjectType)
+                .ConfigureAwait(false);
+
+            Assert.That(matches, Has.Count.EqualTo(1));
+            Assert.That(matches[0].NodeId, Is.EqualTo("nsu=urn:test:pump;s=Tank"));
+            Assert.That(matches[0].NodeClass, Is.EqualTo(WotExpectedNodeClass.ObjectType));
+        }
+
+        /// <summary>
         /// A Thing Description projects an instance, never a type, so it must
         /// not be offered as a type-binding target.
         /// </summary>
@@ -299,13 +321,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return Document("tm:ThingModel", browseName, identifier);
         }
 
+        private static byte[] TmWithoutUavId(string browseName)
+        {
+            return Document("tm:ThingModel", browseName, string.Empty, includeUavId: false);
+        }
+
         private static byte[] Td(string browseName, string identifier)
         {
             return Document("uav:object", browseName, identifier);
         }
 
         private static byte[] Document(
-            string typeToken, string browseName, string identifier)
+            string typeToken,
+            string browseName,
+            string identifier,
+            bool includeUavId = true)
         {
             var builder = new StringBuilder();
             builder.Append("{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",")
@@ -313,10 +343,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .Append("\"ua\":\"http://opcfoundation.org/UA/\",")
                 .Append("\"pump\":\"").Append(PumpNamespace).Append("\"}],")
                 .Append("\"@type\":[\"Thing\",\"").Append(typeToken).Append("\"],")
+                .Append("\"id\":\"").Append(PumpNamespace).Append("\",")
                 .Append("\"title\":\"").Append(browseName).Append("\",")
-                .Append("\"uav:browseName\":\"pump:").Append(browseName).Append("\",")
-                .Append("\"uav:id\":\"nsu=").Append(PumpNamespace).Append(';')
-                .Append(identifier).Append("\",")
+                .Append("\"uav:browseName\":\"pump:").Append(browseName).Append("\",");
+            if (includeUavId)
+            {
+                builder.Append("\"uav:id\":\"nsu=").Append(PumpNamespace).Append(';')
+                    .Append(identifier).Append("\",");
+            }
+            builder
                 .Append("\"security\":\"nosec_sc\",")
                 .Append("\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}},")
                 .Append("\"properties\":{\"value\":{\"type\":\"number\",")

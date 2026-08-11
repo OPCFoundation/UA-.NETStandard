@@ -28,7 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
+using System.Linq;
+using System.Text;
 using NUnit.Framework;
+using Opc.Ua.Export;
 using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
@@ -87,8 +91,8 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Without an authored uav:id the identity falls back to the same
-        /// generated form the conversion emits, so the two cannot disagree.
+        /// The sibling index and conversion must agree on generated identity,
+        /// otherwise type binding points at a node that was never emitted.
         /// </summary>
         [Test]
         public void DerivesGeneratedIdentityWhenNoneIsAuthored()
@@ -104,7 +108,17 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(described, Is.True);
             Assert.That(namespaceUri, Is.EqualTo("urn:test:thing"));
             Assert.That(browseName, Is.EqualTo("Tank"));
-            Assert.That(nodeId, Is.EqualTo("nsu=urn:test:thing;s=Tank"));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
+                Is.Empty);
+            Assert.That(result.Value, Is.Not.Null);
+
+            UANode root = result.Value.Items.Single(i => i is UAObjectType);
+            Assert.That(
+                nodeId,
+                Is.EqualTo(ToPortableNodeId(root.NodeId, result.Value.NamespaceUris)));
         }
 
         /// <summary>
@@ -134,6 +148,27 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}}");
             return WotDocument.Parse(json);
+        }
+
+        private static string ToPortableNodeId(string rawNodeId, string[] namespaceUris)
+        {
+            NodeId parsed = NodeId.Parse(rawNodeId);
+            var buffer = new StringBuilder();
+            ushort index = parsed.NamespaceIndex;
+            if (index != 0)
+            {
+                Assert.That(index - 1, Is.LessThan(namespaceUris.Length));
+                buffer.Append("nsu=")
+                    .Append(CoreUtils.EscapeUri(namespaceUris[index - 1]))
+                    .Append(';');
+            }
+            NodeId.Format(
+                CultureInfo.InvariantCulture,
+                buffer,
+                parsed.IdentifierAsString,
+                parsed.IdType,
+                0);
+            return buffer.ToString();
         }
     }
 }

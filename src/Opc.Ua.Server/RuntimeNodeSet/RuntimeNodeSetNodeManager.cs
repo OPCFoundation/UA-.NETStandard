@@ -543,8 +543,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     continue;
                 }
 
-                NodeId? parentNodeId = UANodeSet.GetUnresolvedParentNodeId(instance);
-                if (parentNodeId is null)
+                NodeId parentNodeId = UANodeSet.GetUnresolvedParentNodeId(instance);
+                if (parentNodeId.IsNull)
                 {
                     continue;
                 }
@@ -559,7 +559,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     if (reference.IsInverse &&
                         !reference.TargetId.IsNull &&
                         !reference.TargetId.IsAbsolute &&
-                        (NodeId)reference.TargetId == parentNodeId.Value)
+                        (NodeId)reference.TargetId == parentNodeId)
                     {
                         backed = true;
                         break;
@@ -568,7 +568,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
 
                 if (!backed)
                 {
-                    m_logger.UnbackedExternalParent(instance.NodeId, parentNodeId.Value);
+                    m_logger.UnbackedExternalParent(instance.NodeId, parentNodeId);
                 }
             }
         }

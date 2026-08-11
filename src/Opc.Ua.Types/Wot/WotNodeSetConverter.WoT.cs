@@ -153,14 +153,16 @@ namespace Opc.Ua.Wot
                     cancellationToken).ConfigureAwait(false);
             }
 
-            // WoT Binding Section 5.2.1 is resolved before the synchronous
-            // core runs, in the same shape as the Thing references above, so
-            // the core stays synchronous.
-            WotTypeBinding typeBinding = await ResolveTypeBindingAsync(
-                document,
-                nodeResolver ?? NullWotNodeResolver.Instance,
-                diagnostics,
-                cancellationToken).ConfigureAwait(false);
+            // WoT Binding Section 5.2.1 only applies to synthesized Nodes.
+            WotTypeBinding? typeBinding = null;
+            if (!TakesRestorePath(document))
+            {
+                typeBinding = await ResolveTypeBindingAsync(
+                    document,
+                    nodeResolver ?? NullWotNodeResolver.Instance,
+                    diagnostics,
+                    cancellationToken).ConfigureAwait(false);
+            }
 
             UANodeSet? nodeSet = ToNodeSetCore(
                 document, options, thingCatalog, resolutionContext, diagnostics, typeBinding);
@@ -227,6 +229,11 @@ namespace Opc.Ua.Wot
                     diagnostic.Message,
                     diagnostic.Location);
             }
+        }
+
+        private static bool TakesRestorePath(WotDocument document)
+        {
+            return document.TryGetEnvelope(out _) || document.TryGetNativeProjection(out _);
         }
 
         /// <summary>

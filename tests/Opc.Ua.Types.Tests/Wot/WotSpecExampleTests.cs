@@ -233,6 +233,12 @@ namespace Opc.Ua.Types.Tests.Wot
                     .Select(d => $"{d.Code}: {d.Message}"));
         }
 
+        private static bool IsSection13Diagnostic(WotDiagnostic diagnostic)
+        {
+            return diagnostic.Code >= WotDiagnosticCode.ConditionEventIdMissing &&
+                diagnostic.Code <= WotDiagnosticCode.UnresolvedConditionType;
+        }
+
         private static IReadOnlyList<string> ExampleNames()
         {
             return [.. typeof(WotSpecExampleTests).Assembly
@@ -338,6 +344,23 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// The specification's own Condition example must remain an accepted
+        /// shape as validation of the actionable-event rules evolves.
+        /// </summary>
+        [Test]
+        public void ConditionExampleConvertsWithoutSection13Diagnostics()
+        {
+            using WotDocument document = WotDocument.Parse(ReadExample(ConditionExample));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(
+                result.Diagnostics.Count(d => d.Severity == WotDiagnosticSeverity.Error),
+                Is.Zero);
+            Assert.That(result.Diagnostics.Count(IsSection13Diagnostic), Is.Zero);
+        }
+
+        /// <summary>
         /// A local context holding exactly one ObjectType, so the example
         /// resolves against the type it names.
         /// </summary>
@@ -380,6 +403,7 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string ResourcePrefix = "Wot.Assets.";
         private const string ProjectionExample = "07-projection-predictive-maintenance.jsonld";
         private const string ResolvedExample = "08-projection-resolved.jsonld";
+        private const string ConditionExample = "21-condition-limit-alarm.jsonld";
         private const string TypeBindingExample = "22-type-binding-and-instance-reference.jsonld";
     }
 }

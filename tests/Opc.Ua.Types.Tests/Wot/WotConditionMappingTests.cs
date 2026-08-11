@@ -194,6 +194,23 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Section 13.4 requires the target event itself to carry the
+        /// Condition metadata, so an ordinary event cannot receive Methods.
+        /// </summary>
+        [Test]
+        public void AConditionActionNamingAnOrdinaryEventIsReported()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                OrdinaryEvent("tick") + "," +
+                ConditionAction("Acknowledge", "tick", withEventId: true));
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.InvalidConditionTarget),
+                Is.True);
+        }
+
+        /// <summary>
         /// Section 13.4: the three occurrence-level Methods bind to one Event
         /// through EventId, so the input is what makes them invocable.
         /// </summary>
@@ -254,6 +271,14 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"uav:conditionAction\":\"" + action + "\"," +
                 "\"uav:actsOn\":\"" + actsOn + "\"," +
                 "\"input\":{\"type\":\"object\",\"properties\":{" + properties + "}}}}";
+        }
+
+        private static string OrdinaryEvent(string name)
+        {
+            return "\"events\":{\"" + name + "\":{\"@type\":\"uav:eventType\"," +
+                "\"uav:isEvent\":true," +
+                "\"data\":{\"type\":\"object\",\"properties\":" +
+                "{\"EventId\":{\"type\":\"string\"}}}}}";
         }
 
         private static string SupertypeOfEvent(UANodeSet nodeSet)

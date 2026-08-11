@@ -388,8 +388,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             foreach (NodeState node in importedNodeStates)
             {
                 Assert.That(
-                    Export.UANodeSet.GetUnresolvedParentNodeId(node),
-                    Is.Null,
+                    Export.UANodeSet.GetUnresolvedParentNodeId(node).IsNull,
+                    Is.True,
                     $"'{node.BrowseName.Name}' resolved inside the batch, so nothing is unresolved.");
             }
         }
