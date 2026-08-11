@@ -224,5 +224,12 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "'NodeBrowser.DataLock' was removed in 2.0 — a browser is single-consumer, so drop the lock instead of replacing it",
             DiagnosticSeverity.Warning,
             "NodeBrowser no longer exposes a protected DataLock. A browser is single-consumer: it belongs to whoever created it, and both server browse paths already serialize access on the owning side (BrowserContext for the async node manager, a lock around the continuation point's browser for CustomNodeManager2). The exposed lock therefore only added an inheritance-level locking contract that a derived browser could not reason about — it could be held across a call into another module with nothing in the type system saying for how long. A derived browser that took DataLock inside its Next() override should simply remove the lock statement and keep the body. If a browser really is shared between threads, serialize it where it is owned, not inside the browser. See docs/migrate/2.0.x/node-states.md.");
+
+        public static readonly DiagnosticDescriptor UA0028_RemovedPropertiesLock = Create(
+            DiagnosticIds.UA0028,
+            "ApplicationConfiguration.PropertiesLock is no longer exposed",
+            "'ApplicationConfiguration.PropertiesLock' was removed in 2.0 — Properties synchronizes itself, so drop the lock and use GetOrAddProperty(...) if a read and a write have to be atomic",
+            DiagnosticSeverity.Warning,
+            "ApplicationConfiguration.PropertiesLock returned the properties dictionary itself, so the lock was the data it guarded: every caller that took it shared one monitor with the dictionary and with every other caller, in an order none of them could see. Properties is now a concurrent dictionary, so each individual operation is atomic without a lock. The only combination that needs more than one operation is get-or-add, which GetOrAddProperty covers; it deliberately does not invoke the factory under a lock, so a caller cannot hold a critical section across a callback. This rule reports rather than fixes, because whether a lock body becomes a plain call or a GetOrAddProperty depends on what the body does.");
     }
 }

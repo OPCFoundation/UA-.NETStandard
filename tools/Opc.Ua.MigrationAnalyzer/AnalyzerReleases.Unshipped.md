@@ -29,3 +29,4 @@ UA0024  | Migration | Warning  | Replace `IServerInternal`/`ISession`/`ISubscrip
 UA0025  | Migration | Warning  | Replace `ILocalNode.DataLock` / `Node.DataLock` access with a lock you own; the node guards its own state.
 UA0026  | Migration | Warning  | Replace `BaseVariableValue.Lock` access with a lock you own and pass to the `BaseVariableValue` constructor.
 UA0027  | Migration | Warning  | Remove `NodeBrowser.DataLock` usage: a browser is single-consumer in 2.0, so drop the `lock (DataLock)` statement and keep its body. See docs/migrate/2.0.x/node-states.md.
+UA0028  | Migration | Warning  | Replace `ApplicationConfiguration.PropertiesLock` usage: `Properties` synchronizes itself in 2.0, so drop the `lock` and use `GetOrAddProperty(...)` where a read and a write must be atomic.
