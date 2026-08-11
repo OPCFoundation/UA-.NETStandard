@@ -563,6 +563,7 @@ namespace Opc.Ua.Vision.Server.Builders
                 throw new ArgumentNullException(nameof(provider));
             }
             m_mediaProvider = provider;
+            EnsureMedia();
             return Self;
         }
 
@@ -602,8 +603,49 @@ namespace Opc.Ua.Vision.Server.Builders
             }
             if (Sensor.Media is VisionMediaManagementState media)
             {
+                EnsureMediaMethods(media);
                 m_dispatcher.AttachMediaMethods(Sensor.NodeId, media);
             }
+        }
+
+        private void EnsureMediaMethods(VisionMediaManagementState media)
+        {
+            if (m_mediaProvider == null)
+            {
+                return;
+            }
+            ISystemContext context = m_context.Context;
+            DeclareMedia(
+                media.CreateOrReplaceGetStreamEndpoint(context, null),
+                MethodIds.VisionMediaManagementType_GetStreamEndpoint,
+                VisionMethodArguments.Declare);
+            DeclareMedia(
+                media.CreateOrReplaceReleaseStreamEndpoint(context, null),
+                MethodIds.VisionMediaManagementType_ReleaseStreamEndpoint,
+                VisionMethodArguments.Declare);
+            DeclareMedia(
+                media.CreateOrReplaceConfigureStreamEndpoint(context, null),
+                MethodIds.VisionMediaManagementType_ConfigureStreamEndpoint,
+                VisionMethodArguments.Declare);
+            DeclareMedia(
+                media.CreateOrReplaceSelectEndpoint(context, null),
+                MethodIds.VisionMediaManagementType_SelectEndpoint,
+                VisionMethodArguments.Declare);
+            DeclareMedia(
+                media.CreateOrReplaceGetClip(context, null),
+                MethodIds.VisionMediaManagementType_GetClip,
+                VisionMethodArguments.Declare);
+        }
+
+        private void DeclareMedia<TMethod>(
+            TMethod method,
+            ExpandedNodeId declarationId,
+            Action<ISystemContext, TMethod> declare)
+            where TMethod : MethodState
+        {
+            declare(m_context.Context, method);
+            method.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                declarationId, m_context.Context.NamespaceUris);
         }
 
         protected virtual void OnFinalize(SensorRegistration registration)
@@ -613,6 +655,7 @@ namespace Opc.Ua.Vision.Server.Builders
         protected VisionMediaManagementState EnsureMedia()
         {
             Sensor.CreateOrReplaceMedia(m_context.Context, null);
+            Sensor.Media!.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
             return Sensor.Media!;
         }
 
@@ -1245,6 +1288,7 @@ namespace Opc.Ua.Vision.Server.Builders
         internal void Finalize(FolderState parent)
         {
             parent.AddChild(m_pipeline);
+            EnsureMethods();
             var facets = new HashSet<string>(StringComparer.Ordinal);
             if (m_inferenceProvider != null)
             {
@@ -1271,6 +1315,62 @@ namespace Opc.Ua.Vision.Server.Builders
             {
                 m_dispatcher.AttachFeedbackMethods(m_pipeline.NodeId, feedback);
             }
+        }
+
+        private void EnsureMethods()
+        {
+            ISystemContext context = m_context.Context;
+            if (m_inferenceProvider != null)
+            {
+                FolderState results = m_pipeline.CreateOrReplaceResults(context, null);
+                results.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                Declare(
+                    m_pipeline.CreateOrReplaceRunInference(context, null),
+                    MethodIds.InferencePipelineType_RunInference,
+                    VisionMethodArguments.Declare);
+                Declare(
+                    m_pipeline.CreateOrReplaceStartContinuous(context, null),
+                    MethodIds.InferencePipelineType_StartContinuous,
+                    VisionMethodArguments.DeclareStartContinuous);
+                Declare(
+                    m_pipeline.CreateOrReplaceStop(context, null),
+                    MethodIds.InferencePipelineType_Stop,
+                    VisionMethodArguments.DeclareStop);
+            }
+            if (m_feedbackSink != null)
+            {
+                m_pipeline.CreateOrReplaceFeedback(context, null);
+                VisionFeedbackState feedback = m_pipeline.Feedback!;
+                feedback.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                Declare(
+                    feedback.CreateOrReplaceSubmitDetections(context, null),
+                    MethodIds.VisionFeedbackType_SubmitDetections,
+                    VisionMethodArguments.Declare);
+                Declare(
+                    feedback.CreateOrReplaceSubmitInspectionResult(context, null),
+                    MethodIds.VisionFeedbackType_SubmitInspectionResult,
+                    VisionMethodArguments.Declare);
+                Declare(
+                    feedback.CreateOrReplaceSubmitCorrection(context, null),
+                    MethodIds.VisionFeedbackType_SubmitCorrection,
+                    VisionMethodArguments.Declare);
+                Declare(
+                    feedback.CreateOrReplaceSubmitImageReference(context, null),
+                    MethodIds.VisionFeedbackType_SubmitImageReference,
+                    VisionMethodArguments.Declare);
+            }
+        }
+
+        private void Declare<TMethod>(
+            TMethod method,
+            ExpandedNodeId declarationId,
+            Action<ISystemContext, TMethod> declare)
+            where TMethod : MethodState
+        {
+            declare(m_context.Context, method);
+            method.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+            method.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                declarationId, m_context.Context.NamespaceUris);
         }
 
         private readonly VisionBuildContext m_context;

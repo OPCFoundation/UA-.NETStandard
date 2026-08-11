@@ -139,6 +139,7 @@ namespace Opc.Ua.Vision.Server
             for (int ii = 0; ii < m_pendingRegistrations.Count; ii++)
             {
                 NodeState node = m_pendingRegistrations[ii];
+                NormalizeReferenceTypeIds(node);
                 if (Manager.FindPredefinedNode<NodeState>(node.NodeId) == null)
                 {
                     await Manager.AddPredefinedNodeAsync(node, cancellationToken).ConfigureAwait(false);
@@ -146,6 +147,36 @@ namespace Opc.Ua.Vision.Server
             }
             m_pendingRegistrations.Clear();
             m_pendingRegistrationSet.Clear();
+        }
+
+        /// <summary>
+        /// Gives every child a reference type.
+        /// </summary>
+        /// <remarks>
+        /// The generated <c>CreateOrReplace</c> helpers materialise an
+        /// optional child without stamping a <c>ReferenceTypeId</c>, and a
+        /// child referenced by nothing is unreachable: it cannot be browsed
+        /// from its parent and a browse path cannot be translated to it, so
+        /// a client sees an object whose optional Properties, Methods and
+        /// folders simply do not exist. Filling it in here fixes every
+        /// builder at once rather than at each of the several dozen call
+        /// sites.
+        /// </remarks>
+        private static void NormalizeReferenceTypeIds(NodeState node)
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(null!, children);
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                BaseInstanceState child = children[ii];
+                if (child.ReferenceTypeId.IsNull)
+                {
+                    child.ReferenceTypeId = child is PropertyState
+                        ? global::Opc.Ua.ReferenceTypeIds.HasProperty
+                        : global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                }
+                NormalizeReferenceTypeIds(child);
+            }
         }
 
         private readonly IServiceProvider? m_services;
