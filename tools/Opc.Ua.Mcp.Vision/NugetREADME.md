@@ -18,13 +18,23 @@ reading a description of them. When the server cannot render — for example on
 CI without a graphics device — the tool returns an actionable text explanation
 instead of a broken image.
 
-## Tools
+## Tools (22)
 
-Discovery, per-sensor and per-pipeline reads, live result reads,
-`vision_get_frame` and its metadata variant, single-shot and continuous
-inference, off-server feedback (`SubmitDetections`, `SubmitInspectionResult`,
-`SubmitCorrection`, `SubmitImageReference`), and coordinate-frame
-composition via §5.12 conventions.
+- **Discovery (4)** — `vision_list_sensors`, `vision_list_pipelines`,
+  `vision_list_frames`, `vision_list_calibrations`.
+- **Monitoring (6)** — `vision_read_sensor`,
+  `vision_read_extrinsic_calibration`, `vision_read_pipeline`,
+  `vision_read_detection_result`, `vision_read_inspection_result`,
+  `vision_read_segmentation_result`.
+- **Seeing (2)** — `vision_get_frame` (`ImageContentBlock`),
+  `vision_get_frame_metadata`.
+- **Inference (3)** — `vision_run_inference`,
+  `vision_start_continuous_inference`, `vision_stop_inference`.
+- **Feedback (4)** — `vision_submit_detections`,
+  `vision_submit_inspection_result`, `vision_submit_correction`,
+  `vision_submit_image_reference`.
+- **Geometry (3)** — `vision_read_frame`, `vision_compose_pose`,
+  `vision_compose_transform`.
 
 Server refusals are returned honestly with the exact `StatusCode` and message;
 the MCP layer does not retry and never acquires command authority as a side
@@ -32,7 +42,17 @@ effect.
 
 ## Usage
 
+### Standalone `vision` profile
+
+Every Vision tool resolves a named OPC UA session, and only the connection
+tools can open one. The single-profile overload therefore carries
+`ConnectionTools` itself, so the bounded `vision` profile is usable
+end-to-end without composing with any other package:
+
 ```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Mcp;
+
 builder.Services.AddOpcUaMcpCore();
 builder.Services.AddOpcUaMcpVision();
 
@@ -40,8 +60,32 @@ builder.Services.AddMcpServer()
     .WithStdioServerTransport()
     .WithOpcUaMcpFilters()
     .WithOpcUaCoreTools(McpToolProfile.Vision)
-    .WithOpcUaVisionTools(McpToolProfile.Vision)
-    .WithTools<MyApplicationTools>();
+    .WithOpcUaVisionTools(McpToolProfile.Vision);
+```
+
+### Composed with `robotics`
+
+Use the `McpToolProfileSet` overloads to combine Vision with Robotics — the
+composition the [BinPickingClient sample](https://github.com/OPCFoundation/UA-.NETStandard/tree/main/samples/Vision/BinPickingClient)
+runs. The core-tools overload owns and deduplicates `ConnectionTools`
+across every package that references the same MCP server:
+
+```csharp
+using Opc.Ua.Mcp;
+
+McpToolProfileSet profiles = new McpToolProfileSet(
+    new[] { McpToolProfile.Vision, McpToolProfile.Robotics });
+
+builder.Services.AddOpcUaMcpCore();
+builder.Services.AddOpcUaMcpVision();
+builder.Services.AddOpcUaMcpRobotics();
+
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithOpcUaMcpFilters()
+    .WithOpcUaCoreTools(profiles)
+    .WithOpcUaVisionTools(profiles)
+    .WithOpcUaRoboticsTools(profiles);
 ```
 
 A profile that does not select Vision contributes no tools rather than
@@ -56,6 +100,10 @@ host references.
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Client` | Vision discovery, sensors, frames, media, inference, feedback client API |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent tools that pair with Vision for pick-and-pack scenarios |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` server composing all OPC UA MCP tool packages |
+
+See the [Vision developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md#mcp-tools)
+and the [MCP Server guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/McpServer.md)
+for the profile table, composition rules and the worked bin-picking sample.
 
 ## License
 
