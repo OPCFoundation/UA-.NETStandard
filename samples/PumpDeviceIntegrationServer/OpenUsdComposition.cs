@@ -278,7 +278,7 @@ namespace Pumps
                 TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
             };
             _ = SystemContext.CreateRepresentation(
-                pump, m_plantStage!.NodeId, primPath, ns, assignNodeId: false);
+                pump, m_plantStage!.NodeId, primPath, ns);
 
             NodeId newId = await CreateNodeAsync(SystemContext, m_linePumps.NodeId,
                 ReferenceTypeIds.Organizes, new QualifiedName(name, ns), pump, CancellationToken.None)
@@ -304,7 +304,6 @@ namespace Pumps
 
             OpenUsdRepresentationState rep = SystemContext.CreateRepresentation(
                 obj, m_plantStage!.NodeId, primPath, openUsdNs);
-            SystemContext.AssignInstanceChildNodeIds(obj);
             return (obj, rep);
         }
 

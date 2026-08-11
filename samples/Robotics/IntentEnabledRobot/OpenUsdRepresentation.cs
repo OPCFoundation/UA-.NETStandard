@@ -230,11 +230,7 @@ namespace Robotics.IntentEnabledRobot
             string primPath,
             ushort ns)
         {
-            OpenUsdRepresentationState rep = context.CreateRepresentation(
-                owner, stage.NodeId, primPath, ns, assignNodeId: false);
-            NodeId previousNodeId = context.AssignInstanceNodeId(rep);
-            context.AssignInstanceChildNodeIds(rep, previousNodeId, owner);
-            return rep;
+            return context.CreateRepresentation(owner, stage.NodeId, primPath, ns);
         }
 
         private void OrganiseRepresentation(OpenUsdRepresentationState rep)

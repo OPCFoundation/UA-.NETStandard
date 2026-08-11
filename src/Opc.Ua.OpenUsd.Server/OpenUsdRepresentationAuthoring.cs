@@ -52,32 +52,6 @@ namespace Opc.Ua.OpenUsd.Server
         /// <param name="stage">NodeId of the target <c>OpenUsdStage</c>.</param>
         /// <param name="primPath">USD prim path the represented Object maps to.</param>
         /// <param name="ns">The OpenUSD companion namespace index.</param>
-        public static OpenUsdRepresentationState CreateRepresentation(
-            this ISystemContext context,
-            NodeState owner,
-            NodeId stage,
-            string primPath,
-            ushort ns)
-        {
-            return context.CreateRepresentation(owner, stage, primPath, ns, assignNodeId: true);
-        }
-
-        /// <summary>
-        /// Attaches an <c>OpenUsdRepresentation</c> AddIn to <paramref name="owner"/>
-        /// (HasAddIn, browsable), pointing it at the given stage and prim path.
-        /// The caller adds live/component bindings to the returned representation.
-        /// </summary>
-        /// <param name="context">The server system context.</param>
-        /// <param name="owner">The Object the representation is attached to.</param>
-        /// <param name="stage">NodeId of the target <c>OpenUsdStage</c>.</param>
-        /// <param name="primPath">USD prim path the represented Object maps to.</param>
-        /// <param name="ns">The OpenUSD companion namespace index.</param>
-        /// <param name="assignNodeId">
-        /// <see langword="true"/> to assign the representation NodeId immediately;
-        /// <see langword="false"/> when the owner subtree will assign NodeIds later.
-        /// A deferred representation must be rebased before it is registered in the
-        /// address space.
-        /// </param>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/> or <paramref name="owner"/> is <see langword="null"/>.
         /// </exception>
@@ -86,8 +60,7 @@ namespace Opc.Ua.OpenUsd.Server
             NodeState owner,
             NodeId stage,
             string primPath,
-            ushort ns,
-            bool assignNodeId)
+            ushort ns)
         {
             if (context is null)
             {
@@ -107,10 +80,7 @@ namespace Opc.Ua.OpenUsd.Server
             // aggregates, while saying which of the two it is.
             rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
             owner.AddChild(rep);
-            if (assignNodeId)
-            {
-                rep.NodeId = context.RequireNodeIdFactory().New(context, rep);
-            }
+            rep.NodeId = context.RequireNodeIdFactory().New(context, rep);
             rep.CreateOrReplaceStage(context, null!).Value = stage;
             rep.CreateOrReplacePrimPath(context, null!).Value = primPath;
             return rep;

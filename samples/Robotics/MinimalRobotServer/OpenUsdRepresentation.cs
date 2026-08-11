@@ -185,8 +185,7 @@ namespace Robotics
             NodeState owner, string primPath, ushort ns)
         {
             OpenUsdRepresentationState rep = SystemContext.CreateRepresentation(
-                owner, m_cellStage!.NodeId, primPath, ns, assignNodeId: false);
-            AssignInstanceSubtree(rep, owner);
+                owner, m_cellStage!.NodeId, primPath, ns);
             return rep;
         }
 

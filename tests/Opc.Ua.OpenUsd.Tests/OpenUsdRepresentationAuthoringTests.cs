@@ -71,28 +71,6 @@ namespace Opc.Ua.OpenUsd.Server.Tests
         }
 
         [Test]
-        public void CreateRepresentationCanDeferNodeIdAssignment()
-        {
-            (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();
-            OpenUsdRootState root = OpenUsdAuthoringHarness.NewFacility(context, ns);
-            OpenUsdStageState stage = OpenUsdAuthoringHarness.NewStage(context, root, ns, "Cell");
-            BaseObjectState owner = OpenUsdAuthoringHarness.NewOwner(context, ns, "Robot1");
-            context.NodeIdFactory = null!;
-
-            OpenUsdRepresentationState rep = context.CreateRepresentation(
-                owner, stage.NodeId, "/Cell/Robots/R1", ns, assignNodeId: false);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(rep.NodeId, Is.EqualTo(new NodeId(ObjectTypes.OpenUsdRepresentationType, ns)));
-                Assert.That(rep.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasAddIn));
-                Assert.That(rep.ReferenceTypeId, Is.Not.EqualTo(ReferenceTypeIds.HasComponent));
-                Assert.That(rep.Stage!.Value, Is.EqualTo(stage.NodeId));
-                Assert.That(rep.PrimPath!.Value, Is.EqualTo("/Cell/Robots/R1"));
-            });
-        }
-
-        [Test]
         public void RepresentedInterfacePlaceholderIsMountedWithHasAddIn()
         {
             (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();

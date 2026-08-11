@@ -566,8 +566,7 @@ namespace Robotics
                 tool,
                 m_cellStage!.NodeId,
                 s_robots[0].PrimPath + ToolSuffix,
-                usdNs,
-                assignNodeId: false);
+                usdNs);
 
             NodeId newId = await Manager.AddNodeAsync(
                 SystemContext,
