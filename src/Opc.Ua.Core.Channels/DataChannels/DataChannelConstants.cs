@@ -185,6 +185,32 @@ namespace Opc.Ua.Bindings
         public const int MinPingInterval = 1000;
 
         /// <summary>
+        /// The share of <see cref="MinPingInterval"/> a receiver waits before
+        /// it answers another PING on the same ChannelId (Part 6 errata 5.11).
+        /// </summary>
+        /// <remarks>
+        /// Below 1.0 deliberately. The sender's bound is measured on the
+        /// sender's clock and the receiver's on the receiver's, so a peer that
+        /// honours the one-per-second rule still delivers the occasional PING
+        /// a few milliseconds early. Answering slightly sooner than the
+        /// nominal interval keeps ordinary jitter from being mistaken for a
+        /// violation, and still bounds the work a peer can compel.
+        /// </remarks>
+        public const double PingResponseIntervalTolerance = 0.8;
+
+        /// <summary>
+        /// How many consecutive PING frames breaching the rate bound are
+        /// discarded before the channel is reset (Part 6 errata 5.11).
+        /// </summary>
+        /// <remarks>
+        /// The errata permits a receiver to discard an over-rate PING and to
+        /// reset the channel once the violation "persists". A single burst is
+        /// therefore absorbed silently; only a peer that keeps flooding after
+        /// being ignored this many times is treated as hostile.
+        /// </remarks>
+        public const int MaxPingRateViolations = 16;
+
+        /// <summary>
         /// The minimum interval between Open to Paused state change
         /// Events for one channel, in milliseconds (Part 6 errata 5.13).
         /// </summary>

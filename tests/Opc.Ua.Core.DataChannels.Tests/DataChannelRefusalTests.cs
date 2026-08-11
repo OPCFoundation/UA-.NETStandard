@@ -284,6 +284,138 @@ namespace Opc.Ua.Core.DataChannels.Tests
             });
         }
 
+        /// <summary>
+        /// Part 6 errata §5.11: a PONG copies the PING's Timestamp verbatim,
+        /// because the value is opaque to the responder and only the prober
+        /// can interpret it.
+        /// </summary>
+        [Test]
+        public async Task APingIsAnsweredWithAPongEchoingTheTimestampAsync()
+        {
+            Register(direction: DataChannelDirection.Bidirectional);
+
+            const long probeTimestamp = 0x0123_4567_89AB_CDEF;
+            m_manager!.HandleFrame(DataChannelFrame.Ping(ChannelId, 1, probeTimestamp));
+
+            await WaitForAsync(() => PongFrames().Count > 0).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(PongFrames(), Has.Count.EqualTo(1));
+                Assert.That(PongFrames()[0].Timestamp, Is.EqualTo(probeTimestamp));
+            });
+        }
+
+        /// <summary>
+        /// §5.11: PING is exempt from flow control and compels a PONG ahead of
+        /// queued payload, so a peer that exceeds one PING per second per
+        /// ChannelId would otherwise have an amplification surface with no
+        /// window to close against it. The excess is discarded, not answered.
+        /// </summary>
+        [Test]
+        public async Task PingsBeyondTheRateBoundAreDiscardedRatherThanAnsweredAsync()
+        {
+            DataChannel channel = Register(direction: DataChannelDirection.Bidirectional);
+
+            // Below MaxPingRateViolations, so this exercises the discard on its
+            // own rather than escalating to the reset the next test covers.
+            for (uint ii = 1; ii <= 5; ii++)
+            {
+                m_manager!.HandleFrame(DataChannelFrame.Ping(ChannelId, ii, ii));
+            }
+
+            await WaitForAsync(() => PongFrames().Count > 0).ConfigureAwait(false);
+
+            long roundsBefore = m_manager!.SchedulerRounds;
+            await WaitForAsync(() => m_manager.SchedulerRounds >= roundsBefore + 3)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    PongFrames(),
+                    Has.Count.EqualTo(1),
+                    "A flood of PINGs inside one interval shall yield exactly one PONG.");
+                Assert.That(channel.State, Is.Not.EqualTo(DataChannelState.Faulted));
+            });
+        }
+
+        /// <summary>
+        /// The bound is a rate, not a one-shot: once the interval has elapsed
+        /// the next PING is answered normally.
+        /// </summary>
+        [Test]
+        public async Task APingIsAnsweredAgainOnceTheIntervalHasElapsedAsync()
+        {
+            Register(direction: DataChannelDirection.Bidirectional);
+
+            m_manager!.HandleFrame(DataChannelFrame.Ping(ChannelId, 1, 11));
+            await WaitForAsync(() => PongFrames().Count == 1).ConfigureAwait(false);
+
+            m_timeProvider!.Advance(
+                TimeSpan.FromMilliseconds(DataChannelConstants.MinPingInterval));
+            m_manager.HandleFrame(DataChannelFrame.Ping(ChannelId, 2, 22));
+
+            await WaitForAsync(() => PongFrames().Count == 2).ConfigureAwait(false);
+
+            Assert.That(
+                PongFrames().Select(frame => frame.Timestamp),
+                Is.EqualTo(new long[] { 11, 22 }));
+        }
+
+        /// <summary>
+        /// §5.11 lets a receiver reset the channel once the breach persists.
+        /// Being ignored is the first response; a peer that keeps flooding
+        /// after that is treated as hostile rather than merely noisy.
+        /// </summary>
+        [Test]
+        public async Task ASustainedPingFloodResetsTheChannelAsync()
+        {
+            DataChannel channel = Register(direction: DataChannelDirection.Bidirectional);
+
+            for (uint ii = 1; ii <= DataChannelConstants.MaxPingRateViolations + 2; ii++)
+            {
+                m_manager!.HandleFrame(DataChannelFrame.Ping(ChannelId, ii, ii));
+            }
+
+            await WaitForAsync(() => ResetFrames().Count > 0).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(
+                    ResetFrames().Select(frame => frame.Status.Code),
+                    Does.Contain((uint)StatusCodes.BadDataChannelLimitsExceeded));
+            });
+        }
+
+        /// <summary>
+        /// ChannelId 0 is a ChannelId, so the same bound applies to it.
+        /// Without this the connection-level amplification surface stays open
+        /// even once every data channel enforces its own bound.
+        /// </summary>
+        [Test]
+        public async Task PingsOnTheConnectionControlChannelAreRateLimitedAsync()
+        {
+            Register(direction: DataChannelDirection.Bidirectional);
+
+            for (uint ii = 1; ii <= 20; ii++)
+            {
+                m_manager!.HandleFrame(DataChannelFrame.Ping(
+                    DataChannelConstants.ConnectionControlChannelId,
+                    ii,
+                    ii));
+            }
+
+            await WaitForAsync(() => ControlChannelPongFrames().Count > 0).ConfigureAwait(false);
+
+            long roundsBefore = m_manager!.SchedulerRounds;
+            await WaitForAsync(() => m_manager.SchedulerRounds >= roundsBefore + 3)
+                .ConfigureAwait(false);
+
+            Assert.That(ControlChannelPongFrames(), Has.Count.EqualTo(1));
+        }
+
         private static DataChannelFrame Data(uint sequenceNumber, byte[] payload)
         {
             return DataChannelFrame.Data(
@@ -319,6 +451,20 @@ namespace Opc.Ua.Core.DataChannels.Tests
             return [.. m_transport!.Sent.Where(frame =>
                 frame.ChannelId == ChannelId &&
                 frame.FrameType == DataChannelFrameType.Reset)];
+        }
+
+        private IReadOnlyList<DataChannelFrame> PongFrames()
+        {
+            return [.. m_transport!.Sent.Where(frame =>
+                frame.ChannelId == ChannelId &&
+                frame.FrameType == DataChannelFrameType.Pong)];
+        }
+
+        private IReadOnlyList<DataChannelFrame> ControlChannelPongFrames()
+        {
+            return [.. m_transport!.Sent.Where(frame =>
+                frame.ChannelId == DataChannelConstants.ConnectionControlChannelId &&
+                frame.FrameType == DataChannelFrameType.Pong)];
         }
 
         private static async Task WaitForAsync(Func<bool> condition)

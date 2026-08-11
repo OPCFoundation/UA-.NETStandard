@@ -227,9 +227,21 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 isSource: false);
             manager.Remove(pending.ChannelId);
 
+            // DATA rather than PING: a frame carrying an 8 byte payload encodes
+            // to exactly the same size as a PING, so the bound arithmetic is
+            // unchanged, but the count of frames that survived the buffer is
+            // then observable directly. Counting the PONGs a replayed PING
+            // burst produces would measure the §5.11 ping rate limit instead of
+            // the buffer bound this test is about.
+            byte[] payload = new byte[8];
+
             for (uint sequence = 1; sequence <= 5; sequence++)
             {
-                manager.HandleFrame(DataChannelFrame.Ping(pending.ChannelId, sequence, sequence));
+                manager.HandleFrame(DataChannelFrame.Data(
+                    pending.ChannelId,
+                    sequence,
+                    DataChannelFrameFlags.MessageStart | DataChannelFrameFlags.MessageEnd,
+                    payload));
             }
 
             DataChannel channel = manager.Register(
@@ -242,7 +254,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(transport.CountOf(DataChannelFrameType.Pong), Is.EqualTo(4));
+                Assert.That(channel.GetDiagnostics().FramesReceived, Is.EqualTo(4ul));
                 Assert.That(transport.Faults, Is.Empty);
             });
         }

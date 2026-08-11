@@ -439,11 +439,7 @@ namespace Opc.Ua.Bindings
                     HandleEnd();
                     return DataChannelFrameAction.Accepted;
                 case DataChannelFrameType.Ping:
-                    QueueControl(DataChannelFrame.Pong(
-                        ChannelId,
-                        m_sendQueue.TakeSequenceNumber(),
-                        frame.Timestamp));
-                    return DataChannelFrameAction.Accepted;
+                    return HandlePing(frame, out status);
                 case DataChannelFrameType.Pong:
                     HandlePong(frame.Timestamp);
                     return DataChannelFrameAction.Accepted;
@@ -1121,6 +1117,68 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Answers a PING with a PONG echoing its Timestamp verbatim, subject
+        /// to the rate bound of Part 6 errata §5.11.
+        /// </summary>
+        /// <remarks>
+        /// PING is exempt from flow control and compels a PONG ahead of queued
+        /// payload, so without a bound it is an amplification surface: a peer
+        /// emitting PING at line rate on every open ChannelId compels the other
+        /// end to answer at line rate ahead of its own traffic, with no window
+        /// to close against it. §5.11 bounds a sender to one unanswered PING
+        /// and one PING per second per ChannelId, and lets a receiver discard
+        /// what breaches that and reset the channel once the breach persists.
+        /// Both halves are enforced here; enforcing only the sending half
+        /// bounds a well-behaved peer and leaves a hostile one unbounded.
+        /// </remarks>
+        /// <param name="frame">The PING.</param>
+        /// <param name="status">The StatusCode to reset with, when the rate
+        /// bound has been breached often enough to be deliberate.</param>
+        private DataChannelFrameAction HandlePing(
+            in DataChannelFrame frame,
+            out StatusCode status)
+        {
+            status = StatusCodes.Good;
+
+            lock (m_lock)
+            {
+                long now = m_transport.TimeProvider.GetTimestamp();
+
+                if (m_hasAnsweredPing &&
+                    m_transport.TimeProvider.GetElapsedTime(m_lastPingAnswered, now)
+                        .TotalMilliseconds <
+                    DataChannelConstants.MinPingInterval *
+                        DataChannelConstants.PingResponseIntervalTolerance)
+                {
+                    if (++m_pingRateViolations > DataChannelConstants.MaxPingRateViolations)
+                    {
+                        status = StatusCodes.BadDataChannelLimitsExceeded;
+                        return DataChannelFrameAction.ResetChannel;
+                    }
+
+                    // Discarded, not answered. The prober keeps no state on the
+                    // responder, so a dropped PONG costs it one measurement it
+                    // was not entitled to take.
+                    return DataChannelFrameAction.Accepted;
+                }
+
+                m_pingRateViolations = 0;
+                m_lastPingAnswered = now;
+                m_hasAnsweredPing = true;
+
+                // The Timestamp is echoed verbatim: it is opaque to the
+                // responder, which shall not interpret, validate or rescale it.
+                m_sendQueue.EnqueueControl(DataChannelFrame.Pong(
+                    ChannelId,
+                    m_sendQueue.TakeSequenceNumber(),
+                    frame.Timestamp));
+            }
+
+            SendReady?.Invoke(this, EventArgs.Empty);
+            return DataChannelFrameAction.Accepted;
+        }
+
         private void HandlePong(long timestamp)
         {
             lock (m_lock)
@@ -1215,6 +1273,9 @@ namespace Opc.Ua.Bindings
         private bool m_pingOutstanding;
         private long m_closingSince;
         private long m_lastPingSent;
+        private long m_lastPingAnswered;
+        private bool m_hasAnsweredPing;
+        private int m_pingRateViolations;
         private long m_lastPauseEvent;
         private double m_roundTripTime;
         private uint m_lastGapSequenceNumber;

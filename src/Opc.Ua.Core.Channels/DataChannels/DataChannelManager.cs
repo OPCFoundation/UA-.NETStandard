@@ -546,15 +546,43 @@ namespace Opc.Ua.Bindings
 
                     break;
                 case DataChannelFrameType.Ping:
+                    // Part 6 errata §5.11 bounds PING to one per second per
+                    // ChannelId, and ChannelId 0 is a ChannelId. Answering
+                    // unconditionally here would leave the connection-level
+                    // amplification surface open even once every data channel
+                    // enforces its own bound. There is no channel to RESET on
+                    // the control channel, so an over-rate PING is simply
+                    // discarded and the connection carries on.
+                    bool answer;
+
                     lock (m_lock)
                     {
-                        m_controlQueue.Enqueue(DataChannelFrame.Pong(
-                            DataChannelConstants.ConnectionControlChannelId,
-                            TakeControlSequenceNumber(),
-                            frame.Timestamp));
+                        long now = m_transport.TimeProvider.GetTimestamp();
+
+                        answer = !m_hasAnsweredConnectionPing ||
+                            m_transport.TimeProvider
+                                .GetElapsedTime(m_lastConnectionPingAnswered, now)
+                                .TotalMilliseconds >=
+                            DataChannelConstants.MinPingInterval *
+                                DataChannelConstants.PingResponseIntervalTolerance;
+
+                        if (answer)
+                        {
+                            m_lastConnectionPingAnswered = now;
+                            m_hasAnsweredConnectionPing = true;
+
+                            m_controlQueue.Enqueue(DataChannelFrame.Pong(
+                                DataChannelConstants.ConnectionControlChannelId,
+                                TakeControlSequenceNumber(),
+                                frame.Timestamp));
+                        }
                     }
 
-                    Wake();
+                    if (answer)
+                    {
+                        Wake();
+                    }
+
                     break;
                 case DataChannelFrameType.Pong:
                     lock (m_lock)
@@ -931,6 +959,8 @@ namespace Opc.Ua.Bindings
         private bool m_connectionCreditReceived;
         private bool m_connectionPingOutstanding;
         private long m_lastConnectionPing;
+        private long m_lastConnectionPingAnswered;
+        private bool m_hasAnsweredConnectionPing;
         private long m_schedulerRounds;
         private double m_roundTripTime;
         private bool m_disposed;
