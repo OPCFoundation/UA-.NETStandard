@@ -649,7 +649,8 @@ namespace Opc.Ua.Wot
                     var security = new JsonArray();
                     for (int ii = 0; ii < effective.Count; ii++)
                     {
-                        security.Add(Qualify(source.Source.SourceName, effective[ii]));
+                        security.Add(JsonValue.Create(
+                            Qualify(source.Source.SourceName, effective[ii])));
                     }
                     form["security"] = security;
                 }
@@ -709,7 +710,7 @@ namespace Opc.Ua.Wot
                             value.TryGetValue(out string? name) &&
                             name is not null)
                         {
-                            rewritten.Add(Qualify(sourceName, name));
+                            rewritten.Add(JsonValue.Create(Qualify(sourceName, name)));
                             children.Add(name);
                         }
                         else
@@ -843,6 +844,10 @@ namespace Opc.Ua.Wot
             {
                 return null;
             }
+            // JsonArray.Add<T> converts a CLR value through the default
+            // JsonSerializerOptions, which carries no type resolver in a Native
+            // AOT application and throws for a plain string. JsonValue.Create
+            // builds the node directly, as the rest of this file already does.
             var result = new JsonArray();
             for (int ii = 0; ii < items.Count; ii++)
             {
@@ -852,12 +857,12 @@ namespace Opc.Ua.Wot
                 }
                 else
                 {
-                    result.Add(items[ii]);
+                    result.Add(JsonValue.Create(items[ii]));
                 }
             }
             for (int ii = 0; ii < appended.Count; ii++)
             {
-                result.Add(appended[ii]);
+                result.Add(JsonValue.Create(appended[ii]));
             }
             return result;
         }
@@ -1133,7 +1138,7 @@ namespace Opc.Ua.Wot
             var array = new JsonArray();
             for (int ii = 0; ii < tokens.Count; ii++)
             {
-                array.Add(tokens[ii]);
+                array.Add(JsonValue.Create(tokens[ii]));
             }
             return array;
         }
@@ -1146,7 +1151,7 @@ namespace Opc.Ua.Wot
                 if (!string.Equals(
                         token, WotVocabulary.ProjectionAnnotation, StringComparison.Ordinal))
                 {
-                    array.Add(token);
+                    array.Add(JsonValue.Create(token));
                 }
             }
             return array;
@@ -1547,9 +1552,25 @@ namespace Opc.Ua.Wot
             return JsonNode.Parse(element.GetRawText());
         }
 
+        /// <summary>
+        /// Clones a node by round-tripping it through its serialised form.
+        /// </summary>
+        /// <remarks>
+        /// Written with <see cref="WriteNode"/> rather than
+        /// <c>JsonNode.ToJsonString()</c>, which serialises a CLR-backed value
+        /// through the default <see cref="JsonSerializerOptions"/>. Those
+        /// options carry no type resolver in a Native AOT application, so
+        /// cloning a node holding a plain string throws there while working in
+        /// a reflection-enabled test host.
+        /// </remarks>
         private static JsonNode? CloneNode(JsonNode node)
         {
-            return JsonNode.Parse(node.ToJsonString());
+            using var buffer = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                WriteNode(writer, node);
+            }
+            return JsonNode.Parse(buffer.ToArray());
         }
 
         private static JsonObject CloneObject(JsonElement element)
@@ -1557,6 +1578,17 @@ namespace Opc.Ua.Wot
             return (JsonObject)JsonNode.Parse(element.GetRawText())!;
         }
 
+        /// <summary>
+        /// Serialises a resolved projection.
+        /// </summary>
+        /// <remarks>
+        /// The tree is written node by node rather than through
+        /// <see cref="JsonNode.WriteTo(Utf8JsonWriter, JsonSerializerOptions)"/>,
+        /// which serialises a CLR-backed value through the default
+        /// <see cref="JsonSerializerOptions"/>. Those options carry no type
+        /// resolver in a Native AOT application, so writing a plain string
+        /// throws there while working in a reflection-enabled test host.
+        /// </remarks>
         private static byte[] Serialize(JsonObject root)
         {
             using var buffer = new MemoryStream();
@@ -1569,9 +1601,78 @@ namespace Opc.Ua.Wot
                     Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
                 }))
             {
-                root.WriteTo(writer);
+                WriteNode(writer, root);
             }
             return buffer.ToArray();
+        }
+
+        /// <summary>
+        /// Writes one node of a projection tree without reflection.
+        /// </summary>
+        private static void WriteNode(Utf8JsonWriter writer, JsonNode? node)
+        {
+            switch (node)
+            {
+                case null:
+                    writer.WriteNullValue();
+                    break;
+                case JsonObject o:
+                    writer.WriteStartObject();
+                    foreach (KeyValuePair<string, JsonNode?> member in o)
+                    {
+                        writer.WritePropertyName(member.Key);
+                        WriteNode(writer, member.Value);
+                    }
+                    writer.WriteEndObject();
+                    break;
+                case JsonArray a:
+                    writer.WriteStartArray();
+                    foreach (JsonNode? item in a)
+                    {
+                        WriteNode(writer, item);
+                    }
+                    writer.WriteEndArray();
+                    break;
+                default:
+                    WriteValue(writer, (JsonValue)node);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Writes a leaf value, preferring the parsed representation and
+        /// falling back to the CLR types a projection can introduce.
+        /// </summary>
+        private static void WriteValue(Utf8JsonWriter writer, JsonValue value)
+        {
+            if (value.TryGetValue(out JsonElement element))
+            {
+                element.WriteTo(writer);
+            }
+            else if (value.TryGetValue(out string? text))
+            {
+                writer.WriteStringValue(text);
+            }
+            else if (value.TryGetValue(out bool flag))
+            {
+                writer.WriteBooleanValue(flag);
+            }
+            else if (value.TryGetValue(out long integer))
+            {
+                writer.WriteNumberValue(integer);
+            }
+            else if (value.TryGetValue(out double number))
+            {
+                writer.WriteNumberValue(number);
+            }
+            else
+            {
+                // A projection only ever introduces the values above, so
+                // reaching this is a defect rather than an input the document
+                // could have caused.
+                throw new NotSupportedException(
+                    $"A projection value of an unexpected kind cannot be written: {value.GetValueKind()}.");
+            }
         }
 
         private static void AddError(
