@@ -374,12 +374,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Raised when the state of the channel changes.
         /// </summary>
+        /// <remarks>
+        /// Deliberately takes no lock, for the same reason as
+        /// <c>TcpListenerChannel.SetRequestReceivedCallback</c>: a single
+        /// delegate field needs no more than a volatile write, and the gate is
+        /// not re-entrant.
+        /// </remarks>
         public void SetStateChangedCallback(TcpChannelStateEventHandler callback)
         {
-            using (Gate.Enter())
-            {
-                m_stateChanged = callback;
-            }
+            m_stateChanged = callback;
         }
 
         /// <summary>
@@ -513,10 +516,19 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Saves an intermediate chunk for an incoming message.
         /// </summary>
+        /// <param name="requestId">The request the chunk belongs to.</param>
+        /// <param name="chunk">The chunk to save.</param>
+        /// <param name="isServerContext">Whether this is a server channel.</param>
+        /// <param name="gateHeld">
+        /// Whether the caller already holds the channel gate. Passed on to
+        /// <see cref="DoMessageLimitsExceeded(bool)"/>, which tears the channel
+        /// down and must know whether it may take the gate.
+        /// </param>
         protected bool SaveIntermediateChunk(
             uint requestId,
             ArraySegment<byte> chunk,
-            bool isServerContext)
+            bool isServerContext,
+            bool gateHeld)
         {
             bool firstChunk = false;
             if (m_partialMessageChunks == null)
@@ -542,7 +554,7 @@ namespace Opc.Ua.Bindings
 
             if (chunkOrSizeLimitsExceeded)
             {
-                DoMessageLimitsExceeded();
+                DoMessageLimitsExceeded(gateHeld);
                 return firstChunk;
             }
 
@@ -558,12 +570,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the chunks saved for message.
         /// </summary>
+        /// <inheritdoc cref="SaveIntermediateChunk" path="/param"/>
         protected BufferCollection GetSavedChunks(
             uint requestId,
             ArraySegment<byte> chunk,
-            bool isServerContext)
+            bool isServerContext,
+            bool gateHeld)
         {
-            SaveIntermediateChunk(requestId, chunk, isServerContext);
+            SaveIntermediateChunk(requestId, chunk, isServerContext, gateHeld);
             BufferCollection savedChunks = m_partialMessageChunks!;
             m_partialMessageChunks = null;
             return savedChunks;
@@ -580,7 +594,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Code executed when the message limits are exceeded.
         /// </summary>
-        protected virtual void DoMessageLimitsExceeded()
+        /// <param name="gateHeld">
+        /// Whether the caller already holds the channel gate. The gate is not
+        /// re-entrant, so an override that tears the channel down must call the
+        /// lock-free core of that teardown when this is <c>true</c>.
+        /// </param>
+        protected virtual void DoMessageLimitsExceeded(bool gateHeld)
         {
             m_logger.UaSCChannelLog5(ChannelId);
         }
@@ -685,12 +704,15 @@ namespace Opc.Ua.Bindings
         /// Reports a fatal transport-level error (connection closed, framing
         /// error, etc.) from the receive loop into the channel pipeline.
         /// </summary>
+        /// <remarks>
+        /// Deliberately does not hold the gate. <see cref="HandleSocketError"/>
+        /// tears the channel down, which notifies the listener, which disposes
+        /// the channel — and disposal takes the gate. Each override takes the
+        /// gate for the state it actually mutates instead.
+        /// </remarks>
         protected virtual void OnTransportError(ServiceResult result)
         {
-            using (Gate.Enter())
-            {
-                HandleSocketError(result);
-            }
+            HandleSocketError(result);
         }
 
         /// <summary>
@@ -742,11 +764,6 @@ namespace Opc.Ua.Bindings
             m_receiveLoopTask = Task.Run(
                 async () =>
                 {
-                    // Started from Attach, which holds the gate. Without this the
-                    // loop would inherit the right to re-enter and would run
-                    // inside the guarded region alongside whatever started it.
-                    Gate.LeaveInheritedContext();
-
                     try
                     {
                         await loopBody(transport, ct).ConfigureAwait(false);
@@ -986,10 +1003,6 @@ namespace Opc.Ua.Bindings
             ReadOnlyMemory<byte> chunk,
             byte[] backingBuffer)
         {
-            // The continuation may resume on another thread while the caller
-            // still holds the gate, so it must not carry the caller's holder.
-            Gate.LeaveInheritedContext();
-
             try
             {
                 await transport.SendChunkAsync(chunk, CancellationToken.None).ConfigureAwait(false);
@@ -1023,10 +1036,6 @@ namespace Opc.Ua.Bindings
             byte[] backingBuffer,
             object? state)
         {
-            // Started while the gate may be held, and completes by calling
-            // HandleWriteComplete, which takes it.
-            Gate.LeaveInheritedContext();
-
             ServiceResult result = ServiceResult.Good;
             int sent = chunk.Length;
             try
@@ -1068,10 +1077,6 @@ namespace Opc.Ua.Bindings
             BufferCollection buffers,
             object? state)
         {
-            // Started while the gate may be held, and completes by calling
-            // HandleWriteComplete, which takes it.
-            Gate.LeaveInheritedContext();
-
             ServiceResult result = ServiceResult.Good;
             int sent = buffers.TotalSize;
             try
@@ -1117,9 +1122,6 @@ namespace Opc.Ua.Bindings
         {
             _ = Task.Run(() =>
             {
-                // Detached, and the gate may be held by whoever queued the write.
-                Gate.LeaveInheritedContext();
-
                 try
                 {
                     HandleWriteComplete(buffers, state, sent, result);
@@ -1272,10 +1274,9 @@ namespace Opc.Ua.Bindings
         /// secure channel open path has to await once a private key may be served
         /// over a network.
         /// <para>
-        /// It is re-entrant, so the paths that take it while already holding it
-        /// behave as they did. Work started with fire-and-forget semantics from a
-        /// path that may hold it must call
-        /// <see cref="ChannelGate.LeaveInheritedContext"/> first.
+        /// Unlike a monitor it is <b>not re-entrant</b>. A method that runs with
+        /// the gate held must call the lock-free <c>Core</c> variant of anything
+        /// that would otherwise take it again.
         /// </para>
         /// </remarks>
         internal ChannelGate Gate { get; } = new();
@@ -1487,7 +1488,7 @@ namespace Opc.Ua.Bindings
         private Task? m_receiveLoopTask;
         private int m_receiveLoopRunning;
 
-        private TcpChannelStateEventHandler? m_stateChanged;
+        private volatile TcpChannelStateEventHandler? m_stateChanged;
         private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
         private const uint kMaxValueLegacyFalse = uint.MaxValue;
     }

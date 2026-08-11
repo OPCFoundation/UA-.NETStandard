@@ -460,7 +460,7 @@ namespace Opc.Ua.Bindings
             // check state.
             if (State != TcpChannelState.Connecting)
             {
-                ForceReconnect(
+                ForceReconnectCore(
                     ServiceResult.Create(
                         StatusCodes.BadTcpMessageTypeInvalid,
                         "Server sent an unexpected acknowledge message."));
@@ -674,7 +674,7 @@ namespace Opc.Ua.Bindings
             // validate the channel state.
             if (State is not TcpChannelState.Opening and not TcpChannelState.Open)
             {
-                ForceReconnect(
+                ForceReconnectCore(
                     ServiceResult.Create(
                         StatusCodes.BadTcpMessageTypeInvalid,
                         "Server sent an unexpected OpenSecureChannel response."));
@@ -728,7 +728,7 @@ namespace Opc.Ua.Bindings
 
                 m_logger.UaSCClientLog9(e, ChannelId);
 
-                ForceReconnect(
+                ForceReconnectCore(
                     ServiceResult.Create(
                         e,
                         StatusCodes.BadSecurityChecksFailed,
@@ -749,12 +749,12 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody, false);
+                    SaveIntermediateChunk(requestId, messageBody, false, gateHeld: true);
                     return false;
                 }
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody, false);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: true);
 
                 // read message body.
 
@@ -850,15 +850,26 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Closes the channel in case the message limits have been exceeded
         /// </summary>
-        protected override void DoMessageLimitsExceeded()
+        protected override void DoMessageLimitsExceeded(bool gateHeld)
         {
-            base.DoMessageLimitsExceeded();
+            base.DoMessageLimitsExceeded(gateHeld);
+
+            if (gateHeld)
+            {
+                ShutdownCore(new ServiceResult(StatusCodes.BadResponseTooLarge));
+                return;
+            }
+
             Shutdown(new ServiceResult(StatusCodes.BadResponseTooLarge));
         }
 
         /// <summary>
         /// Handles a socket error.
         /// </summary>
+        /// <remarks>
+        /// Called without the gate held, so it takes it through the locking
+        /// entry point.
+        /// </remarks>
         protected override void HandleSocketError(ServiceResult result)
         {
             ForceReconnect(result);
@@ -893,8 +904,12 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageChunk,
             CancellationToken ct)
         {
-            // process a response.
-            if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
+            // Processed outside the gate. ProcessResponseMessage takes the gate
+            // itself where it needs it, and handling both response paths the
+            // same way keeps it from being a caller that sometimes holds the
+            // gate and sometimes does not.
+            if (TcpMessageType.IsType(messageType, TcpMessageType.Message) ||
+                TcpMessageType.IsType(messageType, TcpMessageType.Close))
             {
                 m_logger.UaSCClientLog11(ChannelId);
                 return ProcessResponseMessage(messageType, messageChunk);
@@ -922,15 +937,9 @@ namespace Opc.Ua.Bindings
                     return await ProcessOpenSecureChannelResponseAsync(
                         messageType, messageChunk, ct).ConfigureAwait(false);
                 }
-                // process a response to a close request.
-                else if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
-                {
-                    m_logger.UaSCClientLog15(ChannelId);
-                    return ProcessResponseMessage(messageType, messageChunk);
-                }
 
                 // invalid message type - must close socket and reconnect.
-                ForceReconnect(
+                ForceReconnectCore(
                     ServiceResult.Create(
                         StatusCodes.BadTcpMessageTypeInvalid,
                         "The client does not recognize the message type: {0:X8}.",
@@ -998,6 +1007,21 @@ namespace Opc.Ua.Bindings
         {
             using (Gate.Enter())
             {
+                CompleteConnectCore(operation);
+            }
+        }
+
+        /// <summary>
+        /// Completes the connect handshake without taking the gate.
+        /// </summary>
+        /// <param name="operation">The pending handshake operation.</param>
+        /// <remarks>
+        /// The gate is not re-entrant, so a caller that already holds it must
+        /// call this rather than <see cref="CompleteConnect"/>.
+        /// </remarks>
+        private void CompleteConnectCore(WriteOperation operation)
+        {
+            {
                 try
                 {
                     // check for closed transport.
@@ -1031,10 +1055,6 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private async void OnScheduledHandshakeAsync(object? state)
         {
-            // A timer callback, which runs on the context the timer was created
-            // in. That may have been holding the gate.
-            Gate.LeaveInheritedContext();
-
             if (m_via == null)
             {
                 throw ServiceResultException.Unexpected("Endpoint not defined.");
@@ -1045,7 +1065,7 @@ namespace Opc.Ua.Bindings
 
                 IUaSCByteTransport? transport = null;
                 WriteOperation? operation = null;
-                    using (await Gate.EnterAsync(CancellationToken.None).ConfigureAwait(false))
+                using (await Gate.EnterAsync(CancellationToken.None).ConfigureAwait(false))
                 {
                     // check if renewing a token.
                     var token = state as ChannelToken;
@@ -1172,8 +1192,7 @@ namespace Opc.Ua.Bindings
                         OperationCompleted(operation);
 
                         m_reconnecting = false;
-                    }
-                }
+                    }                }
             }
             catch (Exception e)
             {
@@ -1191,11 +1210,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnHandshakeComplete(IAsyncResult? result)
         {
-            // No disclaimer here: this callback is invoked inline as well as from
-            // a detached task, and disclaiming on the inline path would make the
-            // gate below deadlock against the frame that already holds it. The
-            // detached path drops the inherited context where it detaches, in
-            // ChannelAsyncOperation.
             using (Gate.Enter())
             {
                 ServiceResult? error = null;
@@ -1226,7 +1240,7 @@ namespace Opc.Ua.Bindings
                         error.StatusCode == StatusCodes.BadSecurityChecksFailed)
                     {
                         m_logger.UaSCClientLog26(ChannelId);
-                        Shutdown(error);
+                        ShutdownCore(error);
                         return;
                     }
                 }
@@ -1236,7 +1250,7 @@ namespace Opc.Ua.Bindings
                     m_reconnecting = false;
                 }
 
-                ForceReconnect(error);
+                ForceReconnectCore(error);
             }
         }
 
@@ -1322,6 +1336,22 @@ namespace Opc.Ua.Bindings
 
             using (Gate.Enter())
             {
+                ShutdownCore(reason);
+            }
+        }
+
+        /// <summary>
+        /// Cancels all pending requests and closes the channel, without taking
+        /// the gate.
+        /// </summary>
+        /// <param name="reason">Why the channel is shutting down.</param>
+        /// <remarks>
+        /// The gate is not re-entrant, so a caller that already holds it must
+        /// call this rather than <see cref="Shutdown"/>.
+        /// </remarks>
+        private void ShutdownCore(ServiceResult reason)
+        {
+            {
                 // channel may already be closed
                 if (State == TcpChannelState.Closed)
                 {
@@ -1329,7 +1359,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // clear an unprocessed chunks.
-                SaveIntermediateChunk(0, new ArraySegment<byte>(), false);
+                SaveIntermediateChunk(0, new ArraySegment<byte>(), false, gateHeld: true);
 
                 // halt any scheduled tasks.
                 m_handshakeTimer?.Dispose();
@@ -1387,6 +1417,23 @@ namespace Opc.Ua.Bindings
         {
             using (Gate.Enter())
             {
+                ForceReconnectCore(reason);
+            }
+        }
+
+        /// <summary>
+        /// Closes the channel and attempts to reconnect, without taking the
+        /// gate.
+        /// </summary>
+        /// <param name="reason">Why the channel is reconnecting.</param>
+        /// <remarks>
+        /// The gate is not re-entrant, so a caller that already holds it — every
+        /// message dispatch path does — must call this rather than
+        /// <see cref="ForceReconnect"/>.
+        /// </remarks>
+        private void ForceReconnectCore(ServiceResult reason)
+        {
+            {
                 // check if reconnect already started.
                 if (m_reconnecting)
                 {
@@ -1396,7 +1443,7 @@ namespace Opc.Ua.Bindings
                 // check if reconnects are disabled.
                 if (State == TcpChannelState.Closing || m_waitBetweenReconnects == Timeout.Infinite)
                 {
-                    Shutdown(reason);
+                    ShutdownCore(reason);
                     return;
                 }
 
@@ -1418,7 +1465,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // clear an unprocessed chunks.
-                SaveIntermediateChunk(0, new ArraySegment<byte>(), false);
+                SaveIntermediateChunk(0, new ArraySegment<byte>(), false, gateHeld: true);
 
                 // halt any scheduled tasks.
                 m_handshakeTimer?.Dispose();
@@ -1674,7 +1721,7 @@ namespace Opc.Ua.Bindings
             }
 
             // handle the fatal error.
-            ForceReconnect(error);
+            ForceReconnectCore(error);
             return false;
         }
 
@@ -1775,7 +1822,7 @@ namespace Opc.Ua.Bindings
                 if (TcpMessageType.IsAbort(messageType))
                 {
                     // get the chunks to process.
-                    chunksToProcess = GetSavedChunks(requestId, messageBody, false);
+                    chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: false);
 
                     ServiceResult error;
 
@@ -1793,12 +1840,12 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody, false);
+                    SaveIntermediateChunk(requestId, messageBody, false, gateHeld: false);
                     return true;
                 }
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody, false);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: false);
 
                 // get response.
                 operation.MessageBody = ParseResponse(chunksToProcess);

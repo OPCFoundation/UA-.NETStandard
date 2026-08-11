@@ -433,14 +433,12 @@ namespace Opc.Ua.Bindings
             {
                 if (doNotBlock)
                 {
-                    // Queued without flowing the execution context, so the
-                    // callback does not inherit the logical context of whoever
-                    // completed the operation. That context may hold a channel's
-                    // gate, and an inherited entitlement to re-enter it would let
-                    // this callback run inside the guarded region alongside the
-                    // holder. UnsafeQueueUserWorkItem is used rather than
-                    // ExecutionContext.SuppressFlow because it cannot fail when
-                    // flow is already suppressed.
+                    // Queued rather than run inline because the completing frame
+                    // may hold a channel's gate, which is not re-entrant: a
+                    // callback that entered it from this stack would deadlock.
+                    // UnsafeQueueUserWorkItem also avoids capturing and
+                    // restoring the execution context, which this callback does
+                    // not need.
                     ThreadPool.UnsafeQueueUserWorkItem(
                         static state =>
                         {

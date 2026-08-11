@@ -147,7 +147,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     // invalid message type - must close socket and reconnect.
-                    ForceChannelFault(
+                    ForceChannelFaultCore(
                         StatusCodes.BadTcpMessageTypeInvalid,
                         "The reverse connect handler does not recognize the message type: {0:X8}.",
                         messageType);
@@ -169,7 +169,7 @@ namespace Opc.Ua.Bindings
             // validate the channel state.
             if (State != TcpChannelState.Connecting)
             {
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     StatusCodes.BadTcpMessageTypeInvalid,
                     "Client sent an unexpected ReverseHello message.");
                 return false;
@@ -192,10 +192,6 @@ namespace Opc.Ua.Bindings
 
                 var t = Task.Run(async () =>
                 {
-                    // Started while the gate is held, and ForceChannelFault takes
-                    // it, so the inherited entitlement has to be dropped first.
-                    Gate.LeaveInheritedContext();
-
                     try
                     {
                         if (!await Listener
@@ -219,7 +215,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     e,
                     StatusCodes.BadTcpInternalError,
                     "Unexpected error while processing a ReverseHello message.");

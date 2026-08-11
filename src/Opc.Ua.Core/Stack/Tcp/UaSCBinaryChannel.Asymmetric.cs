@@ -47,22 +47,17 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the endpoint description selected by the client.
         /// </summary>
+        /// <remarks>
+        /// Deliberately lock-free. This publishes a single reference, so a
+        /// volatile read and write give the same visibility the gate did, and
+        /// taking the gate here made every gate-holding caller that reads the
+        /// property a re-entrant one — <c>ConnectAsync</c> reads it four times
+        /// while holding it.
+        /// </remarks>
         public EndpointDescription? EndpointDescription
         {
-            get
-            {
-                using (Gate.Enter())
-                {
-                    return m_selectedEndpoint;
-                }
-            }
-            protected set
-            {
-                using (Gate.Enter())
-                {
-                    m_selectedEndpoint = value;
-                }
-            }
+            get => Volatile.Read(ref m_selectedEndpoint);
+            protected set => Volatile.Write(ref m_selectedEndpoint, value);
         }
 
         /// <summary>
@@ -1249,7 +1244,7 @@ namespace Opc.Ua.Bindings
                             endpoint.SecurityPolicyUri == SecurityPolicyUri)
                         {
                             SecurityMode = endpoint.SecurityMode;
-                            m_selectedEndpoint = endpoint;
+                            Volatile.Write(ref m_selectedEndpoint, endpoint);
                             using (CertificateEntry? instanceEntry =
                                 m_serverCertificates!
                                     .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicyUri))
@@ -1315,7 +1310,7 @@ namespace Opc.Ua.Bindings
                         ? null
                         : BuildServerCertificateChain(instanceEntry);
                 }
-                m_selectedEndpoint = endpoint;
+                Volatile.Write(ref m_selectedEndpoint, endpoint);
                 return true;
             }
 
@@ -1560,7 +1555,7 @@ namespace Opc.Ua.Bindings
                         SecurityPolicyUri = securityPolicyUri;
                         DiscoveryOnly = false;
                         m_uninitialized = false;
-                        m_selectedEndpoint = endpoint;
+                        Volatile.Write(ref m_selectedEndpoint, endpoint);
 
                         // recalculate the key sizes.
                         CalculateSymmetricKeySizes();
@@ -1583,7 +1578,7 @@ namespace Opc.Ua.Bindings
                 SecurityPolicyUri = SecurityPolicies.None;
                 DiscoveryOnly = true;
                 m_uninitialized = false;
-                m_selectedEndpoint = null;
+                Volatile.Write(ref m_selectedEndpoint, null);
             }
         }
 
