@@ -384,40 +384,6 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task SynchronousActivationValidationRequiresAsyncPathForSecureEndpointsAsync()
-        {
-            EndpointDescription endpoint = CreateEndpoint(
-                MessageSecurityMode.SignAndEncrypt,
-                includeUserName: true);
-            using SecuritySessionManager manager = CreateManager();
-            CreatedSession created = await CreateSessionAsync(
-                manager,
-                endpoint,
-                "channel-1",
-                m_clientCertificate).ConfigureAwait(false);
-            SignatureData signature = CreateClientSignature(
-                created.Context,
-                created.ClientNonce,
-                created.ServerNonce,
-                m_clientCertificate);
-            var session = (Opc.Ua.Server.Session)created.Result.Session;
-
-            // The retained synchronous contract cannot verify a user token that
-            // requires decryption, so it fails closed and directs callers to
-            // ValidateBeforeActivateAsync instead of validating with less rigour.
-            ServiceResultException exception = Assert.Throws<ServiceResultException>(
-                () => session.ValidateBeforeActivate(
-                    created.Context,
-                    signature,
-                    CreateUserNameToken("alice"),
-                    null!,
-                    out _,
-                    out _))!;
-
-            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
-        }
-
-        [Test]
         public async Task ActivationValidationDecodesBinaryEncodedUserIdentityTokenAsync()
         {
             EndpointDescription endpoint = CreateEndpoint(

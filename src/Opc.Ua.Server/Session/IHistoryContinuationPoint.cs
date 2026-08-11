@@ -29,41 +29,23 @@
 
 using System;
 
-namespace Opc.Ua.Server.Historian.InMemory
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Configuration knobs for <see cref="InMemoryHistorianProvider"/>.
+    /// State a historical read leaves behind so a later HistoryRead can resume where the
+    /// previous one stopped. The session holds it between calls and disposes it when the
+    /// point is dropped or the session is cleared.
     /// </summary>
-    public sealed record InMemoryHistorianOptions
+    /// <remarks>
+    /// Implementations carry whatever the reader needs to resume; nothing outside the
+    /// component that created a point interprets its contents.
+    /// </remarks>
+    public interface IHistoryContinuationPoint : IDisposable
     {
         /// <summary>
-        /// Maximum source-timestamp age of raw samples retained per variable.
-        /// The default is one hour. Zero = unbounded.
+        /// Identifies the continuation point. It is the identifier the client receives and
+        /// returns, so it must not change once the point has been saved.
         /// </summary>
-        public TimeSpan RawDataRetentionPeriod { get; init; } = TimeSpan.FromHours(1);
-
-        /// <summary>
-        /// Maximum number of raw samples retained per variable. Zero = unbounded.
-        /// When the cap is reached the oldest samples are evicted on insert.
-        /// This limit is applied in addition to <see cref="RawDataRetentionPeriod"/>.
-        /// </summary>
-        public uint MaxSamplesPerNode { get; init; }
-
-        /// <summary>
-        /// Maximum number of modified-history entries retained per variable.
-        /// Zero = unbounded.
-        /// </summary>
-        public uint MaxModifiedEntriesPerNode { get; init; }
-
-        /// <summary>
-        /// Maximum number of annotations retained per variable. Zero = unbounded.
-        /// </summary>
-        public uint MaxAnnotationsPerNode { get; init; }
-
-        /// <summary>
-        /// Default per-node capabilities advertised by the provider.
-        /// </summary>
-        public HistorianNodeCapabilities DefaultCapabilities { get; init; }
-            = HistorianNodeCapabilities.ReadWrite;
+        Guid Id { get; }
     }
 }

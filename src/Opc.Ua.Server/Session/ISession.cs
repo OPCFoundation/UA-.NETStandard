@@ -52,12 +52,10 @@ namespace Opc.Ua.Server
         bool IsClosing { get; }
 
         /// <summary>
-        /// Removes and disposes the saved continuation points that retain the NodeManager, so it
-        /// can be torn down without a Client being able to resume a Browse or a history read into
-        /// it.
+        /// The continuation points this session is holding for its client, for browses and
+        /// for historical reads.
         /// </summary>
-        /// <param name="nodeManager">The NodeManager being retired.</param>
-        void InvalidateContinuationPoints(IAsyncNodeManager nodeManager);
+        ISessionContinuationPoints ContinuationPoints { get; }
 
         /// <summary>
         /// The server application instance certificate used by this session.
@@ -183,9 +181,15 @@ namespace Opc.Ua.Server
         string SecureChannelId { get; }
 
         /// <summary>
-        /// The diagnostics associated with the session.
+        /// The name the client gave this session when it created it.
         /// </summary>
-        SessionDiagnosticsDataType SessionDiagnostics { get; }
+        string SessionName { get; }
+
+        /// <summary>
+        /// The application URI of the client that owns this session, or <c>null</c> when the
+        /// client did not supply an application description.
+        /// </summary>
+        string? ClientApplicationUri { get; }
 
         /// <summary>
         /// Completes the asynchronous part of session creation by registering
@@ -227,40 +231,6 @@ namespace Opc.Ua.Server
         bool IsSecureChannelValid(string secureChannelId);
 
         /// <summary>
-        /// Restores a continuation point for a session.
-        /// </summary>
-        /// <remarks>
-        /// The caller is responsible for disposing the continuation point returned.
-        /// </remarks>
-        ContinuationPoint? RestoreContinuationPoint(ByteString continuationPoint);
-
-        /// <summary>
-        /// Restores a previously saves history continuation point.
-        /// </summary>
-        /// <param name="continuationPoint">The identifier for the continuation point.</param>
-        /// <returns>The save continuation point. null if not found.</returns>
-        object? RestoreHistoryContinuationPoint(ByteString continuationPoint);
-
-        /// <summary>
-        /// Saves a continuation point for a session.
-        /// </summary>
-        /// <remarks>
-        /// If the session has too many continuation points the oldest one is dropped.
-        /// </remarks>
-        void SaveContinuationPoint(ContinuationPoint continuationPoint);
-
-        /// <summary>
-        /// Saves a continuation point used for historical reads.
-        /// </summary>
-        /// <param name="id">The identifier for the continuation point.</param>
-        /// <param name="continuationPoint">The continuation point.</param>
-        /// <remarks>
-        /// If the continuationPoint implements IDisposable it will be disposed when
-        /// the Session is closed or discarded.
-        /// </remarks>
-        void SaveHistoryContinuationPoint(Guid id, object continuationPoint);
-
-        /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
         void SetUserTokenSecurityPolicy(string securityPolicyUri);
@@ -288,22 +258,6 @@ namespace Opc.Ua.Server
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Validates the application signature and user identity token before activation.
-        /// </summary>
-        /// <remarks>
-        /// Retained for compatibility with 1.5.378 implementations. New code should use
-        /// <see cref="ValidateBeforeActivateAsync"/>.
-        /// </remarks>
-        [Obsolete("Use ValidateBeforeActivateAsync instead.")]
-        void ValidateBeforeActivate(
-            OperationContext context,
-            SignatureData clientSignature,
-            ExtensionObject userIdentityToken,
-            SignatureData userTokenSignature,
-            out IUserIdentityTokenHandler? identityToken,
-            out UserTokenPolicy? userTokenPolicy);
 
         /// <summary>
         /// Validate the diagnostic info.

@@ -29,41 +29,35 @@
 
 using System;
 
-namespace Opc.Ua.Server.Historian.InMemory
+namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Configuration knobs for <see cref="InMemoryHistorianProvider"/>.
+    /// A history continuation point that carries nothing but its identity, and records
+    /// whether the session disposed it.
     /// </summary>
-    public sealed record InMemoryHistorianOptions
+    internal sealed class TestHistoryContinuationPoint : IHistoryContinuationPoint
     {
         /// <summary>
-        /// Maximum source-timestamp age of raw samples retained per variable.
-        /// The default is one hour. Zero = unbounded.
+        /// Creates a point with the given identity, or a fresh one.
         /// </summary>
-        public TimeSpan RawDataRetentionPeriod { get; init; } = TimeSpan.FromHours(1);
+        /// <param name="id">The identity to use.</param>
+        public TestHistoryContinuationPoint(Guid? id = null)
+        {
+            Id = id ?? Guid.NewGuid();
+        }
+
+        /// <inheritdoc/>
+        public Guid Id { get; }
 
         /// <summary>
-        /// Maximum number of raw samples retained per variable. Zero = unbounded.
-        /// When the cap is reached the oldest samples are evicted on insert.
-        /// This limit is applied in addition to <see cref="RawDataRetentionPeriod"/>.
+        /// Whether the owner disposed this point.
         /// </summary>
-        public uint MaxSamplesPerNode { get; init; }
+        public bool Disposed { get; private set; }
 
-        /// <summary>
-        /// Maximum number of modified-history entries retained per variable.
-        /// Zero = unbounded.
-        /// </summary>
-        public uint MaxModifiedEntriesPerNode { get; init; }
-
-        /// <summary>
-        /// Maximum number of annotations retained per variable. Zero = unbounded.
-        /// </summary>
-        public uint MaxAnnotationsPerNode { get; init; }
-
-        /// <summary>
-        /// Default per-node capabilities advertised by the provider.
-        /// </summary>
-        public HistorianNodeCapabilities DefaultCapabilities { get; init; }
-            = HistorianNodeCapabilities.ReadWrite;
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Disposed = true;
+        }
     }
 }
