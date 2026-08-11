@@ -546,6 +546,26 @@ namespace Opc.Ua.Aas.Server.Registry
         public string Xid => $"/groups/{GroupId}";
 
         /// <summary>
+        /// Finds a resource by source identity.
+        /// </summary>
+        /// <remarks>
+        /// A repeated write has to reach the resource it already allocated, so
+        /// it is matched on source identity rather than on a re-derived
+        /// identifier, which would disambiguate against itself.
+        /// </remarks>
+        public AasRegistryResource? FindResourceBySourceIdentity(string sourceIdentity)
+        {
+            foreach (AasRegistryResource resource in Resources.Values)
+            {
+                if (string.Equals(resource.SourceIdentity, sourceIdentity, StringComparison.Ordinal))
+                {
+                    return resource;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Returns a copy with a resource added or replaced.
         /// </summary>
         public AasRegistryGroup WithResource(AasRegistryResource resource, long epoch)
@@ -634,6 +654,27 @@ namespace Opc.Ua.Aas.Server.Registry
         public AasRegistryGroup? FindGroup(string groupId)
         {
             return GroupsById.TryGetValue(groupId, out AasRegistryGroup? group) ? group : null;
+        }
+
+        /// <summary>
+        /// Finds a group by source identity.
+        /// </summary>
+        /// <remarks>
+        /// An entity keeps the identifier it was allocated, so a repeated write
+        /// has to be matched on the source identity it carries. Re-deriving the
+        /// identifier would disambiguate it against itself and fork a second
+        /// group for the same shell.
+        /// </remarks>
+        public AasRegistryGroup? FindGroupBySourceIdentity(string sourceIdentity)
+        {
+            foreach (AasRegistryGroup group in GroupsById.Values)
+            {
+                if (string.Equals(group.SourceIdentity, sourceIdentity, StringComparison.Ordinal))
+                {
+                    return group;
+                }
+            }
+            return null;
         }
 
         /// <summary>

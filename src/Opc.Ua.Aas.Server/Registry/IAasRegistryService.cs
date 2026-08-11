@@ -439,8 +439,7 @@ namespace Opc.Ua.Aas.Server.Registry
             try
             {
                 AasRegistrySnapshot snapshot = m_snapshot;
-                string groupId = CreateIdentifier(sourceIdentity, snapshot.GroupsById.Keys);
-                AasRegistryGroup? existing = snapshot.FindGroup(groupId);
+                AasRegistryGroup? existing = snapshot.FindGroupBySourceIdentity(sourceIdentity);
                 if (existing is not null)
                 {
                     return existing;
@@ -449,6 +448,7 @@ namespace Opc.Ua.Aas.Server.Registry
                 {
                     throw new ServiceResultException(StatusCodes.BadTooManyOperations);
                 }
+                string groupId = CreateIdentifier(sourceIdentity, snapshot.GroupsById.Keys);
                 long generation = snapshot.Generation + 1;
                 var group = new AasRegistryGroup(groupId, sourceIdentity, kind, epoch: generation);
                 await CommitAndPublishAsync(snapshot, snapshot.WithGroup(group, generation), cancellationToken)
@@ -507,10 +507,9 @@ namespace Opc.Ua.Aas.Server.Registry
                     }
                     group = group.WithLabels(labels, snapshot.Generation + 1);
                 }
-                string resourceId = CreateIdentifier(request.ResourceSourceIdentity, group.Resources.Keys);
-                AasRegistryResource? existing = group.Resources.TryGetValue(resourceId, out AasRegistryResource? value)
-                    ? value
-                    : null;
+                AasRegistryResource? existing = group.FindResourceBySourceIdentity(request.ResourceSourceIdentity);
+                string resourceId = existing?.ResourceId
+                    ?? CreateIdentifier(request.ResourceSourceIdentity, group.Resources.Keys);
                 ImmutableArray<AasRegistryResourceVersion> versions = existing?.Versions ?? [];
                 if (existing is null && group.Resources.Count >= Bounds.MaxResourcesPerGroup)
                 {
@@ -673,8 +672,7 @@ namespace Opc.Ua.Aas.Server.Registry
             string sourceIdentity,
             AasRegistryEntityKind kind)
         {
-            string groupId = CreateIdentifier(sourceIdentity, snapshot.GroupsById.Keys);
-            AasRegistryGroup? existing = snapshot.FindGroup(groupId);
+            AasRegistryGroup? existing = snapshot.FindGroupBySourceIdentity(sourceIdentity);
             if (existing is not null)
             {
                 return existing;
@@ -683,6 +681,7 @@ namespace Opc.Ua.Aas.Server.Registry
             {
                 throw new ServiceResultException(StatusCodes.BadTooManyOperations);
             }
+            string groupId = CreateIdentifier(sourceIdentity, snapshot.GroupsById.Keys);
             long generation = snapshot.Generation + 1;
             return new AasRegistryGroup(groupId, sourceIdentity, kind, epoch: generation);
         }
