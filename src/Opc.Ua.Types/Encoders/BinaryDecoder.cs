@@ -203,6 +203,32 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets the number of bytes left in the ExtensionObject body currently
+        /// being decoded, or <c>-1</c> when no body is being decoded or the
+        /// writer did not fill in its length.
+        /// </summary>
+        /// <remarks>
+        /// Almost every encodeable knows where each of its fields ends, because
+        /// every field is either fixed width or carries its own length. The
+        /// <c>Decimal</c> of OPC 10000-6 5.1.10 is the built-in exception: its
+        /// unscaled value is a run of raw octets whose count is the
+        /// ExtensionObject <c>Length</c> minus the two bytes of <c>Scale</c>,
+        /// so the field cannot be read without knowing the extent of the body
+        /// that contains it.
+        /// </remarks>
+        internal int BodyBytesRemaining => m_bodyEnd < 0 ? -1 : m_bodyEnd - Position;
+
+        /// <summary>
+        /// Reads a run of raw bytes from the body currently being decoded.
+        /// </summary>
+        /// <param name="count">The number of bytes to read.</param>
+        /// <returns>The bytes read.</returns>
+        internal byte[] ReadBodyBytes(int count)
+        {
+            return SafeReadBytes(count);
+        }
+
+        /// <summary>
         /// Decodes a message from a stream.
         /// </summary>
         /// <typeparam name="T">The type of the message to read</typeparam>
@@ -799,6 +825,16 @@ namespace Opc.Ua
                 Exception? exception = null;
                 uint nestingLevel = m_nestingLevel;
 
+                // Publish the extent of this body for the duration of the call.
+                // A type whose last field has no self-describing length - the
+                // Decimal of OPC 10000-6 5.1.10 is the one built-in case -
+                // cannot otherwise know where its value ends, because the count
+                // is carried by the ExtensionObject Length rather than by the
+                // field. Nested bodies save and restore it like the nesting
+                // level below.
+                int bodyEnd = m_bodyEnd;
+                m_bodyEnd = length >= 0 ? start + length : -1;
+
                 CheckAndIncrementNestingLevel();
 
                 try
@@ -834,6 +870,7 @@ namespace Opc.Ua
                 finally
                 {
                     m_nestingLevel = nestingLevel;
+                    m_bodyEnd = bodyEnd;
                 }
 
                 if (resetStream)
@@ -2613,6 +2650,10 @@ namespace Opc.Ua
         private int m_bufferPosition;
         private long m_synchronizedStreamPosition;
         private uint m_nestingLevel;
+
+        // The end position of the ExtensionObject body being decoded, or -1
+        // when none is. See BodyBytesRemaining.
+        private int m_bodyEnd = -1;
         private uint m_encodeablesRecovered;
         private readonly bool m_hasBuffer;
         private bool m_baseStreamExposed;

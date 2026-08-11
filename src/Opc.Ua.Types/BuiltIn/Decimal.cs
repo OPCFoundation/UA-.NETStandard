@@ -32,6 +32,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Numerics;
 using System.Text;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
@@ -66,10 +67,22 @@ namespace Opc.Ua
     /// similarly-named BCL type inside this namespace.
     /// </para>
     /// </remarks>
-    public readonly struct Decimal : IEquatable<Decimal>, IFormattable
+    public sealed class Decimal : IEncodeable, IEquatable<Decimal>, IFormattable
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="Decimal"/> struct.
+        /// Initializes a new instance of the <see cref="Decimal"/> class with
+        /// the value zero.
+        /// </summary>
+        /// <remarks>
+        /// The parameterless constructor exists because the decoder activates
+        /// an instance before calling <see cref="Decode"/> on it.
+        /// </remarks>
+        public Decimal()
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Decimal"/> class.
         /// </summary>
         /// <param name="unscaledValue">The arbitrary precision unscaled value.</param>
         /// <param name="scale">
@@ -82,21 +95,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets the arbitrary precision unscaled value.
+        /// Gets or sets the arbitrary precision unscaled value.
         /// </summary>
-        public BigInteger UnscaledValue { get; }
+        public BigInteger UnscaledValue { get; set; }
 
         /// <summary>
-        /// Gets the inverse power of ten applied to <see cref="UnscaledValue"/>,
-        /// so that the number represented is
+        /// Gets or sets the inverse power of ten applied to
+        /// <see cref="UnscaledValue"/>, so that the number represented is
         /// <c>UnscaledValue × 10^-Scale</c>.
         /// </summary>
-        public short Scale { get; }
+        public short Scale { get; set; }
 
         /// <summary>
         /// Gets the value zero, with a scale of zero.
         /// </summary>
-        public static Decimal Zero => default;
+        public static Decimal Zero => new();
 
         /// <summary>
         /// Gets a value indicating whether the number represented is zero,
@@ -170,7 +183,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            if (!TryParse(value, out Decimal result))
+            if (!TryParse(value, out Decimal? result))
             {
                 throw new FormatException(
                     $"'{value}' is not a valid lexical representation of xs:decimal.");
@@ -186,9 +199,9 @@ namespace Opc.Ua
         /// <param name="value">The lexical representation.</param>
         /// <param name="result">The parsed decimal when the return value is <c>true</c>.</param>
         /// <returns><c>true</c> when <paramref name="value"/> is a valid <c>xs:decimal</c>.</returns>
-        public static bool TryParse(string? value, out Decimal result)
+        public static bool TryParse(string? value, [NotNullWhen(true)] out Decimal? result)
         {
-            result = default;
+            result = null;
 
             if (string.IsNullOrEmpty(value))
             {
@@ -334,8 +347,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(Decimal other)
+        public bool Equals(Decimal? other)
         {
+            if (other is null)
+            {
+                return false;
+            }
+
             // Equality is on the number represented, not on the spelling:
             // 1.50 and 1.5 are the same value at different scales.
             Decimal left = Canonicalize();
@@ -362,9 +380,9 @@ namespace Opc.Ua
         /// <param name="left">The left operand.</param>
         /// <param name="right">The right operand.</param>
         /// <returns><c>true</c> when both represent the same number.</returns>
-        public static bool operator ==(Decimal left, Decimal right)
+        public static bool operator ==(Decimal? left, Decimal? right)
         {
-            return left.Equals(right);
+            return left is null ? right is null : left.Equals(right);
         }
 
         /// <summary>
@@ -373,9 +391,100 @@ namespace Opc.Ua
         /// <param name="left">The left operand.</param>
         /// <param name="right">The right operand.</param>
         /// <returns><c>true</c> when they represent different numbers.</returns>
-        public static bool operator !=(Decimal left, Decimal right)
+        public static bool operator !=(Decimal? left, Decimal? right)
         {
-            return !left.Equals(right);
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// OPC 10000-6 5.1.10 Table 3 gives the ExtensionObject's TypeId as
+        /// "the identifier for the Decimal DataType" itself. Unlike an ordinary
+        /// Structure, a Decimal has no separate binary and XML encoding Objects,
+        /// because no Structure metadata is published for it.
+        /// </remarks>
+        public ExpandedNodeId TypeId => s_typeId;
+
+        /// <inheritdoc/>
+        public ExpandedNodeId BinaryEncodingId => s_typeId;
+
+        /// <inheritdoc/>
+        public ExpandedNodeId XmlEncodingId => s_typeId;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The three encodings genuinely differ, which is why this branches
+        /// rather than writing two fields. In binary the body is the
+        /// <c>Scale</c> followed by the unscaled octets with no length of their
+        /// own, because OPC 10000-6 5.1.10 derives their count from the
+        /// enclosing ExtensionObject's <c>Length</c>. In JSON, 5.4.3 renders
+        /// the value as a base-10 signed integer string rather than as the
+        /// octets.
+        /// </remarks>
+        public void Encode(IEncoder encoder)
+        {
+            if (encoder is null)
+            {
+                throw new ArgumentNullException(nameof(encoder));
+            }
+
+            encoder.WriteInt16("Scale", Scale);
+
+            if (encoder.EncodingType == EncodingType.Binary && encoder is BinaryEncoder binary)
+            {
+                byte[] octets = ToLittleEndian();
+                binary.WriteRawBytes(octets, 0, octets.Length);
+                return;
+            }
+
+            encoder.WriteString(
+                "Value",
+                UnscaledValue.ToString(CultureInfo.InvariantCulture));
+        }
+
+        /// <inheritdoc/>
+        public void Decode(IDecoder decoder)
+        {
+            if (decoder is null)
+            {
+                throw new ArgumentNullException(nameof(decoder));
+            }
+
+            Scale = decoder.ReadInt16("Scale");
+
+            if (decoder.EncodingType == EncodingType.Binary && decoder is BinaryDecoder binary)
+            {
+                int remaining = binary.BodyBytesRemaining;
+                if (remaining < 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "A Decimal cannot be decoded from an ExtensionObject whose body length " +
+                        "is unknown, because the unscaled value has no length of its own.");
+                }
+
+                UnscaledValue = FromLittleEndian(Scale, binary.ReadBodyBytes(remaining))
+                    .UnscaledValue;
+                return;
+            }
+
+            string? text = decoder.ReadString("Value");
+            UnscaledValue = string.IsNullOrEmpty(text)
+                ? BigInteger.Zero
+                : BigInteger.Parse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
+        }
+
+        /// <inheritdoc/>
+        public bool IsEqual(IEncodeable? encodeable)
+        {
+            return ReferenceEquals(this, encodeable) ||
+                (encodeable is Decimal other && Equals(other));
+        }
+
+        /// <inheritdoc/>
+        public object Clone()
+        {
+            return new Decimal(UnscaledValue, Scale);
         }
 
         private string Format()
@@ -408,5 +517,7 @@ namespace Opc.Ua
         }
 
         private static readonly BigInteger s_ten = new(10);
+
+        private static readonly ExpandedNodeId s_typeId = new(DataTypes.Decimal);
     }
 }
