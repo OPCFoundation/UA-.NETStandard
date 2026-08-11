@@ -35,19 +35,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.XRegistry;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Server
 {
     /// <summary>
-    /// Materializes the WoT Connectivity 1.1 registry snapshot as browseable
-    /// xRegistry Objects beneath the stable <c>WoTRegistry</c> node:
-    /// <c>ThingDescriptionGroupType</c>/<c>ThingModelGroupType</c> group Objects
-    /// and their <c>ThingDescriptionFileType</c>/<c>ThingModelFileType</c>
-    /// document resources. Every group and resource is (re)created, updated and
-    /// removed to mirror the immutable snapshot, with deterministic NodeIds
-    /// derived from the registry Xid, notifier references up the
-    /// registry &#8594; group &#8594; resource chain, and the xRegistry CRUD /
-    /// FileType / document Methods wired to the injected registry service.
+    /// Adapts the WoT Connectivity registry service to the shared xRegistry projection engine.
     /// </summary>
     internal sealed class WotRegistryProjection : IDisposable
     {
@@ -60,264 +53,89 @@ namespace Opc.Ua.WotCon.Server
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_modelNs = (ushort)manager.Server.NamespaceUris.GetIndex(Namespaces.WotCon);
+            var context = new XRegistryProjectionContext(
+                manager.SystemContext,
+                manager.Server.NamespaceUris,
+                m_modelNs,
+                async (node, ct) =>
+                {
+                    await manager.AddPredefinedNodeAsync(node, ct).ConfigureAwait(false);
+                },
+                async (nodeId, ct) =>
+                {
+                    await manager.DeleteNodeAsync(manager.SystemContext, nodeId, ct).ConfigureAwait(false);
+                },
+                manager.CheckManagementAccess);
+            m_engine = new XRegistryProjectionEngine(context, new Strategy(this), RegistryNodeIdPath);
         }
 
         /// <summary>
-        /// Binds the projection to the well-known registry Object, wires the
-        /// registry-level CreateGroup/GetOrCreateGroup Methods, materializes
-        /// and wires its Labels (AttributesType) container, and performs the
-        /// first reconcile.
+        /// Binds the projection to the well-known registry Object.
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public async ValueTask AttachAsync(BaseObjectState registryNode, CancellationToken ct)
+        public ValueTask AttachAsync(BaseObjectState registryNode, CancellationToken ct)
         {
-            m_registryNode = registryNode ?? throw new ArgumentNullException(nameof(registryNode));
-            registryNode.EventNotifier = EventNotifiers.SubscribeToEvents;
-            WireMethod(registryNode, XRegistry.BrowseNames.CreateGroup, OnCreateGroupAsync);
-            WireMethod(registryNode, XRegistry.BrowseNames.GetOrCreateGroup, OnGetOrCreateGroupAsync);
-            if (registryNode is RegistryState registryTyped)
-            {
-                registryTyped.AddLabels(m_manager.SystemContext);
-                WireLabelsContainer(
-                    registryTyped.Labels, OnAddRegistryLabelAsync, OnRemoveRegistryLabelAsync);
-                LinkMethodArguments(registryTyped.Labels, m_manager.SystemContext);
-            }
-            await ReconcileAsync(ct).ConfigureAwait(false);
+            return m_engine.AttachAsync(registryNode, ct);
         }
 
         /// <summary>
-        /// Finds the browseable resource node used as an event source, or the
-        /// registry node when the resource is unknown.
+        /// Finds the browseable resource node used as an event source.
         /// </summary>
         public NodeState EventSourceFor(string? xid)
         {
-            if (!string.IsNullOrEmpty(xid) &&
-                m_resourcesByXid.TryGetValue(xid!, out WoTDocumentState? node))
-            {
-                return node;
-            }
-            return m_registryNode!;
+            return m_engine.EventSourceFor(xid);
         }
 
         /// <summary>
-        /// Reconciles the browseable projection with the current registry
-        /// snapshot: creates, updates and removes group and resource nodes.
-        /// Never re-triggers materialization.
+        /// Reconciles the browseable projection with the current registry snapshot.
         /// </summary>
-        public async ValueTask ReconcileAsync(CancellationToken ct)
+        public ValueTask ReconcileAsync(CancellationToken ct)
         {
-            if (m_registryNode is null)
-            {
-                return;
-            }
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                WotRegistrySnapshot snapshot = m_registry.Current;
-
-                if (m_registryNode is RegistryState registryTyped && registryTyped.Labels is not null)
-                {
-                    await SyncLabelPropertiesAsync(
-                        registryTyped.Labels, RegistryNodeIdPath, snapshot.Labels, ct)
-                        .ConfigureAwait(false);
-                }
-
-                var seenGroups = new HashSet<string>(StringComparer.Ordinal);
-                foreach (WotResourceGroup group in snapshot.Groups.Values)
-                {
-                    seenGroups.Add(group.GroupId);
-                    if (!m_groups.TryGetValue(group.GroupId, out GroupEntry? entry))
-                    {
-                        entry = await CreateGroupNodeAsync(group, ct).ConfigureAwait(false);
-                        m_groups[group.GroupId] = entry;
-                    }
-                    else
-                    {
-                        ApplyGroupProperties(entry.Node, group);
-                        if (entry.Node.Labels is not null)
-                        {
-                            await SyncLabelPropertiesAsync(
-                                entry.Node.Labels, GroupNodeIdPath(group.GroupId), group.Labels, ct)
-                                .ConfigureAwait(false);
-                        }
-                        entry.Node.ClearChangeMasks(m_manager.SystemContext, includeChildren: true);
-                    }
-
-                    var seenResources = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (WotResource resource in group.Resources.Values)
-                    {
-                        seenResources.Add(resource.ResourceId);
-                        if (!entry.Resources.TryGetValue(resource.ResourceId, out ResourceEntry? res))
-                        {
-                            res = await CreateResourceNodeAsync(entry, resource, ct)
-                                .ConfigureAwait(false);
-                            entry.Resources[resource.ResourceId] = res;
-                        }
-                        else
-                        {
-                            ApplyResourceProperties(res, resource);
-                            if (res.Node.Labels is not null)
-                            {
-                                await SyncLabelPropertiesAsync(
-                                    res.Node.Labels,
-                                    ResourceNodeIdPath(resource.GroupId, resource.ResourceId),
-                                    resource.Labels,
-                                    ct).ConfigureAwait(false);
-                            }
-                            res.Node.ClearChangeMasks(m_manager.SystemContext, includeChildren: true);
-                        }
-                    }
-
-                    foreach (string resourceId in entry.Resources.Keys
-                        .Where(id => !seenResources.Contains(id)).ToList())
-                    {
-                        await RemoveResourceNodeAsync(entry, resourceId, ct).ConfigureAwait(false);
-                    }
-                }
-
-                foreach (string groupId in m_groups.Keys
-                    .Where(id => !seenGroups.Contains(id)).ToList())
-                {
-                    await RemoveGroupNodeAsync(groupId, ct).ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                m_gate.Release();
-            }
+            return m_engine.ReconcileAsync(ct);
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_disposed)
-            {
-                return;
-            }
-            m_disposed = true;
-            foreach (GroupEntry group in m_groups.Values)
-            {
-                foreach (ResourceEntry resource in group.Resources.Values)
-                {
-                    resource.File?.Dispose();
-                }
-            }
-            m_groups.Clear();
-            m_resourcesByXid.Clear();
-            m_gate.Dispose();
+            m_engine.Dispose();
         }
 
-        private async ValueTask<GroupEntry> CreateGroupNodeAsync(
-            WotResourceGroup group, CancellationToken ct)
+        internal static void LinkMethodArguments(NodeState? node, ISystemContext context)
+        {
+            XRegistryProjectionEngine.LinkMethodArguments(node, context);
+        }
+
+        private GroupState CreateGroupNode(BaseObjectState registryNode, WotResourceGroup group)
         {
             bool tm = group.Kind == WoTDocumentKindEnum.ThingModel;
             GroupState node = tm
-                ? new ThingModelGroupState(m_registryNode)
-                : new ThingDescriptionGroupState(m_registryNode);
-            NodeId nodeId = GroupNodeId(group.GroupId);
-            node.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
+                ? new ThingModelGroupState(registryNode)
+                : new ThingDescriptionGroupState(registryNode);
             node.TypeDefinitionId = ExpandedNodeId.ToNodeId(
                 tm ? ObjectTypeIds.ThingModelGroupType : ObjectTypeIds.ThingDescriptionGroupType,
                 m_manager.Server.NamespaceUris);
-            node.Create(
-                m_manager.SystemContext, nodeId,
-                new QualifiedName(group.GroupId, m_modelNs), new LocalizedText(group.Name),
-                assignNodeIds: false);
-
-            node.AddCreateResource(m_manager.SystemContext)
-                .AddGetOrCreateResource(m_manager.SystemContext)
-                .AddDelete(m_manager.SystemContext)
-                .AddXid(m_manager.SystemContext)
-                .AddEpoch(m_manager.SystemContext)
-                .AddDescription(m_manager.SystemContext)
-                .AddCreatedAt(m_manager.SystemContext)
-                .AddModifiedAt(m_manager.SystemContext)
-                .AddLabels(m_manager.SystemContext);
-            node.EventNotifier = EventNotifiers.SubscribeToEvents;
-
-            string groupId = group.GroupId;
-            WoTDocumentKindEnum kind = group.Kind;
-            node.CreateResource?.OnCallMethod2Async =
-                    (c, m, o, i, ot, t) => OnCreateResourceAsync(groupId, kind, c, i, ot, t);
-            node.GetOrCreateResource?.OnCallMethod2Async =
-                    (c, m, o, i, ot, t) => OnGetOrCreateResourceAsync(groupId, kind, c, i, ot, t);
-            node.Delete?.OnCallMethod2Async =
-                    (c, m, o, i, ot, t) => OnDeleteGroupAsync(groupId, c, i, t);
-            WireLabelsContainer(
-                node.Labels,
-                (c, i, t) => OnAddGroupLabelAsync(groupId, c, i, t),
-                (c, i, t) => OnRemoveGroupLabelAsync(groupId, c, i, t));
-
-            ApplyGroupProperties(node, group);
-            DateTime createdAt = DateTime.UtcNow;
-            SetValue(node.CreatedAt, (DateTimeUtc)createdAt);
-            SetValue(node.ModifiedAt, (DateTimeUtc)createdAt);
-            m_manager.SystemContext.AssignInstanceChildNodeIds(node);
-            LinkMethodArguments(node, m_manager.SystemContext);
-
-            m_registryNode!.AddChild(node);
-            m_registryNode.AddReference(Ua.ReferenceTypeIds.HasNotifier, false, nodeId);
-            node.AddReference(Ua.ReferenceTypeIds.HasNotifier, true, m_registryNode.NodeId);
-
-            await m_manager.AddPredefinedNodeAsync(node, ct).ConfigureAwait(false);
-            var entry = new GroupEntry(node, group.Kind);
-            await SyncLabelPropertiesAsync(
-                node.Labels!, GroupNodeIdPath(group.GroupId), group.Labels, ct).ConfigureAwait(false);
-            return entry;
+            return node;
         }
 
-        private void ApplyGroupProperties(GroupState node, WotResourceGroup group)
-        {
-            SetValue(node.GroupId, group.GroupId);
-            SetValue(node.Xid, group.Xid);
-            SetValue(node.Epoch, (uint)group.Epoch);
-            SetValue(node.Name, group.Name);
-            SetValue(node.Description, group.Description);
-        }
-
-        private async ValueTask RemoveGroupNodeAsync(string groupId, CancellationToken ct)
-        {
-            if (!m_groups.TryGetValue(groupId, out GroupEntry? entry))
-            {
-                return;
-            }
-            foreach (string resourceId in entry.Resources.Keys.ToList())
-            {
-                await RemoveResourceNodeAsync(entry, resourceId, ct).ConfigureAwait(false);
-            }
-            m_registryNode!.RemoveReference(Ua.ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
-            m_registryNode.RemoveChild(entry.Node);
-            await m_manager.DeleteNodeAsync(m_manager.SystemContext, entry.Node.NodeId, ct)
-                .ConfigureAwait(false);
-            m_groups.Remove(groupId);
-        }
-
-        private async ValueTask<ResourceEntry> CreateResourceNodeAsync(
-            GroupEntry group, WotResource resource, CancellationToken ct)
+        private WoTDocumentState CreateResourceNode(GroupState groupNode, WotResource resource)
         {
             bool tm = resource.Kind == WoTDocumentKindEnum.ThingModel;
             WoTDocumentState node = tm
-                ? new ThingModelFileState(group.Node)
-                : new ThingDescriptionFileState(group.Node);
-            NodeId nodeId = ResourceNodeId(resource.GroupId, resource.ResourceId);
-            node.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
+                ? new ThingModelFileState(groupNode)
+                : new ThingDescriptionFileState(groupNode);
             node.TypeDefinitionId = ExpandedNodeId.ToNodeId(
                 tm ? ObjectTypeIds.ThingModelFileType : ObjectTypeIds.ThingDescriptionFileType,
                 m_manager.Server.NamespaceUris);
-            node.Create(
-                m_manager.SystemContext, nodeId,
-                new QualifiedName(resource.ResourceId, m_modelNs),
-                new LocalizedText(resource.Name), assignNodeIds: false);
+            return node;
+        }
 
-            // Optional xRegistry registry metadata children.
-            node.AddVersionId(m_manager.SystemContext)
-                .AddFormat(m_manager.SystemContext)
-                .AddContentType(m_manager.SystemContext)
-                .AddXid(m_manager.SystemContext)
-                .AddEpoch(m_manager.SystemContext)
-                .AddDescription(m_manager.SystemContext)
-                .AddCreatedAt(m_manager.SystemContext)
-                .AddModifiedAt(m_manager.SystemContext);
-            node.AddDesiredVersionId(m_manager.SystemContext)
+        private void ConfigureResourceNode(ResourceState node, WotResource resource)
+        {
+            if (node is not WoTDocumentState document)
+            {
+                return;
+            }
+
+            document.AddDesiredVersionId(m_manager.SystemContext)
                 .AddActiveVersionId(m_manager.SystemContext)
                 .AddIsDefault(m_manager.SystemContext)
                 .AddContentDigest(m_manager.SystemContext)
@@ -326,19 +144,16 @@ namespace Opc.Ua.WotCon.Server
                 .AddRootNodeId(m_manager.SystemContext)
                 .AddRefreshGeneration(m_manager.SystemContext)
                 .AddLastRefreshTime(m_manager.SystemContext);
-            node.AddDelete(m_manager.SystemContext);
-            node.AddValidate(m_manager.SystemContext);
-            node.AddSetEnabled(m_manager.SystemContext);
-            node.AddSetDefaultVersion(m_manager.SystemContext);
-            node.AddLabels(m_manager.SystemContext);
-            node.EventNotifier = EventNotifiers.SubscribeToEvents;
+            document.AddValidate(m_manager.SystemContext);
+            document.AddSetEnabled(m_manager.SystemContext);
+            document.AddSetDefaultVersion(m_manager.SystemContext);
 
-            if (node is ThingDescriptionFileState td)
+            if (document is ThingDescriptionFileState td)
             {
                 td.AddThingTitle(m_manager.SystemContext)
                     .AddBaseUri(m_manager.SystemContext);
             }
-            else if (node is ThingModelFileState tmNode)
+            else if (document is ThingModelFileState tmNode)
             {
                 tmNode.AddModelTitle(m_manager.SystemContext)
                     .AddModelVersion(m_manager.SystemContext)
@@ -347,294 +162,69 @@ namespace Opc.Ua.WotCon.Server
 
             string groupId = resource.GroupId;
             string resourceId = resource.ResourceId;
-            WoTDocumentKindEnum kind = resource.Kind;
-            node.Delete?.OnCallMethod2Async =
-                    (c, m, o, i, ot, t) => OnDeleteResourceAsync(groupId, resourceId, c, i, t);
-            node.Validate?.OnCallMethod2Async =
-                    (c, m, o, i, ot, t) => OnValidateAsync(groupId, resourceId, c, ot, t);
-            node.SetEnabled?.OnCallMethod2Async =
-                    (c, m, o, i, ot, t) => OnSetEnabledAsync(groupId, resourceId, c, i, t);
-            node.SetDefaultVersion?.OnCallMethod2Async =
-                    (c, m, o, i, ot, t) => OnSetDefaultVersionAsync(groupId, resourceId, c, i, t);
-            WireLabelsContainer(
-                node.Labels,
-                (c, i, t) => OnAddResourceLabelAsync(groupId, resourceId, c, i, t),
-                (c, i, t) => OnRemoveResourceLabelAsync(groupId, resourceId, c, i, t));
+            document.Validate?.OnCallMethod2Async =
+                (c, m, o, i, ot, t) => OnValidateAsync(groupId, resourceId, c, ot, t);
+            document.SetEnabled?.OnCallMethod2Async =
+                (c, m, o, i, ot, t) => OnSetEnabledAsync(groupId, resourceId, c, i, t);
+            document.SetDefaultVersion?.OnCallMethod2Async =
+                (c, m, o, i, ot, t) => OnSetDefaultVersionAsync(groupId, resourceId, c, i, t);
 
-            // FileType transfer for the document body (commit-on-close).
-            var file = new WotResourceFileManager(
+            ApplyWotResourceProperties(document, resource);
+        }
+
+        private void ApplyWotResourceProperties(WoTDocumentState node, WotResource resource)
+        {
+            WotResourceVersion? version = resource.DefaultVersion;
+
+            XRegistryProjectionEngine.SetValue(node.DocumentKind, resource.Kind);
+            XRegistryProjectionEngine.SetValue(node.Enabled, resource.Enabled);
+            XRegistryProjectionEngine.SetValue(node.LoadState, resource.LoadState);
+            XRegistryProjectionEngine.SetValue(node.DesiredVersionId, resource.DesiredVersionId ?? string.Empty);
+            XRegistryProjectionEngine.SetValue(node.ActiveVersionId, resource.ActiveVersionId ?? string.Empty);
+            XRegistryProjectionEngine.SetValue(node.IsDefault, version is not null &&
+                string.Equals(version.VersionId, resource.DefaultVersionId, StringComparison.Ordinal));
+            XRegistryProjectionEngine.SetValue(node.ContentDigest, version is null ? ByteString.Empty : version.Digest);
+            if (resource.Validation is not null)
+            {
+                XRegistryProjectionEngine.SetValue(node.ValidationOutcome, resource.Validation);
+            }
+            XRegistryProjectionEngine.SetValue(node.MaterializedNodeCount, (uint)resource.MaterializedNodeCount);
+            XRegistryProjectionEngine.SetValue(node.RootNodeId, resource.RootNodeId);
+            XRegistryProjectionEngine.SetValue(node.RefreshGeneration, resource.RefreshGeneration);
+            XRegistryProjectionEngine.SetValue(node.LastRefreshTime, (DateTimeUtc)resource.LastRefreshTime);
+
+            if (node is ThingDescriptionFileState td)
+            {
+                XRegistryProjectionEngine.SetValue(td.ThingId, resource.ThingId ?? string.Empty);
+                XRegistryProjectionEngine.SetValue(td.ThingTitle, resource.Title ?? string.Empty);
+            }
+            else if (node is ThingModelFileState tmNode)
+            {
+                XRegistryProjectionEngine.SetValue(tmNode.ModelTitle, resource.Title ?? string.Empty);
+                XRegistryProjectionEngine.SetValue(tmNode.DerivedTypeNodeId, resource.RootNodeId);
+            }
+        }
+
+        private WotResourceFileManager CreateResourceFile(WoTDocumentState node, WotResource resource)
+        {
+            string groupId = resource.GroupId;
+            string resourceId = resource.ResourceId;
+            WoTDocumentKindEnum kind = resource.Kind;
+            return new WotResourceFileManager(
                 node,
                 m_options.Bounds.MaxOpenFileHandles,
                 m_options.Bounds.MaxDocumentBytes,
                 m_manager.CheckManagementAccess,
                 (key, offset, count, token) => m_registry.ReadContentChunkAsync(key, offset, count, token),
                 (bytes, session, token) => CommitDocumentAsync(groupId, resourceId, kind, bytes, token));
-
-            ApplyResourceProperties(new ResourceEntry(node, file, groupId, resourceId, kind), resource);
-            m_manager.SystemContext.AssignInstanceChildNodeIds(node);
-            LinkMethodArguments(node, m_manager.SystemContext);
-
-            group.Node.AddChild(node);
-            group.Node.AddReference(Ua.ReferenceTypeIds.HasNotifier, false, nodeId);
-            node.AddReference(Ua.ReferenceTypeIds.HasNotifier, true, group.Node.NodeId);
-
-            await m_manager.AddPredefinedNodeAsync(node, ct).ConfigureAwait(false);
-            m_resourcesByXid[BuildXid(resource.GroupId, resource.ResourceId)] = node;
-            var entry = new ResourceEntry(node, file, groupId, resourceId, kind);
-            await SyncLabelPropertiesAsync(
-                node.Labels!, ResourceNodeIdPath(groupId, resourceId), resource.Labels, ct)
-                .ConfigureAwait(false);
-            return entry;
-        }
-
-        private void ApplyResourceProperties(ResourceEntry entry, WotResource resource)
-        {
-            WoTDocumentState node = entry.Node;
-            WotResourceVersion? version = resource.DefaultVersion;
-            WotResourceVersion? active = resource.ActiveVersion ?? version;
-
-            SetValue(node.ResourceId, resource.ResourceId);
-            SetValue(node.VersionId, version?.VersionId ?? string.Empty);
-            SetValue(node.Format, version?.Format ?? string.Empty);
-            SetValue(node.ContentType, version?.ContentType ?? "application/td+json");
-            SetValue(node.Xid, resource.Xid);
-            SetValue(node.Epoch, (uint)resource.Epoch);
-            SetValue(node.Name, resource.Name);
-            SetValue(node.Description, resource.Description);
-            if (version is not null)
-            {
-                SetValue(node.CreatedAt, (DateTimeUtc)version.CreatedAt);
-            }
-            SetValue(node.ModifiedAt, (DateTimeUtc)(version?.ModifiedAt ?? DateTime.UtcNow));
-
-            SetValue(node.DocumentKind, resource.Kind);
-            SetValue(node.Enabled, resource.Enabled);
-            SetValue(node.LoadState, resource.LoadState);
-            SetValue(node.DesiredVersionId, resource.DesiredVersionId ?? string.Empty);
-            SetValue(node.ActiveVersionId, resource.ActiveVersionId ?? string.Empty);
-            SetValue(node.IsDefault, version is not null &&
-                string.Equals(version.VersionId, resource.DefaultVersionId, StringComparison.Ordinal));
-            SetValue(node.ContentDigest, version is null ? ByteString.Empty : version.Digest);
-            if (resource.Validation is not null)
-            {
-                SetValue(node.ValidationOutcome, resource.Validation);
-            }
-            SetValue(node.MaterializedNodeCount, (uint)resource.MaterializedNodeCount);
-            SetValue(node.RootNodeId, resource.RootNodeId);
-            SetValue(node.RefreshGeneration, resource.RefreshGeneration);
-            SetValue(node.LastRefreshTime, (DateTimeUtc)resource.LastRefreshTime);
-
-            if (node is ThingDescriptionFileState td)
-            {
-                SetValue(td.ThingId, resource.ThingId ?? string.Empty);
-                SetValue(td.ThingTitle, resource.Title ?? string.Empty);
-            }
-            else if (node is ThingModelFileState tmNode)
-            {
-                SetValue(tmNode.ModelTitle, resource.Title ?? string.Empty);
-                SetValue(tmNode.DerivedTypeNodeId, resource.RootNodeId);
-            }
-
-            entry.File?.UpdatePersistedContent(active, version?.ContentType);
-        }
-
-        private async ValueTask RemoveResourceNodeAsync(
-            GroupEntry group, string resourceId, CancellationToken ct)
-        {
-            if (!group.Resources.TryGetValue(resourceId, out ResourceEntry? entry))
-            {
-                return;
-            }
-            entry.File?.Dispose();
-            m_resourcesByXid.TryRemove(BuildXid(entry.GroupId, entry.ResourceId), out _);
-            group.Node.RemoveReference(Ua.ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
-            group.Node.RemoveChild(entry.Node);
-            await m_manager.DeleteNodeAsync(m_manager.SystemContext, entry.Node.NodeId, ct)
-                .ConfigureAwait(false);
-            group.Resources.Remove(resourceId);
-        }
-
-        private async ValueTask<ServiceResult> OnCreateGroupAsync(
-            ISystemContext context, MethodState method, NodeId objectId,
-            ArrayOf<Variant> input, List<Variant> output, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "CreateGroup");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            string? groupId = GetString(input, 0);
-            if (string.IsNullOrWhiteSpace(groupId))
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-            WotResourceGroup? group = await m_registry
-                .TryCreateGroupAsync(groupId!, KindForGroup(groupId!), cancellationToken: ct)
-                .ConfigureAwait(false);
-            if (group is null)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadNodeIdExists, $"Group '{groupId}' already exists.");
-            }
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            output.Clear();
-            output.Add(new Variant(GroupNodeId(group.GroupId)));
-            return ServiceResult.Good;
-        }
-
-        private async ValueTask<ServiceResult> OnGetOrCreateGroupAsync(
-            ISystemContext context, MethodState method, NodeId objectId,
-            ArrayOf<Variant> input, List<Variant> output, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "GetOrCreateGroup");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            string? groupId = GetString(input, 0);
-            if (string.IsNullOrWhiteSpace(groupId))
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-            bool existed = m_registry.Current.FindGroup(NormalizeId(groupId!)) is not null;
-            WotResourceGroup group = await m_registry
-                .GetOrCreateGroupAsync(groupId!, KindForGroup(groupId!), cancellationToken: ct)
-                .ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            output.Clear();
-            output.Add(new Variant(GroupNodeId(group.GroupId)));
-            output.Add(new Variant(!existed));
-            return ServiceResult.Good;
-        }
-
-        private async ValueTask<ServiceResult> OnCreateResourceAsync(
-            string groupId, WoTDocumentKindEnum kind, ISystemContext context,
-            ArrayOf<Variant> input, List<Variant> output, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "CreateResource");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            string? resourceId = GetString(input, 0);
-            bool requestOpen = GetBool(input, 2, false);
-            if (string.IsNullOrWhiteSpace(resourceId))
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-            WotResource? resource = await m_registry
-                .TryCreateResourceAsync(groupId, resourceId!, kind, ct).ConfigureAwait(false);
-            if (resource is null)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadNodeIdExists,
-                    $"Resource '{resourceId}' already exists in group '{groupId}'.");
-            }
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            return await CompleteResourceOutputAsync(
-                    resource.GroupId, resource.ResourceId, requestOpen, context, output, created: null, ct)
-                .ConfigureAwait(false);
-        }
-
-        private async ValueTask<ServiceResult> OnGetOrCreateResourceAsync(
-            string groupId, WoTDocumentKindEnum kind, ISystemContext context,
-            ArrayOf<Variant> input, List<Variant> output, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "GetOrCreateResource");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            string? resourceId = GetString(input, 0);
-            bool requestOpen = GetBool(input, 2, false);
-            if (string.IsNullOrWhiteSpace(resourceId))
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-            (WotResource resource, bool created) = await m_registry
-                .GetOrCreateResourceAsync(groupId, resourceId!, kind, ct).ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            return await CompleteResourceOutputAsync(
-                    resource.GroupId, resource.ResourceId, requestOpen, context, output, created, ct)
-                .ConfigureAwait(false);
-        }
-
-        private async ValueTask<ServiceResult> CompleteResourceOutputAsync(
-            string groupId, string resourceId, bool requestOpen,
-            ISystemContext context, List<Variant> output, bool? created, CancellationToken ct)
-        {
-            NodeId nodeId = ResourceNodeId(groupId, resourceId);
-            uint fileHandle = 0;
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                if (requestOpen &&
-                    m_groups.TryGetValue(groupId, out GroupEntry? group) &&
-                    group.Resources.TryGetValue(resourceId, out ResourceEntry? entry) &&
-                    entry.File is not null)
-                {
-                    ServiceResult open = entry.File.TryOpenWriteHandle(
-                        context is ISessionSystemContext sessionContext
-                            ? sessionContext.SessionId.GetValueOrDefault()
-                            : NodeId.Null,
-                        out fileHandle);
-                    if (ServiceResult.IsBad(open))
-                    {
-                        return open;
-                    }
-                }
-            }
-            finally
-            {
-                m_gate.Release();
-            }
-
-            WotResource? resource = m_registry.Current.FindResource(groupId, resourceId);
-            output.Clear();
-            output.Add(new Variant(nodeId));
-            output.Add(new Variant(resource?.DefaultVersionId ?? string.Empty));
-            output.Add(new Variant(fileHandle));
-            if (created is { } wasCreated)
-            {
-                output.Add(new Variant(wasCreated));
-            }
-            return ServiceResult.Good;
-        }
-
-        private async ValueTask<ServiceResult> OnDeleteGroupAsync(
-            string groupId, ISystemContext context, ArrayOf<Variant> input, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "DeleteGroup");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            long? epoch = OptionalEpoch(input, 0);
-            WotRegistryMutationResult result = await m_registry
-                .DeleteGroupAsync(groupId, epoch, ct).ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            return ToServiceResult(result);
-        }
-
-        private async ValueTask<ServiceResult> OnDeleteResourceAsync(
-            string groupId, string resourceId, ISystemContext context,
-            ArrayOf<Variant> input, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "DeleteResource");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            long? epoch = OptionalEpoch(input, 0);
-            WotRegistryMutationResult result = await m_registry
-                .DeleteResourceAsync(groupId, resourceId, epoch, ct).ConfigureAwait(false);
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            return ToServiceResult(result);
         }
 
         private async ValueTask<ServiceResult> OnValidateAsync(
-            string groupId, string resourceId, ISystemContext context,
-            List<Variant> output, CancellationToken ct)
+            string groupId,
+            string resourceId,
+            ISystemContext context,
+            List<Variant> output,
+            CancellationToken ct)
         {
             ServiceResult access = m_manager.CheckManagementAccess(context, "Validate");
             if (ServiceResult.IsBad(access))
@@ -660,8 +250,11 @@ namespace Opc.Ua.WotCon.Server
         }
 
         private async ValueTask<ServiceResult> OnSetEnabledAsync(
-            string groupId, string resourceId, ISystemContext context,
-            ArrayOf<Variant> input, CancellationToken ct)
+            string groupId,
+            string resourceId,
+            ISystemContext context,
+            ArrayOf<Variant> input,
+            CancellationToken ct)
         {
             ServiceResult access = m_manager.CheckManagementAccess(context, "SetEnabled");
             if (ServiceResult.IsBad(access))
@@ -673,15 +266,18 @@ namespace Opc.Ua.WotCon.Server
                 return ServiceResult.Create(
                     StatusCodes.BadInvalidArgument, "The Enabled argument is required.");
             }
-            long? epoch = OptionalEpoch(input, 1);
             WotRegistryMutationResult result = await m_registry
-                .SetEnabledAsync(groupId, resourceId, enabled, epoch, ct).ConfigureAwait(false);
+                .SetEnabledAsync(groupId, resourceId, enabled, OptionalEpoch(input, 1), ct)
+                .ConfigureAwait(false);
             return ToServiceResult(result);
         }
 
         private async ValueTask<ServiceResult> OnSetDefaultVersionAsync(
-            string groupId, string resourceId, ISystemContext context,
-            ArrayOf<Variant> input, CancellationToken ct)
+            string groupId,
+            string resourceId,
+            ISystemContext context,
+            ArrayOf<Variant> input,
+            CancellationToken ct)
         {
             ServiceResult access = m_manager.CheckManagementAccess(context, "SetDefaultVersion");
             if (ServiceResult.IsBad(access))
@@ -694,16 +290,18 @@ namespace Opc.Ua.WotCon.Server
                 return ServiceResult.Create(
                     StatusCodes.BadInvalidArgument, "The VersionId argument is required.");
             }
-            long? epoch = OptionalEpoch(input, 1);
             WotRegistryMutationResult result = await m_registry
-                .SetDefaultVersionAsync(groupId, resourceId, versionId!, epoch, ct)
+                .SetDefaultVersionAsync(groupId, resourceId, versionId!, OptionalEpoch(input, 1), ct)
                 .ConfigureAwait(false);
             return ToServiceResult(result);
         }
 
         private async ValueTask<ServiceResult> CommitDocumentAsync(
-            string groupId, string resourceId, WoTDocumentKindEnum kind,
-            byte[] content, CancellationToken ct)
+            string groupId,
+            string resourceId,
+            WoTDocumentKindEnum kind,
+            byte[] content,
+            CancellationToken ct)
         {
             var request = new WotUpsertResourceRequest
             {
@@ -719,250 +317,16 @@ namespace Opc.Ua.WotCon.Server
             };
             WotRegistryMutationResult result = await m_registry
                 .UpsertResourceAsync(request, ct).ConfigureAwait(false);
-            // A validation failure still stores the version (Warning): the bytes
-            // are never lost and the previous active projection is retained.
             return result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed
                 ? ServiceResult.Create(StatusCodes.BadInvalidState, result.Message)
                 : ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Wires the AddAttribute/RemoveAttribute Method handlers on a
-        /// materialized Labels (AttributesType) container, instantiating the
-        /// two optional Method children when not already present.
-        /// </summary>
-        private void WireLabelsContainer(
-            AttributesState? labels,
-            Func<ISystemContext, ArrayOf<Variant>, CancellationToken, ValueTask<ServiceResult>> onAdd,
-            Func<ISystemContext, ArrayOf<Variant>, CancellationToken, ValueTask<ServiceResult>> onRemove)
-        {
-            if (labels is null)
-            {
-                return;
-            }
-            labels.AddAddAttribute(m_manager.SystemContext)
-                .AddRemoveAttribute(m_manager.SystemContext);
-            labels.AddAttribute?.OnCallMethod2Async = (c, m, o, i, ot, t) => onAdd(c, i, t);
-            labels.RemoveAttribute?.OnCallMethod2Async = (c, m, o, i, ot, t) => onRemove(c, i, t);
-        }
-
-        /// <summary>
-        /// Reconciles the browsable label Property children of a Labels
-        /// container against the desired dictionary: adds/updates changed
-        /// values, and removes labels no longer present. Ordinal enumeration
-        /// of <paramref name="desired"/> keeps materialization order
-        /// deterministic.
-        /// </summary>
-        private async ValueTask SyncLabelPropertiesAsync(
-            AttributesState labels,
-            string basePath,
-            ImmutableSortedDictionary<string, string> desired,
-            CancellationToken ct)
-        {
-            ISystemContext context = m_manager.SystemContext;
-            var existing = new Dictionary<string, PropertyState<string>>(StringComparer.Ordinal);
-            var children = new List<BaseInstanceState>();
-            labels.GetChildren(context, children);
-            foreach (BaseInstanceState child in children)
-            {
-                if (child is PropertyState<string> property && property.BrowseName.Name is string name)
-                {
-                    existing[name] = property;
-                }
-            }
-
-            foreach (KeyValuePair<string, string> label in desired)
-            {
-                if (existing.TryGetValue(label.Key, out PropertyState<string>? property))
-                {
-                    if (!string.Equals(property.Value, label.Value, StringComparison.Ordinal))
-                    {
-                        property.Value = label.Value;
-                        property.ClearChangeMasks(context, includeChildren: false);
-                    }
-                    continue;
-                }
-                PropertyState<string> created = labels.AddAttribute_Placeholder(
-                    context, new QualifiedName(label.Key, m_modelNs));
-                created.NodeId = LabelNodeId(basePath, label.Key);
-                created.Value = label.Value;
-                await m_manager.AddPredefinedNodeAsync(created, ct).ConfigureAwait(false);
-            }
-
-            foreach (KeyValuePair<string, PropertyState<string>> stale in existing
-                .Where(kv => !desired.ContainsKey(kv.Key)).ToList())
-            {
-                labels.RemoveChild(stale.Value);
-                await m_manager.DeleteNodeAsync(m_manager.SystemContext, stale.Value.NodeId, ct)
-                    .ConfigureAwait(false);
-            }
-        }
-
-        private NodeId LabelNodeId(string basePath, string key)
-        {
-            return new NodeId($"{basePath}/labels/{key}", m_modelNs);
-        }
-
-        private async ValueTask<ServiceResult> OnAddRegistryLabelAsync(
-            ISystemContext context, ArrayOf<Variant> input, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "AddAttribute");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            string? key = GetString(input, 0);
-            string value = GetString(input, 1) ?? string.Empty;
-            long? epoch = OptionalEpoch(input, 2);
-            WotRegistryMutationResult result;
-            try
-            {
-                result = await m_registry
-                    .AddRegistryLabelAsync(key ?? string.Empty, value, epoch, ct)
-                    .ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex)
-            {
-                return ex.Result;
-            }
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            return ToServiceResult(result);
-        }
-
-        private async ValueTask<ServiceResult> OnRemoveRegistryLabelAsync(
-            ISystemContext context, ArrayOf<Variant> input, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "RemoveAttribute");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            string? key = GetString(input, 0);
-            long? epoch = OptionalEpoch(input, 1);
-            WotRegistryMutationResult result;
-            try
-            {
-                result = await m_registry
-                    .RemoveRegistryLabelAsync(key ?? string.Empty, epoch, ct)
-                    .ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex)
-            {
-                return ex.Result;
-            }
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            return ToServiceResult(result);
-        }
-
-        private async ValueTask<ServiceResult> OnAddGroupLabelAsync(
-            string groupId, ISystemContext context, ArrayOf<Variant> input, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "AddAttribute");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            string? key = GetString(input, 0);
-            string value = GetString(input, 1) ?? string.Empty;
-            long? epoch = OptionalEpoch(input, 2);
-            WotRegistryMutationResult result;
-            try
-            {
-                result = await m_registry
-                    .AddGroupLabelAsync(groupId, key ?? string.Empty, value, epoch, ct)
-                    .ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex)
-            {
-                return ex.Result;
-            }
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            return ToServiceResult(result);
-        }
-
-        private async ValueTask<ServiceResult> OnRemoveGroupLabelAsync(
-            string groupId, ISystemContext context, ArrayOf<Variant> input, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "RemoveAttribute");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            string? key = GetString(input, 0);
-            long? epoch = OptionalEpoch(input, 1);
-            WotRegistryMutationResult result;
-            try
-            {
-                result = await m_registry
-                    .RemoveGroupLabelAsync(groupId, key ?? string.Empty, epoch, ct)
-                    .ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex)
-            {
-                return ex.Result;
-            }
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            return ToServiceResult(result);
-        }
-
-        private async ValueTask<ServiceResult> OnAddResourceLabelAsync(
-            string groupId, string resourceId, ISystemContext context,
-            ArrayOf<Variant> input, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "AddAttribute");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            string? key = GetString(input, 0);
-            string value = GetString(input, 1) ?? string.Empty;
-            long? epoch = OptionalEpoch(input, 2);
-            WotRegistryMutationResult result;
-            try
-            {
-                result = await m_registry
-                    .AddResourceLabelAsync(groupId, resourceId, key ?? string.Empty, value, epoch, ct)
-                    .ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex)
-            {
-                return ex.Result;
-            }
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            return ToServiceResult(result);
-        }
-
-        private async ValueTask<ServiceResult> OnRemoveResourceLabelAsync(
-            string groupId, string resourceId, ISystemContext context,
-            ArrayOf<Variant> input, CancellationToken ct)
-        {
-            ServiceResult access = m_manager.CheckManagementAccess(context, "RemoveAttribute");
-            if (ServiceResult.IsBad(access))
-            {
-                return access;
-            }
-            string? key = GetString(input, 0);
-            long? epoch = OptionalEpoch(input, 1);
-            WotRegistryMutationResult result;
-            try
-            {
-                result = await m_registry
-                    .RemoveResourceLabelAsync(groupId, resourceId, key ?? string.Empty, epoch, ct)
-                    .ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex)
-            {
-                return ex.Result;
-            }
-            await ReconcileAsync(ct).ConfigureAwait(false);
-            return ToServiceResult(result);
-        }
-
         private WoTDocumentKindEnum KindForGroup(string groupId)
         {
             return string.Equals(NormalizeId(groupId), WotRegistryGroups.ThingModels, StringComparison.Ordinal)
-                        ? WoTDocumentKindEnum.ThingModel
-                        : WoTDocumentKindEnum.ThingDescription;
+                ? WoTDocumentKindEnum.ThingModel
+                : WoTDocumentKindEnum.ThingDescription;
         }
 
         private static string NormalizeId(string id)
@@ -970,113 +334,16 @@ namespace Opc.Ua.WotCon.Server
             return WotRegistryService.NormalizeSegment(id, nameof(id));
         }
 
-        private static string BuildXid(string groupId, string resourceId)
-        {
-            return $"/groups/{groupId}/resources/{resourceId}";
-        }
-
-        private const string RegistryNodeIdPath = "WoTRegistry";
-
-        private static string GroupNodeIdPath(string groupId)
-        {
-            return "WoTRegistry/groups/" + groupId;
-        }
-
-        private static string ResourceNodeIdPath(string groupId, string resourceId)
-        {
-            return $"WoTRegistry/groups/{groupId}/resources/{resourceId}";
-        }
-
-        private NodeId GroupNodeId(string groupId)
-        {
-            return new NodeId(GroupNodeIdPath(groupId), m_modelNs);
-        }
-
-        private NodeId ResourceNodeId(string groupId, string resourceId)
-        {
-            return new NodeId(ResourceNodeIdPath(groupId, resourceId), m_modelNs);
-        }
-
-        private void WireMethod(
-            BaseObjectState parent, string browseName, GenericMethodCalledEventHandler2Async handler)
-        {
-            MethodState? method =
-                parent.FindChild(m_manager.SystemContext, new QualifiedName(browseName, XRegistryNs)) as
-                    MethodState
-                ?? parent.FindChild(m_manager.SystemContext, new QualifiedName(browseName, m_modelNs)) as
-                    MethodState;
-            method?.OnCallMethod2Async = handler;
-        }
-
-        private ushort XRegistryNs
-            => (ushort)m_manager.Server.NamespaceUris.GetIndex(XRegistryWellKnown.XRegistryNamespaceUri);
-
-        /// <summary>
-        /// Links the <see cref="MethodState.InputArguments"/> /
-        /// <see cref="MethodState.OutputArguments"/> Properties of every Method in
-        /// the subtree from their materialized child nodes. The generated
-        /// instance factories add the argument nodes as plain children without
-        /// setting these Properties, which the server's Call argument validation
-        /// requires.
-        /// </summary>
-        internal static void LinkMethodArguments(NodeState? node, ISystemContext context)
-        {
-            if (node is null)
-            {
-                return;
-            }
-            if (node is MethodState method)
-            {
-                var arguments = new List<BaseInstanceState>();
-                method.GetChildren(context, arguments);
-                foreach (BaseInstanceState child in arguments)
-                {
-                    if (child is not PropertyState<ArrayOf<Argument>> args)
-                    {
-                        continue;
-                    }
-                    if (method.InputArguments is null &&
-                        string.Equals(args.BrowseName.Name, Ua.BrowseNames.InputArguments,
-                            StringComparison.Ordinal))
-                    {
-                        method.InputArguments = args;
-                    }
-                    else if (method.OutputArguments is null &&
-                        string.Equals(args.BrowseName.Name, Ua.BrowseNames.OutputArguments,
-                            StringComparison.Ordinal))
-                    {
-                        method.OutputArguments = args;
-                    }
-                }
-            }
-            var children = new List<BaseInstanceState>();
-            node.GetChildren(context, children);
-            foreach (BaseInstanceState child in children)
-            {
-                LinkMethodArguments(child, context);
-            }
-        }
-
-        private static void SetValue<T>(PropertyState<T>? property, T value)
-        {
-            property?.Value = value;
-        }
-
         private static string? GetString(ArrayOf<Variant> input, int index)
         {
             return index < input.Count && input[index].AsBoxedObject(Variant.BoxingBehavior.Legacy) is string s
-                        ? s : null;
-        }
-
-        private static bool GetBool(ArrayOf<Variant> input, int index, bool fallback)
-        {
-            return GetBoolOrNull(input, index) ?? fallback;
+                ? s : null;
         }
 
         private static bool? GetBoolOrNull(ArrayOf<Variant> input, int index)
         {
             return index < input.Count && input[index].AsBoxedObject(Variant.BoxingBehavior.Legacy) is bool b
-                        ? b : null;
+                ? b : null;
         }
 
         private static long? OptionalEpoch(ArrayOf<Variant> input, int index)
@@ -1106,52 +373,324 @@ namespace Opc.Ua.WotCon.Server
             };
         }
 
-        private sealed class GroupEntry
+        private const string RegistryNodeIdPath = "WoTRegistry";
+
+        private sealed class Strategy : IXRegistryProjectionStrategy
         {
-            public GroupEntry(GroupState node, WoTDocumentKindEnum kind)
+            public Strategy(WotRegistryProjection projection)
             {
-                Node = node;
-                Kind = kind;
+                m_projection = projection;
             }
 
-            public GroupState Node { get; }
-            public WoTDocumentKindEnum Kind { get; }
+            public IXRegistryProjectionSnapshot Current => new SnapshotAdapter(m_projection.m_registry.Current);
 
-            public Dictionary<string, ResourceEntry> Resources { get; }
-                = new(StringComparer.Ordinal);
+            public GroupState CreateGroupNode(
+                BaseObjectState registryNode,
+                IXRegistryProjectionGroup group)
+            {
+                return m_projection.CreateGroupNode(registryNode, ((GroupAdapter)group).Group);
+            }
+
+            public ResourceState CreateResourceNode(
+                GroupState groupNode,
+                IXRegistryProjectionResource resource)
+            {
+                return m_projection.CreateResourceNode(groupNode, ((ResourceAdapter)resource).Resource);
+            }
+
+            public void ConfigureGroupNode(GroupState node, IXRegistryProjectionGroup group)
+            {
+            }
+
+            public void ConfigureResourceNode(ResourceState node, IXRegistryProjectionResource resource)
+            {
+                m_projection.ConfigureResourceNode(node, ((ResourceAdapter)resource).Resource);
+            }
+
+            public IXRegistryProjectedResourceFile? CreateResourceFile(
+                ResourceState node,
+                IXRegistryProjectionResource resource)
+            {
+                if (node is not WoTDocumentState document)
+                {
+                    return null;
+                }
+                WotResource wotResource = ((ResourceAdapter)resource).Resource;
+                return new ResourceFileAdapter(
+                    m_projection.CreateResourceFile(document, wotResource),
+                    wotResource);
+            }
+
+            public async ValueTask<IXRegistryProjectionGroup?> CreateGroupAsync(
+                string groupId,
+                CancellationToken ct)
+            {
+                WotResourceGroup? group = await m_projection.m_registry
+                    .TryCreateGroupAsync(groupId, m_projection.KindForGroup(groupId), cancellationToken: ct)
+                    .ConfigureAwait(false);
+                return group is null ? null : new GroupAdapter(group);
+            }
+
+            public async ValueTask<(IXRegistryProjectionGroup Group, bool Created)> GetOrCreateGroupAsync(
+                string groupId,
+                CancellationToken ct)
+            {
+                bool existed = m_projection.m_registry.Current.FindGroup(NormalizeId(groupId)) is not null;
+                WotResourceGroup group = await m_projection.m_registry
+                    .GetOrCreateGroupAsync(groupId, m_projection.KindForGroup(groupId), cancellationToken: ct)
+                    .ConfigureAwait(false);
+                return (new GroupAdapter(group), !existed);
+            }
+
+            public async ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
+                string groupId,
+                string resourceId,
+                CancellationToken ct)
+            {
+                WotResourceGroup? group = m_projection.m_registry.Current.FindGroup(groupId);
+                WotResource? resource = await m_projection.m_registry
+                    .TryCreateResourceAsync(groupId, resourceId,
+                        group?.Kind ?? m_projection.KindForGroup(groupId), ct)
+                    .ConfigureAwait(false);
+                return resource is null ? null : new ResourceAdapter(resource);
+            }
+
+            public async ValueTask<(IXRegistryProjectionResource Resource, bool Created)> GetOrCreateResourceAsync(
+                string groupId,
+                string resourceId,
+                CancellationToken ct)
+            {
+                WotResourceGroup? group = m_projection.m_registry.Current.FindGroup(groupId);
+                (WotResource resource, bool created) = await m_projection.m_registry
+                    .GetOrCreateResourceAsync(groupId, resourceId,
+                        group?.Kind ?? m_projection.KindForGroup(groupId), ct)
+                    .ConfigureAwait(false);
+                return (new ResourceAdapter(resource), created);
+            }
+
+            public async ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                WotRegistryMutationResult result = await m_projection.m_registry
+                    .DeleteGroupAsync(groupId, epoch, ct).ConfigureAwait(false);
+                return ToServiceResult(result);
+            }
+
+            public async ValueTask<ServiceResult> DeleteResourceAsync(
+                string groupId,
+                string resourceId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                WotRegistryMutationResult result = await m_projection.m_registry
+                    .DeleteResourceAsync(groupId, resourceId, epoch, ct).ConfigureAwait(false);
+                return ToServiceResult(result);
+            }
+
+            public async ValueTask<ServiceResult> AddRegistryLabelAsync(
+                string key,
+                string value,
+                long? epoch,
+                CancellationToken ct)
+            {
+                try
+                {
+                    return ToServiceResult(await m_projection.m_registry
+                        .AddRegistryLabelAsync(key, value, epoch, ct).ConfigureAwait(false));
+                }
+                catch (ServiceResultException ex)
+                {
+                    return ex.Result;
+                }
+            }
+
+            public async ValueTask<ServiceResult> RemoveRegistryLabelAsync(
+                string key,
+                long? epoch,
+                CancellationToken ct)
+            {
+                try
+                {
+                    return ToServiceResult(await m_projection.m_registry
+                        .RemoveRegistryLabelAsync(key, epoch, ct).ConfigureAwait(false));
+                }
+                catch (ServiceResultException ex)
+                {
+                    return ex.Result;
+                }
+            }
+
+            public async ValueTask<ServiceResult> AddGroupLabelAsync(
+                string groupId,
+                string key,
+                string value,
+                long? epoch,
+                CancellationToken ct)
+            {
+                try
+                {
+                    return ToServiceResult(await m_projection.m_registry
+                        .AddGroupLabelAsync(groupId, key, value, epoch, ct).ConfigureAwait(false));
+                }
+                catch (ServiceResultException ex)
+                {
+                    return ex.Result;
+                }
+            }
+
+            public async ValueTask<ServiceResult> RemoveGroupLabelAsync(
+                string groupId,
+                string key,
+                long? epoch,
+                CancellationToken ct)
+            {
+                try
+                {
+                    return ToServiceResult(await m_projection.m_registry
+                        .RemoveGroupLabelAsync(groupId, key, epoch, ct).ConfigureAwait(false));
+                }
+                catch (ServiceResultException ex)
+                {
+                    return ex.Result;
+                }
+            }
+
+            public async ValueTask<ServiceResult> AddResourceLabelAsync(
+                string groupId,
+                string resourceId,
+                string key,
+                string value,
+                long? epoch,
+                CancellationToken ct)
+            {
+                try
+                {
+                    return ToServiceResult(await m_projection.m_registry
+                        .AddResourceLabelAsync(groupId, resourceId, key, value, epoch, ct)
+                        .ConfigureAwait(false));
+                }
+                catch (ServiceResultException ex)
+                {
+                    return ex.Result;
+                }
+            }
+
+            public async ValueTask<ServiceResult> RemoveResourceLabelAsync(
+                string groupId,
+                string resourceId,
+                string key,
+                long? epoch,
+                CancellationToken ct)
+            {
+                try
+                {
+                    return ToServiceResult(await m_projection.m_registry
+                        .RemoveResourceLabelAsync(groupId, resourceId, key, epoch, ct)
+                        .ConfigureAwait(false));
+                }
+                catch (ServiceResultException ex)
+                {
+                    return ex.Result;
+                }
+            }
+
+            private readonly WotRegistryProjection m_projection;
         }
 
-        private sealed class ResourceEntry
+        private sealed class SnapshotAdapter : IXRegistryProjectionSnapshot
         {
-            public ResourceEntry(
-                WoTDocumentState node, WotResourceFileManager? file,
-                string groupId, string resourceId, WoTDocumentKindEnum kind)
+            public SnapshotAdapter(WotRegistrySnapshot snapshot)
             {
-                Node = node;
-                File = file;
-                GroupId = groupId;
-                ResourceId = resourceId;
-                Kind = kind;
+                m_snapshot = snapshot;
             }
 
-            public WoTDocumentState Node { get; }
-            public WotResourceFileManager? File { get; }
-            public string GroupId { get; }
-            public string ResourceId { get; }
-            public WoTDocumentKindEnum Kind { get; }
+            public ImmutableSortedDictionary<string, string> Labels => m_snapshot.Labels;
+
+            public IEnumerable<IXRegistryProjectionGroup> Groups
+                => m_snapshot.Groups.Values.Select(group => new GroupAdapter(group));
+
+            private readonly WotRegistrySnapshot m_snapshot;
+        }
+
+        private sealed class GroupAdapter : IXRegistryProjectionGroup
+        {
+            public GroupAdapter(WotResourceGroup group)
+            {
+                Group = group;
+            }
+
+            public WotResourceGroup Group { get; }
+            public string GroupId => Group.GroupId;
+            public string Xid => Group.Xid;
+            public string Name => Group.Name;
+            public string Description => Group.Description;
+            public long Epoch => Group.Epoch;
+            public ImmutableSortedDictionary<string, string> Labels => Group.Labels;
+
+            public IEnumerable<IXRegistryProjectionResource> Resources
+                => Group.Resources.Values.Select(resource => new ResourceAdapter(resource));
+        }
+
+        private sealed class ResourceAdapter : IXRegistryProjectionResource
+        {
+            public ResourceAdapter(WotResource resource)
+            {
+                Resource = resource;
+            }
+
+            public WotResource Resource { get; }
+            public string GroupId => Resource.GroupId;
+            public string ResourceId => Resource.ResourceId;
+            public string Xid => Resource.Xid;
+            public string Name => Resource.Name;
+            public string Description => Resource.Description;
+            public string VersionId => Resource.DefaultVersionId ?? string.Empty;
+            public string Format => Resource.DefaultVersion?.Format ?? string.Empty;
+            public string ContentType => Resource.DefaultVersion?.ContentType ?? "application/td+json";
+            public long Epoch => Resource.Epoch;
+            public DateTime CreatedAt => Resource.DefaultVersion?.CreatedAt ?? default;
+            public DateTime ModifiedAt => Resource.DefaultVersion?.ModifiedAt ?? DateTime.UtcNow;
+            public ImmutableSortedDictionary<string, string> Labels => Resource.Labels;
+        }
+
+        private sealed class ResourceFileAdapter : IXRegistryProjectedResourceFile
+        {
+            public ResourceFileAdapter(WotResourceFileManager file, WotResource resource)
+            {
+                m_file = file;
+                ApplyResource(new ResourceAdapter(resource));
+            }
+
+            public ServiceResult TryOpenWriteHandle(ISystemContext context, out uint fileHandle)
+            {
+                NodeId sessionId = context is ISessionSystemContext sessionContext
+                    ? sessionContext.SessionId.GetValueOrDefault()
+                    : NodeId.Null;
+                return m_file.TryOpenWriteHandle(sessionId, out fileHandle);
+            }
+
+            public void ApplyResource(IXRegistryProjectionResource resource)
+            {
+                WotResource wotResource = ((ResourceAdapter)resource).Resource;
+                WotResourceVersion? version = wotResource.DefaultVersion;
+                WotResourceVersion? active = wotResource.ActiveVersion ?? version;
+                m_file.UpdatePersistedContent(active, version?.ContentType);
+            }
+
+            public void Dispose()
+            {
+                m_file.Dispose();
+            }
+
+            private readonly WotResourceFileManager m_file;
         }
 
         private readonly WotRegistryNodeManager m_manager;
         private readonly IWotRegistryService m_registry;
         private readonly WotRegistryServerOptions m_options;
         private readonly ushort m_modelNs;
-        private readonly SemaphoreSlim m_gate = new(1, 1);
-        private readonly Dictionary<string, GroupEntry> m_groups = new(StringComparer.Ordinal);
-
-        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, WoTDocumentState>
-            m_resourcesByXid = new(StringComparer.Ordinal);
-
-        private BaseObjectState? m_registryNode;
-        private bool m_disposed;
+        private readonly XRegistryProjectionEngine m_engine;
     }
 }
