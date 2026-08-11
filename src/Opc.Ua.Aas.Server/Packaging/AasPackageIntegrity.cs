@@ -51,7 +51,7 @@ namespace Opc.Ua.Aas.Server.Packaging
         public static string ComputeDigest(ByteString blob, string digestAlg)
         {
             ValidateDigestAlgorithm(digestAlg);
-            return ToLowerHex(ComputeHash(blob.Span, digestAlg));
+            return AasDigest.ComputeHex(blob.Span, digestAlg);
         }
 
         /// <summary>
@@ -60,7 +60,7 @@ namespace Opc.Ua.Aas.Server.Packaging
         public static string ComputeManifestDigest(ByteString manifestBytes, string ociAlgorithm)
         {
             string digestAlg = MapOciAlgorithm(ociAlgorithm);
-            return ociAlgorithm + ":" + ToLowerHex(ComputeHash(manifestBytes.Span, digestAlg));
+            return ociAlgorithm + ":" + AasDigest.ComputeHex(manifestBytes.Span, digestAlg);
         }
 
         /// <summary>
@@ -207,7 +207,7 @@ namespace Opc.Ua.Aas.Server.Packaging
                 throw new ArgumentNullException(nameof(manifestDigest));
             }
 
-            return "oci." + ToLowerHex(ComputeSha256(Encoding.UTF8.GetBytes(manifestDigest)));
+            return "oci." + AasDigest.ComputeHex(Encoding.UTF8.GetBytes(manifestDigest), AasDigest.Sha256Name);
         }
 
         private static AasPackageIntegrityResult VerifyManifest(ByteString manifestBytes, string manifestDigest)
@@ -292,82 +292,9 @@ namespace Opc.Ua.Aas.Server.Packaging
                 string.Equals(algorithm, "sha512", StringComparison.Ordinal));
         }
 
-        private static byte[] ComputeHash(ReadOnlySpan<byte> bytes, string digestAlg)
-        {
-            if (string.Equals(digestAlg, Sha256, StringComparison.Ordinal))
-            {
-                return ComputeSha256(bytes);
-            }
-            if (string.Equals(digestAlg, Sha384, StringComparison.Ordinal))
-            {
-                return ComputeSha384(bytes);
-            }
-            if (string.Equals(digestAlg, Sha512, StringComparison.Ordinal))
-            {
-                return ComputeSha512(bytes);
-            }
-
-            throw new ArgumentException("Unsupported digest algorithm.", nameof(digestAlg));
-        }
-
-        private static byte[] ComputeSha256(ReadOnlySpan<byte> bytes)
-        {
-#if NET5_0_OR_GREATER
-            return SHA256.HashData(bytes);
-#else
-            using SHA256 sha = SHA256.Create();
-            return sha.ComputeHash(bytes.ToArray());
-#endif
-        }
-
-        private static byte[] ComputeSha384(ReadOnlySpan<byte> bytes)
-        {
-#if NET5_0_OR_GREATER
-            return SHA384.HashData(bytes);
-#else
-            using SHA384 sha = SHA384.Create();
-            return sha.ComputeHash(bytes.ToArray());
-#endif
-        }
-
-        private static byte[] ComputeSha512(ReadOnlySpan<byte> bytes)
-        {
-#if NET5_0_OR_GREATER
-            return SHA512.HashData(bytes);
-#else
-            using SHA512 sha = SHA512.Create();
-            return sha.ComputeHash(bytes.ToArray());
-#endif
-        }
-
-        private static string ToLowerHex(ReadOnlySpan<byte> bytes)
-        {
-            var builder = new StringBuilder(bytes.Length * 2);
-            for (int ii = 0; ii < bytes.Length; ii++)
-            {
-                builder.Append(bytes[ii].ToString("x2", CultureInfo.InvariantCulture));
-            }
-
-            return builder.ToString();
-        }
-
         private static bool IsLowerHex(string value)
         {
-            if (string.IsNullOrEmpty(value) || ContainsColon(value) || (value.Length % 2) != 0)
-            {
-                return false;
-            }
-
-            for (int ii = 0; ii < value.Length; ii++)
-            {
-                char c = value[ii];
-                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return !ContainsColon(value) && AasDigest.IsHex(value);
         }
 
         private static int IndexOfColon(string value)
@@ -391,17 +318,17 @@ namespace Opc.Ua.Aas.Server.Packaging
         /// <summary>
         /// The case-sensitive AAS spelling for SHA-256.
         /// </summary>
-        public const string Sha256 = "Sha256";
+        public const string Sha256 = AasDigest.Sha256Name;
 
         /// <summary>
         /// The case-sensitive AAS spelling for SHA-384.
         /// </summary>
-        public const string Sha384 = "Sha384";
+        public const string Sha384 = AasDigest.Sha384Name;
 
         /// <summary>
         /// The case-sensitive AAS spelling for SHA-512.
         /// </summary>
-        public const string Sha512 = "Sha512";
+        public const string Sha512 = AasDigest.Sha512Name;
     }
 
     /// <summary>

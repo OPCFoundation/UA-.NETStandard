@@ -31,7 +31,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
-using System.Security.Cryptography;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Server;
 
@@ -93,11 +92,7 @@ namespace Opc.Ua.Aas.Server.Registry
         /// </summary>
         public static ByteString Compute(ReadOnlySpan<byte> content)
         {
-            using var sha = SHA256.Create();
-#pragma warning disable CA1850
-            // TODO: Replace with SHA256.HashData when the repository no longer targets net472/net48/netstandard2.0.
-            return ByteString.From(sha.ComputeHash(content.ToArray()));
-#pragma warning restore CA1850
+            return AasDigest.Compute(content, AasDigest.Sha256Name);
         }
 
         /// <summary>
@@ -113,7 +108,7 @@ namespace Opc.Ua.Aas.Server.Registry
         /// </summary>
         public static string ToHex(ByteString digest)
         {
-            return digest.IsNull ? string.Empty : ToHex(digest.Span);
+            return AasDigest.ToHex(digest);
         }
 
         /// <summary>
@@ -121,22 +116,7 @@ namespace Opc.Ua.Aas.Server.Registry
         /// </summary>
         public static string ToHex(ReadOnlySpan<byte> bytes)
         {
-            if (bytes.Length == 0)
-            {
-                return string.Empty;
-            }
-            char[] chars = new char[bytes.Length * 2];
-            for (int ii = 0; ii < bytes.Length; ii++)
-            {
-                byte value = bytes[ii];
-                chars[ii * 2] = Nibble(value >> 4);
-                chars[(ii * 2) + 1] = Nibble(value & 0xF);
-            }
-            return new string(chars);
-        }
-        private static char Nibble(int value)
-        {
-            return (char)(value < 10 ? '0' + value : 'a' + value - 10);
+            return AasDigest.ToHex(bytes);
         }
     }
 

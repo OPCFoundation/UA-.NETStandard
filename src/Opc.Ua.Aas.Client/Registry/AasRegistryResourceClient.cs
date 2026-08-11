@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -388,67 +387,18 @@ namespace Opc.Ua.Aas.Client.Registry
             {
                 throw new ServiceResultException(StatusCodes.BadDataEncodingInvalid, "Package Digest is required.");
             }
-            string actual = ComputeDigest(content.IsNull ? default : content.Span, digestAlg);
-            if (!string.Equals(actual, expectedDigest, StringComparison.Ordinal))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadDataEncodingInvalid,
-                    "Package digest verification failed.");
-            }
-        }
-
-        private static string ComputeDigest(ReadOnlySpan<byte> content, string digestAlg)
-        {
-            byte[] hash;
-            byte[] buffer = content.ToArray();
-            if (string.Equals(digestAlg, "Sha256", StringComparison.Ordinal))
-            {
-                using SHA256 sha = SHA256.Create();
-#pragma warning disable CA1850
-                // TODO: Replace with SHA256.HashData when net472/net48/netstandard2.0 are no longer targeted.
-                hash = sha.ComputeHash(buffer);
-#pragma warning restore CA1850
-            }
-            else if (string.Equals(digestAlg, "Sha384", StringComparison.Ordinal))
-            {
-                using SHA384 sha = SHA384.Create();
-#pragma warning disable CA1850
-                // TODO: Replace with SHA384.HashData when net472/net48/netstandard2.0 are no longer targeted.
-                hash = sha.ComputeHash(buffer);
-#pragma warning restore CA1850
-            }
-            else if (string.Equals(digestAlg, "Sha512", StringComparison.Ordinal))
-            {
-                using SHA512 sha = SHA512.Create();
-#pragma warning disable CA1850
-                // TODO: Replace with SHA512.HashData when net472/net48/netstandard2.0 are no longer targeted.
-                hash = sha.ComputeHash(buffer);
-#pragma warning restore CA1850
-            }
-            else
+            if (!AasDigest.IsSupportedAlgorithm(digestAlg))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDataEncodingInvalid,
                     "DigestAlg must be exactly Sha256, Sha384 or Sha512.");
             }
-            return ToLowerHex(hash);
-        }
-
-        private static string ToLowerHex(ReadOnlySpan<byte> bytes)
-        {
-            char[] chars = new char[bytes.Length * 2];
-            for (int i = 0; i < bytes.Length; i++)
+            if (!AasDigest.Matches(content, digestAlg, expectedDigest))
             {
-                byte value = bytes[i];
-                chars[i * 2] = ToHexNibble(value >> 4);
-                chars[(i * 2) + 1] = ToHexNibble(value & 0xF);
+                throw new ServiceResultException(
+                    StatusCodes.BadDataEncodingInvalid,
+                    "Package digest verification failed.");
             }
-            return new string(chars);
-        }
-
-        private static char ToHexNibble(int value)
-        {
-            return (char)(value < 10 ? '0' + value : 'a' + value - 10);
         }
     }
 }
