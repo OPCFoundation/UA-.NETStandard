@@ -140,6 +140,14 @@ namespace Opc.Ua.Robotics.Client.Intent
         }
 
         /// <summary>
+        /// Reads the current runtime state of the controller.
+        /// </summary>
+        public ValueTask<RobotIntentControllerState> ReadStateAsync(CancellationToken cancellationToken = default)
+        {
+            return Transport.ReadControllerStateAsync(cancellationToken);
+        }
+
+        /// <summary>
         /// Submits an intent and returns an awaitable operation handle when accepted.
         /// </summary>
         public async ValueTask<IntentOperationHandle> SubmitIntentAsync(
@@ -185,6 +193,78 @@ namespace Opc.Ua.Robotics.Client.Intent
         }
 
         /// <summary>
+        /// Lists operations published below the controller's Intents folder.
+        /// </summary>
+        public ValueTask<ArrayOf<IntentOperationSnapshot>> ListOperationsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return Transport.ListOperationsAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Lists missions published below the controller's Missions folder.
+        /// </summary>
+        public ValueTask<ArrayOf<MissionSnapshot>> ListMissionsAsync(CancellationToken cancellationToken = default)
+        {
+            return Transport.ListMissionsAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Cancels an intent and returns the refusal-aware outcome.
+        /// </summary>
+        public ValueTask<IntentCommandOutcome> CancelIntentAsync(
+            string intentId,
+            StopModeEnum stopMode,
+            CancellationToken cancellationToken = default)
+        {
+            return Transport.CancelIntentAsync(intentId, stopMode, cancellationToken);
+        }
+
+        /// <summary>
+        /// Cancels all outstanding work and returns how many items the server acted on.
+        /// </summary>
+        public ValueTask<uint> CancelAllAsync(
+            StopModeEnum stopMode,
+            CancellationToken cancellationToken = default)
+        {
+            return Transport.CancelAllAsync(stopMode, cancellationToken);
+        }
+
+        /// <summary>
+        /// Requests Pause and returns the refusal-aware outcome.
+        /// </summary>
+        public ValueTask<IntentCommandOutcome> PauseAsync(CancellationToken cancellationToken = default)
+        {
+            return Transport.PauseAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Requests Resume and returns the refusal-aware outcome.
+        /// </summary>
+        public ValueTask<IntentCommandOutcome> ResumeAsync(CancellationToken cancellationToken = default)
+        {
+            return Transport.ResumeAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Retries an intent and returns the admission outcome for the new operation.
+        /// </summary>
+        public ValueTask<IntentSubmissionResult> RetryAsync(
+            string intentId,
+            CancellationToken cancellationToken = default)
+        {
+            return Transport.RetryAsync(intentId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Releases command authority held by this session.
+        /// </summary>
+        public ValueTask ReleaseControlAsync(CancellationToken cancellationToken = default)
+        {
+            return Transport.ReleaseControlAsync(cancellationToken);
+        }
+
+        /// <summary>
         /// Requests command authority and returns a lease.
         /// </summary>
         /// <remarks>
@@ -199,6 +279,37 @@ namespace Opc.Ua.Robotics.Client.Intent
             CommandAuthorityLease lease = new(Transport, outcome.Granted, outcome.CurrentOwner);
             await lease.StartAsync(cancellationToken).ConfigureAwait(false);
             return lease;
+        }
+
+        /// <summary>
+        /// Requests command authority and throws when the Server refuses it.
+        /// </summary>
+        /// <remarks>
+        /// Use <see cref="RequestAuthorityAsync"/> when refusal is expected and the caller wants to branch on the
+        /// lease.
+        /// </remarks>
+        public async ValueTask<CommandAuthorityLease> RequireAuthorityAsync(
+            CancellationToken cancellationToken = default)
+        {
+            CommandAuthorityLease lease = await RequestAuthorityAsync(cancellationToken).ConfigureAwait(false);
+            if (lease.Granted)
+            {
+                return lease;
+            }
+
+            NodeId currentOwner = lease.CurrentOwner;
+            await lease.DisposeAsync().ConfigureAwait(false);
+            if (!currentOwner.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadRequestNotAllowed,
+                    "Command authority refused. CurrentOwner={0}.",
+                    currentOwner);
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadRequestNotAllowed,
+                "Command authority refused. No current owner was reported.");
         }
 
         /// <summary>

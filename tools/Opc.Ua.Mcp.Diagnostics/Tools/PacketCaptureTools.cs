@@ -59,9 +59,18 @@ namespace Opc.Ua.Mcp.Tools
         /// <summary>
         /// Lists local network interfaces that can be captured from.
         /// </summary>
+        /// <remarks>
+        /// Enumerating interfaces goes through SharpPcap, which loads native libpcap/Npcap
+        /// dynamically and is therefore neither trim- nor Native-AOT-safe. The constraint is
+        /// annotated rather than suppressed so that hosts publishing ahead of time see it.
+        /// </remarks>
         [McpServerTool(Name = "list_interfaces")]
         [Description("Lists local network interfaces that can be used as the 'interfaceName' parameter to " +
             "start_capture with source='nic'. Requires libpcap (Linux/macOS) or Npcap (Windows).")]
+        [RequiresUnreferencedCode(
+            "SharpPcap requires dynamic native libpcap/Npcap loading and is not NativeAOT/trimming safe.")]
+        [RequiresDynamicCode(
+            "SharpPcap requires dynamic native libpcap/Npcap loading and is not NativeAOT/trimming safe.")]
         public static IReadOnlyList<NetworkInterfaceInfo> ListInterfaces()
         {
             return NetworkInterfaceEnumerator.ListLocalInterfaces();

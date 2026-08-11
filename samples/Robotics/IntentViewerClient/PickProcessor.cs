@@ -81,11 +81,11 @@ namespace IntentViewerClient
                 t => string.Equals(t.PrimPath, primPath, StringComparison.Ordinal));
             if (target is null)
             {
-                Console.WriteLine($"Picked {primPath}, but the server did not publish a LocationType mapping for it.");
+                Console.Error.WriteLine($"Picked {primPath}, but the server did not publish a LocationType mapping for it.");
                 return;
             }
 
-            Console.WriteLine($"Picked {target.Name} at {target.PrimPath}; reading {target.LocationNodeId} Pose.");
+            Console.Error.WriteLine($"Picked {target.Name} at {target.PrimPath}; reading {target.LocationNodeId} Pose.");
             Pose3DDataType pose;
             try
             {
@@ -94,14 +94,14 @@ namespace IntentViewerClient
             }
             catch (ServiceResultException exception) when (exception.StatusCode == StatusCodes.BadUnexpectedError)
             {
-                Console.WriteLine(
+                Console.Error.WriteLine(
                     $"Location {target.Name} ({target.LocationNodeId}) published a Pose value this " +
                     "client could not decode; skipping that target.");
                 return;
             }
             if (!m_canCommand)
             {
-                Console.WriteLine(
+                Console.Error.WriteLine(
                     "Read-only mode: the client discovered and decoded the target, but did not submit an " +
                     "intent because command authority was not granted.");
                 return;
@@ -117,7 +117,7 @@ namespace IntentViewerClient
                 return;
             }
 
-            Console.WriteLine($"Intent admitted: {submission.IntentId}; operation {submission.Operation}.");
+            Console.Error.WriteLine($"Intent admitted: {submission.IntentId}; operation {submission.Operation}.");
             LogPickSubmitted(m_logger, target.PrimPath, submission.IntentId);
             IntentOperationHandle handle = await m_controller.TrackOperationAsync(
                 submission.IntentId, submission.Operation, cancellationToken).ConfigureAwait(false);
@@ -130,7 +130,7 @@ namespace IntentViewerClient
                     .WaitAsync(cancellationToken).ConfigureAwait(false);
                 await cancelWatchCts.CancelAsync().ConfigureAwait(false);
                 await ObserveCancelWatchAsync(cancelTask).ConfigureAwait(false);
-                Console.WriteLine("Operation terminal result:");
+                Console.Error.WriteLine("Operation terminal result:");
                 PrintResult(result);
                 LogPickCompleted(m_logger, submission.IntentId, handle.Current.ExecutionState);
             }
@@ -155,7 +155,7 @@ namespace IntentViewerClient
             {
                 return;
             }
-            Console.WriteLine("Press C while the robot is moving to request CancelIntent.");
+            Console.Error.WriteLine("Press C while the robot is moving to request CancelIntent.");
             while (!cancellationToken.IsCancellationRequested)
             {
                 await Task.Delay(100, cancellationToken).ConfigureAwait(false);
@@ -172,13 +172,13 @@ namespace IntentViewerClient
                     .ConfigureAwait(false);
                 if (outcome.Accepted)
                 {
-                    Console.WriteLine(
+                    Console.Error.WriteLine(
                         "CancelIntent accepted. Waiting for ExecutionState=Cancelled; " +
                         "Cancelling is not terminal motion.");
                 }
                 else
                 {
-                    Console.WriteLine("CancelIntent refused by the server; continuing to observe the operation.");
+                    Console.Error.WriteLine("CancelIntent refused by the server; continuing to observe the operation.");
                 }
                 return;
             }
@@ -187,7 +187,7 @@ namespace IntentViewerClient
         private static void PrintSnapshot(IntentOperationSnapshot snapshot)
         {
             string pose = FormatPose(snapshot.CurrentPose);
-            Console.WriteLine(string.Format(
+            Console.Error.WriteLine(string.Format(
                 CultureInfo.InvariantCulture,
                 "State={0}; progress={1:0.0}%; pose={2}",
                 snapshot.ExecutionState,
@@ -195,23 +195,23 @@ namespace IntentViewerClient
                 pose));
             if (snapshot.ExecutionState == ExecutionStateEnum.Cancelling)
             {
-                Console.WriteLine("ExecutionState=Cancelling is still in motion; waiting for Cancelled.");
+                Console.Error.WriteLine("ExecutionState=Cancelling is still in motion; waiting for Cancelled.");
             }
         }
 
         private static void PrintResult(IntentResultDataType result)
         {
-            Console.WriteLine($"  Failure: {result.Failure}");
-            Console.WriteLine($"  Message: {result.Message.Text}");
+            Console.Error.WriteLine($"  Failure: {result.Failure}");
+            Console.Error.WriteLine($"  Message: {result.Message.Text}");
             if (result.HasAchievedPose)
             {
-                Console.WriteLine($"  AchievedPose: {FormatPose(result.AchievedPose)}");
+                Console.Error.WriteLine($"  AchievedPose: {FormatPose(result.AchievedPose)}");
             }
         }
 
         private static void PrintRefusal(IntentFailureEnum failure, LocalizedText message)
         {
-            Console.WriteLine($"Intent refused: {failure} - {message.Text}");
+            Console.Error.WriteLine($"Intent refused: {failure} - {message.Text}");
             string action = failure switch
             {
                 IntentFailureEnum.SafetyStop or IntentFailureEnum.SafetyLimitExceeded =>
@@ -227,7 +227,7 @@ namespace IntentViewerClient
                 _ =>
                     "Escalate to the operator with the server's refusal message."
             };
-            Console.WriteLine($"Decision: {action}");
+            Console.Error.WriteLine($"Decision: {action}");
         }
 
         private static string FormatPose(Pose3DDataType pose)
