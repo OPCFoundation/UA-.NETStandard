@@ -55,6 +55,9 @@ namespace Opc.Ua.OpenUsd.Server
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/> or <paramref name="owner"/> is <see langword="null"/>.
         /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// <paramref name="context"/> does not supply a NodeId factory.
+        /// </exception>
         public static OpenUsdRepresentationState CreateRepresentation(
             this ISystemContext context,
             NodeState owner,
@@ -71,6 +74,7 @@ namespace Opc.Ua.OpenUsd.Server
                 throw new ArgumentNullException(nameof(owner));
             }
 
+            _ = context.RequireNodeIdFactory();
             OpenUsdRepresentationState rep = context
                 .CreateInstanceOfOpenUsdRepresentationType(
                     owner, new QualifiedName("OpenUsdRepresentation", ns));
@@ -80,7 +84,6 @@ namespace Opc.Ua.OpenUsd.Server
             // aggregates, while saying which of the two it is.
             rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
             owner.AddChild(rep);
-            rep.NodeId = context.RequireNodeIdFactory().New(context, rep);
             rep.CreateOrReplaceStage(context, null!).Value = stage;
             rep.CreateOrReplacePrimPath(context, null!).Value = primPath;
             return rep;
