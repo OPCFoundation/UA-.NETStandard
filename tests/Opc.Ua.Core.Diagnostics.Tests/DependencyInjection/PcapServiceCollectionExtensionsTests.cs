@@ -298,6 +298,36 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
         }
 
         [Test]
+        public void BaseFolderSetterNormalizesRelativePath()
+        {
+            var options = new PcapOptions(() => Path.Combine(TempDirectory, "fallback"));
+            string relativeFolder = "relative-pcap-" + Path.GetRandomFileName();
+
+            options.BaseFolder = relativeFolder;
+
+            Assert.That(options.BaseFolder, Is.EqualTo(Path.GetFullPath(relativeFolder)));
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("   ")]
+        public void BaseFolderSetterUsesDefaultForBlankValue(string? value)
+        {
+            string fallback = Path.Combine(TempDirectory, "fallback");
+            int fallbackReads = 0;
+            var options = new PcapOptions(() =>
+            {
+                fallbackReads++;
+                return fallback;
+            });
+
+            options.BaseFolder = value!;
+
+            Assert.That(options.BaseFolder, Is.EqualTo(fallback));
+            Assert.That(fallbackReads, Is.EqualTo(1));
+        }
+
+        [Test]
         public void UserProfilePathDoesNotRequireExistingDirectory()
         {
             string localApplicationData = Path.Combine(

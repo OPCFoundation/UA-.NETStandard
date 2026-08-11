@@ -408,12 +408,15 @@ namespace Opc.Ua.Pcap.DependencyInjection
         /// profile directory is unavailable, a process-stable random directory
         /// is created beneath <see cref="Path.GetTempPath()"/>. The result is
         /// always an absolute path, and the directory receives user-only
-        /// permissions on Unix.
+        /// permissions on Unix. Relative values are normalized to absolute
+        /// paths; null, empty, or whitespace values restore the default.
         /// </remarks>
         public string BaseFolder
         {
             get => m_baseFolder ??= m_getDefaultBaseFolder();
-            set => m_baseFolder = value;
+            set => m_baseFolder = string.IsNullOrWhiteSpace(value)
+                ? null
+                : Path.GetFullPath(value);
         }
 
         /// <summary>
