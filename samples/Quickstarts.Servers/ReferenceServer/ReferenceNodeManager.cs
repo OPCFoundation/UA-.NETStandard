@@ -207,101 +207,45 @@ namespace Quickstarts.ReferenceServer
         {
             await base.LoadPredefinedNodesAsync(context, externalReferences, cancellationToken).ConfigureAwait(false);
 
-            // Prio 1 / Prio 2 not possible: history archiving registers an
-            // in-memory historian provider, seeds the sample history and
-            // refreshes the HistoricalDataConfiguration companion objects at
-            // runtime. The Historizing attribute, the history access-level bits
-            // and the companion nodes are all baked into the NodeSet2 model; the
-            // archive contents and provider wiring remain runtime services and
-            // therefore run here, after every predefined node has been loaded.
             await m_semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // Prio 1 / Prio 2 not possible: the simulated variables are baked
+                // into the model, but the periodic value simulation needs them
+                // collected into a runtime list that the fluent
+                // Simulation().OnTick() loop pushes fresh random values to. The
+                // fluent surface exposes only a bare periodic callback with no
+                // per-variable random-value model, so collecting the individual
+                // dynamic nodes stays imperative here. The loop itself is wired
+                // through the fluent builder in Configure().
+                RegisterSimulationVariables();
+
+                // Reset the random generator and generate boundary values so the
+                // fluent simulation loop (registered in Configure and started
+                // after Seal) always has a generator ready for the first tick.
+                ResetRandomGenerator(100, 1);
+
+                // Prio 1 / Prio 2 not possible: history archiving registers an
+                // in-memory historian provider, seeds the sample history and
+                // refreshes the HistoricalDataConfiguration companion objects at
+                // runtime. The Historizing attribute, the history access-level
+                // bits and the companion nodes are all baked into the NodeSet2
+                // model; the archive contents and provider wiring remain runtime
+                // services and therefore run here, after every predefined node
+                // has been loaded.
+                //
+                // The CTT root folder, its EventNotifier attribute and the
+                // inverse Server -> HasNotifier reference are baked into the
+                // model, so base.AddReverseReferencesAsync (invoked by
+                // base.LoadPredefinedNodesAsync above) both materializes the root
+                // and auto-registers it with the runtime notifier table - no
+                // explicit root creation or notifier registration is required.
                 await EnableHistoryArchivingAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
                 m_semaphore.Release();
             }
-        }
-
-        /// <summary>
-        /// Does any initialization required before the address space can be used.
-        /// </summary>
-        /// <remarks>
-        /// The externalReferences is an out parameter that allows the node manager to link to nodes
-        /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
-        /// should have a reference to the root folder node(s) exposed by this node manager.
-        /// </remarks>
-        protected override async ValueTask AddReverseReferencesAsync(
-            IDictionary<NodeId, IList<IReference>> externalReferences,
-            CancellationToken cancellationToken = default)
-        {
-            await base.AddReverseReferencesAsync(externalReferences, cancellationToken).ConfigureAwait(false);
-
-            await m_semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                FolderState root = CreateFolder("CTT");
-
-                // Prio 1 (model): the CTT root is registered as a root notifier
-                // directly from the NodeSet2 model. The EventNotifier attribute
-                // and the inverse Server -> HasNotifier reference are baked into
-                // the model, so base.AddReverseReferencesAsync (called above)
-                // detects the inverse HasNotifier reference to the external
-                // Server object and auto-registers the folder with the runtime
-                // notifier table. No explicit AddRootNotifierAsync call is
-                // required.
-
-                // The entire CTT address space - every folder, variable, value
-                // and static attribute (AccessLevel, UserAccessLevel,
-                // AccessLevelEx, WriteMask, UserWriteMask, AccessRestrictions,
-                // RolePermissions, Description, MinimumSamplingInterval,
-                // EventNotifier, the analog EURange / EngineeringUnits /
-                // InstrumentRange / Definition properties, the static array
-                // element values and the two browse Views) - is defined
-                // directly in the NodeSet2 model (Prio 1) and materialized by
-                // the base node manager. The method call handlers and the four
-                // value-write handlers are wired through the fluent builder in
-                // Configure() (Prio 2). Only the runtime-only behaviour below
-                // cannot be expressed in either place and therefore stays
-                // imperative.
-                try
-                {
-                    // Prio 1 / Prio 2 not possible: the simulated variables are
-                    // baked into the model, but the periodic value simulation
-                    // needs them collected into a runtime list that the fluent
-                    // Simulation().OnTick() loop pushes fresh random values to.
-                    // The fluent surface exposes only a bare periodic callback
-                    // with no per-variable random-value model, so collecting the
-                    // individual dynamic nodes stays imperative here. The loop
-                    // itself is wired through the fluent builder in Configure().
-                    RegisterSimulationVariables();
-                }
-                catch (Exception e)
-                {
-                    m_logger.ErrorCreatingAddressSpace(e);
-                }
-
-                await AddPredefinedNodeAsync(SystemContext, root, cancellationToken).ConfigureAwait(false);
-
-                // Reset the random generator and generate boundary values so the
-                // fluent simulation loop (registered in Configure and started
-                // after Seal) always has a generator ready for the first tick.
-                ResetRandomGenerator(100, 1);
-            }
-            finally
-            {
-                m_semaphore.Release();
-            }
-        }
-
-        /// <summary>
-        /// Creates a new folder.
-        /// </summary>
-        private FolderState CreateFolder(string path)
-        {
-            return FindPredefinedNode<FolderState>(new NodeId(path, NamespaceIndex));
         }
 
         /// <summary>
@@ -921,11 +865,6 @@ namespace Quickstarts.ReferenceServer
     }
     internal static partial class ReferenceNodeManagerLog
     {
-        [LoggerMessage(
-            EventId = QuickstartsServersEventIds.ReferenceNodeManager + 0, Level = LogLevel.Error,
-            Message = "Error creating the ReferenceNodeManager address space.")]
-        public static partial void ErrorCreatingAddressSpace(this ILogger logger, Exception exception);
-
         [LoggerMessage(
             EventId = QuickstartsServersEventIds.ReferenceNodeManager + 2, Level = LogLevel.Error,
             Message = "Error writing Enabled variable.")]
