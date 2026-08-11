@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -407,6 +408,278 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 node.Description.Text,
                 Is.EqualTo($"description-{Volatile.Read(ref lastDescriptionWritten)}"),
                 "a write to Description was lost");
+        }
+
+        /// <summary>
+        /// Creating a browser while another thread mutates the node's references must never
+        /// fault: the node guards the browser build itself, so no caller needs to lock it.
+        /// </summary>
+        /// <remarks>
+        /// This test could not be written before the browse path owned its synchronization.
+        /// The lock lived in the node manager, outside the node, so an unrelated caller of
+        /// <see cref="NodeState.CreateBrowser"/> raced the reference collection with nothing
+        /// excluding it.
+        /// </remarks>
+        [Test]
+        public async Task ConcurrentBrowseAndReferenceWritesNeverFaultAsync()
+        {
+            (ISystemContext context, BaseVariableState node) = CreateWritableVariable();
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            int browsesCompleted = 0;
+
+            Task writer = Task.Run(
+                () =>
+                {
+                    for (int i = 0; i < kIterations && !cts.IsCancellationRequested; i++)
+                    {
+                        var targetId = new ExpandedNodeId($"target-{i}", 7);
+
+                        node.AddReferenceIfMissing(
+                            ReferenceTypeIds.HasCause,
+                            false,
+                            targetId);
+                        node.RemoveReference(ReferenceTypeIds.HasCause, false, targetId);
+                    }
+                },
+                cts.Token);
+
+            Task[] browsers = new Task[kReaderCount];
+            for (int r = 0; r < kReaderCount; r++)
+            {
+                browsers[r] = Task.Run(
+                    () =>
+                    {
+                        // do-while: guarantees at least one browse even when the writer
+                        // completes before this task is scheduled.
+                        do
+                        {
+                            using INodeBrowser browser = node.CreateBrowser(
+                                context,
+                                null,
+                                default,
+                                false,
+                                BrowseDirection.Both,
+                                default,
+                                null,
+                                true);
+
+                            while (browser.Next() != null)
+                            {
+                                // drain the snapshot.
+                            }
+
+                            Interlocked.Increment(ref browsesCompleted);
+                        }
+                        while (!writer.IsCompleted && !cts.IsCancellationRequested);
+                    },
+                    cts.Token);
+            }
+
+            await writer.ConfigureAwait(false);
+            await Task.WhenAll(browsers).ConfigureAwait(false);
+
+            Assert.That(
+                Volatile.Read(ref browsesCompleted),
+                Is.GreaterThan(0),
+                "no browse completed at all");
+        }
+
+        /// <summary>
+        /// A browser is a snapshot: references added after it was created must not appear in
+        /// it, and every reference present when it was created must.
+        /// </summary>
+        [Test]
+        public void BrowserIsASnapshotTakenAtCreation()
+        {
+            (ISystemContext context, BaseVariableState node) = CreateWritableVariable();
+
+            for (int i = 0; i < 4; i++)
+            {
+                node.AddReference(
+                    ReferenceTypeIds.HasCause,
+                    false,
+                    new ExpandedNodeId($"before-{i}", 7));
+            }
+
+            using INodeBrowser snapshot = node.CreateBrowser(
+                context,
+                null,
+                ReferenceTypeIds.HasCause,
+                false,
+                BrowseDirection.Forward,
+                default,
+                null,
+                true);
+
+            for (int i = 0; i < 3; i++)
+            {
+                node.AddReference(
+                    ReferenceTypeIds.HasCause,
+                    false,
+                    new ExpandedNodeId($"after-{i}", 7));
+            }
+
+            Assert.That(
+                Drain(snapshot),
+                Is.EqualTo(4),
+                "references added after the browser was created must not appear in it");
+
+            using INodeBrowser later = node.CreateBrowser(
+                context,
+                null,
+                ReferenceTypeIds.HasCause,
+                false,
+                BrowseDirection.Forward,
+                default,
+                null,
+                true);
+
+            Assert.That(
+                Drain(later),
+                Is.EqualTo(7),
+                "a browser created afterwards must see every reference");
+        }
+
+        /// <summary>
+        /// Browsing while another thread adds and removes children must never fault and must
+        /// never yield a partially built snapshot.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentBrowseAndChildWritesNeverFaultAsync()
+        {
+            (ISystemContext context, BaseVariableState node) = CreateWritableVariable();
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            var faults = new ConcurrentBag<string>();
+            int browsesCompleted = 0;
+
+            Task writer = Task.Run(
+                () =>
+                {
+                    for (int i = 0; i < kIterations && !cts.IsCancellationRequested; i++)
+                    {
+                        var child = new PropertyState(node)
+                        {
+                            NodeId = new NodeId($"child-{i}", 7),
+                            BrowseName = new QualifiedName($"child-{i}", 7),
+                            DisplayName = new LocalizedText($"child-{i}"),
+                            SymbolicName = $"child-{i}",
+                            ReferenceTypeId = ReferenceTypeIds.HasProperty
+                        };
+
+                        node.AddChild(child);
+                        node.RemoveChild(child);
+                    }
+                },
+                cts.Token);
+
+            Task[] browsers = new Task[kReaderCount];
+            for (int r = 0; r < kReaderCount; r++)
+            {
+                browsers[r] = Task.Run(
+                    () =>
+                    {
+                        do
+                        {
+                            using INodeBrowser browser = node.CreateBrowser(
+                                context,
+                                null,
+                                ReferenceTypeIds.HasProperty,
+                                false,
+                                BrowseDirection.Forward,
+                                default,
+                                null,
+                                true);
+
+                            foreach (IReference reference in Enumerate(browser))
+                            {
+                                if (reference.ReferenceTypeId.IsNull)
+                                {
+                                    faults.Add("browser produced a reference with no type");
+                                }
+                            }
+
+                            Interlocked.Increment(ref browsesCompleted);
+                        }
+                        while (!writer.IsCompleted && !cts.IsCancellationRequested);
+                    },
+                    cts.Token);
+            }
+
+            await writer.ConfigureAwait(false);
+            await Task.WhenAll(browsers).ConfigureAwait(false);
+
+            Assert.That(faults, Is.Empty, FirstOrNone(faults));
+            Assert.That(
+                Volatile.Read(ref browsesCompleted),
+                Is.GreaterThan(0),
+                "no browse completed at all");
+        }
+
+        /// <summary>
+        /// A browser hands back every reference exactly once, and a pushed-back reference is
+        /// returned again before the rest. This is the single-consumer contract that replaced
+        /// the browser's former internal lock.
+        /// </summary>
+        [Test]
+        public void BrowserReturnsEachReferenceOnceAndHonoursPushBack()
+        {
+            (ISystemContext context, BaseVariableState node) = CreateWritableVariable();
+
+            for (int i = 0; i < 8; i++)
+            {
+                node.AddReference(
+                    ReferenceTypeIds.HasCause,
+                    false,
+                    new ExpandedNodeId($"target-{i}", 7));
+            }
+
+            using INodeBrowser browser = node.CreateBrowser(
+                context,
+                null,
+                ReferenceTypeIds.HasCause,
+                false,
+                BrowseDirection.Forward,
+                default,
+                null,
+                true);
+
+            IReference first = browser.Next();
+            Assert.That(first, Is.Not.Null);
+
+            browser.Push(first);
+            Assert.That(
+                browser.Next(),
+                Is.SameAs(first),
+                "a pushed-back reference must be returned before any other");
+
+            int remaining = Drain(browser);
+            Assert.That(remaining, Is.EqualTo(7), "every reference must be returned exactly once");
+        }
+
+        private static int Drain(INodeBrowser browser)
+        {
+            int count = 0;
+
+            while (browser.Next() != null)
+            {
+                count++;
+            }
+
+            return count;
+        }
+
+        private static IEnumerable<IReference> Enumerate(INodeBrowser browser)
+        {
+            for (IReference reference = browser.Next();
+                reference != null;
+                reference = browser.Next())
+            {
+                yield return reference;
+            }
         }
 
         private static (ISystemContext Context, BaseVariableState Node) CreateWritableVariable()

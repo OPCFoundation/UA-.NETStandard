@@ -872,6 +872,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the current diagnostics.
         /// </summary>
+        /// <remarks>
+        /// <c>copy: true</c> is what makes it a copy: the default overload wraps the live
+        /// structure without copying it, so the caller would read the fields after the lock
+        /// was released and see them change under it.
+        /// </remarks>
         private ServiceResult OnUpdateDiagnostics(
             ISystemContext context,
             NodeState node,
@@ -879,7 +884,7 @@ namespace Opc.Ua.Server
         {
             lock (m_diagnosticsLock)
             {
-                value = Variant.FromStructure(SessionDiagnostics);
+                value = Variant.FromStructure(SessionDiagnostics, copy: true);
             }
 
             return ServiceResult.Good;
@@ -888,6 +893,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the current security diagnostics.
         /// </summary>
+        /// <remarks>
+        /// See <see cref="OnUpdateDiagnostics"/> for why the copy is not optional.
+        /// </remarks>
         private ServiceResult OnUpdateSecurityDiagnostics(
             ISystemContext context,
             NodeState node,
@@ -895,7 +903,7 @@ namespace Opc.Ua.Server
         {
             lock (m_diagnosticsLock)
             {
-                value = Variant.FromStructure(m_securityDiagnostics);
+                value = Variant.FromStructure(m_securityDiagnostics, copy: true);
             }
 
             return ServiceResult.Good;
