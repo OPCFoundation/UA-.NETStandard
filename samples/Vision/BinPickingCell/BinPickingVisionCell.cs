@@ -197,10 +197,12 @@ namespace Vision.BinPickingCell
             ImageSensorState sensor = FindSensor(context, SensorTwinBrowseName)
                 ?? throw new InvalidOperationException(
                     "Sensor '" + SensorTwinBrowseName + "' was not registered on the Vision node manager.");
-            FolderState results = pipeline.CreateOrReplaceResults(context.Context, null!);
-            results.NodeId = context.Context.RequireNodeIdFactory().New(context.Context, results);
-            NodeInstanceExtensions.AssignInstanceChildNodeIds(context.Context, results, results.NodeId);
-            await context.Manager.AddPredefinedNodeAsync(results, cancellationToken).ConfigureAwait(false);
+            // The Vision builder creates and registers the Results folder for any
+            // pipeline that has an inference provider, so the cell only looks it up.
+            FolderState results = pipeline.Results
+                ?? throw new InvalidOperationException(
+                    "The Vision builder must create the pipeline's Results folder.");
+            await ValueTask.CompletedTask.ConfigureAwait(false);
             VisionIntrinsicsDataType intrinsics = BuildIntrinsics();
             NodeId deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
             var target = new BinPickingInferenceTarget(
