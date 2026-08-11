@@ -441,7 +441,7 @@ namespace Opc.Ua.Robotics.Server.Builders
                     reference.TargetId == motionDeviceSystem.NodeId)
                 {
                     return OperationalModesAgree(controller, motionDeviceSystem) &&
-                        LoadedTaskProgramIsPublished(controller, motionDeviceSystem);
+                        TaskControlProgramsMatchPublishedPrograms(controller, motionDeviceSystem);
                 }
             }
             return false;
@@ -459,45 +459,51 @@ namespace Opc.Ua.Robotics.Server.Builders
             return controller.OperationalMode?.Value == ToIntentOperationalMode(operationalMode);
         }
 
-        private static bool LoadedTaskProgramIsPublished(
+        private static bool TaskControlProgramsMatchPublishedPrograms(
             IntentControllerState controller,
             MotionDeviceSystemState motionDeviceSystem)
         {
+            var taskControlPrograms = new HashSet<string>(System.StringComparer.Ordinal);
             foreach (TaskControlState taskControl in GetDescendants<TaskControlState>(motionDeviceSystem))
             {
                 BaseObjectState? parameterSet = FindChild<BaseObjectState>(taskControl, "ParameterSet");
                 if (parameterSet == null)
                 {
-                    continue;
+                    return false;
                 }
-                BaseVariableState? loaded = FindChild<BaseVariableState>(
-                    parameterSet,
-                    BrowseNames.TaskProgramLoaded);
                 BaseVariableState? name = FindChild<BaseVariableState>(
                     parameterSet,
                     BrowseNames.TaskProgramName);
-                bool programLoaded = loaded?.Value.GetBoolean(false) == true;
-                string? programName = name?.Value.GetString(null!);
-                if (programLoaded &&
-                    !string.IsNullOrWhiteSpace(programName) &&
-                    !HasPublishedProgram(controller, programName))
+                if (name == null)
                 {
                     return false;
                 }
+                string? programName = name.Value.GetString(null!);
+                if (string.IsNullOrWhiteSpace(programName))
+                {
+                    return false;
+                }
+                taskControlPrograms.Add(programName);
             }
-            return true;
+            return TryGetPublishedPrograms(controller, out HashSet<string> publishedPrograms) &&
+                taskControlPrograms.SetEquals(publishedPrograms);
         }
 
-        private static bool HasPublishedProgram(IntentControllerState controller, string programId)
+        private static bool TryGetPublishedPrograms(
+            IntentControllerState controller,
+            out HashSet<string> programs)
         {
+            programs = new HashSet<string>(System.StringComparer.Ordinal);
             foreach (ProgramState program in GetChildren<ProgramState>(controller.Programs))
             {
-                if (string.Equals(program.ProgramId?.Value, programId, System.StringComparison.Ordinal))
+                string? programId = program.ProgramId?.Value;
+                if (string.IsNullOrWhiteSpace(programId))
                 {
-                    return true;
+                    return false;
                 }
+                programs.Add(programId);
             }
-            return false;
+            return true;
         }
 
         private static BaseVariableState? FindOperationalMode(

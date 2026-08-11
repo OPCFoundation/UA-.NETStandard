@@ -319,7 +319,7 @@ namespace Opc.Ua.Robotics.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(admission.Accepted, Is.False);
-                Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.ParameterInvalid));
+                Assert.That(admission.Failure, Is.EqualTo(IntentFailureEnum.CapabilityNotSupported));
                 Assert.That(admission.Message, Does.Contain("OPC 40450/40451"));
             });
         }

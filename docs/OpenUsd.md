@@ -163,8 +163,9 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
   frames drive live `double3` translation/rotation, and OPC 10000-211 GPOS
   locations drive geospatial metadata; a generic connector renders the cell
   live. See [Positioning](Positioning.md).
-* The Robotics samples also include a Robot Intent flow where an OpenUSD viewport prim pick becomes a robot command
-  through `UsdViewOptions.PrimPicked`. See [Robot Intent](Robotics.md#robot-intent) and the
+* The Robotics samples also include an agent-plus-viewer Robot Intent flow: the OpenUSD viewport shows the same robot
+  that the MCP tools command, and a viewport prim pick can become a robot command through
+  `UsdViewOptions.PrimPicked`. See [Robot Intent](Robotics.md#robot-intent) and the
   [Robotics samples](../samples/Robotics/README.md).
 * [`PumpDeviceIntegrationServer`](../samples/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition and served-asset delivery.
@@ -234,13 +235,13 @@ the command-prim watcher only when renderer picking is unavailable, `Renderer` r
 `CommandPrim` uses the fallback directly. Misses do not submit intents. For the fallback, set a `targetPrim`
 relationship, string attribute, or token attribute on `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`)
 and the callback fires when that target changes.
-The gaps this used to work around were tracked in `marcschier/openusd-dotnet` issues #1, #5, #8, #9, #10 and #11, all
-of which are fixed in `0.5.0-alpha`.
 
 > The viewport requires .NET 10 and the OpenUSD packages (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
 > which are published on nuget.org, so a plain restore is enough. The RID-agnostic runtime metapackages resolve the
-> correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. Publish the connector and
-> the viewport into the *same* directory, substituting your own RID:
+> correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. With `0.7.0-alpha`, a
+> RID-less build or publish on a supported host copies that host's OpenUSD native payload. Use an explicit RID when
+> publishing for another platform. Publish the connector and the viewport into the *same* directory, substituting your
+> own RID:
 >
 > ```
 > dotnet publish tools/Opc.Ua.OpenUsd.Connector -c Release -f net10.0 -r win-x64 --self-contained false -o out

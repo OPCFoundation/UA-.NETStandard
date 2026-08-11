@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Robotics.Server
 {
     /// <summary>
@@ -129,6 +131,23 @@ namespace Opc.Ua.Robotics.Server
             public const string MissionBranching = FacetBase + "Mission-Branching";
             public const string Interop40010 = FacetBase + "Interop-40010";
             public const string InteropVision = FacetBase + "Interop-Vision";
+        }
+
+        internal static bool TryGetFacetUri(string facetName, out string facetUri)
+        {
+            const string facetNamePrefix = "RI-";
+            if (!string.IsNullOrEmpty(facetName) &&
+                facetName.StartsWith(facetNamePrefix, StringComparison.Ordinal))
+            {
+#if NETSTANDARD || NETFRAMEWORK
+                facetUri = FacetBase + facetName.Substring(facetNamePrefix.Length);
+#else
+                facetUri = string.Concat(FacetBase, facetName.AsSpan(facetNamePrefix.Length));
+#endif
+                return true;
+            }
+            facetUri = string.Empty;
+            return false;
         }
     }
 }

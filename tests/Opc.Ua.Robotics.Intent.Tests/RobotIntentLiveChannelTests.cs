@@ -1026,6 +1026,10 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 m_fixture.Executor,
                 2,
                 "branching mission to execute two steps").ConfigureAwait(false);
+            ExecutionStateEnum branchState = await WaitForMissionStateAsync(
+                context.Session,
+                branch.Operation,
+                ExecutionStateEnum.Succeeded).ConfigureAwait(false);
 
             m_fixture.Executor.ClearCompleted();
             MissionSubmissionResult fallback = await controller.SubmitMissionAsync(
@@ -1047,6 +1051,7 @@ namespace Opc.Ua.Robotics.Intent.Tests
             {
                 Assert.That(branch.Accepted, Is.True);
                 Assert.That(branchOrder, Is.EqualTo(["branch-start", "branch-first"]));
+                Assert.That(branchState, Is.EqualTo(ExecutionStateEnum.Succeeded));
                 Assert.That(fallback.Accepted, Is.True);
                 Assert.That(
                     fallbackOrder,
@@ -1445,6 +1450,30 @@ namespace Opc.Ua.Robotics.Intent.Tests
             Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
             Assert.That(extension.TryGetValue(out IEncodeable? encodeable), Is.True);
             return (MissionDataType)encodeable!;
+        }
+
+        private static async ValueTask<ExecutionStateEnum> ReadMissionStateAsync(
+            ISession session,
+            NodeId missionOperation)
+        {
+            NodeId stateNode = await BrowseChildByNameAsync(session, missionOperation, "ExecutionState")
+                .ConfigureAwait(false);
+            Assert.That(stateNode.IsNull, Is.False, "Mission ExecutionState must be browsable.");
+            DataValue value = await session.ReadValueAsync(stateNode).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(value.StatusCode), Is.True, "Mission ExecutionState must be readable.");
+            Assert.That(value.WrappedValue.TryGetValue(out ExecutionStateEnum result), Is.True);
+            return result;
+        }
+
+        private static async ValueTask<ExecutionStateEnum> WaitForMissionStateAsync(
+            ISession session,
+            NodeId missionOperation,
+            ExecutionStateEnum state)
+        {
+            await WaitForAsync(
+                async () => await ReadMissionStateAsync(session, missionOperation).ConfigureAwait(false) == state,
+                $"mission to reach {state}").ConfigureAwait(false);
+            return await ReadMissionStateAsync(session, missionOperation).ConfigureAwait(false);
         }
 
         private static async ValueTask<bool> ReadBooleanPathAsync(
