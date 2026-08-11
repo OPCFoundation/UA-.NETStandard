@@ -196,6 +196,76 @@ for the before/after and
 [Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
 for the runtime rules.
 
+## Removed members on ISession
+
+`ISession.SessionDiagnostics` is removed. It handed out the whole mutable
+`SessionDiagnosticsDataType` — the structure the session's diagnostics lock
+protects — so a caller could read a field while the owner was writing it.
+
+Every server-side reader wanted one value out of it, and those two values are
+now on the interface directly:
+
+```csharp
+// was
+string? uri = session.SessionDiagnostics?.ClientDescription?.ApplicationUri;
+string name = session.SessionDiagnostics?.SessionName ?? string.Empty;
+
+// now
+string? uri = session.ClientApplicationUri;
+string name = session.SessionName;
+```
+
+For anything else in the structure, project it inside `ReadDiagnostics`, which
+holds the lock for the duration of the projection:
+
+```csharp
+uint reads = session.ReadDiagnostics(diagnostics => diagnostics.ReadCount.TotalCount);
+```
+
+`SessionName` is read from the field it was always a copy of rather than from
+the diagnostics, because it is assigned once during construction and a value
+that cannot change should not cost a lock.
+
+The concrete `Session` still exposes `SessionDiagnostics`; only the interface
+loses it.
+
+`ISession.ValidateBeforeActivate` — the synchronous overload with
+`out IUserIdentityTokenHandler?` and `out UserTokenPolicy?` parameters — is
+removed. It had no caller anywhere in the stack, its samples or its tests other
+than tests written for it, and it had been `[Obsolete]` since 1.5.378.
+
+Use `ValidateBeforeActivateAsync`, which returns the same two values as a tuple:
+
+```csharp
+(IUserIdentityTokenHandler identityToken, UserTokenPolicy? userTokenPolicy) =
+    await session.ValidateBeforeActivateAsync(
+        context, clientSignature, userIdentityToken, userTokenSignature, ct)
+    .ConfigureAwait(false);
+```
+
+The synchronous overload could not verify a user token that required
+decryption, so on a secure endpoint it failed closed and directed callers to
+the asynchronous path anyway.
+
+The history continuation points moved off `ISession` onto
+`ISession.ContinuationPoints`, and no longer pass `object`. `SaveHistory` and
+`RestoreHistory` use `IHistoryContinuationPoint`, which carries the point's own
+`Guid Id` and extends `IDisposable`:
+
+```csharp
+// was
+session.SaveHistoryContinuationPoint(state.Id, state);
+object? restored = session.RestoreHistoryContinuationPoint(bytes);
+
+// now
+session.ContinuationPoints.SaveHistory(state);   // the point carries its Id
+IHistoryContinuationPoint? restored = session.ContinuationPoints.RestoreHistory(bytes);
+```
+
+Implement `IHistoryContinuationPoint` on whatever type you store. The session
+previously disposed only those points that happened to implement `IDisposable`
+and silently leaked the rest; every point is now disposed.
+
 ## Migrating code that called IServerInternal.Set* mutators
 
 `IServerInternal` no longer exposes the twelve `Set*` binding methods or

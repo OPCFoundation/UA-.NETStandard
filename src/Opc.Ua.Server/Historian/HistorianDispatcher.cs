@@ -44,8 +44,8 @@ namespace Opc.Ua.Server.Historian
     /// <para>
     /// The dispatcher is stateless apart from continuation-point storage,
     /// which lives in the session via
-    /// <see cref="Session.SaveHistoryContinuationPoint"/> /
-    /// <see cref="Session.RestoreHistoryContinuationPoint"/>.
+    /// <see cref="ISessionContinuationPoints.SaveHistory"/> /
+    /// <see cref="ISessionContinuationPoints.RestoreHistory"/>.
     /// </para>
     /// </remarks>
     public static class HistorianDispatcher
@@ -359,7 +359,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint or disposed inline by EmitProcessedPage.")]
+            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
         public static async ValueTask<ServiceResult> DispatchProcessedReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -615,7 +615,7 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
+            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.
@@ -631,7 +631,7 @@ namespace Opc.Ua.Server.Historian
         /// unsupported for the node.
         /// </summary>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint or disposed inline by EmitProcessedPage.")]
+            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
         private static async ValueTask<ServiceResult> ComputeAnnotationCountAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1109,7 +1109,7 @@ namespace Opc.Ua.Server.Historian
         }
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint.")]
+            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
         private static void SaveOrReleaseAnnotationContinuation(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
@@ -1154,7 +1154,7 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
+            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.
@@ -1522,7 +1522,7 @@ namespace Opc.Ua.Server.Historian
         }
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint.")]
+            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
         private static void SaveOrReleaseEventContinuation(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
@@ -1562,7 +1562,7 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
+            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.
@@ -1594,7 +1594,7 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadContinuationPointInvalid;
             }
 
-            object? state = systemContext.OperationContext?.Session?.RestoreHistoryContinuationPoint(
+            IHistoryContinuationPoint? state = systemContext.OperationContext?.Session?.ContinuationPoints.RestoreHistory(
                 nodeToRead.ContinuationPoint);
             if (state is HistorianContinuationState cont)
             {
@@ -1802,7 +1802,7 @@ namespace Opc.Ua.Server.Historian
             {
                 return null;
             }
-            object? raw = systemContext.OperationContext?.Session?.RestoreHistoryContinuationPoint(
+            IHistoryContinuationPoint? raw = systemContext.OperationContext?.Session?.ContinuationPoints.RestoreHistory(
                 nodeToRead.ContinuationPoint);
             if (raw is not HistorianContinuationState state)
             {
@@ -1832,7 +1832,7 @@ namespace Opc.Ua.Server.Historian
         }
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint.")]
+            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
         private static void SaveOrReleaseContinuation(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
@@ -1885,7 +1885,7 @@ namespace Opc.Ua.Server.Historian
             }
 
             state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
+            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
             // ContinuationPoint alone signals to the client that more data can be fetched.

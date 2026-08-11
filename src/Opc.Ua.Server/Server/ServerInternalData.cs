@@ -1424,12 +1424,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the current diagnostics.
         /// </summary>
+        /// <summary>
+        /// Returns a copy of the current diagnostics.
+        /// </summary>
+        /// <remarks>
+        /// Takes the same lock every writer takes. Locking the diagnostics object instead
+        /// would be a different monitor, so the snapshot would not be excluded from a
+        /// concurrent <see cref="UpdateServerDiagnostics"/> and could walk the structure
+        /// while its fields were being written.
+        /// </remarks>
         private ServiceResult OnUpdateDiagnostics(
             ISystemContext context,
             NodeState node,
             ref Variant value)
         {
-            lock (ServerDiagnostics)
+            lock (m_diagnosticsLock)
             {
                 value = Variant.FromStructure(ServerDiagnostics);
             }
