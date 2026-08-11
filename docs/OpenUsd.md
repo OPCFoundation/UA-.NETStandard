@@ -238,7 +238,7 @@ and the callback fires when that target changes.
 
 > The viewport requires .NET 10 and the OpenUSD packages (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
 > which are published on nuget.org, so a plain restore is enough. The RID-agnostic runtime metapackages resolve the
-> correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. With `0.7.0-alpha`, a
+> correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. With `0.8.0-alpha`, a
 > RID-less build or publish on a supported host copies that host's OpenUSD native payload. Use an explicit RID when
 > publishing for another platform. Publish the connector and the viewport into the *same* directory, substituting your
 > own RID:
