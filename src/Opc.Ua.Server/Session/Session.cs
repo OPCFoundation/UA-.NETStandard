@@ -379,7 +379,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The diagnostics associated with the session.
         /// </summary>
+        /// <remarks>
+        /// Not on <see cref="ISession"/>: it is the mutable structure the diagnostics lock
+        /// protects, so handing it out lets a caller read a field the owner may be writing.
+        /// Callers reach values through <see cref="ReadDiagnostics{TResult}"/>, or through
+        /// <see cref="SessionName"/> and <see cref="ClientApplicationUri"/> for the two the
+        /// server itself needs.
+        /// </remarks>
         public SessionDiagnosticsDataType SessionDiagnostics { get; }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Read from the field rather than from the diagnostics: it is assigned once during
+        /// construction and never changes, so no lock is involved.
+        /// </remarks>
+        public string SessionName => m_sessionName;
+
+        /// <inheritdoc/>
+        public string? ClientApplicationUri
+            => ReadDiagnostics(diagnostics => diagnostics.ClientDescription?.ApplicationUri);
 
         /// <summary>
         /// The client Nonce associated with the session.
@@ -619,31 +637,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Activates the session and binds it to the current secure channel.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void ValidateBeforeActivate(
-            OperationContext context,
-            SignatureData clientSignature,
-            ExtensionObject userIdentityToken,
-            SignatureData userTokenSignature,
-            out IUserIdentityTokenHandler? identityToken,
-            out UserTokenPolicy? userTokenPolicy)
-        {
-            lock (m_lock)
-            {
-                ValidateChannelBeforeActivate(context, clientSignature);
-
-                // validate the user identity token.
-                identityToken = ValidateUserIdentityToken(
-                    userIdentityToken,
-                    out userTokenPolicy);
-
-                TraceState("VALIDATED");
-            }
-        }
-
         /// <inheritdoc/>
         public async ValueTask<(
             IUserIdentityTokenHandler IdentityToken,
@@ -841,60 +834,8 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Saves a continuation point for a session.
-        /// </summary>
-        /// <remarks>
-        /// If the session has too many continuation points the oldest one is dropped.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
-        public void SaveContinuationPoint(ContinuationPoint continuationPoint)
-        {
-            m_continuationPoints.SaveBrowse(continuationPoint);
-        }
-
-        /// <summary>
-        /// Restores a continuation point for a session.
-        /// </summary>
-        /// <remarks>
-        /// The caller is responsible for disposing the continuation point returned.
-        /// </remarks>
-        public ContinuationPoint? RestoreContinuationPoint(ByteString continuationPoint)
-        {
-            return m_continuationPoints.RestoreBrowse(continuationPoint);
-        }
-
         /// <inheritdoc/>
-        public void InvalidateContinuationPoints(IAsyncNodeManager nodeManager)
-        {
-            m_continuationPoints.RemoveBrowseForManager(nodeManager);
-            m_continuationPoints.RemoveHistoryForManager(nodeManager);
-        }
-
-        /// <summary>
-        /// Saves a continuation point used for historical reads.
-        /// </summary>
-        /// <param name="id">The identifier for the continuation point.</param>
-        /// <param name="continuationPoint">The continuation point.</param>
-        /// <remarks>
-        /// If the continuationPoint implements IDisposable it will be disposed when
-        /// the Session is closed or discarded.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
-        public void SaveHistoryContinuationPoint(Guid id, object continuationPoint)
-        {
-            m_continuationPoints.SaveHistory(id, continuationPoint);
-        }
-
-        /// <summary>
-        /// Restores a previously saves history continuation point.
-        /// </summary>
-        /// <param name="continuationPoint">The identifier for the continuation point.</param>
-        /// <returns>The save continuation point. null if not found.</returns>
-        public object? RestoreHistoryContinuationPoint(ByteString continuationPoint)
-        {
-            return m_continuationPoints.RestoreHistory(continuationPoint);
-        }
+        public ISessionContinuationPoints ContinuationPoints => m_continuationPoints;
 
         /// <summary>
         /// Loads mirrored continuation point envelopes for a session restored on a backup replica.

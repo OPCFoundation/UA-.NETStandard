@@ -27,31 +27,25 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
-using System.Threading.Tasks;
+using System;
 
-namespace Opc.Ua.Server.Hosting
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// A task run by the hosted server immediately after the server has
-    /// started, with access to the live <see cref="IServerContext"/>. Every
-    /// implementation registered in DI is invoked once. This is the seam
-    /// features use to wire runtime behavior that needs the fully-initialized
-    /// server (a bound address space, the populated message context, the
-    /// <c>ServerObject</c>) without subclassing <see cref="StandardServer"/>.
+    /// State a historical read leaves behind so a later HistoryRead can resume where the
+    /// previous one stopped. The session holds it between calls and disposes it when the
+    /// point is dropped or the session is cleared.
     /// </summary>
     /// <remarks>
-    /// A task that needs a particular subsystem takes it as a constructor
-    /// dependency, which is how every implementation in this repository already
-    /// obtains what it needs. The context carries only what is genuinely ambient.
+    /// Implementations carry whatever the reader needs to resume; nothing outside the
+    /// component that created a point interprets its contents.
     /// </remarks>
-    public interface IServerStartupTask
+    public interface IHistoryContinuationPoint : IDisposable
     {
         /// <summary>
-        /// Invoked once after the server has started.
+        /// Identifies the continuation point. It is the identifier the client receives and
+        /// returns, so it must not change once the point has been saved.
         /// </summary>
-        /// <param name="server">The live server context.</param>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default);
+        Guid Id { get; }
     }
 }

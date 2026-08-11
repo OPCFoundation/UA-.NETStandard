@@ -27,31 +27,37 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
-using System.Threading.Tasks;
+using System;
 
-namespace Opc.Ua.Server.Hosting
+namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// A task run by the hosted server immediately after the server has
-    /// started, with access to the live <see cref="IServerContext"/>. Every
-    /// implementation registered in DI is invoked once. This is the seam
-    /// features use to wire runtime behavior that needs the fully-initialized
-    /// server (a bound address space, the populated message context, the
-    /// <c>ServerObject</c>) without subclassing <see cref="StandardServer"/>.
+    /// A history continuation point that carries nothing but its identity, and records
+    /// whether the session disposed it.
     /// </summary>
-    /// <remarks>
-    /// A task that needs a particular subsystem takes it as a constructor
-    /// dependency, which is how every implementation in this repository already
-    /// obtains what it needs. The context carries only what is genuinely ambient.
-    /// </remarks>
-    public interface IServerStartupTask
+    internal sealed class TestHistoryContinuationPoint : IHistoryContinuationPoint
     {
         /// <summary>
-        /// Invoked once after the server has started.
+        /// Creates a point with the given identity, or a fresh one.
         /// </summary>
-        /// <param name="server">The live server context.</param>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default);
+        /// <param name="id">The identity to use.</param>
+        public TestHistoryContinuationPoint(Guid? id = null)
+        {
+            Id = id ?? Guid.NewGuid();
+        }
+
+        /// <inheritdoc/>
+        public Guid Id { get; }
+
+        /// <summary>
+        /// Whether the owner disposed this point.
+        /// </summary>
+        public bool Disposed { get; private set; }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Disposed = true;
+        }
     }
 }

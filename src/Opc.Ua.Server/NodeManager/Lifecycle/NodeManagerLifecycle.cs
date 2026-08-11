@@ -2167,7 +2167,7 @@ namespace Opc.Ua.Server
         {
             foreach (ISession session in server.SessionManager.GetSessions())
             {
-                session.InvalidateContinuationPoints(nodeManager);
+                session.ContinuationPoints.RemoveForManager(nodeManager);
             }
         }
 

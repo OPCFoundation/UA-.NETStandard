@@ -58,22 +58,18 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+        public async ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
         {
             if (server == null)
             {
                 throw new ArgumentNullException(nameof(server));
             }
 
-            ILogger logger = server.Telemetry.CreateLogger<ReplicatedAddressSpaceStartupTask>();
+            ILogger logger = server.DefaultSystemContext.Telemetry.CreateLogger<ReplicatedAddressSpaceStartupTask>();
 
-            foreach (INodeManager nodeManager in server.NodeManager.NodeManagers)
+            foreach (ILocalAddressSpaceSource source in
+                server.FindNodeManagers<ILocalAddressSpaceSource>())
             {
-                if (nodeManager is not ILocalAddressSpaceSource source)
-                {
-                    continue;
-                }
-
                 ILocalAddressSpace addressSpace = source.CreateLocalAddressSpace();
                 ITransport transport = m_options.CreateTransport(m_services, out InMemoryNetwork? defaultNetwork);
                 if (defaultNetwork != null)

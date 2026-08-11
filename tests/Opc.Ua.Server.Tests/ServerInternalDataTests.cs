@@ -49,6 +49,8 @@ namespace Opc.Ua.Server.Tests
         private ServiceMessageContext m_messageContext;
         private ITelemetryContext m_telemetry;
 
+        private static readonly string[] s_locales = ["de-DE"];
+
         [SetUp]
         public void SetUp()
         {
@@ -207,11 +209,64 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void FindNodeManagersYieldsAManagerOnBothFacesOnce()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            // A manager that implements INodeManager is its own synchronous adapter, so
+            // the same instance appears on both faces.
+            var manager = new Mock<IAsyncNodeManager>();
+            INodeManager syncFace = manager.As<INodeManager>().Object;
+
+            data.SetNodeManager(CreateMasterNodeManager([manager.Object], [syncFace]));
+
+            Assert.That(
+                data.FindNodeManagers<IAsyncNodeManager>().ToList(),
+                Is.EqualTo(new[] { manager.Object }).AsCollection);
+        }
+
+        [Test]
+        public void FindNodeManagersYieldsEveryDistinctManager()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+            var asyncOnly = new Mock<IAsyncNodeManager>();
+            var syncManager = new Mock<INodeManager>();
+            IAsyncNodeManager syncAsAsync = syncManager.As<IAsyncNodeManager>().Object;
+
+            data.SetNodeManager(
+                CreateMasterNodeManager([asyncOnly.Object], [syncManager.Object]));
+
+            Assert.That(
+                data.FindNodeManagers<IAsyncNodeManager>().ToList(),
+                Is.EqualTo(new[] { asyncOnly.Object, syncAsAsync }).AsCollection);
+        }
+
+        [Test]
+        public void FindNodeManagersReturnsEmptyWhenNoNodeManagerIsSet()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(data.FindNodeManagers<IAsyncNodeManager>(), Is.Empty);
+        }
+
+        private static IMasterNodeManager CreateMasterNodeManager(
+            IAsyncNodeManager[] asyncNodeManagers,
+            INodeManager[] nodeManagers)
+        {
+            var mock = new Mock<IMasterNodeManager>();
+            mock.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
+            mock.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
+            mock.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null);
+            mock.Setup(m => m.AsyncNodeManagers).Returns(asyncNodeManagers);
+            mock.Setup(m => m.NodeManagers).Returns(nodeManagers);
+            return mock.Object;
+        }
+
+        [Test]
         public void SetMainNodeManagerFactoryStoresFactory()
         {
             using ServerInternalData data = CreateServerInternalData();
             var mockFactory = new Mock<IMainNodeManagerFactory>();
-
             data.SetMainNodeManagerFactory(mockFactory.Object);
 
             Assert.That(data.MainNodeManagerFactory, Is.SameAs(mockFactory.Object));
@@ -298,6 +353,79 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void BindingAfterTheBindPhaseIsRefused()
+        {
+            // A subsystem swapped underneath a running server would leave every component
+            // that already resolved it holding the previous instance.
+            using ServerInternalData data = CreateServerInternalData();
+            data.CompleteBindPhase();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => data.SetNodeManager(new Mock<IMasterNodeManager>().Object),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property("StatusCode").EqualTo((StatusCode)StatusCodes.BadInvalidState));
+
+                Assert.That(
+                    () => data.SetRoleManager(new Mock<IRoleManager>().Object),
+                    Throws.TypeOf<ServiceResultException>());
+
+                Assert.That(
+                    () => data.SetSubscriptionStore(new Mock<ISubscriptionStore>().Object),
+                    Throws.TypeOf<ServiceResultException>());
+
+                Assert.That(
+                    () => data.SetSessionManager(
+                        new Mock<ISessionManager>().Object,
+                        new Mock<ISubscriptionManager>().Object),
+                    Throws.TypeOf<ServiceResultException>());
+            });
+        }
+
+        [Test]
+        public void TheRefusedBindNamesTheOperation()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+            data.CompleteBindPhase();
+
+            Assert.That(
+                () => data.SetMonitoredItemQueueFactory(new Mock<IMonitoredItemQueueFactory>().Object),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Message.Contains(nameof(ServerInternalData.SetMonitoredItemQueueFactory)));
+        }
+
+        [Test]
+        public void BindingIsAllowedUntilTheBindPhaseCloses()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+            var first = new Mock<IRoleManager>();
+            var second = new Mock<IRoleManager>();
+
+            // Rebinding during startup stays legal; only binding afterwards is refused.
+            data.SetRoleManager(first.Object);
+            data.SetRoleManager(second.Object);
+
+            Assert.That(data.RoleManager, Is.SameAs(second.Object));
+
+            data.CompleteBindPhase();
+
+            Assert.That(
+                () => data.SetRoleManager(first.Object),
+                Throws.TypeOf<ServiceResultException>());
+        }
+
+        [Test]
+        public void CompletingTheBindPhaseTwiceIsHarmless()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            data.CompleteBindPhase();
+
+            Assert.That(() => data.CompleteBindPhase(), Throws.Nothing);
+        }
+
+        [Test]
         public void UpdateServerDiagnosticsInvokesTheUpdateUnderTheLock()
         {
             using ServerInternalData data = CreateServerInternalData();
@@ -322,20 +450,60 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ReadServerDiagnosticsThrowsOnNullRead()
-        {
-            using ServerInternalData data = CreateServerInternalData();
-
-            Assert.That(
-                () => data.ReadServerDiagnostics<int>(null!),
-                Throws.TypeOf<ArgumentNullException>());
-        }
-
-        [Test]
         public void DiagnosticsEnabledReturnsFalseWhenNoDiagnosticsNodeManager()
         {
             using ServerInternalData data = CreateServerInternalData();
             Assert.That(data.DiagnosticsEnabled, Is.False);
+        }
+
+        [Test]
+        public void ServerContextDefaultSystemContextIsTheServerSystemContext()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(
+                ((IServerContext)data).DefaultSystemContext,
+                Is.SameAs(data.DefaultSystemContext));
+        }
+
+        [Test]
+        public void CreateSystemContextCarriesTheSessionIdentityAndLocales()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            var sessionId = new NodeId(Guid.NewGuid());
+            var identity = new UserIdentity(new AnonymousIdentityToken());
+
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(sessionId);
+            session.Setup(s => s.Identity).Returns(identity);
+            session.Setup(s => s.PreferredLocales).Returns(s_locales);
+
+            ServerSystemContext created = data.CreateSystemContext(session.Object);
+
+            Assert.That(created, Is.Not.SameAs(data.DefaultSystemContext));
+            Assert.That(created.PreferredLocales.ToArray(), Is.EqualTo(s_locales));
+            Assert.That(created.NamespaceUris, Is.SameAs(data.NamespaceUris));
+        }
+
+        [Test]
+        public void CreateSystemContextThrowsOnNullSession()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(
+                () => data.CreateSystemContext(null!),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void FindPredefinedNodeReturnsNullBeforeTheDiagnosticsNodeManagerExists()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            // The datastore is published before the node managers are bound, so callers
+            // must tolerate an address space that is not there yet.
+            Assert.That(data.FindPredefinedNode<BaseObjectState>(ObjectIds.Server), Is.Null);
         }
 
         [Test]

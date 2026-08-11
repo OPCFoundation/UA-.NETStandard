@@ -1577,35 +1577,24 @@ namespace Opc.Ua.Server.Tests
             var session = new Mock<ISession>();
             session.Setup(s => s.EffectiveIdentity).Returns(new Mock<IUserIdentity>().Object);
             session.Setup(s => s.PreferredLocales).Returns([]);
+            session.Setup(s => s.ContinuationPoints).Returns(
+                new SessionContinuationPoints(
+                    () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null));
             return new OperationContext(
                 new RequestHeader(), null!, RequestType.Read, RequestLifetime.None, session.Object);
         }
 
         private static OperationContext CreateContextWithContinuationStore()
         {
-            var continuationPoints = new Dictionary<string, ContinuationPoint>();
             var session = new Mock<ISession>();
             session.Setup(s => s.EffectiveIdentity).Returns(new Mock<IUserIdentity>().Object);
             session.Setup(s => s.PreferredLocales).Returns([]);
-            session
-                .Setup(s => s.SaveContinuationPoint(It.IsAny<ContinuationPoint>()))
-                .Callback<ContinuationPoint>(cp =>
-                {
-                    continuationPoints[ToContinuationPointKey(cp.Id.ToByteArray().ToByteString())] = cp;
-                });
-            session
-                .Setup(s => s.RestoreContinuationPoint(It.IsAny<ByteString>()))
-                .Returns<ByteString>(cpBytes =>
-                {
-                    string key = ToContinuationPointKey(cpBytes);
-                    if (continuationPoints.TryGetValue(key, out ContinuationPoint? cp))
-                    {
-                        continuationPoints.Remove(key);
-                        return cp;
-                    }
 
-                    return null;
-                });
+            // The real holder, not a stand-in dictionary, so BrowseNext meets the same
+            // lookup and eviction rules a live session applies.
+            var continuationPoints = new SessionContinuationPoints(
+                () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null);
+            session.Setup(s => s.ContinuationPoints).Returns(continuationPoints);
 
             return new OperationContext(
                 new RequestHeader(), null!, RequestType.Read, RequestLifetime.None, session.Object);
