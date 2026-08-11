@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
@@ -74,16 +75,48 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="request">The materialization request.</param>
         /// <param name="cancellationToken">A token that cancels the operation.</param>
         /// <returns>The count of Nodes the materializer created.</returns>
-        public async ValueTask<int> ApplyViewAsync(
+        public ValueTask<int> ApplyViewAsync(
             WotViewProjectionRequest request,
             CancellationToken cancellationToken = default)
         {
+            List<string> omissions = [];
+            return ApplyViewAsync(request, omissions, cancellationToken);
+        }
+
+        /// <summary>
+        /// Materializes the View for one projection document and collects the
+        /// members it could not organize.
+        /// </summary>
+        /// <param name="request">The materialization request.</param>
+        /// <param name="omissions">
+        /// Receives one entry per selected member whose NodeId no NodeManager
+        /// owns. Such a member is dropped rather than organized, because a
+        /// reference to a Node that does not exist is a reference a client can
+        /// never follow, and a View that silently carries them reports a
+        /// membership it does not have.
+        /// </param>
+        /// <param name="cancellationToken">A token that cancels the operation.</param>
+        /// <returns>The count of Nodes the materializer created.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="omissions"/> is <c>null</c>.
+        /// </exception>
+        public async ValueTask<int> ApplyViewAsync(
+            WotViewProjectionRequest request,
+            List<string> omissions,
+            CancellationToken cancellationToken = default)
+        {
+            if (omissions is null)
+            {
+                throw new ArgumentNullException(nameof(omissions));
+            }
             if (Find(request.ViewNodeId) is not null)
             {
                 await RemoveViewAsync(request.ViewNodeId, cancellationToken).ConfigureAwait(false);
             }
 
-            ViewState view = BuildView(request);
+            HashSet<NodeId> unresolved = await CollectUnresolvedMembersAsync(
+                request.Plan, omissions, cancellationToken).ConfigureAwait(false);
+            ViewState view = BuildView(request, unresolved);
             await AddPredefinedNodeAsync(SystemContext, view, cancellationToken).ConfigureAwait(false);
 
             // The View is browsable from the standard Views folder; that folder is
@@ -150,7 +183,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_logger.RemovedProjectionView(viewNodeId);
         }
 
-        private ViewState BuildView(WotViewProjectionRequest request)
+        private ViewState BuildView(WotViewProjectionRequest request, HashSet<NodeId> unresolved)
         {
             WotViewProjectionPlan plan = request.Plan;
             ushort namespaceIndex = request.ViewNodeId.NamespaceIndex;
@@ -185,12 +218,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             viewVersion.StatusCode = StatusCodes.Good;
             view.AddChild(viewVersion);
 
-            AddOrganizedMembers(view, plan.OrganizedNodeIds);
+            AddOrganizedMembers(view, plan.OrganizedNodeIds, unresolved);
 
             int groupIndex = 0;
             for (int i = 0; i < plan.Groups.Count; i++)
             {
-                BuildGroup(view, plan.Groups[i], baseId, namespaceIndex, ref groupIndex);
+                BuildGroup(view, plan.Groups[i], baseId, namespaceIndex, unresolved, ref groupIndex);
             }
 
             // The inverse Organizes edge to the Views folder is what the deletion
@@ -226,6 +259,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotOrganizationalGroup group,
             string baseId,
             ushort namespaceIndex,
+            HashSet<NodeId> unresolved,
             ref int groupIndex)
         {
             int index = groupIndex++;
@@ -244,21 +278,73 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 EventNotifier = EventNotifiers.None
             };
 
-            AddOrganizedMembers(folder, group.OrganizedNodeIds);
+            AddOrganizedMembers(folder, group.OrganizedNodeIds, unresolved);
             parent.AddChild(folder);
 
             for (int i = 0; i < group.Groups.Count; i++)
             {
-                BuildGroup(folder, group.Groups[i], baseId, namespaceIndex, ref groupIndex);
+                BuildGroup(folder, group.Groups[i], baseId, namespaceIndex, unresolved, ref groupIndex);
             }
         }
 
-        private static void AddOrganizedMembers(NodeState organizer, ArrayOf<NodeId> members)
+        /// <summary>
+        /// Tests every selected member against the address space and names the
+        /// ones no NodeManager owns. A projection resolves an affordance to a
+        /// NodeId by its authored <c>uav:id</c> or by a deterministic scheme, and
+        /// neither is a guarantee that the Node was actually materialized — a
+        /// document whose affordances did not synthesize any Node resolves to
+        /// plausible identifiers that address nothing.
+        /// </summary>
+        private async ValueTask<HashSet<NodeId>> CollectUnresolvedMembersAsync(
+            WotViewProjectionPlan plan,
+            List<string> omissions,
+            CancellationToken cancellationToken)
+        {
+            var candidates = new HashSet<NodeId>();
+            CollectMemberCandidates(plan.OrganizedNodeIds, plan.Groups, candidates);
+            var unresolved = new HashSet<NodeId>();
+            foreach (NodeId candidate in candidates)
+            {
+                (object? handle, IAsyncNodeManager? _) = await Server.NodeManager
+                    .GetManagerHandleAsync(candidate, cancellationToken)
+                    .ConfigureAwait(false);
+                if (handle is null)
+                {
+                    unresolved.Add(candidate);
+                    omissions.Add(
+                        $"Member '{candidate}' is omitted from the View: no Node with that " +
+                        "identity is materialized in this address space.");
+                }
+            }
+            return unresolved;
+        }
+
+        private static void CollectMemberCandidates(
+            ArrayOf<NodeId> members,
+            ArrayOf<WotOrganizationalGroup> groups,
+            HashSet<NodeId> candidates)
+        {
+            for (int i = 0; i < members.Count; i++)
+            {
+                if (!members[i].IsNull)
+                {
+                    candidates.Add(members[i]);
+                }
+            }
+            for (int i = 0; i < groups.Count; i++)
+            {
+                CollectMemberCandidates(
+                    groups[i].OrganizedNodeIds, groups[i].Groups, candidates);
+            }
+        }
+
+        private static void AddOrganizedMembers(
+            NodeState organizer, ArrayOf<NodeId> members, HashSet<NodeId> unresolved)
         {
             for (int i = 0; i < members.Count; i++)
             {
                 NodeId member = members[i];
-                if (!member.IsNull)
+                if (!member.IsNull && !unresolved.Contains(member))
                 {
                     // Forward-only: the organized Node lives in another NodeManager
                     // and is never modified, so no inverse reference is added to it.

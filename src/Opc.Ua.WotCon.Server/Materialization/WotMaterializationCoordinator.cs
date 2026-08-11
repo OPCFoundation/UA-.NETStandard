@@ -1073,7 +1073,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 .ConfigureAwait(false);
             viewHandles.Add(viewHandle);
 
-            WoTOutcomeEnum outcome = plan.Omissions.Count == 0
+            WoTOutcomeEnum outcome =
+                plan.Omissions.Count == 0 && viewHandle.Omissions.Count == 0
                 ? WoTOutcomeEnum.Success
                 : WoTOutcomeEnum.Warning;
             string message = FormatProjectionViewMessage(plan, viewHandle);
@@ -1151,8 +1152,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotViewProjectionPlan plan,
             WotViewProjectionHandle viewHandle)
         {
-            int organizedCount = CountOrganizedMembers(plan);
-            if (plan.Omissions.Count == 0)
+            int selectedCount = CountOrganizedMembers(plan) + plan.Omissions.Count;
+            // The host reports the plan's own omissions back plus any member it
+            // could not organize, so its count is the authoritative one. A host
+            // that reports none (a test double) still honours the plan's.
+            int omittedCount = Math.Max(viewHandle.Omissions.Count, plan.Omissions.Count);
+            int organizedCount = selectedCount - omittedCount;
+            if (omittedCount == 0)
             {
                 return viewHandle.Message.Length != 0
                     ? viewHandle.Message
@@ -1160,7 +1166,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         organizedCount.ToString(CultureInfo.InvariantCulture) + " Node(s).";
             }
 
-            int selectedCount = organizedCount + plan.Omissions.Count;
             string summary = organizedCount == 0
                 ? "Materialized projection View organizing 0 Node(s); omitted all " +
                     selectedCount.ToString(CultureInfo.InvariantCulture) + " selected member(s)."
@@ -1168,7 +1173,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     organizedCount.ToString(CultureInfo.InvariantCulture) + " of " +
                     selectedCount.ToString(CultureInfo.InvariantCulture) +
                     " selected member(s); omitted " +
-                    plan.Omissions.Count.ToString(CultureInfo.InvariantCulture) + ".";
+                    omittedCount.ToString(CultureInfo.InvariantCulture) + ".";
             return viewHandle.Message.Length == 0 ? summary : summary + " " + viewHandle.Message;
         }
 

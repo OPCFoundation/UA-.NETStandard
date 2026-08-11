@@ -807,7 +807,14 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
             if (pumpNodeId == "Pump1")
             {
-                property["uav:mapToNodeId"] = $"nsu={PumpInstanceNamespace};s={pumpNodeId}.{path}";
+                // uav:mapToNodeId binds the runtime value; uav:id states which
+                // Node this affordance *is* (WoT Binding §5.1.1 vocabulary),
+                // which is what a projection View resolves a selected affordance
+                // to. Without it a projection can only guess at the Node and
+                // ends up organizing references that resolve to nothing.
+                string localId = $"nsu={PumpInstanceNamespace};s={pumpNodeId}.{path}";
+                property["uav:id"] = localId;
+                property["uav:mapToNodeId"] = localId;
             }
 
             if (unit is not null)
@@ -863,7 +870,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             };
             if (pumpNodeId == "Pump1")
             {
-                property["uav:mapToNodeId"] = $"nsu={PumpInstanceNamespace};s={pumpNodeId}.{path}";
+                string localId = $"nsu={PumpInstanceNamespace};s={pumpNodeId}.{path}";
+                property["uav:id"] = localId;
+                property["uav:mapToNodeId"] = localId;
             }
             properties[pumpNodeId + name] = property;
         }

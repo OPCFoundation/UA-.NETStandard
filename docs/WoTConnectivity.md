@@ -992,7 +992,34 @@ materialized.
 A source that is not in the address space is omitted from the View and reported in
 `WoTResourceLoadResultDataType.Message`; the resource still reaches
 `LoadState = Active`, because an omission is a reported detail rather than a
-failure.
+failure. A View that omitted anything reports `Outcome = Warning`, so a client
+can tell a complete View from a partial one without diffing its membership.
+
+Two omission causes are distinguished, because they have different remedies.
+
+**A source that is itself a projection.** `uav:resolvedFrom` names, per *WoT
+Binding* §12, "the reference the selection was made by" — the immediate
+selection, not the ultimate origin. A projection that selects from another
+projection therefore names an intermediate document, and an intermediate
+materializes a View rather than Nodes. Resolution follows the chain depth-first
+to the Nodes the ultimate sources materialized, as WoT Connectivity §7.13
+requires; only when no document in the chain materialized the affordance is the
+member omitted, and the omission names the deepest source the walk reached.
+
+**A member whose Node does not exist.** An affordance resolves to a NodeId by
+its authored `uav:id` when it has one and by a deterministic scheme anchored at
+the source's root otherwise. Neither is proof that the Node was materialized: a
+document whose affordances never synthesized anything resolves to plausible
+identifiers that address nothing. Every planned member is therefore tested
+against the address space before the View is built, and one that no NodeManager
+owns is dropped and reported instead of organized. Organizing it would leave the
+View advertising a membership no client can browse — a `Browse` drops a reference
+whose target does not resolve, so the View would report a count it does not have.
+
+Authoring `uav:id` on an affordance is what makes the first mechanism exact. A
+document that materializes its Nodes from a `uav:nodes` native projection should
+carry `uav:id` per affordance, because the deterministic scheme describes the
+shape *synthesis* produces and does not hold for restored Nodes.
 
 ### 12.4.1 Parent placement through `uav:componentOf`
 
@@ -1028,11 +1055,16 @@ still depends on the Object that actually carries `GeneratesEvent` and on an
 event-producing runtime path behind that Object.
 
 Current sample limitation: the upstream cavitation signal is proven to raise the
-upstream alarm and leave it unacknowledged, but the Pump1 Asset's `Supervision`
-view currently organizes no event affordance, Pump1 carries no `GeneratesEvent`
-reference for its cavitation alarm, and acknowledgement does not round-trip
-because the projected pump actions are Start, Stop and Reset rather than
-Condition Methods carrying `uav:conditionAction` / `uav:actsOn`.
+upstream alarm and leave it unacknowledged, but Pump1 carries no
+`GeneratesEvent` reference for its cavitation alarm and acknowledgement does not
+round-trip because the projected pump actions are Start, Stop and Reset rather
+than Condition Methods carrying `uav:conditionAction` / `uav:actsOn`. The Pump1
+`Supervision` and `Management` views therefore report organizing 0 of their
+selected members, naming each one, rather than reporting a success they did not
+achieve. The cause is that `SamplePump.td.json` carries a `uav:nodes` native
+projection: the converter restores the pump from it and returns before affordance
+synthesis, so its action and event affordances materialize nothing. See
+[the sample README](../samples/WotCon/README.md) for the measured breakdown.
 
 ### 12.5 Portable identifiers
 

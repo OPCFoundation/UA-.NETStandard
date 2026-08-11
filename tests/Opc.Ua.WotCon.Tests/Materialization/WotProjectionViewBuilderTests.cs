@@ -85,6 +85,55 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public async Task ProjectionOfAProjectionOrganizesTheNodesTheUltimateSourcesMaterialized()
+        {
+            // The index knows only the real source: an intermediate projection
+            // materializes a View, never Nodes, so it is absent by construction.
+            var index = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                ["urn:sourceA#alpha"] = s_alphaNode,
+                ["urn:sourceA#beta"] = s_betaNode
+            });
+            WotProjectionViewBuilder builder = Builder(index,
+                ("urn:sourceA", SourceA),
+                ("urn:view:simple", SimpleProjection));
+
+            WotViewProjectionResult result = await Build(builder, ProjectionOverProjection);
+
+            Assert.That(result.Success, Is.True);
+            WotViewProjectionPlan plan = result.Plan!;
+            Assert.That(plan.OrganizedNodeIds.ToArray(),
+                Is.EquivalentTo(new[] { s_alphaNode, s_betaNode }),
+                "A projection selecting from a projection must organize the Nodes the " +
+                "ultimate sources materialized.");
+            Assert.That(plan.Omissions.Count, Is.Zero);
+        }
+
+        [Test]
+        public async Task ProjectionOfAProjectionOmitsAndNamesTheUltimateSourceWhenItIsNotMaterialized()
+        {
+            // Nothing is materialized anywhere, so the walk runs to the end of
+            // the chain and the omission must name where it stopped.
+            var index = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal));
+            WotProjectionViewBuilder builder = Builder(index,
+                ("urn:sourceA", SourceA),
+                ("urn:view:simple", SimpleProjection));
+
+            WotViewProjectionResult result = await Build(builder, ProjectionOverProjection);
+
+            Assert.That(result.Success, Is.True);
+            WotViewProjectionPlan plan = result.Plan!;
+            Assert.That(plan.OrganizedNodeIds.Count, Is.Zero);
+            Assert.That(plan.Omissions.Count, Is.EqualTo(2));
+            for (int i = 0; i < plan.Omissions.Count; i++)
+            {
+                Assert.That(plan.Omissions[i], Does.Contain("urn:sourceA"),
+                    "The omission must name the ultimate source the walk reached, not the " +
+                    "intermediate projection, because the intermediate never materializes Nodes.");
+            }
+        }
+
+        [Test]
         public async Task MaterializedNodeCountCountsOnlyViewPlusOrganizationalObjects()
         {
             var index = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
@@ -618,6 +667,36 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
               "uav:sourceName": "a",
               "href": "urn:sourceA",
+              "type": "application/td+json",
+              "uav:routing": "source",
+              "uav:selectAll": true
+            }
+          ]
+        }
+        """;
+
+        /// <summary>
+        /// A projection whose own source is a projection. Its selections name
+        /// <c>urn:view:simple</c>, which materializes a View and not Nodes, so
+        /// reaching the organized Nodes requires walking through to
+        /// <c>urn:sourceA</c>.
+        /// </summary>
+        private const string ProjectionOverProjection = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:view:overview",
+          "title": "Over view",
+          "uav:scenario": "http://example.com/scenario/Over",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "uav:projects": [
+            {
+              "uav:sourceName": "s",
+              "href": "urn:view:simple",
               "type": "application/td+json",
               "uav:routing": "source",
               "uav:selectAll": true

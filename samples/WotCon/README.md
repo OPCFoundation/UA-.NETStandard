@@ -158,12 +158,44 @@ The checked-in Asset documents use the same shape for each modeled unit:
 * The Asset projection organizes those four groups and selects only identity data at the Asset level. The group
   documents therefore shape browsing; they do not define another copy of the selected affordances.
 
-Current sample limitation: the upstream cavitation signal is proven to raise the
-upstream alarm and leave it unacknowledged, but the Pump1 Asset's `Supervision`
-view currently organizes no event affordance, Pump1 carries no `GeneratesEvent`
-reference for its cavitation alarm, and acknowledgement does not round-trip
-because the projected pump actions are Start, Stop and Reset rather than
-Condition Methods carrying `uav:conditionAction` / `uav:actsOn`.
+### What the projections organize, and what they do not
+
+Running the sample reports per-resource what each View organized and, when a
+selected member could not be organized, why. That reporting is the point: a View
+that quietly organizes nothing is indistinguishable from one that works until a
+client browses it.
+
+What materializes today, and what does not:
+
+| Projection | Result | Why |
+| --- | --- | --- |
+| `pump1-processdata`, `pump1-conditiondata` | organizes 4 Nodes each | Their selected property affordances carry `uav:id`, so the projection resolves each to the Node the pump materialized. |
+| `pump1-members`, `pump1-asset` | organizes 11 of 16 | The 11 property affordances resolve; the 3 action and 2 event affordances do not. |
+| `pump1-management` | organizes 0 of 3 | `SamplePump.td.json` carries a `uav:nodes` native projection, so the converter restores the pump from it and never synthesizes the action affordances. `SamplePump.NodeSet2.xml` declares no Methods, so there is no Node for `start`, `stop` or `reset` to organize. |
+| `pump1-supervision` | organizes 0 of 2 | The same cause: the event affordances are declared but never materialize, so no alarm Node exists to organize. |
+| every `pump2-*` projection | organizes 0 | `SamplePump.NodeSet2.xml` contains Pump1 only (35 Nodes, all `ns=1;s=Pump1…`). The Pump2 affordances are bound to upstream tags for reading but map to no local Node. |
+
+The single root cause of the Pump1 gaps is that a document carrying `uav:nodes`
+restores its Nodes from that projection and returns before affordance synthesis
+runs, so any affordance the projection does not already account for contributes
+nothing to the address space. The conversion now reports each such affordance as
+a warning rather than accepting it silently, which is why `sample-pump` loads
+with warnings.
+
+Consequently the upstream cavitation signal is proven to raise the upstream
+alarm and leave it unacknowledged, but Pump1 carries no `GeneratesEvent`
+reference for its cavitation alarm and acknowledgement does not round-trip:
+the projected pump actions are Start, Stop and Reset rather than Condition
+Methods carrying `uav:conditionAction` / `uav:actsOn`.
+
+Closing these gaps means completing the readable affordance mapping so the pump
+NodeSet round-trips through affordances alone and `uav:nodes` is no longer
+emitted. That is a change to the mapping, not to the sample: measured against
+`SamplePump.NodeSet2.xml`, the readable-only conversion yields 37 flat Nodes in
+one namespace against the source's 35 Nodes across four, because the reverse
+conversion emits no structural term per property affordance — across 26
+`uav:variable` affordances there is one `uav:browseName` and no
+`uav:hasComponent`.
 
 ### Upload order is not a server requirement
 

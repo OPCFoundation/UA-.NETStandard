@@ -78,14 +78,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 WotProjectionViewNodeManager manager =
                     await EnsureManagerAsync(cancellationToken).ConfigureAwait(false);
+                List<string> applyOmissions = [];
                 int count = await manager
-                    .ApplyViewAsync(request, cancellationToken)
+                    .ApplyViewAsync(request, applyOmissions, cancellationToken)
                     .ConfigureAwait(false);
+                var all = new List<string>(request.Plan.Omissions.Count + applyOmissions.Count);
+                for (int i = 0; i < request.Plan.Omissions.Count; i++)
+                {
+                    all.Add(request.Plan.Omissions[i]);
+                }
+                all.AddRange(applyOmissions);
+                ArrayOf<string> omissions = all.ToArrayOf();
                 var handle = new WotViewProjectionHandle(
                     request.ResourceXid,
                     request.ViewNodeId,
                     count,
-                    JoinOmissions(request.Plan.Omissions));
+                    JoinOmissions(omissions),
+                    omissions);
                 m_live[request.ViewNodeId] = handle;
                 return handle;
             }

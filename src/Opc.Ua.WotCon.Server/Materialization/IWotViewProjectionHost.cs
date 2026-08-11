@@ -115,16 +115,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// The count of Nodes the materializer created.
         /// </param>
         /// <param name="message">A non-fatal message, or the empty string.</param>
+        /// <param name="omissions">
+        /// The members the materializer could not organize, each with the reason,
+        /// or the empty array. These are discovered while applying the plan — a
+        /// selected affordance can resolve to a NodeId that no NodeManager owns —
+        /// so they are distinct from the omissions the builder already recorded.
+        /// </param>
         public WotViewProjectionHandle(
             string resourceXid,
             NodeId viewNodeId,
             int materializedNodeCount,
-            string message = "")
+            string message = "",
+            ArrayOf<string> omissions = default)
         {
             ResourceXid = resourceXid ?? string.Empty;
             ViewNodeId = viewNodeId.IsNull ? NodeId.Null : viewNodeId;
             MaterializedNodeCount = materializedNodeCount;
             Message = message ?? string.Empty;
+            Omissions = omissions.IsNull ? ArrayOf<string>.Empty : omissions;
         }
 
         /// <summary>
@@ -149,6 +157,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// omission notes for sources that are not in this address space.
         /// </summary>
         public string Message { get; }
+
+        /// <summary>
+        /// Gets the members the materializer could not organize, each with its
+        /// reason. A selected affordance can resolve to a NodeId that no
+        /// NodeManager owns; organizing it would leave the View with a reference
+        /// a client can never follow, so it is dropped and named here.
+        /// </summary>
+        public ArrayOf<string> Omissions { get; }
     }
 
     /// <summary>
