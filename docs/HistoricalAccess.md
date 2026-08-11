@@ -112,6 +112,26 @@ var temperature = new BaseDataVariableState<double>(parent)
 _historian.Register(temperature.NodeId);
 ```
 
+The bundled provider retains one hour of raw data per variable by default. Configure a different source-timestamp
+window, combine it with a hard sample cap, or explicitly restore process-lifetime retention:
+
+```csharp
+var bounded = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+{
+    RawDataRetentionPeriod = TimeSpan.FromHours(24),
+    MaxSamplesPerNode = 100_000
+});
+
+var unbounded = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+{
+    RawDataRetentionPeriod = TimeSpan.Zero
+});
+```
+
+When both limits are set, the provider enforces both and the stricter limit wins. The retention window is measured from
+the newest source timestamp observed for that node, so deterministic replay and backfill do not depend on server wall
+clock time.
+
 ### Fluent builder (`server.UseHistorian()…`)
 
 For the most common case — one provider per server, default fallback — use the fluent builder. It rolls up provider registration, per-variable `Historizing`/access-level flags, optional `Annotations` property creation, and lazy `HistoricalDataConfigurationType` install in one chain:
