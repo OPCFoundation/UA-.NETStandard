@@ -236,18 +236,21 @@ namespace Opc.Ua.Vision.Tests
     public sealed class VisionFeedbackClientTests
     {
         [Test]
-        public async Task SubmitDetectionsRejectsEmptyDetections()
+        public async Task SubmitDetectionsAcceptsEmptyDetectionsAsAnEmptyBinObservation()
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await feedback.SubmitDetectionsAsync(
+            // An empty detection set is a real observation, not a malformed call: once a bin has
+            // been emptied, "I looked and there is nothing there" is the correct answer, and the
+            // server accepts it for exactly that reason. Rejecting it here would force a correct
+            // caller to invent a detection.
+            Assert.That(
+                async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Overlay,
                     ArrayOf<VisionDetectionDataType>.Empty,
                     null,
-                    ByteString.Empty).ConfigureAwait(false));
-
-            Assert.That(ex!.ParamName, Is.EqualTo("detections"));
+                    ByteString.Empty).ConfigureAwait(false),
+                Throws.Nothing);
         }
 
         [Test]

@@ -77,3 +77,22 @@ The OpenUSD runtime packages ship RID-specific native assets (`win-x64`,
 explicit `RuntimeIdentifier` (e.g. `dotnet publish -r linux-x64`) so the
 `plugin/usd/` tree and the backend native libraries land alongside the
 executable. The provider then auto-discovers them from `AppContext.BaseDirectory`.
+
+When the payload is absent — the normal case on unadorned CI legs — the
+provider still starts, `Backend.IsAvailable` reports `false` and every
+capture returns `SceneCameraCaptureStatus.NoRenderingBackend`. This is the
+degrade path the [Vision developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md#rendering-degrades-rather-than-throwing)
+describes: the sensor stays visible in the address space, browses still
+work, and only the pixel bytes are absent, so a client can distinguish "no
+GPU" from a genuine rendering fault.
+
+## Related packages
+
+| Package | Adds |
+|---|---|
+| `OPCFoundation.NetStandard.Opc.Ua.Vision.Server` | The Vision server that consumes `ISceneCameraCaptureProvider` |
+| `OPCFoundation.NetStandard.Opc.Ua.Vision.Client` | The client that reads the simulated sensor's `LatestClip` / `GetClip` |
+
+## License
+
+OPC Foundation MIT License 1.00 — <http://opcfoundation.org/License/MIT/1.00/>

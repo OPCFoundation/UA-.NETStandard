@@ -139,9 +139,9 @@ The demo runner:
    part disappears or its pose changed, the world state was observed to change
    as expected; otherwise the runner reports the mismatch plainly.
 
-Use `--part <ClassLabel>` to pick a different part (`RedCube`, `GreenCylinder`,
-`BlueCube`, `YellowSphere`, `MagentaWedge`) and `--source` / `--destination` /
-`--tool` to retarget without a rebuild.
+Use `--part <ClassLabel>` to pick a different part (`RedCube`,
+`GreenCylinder`, `BlueSphere`, `YellowSlab`, `OrangeBrick`) and
+`--source` / `--destination` / `--tool` to retarget without a rebuild.
 
 Transcript from an actual run against the current cell:
 

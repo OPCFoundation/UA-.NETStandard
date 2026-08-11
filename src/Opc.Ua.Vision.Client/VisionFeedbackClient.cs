@@ -102,11 +102,10 @@ namespace Opc.Ua.Vision.Client
             ByteString inlineImage,
             CancellationToken cancellationToken = default)
         {
-            if (detections.Count == 0)
-            {
-                throw new ArgumentException(
-                    "At least one detection must be supplied.", nameof(detections));
-            }
+            // An empty detection set is a real observation, not a malformed call: "I looked and
+            // there is nothing there" is the correct answer once a bin has been emptied, and the
+            // server accepts it for that reason. Rejecting it here would force a correct caller
+            // to invent a detection.
             return m_proxy.SubmitDetectionsAsync(
                 purpose,
                 detections,
