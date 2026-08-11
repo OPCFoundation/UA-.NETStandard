@@ -89,7 +89,8 @@ dotnet run --project samples/WotCon/AggregationClient/AggregationClient.csproj -
   --documentsDirectory ./samples/WotCon/AggregationClient/Documents
 ```
 
-The client should report four uploaded resources, a successful refresh generation, the recursively browsed Pump hierarchy, and ten Good values.
+The client should report sixteen uploaded resources, a successful refresh generation, the recursively browsed Pump
+hierarchy, and ten Good values.
 
 ## Command-line and programmatic options
 
@@ -143,6 +144,26 @@ The client should report four uploaded resources, a successful refresh generatio
 Each Thing Model is generated from a checked-in NodeSet2 by `WotAggregationDocumentGenerator`, and `WotAggregationDocumentTests.ThingModelsMatchCanonicalConverterRegeneration` asserts the checked-in file is byte-identical to that output, so the documents cannot drift from their sources.
 
 `Opc.Ua.Di.tm.json` is generated from **DI 1.05.0**. That version matters: the official DI NodeSet declared the `ConnectsTo` ReferenceType as a subtype of `HierarchicalReferences` through DI 1.04, which contradicts [OPC 10000-100](https://reference.opcfoundation.org/specs/OPC-10000-100/5.5) §5.5 Table 48 ("Subtype of 0:NonHierarchicalReferences"), and the OPC Foundation corrected it in 1.05.0. `DiConnectsToIsANonHierarchicalReference` pins the corrected form so refreshing the NodeSet from an older upstream revision fails rather than silently reintroducing a non-compliant model.
+
+### Asset projection shape
+
+The checked-in Asset documents use the same shape for each modeled unit:
+
+* A member projection selects the affordances that belong to the unit and keeps them addressable by stable local names.
+* `ProcessData` and `ConditionData` are dataset projections. Their selected properties are annotated as
+  `dataPoint` members so a consumer can browse measurements separately from the larger unit.
+* `Supervision` is an event group projection selected by predicate: event affordances whose type tokens include
+  `uav:eventType`.
+* `Management` is a management group projection selected from action affordances.
+* The Asset projection organizes those four groups and selects only identity data at the Asset level. The group
+  documents therefore shape browsing; they do not define another copy of the selected affordances.
+
+Current sample limitation: the upstream cavitation signal is proven to raise the
+upstream alarm and leave it unacknowledged, but the Pump1 Asset's `Supervision`
+view currently organizes no event affordance, Pump1 carries no `GeneratesEvent`
+reference for its cavitation alarm, and acknowledgement does not round-trip
+because the projected pump actions are Start, Stop and Reset rather than
+Condition Methods carrying `uav:conditionAction` / `uav:actsOn`.
 
 ### Upload order is not a server requirement
 

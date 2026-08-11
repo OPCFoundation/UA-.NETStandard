@@ -994,6 +994,46 @@ A source that is not in the address space is omitted from the View and reported 
 `LoadState = Active`, because an omission is a reported detail rather than a
 failure.
 
+### 12.4.1 Parent placement through `uav:componentOf`
+
+WoT Connectivity §7.3 lets a Thing Description place the Object it projects
+under an existing parent. The materializer supports a `links` entry whose
+`rel` is `uav:componentOf` in two target forms:
+
+| `href` target | Materialized result |
+|---|---|
+| another document in the same registry snapshot | the parent is that document's projection root |
+| an OPC UA NodeId / ExpandedNodeId already present in the AddressSpace | the parent is that existing Node |
+
+When either form resolves, the projected root receives the inverse
+`HasComponent` reference to that parent, so normal hierarchical browsing from
+the parent reaches the new Object. This is a placement operation, not a binding
+fallback: if the parent cannot be resolved, the resource fails projection with
+`LoadState = Failed`, raises `WoTLoadFailureEventType`, and reports
+`Phase = Projection`. The server does not silently drop the parent reference.
+
+Two §7.3 forms are not implemented yet and therefore also fail loudly rather
+than being ignored: a target expressed as `uav:browsePath`, and the Thing Model
+projection-root fallback described by the specification. Authors should use one
+of the two supported forms above until those gaps are closed.
+
+### 12.4.2 Event notifier behaviour in projection Views
+
+Projection Views and the organizational group Objects they contain organize
+existing Nodes; they do not become event sources. Their `EventNotifier` is
+`None`, and materialization does not synthesize `GeneratesEvent` from a View or
+group to the event affordances it organizes. This matters to consumers because a
+subscription on a View or group is not enough to receive events. Event delivery
+still depends on the Object that actually carries `GeneratesEvent` and on an
+event-producing runtime path behind that Object.
+
+Current sample limitation: the upstream cavitation signal is proven to raise the
+upstream alarm and leave it unacknowledged, but the Pump1 Asset's `Supervision`
+view currently organizes no event affordance, Pump1 carries no `GeneratesEvent`
+reference for its cavitation alarm, and acknowledgement does not round-trip
+because the projected pump actions are Start, Stop and Reset rather than
+Condition Methods carrying `uav:conditionAction` / `uav:actsOn`.
+
 ### 12.5 Portable identifiers
 
 Two identifier forms are errors, because a document carrying either binds to the
