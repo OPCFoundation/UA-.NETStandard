@@ -576,6 +576,19 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 settings,
                 isSource: true);
 
+            DataChannel client = m_client.Register(
+                channelId,
+                new NodeId(1u),
+                settings,
+                isSource: false);
+            m_client.MarkOpen(channelId);
+
+            await WaitForAsync(
+                () => m_clientTransport.Sent.Any(
+                    frame => frame.ChannelId == DataChannelConstants.ConnectionControlChannelId &&
+                        frame.FrameType == DataChannelFrameType.Credit))
+                .ConfigureAwait(false);
+
             server.Write([0x01, 0x02], DataChannelFrameFlags.MessageStart);
 
             // Long enough for several scheduler rounds to have run.
@@ -589,13 +602,6 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     Is.False,
                     "A frame was transmitted before the OpenDataChannel response was dispatched.");
             });
-
-            DataChannel client = m_client.Register(
-                channelId,
-                new NodeId(1u),
-                settings,
-                isSource: false);
-            m_client.MarkOpen(channelId);
 
             m_server.MarkOpen(channelId);
 

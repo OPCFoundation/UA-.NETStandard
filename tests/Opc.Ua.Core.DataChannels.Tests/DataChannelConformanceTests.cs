@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Reflection;
@@ -126,7 +127,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             channel.Activate(SecureChannelId, TokenId);
             DataChannel sink = OpenSink(channel);
             await PumpSchedulerRoundAsync(channel.DataChannels!).ConfigureAwait(false);
-            transport.Chunks.Clear();
+            transport.ClearChunks();
 
             byte[] chunk = SpecVectors.Load("inline_data_first");
             chunk[SpecVectors.InlinePrefix + 4] = frameType;
@@ -134,8 +135,9 @@ namespace Opc.Ua.Core.DataChannels.Tests
             Assert.That(channel.DispatchStream(chunk), Is.False);
             await PumpSchedulerRoundAsync(channel.DataChannels!).ConfigureAwait(false);
 
+            DataChannelFrame reset = await WaitForOutboundFrameAsync(transport, DataChannelFrameType.Reset)
+                .ConfigureAwait(false);
             DataChannelFrame[] frames = DecodeOutboundFrames(transport);
-            DataChannelFrame reset = frames.Single(f => f.FrameType == DataChannelFrameType.Reset);
 
             Assert.Multiple(() =>
             {
@@ -348,8 +350,9 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
         private static DataChannelFrame[] DecodeOutboundFrames(CapturingByteTransport transport)
         {
-            Assert.That(transport.Chunks, Has.Count.GreaterThan(0));
-            return [.. transport.Chunks.Select(chunk =>
+            byte[][] chunks = transport.SnapshotChunks();
+            Assert.That(chunks, Has.Length.GreaterThan(0));
+            return [.. chunks.Select(chunk =>
             {
                 Assert.That(
                     DataChannelFrameCodec.TryDecode(
@@ -361,6 +364,45 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     error.ToString());
                 return frame;
             })];
+        }
+
+        private static async Task<DataChannelFrame> WaitForOutboundFrameAsync(
+            CapturingByteTransport transport,
+            DataChannelFrameType frameType)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            DataChannelFrame[] frames = [];
+
+            while (stopwatch.Elapsed < TimeSpan.FromSeconds(10))
+            {
+                byte[][] chunks = transport.SnapshotChunks();
+                frames = [.. chunks.Select(chunk =>
+                {
+                    Assert.That(
+                        DataChannelFrameCodec.TryDecode(
+                            SpecVectors.Body(chunk, SpecVectors.InlinePrefix),
+                            0,
+                            out DataChannelFrame frame,
+                            out DataChannelFrameError error),
+                        Is.True,
+                        error.ToString());
+                    return frame;
+                })];
+
+                DataChannelFrame[] matches = [.. frames.Where(frame => frame.FrameType == frameType)];
+
+                if (matches.Length > 0)
+                {
+                    return matches[0];
+                }
+
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+
+            Assert.Fail(
+                $"Timed out waiting for outbound {frameType} frame. " +
+                $"Decoded frames: {string.Join(", ", frames.Select(frame => frame.FrameType))}.");
+            return default;
         }
 
         private static byte[] BuildHeader(
@@ -439,8 +481,6 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
         private sealed class CapturingByteTransport : IUaSCByteTransport
         {
-            public List<byte[]> Chunks => m_chunks;
-
             public EndPoint? LocalEndpoint => null;
 
             public EndPoint? RemoteEndpoint => null;
@@ -456,7 +496,11 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
             {
-                m_chunks.Add(chunk.ToArray());
+                lock (m_lock)
+                {
+                    m_chunks.Add(chunk.ToArray());
+                }
+
                 return default;
             }
 
@@ -471,7 +515,11 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     offset += segment.Count;
                 }
 
-                m_chunks.Add(chunk);
+                lock (m_lock)
+                {
+                    m_chunks.Add(chunk);
+                }
+
                 return default;
             }
 
@@ -484,7 +532,24 @@ namespace Opc.Ua.Core.DataChannels.Tests
             {
             }
 
+            public void ClearChunks()
+            {
+                lock (m_lock)
+                {
+                    m_chunks.Clear();
+                }
+            }
+
+            public byte[][] SnapshotChunks()
+            {
+                lock (m_lock)
+                {
+                    return [.. m_chunks];
+                }
+            }
+
             private readonly List<byte[]> m_chunks = [];
+            private readonly Lock m_lock = new();
         }
 
         private const uint SecureChannelId = 0x0000A17C;

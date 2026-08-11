@@ -251,7 +251,8 @@ second. The sample measured 0.5 Mbit/s before the fix and 1.3 Gbit/s after it, a
 
 ## Test coverage
 
-The suite is 283 tests over `tests/Opc.Ua.Core.DataChannels.Tests`, covering
+The suite is 284 tests on `net10.0` and 212 tests on `net48` over
+`tests/Opc.Ua.Core.DataChannels.Tests`, covering
 `Stack/DataChannels/**`, `Stack/Tcp/UaSCBinaryChannel.DataChannels.cs`,
 `Server/InlineServerDataChannelTransport.cs` and `Opc.Ua.Bindings.Quic`. Coverage was
 **80.1%** at 255 tests, having fallen from 87.6% while the test count rose, because
