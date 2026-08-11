@@ -69,7 +69,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 .RunAsync(environment.ClientOptions, timeout.Token)
                 .ConfigureAwait(false);
 
-            Assert.That(result.LoadResult.Uploaded, Has.Count.EqualTo(4));
+            Assert.That(result.LoadResult.Uploaded, Has.Count.EqualTo(s_expectedResourceIds.Length));
             var uploadedResourceIds = new List<string>();
             foreach (WotRegistryDocumentLoadOutcome upload in result.LoadResult.Uploaded)
             {
@@ -755,7 +755,19 @@ namespace Opc.Ua.WotCon.Samples.Tests
             "opc-ua-di",
             "opc-ua-machinery",
             "opc-ua-pumps",
-            "sample-pump"
+            "sample-pump",
+            "pump1-members",
+            "pump1-processdata",
+            "pump1-conditiondata",
+            "pump1-supervision",
+            "pump1-management",
+            "pump1-asset",
+            "pump2-members",
+            "pump2-processdata",
+            "pump2-conditiondata",
+            "pump2-supervision",
+            "pump2-management",
+            "pump2-asset"
         ];
     }
 }

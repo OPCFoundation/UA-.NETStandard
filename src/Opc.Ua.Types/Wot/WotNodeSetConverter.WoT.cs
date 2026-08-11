@@ -1176,7 +1176,10 @@ namespace Opc.Ua.Wot
 
             // With uav:componentModel gone (spec PR #19), a binding link that
             // resolves to no ReferenceType organizes rather than composes.
-            referenceType = "Organizes";
+            // Emitted as a NodeId, not a browse name: a NodeSet may only use a
+            // name that it declares in <Aliases>, and the converter declares
+            // none, so a bare name would fail to load.
+            referenceType = WotVocabulary.Organizes;
             return true;
         }
 

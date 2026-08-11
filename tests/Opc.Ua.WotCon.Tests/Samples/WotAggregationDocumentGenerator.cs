@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -74,6 +75,42 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return document.ToCanonicalUtf8();
         }
 
+        public static byte[] GeneratePumpAssetProjectionDocument(string fileName)
+        {
+            JsonObject root = fileName switch
+            {
+                "Pump1.Members.td.json" => CreateMembersProjection("Pump1"),
+                "Pump1.Asset.td.json" => CreateAssetProjection("Pump1"),
+                "Pump1.ProcessData.td.json" => CreateDataSetProjection(
+                    "Pump1",
+                    "ProcessData",
+                    s_processDataPoints),
+                "Pump1.ConditionData.td.json" => CreateDataSetProjection(
+                    "Pump1",
+                    "ConditionData",
+                    s_conditionDataPoints),
+                "Pump1.Supervision.td.json" => CreateSupervisionProjection("Pump1"),
+                "Pump1.Management.td.json" => CreateManagementProjection("Pump1"),
+                "Pump2.Members.td.json" => CreateMembersProjection("Pump2"),
+                "Pump2.Asset.td.json" => CreateAssetProjection("Pump2"),
+                "Pump2.ProcessData.td.json" => CreateDataSetProjection(
+                    "Pump2",
+                    "ProcessData",
+                    s_processDataPoints),
+                "Pump2.ConditionData.td.json" => CreateDataSetProjection(
+                    "Pump2",
+                    "ConditionData",
+                    s_conditionDataPoints),
+                "Pump2.Supervision.td.json" => CreateSupervisionProjection("Pump2"),
+                "Pump2.Management.td.json" => CreateManagementProjection("Pump2"),
+                _ => throw new ArgumentOutOfRangeException(nameof(fileName), fileName, null)
+            };
+
+            byte[] json = JsonSerializer.SerializeToUtf8Bytes(root);
+            using var document = WotDocument.Parse(json, CreateLargeDocumentOptions());
+            return document.ToCanonicalUtf8();
+        }
+
         public static WotNodeSetConverterOptions CreateLargeDocumentOptions()
         {
             return new WotNodeSetConverterOptions
@@ -95,6 +132,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AddProperty(
                 properties,
                 "DifferentialPressure",
+                "Pump1",
                 "number",
                 "Pa",
                 "0",
@@ -104,6 +142,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AddProperty(
                 properties,
                 "FluidTemperature",
+                "Pump1",
                 "number",
                 "K",
                 "233.15",
@@ -113,6 +152,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AddProperty(
                 properties,
                 "BearingTemperature",
+                "Pump1",
                 "number",
                 "K",
                 "233.15",
@@ -122,6 +162,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AddProperty(
                 properties,
                 "PumpPowerInput",
+                "Pump1",
                 "number",
                 "W",
                 "0",
@@ -131,6 +172,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AddProperty(
                 properties,
                 "MassFlow",
+                "Pump1",
                 "number",
                 "kg/s",
                 "0",
@@ -140,6 +182,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AddProperty(
                 properties,
                 "PumpEfficiency",
+                "Pump1",
                 "number",
                 "%",
                 "0",
@@ -149,6 +192,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AddProperty(
                 properties,
                 "Level",
+                "Pump1",
                 "number",
                 "m",
                 "0",
@@ -158,6 +202,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AddProperty(
                 properties,
                 "NumberOfStarts",
+                "Pump1",
                 "integer",
                 null,
                 "0",
@@ -167,6 +212,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AddProperty(
                 properties,
                 "Cavitation",
+                "Pump1",
                 "boolean",
                 null,
                 null,
@@ -176,13 +222,121 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AddProperty(
                 properties,
                 "MotorOverheat",
+                "Pump1",
                 "boolean",
                 null,
                 null,
                 null,
                 "SOURCE_B_ENDPOINT",
                 "Events.SupervisionPumpOperation.MotorOverheat");
+            AddPump2Properties(properties);
+            AddIdentityProperties(properties, "Pump1");
+            AddIdentityProperties(properties, "Pump2");
             return properties;
+        }
+
+        private static void AddPump2Properties(JsonObject properties)
+        {
+            AddProperty(
+                properties,
+                "Pump2DifferentialPressure",
+                "Pump2",
+                "number",
+                "Pa",
+                "0",
+                "1000000",
+                "SOURCE_A_ENDPOINT",
+                "Operational.Measurements.DifferentialPressure");
+            AddProperty(
+                properties,
+                "Pump2FluidTemperature",
+                "Pump2",
+                "number",
+                "K",
+                "233.15",
+                "473.15",
+                "SOURCE_A_ENDPOINT",
+                "Operational.Measurements.FluidTemperature");
+            AddProperty(
+                properties,
+                "Pump2BearingTemperature",
+                "Pump2",
+                "number",
+                "K",
+                "233.15",
+                "473.15",
+                "SOURCE_B_ENDPOINT",
+                "Operational.Measurements.BearingTemperature");
+            AddProperty(
+                properties,
+                "Pump2PumpPowerInput",
+                "Pump2",
+                "number",
+                "W",
+                "0",
+                "50000",
+                "SOURCE_B_ENDPOINT",
+                "Operational.Measurements.PumpPowerInput");
+            AddProperty(
+                properties,
+                "Pump2MassFlow",
+                "Pump2",
+                "number",
+                "kg/s",
+                "0",
+                "1",
+                "SOURCE_A_ENDPOINT",
+                "Operational.Measurements.MassFlow");
+            AddProperty(
+                properties,
+                "Pump2PumpEfficiency",
+                "Pump2",
+                "number",
+                "%",
+                "0",
+                "100",
+                "SOURCE_B_ENDPOINT",
+                "Operational.Measurements.PumpEfficiency");
+            AddProperty(
+                properties,
+                "Pump2Level",
+                "Pump2",
+                "number",
+                "m",
+                "0",
+                "10",
+                "SOURCE_A_ENDPOINT",
+                "Operational.Measurements.Level");
+            AddProperty(
+                properties,
+                "Pump2NumberOfStarts",
+                "Pump2",
+                "integer",
+                null,
+                "0",
+                "4294967295",
+                "SOURCE_B_ENDPOINT",
+                "Operational.Measurements.NumberOfStarts");
+            AddProperty(
+                properties,
+                "Pump2Cavitation",
+                "Pump2",
+                "boolean",
+                null,
+                null,
+                null,
+                "SOURCE_A_ENDPOINT",
+                "Events.SupervisionProcessFluid.Cavitation");
+            AddProperty(
+                properties,
+                "Pump2MotorOverheat",
+                "Pump2",
+                "boolean",
+                null,
+                null,
+                null,
+                "SOURCE_B_ENDPOINT",
+                "Events.SupervisionPumpOperation.MotorOverheat");
         }
 
         private static JsonObject CreateActions()
@@ -293,6 +447,256 @@ namespace Opc.Ua.WotCon.Tests.Samples
             };
         }
 
+        private static JsonObject CreateMembersProjection(string pumpName)
+        {
+            JsonObject root = CreateProjectionRoot(
+                $"urn:opcfoundation.org:UA:WotAggregation:Asset:{pumpName}:Members",
+                $"{pumpName} members",
+                "The member set projected for one Asset.",
+                "sample-pump");
+            root["properties"] = CreateMemberProperties(pumpName);
+            root["actions"] = CreateMemberActions(pumpName);
+            root["events"] = CreateMemberEvents(pumpName);
+            return root;
+        }
+
+        private static JsonObject CreateAssetProjection(string pumpName)
+        {
+            JsonObject root = CreateProjectionRoot(
+                $"urn:opcfoundation.org:UA:WotAggregation:Asset:{pumpName}",
+                $"{pumpName} Asset",
+                "An Asset projection. It selects identity data and organizes datasets, an event group and " +
+                "a management group.",
+                MemberResourceId(pumpName));
+            root["@type"] = CreateTypeArray("Thing", "uav:projection", "Asset");
+            root["properties"] = CreateIdentitySelection(pumpName);
+            root["links"] = new JsonArray
+            {
+                CreateOrganizesLink(GroupResourceId(pumpName, "ProcessData"), "ProcessData"),
+                CreateOrganizesLink(GroupResourceId(pumpName, "ConditionData"), "ConditionData"),
+                CreateOrganizesLink(GroupResourceId(pumpName, "Supervision"), "Supervision"),
+                CreateOrganizesLink(GroupResourceId(pumpName, "Management"), "Management")
+            };
+            return root;
+        }
+
+        private static JsonObject CreateDataSetProjection(
+            string pumpName,
+            string groupName,
+            IReadOnlyList<string> dataPoints)
+        {
+            JsonObject root = CreateProjectionRoot(
+                $"urn:opcfoundation.org:UA:WotAggregation:Asset:{pumpName}:{groupName}",
+                groupName,
+                $"{groupName} dataset. Its selected members are dataPoints.",
+                MemberResourceId(pumpName));
+            root["@type"] = CreateTypeArray("Thing", "uav:projection", "dataset");
+
+            var properties = new JsonObject();
+            foreach (string dataPoint in dataPoints)
+            {
+                properties[dataPoint] = new JsonObject
+                {
+                    ["@type"] = "dataPoint",
+                    ["tm:ref"] = $"{MemberResourceId(pumpName)}#/properties/{dataPoint}"
+                };
+            }
+            root["properties"] = properties;
+            return root;
+        }
+
+        private static JsonObject CreateSupervisionProjection(string pumpName)
+        {
+            JsonObject root = CreateProjectionRoot(
+                $"urn:opcfoundation.org:UA:WotAggregation:Asset:{pumpName}:Supervision",
+                "Supervision",
+                "An event group selected from event affordances.",
+                MemberResourceId(pumpName));
+            root["@type"] = CreateTypeArray("Thing", "uav:projection", "eventGroup");
+            root["uav:projects"] = CreateProjects(
+                MemberResourceId(pumpName),
+                new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["@type"] = "uav:eventType",
+                        ["uav:affordanceKind"] = "event"
+                    }
+                });
+            return root;
+        }
+
+        private static JsonObject CreateManagementProjection(string pumpName)
+        {
+            JsonObject root = CreateProjectionRoot(
+                $"urn:opcfoundation.org:UA:WotAggregation:Asset:{pumpName}:Management",
+                "Management",
+                "A management group selected from action affordances.",
+                MemberResourceId(pumpName));
+            root["@type"] = CreateTypeArray("Thing", "uav:projection", "managementGroup");
+            root["uav:projects"] = CreateProjects(
+                MemberResourceId(pumpName),
+                new JsonArray
+                {
+                    new JsonObject { ["uav:affordanceKind"] = "action" }
+                });
+            return root;
+        }
+
+        private static JsonObject CreateProjectionRoot(
+            string id,
+            string title,
+            string description,
+            string sourcePath)
+        {
+            return new JsonObject
+            {
+                ["@context"] = new JsonArray
+                {
+                    "https://www.w3.org/2022/wot/td/v1.1",
+                    new JsonObject
+                    {
+                        ["tm"] = "https://www.w3.org/2019/wot/tm#",
+                        ["ua"] = "http://opcfoundation.org/UA/",
+                        ["uav"] = "http://opcfoundation.org/UA/WoT-Binding/"
+                    }
+                },
+                ["@type"] = CreateTypeArray("Thing", "uav:projection"),
+                ["id"] = id,
+                ["title"] = title,
+                ["description"] = description,
+                ["uav:scenario"] = "urn:opcfoundation.org:UA:WotAggregation:AssetManagement",
+                ["securityDefinitions"] = new JsonObject
+                {
+                    ["nosec_sc"] = new JsonObject { ["scheme"] = "nosec" }
+                },
+                ["security"] = "nosec_sc",
+                ["uav:projects"] = CreateProjects(sourcePath)
+            };
+        }
+
+        private static JsonArray CreateProjects(string sourcePath, JsonArray? select = null)
+        {
+            var source = new JsonObject
+            {
+                ["uav:sourceName"] = "members",
+                ["href"] = sourcePath,
+                ["type"] = "application/td+json",
+                ["uav:routing"] = "source"
+            };
+            if (select is not null)
+            {
+                source["uav:select"] = select;
+            }
+            return new JsonArray { source };
+        }
+
+        private static JsonArray CreateTypeArray(params string[] types)
+        {
+            var array = new JsonArray();
+            foreach (string type in types)
+            {
+                array.Add(type);
+            }
+            return array;
+        }
+
+        private static JsonObject CreateIdentitySelection(string pumpName)
+        {
+            var properties = new JsonObject();
+            foreach (string property in s_identityProperties)
+            {
+                properties[property] = new JsonObject
+                {
+                    ["tm:ref"] = $"{MemberResourceId(pumpName)}#/properties/{property}"
+                };
+            }
+            return properties;
+        }
+
+        private static JsonObject CreateMemberProperties(string pumpName)
+        {
+            var properties = new JsonObject();
+            AddMemberProperty(properties, "Manufacturer", $"sample-pump#/properties/{pumpName}Manufacturer");
+            AddMemberProperty(properties, "SerialNumber", $"sample-pump#/properties/{pumpName}SerialNumber");
+            AddMemberProperty(
+                properties,
+                "ProductInstanceUri",
+                $"sample-pump#/properties/{pumpName}ProductInstanceUri");
+
+            foreach (string property in s_measurementProperties)
+            {
+                string sourceName = pumpName == "Pump1"
+                    ? property
+                    : pumpName + property;
+                AddMemberProperty(
+                    properties,
+                    property,
+                    $"sample-pump#/properties/{sourceName}");
+            }
+            return properties;
+        }
+
+        private static JsonObject CreateMemberActions(string pumpName)
+        {
+            var actions = new JsonObject();
+            AddMemberAction(actions, "reset", $"sample-pump#/actions/reset{pumpName}");
+            AddMemberAction(actions, "start", $"sample-pump#/actions/start{pumpName}");
+            AddMemberAction(actions, "stop", $"sample-pump#/actions/stop{pumpName}");
+            return actions;
+        }
+
+        private static JsonObject CreateMemberEvents(string pumpName)
+        {
+            string lowerName = pumpName.ToLowerInvariant();
+            var events = new JsonObject();
+            AddMemberEvent(
+                events,
+                "CavitationAlarm",
+                $"sample-pump#/events/{lowerName}CavitationAlarm");
+            AddMemberEvent(
+                events,
+                "MotorOverheatAlarm",
+                $"sample-pump#/events/{lowerName}MotorOverheatAlarm");
+            return events;
+        }
+
+        private static void AddMemberProperty(JsonObject properties, string name, string reference)
+        {
+            properties[name] = new JsonObject { ["tm:ref"] = reference };
+        }
+
+        private static void AddMemberAction(JsonObject actions, string name, string reference)
+        {
+            actions[name] = new JsonObject { ["tm:ref"] = reference };
+        }
+
+        private static void AddMemberEvent(JsonObject events, string name, string reference)
+        {
+            events[name] = new JsonObject { ["tm:ref"] = reference };
+        }
+
+        private static JsonObject CreateOrganizesLink(string href, string refName)
+        {
+            return new JsonObject
+            {
+                ["rel"] = "ua:Organizes",
+                ["href"] = href,
+                ["uav:refName"] = refName,
+                ["type"] = "application/td+json"
+            };
+        }
+
+        private static string MemberResourceId(string pumpName)
+        {
+            return pumpName.ToLowerInvariant() + "-members";
+        }
+
+        private static string GroupResourceId(string pumpName, string groupName)
+        {
+            return pumpName.ToLowerInvariant() + "-" + groupName.ToLowerInvariant();
+        }
+
         private static JsonObject CreateAlarmDataSchema()
         {
             return new JsonObject
@@ -372,6 +776,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private static void AddProperty(
             JsonObject properties,
             string name,
+            string pumpNodeId,
             string type,
             string? unit,
             string? minimum,
@@ -391,15 +796,19 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     {
                         ["href"] = "${" + source + "}",
                         ["op"] = new JsonArray("readproperty", "observeproperty"),
-                        ["uav:id"] = $"nsu={sourceNamespace};s=Pump1.{path}"
+                        ["uav:id"] = $"nsu={sourceNamespace};s={pumpNodeId}.{path}"
                     }
                 },
                 ["observable"] = true,
                 ["readOnly"] = true,
                 ["title"] = name,
-                ["type"] = type,
-                ["uav:mapToNodeId"] = $"nsu={PumpInstanceNamespace};s=Pump1.{path}"
+                ["type"] = type
             };
+
+            if (pumpNodeId == "Pump1")
+            {
+                property["uav:mapToNodeId"] = $"nsu={PumpInstanceNamespace};s={pumpNodeId}.{path}";
+            }
 
             if (unit is not null)
             {
@@ -415,6 +824,48 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
 
             properties[name] = property;
+        }
+
+        private static void AddIdentityProperties(JsonObject properties, string pumpNodeId)
+        {
+            AddIdentityProperty(properties, pumpNodeId, "Manufacturer", "LocalizedText", "SOURCE_A_ENDPOINT");
+            AddIdentityProperty(properties, pumpNodeId, "SerialNumber", "String", "SOURCE_A_ENDPOINT");
+            AddIdentityProperty(properties, pumpNodeId, "ProductInstanceUri", "String", "SOURCE_A_ENDPOINT");
+        }
+
+        private static void AddIdentityProperty(
+            JsonObject properties,
+            string pumpNodeId,
+            string name,
+            string dataType,
+            string source)
+        {
+            string sourceNamespace = source == "SOURCE_A_ENDPOINT"
+                ? SourceANamespace
+                : SourceBNamespace;
+            string path = $"Identification.{name}";
+            var property = new JsonObject
+            {
+                ["@type"] = "uav:variable",
+                ["forms"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["href"] = "${" + source + "}",
+                        ["op"] = new JsonArray("readproperty"),
+                        ["uav:id"] = $"nsu={sourceNamespace};s={pumpNodeId}.{path}"
+                    }
+                },
+                ["readOnly"] = true,
+                ["title"] = name,
+                ["type"] = "string",
+                ["uav:dataType"] = dataType
+            };
+            if (pumpNodeId == "Pump1")
+            {
+                property["uav:mapToNodeId"] = $"nsu={PumpInstanceNamespace};s={pumpNodeId}.{path}";
+            }
+            properties[pumpNodeId + name] = property;
         }
 
         /// <summary>
@@ -434,5 +885,40 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 ?? throw new InvalidOperationException(
                     $"'{canonicalJsonNumber}' is not a JSON number.");
         }
+
+        private static readonly string[] s_identityProperties =
+        [
+            "Manufacturer",
+            "ProductInstanceUri",
+            "SerialNumber"
+        ];
+
+        private static readonly string[] s_processDataPoints =
+        [
+            "DifferentialPressure",
+            "FluidTemperature",
+            "MassFlow",
+            "Level"
+        ];
+
+        private static readonly string[] s_conditionDataPoints =
+        [
+            "BearingTemperature",
+            "PumpPowerInput",
+            "PumpEfficiency",
+            "NumberOfStarts"
+        ];
+
+        private static readonly string[] s_measurementProperties =
+        [
+            "DifferentialPressure",
+            "FluidTemperature",
+            "BearingTemperature",
+            "PumpPowerInput",
+            "MassFlow",
+            "PumpEfficiency",
+            "Level",
+            "NumberOfStarts"
+        ];
     }
 }

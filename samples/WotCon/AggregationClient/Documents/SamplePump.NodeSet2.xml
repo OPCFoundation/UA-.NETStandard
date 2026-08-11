@@ -43,6 +43,7 @@
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Events</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Maintenance</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=2;i=1052</Reference>
+      <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="ns=1;s=Pump1.Identification" BrowseName="4:Identification" ParentNodeId="ns=1;s=Pump1">

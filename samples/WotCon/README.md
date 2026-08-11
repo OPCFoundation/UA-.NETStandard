@@ -136,6 +136,9 @@ The client should report four uploaded resources, a successful refresh generatio
 2. `Opc.Ua.Machinery.tm.json` as `thingmodels/opc-ua-machinery`, depending on DI.
 3. `Opc.Ua.Pumps.tm.json` as `thingmodels/opc-ua-pumps`, depending on DI and Machinery.
 4. `SamplePump.td.json` as `thingdescriptions/sample-pump`, depending on all three Thing Models.
+5. `Pump1.*.td.json` and `Pump2.*.td.json` as Thing Description projection documents, depending on
+   `SamplePump.td.json`. Each pump has a member projection, four group projections (`ProcessData`,
+   `ConditionData`, `Supervision`, `Management`), and an Asset projection that organizes those groups.
 
 Each Thing Model is generated from a checked-in NodeSet2 by `WotAggregationDocumentGenerator`, and `WotAggregationDocumentTests.ThingModelsMatchCanonicalConverterRegeneration` asserts the checked-in file is byte-identical to that output, so the documents cannot drift from their sources.
 
@@ -167,7 +170,7 @@ Each property form also contains a portable upstream `uav:id` using the source s
 
 ## Registry upload and Refresh
 
-The client creates a `WotRegistryClient` through `AddWotRegistryClient`, loads the four `WotRegistryDocument` values, and calls:
+The client creates a `WotRegistryClient` through `AddWotRegistryClient`, loads the manifest documents, and calls:
 
 ```csharp
 WotRegistryBulkLoadResult loadResult = await client.LoadDocumentsAsync(
