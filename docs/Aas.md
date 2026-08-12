@@ -469,7 +469,7 @@ publishing it would claim conformance that is not met.
 | `AAS-RegistryIdentity` | `Registry.AasRegistryServiceTests.IdentifierConstructionMatchesXRegistryAndIsInvariantAcrossVersions`; `Registry.AasRegistryProjectionTests.ProjectionExposesEverySourceIdentityVerbatim`; `Client.AasRegistryClientTests.TypedGroupAndResourceClientsExposeSourceIdentities` |
 | `AAS-RegistryVersioning` | `Registry.AasRegistryServiceTests.VersionOrderingResolvesNewestVersionNotLaterThanMoment`; `Client.AasRegistryClientTests.VersionsResolveNewestVersionNotLaterThanMoment` |
 | `AAS-Discovery` | `Registry.AasRegistryServiceTests.LookupShellsByAssetLinkFindsShellAndBoundsUnauthenticatedResults`; `Registry.AasRegistryGetSubmodelContractTests.AuthorizedCallerGetsDocumentFormatAndContentType`; `Client.AasRegistryClientTests.LookupShellsByAssetLinkReturnsHitAndMiss`; `Client.AasRegistryClientTests.GetSubmodelReturnsDocumentOnSuccess` |
-| `AAS-OperationInvoke` | `Server.AasRuntimeInvocationTests.InvokeWithCorrectArityReturnsOperationOutputsAsync`; `Server.AasRuntimeInvocationTests.InvokeWithArityMismatchReturnsBadInvalidArgumentAsync`; `Server.AasRuntimeInvocationTests.InvokeOperationFailureReturnsGoodCallStatusAndFalseSuccessAsync`; `Client.AasClientTests.InvokeMarshalsArguments` |
+| `AAS-OperationInvoke` (partial, see section 11) | `Server.AasRuntimeInvocationTests.InvokeWithCorrectArityReturnsOperationOutputsAsync`; `Server.AasRuntimeInvocationTests.InvokeWithArityMismatchReturnsBadInvalidArgumentAsync`; `Server.AasRuntimeInvocationTests.InvokeOperationFailureReturnsGoodCallStatusAndFalseSuccessAsync`; `Client.AasClientTests.InvokeMarshalsArguments` |
 | `AAS-Federation` | `Federation.AasFederationTests.ProxyIdentityRetainsRemoteAttributesAndIgnoresLocalEndpoint`; `Federation.AasFederationTests.EgressPolicyRejectsRestrictedAddressAndReturnsNoBytes`; `Federation.AasFederationTests.ConnectedAddressRevalidationBlocksDnsRebinding`; `Federation.AasFederationTests.OpcUaPeerIdentityMismatchTerminatesWithoutRemoteRead` |
 | `AAS-DisclosureTiers` | `Registry.AasRegistryServiceTests.DisclosureTierAndAuthorizationAdvertiseConfigurationOnly`; `Registry.AasRegistryServiceTests.ControlledDisclosureTierRequiresAuthenticationButPublicDoesNot`; `Registry.AasRegistryGetSubmodelContractTests.TargetRolePermissionsDenialReturnsUserAccessDenied`; `Dpp.AasDppDisclosurePolicyTests.RegulatoryClassesMapToDisclosureTiers` |
 | `AAS-UpdateableRegistry` | `Updateable.AasUpdateableRegistryMaterializationTests.ShadowGenerationStaysInvisibleUntilAtomicSwitch`; `Updateable.AasUpdateableRegistryMaterializationTests.GracefulRetirementServesExistingMonitoredItemUntilDrain`; `Updateable.AasUpdateableRegistryMaterializationTests.ValidationFailureKeepsPreviousGenerationAndDivergesVersions`; `Updateable.AasUpdateableRegistryMaterializationTests.ValueWriteBackBumpsVersionWithoutRedundantMaterialization` |
@@ -482,6 +482,17 @@ publishing it would claim conformance that is not met.
 ## 11. Limitations and migration notes
 
 * Annex G / IDTA-01002 Part 2 HTTP APIs are not implemented by this branch.
+* **Calling an `Operation` with arguments is incomplete.** A materialized
+  Operation carries its `Invoke` Method, and a Client resolves it by either its
+  own NodeId or the `MethodDeclarationId` of `AASOperationType.Invoke`. The
+  Method also carries `InputArguments` and `OutputArguments` under the standard
+  BrowseNames. What does not yet work is the Call itself: `NodeState.AddChild`
+  does not route through `MethodState.FindChild`, so a Method imported from a
+  NodeSet leaves the typed `InputArguments` property null, and the Server
+  answers `BadTooManyArguments`. Closing this needs a change to how the shared
+  NodeSet import claims typed children, which affects every consumer of runtime
+  NodeSets and is therefore out of scope here. `samples/Aas` exercises the path
+  and reports the status rather than working around it.
 * The AAS registry server currently exposes direct construction through
   `AasRegistryService` and `AasRegistryNodeManagerFactory`; the client has a DI
   helper (`AddAasRegistryClient`), while the metamodel server has `AddAasServer`.
