@@ -160,7 +160,7 @@ namespace Opc.Ua.Subscriptions.Tests
         [Test]
         public async Task MinimumPublishingIntervalFromServerCapabilitiesAsync()
         {
-            // Read MinSupportedSampleRate from ServerCapabilities
+            // Read MinSupportedSamplingInterval from ServerCapabilities
             ReadResponse readResp = await Session.ReadAsync(
                 null, 0, TimestampsToReturn.Neither,
                 new ReadValueId[]
@@ -176,7 +176,7 @@ namespace Opc.Ua.Subscriptions.Tests
             if (!StatusCode.IsGood(readResp.Results[0].StatusCode))
             {
                 Assert.Fail(
-                    "MinSupportedSampleRate not available.");
+                    "MinSupportedSamplingInterval not available.");
             }
 
             double minRate = readResp.Results[0].WrappedValue.GetDouble();
@@ -1909,6 +1909,160 @@ namespace Opc.Ua.Subscriptions.Tests
 
             uint[] allIds = [.. subs.Select(s => s.SubId)];
             await DeleteSubsAsync(allIds).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task MaxNotificationsPerPublishAboveServerLimitIsRevisedAsync()
+        {
+            uint serverLimit = ServerMaxNotificationsPerPublish;
+            Assert.That(serverLimit, Is.GreaterThan(0u),
+                "The test requires a server that limits the notifications per publish.");
+
+            Assert.That(
+                await CreateSubscriptionAndReadMaxNotificationsPerPublishAsync(
+                    serverLimit + 100_000).ConfigureAwait(false),
+                Is.EqualTo(serverLimit),
+                "A requested value above the server limit must be revised down.");
+        }
+
+        [Test]
+        public async Task MaxNotificationsPerPublishZeroUsesServerLimitAsync()
+        {
+            Assert.That(
+                await CreateSubscriptionAndReadMaxNotificationsPerPublishAsync(0)
+                    .ConfigureAwait(false),
+                Is.EqualTo(ServerMaxNotificationsPerPublish),
+                "A requested value of zero means the server picks its own limit.");
+        }
+
+        [Test]
+        public async Task MaxNotificationsPerPublishBelowServerLimitIsKeptAsync()
+        {
+            uint requested = Math.Max(1, ServerMaxNotificationsPerPublish / 2);
+
+            Assert.That(
+                await CreateSubscriptionAndReadMaxNotificationsPerPublishAsync(requested)
+                    .ConfigureAwait(false),
+                Is.EqualTo(requested),
+                "A requested value within the server limit must be kept.");
+        }
+
+        [Test]
+        public async Task ModifySubscriptionRevisesMaxNotificationsPerPublishAsync()
+        {
+            uint serverLimit = ServerMaxNotificationsPerPublish;
+
+            Assert.That(
+                await CreateSubscriptionAndReadMaxNotificationsPerPublishAsync(
+                    1,
+                    serverLimit + 100_000).ConfigureAwait(false),
+                Is.EqualTo(serverLimit),
+                "ModifySubscription must apply the same limit as CreateSubscription.");
+        }
+
+        private uint ServerMaxNotificationsPerPublish
+            => (uint)ServerFixture.Config.ServerConfiguration.MaxNotificationsPerPublish;
+
+        /// <summary>
+        /// Creates a subscription with the requested MaxNotificationsPerPublish, optionally
+        /// modifies it, and returns the value the server actually applied. The
+        /// CreateSubscription response carries no revised value for this parameter, so the
+        /// subscription diagnostics are the only observable place. They require a
+        /// privileged session, hence the sysadmin connection.
+        /// </summary>
+        private async Task<uint> CreateSubscriptionAndReadMaxNotificationsPerPublishAsync(
+            uint requestedMaxNotificationsPerPublish,
+            uint? modifiedMaxNotificationsPerPublish = null)
+        {
+            ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+            if (admin == null)
+            {
+                Assert.Ignore("The server does not expose username authentication.");
+            }
+
+            try
+            {
+                CreateSubscriptionResponse resp = await admin.CreateSubscriptionAsync(
+                    null,
+                    DefaultInterval,
+                    DefaultLifetime,
+                    DefaultKeepAlive,
+                    requestedMaxNotificationsPerPublish,
+                    true,
+                    0,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(
+                    StatusCode.IsGood(resp.ResponseHeader.ServiceResult),
+                    Is.True);
+
+                if (modifiedMaxNotificationsPerPublish.HasValue)
+                {
+                    ModifySubscriptionResponse mod = await admin.ModifySubscriptionAsync(
+                        null,
+                        resp.SubscriptionId,
+                        DefaultInterval,
+                        DefaultLifetime,
+                        DefaultKeepAlive,
+                        modifiedMaxNotificationsPerPublish.Value,
+                        0,
+                        CancellationToken.None).ConfigureAwait(false);
+
+                    Assert.That(
+                        StatusCode.IsGood(mod.ResponseHeader.ServiceResult),
+                        Is.True);
+                }
+
+                ReadResponse read = await admin.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    new ReadValueId[]
+                    {
+                        new()
+                        {
+                            NodeId = VariableIds
+                                .Server_ServerDiagnostics_SubscriptionDiagnosticsArray,
+                            AttributeId = Attributes.Value
+                        }
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                if (StatusCode.IsBad(read.Results[0].StatusCode))
+                {
+                    Assert.Ignore(
+                        "SubscriptionDiagnosticsArray not accessible: " +
+                        $"{read.Results[0].StatusCode}");
+                }
+
+                Assert.That(
+                    read.Results[0].WrappedValue.TryGetValue(
+                        out ArrayOf<ExtensionObject> diagnostics),
+                    Is.True);
+
+                foreach (ExtensionObject entry in diagnostics)
+                {
+                    if (entry.TryGetValue(
+                            out SubscriptionDiagnosticsDataType diagnostic,
+                            admin.MessageContext) &&
+                        diagnostic.SubscriptionId == resp.SubscriptionId)
+                    {
+                        return diagnostic.MaxNotificationsPerPublish;
+                    }
+                }
+
+                Assert.Fail(
+                    $"No diagnostics found for subscription {resp.SubscriptionId}.");
+                return 0;
+            }
+            finally
+            {
+                if (admin != null)
+                {
+                    await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                    admin.Dispose();
+                }
+            }
         }
 
         private async Task<CreateSubscriptionResponse> CreateSubAsync(
