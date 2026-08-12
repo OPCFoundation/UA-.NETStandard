@@ -103,15 +103,10 @@ namespace Opc.Ua.Aas.Server.Packaging
                 return AasPackageIntegrityResult.Fail("OCI package layer digest is not a lower-case prefixed digest.");
             }
 
-            string descriptorDigestAlg;
-            try
-            {
-                descriptorDigestAlg = MapOciAlgorithm(descriptorAlgorithm);
-            }
-            catch (ArgumentException ex)
-            {
-                return AasPackageIntegrityResult.Fail(ex.Message);
-            }
+            // TrySplitOciDigest accepts only sha256, sha384 and sha512, which
+            // MapOciAlgorithm maps without exception, so the algorithm is known
+            // to be one of the three by the time it is mapped.
+            string descriptorDigestAlg = MapOciAlgorithm(descriptorAlgorithm);
 
             if (!string.Equals(descriptorDigestAlg, digestAlg, StringComparison.Ordinal) ||
                 !string.Equals(descriptorDigest, digest, StringComparison.Ordinal))
