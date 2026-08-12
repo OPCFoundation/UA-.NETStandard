@@ -452,9 +452,14 @@ namespace Opc.Ua.Aas.Client
             string browseName,
             CancellationToken ct)
         {
+            // Aggregates covers HasComponent, HasOrderedComponent and
+            // HasProperty while excluding HasSubtype. A materialized member is
+            // reached by whichever of those the clause 6.1.6 mapping chose, so
+            // browsing HasComponent alone misses every Property - including the
+            // Value Variable of an element.
             ArrayOf<AasBrowseEntry> children = await BrowseChildrenAsync(
                 parentNodeId,
-                ReferenceTypeIds.HasComponent,
+                ReferenceTypeIds.Aggregates,
                 includeSubtypes: true,
                 nodeClassMask: 0,
                 ct).ConfigureAwait(false);
