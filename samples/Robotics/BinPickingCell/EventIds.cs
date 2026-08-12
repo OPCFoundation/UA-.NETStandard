@@ -43,5 +43,6 @@ namespace Vision.BinPickingCell
         public const int Proof = 100;
         public const int Agent = 140;
         public const int OffServerProof = 180;
+        public const int OpenUsdRepresentation = 220;
     }
 }

@@ -662,6 +662,11 @@ namespace IntentViewerClient
             string cacheDir = options.FetchAssetsDirectory
                 ?? Path.GetDirectoryName(liveLayerPath)
                 ?? AppContext.BaseDirectory;
+
+            // The viewport needs the served geometry: without it only the live override layer
+            // composes, which carries transforms but no geometry and renders as an empty scene.
+            await FetchAssetsAsync(session, cacheDir, cancellationToken).ConfigureAwait(false);
+
             string stagePath = Path.Combine(cacheDir, "stage.usda");
             if (!File.Exists(stagePath))
             {

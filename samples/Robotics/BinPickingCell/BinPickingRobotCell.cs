@@ -85,10 +85,22 @@ namespace Vision.BinPickingCell
             throw new InvalidOperationException(
                 "BinPickingRobotCell has not been attached to a Robot Intent build context.");
 
+        internal AsyncCustomNodeManager Manager => m_manager ??
+            throw new InvalidOperationException(
+                "BinPickingRobotCell has not been attached to a Robot Intent build context.");
+
+        internal IIntentControllerBuilder Controller => m_controller ??
+            throw new InvalidOperationException(
+                "The bin-picking intent controller has not been materialised.");
+
+        internal IEnumerable<global::Opc.Ua.RobotIntent.AxisState> Axes => m_axes;
+
+        internal ushort InstanceNamespaceIndex => m_instanceNamespaceIndex;
+
         internal IReadOnlyDictionary<string, NodeId> LocationNodes => m_locationNodes;
 
         /// <summary>
-        /// Configures the Robot Intent controller for the cell.
+        /// Configures the Robot Intent controller and OpenUSD nodes for the cell.
         /// </summary>
         public async ValueTask ConfigureAsync(
             IRobotIntentBuildContext context, CancellationToken cancellationToken)
@@ -97,13 +109,17 @@ namespace Vision.BinPickingCell
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            m_manager = context.Manager;
             m_systemContext = context.Manager.SystemContext;
-            IIntentControllerBuilder controller = await context.AddIntentControllerAsync(
+            m_instanceNamespaceIndex = context.InstanceNamespaceIndex;
+            await MaterialiseOpenUsdFacilityAsync(cancellationToken).ConfigureAwait(false);
+            m_controller = await context.AddIntentControllerAsync(
                 "BinPickingController",
                 ConfigureController,
                 cancellationToken).ConfigureAwait(false);
+            await MaterialiseRepresentationsAsync(cancellationToken).ConfigureAwait(false);
             PublishSnapshot(m_executor.CurrentSnapshot);
-            ArrayOf<string> facets = controller.ComputeFacets();
+            ArrayOf<string> facets = m_controller.ComputeFacets();
             m_logger.RobotCellReady(m_axes.Count, m_locations.Count, facets);
         }
 
@@ -277,7 +293,10 @@ namespace Vision.BinPickingCell
         private readonly List<global::Opc.Ua.RobotIntent.AxisState> m_axes = [];
         private readonly List<global::Opc.Ua.RobotIntent.LocationState> m_locations = [];
         private readonly Dictionary<string, NodeId> m_locationNodes = new(StringComparer.Ordinal);
+        private AsyncCustomNodeManager? m_manager;
+        private IIntentControllerBuilder? m_controller;
         private ServerSystemContext? m_systemContext;
+        private ushort m_instanceNamespaceIndex;
     }
 
     internal static partial class BinPickingRobotCellLog

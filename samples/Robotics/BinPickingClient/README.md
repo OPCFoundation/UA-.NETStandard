@@ -201,6 +201,11 @@ samples\Robotics\BinPickingClient\bin\Release\net10.0\BinPickingClient.exe `
 Add `--demo` to run the scripted pick-and-place while the viewport is open,
 which is the quickest way to watch the loop close in 3-D.
 
+The client fetches the cell's served OpenUSD assets automatically whenever the
+viewport opens, into a per-user cache directory. Pass `--fetch-assets <dir>` only
+when you want the fetched stage written somewhere you choose, for example to
+inspect `stage.usda` by hand.
+
 Where the viewer assembly or renderer payload is missing, the client says so
 plainly on stderr and continues without opening the viewport. The renderer
 payload supports `win-x64`, `linux-x64` and `osx-arm64`; substitute the matching
