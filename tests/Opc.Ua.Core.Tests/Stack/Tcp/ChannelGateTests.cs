@@ -131,14 +131,22 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
                 }
             });
 
-            Task first = await Task.WhenAny(contender, Task.Delay(250)).ConfigureAwait(false);
+            // Released in a finally so that a failing assertion reports the
+            // failure rather than stranding the gate and hanging the contender
+            // until the timeout.
+            try
+            {
+                Task first = await Task.WhenAny(contender, Task.Delay(250)).ConfigureAwait(false);
 
-            Assert.That(
-                first,
-                Is.Not.SameAs(contender),
-                "another context must not enter while the gate is held");
-
-            held.Dispose();
+                Assert.That(
+                    first,
+                    Is.Not.SameAs(contender),
+                    "another context must not enter while the gate is held");
+            }
+            finally
+            {
+                held.Dispose();
+            }
 
             await contender.ConfigureAwait(false);
             Assert.That(await entered.Task.ConfigureAwait(false), Is.True);
@@ -175,17 +183,27 @@ namespace Opc.Ua.Core.Tests.Stack.Tcp
                 }
             });
 
-            Assert.That(await started.Task.ConfigureAwait(false), Is.True);
+            // The gate is released in a finally rather than by a using, because
+            // it has to be released before the assertions below are awaited to
+            // completion but exactly once. A failing assertion would otherwise
+            // strand it and leave the detached task blocked until the timeout,
+            // reporting a hang instead of the failure.
+            try
+            {
+                Assert.That(await started.Task.ConfigureAwait(false), Is.True);
 
-            Task first = await Task.WhenAny(detached, Task.Delay(250)).ConfigureAwait(false);
+                Task first = await Task.WhenAny(detached, Task.Delay(250)).ConfigureAwait(false);
 
-            Assert.That(
-                first,
-                Is.Not.SameAs(detached),
-                "work started while the gate was held entered the guarded region");
-            Assert.That(ranInsideTheRegion, Is.False);
-
-            held.Dispose();
+                Assert.That(
+                    first,
+                    Is.Not.SameAs(detached),
+                    "work started while the gate was held entered the guarded region");
+                Assert.That(ranInsideTheRegion, Is.False);
+            }
+            finally
+            {
+                held.Dispose();
+            }
 
             await detached.ConfigureAwait(false);
 
