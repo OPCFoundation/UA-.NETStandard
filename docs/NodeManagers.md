@@ -17,6 +17,7 @@
     - [Method Calls](#method-calls)
     - [Runtime subtype replacement (IPredefinedNodeSubtypeReplacer)](#runtime-subtype-replacement-ipredefinednodesubtypereplacer)
   - [Monitoring and subscriptions](#monitoring-and-subscriptions)
+    - [Sampling interval revision](#sampling-interval-revision)
   - [History](#history)
   - [Security](#security)
   - [Threading contract for nodes and browsers](#threading-contract-for-nodes-and-browsers)
@@ -217,6 +218,66 @@ The operation is deliberately exposed as a capability interface method rather th
 | **Manager** | Uses `SamplingGroupManager` directly. | Uses `IMonitoredItemManager` abstraction (defaults to `SamplingGroupMonitoredItemManager` or `MonitoredNodeMonitoredItemManager`). |
 | **Filter Validation** | Validates `DataChangeFilter` specifically (deadband, EU Range). | Delegates validation to `ValidateMonitoringFilter`, supports `AggregateFilter` (if supported by server) and `DataChangeFilter`. |
 | **Events** | Basic event subscription support (`SubscribeToEvents` checks `EventNotifier` bit). | **Full Event Support**: <br/>- Manages `RootNotifiers`. <br/>- Propagates events via `SubscribeToAllEvents`. <br/>- Implements `ConditionRefresh`. <br/>- Validates `PermissionType.ReceiveEvents`. |
+
+#### Sampling interval revision
+
+When a client creates or modifies a monitored item the node manager revises the
+requested `samplingInterval` before the server returns it in
+`revisedSamplingInterval`. Three inputs take part:
+
+| Input | Where it comes from |
+| :--- | :--- |
+| Requested sampling interval | `MonitoringParameters.SamplingInterval`; a negative value means "use the default sampling interval" (see below) |
+| Node minimum | `BaseVariableState.MinimumSamplingInterval` of the monitored node, and only for the `Value` Attribute |
+| Server minimum | `ServerConfiguration.MinSupportedSamplingInterval`, published in `Server.ServerCapabilities.MinSupportedSampleRate` |
+
+The rule applied by `SubscriptionManager.CalculateRevisedSamplingInterval` is:
+
+1. A requested interval below zero is resolved to the default sampling interval:
+   the **publishing interval of the subscription** when the item is created, and
+   the item's **current sampling interval** when it is modified. (The modify case
+   preserves the behaviour of 1.5.378 and earlier, so a `ModifyMonitoredItems`
+   call that leaves the sampling interval unspecified does not silently retune
+   the item.)
+2. If the node declares `MinimumSamplingIntervals.Continuous` (`0`) for the
+   `Value` Attribute, it reports by exception and **no** lower bound is applied —
+   the requested interval is returned unchanged.
+3. Otherwise the interval is raised to the larger of the node minimum and
+   `MinSupportedSamplingInterval`. Attributes other than `Value`, nodes that
+   declare `MinimumSamplingIntervals.Indeterminate` (`-1`), and nodes that are
+   not Variables are only bound by `MinSupportedSamplingInterval`.
+4. `double.MaxValue` is capped to one year.
+
+Event monitored items do not sample and are not affected.
+
+`MinSupportedSamplingInterval` defaults to `0`, which means the server does not
+impose a server-wide lower bound. Configure it in XML:
+
+```xml
+<ServerConfiguration>
+  <!-- ... -->
+  <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
+  <MinSupportedSamplingInterval>2000</MinSupportedSamplingInterval>
+  <!-- ... -->
+</ServerConfiguration>
+```
+
+or with the fluent configuration builder:
+
+```csharp
+application.Build(applicationUri, productUri)
+    .AsServer([endpointUrl])
+    .SetMinSupportedSamplingInterval(2000);
+```
+
+With `MinSupportedSamplingInterval` set to 2000 ms, a client that requests a
+10 ms sampling interval on a node that declares a minimum of 100 ms is revised
+to 2000 ms; a node that declares 5000 ms still wins and is revised to 5000 ms.
+
+`CustomNodeManager2` and `AsyncCustomNodeManager` pick the configured value up
+automatically through their `MinSupportedSamplingInterval` property. Node
+managers that implement `INodeManager` directly can call
+`SubscriptionManager.CalculateRevisedSamplingInterval` to apply the same rule.
 
 ### History
 

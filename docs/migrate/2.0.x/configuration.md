@@ -75,7 +75,7 @@ monitored node. Setting a non-zero value raises the `revisedSamplingInterval`
 for every monitored item except those on nodes declaring
 `MinimumSamplingIntervals.Continuous` (`0`), which report by exception and are
 not bound by a sampling interval. See
-[Subscriptions.md § Sampling interval revision](../../Subscriptions.md#sampling-interval-revision)
+[NodeManagers.md § Sampling interval revision](../../NodeManagers.md#sampling-interval-revision)
 for the full rule.
 
 ### Newtonsoft.Json removed from Opc.Ua.Core
