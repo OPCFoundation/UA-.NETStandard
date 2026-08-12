@@ -499,6 +499,45 @@ namespace Opc.Ua.Types.Tests.Wot
                 "A type whose encoding is declared by the Object still has one.");
         }
 
+        // §6.11.2, tightened by the spec PR: the subtype graph is acyclic and
+        // kind-compatible. A cycle is the worst of these — resolving the
+        // inherited prefix or the terminal base would not terminate.
+        [TestCase("cycle", "\"@id\":\"urn:t#B\"", "\"@id\":\"urn:t#A\"",
+            "uav:StructureDefinition", "uav:StructureDefinition", "its own ancestor")]
+        [TestCase("enumeration under a structure", "\"@id\":\"urn:t#B\"", "",
+            "uav:EnumDefinition", "uav:StructureDefinition", "within its own kind")]
+        [TestCase("structure under an enumeration", "\"@id\":\"urn:t#B\"", "",
+            "uav:StructureDefinition", "uav:EnumDefinition", "within its own kind")]
+        public void IncompatibleSubtypeGraphIsRejected(
+            string scenario,
+            string aBase,
+            string bBase,
+            string aKind,
+            string bKind,
+            string expected)
+        {
+            _ = scenario;
+            string b = "{\"@id\":\"urn:t#B\",\"@type\":\"" + bKind + "\"," +
+                "\"uav:dataTypeName\":\"demo:B\"" +
+                (bBase.Length == 0 ? string.Empty : ",\"uav:dataTypeSubtypeOf\":{" + bBase + "}") + "}";
+            string a = "{\"@id\":\"urn:t#A\",\"@type\":\"" + aKind + "\"," +
+                "\"uav:dataTypeName\":\"demo:A\",\"uav:dataTypeSubtypeOf\":{" + aBase + "}}";
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(
+                    "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                    "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                    "\"demo\":\"http://example.com/demo/pump\"}]," +
+                    "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                    "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Thing\"," +
+                    "\"uav:dataTypeDefinitions\":[" + a + "," + b + "]}")));
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Has.Some.Contains(expected));
+        }
+
         private static string OptionSetThing(string baseId, int bit)
         {
             return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +

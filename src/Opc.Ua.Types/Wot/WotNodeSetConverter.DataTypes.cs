@@ -116,7 +116,123 @@ namespace Opc.Ua.Wot
             }
             ValidateEncodingIdentities(complete, identities, diagnostics);
             ValidateInheritedFieldPrefixes(complete, diagnostics);
+            ValidateSubtypeGraph(complete, diagnostics);
             return identities;
+        }
+
+        /// <summary>
+        /// Checks that the subtype graph is acyclic and kind-compatible.
+        /// </summary>
+        /// <remarks>
+        /// §6.11.2 was tightened by the specification PR: a Structure or Union
+        /// subtypes one of the same Union/non-Union family, and an Enumeration
+        /// subtypes a non-OptionSet Enumeration. A cycle is worse than wrong —
+        /// resolving the inherited prefix or the terminal base would not
+        /// terminate — so it is caught before anything walks the graph.
+        /// </remarks>
+        private static void ValidateSubtypeGraph(
+            Dictionary<string, JsonElement> complete,
+            List<WotDiagnostic> diagnostics)
+        {
+            foreach (KeyValuePair<string, JsonElement> entry in complete)
+            {
+                string name = GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key;
+                var seen = new HashSet<string>(StringComparer.Ordinal) { entry.Key };
+                string current = entry.Key;
+                JsonElement definition = entry.Value;
+
+                while (TryGetLocalBase(definition, complete, out string? baseId, out JsonElement baseType))
+                {
+                    if (!seen.Add(baseId!))
+                    {
+                        diagnostics.Add(new WotDiagnostic(
+                            WotDiagnosticSeverity.Error,
+                            WotDiagnosticCode.DataTypeDefinitionInvalid,
+                            $"The DataType '{name}' is its own ancestor. §6.11.2 " +
+                            "requires the subtype graph to be acyclic, and a " +
+                            "cycle leaves the inherited fields undefinable.",
+                            new WotLocation(reference: name)));
+                        break;
+                    }
+                    ValidateSubtypeKinds(definition, baseType, name, diagnostics);
+                    current = baseId!;
+                    definition = baseType;
+                }
+                _ = current;
+            }
+        }
+
+        private static bool TryGetLocalBase(
+            JsonElement definition,
+            Dictionary<string, JsonElement> complete,
+            out string? baseId,
+            out JsonElement baseType)
+        {
+            baseId = null;
+            baseType = default;
+            if (!definition.TryGetProperty("uav:dataTypeSubtypeOf", out JsonElement declared) ||
+                declared.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+            baseId = GetElementString(declared, "@id");
+            return baseId is not null && complete.TryGetValue(baseId, out baseType);
+        }
+
+        private static void ValidateSubtypeKinds(
+            JsonElement definition,
+            JsonElement baseType,
+            string name,
+            List<WotDiagnostic> diagnostics)
+        {
+            string kind = GetElementString(definition, "@type") ?? "uav:StructureDefinition";
+            string baseKind = GetElementString(baseType, "@type") ?? "uav:StructureDefinition";
+            if (!string.Equals(kind, baseKind, StringComparison.Ordinal))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The {KindLabel(kind)} '{name}' subtypes the " +
+                    $"{KindLabel(baseKind)} " +
+                    $"'{GetElementString(baseType, "uav:dataTypeName")}'. §6.11.2 " +
+                    "keeps a DataType within its own kind.",
+                    new WotLocation(reference: name)));
+                return;
+            }
+            if (IsEnumerationKind(kind))
+            {
+                if (GetElementBool(baseType, "uav:isOptionSet"))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"'{name}' subtypes an OptionSet. §6.11.2 lets an " +
+                        "Enumeration subtype only a non-OptionSet Enumeration, " +
+                        "because an OptionSet's values are bit numbers.",
+                        new WotLocation(reference: name)));
+                }
+                return;
+            }
+            if (IsUnionStructure(definition) != IsUnionStructure(baseType))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"'{name}' and its base disagree on whether they are Unions. " +
+                    "§6.11.2 keeps a Structure or Union within its own family, " +
+                    "because the two encode a value differently.",
+                    new WotLocation(reference: name)));
+            }
+        }
+
+        private static string KindLabel(string kind)
+        {
+            return kind switch
+            {
+                "uav:EnumDefinition" => "enumeration",
+                "uav:SimpleDataType" => "SimpleDataType",
+                _ => "structure"
+            };
         }
 
         /// <summary>
