@@ -29763,7 +29763,7 @@ VicAFgJ+QZ5yKDHZJ50ECEZDErHjUKLCBpEeSbfi2JEux2jnWOjxQw==</ByteString></Value>
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><XmlElement xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><n0:Αγελάδα Βακκίνιο="石灰" Ασπρος="草莓" Ανανάς="葡萄" Κόκκινος="蛇柠檬" xmlns:n0="http://Πίθηκος" /></XmlElement></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Simulation_Interval" BrowseName="1:Scalar_Simulation_Interval" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Simulation" DataType="UInt16" AccessLevel="1">
+  <UAVariable NodeId="ns=1;s=Scalar_Simulation_Interval" BrowseName="1:Scalar_Simulation_Interval" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Simulation" DataType="UInt16" AccessLevel="3">
     <DisplayName Locale="en">Interval</DisplayName>
     <Description>Default Description</Description>
     <References>

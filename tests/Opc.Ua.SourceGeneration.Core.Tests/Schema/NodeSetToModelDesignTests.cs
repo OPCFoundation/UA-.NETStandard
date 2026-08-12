@@ -62,6 +62,70 @@ namespace Opc.Ua.Schema.Model.Tests
         private const string SameNamedArgumentsResource =
             "SameNamedMethodArguments.NodeSet2.xml";
         private const string DesignResource = "TestDataDesign.xml";
+        private const string ViewImportNodeSet = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                <NamespaceUris>
+                    <Uri>http://test.org/UA/ViewImport/</Uri>
+                </NamespaceUris>
+                <Models>
+                    <Model ModelUri="http://test.org/UA/ViewImport/"
+                        PublicationDate="2026-08-12T00:00:00Z"
+                        Version="1.0.0" />
+                </Models>
+                <Aliases>
+                    <Alias Alias="HasSubtype">i=45</Alias>
+                    <Alias Alias="HasTypeDefinition">i=40</Alias>
+                    <Alias Alias="Organizes">i=35</Alias>
+                </Aliases>
+                <UAReferenceType NodeId="i=33" BrowseName="HierarchicalReferences" IsAbstract="true">
+                    <DisplayName>HierarchicalReferences</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAReferenceType NodeId="i=35" BrowseName="Organizes">
+                    <DisplayName>Organizes</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAObjectType NodeId="i=58" BrowseName="BaseObjectType">
+                    <DisplayName>BaseObjectType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                    </References>
+                </UAObjectType>
+                <UAObject NodeId="ns=1;s=Views" BrowseName="1:Views">
+                    <DisplayName>Views</DisplayName>
+                    <References>
+                        <Reference ReferenceType="Organizes">ns=1;s=Views_Operations</Reference>
+                        <Reference ReferenceType="Organizes">ns=1;s=Views_Engineering</Reference>
+                        <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+                    </References>
+                </UAObject>
+                <UAView NodeId="ns=1;s=Views_Operations"
+                    BrowseName="1:Operations"
+                    ParentNodeId="ns=1;s=Views"
+                    ContainsNoLoops="true">
+                    <DisplayName>Operations</DisplayName>
+                    <References>
+                        <Reference ReferenceType="Organizes" IsForward="false">i=87</Reference>
+                    </References>
+                </UAView>
+                <UAView NodeId="ns=1;s=Views_Engineering"
+                    BrowseName="1:Engineering"
+                    ParentNodeId="ns=1;s=Views"
+                    ContainsNoLoops="true">
+                    <DisplayName>Engineering</DisplayName>
+                    <References>
+                        <Reference ReferenceType="Organizes" IsForward="false">i=87</Reference>
+                    </References>
+                </UAView>
+            </UANodeSet>
+            """;
 
         private VirtualFileSystem m_fileSystem;
 
@@ -288,6 +352,41 @@ namespace Opc.Ua.Schema.Model.Tests
                 Assert.That(
                     method.OutputArguments.Select(argument => argument.Name),
                     Is.EqualTo(expectedOutputNames));
+            });
+        }
+
+        /// <summary>
+        /// Verifies importing views as top-level nodes keeps their organizing folder references.
+        /// </summary>
+        [Test]
+        public void ImportPreservesFolderOrganizesReferencesToViews()
+        {
+            const string path = "memory://ViewImport.NodeSet2.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(ViewImportNodeSet));
+
+            var settings = new NodeSetReaderSettings();
+            NodeSetToModelDesign importer = new(
+                m_fileSystem,
+                path,
+                settings,
+                CreateTelemetry());
+
+            ModelDesign model = importer.Import("ViewImport", "ViewImport");
+            ObjectDesign viewsFolder = model.Items
+                .OfType<ObjectDesign>()
+                .Single(x => x.SymbolicName?.Name == "Views");
+            string[] expectedViews = ["Operations", "Engineering"];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(model.Items.OfType<ViewDesign>().Select(x => x.SymbolicName?.Name), Is.EquivalentTo(
+                    expectedViews));
+                Assert.That(viewsFolder.Children?.Items, Is.Null.Or.Empty);
+                Assert.That(viewsFolder.References, Has.Length.EqualTo(2));
+                Assert.That(viewsFolder.References.Select(x => x.ReferenceType.Name), Is.All.EqualTo("Organizes"));
+                Assert.That(viewsFolder.References.Select(x => x.IsInverse), Is.All.False);
+                Assert.That(viewsFolder.References.Select(x => x.TargetId.Name), Is.EquivalentTo(
+                    expectedViews));
             });
         }
 

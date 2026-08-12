@@ -1632,6 +1632,7 @@ public string? ArrayDimensions {
             }
             set {
                 this.userAccessLevelField = value;
+                this.userAccessLevelFieldSpecified = true;
             }
         }
         

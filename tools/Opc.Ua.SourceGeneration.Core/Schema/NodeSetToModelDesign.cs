@@ -1608,7 +1608,10 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    if (targetId.NamespaceIndex != nodeId.NamespaceIndex ||
+                    if ((ii.IsForward &&
+                            referenceTypeId == ReferenceTypeIds.Organizes &&
+                            target is ViewDesign) ||
+                        targetId.NamespaceIndex != nodeId.NamespaceIndex ||
                         IsTypeOf(referenceTypeId, ReferenceTypeIds.NonHierarchicalReferences))
                     {
                         references.Add(new Reference

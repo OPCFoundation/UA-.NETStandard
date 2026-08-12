@@ -60,7 +60,7 @@ namespace Quickstarts.ReferenceServer
         public ReferenceNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            bool useSamplingGroups)
+            bool useSamplingGroups = false)
             : base(
                   server,
                   configuration,
@@ -219,6 +219,8 @@ namespace Quickstarts.ReferenceServer
                 // dynamic nodes stays imperative here. The loop itself is wired
                 // through the fluent builder in Configure().
                 RegisterSimulationVariables();
+                InitializeDataAccessDiscreteNodes();
+                InitializeMissingStaticValues();
 
                 // Reset the random generator and generate boundary values so the
                 // fluent simulation loop (registered in Configure and started
@@ -271,6 +273,240 @@ namespace Quickstarts.ReferenceServer
                     m_dynamicNodes.Add(variable);
                 }
             }
+        }
+
+        private void InitializeDataAccessDiscreteNodes()
+        {
+            foreach ((string identifier, string trueState, string falseState) in s_twoStateDiscreteValues)
+            {
+                if (FindPredefinedNode<BaseVariableState>(new NodeId(identifier, NamespaceIndex)) is BaseVariableState node)
+                {
+                    node.Value = false;
+                    node.StatusCode = StatusCodes.Good;
+                    _ = node.SetChildValue(
+                        SystemContext,
+                        TrueStateBrowseName,
+                        Variant.From(LocalizedText.From(trueState)),
+                        false);
+                    _ = node.SetChildValue(
+                        SystemContext,
+                        FalseStateBrowseName,
+                        Variant.From(LocalizedText.From(falseState)),
+                        false);
+                }
+            }
+
+            foreach ((string identifier, string[] enumStrings) in s_multiStateDiscreteValues)
+            {
+                if (FindPredefinedNode<BaseVariableState>(new NodeId(identifier, NamespaceIndex)) is BaseVariableState node)
+                {
+                    node.OnWriteValue = OnWriteDiscrete;
+                    node.Value = (uint)0;
+                    node.StatusCode = StatusCodes.Good;
+                    _ = node.SetChildValue(
+                        SystemContext,
+                        EnumStringsBrowseName,
+                        Variant.From(CreateLocalizedTextArray(enumStrings).ToArrayOf()),
+                        false);
+                }
+            }
+
+            foreach ((string identifier, string[] enumNames) in s_multiStateValueDiscreteValues)
+            {
+                if (FindPredefinedNode<BaseVariableState>(new NodeId(identifier, NamespaceIndex)) is BaseVariableState node)
+                {
+                    node.OnWriteValue = OnWriteValueDiscrete;
+                    node.Value = CreateZeroValue(node.DataType);
+                    node.StatusCode = StatusCodes.Good;
+                    ArrayOf<EnumValueType> values = CreateEnumValues(enumNames).ToArrayOf();
+                    _ = node.SetChildValue(
+                        SystemContext,
+                        EnumValuesBrowseName,
+                        Variant.FromStructure(values, false),
+                        false);
+                    _ = node.SetChildValue(
+                        SystemContext,
+                        ValueAsTextBrowseName,
+                        Variant.From(values[0].DisplayName),
+                        false);
+                }
+            }
+        }
+
+        private void InitializeMissingStaticValues()
+        {
+            SetPredefinedVariableValue(
+                "Scalar_Static_Arrays_Integer",
+                Variant.From(CreateArray(10, i => (long)i).ToArrayOf()));
+            SetPredefinedVariableValue(
+                "Scalar_Static_Arrays_Number",
+                Variant.From(CreateArray(10, i => (double)i).ToArrayOf()));
+            SetPredefinedVariableValue(
+                "Scalar_Static_Arrays_UInteger",
+                Variant.From(CreateArray(10, i => (ulong)i).ToArrayOf()));
+            SetPredefinedVariableValue(
+                "Scalar_Static_Arrays2D_Integer",
+                Variant.From(CreateMatrix(2, 2, (r, c) => (long)((r * 2) + c))));
+            SetPredefinedVariableValue(
+                "Scalar_Static_Arrays2D_Number",
+                Variant.From(CreateMatrix(2, 2, (r, c) => (double)((r * 2) + c))));
+            SetPredefinedVariableValue(
+                "Scalar_Static_Arrays2D_UInteger",
+                Variant.From(CreateMatrix(2, 2, (r, c) => (ulong)((r * 2) + c))));
+            SetPredefinedVariableValue(
+                "Scalar_Static_ArrayDynamic_Integer",
+                Variant.From(CreateArray(10, i => (long)i).ToArrayOf()));
+            SetPredefinedVariableValue(
+                "Scalar_Static_ArrayDynamic_Number",
+                Variant.From(CreateArray(10, i => (double)i).ToArrayOf()));
+            SetPredefinedVariableValue(
+                "Scalar_Static_ArrayDynamic_UInteger",
+                Variant.From(CreateArray(10, i => (ulong)i).ToArrayOf()));
+            SetPredefinedVariableValue("DataAccess_ArrayItemType_YArray", Variant.From(s_doubleArray));
+            SetPredefinedVariableValue(
+                "DataAccess_ArrayItemType_XYArray",
+                Variant.FromStructure(new XVType[]
+                    {
+                        new() { X = 0.0, Value = 0.0f },
+                        new() { X = 1.0, Value = 1.0f },
+                        new() { X = 2.0, Value = 4.0f },
+                        new() { X = 3.0, Value = 9.0f },
+                        new() { X = 4.0, Value = 16.0f }
+                    }.ToMatrixOf(5)));
+            SetPredefinedVariableValue(
+                "DataAccess_ArrayItemType_Image",
+                Variant.From(MatrixOf<double>.CreateFromArray(new double[,]
+                {
+                    { 0.0, 1.0, 2.0 },
+                    { 3.0, 4.0, 5.0 }
+                })));
+            SetPredefinedVariableValue(
+                "DataAccess_ArrayItemType_Cube",
+                Variant.From(MatrixOf<double>.CreateFromArray(new double[,,]
+                {
+                    { { 0.0, 1.0 }, { 2.0, 3.0 } },
+                    { { 4.0, 5.0 }, { 6.0, 7.0 } }
+                })));
+            SetPredefinedVariableValue(
+                "DataAccess_ArrayItemType_NDimension",
+                Variant.From(MatrixOf<double>.CreateFromArray(new double[,]
+                {
+                    { 0.0, 1.0, 2.0 },
+                    { 3.0, 4.0, 5.0 }
+                })));
+        }
+
+        private void SetPredefinedVariableValue(string identifier, Variant value)
+        {
+            if (FindPredefinedNode<BaseVariableState>(new NodeId(identifier, NamespaceIndex)) is not BaseVariableState node)
+            {
+                return;
+            }
+
+            node.Value = value;
+            node.StatusCode = StatusCodes.Good;
+            node.Timestamp = DateTimeUtc.Now;
+            node.ClearChangeMasks(SystemContext, false);
+        }
+
+        private ServiceResult OnWriteInterval(ISystemContext context, NodeState node, ref Variant value)
+        {
+            try
+            {
+                if (!value.TryGetValue(out ushort interval) || interval == 0)
+                {
+                    return StatusCodes.BadOutOfRange;
+                }
+
+                Volatile.Write(ref m_simulationIntervalMilliseconds, interval);
+                return ServiceResult.Good;
+            }
+            catch (Exception e)
+            {
+                m_logger.ErrorWritingIntervalVariable(e);
+                return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Interval variable.");
+            }
+        }
+
+        private ServiceResult OnWriteDiscrete(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref Variant value,
+            ref StatusCode statusCode,
+            ref DateTimeUtc timestamp)
+        {
+            if (node is not BaseVariableState variable)
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+
+            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+                value,
+                variable.DataType,
+                variable.ValueRank,
+                context.NamespaceUris,
+                context.TypeTable);
+
+            if (typeInfo.IsUnknown)
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+
+            if (!indexRange.IsNull)
+            {
+                return StatusCodes.BadIndexRangeInvalid;
+            }
+
+            double number = value.GetDouble();
+            if (number >= GetLocalizedTextChildCount(node, context, EnumStringsBrowseName) || number < 0)
+            {
+                return StatusCodes.BadOutOfRange;
+            }
+
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnWriteValueDiscrete(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref Variant value,
+            ref StatusCode statusCode,
+            ref DateTimeUtc timestamp)
+        {
+            TypeInfo typeInfo = value.TypeInfo;
+            if (node is not BaseVariableState ||
+                typeInfo.IsUnknown ||
+                !TypeInfo.IsNumericType(typeInfo.BuiltInType))
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+
+            if (!indexRange.IsNull)
+            {
+                return StatusCodes.BadIndexRangeInvalid;
+            }
+
+            int number = (int)value.GetUInt32();
+            if (!TryGetEnumValueDisplayName(node, context, number, out LocalizedText displayName))
+            {
+                return StatusCodes.BadOutOfRange;
+            }
+
+            if (!node.SetChildValue(
+                context,
+                ValueAsTextBrowseName,
+                Variant.From(displayName),
+                true))
+            {
+                return StatusCodes.BadOutOfRange;
+            }
+
+            node.ClearChangeMasks(context, true);
+            return ServiceResult.Good;
         }
 
         private void ResetRandomGenerator(int seed, int boundaryValueFrequency = 0)
@@ -375,12 +611,22 @@ namespace Quickstarts.ReferenceServer
         /// semaphore only guards against concurrent address-space mutation
         /// (history archiving, node loading).
         /// </summary>
-        private async ValueTask RunSimulationStepAsync(CancellationToken cancellationToken)
+        private async ValueTask RunSimulationStepAsync(TimeSpan elapsed, CancellationToken cancellationToken)
         {
-            if (!m_simulationEnabled)
+            if (!Volatile.Read(ref m_simulationEnabled))
+            {
+                m_simulationElapsedTicks = 0;
+                return;
+            }
+
+            int intervalMilliseconds = Volatile.Read(ref m_simulationIntervalMilliseconds);
+            long intervalTicks = TimeSpan.FromMilliseconds(intervalMilliseconds).Ticks;
+            m_simulationElapsedTicks += elapsed.Ticks;
+            if (m_simulationElapsedTicks < intervalTicks)
             {
                 return;
             }
+            m_simulationElapsedTicks = 0;
 
             await m_semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -399,18 +645,112 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
+        private static Variant CreateZeroValue(NodeId dataType)
+        {
+            if (dataType == DataTypeIds.Byte)
+            {
+                return new Variant((byte)0);
+            }
+            if (dataType == DataTypeIds.Int16)
+            {
+                return new Variant((short)0);
+            }
+            if (dataType == DataTypeIds.Int32)
+            {
+                return new Variant(0);
+            }
+            if (dataType == DataTypeIds.Int64)
+            {
+                return new Variant((long)0);
+            }
+            if (dataType == DataTypeIds.SByte)
+            {
+                return new Variant((sbyte)0);
+            }
+            if (dataType == DataTypeIds.UInt16)
+            {
+                return new Variant((ushort)0);
+            }
+            if (dataType == DataTypeIds.UInt64)
+            {
+                return new Variant((ulong)0);
+            }
+
+            return new Variant((uint)0);
+        }
+
+        private static LocalizedText[] CreateLocalizedTextArray(string[] values)
+        {
+            var result = new LocalizedText[values.Length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                result[ii] = LocalizedText.From(values[ii]);
+            }
+            return result;
+        }
+
+        private static EnumValueType[] CreateEnumValues(string[] enumNames)
+        {
+            var values = new EnumValueType[enumNames.Length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                LocalizedText text = LocalizedText.From(enumNames[ii]);
+                values[ii] = new EnumValueType
+                {
+                    Value = ii,
+                    Description = text,
+                    DisplayName = text
+                };
+            }
+            return values;
+        }
+
+        private static int GetLocalizedTextChildCount(
+            NodeState node,
+            ISystemContext context,
+            string browseName)
+        {
+            return node.FindChild(context, new QualifiedName(browseName)) is BaseVariableState child
+                ? child.Value.TryGetValue(out ArrayOf<LocalizedText> values) ? values.Count : 0
+                : 0;
+        }
+
+        private static bool TryGetEnumValueDisplayName(
+            NodeState node,
+            ISystemContext context,
+            int index,
+            out LocalizedText displayName)
+        {
+            displayName = LocalizedText.Null;
+            if (index < 0 ||
+                node.FindChild(context, new QualifiedName(EnumValuesBrowseName)) is not BaseVariableState child)
+            {
+                return false;
+            }
+
+            if (!child.Value.TryGetValue(out ArrayOf<EnumValueType> values, null) ||
+                index >= values.Count)
+            {
+                return false;
+            }
+
+            displayName = values[index].DisplayName;
+            return true;
+        }
+
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private RandomSource m_randomSource = null!;
         private DataGenerator m_generator = null!;
         private bool m_simulationEnabled = true;
+        private int m_simulationIntervalMilliseconds = 1000;
+        private long m_simulationElapsedTicks;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
 
         /// <summary>
-        /// Fixed tick interval of the value simulation loop. Matches the
-        /// read-only <c>Scalar_Simulation_Interval</c> value baked into the
-        /// NodeSet2 model.
+        /// Tick resolution used to emulate the old reschedulable timer on top
+        /// of the fluent simulation loop.
         /// </summary>
-        private static readonly TimeSpan s_simulationInterval = TimeSpan.FromMilliseconds(1000);
+        private static readonly TimeSpan s_simulationTickInterval = TimeSpan.FromMilliseconds(100);
 
         /// <summary>
         /// Default random length used when generating single-dimension array values.
@@ -441,6 +781,12 @@ namespace Quickstarts.ReferenceServer
         /// from the discovered dynamic-node set.
         /// </summary>
         private const string SimulationEnabledNodeName = "Scalar_Simulation_Enabled";
+
+        private const string TrueStateBrowseName = "TrueState";
+        private const string FalseStateBrowseName = "FalseState";
+        private const string EnumStringsBrowseName = "EnumStrings";
+        private const string EnumValuesBrowseName = "EnumValues";
+        private const string ValueAsTextBrowseName = "ValueAsText";
 
         /// <summary>
         /// NodeId identifier of the historizing node whose historian intentionally
@@ -867,6 +1213,54 @@ namespace Quickstarts.ReferenceServer
             }
             return result.ToMatrixOf();
         }
+
+        private static readonly ArrayOf<double> s_doubleArray =
+        [
+            9.00001d,
+            9.0002d,
+            9.003d,
+            9.04d,
+            9.5d,
+            9.06d,
+            9.007d,
+            9.008d,
+            9.0009d
+        ];
+
+        private static readonly (string Identifier, string TrueState, string FalseState)[] s_twoStateDiscreteValues =
+        [
+            ("DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_001", "red", "blue"),
+            ("DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_002", "open", "close"),
+            ("DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_003", "up", "down"),
+            ("DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_004", "left", "right"),
+            ("DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_005", "circle", "cross")
+        ];
+
+        private static readonly (string Identifier, string[] EnumStrings)[] s_multiStateDiscreteValues =
+        [
+            ("DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_001", ["open", "closed", "jammed"]),
+            ("DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_002", ["red", "green", "blue", "cyan"]),
+            ("DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_003", ["lolo", "lo", "normal", "hi", "hihi"]),
+            ("DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_004", ["left", "right", "center"]),
+            ("DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_005", ["circle", "cross", "triangle"])
+        ];
+
+        private static readonly (string Identifier, string[] EnumNames)[] s_multiStateValueDiscreteValues =
+        [
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_001", ["open", "closed", "jammed"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_002", ["red", "green", "blue", "cyan"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_003", ["lolo", "lo", "normal", "hi", "hihi"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_004", ["left", "right", "center"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_005", ["circle", "cross", "triangle"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Byte", ["open", "closed", "jammed"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int16", ["red", "green", "blue", "cyan"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int32", ["lolo", "lo", "normal", "hi", "hihi"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int64", ["left", "right", "center"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_SByte", ["open", "closed", "jammed"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt16", ["red", "green", "blue", "cyan"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt32", ["lolo", "lo", "normal", "hi", "hihi"]),
+            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt64", ["left", "right", "center"])
+        ];
     }
     internal static partial class ReferenceNodeManagerLog
     {
@@ -874,6 +1268,11 @@ namespace Quickstarts.ReferenceServer
             EventId = QuickstartsServersEventIds.ReferenceNodeManager + 2, Level = LogLevel.Error,
             Message = "Error writing Enabled variable.")]
         public static partial void ErrorWritingEnabledVariable(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceNodeManager + 6, Level = LogLevel.Error,
+            Message = "Error writing Interval variable.")]
+        public static partial void ErrorWritingIntervalVariable(this ILogger logger, Exception exception);
     }
 
 }

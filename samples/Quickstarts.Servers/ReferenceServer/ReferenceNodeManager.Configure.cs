@@ -84,13 +84,7 @@ namespace Quickstarts.ReferenceServer
 
             // Value-write handler for the simulation Enabled control variable.
             // The node and its value are baked into the NodeSet2 model; only the
-            // write behaviour is wired here (Prio 2). The Interval control
-            // variable is read-only (its AccessLevel is baked without
-            // CurrentWrite), so it carries no write handler and the simulation
-            // loop below runs at a fixed interval. The fluent simulation loop
-            // keeps firing at its fixed interval; the OnTick handler simply
-            // skips its work while disabled, so toggling this flag is all that
-            // is required to pause/resume.
+            // write behaviour is wired here (Prio 2).
             builder.CTT.Scalar.Scalar_Simulation.Scalar_Simulation_Enabled
                 .OnWrite((ISystemContext context, NodeState node, ref Variant value) =>
                 {
@@ -105,6 +99,8 @@ namespace Quickstarts.ReferenceServer
                         return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Enabled variable.");
                     }
                 });
+            builder.CTT.Scalar.Scalar_Simulation.Scalar_Simulation_Interval
+                .OnWrite(OnWriteInterval);
 
             // The two event-trigger variables raise a simple event when written.
             builder.CTT.NodeIds.NodeIds_Events.NodeIds_Events_TriggerNode01
@@ -146,15 +142,15 @@ namespace Quickstarts.ReferenceServer
         /// NodeSet2 model, but the fluent surface has no per-variable
         /// random-value model), while the periodic loop that pushes fresh
         /// random values to them is expressed here via
-        /// <c>Simulation().OnTick(...)</c>. The loop fires at a fixed interval
-        /// matching the read-only <c>Scalar_Simulation_Interval</c> node; the
-        /// tick handler skips its work while the simulation is disabled.
+        /// <c>Simulation().OnTick(...)</c>. The loop fires at a short fixed
+        /// resolution and the tick handler applies the writable
+        /// <c>Scalar_Simulation_Interval</c> value.
         /// </summary>
         partial void Configure(INodeManagerBuilder builder)
         {
             builder
-                .Simulation(s_simulationInterval)
-                .OnTick((_, _, cancellationToken) => RunSimulationStepAsync(cancellationToken));
+                .Simulation(s_simulationTickInterval)
+                .OnTick((_, elapsed, cancellationToken) => RunSimulationStepAsync(elapsed, cancellationToken));
         }
     }
 }

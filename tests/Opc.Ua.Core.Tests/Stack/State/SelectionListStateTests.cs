@@ -34,7 +34,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
 {
     /// <summary>
     /// Tests for the handwritten SelectionListState write validation which
-    /// rejects values that are not contained in the node's Selections property.
+    /// rejects values that are not contained in the node's Selections property
+    /// when RestrictToList is true.
     /// </summary>
     [TestFixture]
     [Category("NodeState")]
@@ -46,6 +47,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         private static readonly string[] s_colors = ["Red", "Green", "Blue"];
         private static readonly Variant[] s_colorVariants =
             [Variant.From("Red"), Variant.From("Green"), Variant.From("Blue")];
+        private static readonly int[] s_numbers = [1, 2, 3];
 
         private SystemContext m_context;
 
@@ -109,14 +111,43 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         [Test]
-        public void WriteWithEmptyStringSelectionsAppliesNoRestriction()
+        public void WriteWithEmptyStringSelectionsAndRestrictToListReturnsBadOutOfRange()
         {
             SelectionListState node = CreateSelectionList(
                 Variant.From(ArrayOf<string>.Empty));
 
             ServiceResult result = WriteValue(node, "AnythingGoes");
 
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+        }
+
+        [Test]
+        public void WriteNonMemberWhenRestrictToListFalseSucceeds()
+        {
+            SelectionListState node = CreateSelectionList(
+                Variant.From(s_colors.ToArrayOf()),
+                addRestrictToList: true,
+                restrictToList: false);
+
+            ServiceResult result = WriteValue(node, "Purple");
+
             Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(node.WrappedValue.TryGetValue(out string written), Is.True);
+            Assert.That(written, Is.EqualTo("Purple"));
+        }
+
+        [Test]
+        public void WriteNonMemberWhenRestrictToListAbsentSucceeds()
+        {
+            SelectionListState node = CreateSelectionList(
+                Variant.From(s_colors.ToArrayOf()),
+                addRestrictToList: false);
+
+            ServiceResult result = WriteValue(node, "Purple");
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(node.WrappedValue.TryGetValue(out string written), Is.True);
+            Assert.That(written, Is.EqualTo("Purple"));
         }
 
         [Test]
@@ -146,6 +177,21 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         [Test]
+        public void WriteMemberOfInt32SelectionsSucceeds()
+        {
+            SelectionListState node = CreateSelectionList(
+                Variant.From(s_numbers.ToArrayOf()),
+                DataTypeIds.Int32,
+                Variant.From(1));
+
+            ServiceResult result = WriteValue(node, Variant.From(2));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(node.WrappedValue.TryGetValue(out int written), Is.True);
+            Assert.That(written, Is.EqualTo(2));
+        }
+
+        [Test]
         public void WriteNonMemberOfVariantSelectionsReturnsBadOutOfRange()
         {
             SelectionListState node = CreateSelectionList(
@@ -169,39 +215,77 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotWritable));
         }
 
-        private SelectionListState CreateSelectionList(Variant selectionsValue)
+        private SelectionListState CreateSelectionList(
+            Variant selectionsValue,
+            bool addRestrictToList = true,
+            bool restrictToList = true)
+        {
+            return CreateSelectionList(
+                selectionsValue,
+                DataTypeIds.String,
+                Variant.From("Red"),
+                addRestrictToList,
+                restrictToList);
+        }
+
+        private SelectionListState CreateSelectionList(
+            Variant selectionsValue,
+            NodeId dataType,
+            Variant initialValue,
+            bool addRestrictToList = true,
+            bool restrictToList = true)
         {
             var node = new SelectionListState(null)
             {
                 NodeId = new NodeId(1000),
                 BrowseName = new QualifiedName("Colors"),
-                DataType = DataTypeIds.String,
+                DataType = dataType,
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = AccessLevels.CurrentReadOrWrite,
                 UserAccessLevel = AccessLevels.CurrentReadOrWrite,
-                Value = Variant.From("Red")
+                Value = initialValue
             };
 
             var selections = new BaseDataVariableState(node)
             {
                 NodeId = new NodeId(1001),
                 BrowseName = new QualifiedName(BrowseNames.Selections),
-                DataType = DataTypeIds.String,
+                DataType = dataType,
                 ValueRank = ValueRanks.OneDimension,
                 Value = selectionsValue
             };
 
             node.AddChild(selections);
+
+            if (addRestrictToList)
+            {
+                var restrictToListNode = new BaseDataVariableState(node)
+                {
+                    NodeId = new NodeId(1002),
+                    BrowseName = new QualifiedName("RestrictToList"),
+                    DataType = DataTypeIds.Boolean,
+                    ValueRank = ValueRanks.Scalar,
+                    Value = Variant.From(restrictToList)
+                };
+
+                node.AddChild(restrictToListNode);
+            }
+
             return node;
         }
 
         private ServiceResult WriteValue(SelectionListState node, string value)
         {
+            return WriteValue(node, Variant.From(value));
+        }
+
+        private ServiceResult WriteValue(SelectionListState node, Variant value)
+        {
             return node.WriteAttribute(
                 m_context,
                 Attributes.Value,
                 NumericRange.Null,
-                new DataValue(Variant.From(value)));
+                new DataValue(value));
         }
     }
 }
