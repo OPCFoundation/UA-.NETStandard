@@ -694,6 +694,14 @@ shared `/tmp` directory:
 - macOS: `~/Library/Application Support/OPCFoundation/opcua-pcap`
 - Windows: `%LOCALAPPDATA%\OPCFoundation\opcua-pcap`
 
+If the process has no user-profile directory (for example, a
+distroless container without `HOME` or `XDG_DATA_HOME`), the default
+falls back to a process-stable, randomly named directory beneath the
+system temporary directory. The directory is created atomically, and
+the random name prevents another user on a shared host from pre-creating
+it. Configured and default base folders are normalized to absolute
+paths before session folders are created.
+
 The base folder is created with mode `0700` on Unix and inherits the
 user profile ACL on Windows. Override via `PcapOptions.BaseFolder`.
 
@@ -973,6 +981,13 @@ accepted by a hosted OPC UA server. It uses the same frame sink plus
 **Replay (`replay`)** reads an existing pcap or pcapng plus
 `.uakeys.json` or `.uakeys.txt`. Use it for offline decode, summaries,
 and mock-client or mock-server replay.
+
+Capture requests accept these canonical wire names and also the CLR
+member names (`Nic`, `InProcessClient`, `InProcessServer`, `Replay`) for
+compatibility. Capture metadata is serialized with the canonical
+hyphenated names. Output formats follow the same rule:
+`pcap | pcapng | json | csv | text | service-timeline`, with CLR names
+such as `PcapNg` and `ServiceTimeline` also accepted.
 
 ### Enabling pcap capture without dependency injection
 
@@ -1369,7 +1384,13 @@ your CI pipeline; the project does this as part of its release gate.
 ### Troubleshooting
 
 - `list_interfaces` returns empty: install libpcap or Npcap and
-  ensure the process has permission to enumerate adapters.
+  ensure the process has permission to enumerate adapters. The
+  `linkType` field is normally `null` because enumeration does not open
+  adapters.
+- NIC `start_capture` returns permission denied: grant packet-capture
+  privileges (for example `CAP_NET_RAW` on Linux) or run the process
+  elevated. The error is returned by `start_capture`; it is not reported
+  later as an empty successful capture.
 - `decode_pcap_with_keys` returns 0 service calls: verify the pcap
   and keylog are from the same capture and include the same channel
   and token ids.

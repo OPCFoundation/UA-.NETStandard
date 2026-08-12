@@ -102,6 +102,10 @@ namespace Opc.Ua.Mcp
             {
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Full:
+                    mcpServerBuilder.WithRequestFilters(filters =>
+                    {
+                        filters.AddCallToolFilter(PubSubPcapMcpFilters.SurfaceDiagnosticsErrors);
+                    });
                     mcpServerBuilder.WithTools<PubSubCaptureTools>();
 
                     if (diagnosticsToolsEnabled)

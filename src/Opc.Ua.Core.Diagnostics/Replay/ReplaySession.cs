@@ -51,6 +51,51 @@ namespace Opc.Ua.Pcap.Replay
     }
 
     /// <summary>
+    /// Convenience helpers for <see cref="ReplayMode"/>.
+    /// </summary>
+    public static class ReplayModeExtensions
+    {
+        /// <summary>
+        /// Attempts to parse a replay-mode name (case-insensitive).
+        /// </summary>
+        public static bool TryParse(this string? value, out ReplayMode mode)
+        {
+            switch (value?.Trim().ToLowerInvariant())
+            {
+                case "mock-server":
+                case "mockserver":
+                    mode = ReplayMode.MockServer;
+                    return true;
+                case "mock-client":
+                case "mockclient":
+                    mode = ReplayMode.MockClient;
+                    return true;
+                default:
+                    mode = ReplayMode.MockServer;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns the canonical wire name for a replay mode.
+        /// </summary>
+        public static string ToWireName(this ReplayMode mode)
+        {
+            return mode switch
+            {
+                ReplayMode.MockServer => "mock-server",
+                ReplayMode.MockClient => "mock-client",
+                _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown replay mode.")
+            };
+        }
+
+        /// <summary>
+        /// The canonical replay-mode names used on the wire.
+        /// </summary>
+        public const string SupportedNames = "mock-server or mock-client";
+    }
+
+    /// <summary>
     /// Unified replay session wrapper for mock-server and mock-client replay.
     /// </summary>
     public sealed class ReplaySession : IAsyncDisposable

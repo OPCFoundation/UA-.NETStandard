@@ -112,6 +112,11 @@ namespace Opc.Ua.Mcp
             {
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Full:
+                    mcpServerBuilder.WithRequestFilters(filters =>
+                    {
+                        filters.AddCallToolFilter(PcapMcpFilters.SurfaceDiagnosticsErrors);
+                        filters.AddListToolsFilter(PcapMcpFilters.AddCanonicalEnumSchemas);
+                    });
                     mcpServerBuilder.WithTools<PacketCaptureTools>();
 
                     if (diagnosticsToolsEnabled)

@@ -27,46 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
+using NUnit.Framework;
+using Opc.Ua.Pcap.Capture.Sources;
 
-namespace Opc.Ua.Pcap.Models
+namespace Opc.Ua.Pcap.Tests.Capture
 {
-    /// <summary>
-    /// Describes a local network interface returned by
-    /// <c>list_interfaces</c>.
-    /// </summary>
-    public sealed class NetworkInterfaceInfo
+    [TestFixture]
+    public sealed class NetworkInterfaceEnumeratorTests
     {
-        /// <summary>
-        /// Device name as understood by libpcap (e.g.
-        /// <c>\Device\NPF_{guid}</c>).
-        /// </summary>
-        public string Name { get; init; } = string.Empty;
+        [Test]
+        public void GetLinkTypeDoesNotReadClosedDevice()
+        {
+            bool accessed = false;
 
-        /// <summary>
-        /// Friendly name (e.g. <c>Ethernet</c>).
-        /// </summary>
-        public string? FriendlyName { get; init; }
+            string? linkType = NetworkInterfaceEnumerator.GetLinkType(
+                opened: false,
+                () =>
+                {
+                    accessed = true;
+                    return "Ethernet";
+                });
 
-        /// <summary>
-        /// Free-form description.
-        /// </summary>
-        public string? Description { get; init; }
-
-        /// <summary>
-        /// Bound IP addresses.
-        /// </summary>
-        public IReadOnlyList<string> Addresses { get; init; } = [];
-
-        /// <summary>
-        /// The link-layer type (e.g. <c>Ethernet</c>), or <c>null</c>
-        /// when the device is not open.
-        /// </summary>
-        public string? LinkType { get; init; }
-
-        /// <summary>
-        /// Whether this is the loopback interface.
-        /// </summary>
-        public bool IsLoopback { get; init; }
+            Assert.That(linkType, Is.Null);
+            Assert.That(accessed, Is.False);
+        }
     }
 }

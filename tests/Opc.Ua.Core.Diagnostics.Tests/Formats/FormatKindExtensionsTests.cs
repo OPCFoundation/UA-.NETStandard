@@ -85,5 +85,16 @@ namespace Opc.Ua.Pcap.Tests.Formats
             Assert.That(ok, Is.False);
             Assert.That(actual, Is.EqualTo(FormatKind.Pcap));
         }
+
+        [TestCase(FormatKind.Pcap, "pcap")]
+        [TestCase(FormatKind.PcapNg, "pcapng")]
+        [TestCase(FormatKind.Json, "json")]
+        [TestCase(FormatKind.Csv, "csv")]
+        [TestCase(FormatKind.Text, "text")]
+        [TestCase(FormatKind.ServiceTimeline, "service-timeline")]
+        public void ToWireNameReturnsCanonicalName(FormatKind kind, string expected)
+        {
+            Assert.That(kind.ToWireName(), Is.EqualTo(expected));
+        }
     }
 }

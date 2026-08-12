@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.ComponentModel;
+using System.Text.Json.Serialization;
+using Opc.Ua.Pcap.Serialization;
+
 namespace Opc.Ua.Pcap.Models
 {
     /// <summary>
@@ -37,6 +41,10 @@ namespace Opc.Ua.Pcap.Models
         /// <summary>
         /// The kind of source to create.
         /// </summary>
+        [Description(
+            "Capture source: nic | inproc-client | inproc-server | replay. " +
+            "CLR names such as InProcessClient are also accepted.")]
+        [JsonConverter(typeof(CaptureSourceKindJsonConverter))]
         public CaptureSourceKind Source { get; init; } = CaptureSourceKind.InProcessClient;
 
         /// <summary>

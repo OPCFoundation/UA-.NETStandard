@@ -289,6 +289,32 @@ namespace Opc.Ua.Pcap.Capture.Sources
             GC.SuppressFinalize(this);
         }
 
+        internal static string CreateOpenFailureMessage(
+            string interfaceName,
+            Exception exception,
+            string? additionalContext = null)
+        {
+            PcapError? error = exception is PcapException pcapException
+                ? pcapException.Error
+                : null;
+            return CreateOpenFailureMessage(interfaceName, error, additionalContext);
+        }
+
+        internal static string CreateOpenFailureMessage(
+            string interfaceName,
+            PcapError? error,
+            string? additionalContext = null)
+        {
+            string reason = error is PcapError.PermissionDenied or PcapError.PromiscuousPermissionDenied
+                ? "Permission denied. Grant packet-capture privileges (for example CAP_NET_RAW on Linux) " +
+                    "or run the process elevated."
+                : "Verify that libpcap / Npcap is installed and that the interface is available.";
+
+            return additionalContext is null
+                ? $"Unable to open interface '{interfaceName}'. {reason}"
+                : $"Unable to open interface '{interfaceName}'. {reason} {additionalContext}";
+        }
+
         private static LibPcapLiveDevice SelectDevice(string interfaceName)
         {
             LibPcapLiveDeviceList devices;
@@ -318,7 +344,8 @@ namespace Opc.Ua.Pcap.Capture.Sources
 
             return selected ??
                 throw new PcapDiagnosticsException(
-                    $"Interface '{interfaceName}' was not found. Use list_interfaces to discover available interfaces.");
+                    $"Interface '{interfaceName}' was not found. " +
+                    "Use list_interfaces to discover available interfaces.");
         }
 
         private void OpenDevice(LibPcapLiveDevice selected, bool promiscuous)
@@ -327,25 +354,35 @@ namespace Opc.Ua.Pcap.Capture.Sources
             {
                 selected.Open(promiscuous ? DeviceModes.Promiscuous : DeviceModes.None, read_timeout: 1000);
             }
-            catch (Exception ex) when (promiscuous)
+            catch (Exception firstException) when (promiscuous)
             {
-                m_logger.OpenInterfacePromiscuousModeFailed(ex, selected.Name);
+                m_logger.OpenInterfacePromiscuousModeFailed(firstException, selected.Name);
+                selected.Close();
                 try
                 {
                     selected.Open(DeviceModes.None, read_timeout: 1000);
                 }
-                catch (Exception retryEx)
+                catch (Exception retryException)
                 {
                     throw new PcapDiagnosticsException(
-                        $"Unable to open interface '{selected.Name}' — is libpcap / Npcap installed and permitted?",
-                        retryEx);
+                        CreateOpenFailureMessage(
+                            selected.Name,
+                            retryException,
+                            $"The promiscuous-mode attempt also failed: {firstException.Message}"),
+                        retryException);
                 }
-
             }
             catch (Exception ex)
             {
                 throw new PcapDiagnosticsException(
-                    $"Unable to open interface '{selected.Name}' — is libpcap / Npcap installed and permitted?", ex);
+                    CreateOpenFailureMessage(selected.Name, ex),
+                    ex);
+            }
+
+            if (!selected.Opened)
+            {
+                throw new PcapDiagnosticsException(
+                    $"SharpPcap did not open interface '{selected.Name}'.");
             }
         }
 
