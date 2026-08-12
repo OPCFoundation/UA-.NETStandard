@@ -831,36 +831,29 @@ The specification defines ten conformance units and four recommended profiles
 All four profiles - **WoT-Reader**, **WoT-Modeller**, **WoT-Converter** and
 **WoT-ArchivalConverter** - are therefore satisfied by the units above.
 
-### What the readable mapping cannot express
+### What the readable mapping does not yet carry
 
-Section 9.2 emits the exceptional `uav:nodes` projection only where converting the
-readable document back would not reproduce an equivalent NodeSet. One case in the
-sample pump is known and is a limit of the vocabulary rather than of the converter.
+Section 9.2 emits the exceptional `uav:nodes` projection where converting the readable
+document back would not reproduce an equivalent NodeSet. Two gaps in this
+implementation still trigger it, both ordinary work rather than limits of the
+vocabulary.
 
-An `AnalogUnitType` Variable carries an `EngineeringUnits` Property whose value is an
-`EUInformation`: a NamespaceUri, a numeric `UnitId`, a DisplayName and a Description.
-Section 6.4 gives the readable vocabulary a `unit` string, `uav:unitProperty`,
-`uav:scaleFactor` and `uav:decimalPlaces`. None of them carries the whole
-`EUInformation`, and the symbol alone does not determine the `UnitId` or the
-Description without a UNECE units table. The value therefore cannot be rebuilt, the
-round trip is not equivalent, and `uav:nodes` is emitted - correctly, and for exactly
-the reason Section 9.2 describes.
+A Variable's own Variable children - the `EURange` and `EngineeringUnits` Properties of
+an `AnalogUnitType` - sit one level deeper than the conversion descends, so they are
+not emitted. And a Variable's `Value` is carried only where it is a scalar the
+conversion special-cases; a structure is not carried at all.
 
-The neighbouring `EURange` Property does not have this problem: its `Low` and `High`
-are the WoT `minimum` and `maximum`, and the value is determined by those two numbers.
+Neither needs new vocabulary. A structure's value is self-describing: the
+`ExtensionObject` states the identifier of the type it holds, `EUInformation` and
+`Range` are types this stack already generates from the standard NodeSet, and the
+encoder stack in `Opc.Ua.Types/Encoders` maps such a value to named JSON fields and
+back. Nothing has to infer a unit's identifier from its symbol.
 
-Two conventions follow from this and are worth knowing when reading a generated
-document:
-
-* A `Value` is carried only where the forward direction can rebuild it exactly -
-  `Boolean`, `String` and a Locale-free `LocalizedText`. Carrying one it could not
-  reconstruct would turn a gap the completeness check reports into a value that is
-  quietly wrong, and a wrong value is worse than an absent one.
-* Completeness is tested with `NodeSetComparer.CompareEquivalent`, which reads each
-  side through its own `Aliases` table, because Section 9.2 asks for an equivalent
-  NodeSet and not an identically spelled one. `NodeSetComparer.Compare` keeps the
-  stricter text comparison for callers that need to know a document was reproduced as
-  written.
+One convention is worth knowing when reading a generated document: completeness is
+tested with `NodeSetComparer.CompareEquivalent`, which reads each side through its own
+`Aliases` table, because Section 9.2 asks for an equivalent NodeSet and not an
+identically spelled one. `NodeSetComparer.Compare` keeps the stricter text comparison
+for callers that need to know a document was reproduced as written.
 
 ### How this is checked
 
