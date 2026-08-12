@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System.Text;
+using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Aas.Server.Assets;
 
@@ -149,6 +151,106 @@ namespace Opc.Ua.Aas.Tests.Server
                 ref data);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
+
+        /// <summary>
+        /// Handles are sequential, so a Session can name another Session's
+        /// simply by counting up from its own. Nothing bound a handle to its
+        /// opener, so any Session could read another's buffer, seek in it, or
+        /// Close it and thereby publish it as the file's content.
+        /// </summary>
+        [Test]
+        public void AHandleIsNotUsableFromAnotherSession()
+        {
+            FileState file = CreateFile();
+            using var manager = new AasElementFileManager(
+                file, ByteString.From(Encoding.UTF8.GetBytes("secret")), "text/plain");
+            ISystemContext owner = CreateSessionContext("session-a");
+            ISystemContext other = CreateSessionContext("session-b");
+
+            uint handle = 0;
+            file.Open!.OnCall!(owner, file.Open, file.NodeId, AasElementFileManager.ReadMode, ref handle);
+
+            ByteString stolen = ByteString.Empty;
+            ServiceResult read = file.Read!.OnCall!(other, file.Read, file.NodeId, handle, 16, ref stolen);
+            ServiceResult closed = file.Close!.OnCall!(other, file.Close, file.NodeId, handle);
+            ByteString mine = ByteString.Empty;
+            ServiceResult ownerRead = file.Read.OnCall(owner, file.Read, file.NodeId, handle, 16, ref mine);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(read.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Assert.That(stolen.Length, Is.Zero);
+                Assert.That(closed.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Assert.That(ServiceResult.IsGood(ownerRead), Is.True,
+                    "The other Session's Close must not have closed the owner's handle.");
+                Assert.That(Encoding.UTF8.GetString(mine.Span.ToArray()), Is.EqualTo("secret"));
+            });
+        }
+
+        /// <summary>
+        /// The handle count was bounded but the bytes behind a write handle
+        /// were not, so a Session could grow server memory without limit by
+        /// writing and never closing.
+        /// </summary>
+        [Test]
+        public void AWriteBeyondTheConfiguredBoundIsRefused()
+        {
+            FileState file = CreateFile();
+            using var manager = new AasElementFileManager(
+                file, ByteString.Empty, "application/octet-stream", maxOpenHandles: 4, maxWriteBytes: 8);
+            ISystemContext context = CreateContext();
+
+            uint handle = 0;
+            file.Open!.OnCall!(context, file.Open, file.NodeId,
+                AasElementFileManager.WriteEraseMode, ref handle);
+            ServiceResult within = file.Write!.OnCall!(context, file.Write, file.NodeId, handle,
+                ByteString.From(new byte[8]));
+            ServiceResult beyond = file.Write.OnCall(context, file.Write, file.NodeId, handle,
+                ByteString.From(new byte[1]));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(within), Is.True);
+                Assert.That(beyond.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTooManyOperations));
+            });
+        }
+
+        /// <summary>
+        /// The handlers run without the node manager lock, because the async
+        /// call path - unlike the synchronous one - does not take it. Two
+        /// concurrent Calls on one File therefore reach the handle table at the
+        /// same time, which is undefined behaviour for a bare Dictionary.
+        /// </summary>
+        [Test]
+        public void ConcurrentOpenAndCloseKeepTheHandleTableConsistent()
+        {
+            FileState file = CreateFile();
+            using var manager = new AasElementFileManager(
+                file, ByteString.From(Encoding.UTF8.GetBytes("body")), "text/plain", maxOpenHandles: 512);
+
+            Assert.DoesNotThrow(() => Parallel.For(0, 200, _ =>
+            {
+                ISystemContext context = CreateContext();
+                uint handle = 0;
+                ServiceResult opened = file.Open!.OnCall!(
+                    context, file.Open, file.NodeId, AasElementFileManager.ReadMode, ref handle);
+                if (ServiceResult.IsGood(opened))
+                {
+                    ByteString data = ByteString.Empty;
+                    file.Read!.OnCall!(context, file.Read, file.NodeId, handle, 4, ref data);
+                    file.Close!.OnCall!(context, file.Close, file.NodeId, handle);
+                }
+            }));
+
+            Assert.That(file.OpenCount!.Value, Is.Zero);
+        }
+
+        private static ISystemContext CreateSessionContext(string sessionId)
+        {
+            var context = new Mock<ISessionSystemContext>();
+            context.Setup(c => c.SessionId).Returns(new NodeId(sessionId, 1));
+            return context.Object;
         }
 
         private static FileState CreateFile()

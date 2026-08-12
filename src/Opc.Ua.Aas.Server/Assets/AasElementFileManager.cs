@@ -51,11 +51,23 @@ namespace Opc.Ua.Aas.Server.Assets
         /// <summary>
         /// Initializes a file manager.
         /// </summary>
-        public AasElementFileManager(FileState file, ByteString content, string contentType, int maxOpenHandles = 16)
+        /// <param name="file">The FileType instance to serve.</param>
+        /// <param name="content">The initial content.</param>
+        /// <param name="contentType">The media type to publish.</param>
+        /// <param name="maxOpenHandles">The number of handles that may be open at once.</param>
+        /// <param name="maxWriteBytes">The largest content a single write handle may accumulate.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is <c>null</c>.</exception>
+        public AasElementFileManager(
+            FileState file,
+            ByteString content,
+            string contentType,
+            int maxOpenHandles = 16,
+            long maxWriteBytes = 16 * 1024 * 1024)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
             m_content = content;
             m_maxOpenHandles = maxOpenHandles;
+            m_maxWriteBytes = maxWriteBytes;
             if (m_file.Size is not null)
             {
                 m_file.Size.Value = (ulong)m_content.Length;
@@ -97,11 +109,14 @@ namespace Opc.Ua.Aas.Server.Assets
         /// <inheritdoc/>
         public void Dispose()
         {
-            foreach (Handle handle in m_handles.Values)
+            lock (m_lock)
             {
-                handle.Dispose();
+                foreach (Handle handle in m_handles.Values)
+                {
+                    handle.Dispose();
+                }
+                m_handles.Clear();
             }
-            m_handles.Clear();
         }
 
         private ServiceResult OnOpen(
@@ -115,29 +130,36 @@ namespace Opc.Ua.Aas.Server.Assets
             {
                 return StatusCodes.BadNotSupported;
             }
-            if (m_handles.Count >= m_maxOpenHandles)
-            {
-                return StatusCodes.BadTooManyOperations;
-            }
-            if (mode == WriteEraseMode && m_writingHandle != 0)
-            {
-                return StatusCodes.BadInvalidState;
-            }
 
-            fileHandle = ++m_nextHandle;
-            var handle = mode == WriteEraseMode
-                ? new Handle(new MemoryStream(), true)
-                : new Handle(new MemoryStream(m_content.Span.ToArray(), writable: false), false);
-            m_handles.Add(fileHandle, handle);
-            if (mode == WriteEraseMode)
+            lock (m_lock)
             {
-                m_writingHandle = fileHandle;
+                if (m_handles.Count >= m_maxOpenHandles)
+                {
+                    return StatusCodes.BadTooManyOperations;
+                }
+                if (mode == WriteEraseMode && m_writingHandle != 0)
+                {
+                    return StatusCodes.BadInvalidState;
+                }
+
+                fileHandle = ++m_nextHandle;
+                var handle = mode == WriteEraseMode
+                    ? new Handle(new MemoryStream(), true, SessionIdOf(context))
+                    : new Handle(
+                        new MemoryStream(m_content.Span.ToArray(), writable: false),
+                        false,
+                        SessionIdOf(context));
+                m_handles.Add(fileHandle, handle);
+                if (mode == WriteEraseMode)
+                {
+                    m_writingHandle = fileHandle;
+                }
+                if (m_file.OpenCount is not null)
+                {
+                    m_file.OpenCount.Value = (ushort)m_handles.Count;
+                }
+                return ServiceResult.Good;
             }
-            if (m_file.OpenCount is not null)
-            {
-                m_file.OpenCount.Value = (ushort)m_handles.Count;
-            }
-            return ServiceResult.Good;
         }
 
         private ServiceResult OnClose(
@@ -146,26 +168,29 @@ namespace Opc.Ua.Aas.Server.Assets
             NodeId objectId,
             uint fileHandle)
         {
-            if (!m_handles.TryGetValue(fileHandle, out Handle? handle))
+            lock (m_lock)
             {
-                return StatusCodes.BadInvalidArgument;
-            }
-            if (handle.Writing)
-            {
-                m_content = ByteString.From(((MemoryStream)handle.Stream).ToArray());
-                if (m_file.Size is not null)
+                if (!TryGetHandle(context, fileHandle, out Handle? handle))
                 {
-                    m_file.Size.Value = (ulong)m_content.Length;
+                    return StatusCodes.BadInvalidArgument;
                 }
-                m_writingHandle = 0;
+                if (handle.Writing)
+                {
+                    m_content = ByteString.From(((MemoryStream)handle.Stream).ToArray());
+                    if (m_file.Size is not null)
+                    {
+                        m_file.Size.Value = (ulong)m_content.Length;
+                    }
+                    m_writingHandle = 0;
+                }
+                handle.Dispose();
+                m_handles.Remove(fileHandle);
+                if (m_file.OpenCount is not null)
+                {
+                    m_file.OpenCount.Value = (ushort)m_handles.Count;
+                }
+                return ServiceResult.Good;
             }
-            handle.Dispose();
-            m_handles.Remove(fileHandle);
-            if (m_file.OpenCount is not null)
-            {
-                m_file.OpenCount.Value = (ushort)m_handles.Count;
-            }
-            return ServiceResult.Good;
         }
 
         private ServiceResult OnRead(
@@ -176,25 +201,28 @@ namespace Opc.Ua.Aas.Server.Assets
             int length,
             ref ByteString data)
         {
-            if (!m_handles.TryGetValue(fileHandle, out Handle? handle) || handle.Writing)
+            lock (m_lock)
             {
-                data = ByteString.Empty;
-                return StatusCodes.BadInvalidArgument;
-            }
-            int toRead = (int)Math.Min(length, handle.Stream.Length - handle.Stream.Position);
-            if (toRead <= 0)
-            {
-                data = ByteString.Empty;
+                if (!TryGetHandle(context, fileHandle, out Handle? handle) || handle.Writing)
+                {
+                    data = ByteString.Empty;
+                    return StatusCodes.BadInvalidArgument;
+                }
+                int toRead = (int)Math.Min(length, handle.Stream.Length - handle.Stream.Position);
+                if (toRead <= 0)
+                {
+                    data = ByteString.Empty;
+                    return ServiceResult.Good;
+                }
+                byte[] buffer = new byte[toRead];
+                int read = handle.Stream.Read(buffer, 0, buffer.Length);
+                if (read != buffer.Length)
+                {
+                    Array.Resize(ref buffer, read);
+                }
+                data = ByteString.From(buffer);
                 return ServiceResult.Good;
             }
-            byte[] buffer = new byte[toRead];
-            int read = handle.Stream.Read(buffer, 0, buffer.Length);
-            if (read != buffer.Length)
-            {
-                Array.Resize(ref buffer, read);
-            }
-            data = ByteString.From(buffer);
-            return ServiceResult.Good;
         }
 
         private ServiceResult OnWrite(
@@ -204,12 +232,24 @@ namespace Opc.Ua.Aas.Server.Assets
             uint fileHandle,
             ByteString data)
         {
-            if (!m_handles.TryGetValue(fileHandle, out Handle? handle) || !handle.Writing)
+            lock (m_lock)
             {
-                return StatusCodes.BadInvalidArgument;
+                if (!TryGetHandle(context, fileHandle, out Handle? handle) || !handle.Writing)
+                {
+                    return StatusCodes.BadInvalidArgument;
+                }
+
+                // The handle count is bounded but the bytes behind one were
+                // not, so a client could grow the buffer without limit by
+                // writing and never closing.
+                if (handle.Stream.Length + data.Length > m_maxWriteBytes)
+                {
+                    return StatusCodes.BadTooManyOperations;
+                }
+
+                handle.Stream.Write(data.Span.ToArray(), 0, data.Length);
+                return ServiceResult.Good;
             }
-            handle.Stream.Write(data.Span.ToArray(), 0, data.Length);
-            return ServiceResult.Good;
         }
 
         private ServiceResult OnGetPosition(
@@ -219,12 +259,15 @@ namespace Opc.Ua.Aas.Server.Assets
             uint fileHandle,
             ref ulong position)
         {
-            if (!m_handles.TryGetValue(fileHandle, out Handle? handle))
+            lock (m_lock)
             {
-                return StatusCodes.BadInvalidArgument;
+                if (!TryGetHandle(context, fileHandle, out Handle? handle))
+                {
+                    return StatusCodes.BadInvalidArgument;
+                }
+                position = (ulong)handle.Stream.Position;
+                return ServiceResult.Good;
             }
-            position = (ulong)handle.Stream.Position;
-            return ServiceResult.Good;
         }
 
         private ServiceResult OnSetPosition(
@@ -234,16 +277,56 @@ namespace Opc.Ua.Aas.Server.Assets
             uint fileHandle,
             ulong position)
         {
-            if (!m_handles.TryGetValue(fileHandle, out Handle? handle))
+            lock (m_lock)
             {
-                return StatusCodes.BadInvalidArgument;
+                if (!TryGetHandle(context, fileHandle, out Handle? handle))
+                {
+                    return StatusCodes.BadInvalidArgument;
+                }
+                handle.Stream.Position = (long)Math.Min(position, (ulong)handle.Stream.Length);
+                return ServiceResult.Good;
             }
-            handle.Stream.Position = (long)Math.Min(position, (ulong)handle.Stream.Length);
-            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Resolves a handle that belongs to the calling Session.
+        /// </summary>
+        /// <remarks>
+        /// Handles are sequential, so one Session can name another's simply by
+        /// counting. Without an owner check any Session could read another's
+        /// buffer, seek in it, or Close it and thereby publish it as the file's
+        /// content.
+        /// </remarks>
+        private bool TryGetHandle(ISystemContext context, uint fileHandle, out Handle handle)
+        {
+            if (!m_handles.TryGetValue(fileHandle, out Handle? located))
+            {
+                handle = null!;
+                return false;
+            }
+
+            NodeId expected = SessionIdOf(context);
+            if (!expected.IsNull && !located.SessionId.IsNull && located.SessionId != expected)
+            {
+                handle = null!;
+                return false;
+            }
+
+            handle = located;
+            return true;
+        }
+
+        private static NodeId SessionIdOf(ISystemContext context)
+        {
+            return context is ISessionSystemContext sessionContext
+                ? sessionContext.SessionId.GetValueOrDefault()
+                : NodeId.Null;
         }
 
         private readonly FileState m_file;
         private readonly int m_maxOpenHandles;
+        private readonly long m_maxWriteBytes;
+        private readonly System.Threading.Lock m_lock = new();
         private readonly Dictionary<uint, Handle> m_handles = [];
         private ByteString m_content;
         private uint m_nextHandle;
@@ -251,15 +334,18 @@ namespace Opc.Ua.Aas.Server.Assets
 
         private sealed class Handle : IDisposable
         {
-            public Handle(Stream stream, bool writing)
+            public Handle(Stream stream, bool writing, NodeId sessionId)
             {
                 Stream = stream;
                 Writing = writing;
+                SessionId = sessionId;
             }
 
             public Stream Stream { get; }
 
             public bool Writing { get; }
+
+            public NodeId SessionId { get; }
 
             public void Dispose()
             {
