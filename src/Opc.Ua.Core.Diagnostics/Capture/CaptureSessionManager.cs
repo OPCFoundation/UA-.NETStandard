@@ -232,8 +232,8 @@ namespace Opc.Ua.Pcap.Capture
         /// requested source cannot be created.
         /// </exception>
         /// <exception cref="ArgumentException">
-        /// <paramref name="request"/> specifies a session folder outside the
-        /// configured base folder.
+        /// <paramref name="request"/> specifies a session folder, capture file
+        /// or key log file outside the configured base folder.
         /// </exception>
         public async ValueTask<CaptureSession> StartAsync(
             StartCaptureRequest request,
@@ -263,8 +263,10 @@ namespace Opc.Ua.Pcap.Capture
                 InterfaceName = request.InterfaceName,
                 BpfFilter = request.BpfFilter,
                 Promiscuous = request.Promiscuous,
-                PcapFilePath = request.PcapFilePath,
-                KeyLogFilePath = request.KeyLogFilePath,
+                PcapFilePath = ValidateAndResolveArtifactPath(
+                    request.PcapFilePath, m_baseFolder, nameof(request.PcapFilePath)),
+                KeyLogFilePath = ValidateAndResolveArtifactPath(
+                    request.KeyLogFilePath, m_baseFolder, nameof(request.KeyLogFilePath)),
                 MaxBytes = request.MaxBytes,
                 MaxFrames = request.MaxFrames,
                 MaxDurationSeconds = request.MaxDurationSeconds,
@@ -364,6 +366,58 @@ namespace Opc.Ua.Pcap.Capture
             }
 
             return fullFolder;
+        }
+
+        /// <summary>
+        /// Validates a caller supplied capture artifact path (the pcap file or
+        /// the key log file) and resolves it to a full path inside
+        /// <paramref name="baseFolder"/>.
+        /// </summary>
+        /// <remarks>
+        /// These paths reach <see cref="System.IO.FileMode.Create"/> on the
+        /// write side and <c>File.ReadAllBytesAsync</c> on the read side, so an
+        /// unvalidated value lets a caller read or overwrite any file the
+        /// process can touch. They are confined to the same base folder as the
+        /// session folder for that reason.
+        /// </remarks>
+        /// <param name="path"></param>
+        /// <param name="baseFolder"></param>
+        /// <param name="paramName"></param>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="path"/> resolves outside
+        /// <paramref name="baseFolder"/>.
+        /// </exception>
+        private static string? ValidateAndResolveArtifactPath(
+            string? path,
+            string baseFolder,
+            string paramName)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return path;
+            }
+
+            string fullBase = Path.GetFullPath(baseFolder);
+            string rootedPath = Path.IsPathRooted(path)
+                ? path
+                : Path.Combine(fullBase, path);
+            string fullPath = Path.GetFullPath(rootedPath);
+
+            if (!fullBase.EndsWith(Path.DirectorySeparatorChar))
+            {
+                fullBase += Path.DirectorySeparatorChar;
+            }
+
+            if (!fullPath.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    $"{paramName} '{path}' resolves to '{fullPath}' which is " +
+                    $"outside the configured BaseFolder '{baseFolder}'. Capture " +
+                    "artifacts must remain inside the base folder.",
+                    paramName);
+            }
+
+            return fullPath;
         }
 
         /// <summary>
