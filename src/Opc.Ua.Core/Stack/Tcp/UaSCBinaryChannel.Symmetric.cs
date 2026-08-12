@@ -303,8 +303,11 @@ namespace Opc.Ua.Bindings
                 }
 
                 output = new byte[length];
+                CryptoProviderOutput.Stamp(output);
                 m_keyDerivationProvider.DeriveKey(
                     policy.KeyDerivationAlgorithm, secret, seed, output);
+                CryptoProviderOutput.Verify(
+                    output, "key derivation", m_keyDerivationProvider);
             }
             else
             {
@@ -370,8 +373,11 @@ namespace Opc.Ua.Bindings
                 m_keyDerivationProvider.Supports(tokenPolicy.KeyDerivationAlgorithm))
             {
                 keyData = new byte[length];
+                CryptoProviderOutput.Stamp(keyData);
                 m_keyDerivationProvider.DeriveKey(
                     tokenPolicy.KeyDerivationAlgorithm, token.Secret!, salt, keyData);
+                CryptoProviderOutput.Verify(
+                    keyData, "key derivation", m_keyDerivationProvider);
             }
             else
             {

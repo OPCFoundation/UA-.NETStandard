@@ -256,6 +256,45 @@ certificate building. That package is **not** validated — the validated Bouncy
 separate, commercially licensed distribution — so **those target frameworks cannot make a FIPS claim at
 all**.
 
+### What `FipsOnly` actually enforces at startup
+
+`CryptoProviderAuditor.ThrowIfNotCompliant()` refuses to start when a provider bound to an operation
+would not perform it. Carrying the facet is necessary but not sufficient: `Supports(algorithm)` is
+consulted again at the point of use, and a provider that answers `false` there is bypassed in favour of
+the platform *for that algorithm alone*. So the audit checks the algorithms of every policy the
+application actually offers, and names what would fall through:
+
+```
+The compliance policy requires validated cryptography to perform every operation, but the
+provider resolved for these cannot perform them and the platform would be used instead:
+ChannelSymmetric (ChaCha20Poly1305) for ...#ECC_nistP256_ChaChaPoly, KeyDerivation (HkdfSha256) for ...
+```
+
+A module that covers AES-CBC but not ChaCha20-Poly1305 is therefore caught before it can run — where a
+facet-only check would have reported it fully compliant while the platform performed every message on
+any policy negotiating the algorithm it lacks. Nothing is reported when the platform provider is the one
+resolved: the platform performing the platform's work is not a shortfall.
+
+Narrow the offered policy set, or extend the module, rather than lowering the compliance policy.
+
+### Output a provider did not produce is refused
+
+`IKeyDerivationProvider.DeriveKey` and `ISecureRandomSource.GetBytes` return `void`, so a module that
+no-ops, fills part of the buffer, or swallows an internal failure is indistinguishable from one that
+succeeded — and the buffer it was handed becomes channel signing keys, encryption keys, initialization
+vectors and nonces. The platform paths these replace cannot fail this way: `Utils.PSHA` returns the array
+it built and `RandomNumberGenerator` throws.
+
+That matters most for exactly the deployments this seam exists for. A network- or hardware-served module
+can be transiently offline, and because both ends of a channel usually run the same image, both would
+derive the same dead key material and the handshake would complete — traffic flowing with no
+confidentiality and forgeable integrity, invisible to the operator and to the peer.
+
+So the buffer is stamped before the call and checked after it. Output left untouched or zeroed is
+rejected with `BadSecurityChecksFailed` rather than used. This cannot prove the output is good — no
+caller-side check can — it fails closed on output that is provably unusable. **Implementations must fill
+the whole span or throw.**
+
 ## Substituting the symmetric primitives
 
 The asymmetric operations are pluggable because `RSA` and `ECDsa` are already the right abstraction. The

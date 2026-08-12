@@ -366,7 +366,9 @@ namespace Opc.Ua
 
             if (source != null)
             {
+                CryptoProviderOutput.Stamp(randomBytes);
                 source.GetBytes(randomBytes);
+                CryptoProviderOutput.Verify(randomBytes, "nonce generation", source);
             }
             else
             {

@@ -752,6 +752,181 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
                 () => CryptoCompliance.GetUnservedOperationPurposes(null!));
         }
 
+        /// <summary>
+        /// Carrying the facet is not enough: <c>Supports</c> is consulted again at
+        /// the point of use, and a provider that answers <c>false</c> there is
+        /// bypassed in favour of the platform. A facet-only check called that
+        /// provider fully compliant while the platform did the work.
+        /// </summary>
+        [Test]
+        public void AProviderCarryingTheFacetButNotTheAlgorithmIsReportedUnserved()
+        {
+            var registry = new CryptoProviderRegistry();
+
+            // Carries ISymmetricCryptoProvider and IKeyDerivationProvider, but
+            // supports nothing, which is what a partially capable module looks like.
+            var refusing = new RefusingSymmetricProvider();
+
+            new CryptoProviderBuilder(registry)
+                .For(CryptoPurpose.ChannelSymmetric).Use(refusing)
+                .For(CryptoPurpose.KeyDerivation).Use(refusing);
+
+            Assert.Multiple(() =>
+            {
+                // The facet-only check sees nothing wrong.
+                var served = new List<CryptoPurpose>();
+                foreach (CryptoPurpose purpose in
+                    CryptoCompliance.GetUnservedOperationPurposes(registry))
+                {
+                    served.Add(purpose);
+                }
+
+                Assert.That(served, Does.Not.Contain(CryptoPurpose.ChannelSymmetric));
+
+                // The algorithm-aware check names what would fall through.
+                ArrayOf<UnservedCryptoOperation> unserved =
+                    CryptoCompliance.GetUnservedOperations(
+                        registry, SecurityPolicyRegistry.Default);
+
+                Assert.That(unserved, Is.Not.Empty);
+
+                var purposes = new List<CryptoPurpose>();
+                foreach (UnservedCryptoOperation operation in unserved)
+                {
+                    purposes.Add(operation.Purpose);
+                }
+
+                Assert.That(purposes, Does.Contain(CryptoPurpose.ChannelSymmetric));
+                Assert.That(purposes, Does.Contain(CryptoPurpose.KeyDerivation));
+            });
+        }
+
+        [Test]
+        public void GetUnservedOperationsRejectsNullArguments()
+        {
+            var registry = new CryptoProviderRegistry();
+
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ArgumentNullException>(
+                    () => CryptoCompliance.GetUnservedOperations(
+                        null!, SecurityPolicyRegistry.Default));
+                Assert.Throws<ArgumentNullException>(
+                    () => CryptoCompliance.GetUnservedOperations(registry, null!));
+            });
+        }
+
+        /// <summary>
+        /// Declares both facets and refuses every algorithm, which is legitimate
+        /// per the facet contract and is exactly the case a facet-only compliance
+        /// check cannot see.
+        /// </summary>
+        private sealed class RefusingSymmetricProvider
+            : ICryptoProvider, ISymmetricCryptoProvider, IKeyDerivationProvider
+        {
+            public string Name => "Refusing";
+
+            public CryptoValidationStatus Validation => CryptoValidationStatus.Platform;
+
+            public ArrayOf<CryptoCapability> Capabilities { get; } =
+                new ArrayOf<CryptoCapability>(new[]
+                {
+                    new CryptoCapability(CryptoPurpose.ChannelSymmetric),
+                    new CryptoCapability(CryptoPurpose.KeyDerivation)
+                });
+
+            public bool Supports(SymmetricEncryptionAlgorithm algorithm)
+            {
+                return false;
+            }
+
+            public bool Supports(SymmetricSignatureAlgorithm algorithm)
+            {
+                return false;
+            }
+
+            public bool Supports(KeyDerivationAlgorithm algorithm)
+            {
+                return false;
+            }
+
+            public void DeriveKey(
+                KeyDerivationAlgorithm algorithm,
+                ReadOnlySpan<byte> secret,
+                ReadOnlySpan<byte> seed,
+                Span<byte> output)
+            {
+                throw new NotSupportedException();
+            }
+
+            public void Encrypt(
+                SymmetricEncryptionAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> iv,
+                ReadOnlySpan<byte> plaintext,
+                Span<byte> ciphertext)
+            {
+                throw new NotSupportedException();
+            }
+
+            public void Decrypt(
+                SymmetricEncryptionAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> iv,
+                ReadOnlySpan<byte> ciphertext,
+                Span<byte> plaintext)
+            {
+                throw new NotSupportedException();
+            }
+
+            public void EncryptAuthenticated(
+                SymmetricEncryptionAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> nonce,
+                ReadOnlySpan<byte> plaintext,
+                Span<byte> ciphertext,
+                Span<byte> tag,
+                ReadOnlySpan<byte> associatedData)
+            {
+                throw new NotSupportedException();
+            }
+
+            public bool DecryptAuthenticated(
+                SymmetricEncryptionAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> nonce,
+                ReadOnlySpan<byte> ciphertext,
+                ReadOnlySpan<byte> tag,
+                Span<byte> plaintext,
+                ReadOnlySpan<byte> associatedData)
+            {
+                throw new NotSupportedException();
+            }
+
+            public int GetSignatureLength(SymmetricSignatureAlgorithm algorithm)
+            {
+                throw new NotSupportedException();
+            }
+
+            public void Sign(
+                SymmetricSignatureAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> data,
+                Span<byte> signature)
+            {
+                throw new NotSupportedException();
+            }
+
+            public bool Verify(
+                SymmetricSignatureAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> data,
+                ReadOnlySpan<byte> signature)
+            {
+                throw new NotSupportedException();
+            }
+        }
+
         private const int kHeaderSize = 24;
 
         /// <summary>

@@ -153,6 +153,123 @@ namespace Opc.Ua
             return new ArrayOf<CryptoPurpose>(unserved.ToArray());
         }
 
+        /// <summary>
+        /// The operations a registered provider would not actually perform for
+        /// the policies an application offers.
+        /// </summary>
+        /// <param name="registry">The registry to inspect.</param>
+        /// <param name="policies">The security policies the application offers.</param>
+        /// <returns>
+        /// One entry per operation that would fall through to the platform, in a
+        /// stable order. Empty when every provider can perform everything the
+        /// policies it was bound to require.
+        /// </returns>
+        /// <remarks>
+        /// Carrying the facet is necessary but not sufficient.
+        /// <see cref="ISymmetricCryptoProvider.Supports(SymmetricEncryptionAlgorithm)"/>
+        /// and its siblings are consulted again at the point of use, and a
+        /// provider that answers <c>false</c> is bypassed in favour of the
+        /// platform for that algorithm alone. A provider implementing the facet
+        /// but not the algorithm the negotiated policy needs would therefore pass
+        /// a facet-only check while the platform performed every message, which
+        /// is the silence this exists to break.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static ArrayOf<UnservedCryptoOperation> GetUnservedOperations(
+            ICryptoProviderRegistry registry,
+            ISecurityPolicyRegistry policies)
+        {
+            if (registry is null)
+            {
+                throw new ArgumentNullException(nameof(registry));
+            }
+
+            if (policies is null)
+            {
+                throw new ArgumentNullException(nameof(policies));
+            }
+
+            var unserved = new List<UnservedCryptoOperation>();
+
+            ICryptoProvider symmetricProvider = registry.Resolve(CryptoPurpose.ChannelSymmetric);
+            ICryptoProvider derivationProvider = registry.Resolve(CryptoPurpose.KeyDerivation);
+            ICryptoProvider randomProvider = registry.Resolve(
+                CryptoPurpose.RandomNumberGeneration);
+
+            // The platform performing the platform's work is not a shortfall.
+            // Only a provider that was put in front of the platform and then
+            // hands part of the work back to it is worth reporting.
+            var symmetric = IsPlatform(symmetricProvider)
+                ? null
+                : symmetricProvider as ISymmetricCryptoProvider;
+            var derivation = IsPlatform(derivationProvider)
+                ? null
+                : derivationProvider as IKeyDerivationProvider;
+
+            if (!IsPlatform(randomProvider) && randomProvider is not ISecureRandomSource)
+            {
+                unserved.Add(new UnservedCryptoOperation(
+                    CryptoPurpose.RandomNumberGeneration, null, "random number generation"));
+            }
+
+            if (symmetric == null && derivation == null)
+            {
+                return new ArrayOf<UnservedCryptoOperation>(unserved.ToArray());
+            }
+
+            foreach (SecurityPolicyInfo policy in policies.Policies)
+            {
+                // A policy that secures nothing needs none of these, and one the
+                // platform cannot offer is never negotiated.
+                if (policy.Uri == SecurityPolicies.None || !IsPlatformSupported(policy))
+                {
+                    continue;
+                }
+
+                if (!IsPlatform(symmetricProvider) &&
+                    (symmetric == null ||
+                        !symmetric.Supports(policy.SymmetricEncryptionAlgorithm)))
+                {
+                    unserved.Add(new UnservedCryptoOperation(
+                        CryptoPurpose.ChannelSymmetric,
+                        policy.Uri,
+                        policy.SymmetricEncryptionAlgorithm.ToString()));
+                }
+
+                if (!IsPlatform(symmetricProvider) &&
+                    (symmetric == null ||
+                        !symmetric.Supports(policy.SymmetricSignatureAlgorithm)))
+                {
+                    unserved.Add(new UnservedCryptoOperation(
+                        CryptoPurpose.ChannelSymmetric,
+                        policy.Uri,
+                        policy.SymmetricSignatureAlgorithm.ToString()));
+                }
+
+                if (!IsPlatform(derivationProvider) &&
+                    (derivation == null ||
+                        !derivation.Supports(policy.KeyDerivationAlgorithm)))
+                {
+                    unserved.Add(new UnservedCryptoOperation(
+                        CryptoPurpose.KeyDerivation,
+                        policy.Uri,
+                        policy.KeyDerivationAlgorithm.ToString()));
+                }
+            }
+
+            return new ArrayOf<UnservedCryptoOperation>(unserved.ToArray());
+        }
+
+        private static bool IsPlatform(ICryptoProvider provider)
+        {
+            return ReferenceEquals(provider, PlatformCryptoProvider.Instance);
+        }
+
+        private static bool IsPlatformSupported(SecurityPolicyInfo policy)
+        {
+            return policy.PlatformSupport?.Invoke() ?? true;
+        }
+
         private static void AddIfUnserved<TFacet>(
             ICryptoProviderRegistry registry,
             CryptoPurpose purpose,
@@ -165,6 +282,30 @@ namespace Opc.Ua
             {
                 unserved.Add(purpose);
             }
+        }
+    }
+
+    /// <summary>
+    /// An operation a registered provider would not perform, so that the
+    /// platform would perform it instead.
+    /// </summary>
+    /// <param name="Purpose">The purpose the provider was bound to.</param>
+    /// <param name="SecurityPolicyUri">
+    /// The security policy that needs the operation, or <see langword="null"/>
+    /// when the operation is not policy specific.
+    /// </param>
+    /// <param name="Algorithm">The algorithm the provider does not perform.</param>
+    public sealed record UnservedCryptoOperation(
+        CryptoPurpose Purpose,
+        string? SecurityPolicyUri,
+        string Algorithm)
+    {
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return SecurityPolicyUri == null
+                ? $"{Purpose.Name} ({Algorithm})"
+                : $"{Purpose.Name} ({Algorithm}) for {SecurityPolicyUri}";
         }
     }
 }
