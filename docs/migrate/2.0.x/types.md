@@ -348,6 +348,13 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - When comparing data type instances for reference equality, use `ReferenceEquals`, instead of `==` or `!=` operators. You can use the `RefEqualityComparer<T>` helper when creating Dictionaries that use the type as key and require reference equality semantics for it.
 - When testing for `null`, use `is null` for more performant code.
 
+### VirtualFileSystem
+
+`VirtualFileSystem` is now `sealed` and no longer exposes the protected
+`Dispose(bool)` overload. The type is an in-memory implementation of
+`IFileSystem`, not an extension point. Code that previously derived from it
+should implement `IFileSystem` directly or wrap a `VirtualFileSystem` instance.
+
 ### Obsoleted APIs and replacements
 
 - `NodeId(string text)` -> `NodeId.Parse(string)`
