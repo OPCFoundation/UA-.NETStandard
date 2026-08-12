@@ -31,17 +31,16 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.MemoryMappedFiles;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// Virtual file system
     /// </summary>
-    public class VirtualFileSystem : IFileSystem, IDisposable
+    public sealed class VirtualFileSystem : IFileSystem, IDisposable
     {
         /// <summary>
         /// Get created files in this file system
@@ -56,8 +55,8 @@ namespace Opc.Ua
         public IEnumerable<string> Files => m_files.Keys;
 
         /// <summary>
-        /// Virtual file system maintains produced files in memory mapped
-        /// files from which the production picks what is to be produced.
+        /// Virtual file system maintains produced files in memory from which
+        /// the production picks what is to be produced.
         /// </summary>
         public VirtualFileSystem()
         {
@@ -66,24 +65,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            Dispose(true);
+            m_files.Clear();
             GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// Called when disposing the virtual file system
-        /// </summary>
-        /// <param name="disposing"></param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                foreach (VirtualFile file in m_files.Values)
-                {
-                    file.Dispose();
-                }
-                m_files.Clear();
-            }
         }
 
         /// <summary>
@@ -125,29 +108,25 @@ namespace Opc.Ua
         public Stream OpenRead(string path)
         {
             // open a stream on the file - if it
-            // exists it is mapped from existing file
+            // exists it is loaded from the existing file
             // if it does not exist it must be in our
-            // map already because it was created
+            // virtual file table already because it was created
             return Open(path, true).GetStream(false);
         }
 
         /// <inheritdoc/>
         public Stream OpenWrite(string path)
         {
-            // Open a in memory stream for writing. If the file
-            // exists it is not used, but a new in memory file
-            // is added to the list from which we return a
-            // stream to write to.
+            // Open an in-memory stream for writing. Existing content remains
+            // available until it is overwritten, and the file is truncated
+            // to the stream's final position when the stream is disposed.
             return Open(path, false).GetStream(true);
         }
 
         /// <inheritdoc/>
         public void Delete(string path, bool isDirectory = false)
         {
-            if (m_files.TryRemove(path, out VirtualFile? file))
-            {
-                file.Dispose();
-            }
+            m_files.TryRemove(path, out _);
             // real file system is immutable
         }
 
@@ -175,16 +154,10 @@ namespace Opc.Ua
 
             // Re-keying the whole entry publishes the file in one step, so a reader sees
             // either the previous content or the new content and never a partial write.
-            VirtualFile? replaced = null;
             m_files.AddOrUpdate(
                 destinationPath,
                 staged,
-                (_, existing) =>
-                {
-                    replaced = existing;
-                    return staged;
-                });
-            replaced?.Dispose();
+                (_, _) => staged);
         }
 
         /// <inheritdoc/>
@@ -233,25 +206,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Memory mapped file wrapper
+        /// In-memory file wrapper
         /// </summary>
-        private sealed class VirtualFile : IDisposable
+        private sealed class VirtualFile
         {
-            /// <summary>
-            /// Address space reserved for a single in-memory file. This is a
-            /// reservation rather than an allocation - DelayAllocatePages
-            /// commits pages on demand - but the reservation still has to fit
-            /// in the process address space, and several files can be open at
-            /// once. It has to clear the largest single generated file: the
-            /// source generator writes whole model sources through this file
-            /// system and a large companion model already exceeds 32 MB, so
-            /// 64-bit processes reserve 256 MB. A 32-bit process has roughly
-            /// 2 GB of user address space in total, where a handful of 256 MB
-            /// reservations would exhaust it, so those reserve 64 MB.
-            /// </summary>
-            private static long MapReservationBytes
-                => IntPtr.Size == 4 ? 64L * 1024 * 1024 : 256L * 1024 * 1024;
-
             /// <summary>
             /// Path of the file
             /// </summary>
@@ -263,14 +221,18 @@ namespace Opc.Ua
             public bool MappedFromDisk { get; }
 
             /// <summary>
-            /// File
-            /// </summary>
-            public MemoryMappedFile File { get; }
-
-            /// <summary>
             /// Last write time
             /// </summary>
-            public DateTime LastWrite { get; set; }
+            public DateTime LastWrite
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_lastWrite;
+                    }
+                }
+            }
 
             /// <summary>
             /// Created time
@@ -280,7 +242,16 @@ namespace Opc.Ua
             /// <summary>
             /// Get current length
             /// </summary>
-            internal long Length { get; set; }
+            internal long Length
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_length;
+                    }
+                }
+            }
 
             /// <summary>
             /// Create a virtual file
@@ -294,46 +265,24 @@ namespace Opc.Ua
 
                 if (!createFromFile)
                 {
-                    Length = 0;
-                    Created = LastWrite = DateTime.UtcNow;
-
-                    File = MemoryMappedFile.CreateNew(
-                        GetMapName(),
-                        MapReservationBytes,
-                        MemoryMappedFileAccess.ReadWrite,
-                        MemoryMappedFileOptions.DelayAllocatePages,
-                        HandleInheritability.None);
+                    Created = m_lastWrite = DateTime.UtcNow;
                 }
                 else
                 {
                     var info = new FileInfo(filePath);
-                    Length = info.Length;
-                    Created = info.LastWriteTimeUtc;
-                    Created = info.CreationTimeUtc;
-#if MAP_FILE
-                    File = MemoryMappedFile.CreateFromFile(
-                        new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite),
-                        GetMapName(),
-                        Length,
-                        MemoryMappedFileAccess.ReadWrite,
-                        HandleInheritability.None,
-                        false);
-#else // Copy file - avoid sharing issues
-                    File = MemoryMappedFile.CreateNew(
-                        GetMapName(),
-                        Length,
-                        MemoryMappedFileAccess.ReadWrite,
-                        MemoryMappedFileOptions.DelayAllocatePages,
-                        HandleInheritability.None);
-                    SetContent(System.IO.File.ReadAllBytes(filePath));
-#endif
-                }
+                    if (!info.Exists)
+                    {
+                        throw new FileNotFoundException(
+                            $"File {filePath} does not exist",
+                            filePath);
+                    }
 
-                static string? GetMapName()
-                {
-                    return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
-                            Guid.NewGuid().ToString() :
-                            null;
+                    Created = info.CreationTimeUtc;
+                    SetContent(File.ReadAllBytes(filePath));
+                    lock (m_lock)
+                    {
+                        m_lastWrite = info.LastWriteTimeUtc;
+                    }
                 }
             }
 
@@ -344,30 +293,27 @@ namespace Opc.Ua
             /// <returns></returns>
             public Stream GetStream(bool forWriting)
             {
-                return new MemoryFileStream(
-                    this,
-                    File.CreateViewStream(
-                        0,
-                        forWriting ? 0 : (int)Length,
-                        forWriting ?
-                            MemoryMappedFileAccess.ReadWrite :
-                            MemoryMappedFileAccess.Read),
-                    forWriting);
+                return new MemoryFileStream(this, forWriting);
             }
 
             /// <summary>
             /// Get file content
             /// </summary>
             /// <returns></returns>
+            /// <exception cref="IOException">The file is too large to return as an array.</exception>
             public byte[] GetContent()
             {
-                byte[] bytes = new byte[Length];
-                using MemoryMappedViewAccessor accessor = File.CreateViewAccessor(
-                    0,
-                    Length,
-                    MemoryMappedFileAccess.Read);
-                int read = accessor.ReadArray(0, bytes, 0, (int)Length);
-                return bytes;
+                lock (m_lock)
+                {
+                    if (m_length > int.MaxValue)
+                    {
+                        throw new IOException("The virtual file is too large.");
+                    }
+
+                    byte[] content = new byte[(int)m_length];
+                    CopyToCore(0, content);
+                    return content;
+                }
             }
 
             /// <summary>
@@ -382,19 +328,119 @@ namespace Opc.Ua
                     throw new ArgumentNullException(nameof(content));
                 }
 
-                Length = content.LongLength;
-                using MemoryMappedViewAccessor accessor = File.CreateViewAccessor(
-                    0,
-                    content.Length,
-                    MemoryMappedFileAccess.ReadWrite);
-                accessor.WriteArray(0, content, 0, content.Length);
-                LastWrite = DateTime.UtcNow;
+                lock (m_lock)
+                {
+                    SetLengthCore(content.LongLength);
+                    CopyFromCore(0, content);
+                    m_lastWrite = DateTime.UtcNow;
+                }
             }
 
-            /// <inheritdoc/>
-            public void Dispose()
+            /// <summary>
+            /// Read bytes from the file
+            /// </summary>
+            /// <param name="position"></param>
+            /// <param name="destination"></param>
+            /// <returns></returns>
+            /// <exception cref="ArgumentOutOfRangeException"></exception>
+            public int Read(long position, Span<byte> destination)
             {
-                File.Dispose();
+                if (position < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(position));
+                }
+
+                lock (m_lock)
+                {
+                    if (position >= m_length || destination.IsEmpty)
+                    {
+                        return 0;
+                    }
+
+                    int count = checked((int)Math.Min(destination.Length, m_length - position));
+                    CopyToCore(position, destination[..count]);
+                    return count;
+                }
+            }
+
+            /// <summary>
+            /// Write bytes to the file
+            /// </summary>
+            /// <param name="position"></param>
+            /// <param name="source"></param>
+            /// <exception cref="ArgumentOutOfRangeException"></exception>
+            public void Write(long position, ReadOnlySpan<byte> source)
+            {
+                if (position < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(position));
+                }
+
+                long endPosition = checked(position + source.Length);
+                lock (m_lock)
+                {
+                    if (!source.IsEmpty)
+                    {
+                        EnsureCapacityCore(endPosition);
+                        CopyFromCore(position, source);
+                        if (endPosition > m_length)
+                        {
+                            m_length = endPosition;
+                        }
+                    }
+
+                    m_lastWrite = DateTime.UtcNow;
+                }
+            }
+
+            /// <summary>
+            /// Write a byte to the file
+            /// </summary>
+            /// <param name="position"></param>
+            /// <param name="value"></param>
+            /// <exception cref="ArgumentOutOfRangeException"></exception>
+            public void WriteByte(long position, byte value)
+            {
+                if (position < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(position));
+                }
+
+                long endPosition = checked(position + 1);
+                lock (m_lock)
+                {
+                    EnsureCapacityCore(endPosition);
+                    int chunkIndex = checked((int)(position >> kChunkSizeBits));
+                    int chunkOffset = (int)(position & kChunkOffsetMask);
+                    m_chunks[chunkIndex][chunkOffset] = value;
+                    if (endPosition > m_length)
+                    {
+                        m_length = endPosition;
+                    }
+
+                    m_lastWrite = DateTime.UtcNow;
+                }
+            }
+
+            /// <summary>
+            /// Set the file length
+            /// </summary>
+            /// <param name="value"></param>
+            /// <exception cref="ArgumentOutOfRangeException"></exception>
+            public void SetLength(long value)
+            {
+                if (value < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(value));
+                }
+
+                lock (m_lock)
+                {
+                    if (SetLengthCore(value))
+                    {
+                        m_lastWrite = DateTime.UtcNow;
+                    }
+                }
             }
 
             /// <summary>
@@ -412,83 +458,185 @@ namespace Opc.Ua
                 public override bool CanSeek => true;
 
                 /// <inheritdoc/>
-                public override long Length => m_file.Length;
+                public override long Length
+                {
+                    get
+                    {
+                        ThrowIfDisposed();
+                        return m_file.Length;
+                    }
+                }
 
                 /// <inheritdoc/>
-                public override long Position { get; set; }
+                public override long Position
+                {
+                    get
+                    {
+                        ThrowIfDisposed();
+                        return m_position;
+                    }
+                    set
+                    {
+                        ThrowIfDisposed();
+                        if (value < 0)
+                        {
+                            throw new ArgumentOutOfRangeException(nameof(value));
+                        }
+
+                        m_position = value;
+                    }
+                }
 
                 /// <summary>
                 /// Create a memory file for reading or writing
                 /// </summary>
-                public MemoryFileStream(VirtualFile file, Stream stream, bool write)
+                public MemoryFileStream(VirtualFile file, bool write)
                 {
                     CanRead = !write;
                     CanWrite = write;
                     m_file = file;
-                    m_stream = stream;
                 }
 
                 /// <inheritdoc/>
                 protected override void Dispose(bool disposing)
                 {
-                    if (disposing)
+                    if (disposing && !m_disposed)
                     {
-                        if (CanWrite)
+                        try
                         {
-                            m_file.Length = m_stream.Position;
+                            if (CanWrite)
+                            {
+                                m_file.SetLength(m_position);
+                            }
                         }
-                        m_stream?.Dispose();
+                        finally
+                        {
+                            m_disposed = true;
+                        }
                     }
+
                     base.Dispose(disposing);
                 }
 
                 /// <inheritdoc/>
                 public override void Flush()
                 {
-                    m_stream.Flush();
+                    ThrowIfDisposed();
+                }
+
+                /// <inheritdoc/>
+                public override Task FlushAsync(CancellationToken cancellationToken)
+                {
+                    ThrowIfDisposed();
+                    return cancellationToken.IsCancellationRequested ?
+                        Task.FromCanceled(cancellationToken) :
+                        Task.CompletedTask;
                 }
 
                 /// <inheritdoc/>
                 public override int Read(byte[] buffer, int offset, int count)
                 {
-                    if (!CanRead)
+                    EnsureCanRead();
+                    ValidateArrayArguments(buffer, offset, count);
+                    return ReadCore(buffer.AsSpan(offset, count));
+                }
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                /// <inheritdoc/>
+#pragma warning disable CA1725 // .NET Framework used a different parameter name
+                public override int Read(Span<byte> buffer)
+#pragma warning restore CA1725
+                {
+                    return ReadCore(buffer);
+                }
+#endif
+
+                /// <inheritdoc/>
+                public override int ReadByte()
+                {
+                    Span<byte> buffer = stackalloc byte[1];
+                    return ReadCore(buffer) == 0 ? -1 : buffer[0];
+                }
+
+                /// <inheritdoc/>
+                public override Task<int> ReadAsync(
+                    byte[] buffer,
+                    int offset,
+                    int count,
+                    CancellationToken cancellationToken)
+                {
+                    EnsureCanRead();
+                    ValidateArrayArguments(buffer, offset, count);
+                    if (cancellationToken.IsCancellationRequested)
                     {
-                        throw new InvalidOperationException("Cannot read");
+                        return Task.FromCanceled<int>(cancellationToken);
                     }
 
-                    if (m_file.Length >= Position)
-                    {
-                        long available = m_file.Length - Position;
-                        if (count > available)
-                        {
-                            count = checked((int)available);
-                            if (count == 0)
-                            {
-                                return 0;
-                            }
-                        }
-                    }
-                    int read = m_stream.Read(buffer, offset, count);
-                    Position += read;
-                    return read;
+                    return Task.FromResult(ReadCore(buffer.AsSpan(offset, count)));
                 }
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                /// <inheritdoc/>
+                public override ValueTask<int> ReadAsync(
+                    Memory<byte> buffer,
+                    CancellationToken cancellationToken = default)
+                {
+                    EnsureCanRead();
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        return new ValueTask<int>(
+                            Task.FromCanceled<int>(cancellationToken));
+                    }
+
+                    return new ValueTask<int>(ReadCore(buffer.Span));
+                }
+#endif
 
                 /// <inheritdoc/>
                 public override long Seek(long offset, SeekOrigin origin)
                 {
-                    long pos = m_stream.Seek(offset, origin);
-                    Position = pos;
-                    if (m_file.Length < pos)
+                    ThrowIfDisposed();
+                    long length = m_file.Length;
+                    long position;
+                    try
                     {
-                        m_file.Length = pos;
+                        position = origin switch
+                        {
+                            SeekOrigin.Begin => offset,
+                            SeekOrigin.Current => checked(m_position + offset),
+                            SeekOrigin.End => checked(length + offset),
+                            _ => throw new ArgumentException(
+                                "Invalid seek origin.",
+                                nameof(origin))
+                        };
                     }
-                    return pos;
+                    catch (OverflowException ex)
+                    {
+                        throw new IOException(
+                            "Attempted to seek outside the bounds of the stream.",
+                            ex);
+                    }
+
+                    if (position < 0)
+                    {
+                        throw new IOException(
+                            "Attempted to seek before the beginning of the stream.");
+                    }
+
+                    if (CanWrite && position > length)
+                    {
+                        m_file.SetLength(position);
+                    }
+
+                    m_position = position;
+                    return position;
                 }
 
                 /// <inheritdoc/>
                 public override void SetLength(long value)
                 {
-                    if (Length == value)
+                    ThrowIfDisposed();
+                    if (m_file.Length == value)
                     {
                         return;
                     }
@@ -499,34 +647,261 @@ namespace Opc.Ua
                             "Cannot set a length when opened in read mode");
                     }
 
-                    if (Position > value)
+                    if (value < 0)
                     {
-                        // if we are beyond the new length just move to the end.
-                        Position = value;
+                        throw new ArgumentOutOfRangeException(nameof(value));
                     }
 
-                    m_file.Length = value;
-                    m_file.LastWrite = DateTime.UtcNow;
+                    if (m_position > value)
+                    {
+                        // if we are beyond the new length just move to the end.
+                        m_position = value;
+                    }
+
+                    m_file.SetLength(value);
                 }
 
                 /// <inheritdoc/>
                 public override void Write(byte[] buffer, int offset, int count)
                 {
+                    EnsureCanWrite();
+                    ValidateArrayArguments(buffer, offset, count);
+                    WriteCore(buffer.AsSpan(offset, count));
+                }
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                /// <inheritdoc/>
+#pragma warning disable CA1725 // .NET Framework used a different parameter name
+                public override void Write(ReadOnlySpan<byte> buffer)
+#pragma warning restore CA1725
+                {
+                    WriteCore(buffer);
+                }
+#endif
+
+                /// <inheritdoc/>
+                public override void WriteByte(byte value)
+                {
+                    EnsureCanWrite();
+                    m_file.WriteByte(m_position, value);
+                    m_position = checked(m_position + 1);
+                }
+
+                /// <inheritdoc/>
+                public override Task WriteAsync(
+                    byte[] buffer,
+                    int offset,
+                    int count,
+                    CancellationToken cancellationToken)
+                {
+                    EnsureCanWrite();
+                    ValidateArrayArguments(buffer, offset, count);
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        return Task.FromCanceled(cancellationToken);
+                    }
+
+                    WriteCore(buffer.AsSpan(offset, count));
+                    return Task.CompletedTask;
+                }
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                /// <inheritdoc/>
+                public override ValueTask WriteAsync(
+                    ReadOnlyMemory<byte> buffer,
+                    CancellationToken cancellationToken = default)
+                {
+                    EnsureCanWrite();
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        return new ValueTask(Task.FromCanceled(cancellationToken));
+                    }
+
+                    WriteCore(buffer.Span);
+                    return default;
+                }
+#endif
+
+                private int ReadCore(Span<byte> buffer)
+                {
+                    EnsureCanRead();
+                    int read = m_file.Read(m_position, buffer);
+                    m_position += read;
+                    return read;
+                }
+
+                private void WriteCore(ReadOnlySpan<byte> buffer)
+                {
+                    EnsureCanWrite();
+                    m_file.Write(m_position, buffer);
+                    m_position = checked(m_position + buffer.Length);
+                }
+
+                private void EnsureCanRead()
+                {
+                    if (!CanRead)
+                    {
+                        throw new InvalidOperationException("Cannot read");
+                    }
+
+                    ThrowIfDisposed();
+                }
+
+                private void EnsureCanWrite()
+                {
                     if (!CanWrite)
                     {
                         throw new InvalidOperationException("Cannot write");
                     }
-                    m_stream.Write(buffer, offset, count);
-                    Position += count;
-                    m_file.LastWrite = DateTime.UtcNow;
+
+                    ThrowIfDisposed();
                 }
 
-                // m_file is not owned by this stream; it is owned by VirtualFileSystem
-#pragma warning disable CA2213
+                private void ThrowIfDisposed()
+                {
+                    if (m_disposed)
+                    {
+                        throw new ObjectDisposedException(nameof(MemoryFileStream));
+                    }
+                }
+
+                private static void ValidateArrayArguments(
+                    byte[] buffer,
+                    int offset,
+                    int count)
+                {
+                    if (buffer == null)
+                    {
+                        throw new ArgumentNullException(nameof(buffer));
+                    }
+
+                    if ((uint)offset > (uint)buffer.Length)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(offset));
+                    }
+
+                    if ((uint)count > (uint)(buffer.Length - offset))
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(count));
+                    }
+                }
+
                 private readonly VirtualFile m_file;
-#pragma warning restore CA2213
-                private readonly Stream m_stream;
+                private long m_position;
+                private bool m_disposed;
             }
+
+            private void CopyFromCore(long position, ReadOnlySpan<byte> source)
+            {
+                int copied = 0;
+                while (copied < source.Length)
+                {
+                    int chunkIndex = checked((int)(position >> kChunkSizeBits));
+                    int chunkOffset = (int)(position & kChunkOffsetMask);
+                    int count = Math.Min(source.Length - copied, kChunkSize - chunkOffset);
+                    source.Slice(copied, count).CopyTo(
+                        m_chunks[chunkIndex].AsSpan(chunkOffset, count));
+                    copied += count;
+                    position += count;
+                }
+            }
+
+            private void CopyToCore(long position, Span<byte> destination)
+            {
+                int copied = 0;
+                while (copied < destination.Length)
+                {
+                    int chunkIndex = checked((int)(position >> kChunkSizeBits));
+                    int chunkOffset = (int)(position & kChunkOffsetMask);
+                    int count = Math.Min(
+                        destination.Length - copied,
+                        kChunkSize - chunkOffset);
+                    m_chunks[chunkIndex].AsSpan(chunkOffset, count).CopyTo(
+                        destination.Slice(copied, count));
+                    copied += count;
+                    position += count;
+                }
+            }
+
+            private void EnsureCapacityCore(long length)
+            {
+                int requiredChunkCount = GetChunkCount(length);
+                int allocatedChunkCount = GetChunkCount(m_length);
+                if (requiredChunkCount > m_chunks.Length)
+                {
+                    int capacity = m_chunks.Length == 0 ? 4 : m_chunks.Length;
+                    while (capacity < requiredChunkCount)
+                    {
+                        capacity = capacity <= int.MaxValue / 2 ?
+                            capacity * 2 :
+                            requiredChunkCount;
+                    }
+
+                    Array.Resize(ref m_chunks, capacity);
+                }
+
+                for (int ii = allocatedChunkCount; ii < requiredChunkCount; ii++)
+                {
+                    m_chunks[ii] ??= new byte[kChunkSize];
+                }
+            }
+
+            private bool SetLengthCore(long value)
+            {
+                if (value == m_length)
+                {
+                    return false;
+                }
+
+                if (value > m_length)
+                {
+                    EnsureCapacityCore(value);
+                }
+                else
+                {
+                    int chunkCount = GetChunkCount(value);
+                    int chunkOffset = (int)(value & kChunkOffsetMask);
+                    if (chunkCount > 0 && chunkOffset != 0)
+                    {
+                        Array.Clear(
+                            m_chunks[chunkCount - 1],
+                            chunkOffset,
+                            kChunkSize - chunkOffset);
+                    }
+
+                    if (chunkCount < m_chunks.Length)
+                    {
+                        Array.Resize(ref m_chunks, chunkCount);
+                    }
+                }
+
+                m_length = value;
+                return true;
+            }
+
+            private static int GetChunkCount(long length)
+            {
+                if (length <= 0)
+                {
+                    return 0;
+                }
+
+                long chunkCount = ((length - 1) >> kChunkSizeBits) + 1;
+                if (chunkCount > int.MaxValue)
+                {
+                    throw new IOException("The virtual file is too large.");
+                }
+
+                return (int)chunkCount;
+            }
+
+            private const int kChunkSizeBits = 16;
+            private const int kChunkSize = 1 << kChunkSizeBits;
+            private const int kChunkOffsetMask = kChunkSize - 1;
+            private readonly Lock m_lock = new();
+            private byte[][] m_chunks = [];
+            private long m_length;
+            private DateTime m_lastWrite;
         }
 
         private readonly ConcurrentDictionary<string, VirtualFile> m_files
