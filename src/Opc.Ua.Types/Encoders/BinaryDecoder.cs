@@ -230,7 +230,14 @@ namespace Opc.Ua
                 return false;
             }
 
-            bytes = SafeReadBytes(m_bodyEnd - Position);
+            // A declared Length shorter than what the encodeable has already
+            // consumed leaves nothing behind it. Subtracting would hand a
+            // negative count to the reader, which answers with an exception no
+            // caller of ReadExtensionObject expects and which therefore escapes
+            // as something other than BadDecodingError. An empty run says the
+            // same thing and lets the caller reject it in its own terms.
+            int remaining = m_bodyEnd - Position;
+            bytes = remaining > 0 ? SafeReadBytes(remaining) : [];
             return true;
         }
 

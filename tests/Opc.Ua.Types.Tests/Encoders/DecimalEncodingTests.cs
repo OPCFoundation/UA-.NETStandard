@@ -146,13 +146,22 @@ namespace Opc.Ua.Types.Tests.Encoders
                 {
                     encoder.WriteByte(null, 0);
                 }
+
+                // A real message never ends at the body it is carrying, and
+                // without something after it a declared length below two runs
+                // the buffer out inside Scale instead - which throws for a
+                // different reason and would leave the rule under test
+                // unexercised.
+                encoder.WriteUInt32(null, 0);
                 buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             using var decoder = new BinaryDecoder(buffer, m_context);
 
             Assert.That(() => decoder.ReadExtensionObject("Value"),
-                Throws.TypeOf<ServiceResultException>());
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property("StatusCode").EqualTo((StatusCode)StatusCodes.BadDecodingError)
+                    .And.Message.Contains("unscaled value"));
         }
 
         [Test]
