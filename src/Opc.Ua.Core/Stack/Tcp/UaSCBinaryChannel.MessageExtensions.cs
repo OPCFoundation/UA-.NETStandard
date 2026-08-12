@@ -60,7 +60,7 @@ namespace Opc.Ua.Bindings
         /// under the current SecurityToken. Every MessageType the channel
         /// carries draws on the same space.
         /// </summary>
-        public SequenceNumberBudget SequenceBudget
+        internal SequenceNumberBudget SequenceBudget
         {
             get
             {
@@ -89,7 +89,7 @@ namespace Opc.Ua.Bindings
         /// <returns>The registered extension, which is <paramref name="extension"/>
         /// unless another was registered first.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="extension"/> is <c>null</c>.</exception>
-        public ISecureChannelMessageExtension RegisterMessageExtension(
+        internal ISecureChannelMessageExtension RegisterMessageExtension(
             ISecureChannelMessageExtension extension)
         {
             if (extension == null)
@@ -105,7 +105,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="messageType">The MessageType, without the chunk type.</param>
         /// <param name="extension">The extension.</param>
-        public bool TryGetMessageExtension(
+        internal bool TryGetMessageExtension(
             uint messageType,
             out ISecureChannelMessageExtension? extension)
         {

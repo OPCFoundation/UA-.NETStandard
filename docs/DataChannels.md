@@ -56,14 +56,25 @@ sequence-checks every chunk before the engine sees it. Core itself carries no da
 vocabulary — `ISecureChannelMessageExtension` and `ISecureChannelMessageHost` name only "a
 MessageType that is neither a Service call nor part of establishing the SecureChannel".
 
+Both are `internal`, reached through the `InternalsVisibleTo` that Core already grants its
+sibling first-party assemblies (`Opc.Ua.Client`, `Opc.Ua.Bindings.Quic`,
+`Opc.Ua.Bindings.Https`). The seam exists to keep the engine out of Core, not to invite
+other implementers — there is exactly one, and the `opc.quic` binding does not use any of
+it, because a QUIC data channel rides its own stream and never becomes a UASC chunk.
+Publishing it would commit Core to an abstraction with one implementer for ever.
+
 Two things stay in Core because they are the SecureChannel's own concerns rather than the
 feature's: `SequenceNumberBudget`, which tracks the sequence space every MessageType draws
 on, and `UaSCSecureChannelRegistry`, which maps a SecureChannel identifier to the channel
-that owns it. Because the budget is Core's, the channel claims the SequenceNumber itself
-while it secures the chunk and refuses the send with `Bad_SecureChannelTokenUnknown` when
-the space under the current token is exhausted — an extension stalls rather than reuse a
-number, and never has to reason about the serialization to do so. The `opc.quic` transport
-remains its own package, `OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`.
+that owns it. The budget is internal for the same reason as the seam; the registry is
+public because an application writing its own `IServerDataChannelTransport` for inline
+framing needs it to resolve the channel behind a request, which
+`samples/ConsoleDataChannelStreaming` demonstrates. Because the budget is Core's, the
+channel claims the SequenceNumber itself while it secures the chunk and refuses the send
+with `Bad_SecureChannelTokenUnknown` when the space under the current token is exhausted —
+an extension stalls rather than reuse a number, and never has to reason about the
+serialization to do so. The `opc.quic` transport remains its own package,
+`OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`.
 
 ## Server side
 

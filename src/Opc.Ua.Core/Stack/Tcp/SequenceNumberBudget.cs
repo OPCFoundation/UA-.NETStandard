@@ -64,7 +64,7 @@ namespace Opc.Ua.Bindings
     /// than emitting a chunk that would reuse a value.
     /// </para>
     /// </remarks>
-    public sealed class SequenceNumberBudget
+    internal sealed class SequenceNumberBudget
     {
         /// <summary>
         /// Creates a budget.

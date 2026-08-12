@@ -42,7 +42,7 @@ namespace Opc.Ua.Bindings
     /// This owns the STR MessageType on the channel and is the only thing that
     /// knows the frame format; the channel itself sees an opaque body.
     /// </remarks>
-    public sealed class DataChannelExtension : ISecureChannelMessageExtension, IDataChannelTransport
+    internal sealed class DataChannelExtension : ISecureChannelMessageExtension, IDataChannelTransport
     {
         /// <summary>
         /// Attaches data channels to a SecureChannel.

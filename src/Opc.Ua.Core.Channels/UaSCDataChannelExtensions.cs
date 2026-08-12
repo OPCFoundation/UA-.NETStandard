@@ -111,10 +111,16 @@ namespace Opc.Ua.Bindings
         /// Returns the extension that owns the STR MessageType on a
         /// SecureChannel, if one is registered.
         /// </summary>
+        /// <remarks>
+        /// The extension is an implementation detail of the inline framing:
+        /// a consumer reaches the channels through
+        /// <see cref="GetDataChannels"/>, which returns the engine rather
+        /// than the adapter that drives it.
+        /// </remarks>
         /// <param name="channel">The SecureChannel.</param>
         /// <param name="extension">The extension.</param>
         /// <exception cref="ArgumentNullException"><paramref name="channel"/> is <c>null</c>.</exception>
-        public static bool TryGetDataChannelExtension(
+        internal static bool TryGetDataChannelExtension(
             this UaSCUaBinaryChannel channel,
             out DataChannelExtension? extension)
         {

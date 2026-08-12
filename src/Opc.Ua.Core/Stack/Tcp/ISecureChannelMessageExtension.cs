@@ -43,7 +43,7 @@ namespace Opc.Ua.Bindings
     /// from the channel's single SequenceNumber space. This is the surface that
     /// makes that possible without publishing the channel's internals.
     /// </remarks>
-    public interface ISecureChannelMessageHost
+    internal interface ISecureChannelMessageHost
     {
         /// <summary>
         /// The largest chunk the peer accepts.
@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings
     /// faults, which is what OPC 10000-6 §6.7.2.2 requires of a receiver that
     /// does not implement it.
     /// </remarks>
-    public interface ISecureChannelMessageExtension
+    internal interface ISecureChannelMessageExtension
     {
         /// <summary>
         /// The MessageType this extension owns, without the chunk type.
