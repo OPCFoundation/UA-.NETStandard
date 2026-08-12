@@ -59,6 +59,7 @@ namespace Opc.Ua.Aas
             var nodeSet = new UANodeSet
             {
                 NamespaceUris = [Namespaces.Aas],
+                Aliases = s_aliases,
                 Models = [new ModelTableEntry { ModelUri = Namespaces.Aas }]
             };
 
@@ -603,8 +604,45 @@ namespace Opc.Ua.Aas
                         AddOperationRole(nodeId, path, "OutputVariables", operation.OutputVariables, AasOperationVariableRole.Output);
                         AddOperationRole(nodeId, path, "InoutputVariables", operation.InoutputVariables,
                             AasOperationVariableRole.Inoutput);
+                        AddInvokeMethod(nodeId);
                         break;
                 }
+            }
+
+            /// <summary>
+            /// Adds the Invoke Method of clause 6.2.5. AASOperationType
+            /// declares it Mandatory, and a NodeSet is imported as written
+            /// rather than instantiated from its type, so an Operation that
+            /// does not carry the Method cannot be called.
+            /// </summary>
+            private void AddInvokeMethod(string parentNodeId)
+            {
+                if (HasRejectedIdentifier)
+                {
+                    return;
+                }
+
+                string nodeId = MemberNodeId(parentNodeId, "Invoke");
+                if (!CheckNodeId(nodeId, "Invoke"))
+                {
+                    return;
+                }
+
+                var method = new UAMethod
+                {
+                    NodeId = nodeId,
+                    BrowseName = BrowseName("Invoke"),
+                    DisplayName = Text("Invoke"),
+                    ParentNodeId = parentNodeId,
+                    // The declaration carries the InputArguments and
+                    // OutputArguments a Client needs to build the Call.
+                    MethodDeclarationId = InvokeDeclarationId,
+                    Executable = true,
+                    UserExecutable = true,
+                    References = [Inverse("HasComponent", parentNodeId)]
+                };
+                Nodes.Add(method);
+                AddForward(parentNodeId, "HasComponent", nodeId, Nodes);
             }
 
             private void AddOperationRole(
@@ -1098,7 +1136,35 @@ namespace Opc.Ua.Aas
 #endif
         }
 
+        /// <summary>
+        /// The reference type aliases the emitted NodeSet uses. A NodeSet that
+        /// names a reference type by alias has to declare that alias, or a
+        /// loader cannot resolve it and rejects the whole document. The values
+        /// are the standard NodeIds OPC 10000-5 assigns to these reference
+        /// types, spelled literally so the model assembly stays independent of
+        /// the generated identifier classes.
+        /// </summary>
+        private static readonly NodeIdAlias[] s_aliases =
+        [
+            Alias("HasComponent", "i=47"),
+            Alias("HasOrderedComponent", "i=49"),
+            Alias("HasProperty", "i=46"),
+            Alias("HasTypeDefinition", "i=40"),
+            Alias("Organizes", "i=35")
+        ];
+
+        private static NodeIdAlias Alias(string alias, string nodeId)
+        {
+            return new NodeIdAlias { Alias = alias, Value = nodeId };
+        }
+
         private const ushort AasNamespaceIndex = 1;
         private const string EnvironmentNodeId = "ns=1;s=i4aas3:Environment";
+
+        /// <summary>
+        /// The NodeId of the Invoke Method AASOperationType declares, in the
+        /// AAS companion namespace.
+        /// </summary>
+        private const string InvokeDeclarationId = "ns=2;i=5103";
     }
 }

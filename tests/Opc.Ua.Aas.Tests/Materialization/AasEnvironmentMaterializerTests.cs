@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -42,6 +43,111 @@ namespace Opc.Ua.Aas.Tests.Materialization
     [Category("Aas")]
     public class AasEnvironmentMaterializerTests
     {
+        /// <summary>
+        /// A materialized NodeSet is only useful if a loader accepts it. The
+        /// other tests here inspect the object graph, which cannot see that a
+        /// reference type named by alias was never declared, so this one puts
+        /// the document through the same import a runtime NodeSet uses.
+        /// </summary>
+        [Test]
+        public void MaterializedNodeSetImportsIntoAnAddressSpace()
+        {
+            AasMaterializationResult result = AasEnvironmentMaterializer.Materialize(
+                Environment(Submodel(
+                    "importable",
+                    new AasProperty
+                    {
+                        IdShort = Present("property"),
+                        ValueType = AASDataTypeDefXsdDataType.String,
+                        Value = AasOptional<Variant>.Present(new Variant("value"))
+                    },
+                    new AasSubmodelElementList
+                    {
+                        IdShort = Present("ordered"),
+                        OrderRelevant = AasOptional<bool>.Present(true),
+                        TypeValueListElement = AASSubmodelElementsDataType.Property,
+                        Value = PresentElements(
+                        [
+                            new AasProperty
+                            {
+                                IdShort = Present("member"),
+                                ValueType = AASDataTypeDefXsdDataType.Int,
+                                Value = AasOptional<Variant>.Present(new Variant(1))
+                            }
+                        ])
+                    })));
+
+            var namespaces = new NamespaceTable();
+            namespaces.Append(Namespaces.Aas);
+            var context = new SystemContext(telemetry: null!) { NamespaceUris = namespaces };
+            var nodes = new NodeStateCollection();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Diagnostics, Is.Empty);
+                Assert.DoesNotThrow(() => result.NodeSet.Import(context, nodes),
+                    "The emitted NodeSet has to import, or the metamodel half cannot publish it.");
+                Assert.That(nodes, Is.Not.Empty);
+            });
+        }
+
+        /// <summary>
+        /// Every reference type the emitted NodeSet names by alias has to be
+        /// declared, and has to resolve to the standard NodeId of that
+        /// reference type.
+        /// </summary>
+        [Test]
+        public void EveryReferenceTypeUsedIsADeclaredAlias()
+        {
+            UANodeSet nodeSet = AasEnvironmentMaterializer.Materialize(
+                Environment(Submodel(
+                    "aliases",
+                    new AasSubmodelElementList
+                    {
+                        IdShort = Present("ordered"),
+                        OrderRelevant = AasOptional<bool>.Present(true),
+                        TypeValueListElement = AASSubmodelElementsDataType.Property,
+                        Value = PresentElements(
+                        [
+                            new AasProperty
+                            {
+                                IdShort = Present("member"),
+                                ValueType = AASDataTypeDefXsdDataType.String,
+                                Value = AasOptional<Variant>.Present(new Variant("v"))
+                            }
+                        ])
+                    }))).NodeSet;
+
+            Dictionary<string, string> declared = (nodeSet.Aliases ?? [])
+                .ToDictionary(alias => alias.Alias ?? string.Empty, alias => alias.Value ?? string.Empty, StringComparer.Ordinal);
+            List<string> used = [.. (nodeSet.Items ?? [])
+                .SelectMany(node => node.References ?? [])
+                .Select(reference => reference.ReferenceType)
+                .Where(name => name is not null && name.IndexOf('=', StringComparison.Ordinal) < 0)
+                .Select(name => name!)
+                .Distinct(StringComparer.Ordinal)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(used, Is.Not.Empty);
+                foreach (string name in used)
+                {
+                    Assert.That(declared.ContainsKey(name), Is.True,
+                        $"'{name}' is used as a reference type but never declared as an alias.");
+                }
+                Assert.That(declared["HasComponent"],
+                    Is.EqualTo(ReferenceTypeIds.HasComponent.ToString()));
+                Assert.That(declared["HasOrderedComponent"],
+                    Is.EqualTo(ReferenceTypeIds.HasOrderedComponent.ToString()));
+                Assert.That(declared["HasProperty"],
+                    Is.EqualTo(ReferenceTypeIds.HasProperty.ToString()));
+                Assert.That(declared["HasTypeDefinition"],
+                    Is.EqualTo(ReferenceTypeIds.HasTypeDefinition.ToString()));
+                Assert.That(declared["Organizes"],
+                    Is.EqualTo(ReferenceTypeIds.Organizes.ToString()));
+            });
+        }
+
         [Test]
         public void EverySubmodelElementTypeMaterializesWithItsAnnexBMembers()
         {
@@ -249,9 +355,47 @@ namespace Opc.Ua.Aas.Tests.Materialization
                 Assert.That(NodesWithBrowseName(nodeSet, "1:input"), Has.Length.EqualTo(1));
                 Assert.That(NodesWithBrowseName(nodeSet, "1:output"), Has.Length.EqualTo(1));
                 Assert.That(NodesWithBrowseName(nodeSet, "1:InoutputVariables"), Has.Length.EqualTo(1));
-                Assert.That(ForwardReferences(operationNode, "HasComponent"), Has.Length.EqualTo(2));
+
+                // The two variable-role Properties plus the Invoke Method that
+                // AASOperationType declares Mandatory.
+                Assert.That(ForwardReferences(operationNode, "HasComponent"), Has.Length.EqualTo(3));
                 Assert.That(roleXml, Does.Contain("inputVariables"));
                 Assert.That(roleXml, Does.Contain("outputVariables"));
+            });
+        }
+
+        /// <summary>
+        /// AASOperationType declares Invoke Mandatory, and a NodeSet is
+        /// imported as written rather than instantiated from its type, so a
+        /// materialized Operation only becomes callable if it carries the
+        /// Method itself and points at the declaration for its arguments.
+        /// </summary>
+        [Test]
+        public void MaterializedOperationCarriesTheInvokeMethodAndItsDeclaration()
+        {
+            var operation = new AasOperation
+            {
+                IdShort = Present("callable"),
+                InputVariables = PresentElements(
+                    new AasProperty { IdShort = Present("input"), ValueType = AASDataTypeDefXsdDataType.String })
+            };
+
+            UANodeSet nodeSet = AasEnvironmentMaterializer
+                .Materialize(Environment(Submodel("operationSubmodel", operation))).NodeSet;
+            UANode operationNode = SingleNode(nodeSet, "1:callable");
+            UAMethod[] invokes = [.. (nodeSet.Items ?? [])
+                .OfType<UAMethod>()
+                .Where(method => string.Equals(method.ParentNodeId, operationNode.NodeId, StringComparison.Ordinal))];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(invokes, Has.Length.EqualTo(1));
+                Assert.That(invokes[0].BrowseName, Is.EqualTo("1:Invoke"));
+                Assert.That(invokes[0].MethodDeclarationId, Is.EqualTo("ns=2;i=5103"));
+                Assert.That(invokes[0].Executable, Is.True);
+                Assert.That(ForwardReferences(operationNode, "HasComponent")
+                    .Select(reference => reference.Value),
+                    Does.Contain(invokes[0].NodeId));
             });
         }
 

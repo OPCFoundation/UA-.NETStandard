@@ -197,6 +197,15 @@ namespace Opc.Ua.Aas.Tests.Server
                 .Setup(b => b.Node(It.IsAny<NodeId>()))
                 .Returns((NodeId nodeId) => callbacks.CreateNodeBuilder(nodeId));
 
+            // The runtime rebases the authored namespace index onto the index
+            // the Server assigned, so the context has to answer with a table
+            // that places the AAS namespace where the test expects its nodes.
+            var namespaces = new NamespaceTable();
+            namespaces.GetIndexOrAppend(Namespaces.Aas);
+            builder
+                .Setup(b => b.Context)
+                .Returns(new SystemContext(telemetry: null!) { NamespaceUris = namespaces });
+
             Type runtimeType = typeof(AasServerOptions).Assembly.GetType(
                 "Opc.Ua.Aas.Server.Materialization.AasEnvironmentRuntime")!;
             object runtime = Activator.CreateInstance(

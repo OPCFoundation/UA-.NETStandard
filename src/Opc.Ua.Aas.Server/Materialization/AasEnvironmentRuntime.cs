@@ -57,21 +57,48 @@ namespace Opc.Ua.Aas.Server.Materialization
                 throw new ArgumentNullException(nameof(builder));
             }
 
+            // The materialized NodeSet declares the AAS namespace first, so its
+            // nodes are collected at index one. A Server assigns that namespace
+            // whatever index its own table gives it, so the collected ids are
+            // rebased before anything is bound; binding index one would look up
+            // nodes that do not exist.
+            ushort namespaceIndex = ResolveNamespaceIndex(builder.Context);
+
             foreach (KeyValuePair<NodeId, AasOperationDescriptor> kvp in m_operations)
             {
-                NodeId methodNodeId = MemberNodeId(kvp.Key, "Invoke");
+                NodeId methodNodeId = MemberNodeId(Rebase(kvp.Key, namespaceIndex), "Invoke");
+                AasOperationDescriptor descriptor = kvp.Value;
+                NodeId operationNodeId = kvp.Key;
                 builder.Node(methodNodeId).OnCall((context, method, objectId, inputArguments, outputArguments, ct) =>
-                    InvokeAsync(kvp.Key, kvp.Value, inputArguments, outputArguments, ct));
+                    InvokeAsync(operationNodeId, descriptor, inputArguments, outputArguments, ct));
             }
 
             foreach (NodeId valueNodeId in m_valueNodeIds)
             {
-                builder.Node(valueNodeId)
-                    .OnRead((context, node, range, encoding, ct) => ReadValueAsync(valueNodeId, ct))
-                    .OnWrite((context, node, range, value, ct) => WriteValueAsync(valueNodeId, value, ct));
+                NodeId boundNodeId = Rebase(valueNodeId, namespaceIndex);
+                NodeId lookupNodeId = valueNodeId;
+                builder.Node(boundNodeId)
+                    .OnRead((context, node, range, encoding, ct) => ReadValueAsync(lookupNodeId, ct))
+                    .OnWrite((context, node, range, value, ct) => WriteValueAsync(lookupNodeId, value, ct));
             }
 
             return new ValueTask<IAsyncDisposable?>((IAsyncDisposable?)this);
+        }
+
+        private static ushort ResolveNamespaceIndex(ISystemContext context)
+        {
+            int index = context?.NamespaceUris?.GetIndex(Namespaces.Aas) ?? -1;
+            return index < 0 ? AuthoredNamespaceIndex : (ushort)index;
+        }
+
+        private static NodeId Rebase(NodeId nodeId, ushort namespaceIndex)
+        {
+            if (nodeId.NamespaceIndex == namespaceIndex ||
+                !nodeId.TryGetValue(out string? identifier))
+            {
+                return nodeId;
+            }
+            return new NodeId(identifier, namespaceIndex);
         }
 
         public ValueTask DisposeAsync()
@@ -165,31 +192,39 @@ namespace Opc.Ua.Aas.Server.Materialization
                 string path = string.IsNullOrEmpty(parentPath)
                     ? element.IdShort.Value
                     : parentPath + "." + element.IdShort.Value;
-                string elementId = AasNodeIdEncoding.CreateElementId(ownerId, path);
-                NodeId nodeId = new(elementId, 1);
-                switch (element)
-                {
-                    case AasOperation operation:
-                        m_operations[nodeId] = new AasOperationDescriptor(
-                            Count(operation.InputVariables),
-                            Count(operation.OutputVariables),
-                            Count(operation.InoutputVariables));
-                        CollectOperationRole(ownerId, path, AasOperationVariableRole.Input, operation.InputVariables);
-                        CollectOperationRole(ownerId, path, AasOperationVariableRole.Output, operation.OutputVariables);
-                        CollectOperationRole(ownerId, path, AasOperationVariableRole.Inoutput, operation.InoutputVariables);
-                        break;
-                    case AasSubmodelElementCollection collection when collection.Value.IsPresent:
-                        CollectElements(ownerId, path, collection.Value.Value);
-                        break;
-                    case AasSubmodelElementList list when list.Value.IsPresent:
-                        CollectElements(ownerId, path, list.Value.Value);
-                        break;
-                }
+                CollectElementAtPath(ownerId, path, element);
+            }
+        }
 
-                if (element is AasProperty or AasMultiLanguageProperty or AasBlob or AasFile or AasReferenceElement)
-                {
-                    m_valueNodeIds.Add(MemberNodeId(nodeId, "Value"));
-                }
+        /// <summary>
+        /// Collects one element that has already been placed at its path.
+        /// </summary>
+        private void CollectElementAtPath(string ownerId, string path, AasSubmodelElement element)
+        {
+            string elementId = AasNodeIdEncoding.CreateElementId(ownerId, path);
+            NodeId nodeId = new(elementId, AuthoredNamespaceIndex);
+            switch (element)
+            {
+                case AasOperation operation:
+                    m_operations[nodeId] = new AasOperationDescriptor(
+                        Count(operation.InputVariables),
+                        Count(operation.OutputVariables),
+                        Count(operation.InoutputVariables));
+                    CollectOperationRole(ownerId, path, AasOperationVariableRole.Input, operation.InputVariables);
+                    CollectOperationRole(ownerId, path, AasOperationVariableRole.Output, operation.OutputVariables);
+                    CollectOperationRole(ownerId, path, AasOperationVariableRole.Inoutput, operation.InoutputVariables);
+                    break;
+                case AasSubmodelElementCollection collection when collection.Value.IsPresent:
+                    CollectElements(ownerId, path, collection.Value.Value);
+                    break;
+                case AasSubmodelElementList list when list.Value.IsPresent:
+                    CollectElements(ownerId, path, list.Value.Value);
+                    break;
+            }
+
+            if (element is AasProperty or AasMultiLanguageProperty or AasBlob or AasFile or AasReferenceElement)
+            {
+                m_valueNodeIds.Add(MemberNodeId(nodeId, "Value"));
             }
         }
 
@@ -206,8 +241,13 @@ namespace Opc.Ua.Aas.Server.Materialization
 
             for (int i = 0; i < variables.Value.Count; i++)
             {
-                CollectElements(ownerId, AasIdShortPath.AppendOperationVariable(path, role, i),
-                    new ArrayOf<AasSubmodelElement>(new[] { variables.Value[i] }));
+                // The materializer places an operation variable at the role
+                // path itself and gives the node the element's idShort only as
+                // its BrowseName, so the idShort is not part of the path.
+                CollectElementAtPath(
+                    ownerId,
+                    AasIdShortPath.AppendOperationVariable(path, role, i),
+                    variables.Value[i]);
             }
         }
 
@@ -251,6 +291,12 @@ namespace Opc.Ua.Aas.Server.Materialization
             object? value = inputArguments[index].AsBoxedObject(Variant.BoxingBehavior.Legacy);
             return value is double duration ? duration : 0;
         }
+
+        /// <summary>
+        /// The namespace index the materialized NodeSet authors its nodes at,
+        /// which is one because the AAS namespace is declared first.
+        /// </summary>
+        private const ushort AuthoredNamespaceIndex = 1;
 
         private readonly AasEnvironment m_environment;
         private readonly IAasValueProvider m_valueProvider;
