@@ -180,7 +180,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
 
             WotConversionResult<UANodeSet> merged = WotNodeSetConverter
-                .ToNodeSetAsync(documents, options).AsTask().GetAwaiter().GetResult();
+                .ToNodeSetAsync(documents, options, CompanionContext(options))
+                .AsTask().GetAwaiter().GetResult();
             foreach (WotDiagnostic diagnostic in merged.Diagnostics)
             {
                 report.AppendLine(Invariant($"   merge {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}"));
@@ -282,6 +283,29 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 }
             }
             return string.Empty;
+        }
+
+        /// <summary>
+        /// The local context of §5.1.5 for this pump: the companion Thing Models
+        /// that define the types its Nodes are instances of.
+        /// </summary>
+        private static WotDocumentNodeResolver CompanionContext(
+            WotNodeSetConverterOptions options)
+        {
+            string documents = Path.Combine(
+                TestContext.CurrentContext.TestDirectory,
+                "..", "..", "..", "..", "..",
+                "samples", "WotCon", "AggregationClient", "Documents");
+            var loaded = new List<WotDocument>();
+            foreach (string name in new[]
+            {
+                "Opc.Ua.Di.tm.json", "Opc.Ua.Machinery.tm.json", "Opc.Ua.Pumps.tm.json"
+            })
+            {
+                loaded.Add(WotDocument.Parse(
+                    File.ReadAllBytes(Path.Combine(documents, name)), options));
+            }
+            return new WotDocumentNodeResolver(loaded);
         }
 
         private static byte[] StripNative(byte[] json)

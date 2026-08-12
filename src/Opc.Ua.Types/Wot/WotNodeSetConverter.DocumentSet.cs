@@ -215,8 +215,10 @@ namespace Opc.Ua.Wot
                 throw;
             }
 
-            return new WotConversionResult<WotDocumentSet>(
-                new WotDocumentSet(rootHref, entries.ToArrayOf()), diagnostics);
+#pragma warning disable CA2000 // Ownership of the set transfers to the caller through the result.
+            var set = new WotDocumentSet(rootHref, entries.ToArrayOf());
+#pragma warning restore CA2000
+            return new WotConversionResult<WotDocumentSet>(set, diagnostics);
         }
 
         /// <summary>
@@ -317,6 +319,12 @@ namespace Opc.Ua.Wot
         /// </remarks>
         /// <param name="documents">The document set to convert.</param>
         /// <param name="options">The bounded conversion options, or <c>null</c>.</param>
+        /// <param name="nodeResolver">
+        /// The local context §5.2.1 resolves a type binding against, or
+        /// <c>null</c>. An instance of a companion model states
+        /// <c>HasTypeDefinition</c> to a type its own NodeSet does not define,
+        /// so without one every such binding is unresolved.
+        /// </param>
         /// <param name="cancellationToken">A token that cancels the operation.</param>
         /// <returns>The merged NodeSet2 and any diagnostics.</returns>
         /// <exception cref="ArgumentNullException">
@@ -325,6 +333,7 @@ namespace Opc.Ua.Wot
         public static async ValueTask<WotConversionResult<UANodeSet>> ToNodeSetAsync(
             WotDocumentSet documents,
             WotNodeSetConverterOptions? options = null,
+            IWotNodeResolver? nodeResolver = null,
             CancellationToken cancellationToken = default)
         {
             if (documents is null)
@@ -345,7 +354,7 @@ namespace Opc.Ua.Wot
             {
                 WotConversionResult<UANodeSet> part = await ToNodeSetResultAsync(
                     documents.Entries[i].Document, resolved, resolver,
-                    resolutionContext: null, nodeResolver: null, cancellationToken)
+                    resolutionContext: null, nodeResolver, cancellationToken)
                     .ConfigureAwait(false);
                 for (int j = 0; j < part.Diagnostics.Count; j++)
                 {

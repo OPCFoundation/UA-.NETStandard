@@ -633,6 +633,24 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Writes an affordance's definitive <c>ua:HasTypeDefinition</c> link.
+        /// </summary>
+        private static void WriteTypeDefinitionLink(Utf8JsonWriter writer, string? href)
+        {
+            if (string.IsNullOrEmpty(href))
+            {
+                return;
+            }
+            writer.WritePropertyName("links");
+            writer.WriteStartArray();
+            writer.WriteStartObject();
+            writer.WriteString("rel", "ua:HasTypeDefinition");
+            writer.WriteString("href", href);
+            writer.WriteEndObject();
+            writer.WriteEndArray();
+        }
+
+        /// <summary>
         /// Reads the portable ExpandedNodeId of a Node's <c>HasTypeDefinition</c>
         /// target, or <c>null</c> when it declares none.
         /// </summary>

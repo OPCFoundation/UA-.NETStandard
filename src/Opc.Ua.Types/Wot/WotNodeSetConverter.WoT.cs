@@ -953,7 +953,8 @@ namespace Opc.Ua.Wot
                 {
                     ReferenceType = "HasTypeDefinition",
                     IsForward = true,
-                    Value = WotVocabulary.BaseDataVariableType
+                    Value = ReadAffordanceTypeDefinition(schema, nodeSet, diagnostics)
+                        ?? WotVocabulary.BaseDataVariableType
                 },
                 new Reference
                 {
@@ -975,6 +976,48 @@ namespace Opc.Ua.Wot
                 Value = nodeId
             });
             _ = isThingModel;
+        }
+
+        /// <summary>
+        /// Reads the definitive type-binding link an affordance carries.
+        /// </summary>
+        /// <remarks>
+        /// <i>OPC UA — WoT Binding</i> §5.2.1 allows the link on an affordance
+        /// as well as on the Thing. It is honoured here without a local-context
+        /// lookup only where it names a Node of the OPC UA namespace, which is
+        /// always loaded — <c>PropertyType</c>, <c>AnalogUnitType</c> and
+        /// <c>TwoStateDiscreteType</c> are the ordinary cases. A link into any
+        /// other namespace is a companion type that has to be resolved before it
+        /// can be trusted, so it is left to the document-level path rather than
+        /// written as a reference that may dangle.
+        /// </remarks>
+        private static string? ReadAffordanceTypeDefinition(
+            JsonElement affordance,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (affordance.ValueKind != JsonValueKind.Object ||
+                !affordance.TryGetProperty("links", out JsonElement links) ||
+                links.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+            foreach (JsonElement link in links.EnumerateArray())
+            {
+                if (link.ValueKind != JsonValueKind.Object ||
+                    !string.Equals(
+                        GetElementString(link, "rel"), TypeBindingRel, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                string? href = GetElementString(link, "href");
+                if (href is null || href.StartsWith("nsu=", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                return ToNodeSetNodeId(href, nodeSet, diagnostics);
+            }
+            return null;
         }
 
         private static void SynthesizeAction(
