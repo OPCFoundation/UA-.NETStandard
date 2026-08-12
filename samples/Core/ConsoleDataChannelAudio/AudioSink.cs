@@ -66,15 +66,14 @@ namespace Quickstarts.ConsoleDataChannelAudio
         /// writes a WAV there, which still demonstrates that the bytes arrived
         /// intact and in order.
         /// </remarks>
-        /// <param name="wavPath">Where to write when playback is unavailable.</param>
-        public static IAudioSink Create(string wavPath)
+        public static IAudioSink Create()
         {
             if (OperatingSystem.IsWindows())
             {
                 return new PlaybackAudioSink();
             }
 
-            return new WaveFileAudioSink(wavPath);
+            return new WaveFileAudioSink();
         }
     }
 
@@ -134,12 +133,26 @@ namespace Quickstarts.ConsoleDataChannelAudio
         /// <summary>
         /// Creates the sink and opens the file.
         /// </summary>
-        /// <param name="path">The file to write.</param>
-        public WaveFileAudioSink(string path)
+        /// <remarks>
+        /// The file goes in a directory created fresh for this run rather than
+        /// at a predictable path under the shared temp directory, and it is
+        /// opened with CreateNew. A fixed name in a world-writable directory
+        /// can be pre-created as a symlink by any local user, and an open that
+        /// truncates would then follow it and overwrite the target.
+        /// </remarks>
+        public WaveFileAudioSink()
         {
-            m_path = path;
+            DirectoryInfo directory = Directory.CreateTempSubdirectory("ConsoleDataChannelAudio");
+            m_path = Path.Combine(directory.FullName, "audio.wav");
+
+            var stream = new FileStream(
+                m_path,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.Read);
+
             m_writer = new WaveFileWriter(
-                path,
+                stream,
                 new WaveFormat(
                     AudioFormat.SampleRate,
                     AudioFormat.BitsPerSample,

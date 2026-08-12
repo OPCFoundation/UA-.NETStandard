@@ -168,11 +168,7 @@ namespace Quickstarts.ConsoleDataChannelAudio
                     opened.RevisedTransportChannelId);
                 channels.MarkOpen(opened.ChannelId);
 
-                string wavPath = Path.Combine(
-                    Path.GetTempPath(),
-                    "ConsoleDataChannelAudio.wav");
-
-                using IAudioSink player = AudioSink.Create(wavPath);
+                using IAudioSink player = AudioSink.Create();
 
                 Console.WriteLine();
                 Console.WriteLine("OPC UA data channel audio streaming");

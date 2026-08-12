@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -398,6 +399,99 @@ namespace Opc.Ua.Core.DataChannels.Tests
             });
         }
 
+        /// <summary>
+        /// A refused frame must not leave its send-gate ticket outstanding.
+        /// </summary>
+        /// <remarks>
+        /// WriteSymmetricMessage hands its ticket to the caller even when it
+        /// reports limitsExceeded, so a refusal that returns without completing
+        /// the ticket leaves it as the tail every later send chains behind.
+        /// Nothing recovers from that: DataChannelManager logs a scheduler
+        /// fault rather than faulting the channel, so MSG, OPN and CLO for
+        /// every Session on this SecureChannel stall silently and for good.
+        /// The ticket count is asserted directly because it is the invariant
+        /// that was broken; a later send would only observe it as a hang.
+        /// </remarks>
+        [Test]
+        public void ARefusedOversizedFrameLeavesNoOutstandingSendTicket()
+        {
+            using var channel = TestChannel.Create("str-dispatch-gate");
+            var transport = new CapturingByteTransport();
+            channel.AttachTransport(transport);
+            channel.Activate(SecureChannelId, TokenId);
+            channel.SetMaxResponseMessageSize(16);
+
+            Assert.That(channel.OutstandingSendTickets, Is.Zero, "The gate did not start clear.");
+
+            Assert.ThrowsAsync<ServiceResultException>(
+                async () => await SendFrameAsync(
+                        channel,
+                        DataChannelFrame.Data(
+                            DataChannelId,
+                            1,
+                            DataChannelFrameFlags.MessageStart,
+                            new byte[64]))
+                    .ConfigureAwait(false));
+
+            Assert.That(
+                channel.OutstandingSendTickets,
+                Is.Zero,
+                "The refused frame leaked its send-gate ticket, which stalls every later " +
+                    "send on this SecureChannel including MSG, OPN and CLO.");
+        }
+
+        /// <summary>
+        /// The advertised maximum body has to be what one chunk can carry.
+        /// </summary>
+        /// <remarks>
+        /// A body larger than one chunk is split, and the second chunk carries
+        /// the Intermediate chunk type, which the frame codec rejects — after
+        /// the SequenceNumber has already been claimed. The advertised size is
+        /// therefore recomputed here from the security policy with
+        /// WriteSymmetricMessage's own arithmetic, whose cipher block rounding
+        /// an approximation of the buffer size misses: a 65535 byte send buffer
+        /// under a 16 byte block loses its last 15 bytes.
+        /// </remarks>
+        [TestCase(SecurityPolicies.Basic256Sha256)]
+        [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
+        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
+        public void TheAdvertisedMaximumBodyIsWhatOneChunkCanCarry(string securityPolicyUri)
+        {
+            using var channel = TestChannel.Create(
+                "str-dispatch-maxframe",
+                MessageSecurityMode.SignAndEncrypt,
+                securityPolicyUri);
+
+            SecurityPolicyInfo policy = SecurityPolicies.GetInfo(securityPolicyUri)!;
+            int blockSize = policy.InitializationVectorLength != 0
+                ? policy.InitializationVectorLength
+                : 1;
+            int paddingCountSize = policy.NoSymmetricEncryptionPadding
+                ? 0
+                : blockSize > byte.MaxValue ? 2 : 1;
+
+            // WriteSymmetricMessage rounds the cipher text down to whole blocks
+            // before it subtracts the footers.
+            int maxPlainTextSize =
+                (channel.SendBuffer - TcpMessageLimits.SymmetricHeaderSize) /
+                blockSize *
+                blockSize;
+
+            int expected = maxPlainTextSize -
+                policy.SymmetricSignatureLength -
+                TcpMessageLimits.SequenceHeaderSize -
+                paddingCountSize -
+                DataChannelConstants.StreamHeaderSize -
+                DataChannelConstants.DeadlineSize;
+
+            Assert.That(
+                channel.MaxDataChannelBodySize,
+                Is.EqualTo(expected),
+                "A body of the advertised size does not fit the single chunk " +
+                    "WriteSymmetricMessage would build for it, so the frame is split " +
+                    "and then refused as Intermediate after the SequenceNumber is spent.");
+        }
+
         private static DataChannel OpenSink(TestChannel channel)
         {
             DataChannelManager manager = channel.EnableDataChannels(
@@ -474,6 +568,8 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 string contextId,
                 BufferManager bufferManager,
                 ChannelQuotas quotas,
+                MessageSecurityMode securityMode,
+                string securityPolicyUri,
                 ITelemetryContext telemetry)
                 : base(
                     contextId,
@@ -481,8 +577,8 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     quotas,
                     serverCertificates: null,
                     endpoints: null,
-                    securityMode: MessageSecurityMode.None,
-                    securityPolicyUri: SecurityPolicies.None,
+                    securityMode: securityMode,
+                    securityPolicyUri: securityPolicyUri,
                     telemetry: telemetry)
             {
             }
@@ -495,14 +591,29 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             public int SequenceNumbersIssued => m_sequenceNumbersIssued;
 
+            public int SendBuffer => SendBufferSize;
+
             public static TestChannel Create(string contextId)
             {
+                return Create(contextId, MessageSecurityMode.None, SecurityPolicies.None);
+            }
+
+            public static TestChannel Create(
+                string contextId,
+                MessageSecurityMode securityMode,
+                string securityPolicyUri)
+            {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-                return new TestChannel(
+                var channel = new TestChannel(
                     contextId,
                     new BufferManager(contextId, TcpMessageLimits.DefaultMaxBufferSize, telemetry),
                     new ChannelQuotas(ServiceMessageContext.CreateEmpty(telemetry)),
+                    securityMode,
+                    securityPolicyUri,
                     telemetry);
+
+                channel.CalculateSymmetricKeySizes();
+                return channel;
             }
 
             public void Activate(uint channelId, uint tokenId)
@@ -544,6 +655,23 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 MaxResponseMessageSize = maxResponseMessageSize;
                 MaxRequestChunkCount = 1;
                 MaxResponseChunkCount = 1;
+            }
+
+            /// <summary>
+            /// How many send-gate tickets have been issued and not completed.
+            /// A ticket that outlives its send blocks every later send.
+            /// </summary>
+            public int OutstandingSendTickets
+            {
+                get
+                {
+                    FieldInfo ticketsField = typeof(UaSCUaBinaryChannel).GetField(
+                            "m_sendGateTickets",
+                            BindingFlags.Instance | BindingFlags.NonPublic)
+                        ?? throw new AssertionException("m_sendGateTickets was not found.");
+
+                    return ((IEnumerable)ticketsField.GetValue(this)!).Cast<object>().Count();
+                }
             }
 
             public void SetNextSendSequenceNumber(uint sequenceNumber)

@@ -124,12 +124,44 @@ namespace Opc.Ua.Bindings
         /// The largest secured body a data channel frame may occupy on this
         /// SecureChannel.
         /// </summary>
+        /// <remarks>
+        /// Computed with the arithmetic <c>WriteSymmetricMessage</c> uses to
+        /// split a message into chunks rather than an approximation of it,
+        /// because a frame at this size has to fit exactly one chunk. A second
+        /// chunk would carry the Intermediate chunk type, which the frame codec
+        /// rejects outright, and the send would be refused after the
+        /// SequenceNumber had already been claimed. The part an approximation
+        /// misses is the cipher block rounding: a 65535 byte send buffer under
+        /// a 16 byte block cipher loses its last 15 bytes, so a body sized
+        /// against the raw buffer overflows into a second chunk.
+        /// </remarks>
         public int MaxDataChannelBodySize
-            => DataChannelFrameCodec.MaxPayload(
-                DataChannelFramingMode.Inline,
-                SendBufferSize,
-                SymmetricSignatureSize + 2,
-                withDeadline: true);
+        {
+            get
+            {
+                int blockSize = EncryptionBlockSize > 0 ? EncryptionBlockSize : 1;
+                int maxCipherTextSize = SendBufferSize - TcpMessageLimits.SymmetricHeaderSize;
+                int maxPlainTextSize = maxCipherTextSize / blockSize * blockSize;
+
+                // Conservative while no token is in force: assume padding is
+                // present, so the advertised size is never larger than what a
+                // later token can actually carry.
+                int paddingCountSize =
+                    SecurityMode != MessageSecurityMode.SignAndEncrypt ||
+                    CurrentToken?.SecurityPolicy?.NoSymmetricEncryptionPadding == true
+                        ? 0
+                        : blockSize > byte.MaxValue ? 2 : 1;
+
+                int available = maxPlainTextSize -
+                    SymmetricSignatureSize -
+                    TcpMessageLimits.SequenceHeaderSize -
+                    paddingCountSize -
+                    DataChannelConstants.StreamHeaderSize -
+                    DataChannelConstants.DeadlineSize;
+
+                return available > 0 ? available : 0;
+            }
+        }
 
         /// <summary>
         /// Routes an incoming STR chunk to the data channels.
@@ -248,7 +280,6 @@ namespace Opc.Ua.Bindings
             byte[] encoded = BufferManager.TakeBuffer(size, nameof(SendDataChannelFrameAsync), ct);
             BufferCollection? chunks = null;
             SendGateTicket? sendTicket = null;
-            bool sendTurnAcquired = false;
 
             try
             {
@@ -291,14 +322,21 @@ namespace Opc.Ua.Bindings
                         "The transport was closed by the remote application.");
 
                 await AwaitSendTurnAsync(sendTicket, ct).ConfigureAwait(false);
-                sendTurnAcquired = true;
                 await transport.SendChunkAsync(chunks, ct).ConfigureAwait(false);
             }
             finally
             {
-                if (sendTurnAcquired)
+                // The ticket is released on every path out, not only the one
+                // that reached the transport. WriteSymmetricMessage hands its
+                // ticket to the caller even when it reports limitsExceeded, and
+                // a ticket that is never completed becomes the tail every later
+                // send chains behind — which would stall MSG, OPN and CLO for
+                // every Session on this SecureChannel, silently and for good,
+                // because the scheduler logs a send fault rather than faulting
+                // the channel.
+                if (sendTicket != null)
                 {
-                    ReleaseSendTicket(sendTicket!);
+                    ReleaseSendTicket(sendTicket);
                 }
 
                 chunks?.Release(BufferManager, nameof(SendDataChannelFrameAsync));
