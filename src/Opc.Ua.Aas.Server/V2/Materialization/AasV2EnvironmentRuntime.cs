@@ -93,6 +93,14 @@ namespace Opc.Ua.Aas.Server.V2
                     outputArguments, ct) => ReadFileAsync(file, inputArguments, outputArguments));
                 builder.Node(MemberNodeId(fileNodeId, "Close")).OnCall((context, method, objectId, inputArguments,
                     outputArguments, ct) => CloseFileAsync(file, inputArguments, outputArguments));
+                builder.Node(MemberNodeId(fileNodeId, "Write")).OnCall((context, method, objectId, inputArguments,
+                    outputArguments, ct) => WriteFileAsync(file, inputArguments, outputArguments));
+                builder.Node(MemberNodeId(fileNodeId, "GetPosition")).OnCall((context, method, objectId,
+                    inputArguments, outputArguments, ct) =>
+                        GetFilePositionAsync(file, inputArguments, outputArguments));
+                builder.Node(MemberNodeId(fileNodeId, "SetPosition")).OnCall((context, method, objectId,
+                    inputArguments, outputArguments, ct) =>
+                        SetFilePositionAsync(file, inputArguments, outputArguments));
             }
             return new ValueTask<IAsyncDisposable?>((IAsyncDisposable?)this);
         }
@@ -221,6 +229,55 @@ namespace Opc.Ua.Aas.Server.V2
             }
             return new ValueTask<ServiceResult>(file.State.Close!.OnCall!(null!, file.State.Close, file.State.NodeId,
                 handle));
+        }
+
+        private static ValueTask<ServiceResult> WriteFileAsync(
+            RuntimeFile file,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            if (inputArguments.Count != 2 ||
+                !inputArguments[0].TryGetValue(out uint handle) ||
+                !inputArguments[1].TryGetValue(out ByteString data))
+            {
+                return new ValueTask<ServiceResult>(StatusCodes.BadInvalidArgument);
+            }
+            return new ValueTask<ServiceResult>(file.State.Write!.OnCall!(null!, file.State.Write,
+                file.State.NodeId, handle, data));
+        }
+
+        private static ValueTask<ServiceResult> GetFilePositionAsync(
+            RuntimeFile file,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            if (inputArguments.Count != 1 || !inputArguments[0].TryGetValue(out uint handle))
+            {
+                return new ValueTask<ServiceResult>(StatusCodes.BadInvalidArgument);
+            }
+            ulong position = 0;
+            ServiceResult result = file.State.GetPosition!.OnCall!(null!, file.State.GetPosition,
+                file.State.NodeId, handle, ref position);
+            if (ServiceResult.IsGood(result))
+            {
+                outputArguments.Add(new Variant(position));
+            }
+            return new ValueTask<ServiceResult>(result);
+        }
+
+        private static ValueTask<ServiceResult> SetFilePositionAsync(
+            RuntimeFile file,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            if (inputArguments.Count != 2 ||
+                !inputArguments[0].TryGetValue(out uint handle) ||
+                !inputArguments[1].TryGetValue(out ulong position))
+            {
+                return new ValueTask<ServiceResult>(StatusCodes.BadInvalidArgument);
+            }
+            return new ValueTask<ServiceResult>(file.State.SetPosition!.OnCall!(null!, file.State.SetPosition,
+                file.State.NodeId, handle, position));
         }
 
         private void CollectEnvironment()

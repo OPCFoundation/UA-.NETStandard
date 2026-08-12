@@ -510,9 +510,27 @@ namespace Opc.Ua.Aas.V2
                 var fileNode = ObjectNode(nodeId, "File", CoreObjectType(11575));
                 Nodes.Add(fileNode);
                 Link(parentNodeId, nodeId, "HasComponent", Nodes);
+
+                // OPC 30270 declares the File Object with the standard FileType
+                // and no modifications, and every one of that type's six
+                // Methods and four Properties is Mandatory in the pinned
+                // NodeSet. OPC 10000-3 6.4.4 requires an instance to carry all
+                // of them, and without Size and OpenCount a Client cannot size
+                // a read or notice an abandoned handle at all.
                 AddFileMethod(nodeId, "Open", "i=11580", s_openInputArguments, s_openOutputArguments);
                 AddFileMethod(nodeId, "Read", "i=11585", s_readInputArguments, s_readOutputArguments);
                 AddFileMethod(nodeId, "Close", "i=11583", s_closeInputArguments, []);
+                AddFileMethod(nodeId, "Write", "i=11588", s_writeInputArguments, []);
+                AddFileMethod(nodeId, "GetPosition", "i=11590",
+                    s_getPositionInputArguments, s_getPositionOutputArguments);
+                AddFileMethod(nodeId, "SetPosition", "i=11593", s_setPositionInputArguments, []);
+                AddProperty(nodeId, "Size", Opc.Ua.DataTypes.UInt64,
+                    new Variant((ulong)(file.IsPresent && file.Value.Value.IsPresent
+                        ? file.Value.Value.Value.Length
+                        : 0)));
+                AddProperty(nodeId, "Writable", Opc.Ua.DataTypes.Boolean, new Variant(true));
+                AddProperty(nodeId, "UserWritable", Opc.Ua.DataTypes.Boolean, new Variant(true));
+                AddProperty(nodeId, "OpenCount", Opc.Ua.DataTypes.UInt16, new Variant((ushort)0));
                 if (file.IsPresent)
                 {
                     AddOptionalByteString(nodeId, "Value", file.Value.Value);
@@ -1259,6 +1277,28 @@ namespace Opc.Ua.Aas.V2
         private static readonly Argument[] s_closeInputArguments =
         [
             ScalarArgument("FileHandle", Opc.Ua.DataTypes.UInt32)
+        ];
+
+        private static readonly Argument[] s_writeInputArguments =
+        [
+            ScalarArgument("FileHandle", Opc.Ua.DataTypes.UInt32),
+            ScalarArgument("Data", Opc.Ua.DataTypes.ByteString)
+        ];
+
+        private static readonly Argument[] s_getPositionInputArguments =
+        [
+            ScalarArgument("FileHandle", Opc.Ua.DataTypes.UInt32)
+        ];
+
+        private static readonly Argument[] s_getPositionOutputArguments =
+        [
+            ScalarArgument("Position", Opc.Ua.DataTypes.UInt64)
+        ];
+
+        private static readonly Argument[] s_setPositionInputArguments =
+        [
+            ScalarArgument("FileHandle", Opc.Ua.DataTypes.UInt32),
+            ScalarArgument("Position", Opc.Ua.DataTypes.UInt64)
         ];
 
         private const string EnvironmentNodeId = "ns=1;s=i4aas3:V2:Environment";

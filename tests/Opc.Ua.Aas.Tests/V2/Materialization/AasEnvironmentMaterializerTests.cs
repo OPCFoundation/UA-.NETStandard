@@ -109,6 +109,48 @@ namespace Opc.Ua.Aas.Tests.V2.Materialization
             });
         }
 
+        /// <summary>
+        /// OPC 30270 uses the standard FileType unmodified, and every one of
+        /// its six Methods and four Properties carries the Mandatory modelling
+        /// rule in the pinned NodeSet. OPC 10000-3 6.4.4 requires an instance
+        /// of a type to contain all of them, and a Client cannot size a read
+        /// or notice an abandoned handle without Size and OpenCount.
+        /// </summary>
+        [Test]
+        public void TheEmbeddedFileCarriesEveryMandatoryFileTypeMember()
+        {
+            AasMaterializationResult result = AasEnvironmentMaterializer.Materialize(
+                Environment(Submodel(
+                    "files",
+                    new AasFile
+                    {
+                        IdShort = "document",
+                        Category = "VARIABLE",
+                        ModelingKind = AASModelingKindDataType.Instance,
+                        MimeType = "text/plain",
+                        Value = "readme.txt",
+                        File = AasOptional<AasFileObject>.Present(new AasFileObject())
+                    })));
+
+            var namespaces = new NamespaceTable();
+            namespaces.Append(Opc.Ua.Aas.V2.Namespaces.AasV2);
+            var context = new SystemContext(telemetry: null!) { NamespaceUris = namespaces };
+            var nodes = new NodeStateCollection();
+            result.NodeSet.Import(context, nodes, linkParentChild: true);
+
+            NodeState file = nodes.Single(node =>
+                node.BrowseName.Name == "File" && node is BaseObjectState);
+            var children = new List<BaseInstanceState>();
+            file.GetChildren(context, children);
+            var names = children.ConvertAll(child => child.BrowseName.Name);
+
+            Assert.That(names, Is.SupersetOf(new[]
+            {
+                "Open", "Close", "Read", "Write", "GetPosition", "SetPosition",
+                "Size", "Writable", "UserWritable", "OpenCount"
+            }));
+        }
+
         [Test]
         public void EverySubmodelElementTypeMaterializesWithItsMembers()
         {
