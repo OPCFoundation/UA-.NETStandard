@@ -1019,5 +1019,380 @@ namespace Opc.Ua.Wot
             }
             return ToPortableNodeId(value, nodeSet.NamespaceUris);
         }
+
+        /// <summary>
+        /// Infers a DataType definition from a DataSchema alone, per §6.11.4
+        /// and §6.11.5.
+        /// </summary>
+        /// <remarks>
+        /// Inference only runs where the schema determines every required fact.
+        /// Where it does not, it fails and says so rather than guessing: a
+        /// wrong DataType is worse than a missing one, because it is silently
+        /// wrong at every later read.
+        /// </remarks>
+        private static void SynthesizeInferredDataTypes(
+            WotDocument document,
+            UANodeSet nodeSet,
+            List<UANode> items,
+            List<WotDiagnostic> diagnostics)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, JsonElement> affordance in document.Properties)
+            {
+                InferDataType(document, affordance.Value, nodeSet, items, seen, diagnostics);
+            }
+        }
+
+        private static void InferDataType(
+            WotDocument document,
+            JsonElement schema,
+            UANodeSet nodeSet,
+            List<UANode> items,
+            HashSet<string> seen,
+            List<WotDiagnostic> diagnostics)
+        {
+            string? name = GetElementString(schema, "uav:dataTypeName");
+            if (name is null ||
+                name.StartsWith("ua:", StringComparison.Ordinal) ||
+                schema.TryGetProperty("uav:mapToType", out _))
+            {
+                return;
+            }
+            string? identity = DeriveDataTypeNodeId(document, name, nodeSet, diagnostics);
+            if (identity is null || !seen.Add(identity))
+            {
+                return;
+            }
+
+            bool isEnumeration = schema.TryGetProperty("oneOf", out JsonElement branches) &&
+                IsEnumerationBranches(branches);
+            bool isStructure = string.Equals(
+                GetElementString(schema, "type"), "object", StringComparison.Ordinal);
+            if (!isEnumeration && !isStructure)
+            {
+                InferSimpleDataType(document, schema, name, identity, nodeSet, items, diagnostics);
+                return;
+            }
+
+            var dataType = new UADataType
+            {
+                NodeId = identity,
+                BrowseName = ToNodeSetQualifiedName(document, name, nodeSet, diagnostics)
+            };
+            ApplyDataTypeText(dataType, schema);
+            var references = new List<Reference>
+            {
+                new()
+                {
+                    ReferenceType = "HasSubtype",
+                    IsForward = false,
+                    Value = isEnumeration
+                        ? WotVocabulary.Enumeration
+                        : IsUnionStructure(schema) ? WotVocabulary.Union : WotVocabulary.Structure
+                }
+            };
+
+            dataType.Definition = isEnumeration
+                ? BuildInferredEnumeration(dataType.BrowseName!, branches, diagnostics)
+                : BuildInferredStructure(
+                    document, schema, dataType.BrowseName!, name, nodeSet, diagnostics);
+            if (dataType.Definition is null)
+            {
+                return;
+            }
+            if (!isEnumeration)
+            {
+                AppendEncodings(schema, identity, dataType.BrowseName!, references, items);
+            }
+            dataType.References = [.. references];
+            items.Add(dataType);
+        }
+
+        /// <summary>
+        /// A SimpleDataType is inferred only where a concrete base is named:
+        /// §6.11.4 forbids a custom type subtyping the abstract Integer or
+        /// Number, so a bare numeric schema states no usable base.
+        /// </summary>
+        private static void InferSimpleDataType(
+            WotDocument document,
+            JsonElement schema,
+            string name,
+            string identity,
+            UANodeSet nodeSet,
+            List<UANode> items,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!schema.TryGetProperty("uav:dataTypeSubtypeOf", out JsonElement declared))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The DataType '{name}' is authored by name alone. §6.11.4 " +
+                    "requires uav:dataTypeSubtypeOf naming a concrete base, " +
+                    "because a custom type shall not subtype the abstract " +
+                    "Integer or Number.",
+                    new WotLocation(reference: name)));
+                return;
+            }
+            string? baseType = ResolveDataTypeReference(
+                document, declared, s_noIdentities, nodeSet, diagnostics);
+            if (baseType is null)
+            {
+                return;
+            }
+            var dataType = new UADataType
+            {
+                NodeId = identity,
+                BrowseName = ToNodeSetQualifiedName(document, name, nodeSet, diagnostics),
+                References =
+                [
+                    new Reference
+                    {
+                        ReferenceType = "HasSubtype",
+                        IsForward = false,
+                        Value = baseType
+                    }
+                ]
+            };
+            ApplyDataTypeText(dataType, schema);
+            items.Add(dataType);
+        }
+
+        /// <summary>
+        /// An enumeration is inferred from <c>oneOf</c> branches that each
+        /// carry a <c>const</c> and a name. §6.11.5 refuses to infer one from a
+        /// bare <c>enum</c> array, which states values but never names them.
+        /// </summary>
+        private static bool IsEnumerationBranches(JsonElement branches)
+        {
+            if (branches.ValueKind != JsonValueKind.Array ||
+                branches.GetArrayLength() == 0)
+            {
+                return false;
+            }
+            foreach (JsonElement branch in branches.EnumerateArray())
+            {
+                if (branch.ValueKind != JsonValueKind.Object ||
+                    !branch.TryGetProperty("const", out _) ||
+                    GetElementString(branch, "uav:enumName") is null)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static Opc.Ua.Export.DataTypeDefinition BuildInferredEnumeration(
+            string browseName,
+            JsonElement branches,
+            List<WotDiagnostic> diagnostics)
+        {
+            var fields = new List<Opc.Ua.Export.DataTypeField>();
+            foreach (JsonElement branch in branches.EnumerateArray())
+            {
+                var field = new Opc.Ua.Export.DataTypeField
+                {
+                    Name = GetElementString(branch, "uav:enumName"),
+                    Value = GetElementInt32(branch, "const") ?? -1
+                };
+                ApplyFieldText(field, branch);
+                fields.Add(field);
+            }
+            _ = diagnostics;
+            return new Opc.Ua.Export.DataTypeDefinition
+            {
+                Name = browseName,
+                Field = [.. fields]
+            };
+        }
+
+        /// <summary>
+        /// Builds inferred structure fields, in the order §6.11.4 requires the
+        /// schema to state.
+        /// </summary>
+        /// <remarks>
+        /// JSON member order carries no meaning, so beyond a single property
+        /// the schema shall carry <c>uav:fieldOrder</c>. Without it the
+        /// encoding order of the fields is unknowable and inference fails.
+        /// </remarks>
+        private static Opc.Ua.Export.DataTypeDefinition? BuildInferredStructure(
+            WotDocument document,
+            JsonElement schema,
+            string browseName,
+            string name,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!schema.TryGetProperty("properties", out JsonElement properties) ||
+                properties.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+            List<string>? order = ReadFieldOrder(schema, properties, name, diagnostics);
+            if (order is null)
+            {
+                return null;
+            }
+            HashSet<string> required = ReadRequiredFields(schema);
+            bool isUnion = IsUnionStructure(schema);
+            var fields = new List<Opc.Ua.Export.DataTypeField>();
+            foreach (string fieldName in order)
+            {
+                if (!properties.TryGetProperty(fieldName, out JsonElement fieldSchema))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"The uav:fieldOrder of '{name}' names '{fieldName}', " +
+                        "which the schema does not define.",
+                        new WotLocation(reference: name)));
+                    return null;
+                }
+                string? fieldDataType = InferFieldDataType(
+                    document, fieldSchema, name, fieldName, nodeSet, diagnostics);
+                if (fieldDataType is null)
+                {
+                    return null;
+                }
+                var field = new Opc.Ua.Export.DataTypeField
+                {
+                    Name = fieldName,
+                    DataType = fieldDataType,
+                    IsOptional = !isUnion && !required.Contains(fieldName)
+                };
+                int? valueRank = GetElementInt32(fieldSchema, "uav:valueRank");
+                if (valueRank is { } rank)
+                {
+                    field.ValueRank = rank;
+                }
+                string? dimensions = ReadArrayDimensions(fieldSchema);
+                if (dimensions is not null)
+                {
+                    field.ArrayDimensions = dimensions;
+                }
+                ApplyFieldText(field, fieldSchema);
+                fields.Add(field);
+            }
+            return new Opc.Ua.Export.DataTypeDefinition
+            {
+                Name = browseName,
+                IsUnion = isUnion,
+                Field = [.. fields]
+            };
+        }
+
+        private static List<string>? ReadFieldOrder(
+            JsonElement schema,
+            JsonElement properties,
+            string name,
+            List<WotDiagnostic> diagnostics)
+        {
+            var declared = new List<string>();
+            if (schema.TryGetProperty("uav:fieldOrder", out JsonElement order) &&
+                order.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in order.EnumerateArray())
+                {
+                    if (entry.ValueKind == JsonValueKind.String)
+                    {
+                        declared.Add(entry.GetString()!);
+                    }
+                }
+                return declared;
+            }
+            int count = 0;
+            string? single = null;
+            foreach (JsonProperty property in properties.EnumerateObject())
+            {
+                single = property.Name;
+                count++;
+            }
+            if (count > 1)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The inferred DataType '{name}' has {count} properties but " +
+                    "states no uav:fieldOrder. JSON member order carries no " +
+                    "meaning, so §6.11.4 makes the order mandatory beyond one " +
+                    "property.",
+                    new WotLocation(reference: name)));
+                return null;
+            }
+            if (single is not null)
+            {
+                declared.Add(single);
+            }
+            return declared;
+        }
+
+        private static HashSet<string> ReadRequiredFields(JsonElement schema)
+        {
+            var required = new HashSet<string>(StringComparer.Ordinal);
+            if (schema.TryGetProperty("required", out JsonElement declared) &&
+                declared.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in declared.EnumerateArray())
+                {
+                    if (entry.ValueKind == JsonValueKind.String)
+                    {
+                        required.Add(entry.GetString()!);
+                    }
+                }
+            }
+            return required;
+        }
+
+        /// <summary>
+        /// Resolves an inferred field's DataType, refusing the ambiguous cases
+        /// §6.11.4 names.
+        /// </summary>
+        /// <remarks>
+        /// A bare integer or number is honest about a scalar Variable, where
+        /// the abstract type permits subtype values. Inside a Structure field
+        /// it is not: accepting subtype values there would require a subtyped
+        /// -value Structure kind, which the schema has not asked for. So the
+        /// field states a concrete type or inference fails.
+        /// </remarks>
+        private static string? InferFieldDataType(
+            WotDocument document,
+            JsonElement fieldSchema,
+            string name,
+            string fieldName,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            string? id = GetElementString(fieldSchema, "uav:dataTypeId");
+            if (id is not null)
+            {
+                return ToNodeSetNodeId(id, nodeSet, diagnostics);
+            }
+            string? typeName = GetElementString(fieldSchema, "uav:dataTypeName");
+            if (typeName is not null && !typeName.StartsWith("ua:", StringComparison.Ordinal))
+            {
+                return DeriveDataTypeNodeId(document, typeName, nodeSet, diagnostics);
+            }
+            string? jsonType = GetElementString(fieldSchema, "type");
+            if (typeName is null &&
+                jsonType is "integer" or "number")
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The field '{fieldName}' of '{name}' states a bare " +
+                    $"'{jsonType}'. §6.11.4 makes that ambiguous inside a " +
+                    "Structure, because permitting subtype values would need a " +
+                    "subtyped-value kind; state a concrete DataType instead.",
+                    new WotLocation(reference: name)));
+                return null;
+            }
+            return WotVocabulary.MapJsonTypeToDataType(
+                jsonType,
+                GetElementString(fieldSchema, "contentEncoding"),
+                GetElementString(fieldSchema, "format"));
+        }
+
+        private static readonly Dictionary<string, string> s_noIdentities =
+            new(StringComparer.Ordinal);
     }
 }

@@ -148,11 +148,103 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(variable.DataType, Is.EqualTo("i=10"));
         }
 
+        // §6.11.4: inference fails rather than guesses. JSON member order
+        // carries no meaning, so beyond one property the order is mandatory;
+        // and a bare integer or number inside a Structure is ambiguous, because
+        // permitting subtype values would need a subtyped-value kind.
+        [TestCase(
+            "\"uav:dataTypeName\":\"demo:NoOrder\",\"type\":\"object\"," +
+            "\"properties\":{\"A\":{\"type\":\"boolean\"},\"B\":{\"type\":\"boolean\"}}",
+            "uav:fieldOrder")]
+        [TestCase(
+            "\"uav:dataTypeName\":\"demo:BareInteger\",\"type\":\"object\"," +
+            "\"uav:fieldOrder\":[\"A\"],\"properties\":{\"A\":{\"type\":\"integer\"}}," +
+            "\"required\":[\"A\"]",
+            "ambiguous")]
+        [TestCase(
+            "\"uav:dataTypeName\":\"demo:BareNumber\",\"type\":\"object\"," +
+            "\"uav:fieldOrder\":[\"A\"],\"properties\":{\"A\":{\"type\":\"number\"}}," +
+            "\"required\":[\"A\"]",
+            "ambiguous")]
+        [TestCase(
+            "\"uav:dataTypeName\":\"demo:NoBase\",\"type\":\"integer\",\"minimum\":0",
+            "uav:dataTypeSubtypeOf")]
+        [TestCase(
+            "\"uav:dataTypeName\":\"demo:Missing\",\"type\":\"object\"," +
+            "\"uav:fieldOrder\":[\"Absent\"],\"properties\":{\"A\":{\"type\":\"boolean\"}}",
+            "does not define")]
+        public void AmbiguousSchemaFailsRatherThanGuesses(string schema, string expected)
+        {
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(SchemaThing(schema))));
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Has.Some.Contains(expected));
+        }
+
+        // §6.11.5: a bare enum array states values but never names them, so it
+        // shall not infer an Enumeration.
+        [Test]
+        public void BareEnumArrayDoesNotInferAnEnumeration()
+        {
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(SchemaThing(
+                    "\"uav:dataTypeName\":\"demo:Bare\",\"type\":\"integer\"," +
+                    "\"enum\":[0,1,2],\"uav:dataTypeSubtypeOf\":{\"uav:dataTypeId\":\"i=7\"}"))));
+
+            UADataType inferred = result.Value!.Items!.OfType<UADataType>().Single();
+            Assert.That(inferred.Definition, Is.Null);
+        }
+
+        // §6.11.5: an integer oneOf whose branches each carry a const and a
+        // name does infer one, values intact.
+        [Test]
+        public void NamedOneOfInfersAnEnumeration()
+        {
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(SchemaThing(
+                    "\"uav:dataTypeName\":\"demo:Mode\",\"type\":\"integer\",\"oneOf\":[" +
+                    "{\"const\":0,\"uav:enumName\":\"Idle\"}," +
+                    "{\"const\":7,\"uav:enumName\":\"Active\"}]"))));
+
+            UADataType inferred = result.Value!.Items!.OfType<UADataType>().Single();
+            Assert.That(
+                inferred.Definition!.Field!.Select(f => f.Name),
+                Is.EqualTo(new[] { "Idle", "Active" }));
+            Assert.That(
+                inferred.Definition.Field!.Select(f => f.Value),
+                Is.EqualTo(new[] { 0, 7 }));
+        }
+
+        // §6.11.4: the required array decides optionality, and uav:fieldOrder
+        // decides encoding order rather than JSON member order.
+        [Test]
+        public void RequiredDecidesOptionalityAndOrderIsTaken()
+        {
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(SchemaThing(
+                    "\"uav:dataTypeName\":\"demo:Rec\",\"type\":\"object\"," +
+                    "\"uav:fieldOrder\":[\"Second\",\"First\"]," +
+                    "\"properties\":{\"First\":{\"type\":\"boolean\"}," +
+                    "\"Second\":{\"type\":\"string\"}},\"required\":[\"Second\"]"))));
+
+            UADataType inferred = result.Value!.Items!.OfType<UADataType>().Single();
+            Assert.That(
+                inferred.Definition!.Field!.Select(f => f.Name),
+                Is.EqualTo(new[] { "Second", "First" }));
+            Assert.That(
+                inferred.Definition.Field!.Select(f => f.IsOptional),
+                Is.EqualTo(new[] { false, true }));
+        }
+
         private static string SchemaThing(string schema)
         {
             string members = schema.Length == 0 ? string.Empty : schema + ",";
             return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"demo\":\"http://example.com/demo/pump\"}]," +
                 "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
                 "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Thing\"," +
                 "\"properties\":{\"sample\":{\"@type\":\"uav:variable\"," + members +

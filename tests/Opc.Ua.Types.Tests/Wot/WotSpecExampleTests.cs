@@ -379,7 +379,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.Empty);
 
             UADataType[] dataTypes = result.Value!.Items!.OfType<UADataType>().ToArray();
-            Assert.That(dataTypes, Has.Length.EqualTo(8));
+
+            // Eight are stated explicitly; five more are inferred from the
+            // Inferred* affordances' own schemas under §6.11.4 and §6.11.5.
+            Assert.That(dataTypes, Has.Length.EqualTo(13));
 
             // A definition without uav:dataTypeId derives a namespace-scoped
             // String NodeId from its name alone (§6.11.1), so the same document
@@ -455,11 +458,14 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         /// <remarks>
         /// The example still leaves <c>uav:nodes</c> on the document, but no
-        /// longer because of any DataType Node. What remains is the
-        /// schema-only inference of §6.11.4 for objects and enumerations: the
-        /// example's Inferred* affordances carry <c>uav:fieldOrder</c>, which
-        /// is not yet read, so those schemas fall to residue. That is tracked
-        /// separately and is the last reason this example needs the projection.
+        /// longer because of any DataType Node: all thirteen materialize and
+        /// return identically. What remains is the canonical-schema
+        /// equivalence of §6.11.6. An inferred definition's own DataSchema
+        /// terms — <c>uav:fieldOrder</c>, <c>properties</c>, <c>required</c> —
+        /// travel as residue rather than being re-derived from the definition,
+        /// so the two passes hash differently. Deriving the canonical schema
+        /// from the definition is the remaining step, and is tracked as its own
+        /// piece of work.
         /// </remarks>
         [Test]
         public void DataTypesSurviveTheRoundTripReadably()
@@ -473,7 +479,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 document.RootElement.TryGetProperty("uav:dataTypeDefinitions", out JsonElement emitted),
                 Is.True,
                 "Every DataType the NodeSet defines should be stated readably.");
-            Assert.That(emitted.GetArrayLength(), Is.EqualTo(8));
+            Assert.That(emitted.GetArrayLength(), Is.EqualTo(13));
 
             UANodeSet second = WotNodeSetConverter.ToNodeSet(WithoutNativeProjection(document));
 
