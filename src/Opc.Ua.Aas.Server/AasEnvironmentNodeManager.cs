@@ -40,7 +40,7 @@ namespace Opc.Ua.Aas.Server
     /// <summary>
     /// Stable AAS metamodel NodeManager that publishes environments as runtime NodeSets.
     /// </summary>
-    public sealed class AasEnvironmentNodeManager : AsyncCustomNodeManager
+    public sealed class AasEnvironmentNodeManager : AsyncCustomNodeManager, IConformanceContributor
     {
         /// <summary>
         /// Initializes a NodeManager.
@@ -65,6 +65,42 @@ namespace Opc.Ua.Aas.Server
             m_operationHandler = operationHandler ?? throw new ArgumentNullException(nameof(operationHandler));
             m_projectionHost = projectionHost ?? throw new ArgumentNullException(nameof(projectionHost));
         }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The metamodel half always projects shells, submodels and concept
+        /// descriptions with the value fidelity of clause 6.3.1, so those four
+        /// units are unconditional. Invoke is claimed only when an operation
+        /// handler is actually wired up, because a Server that cannot execute
+        /// an Operation does not satisfy clause 6.2.5.
+        /// </remarks>
+        public ArrayOf<QualifiedName> ConformanceUnits
+        {
+            get
+            {
+                var units = new List<QualifiedName>
+                {
+                    new("AAS-Metamodel"),
+                    new("AAS-SubmodelElements"),
+                    new("AAS-ValueFidelity"),
+                    new("AAS-InstanceMaterialization"),
+                    new("AAS-LosslessRoundTrip")
+                };
+                if (m_operationHandler is not DefaultAasOperationHandler)
+                {
+                    units.Add(new QualifiedName("AAS-OperationInvoke"));
+                }
+                return new ArrayOf<QualifiedName>(units.ToArray());
+            }
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Clause 10 defines conformance units but assigns no server profile
+        /// URIs, and the IDTA identifier of Annex G applies only to a Server
+        /// that also implements the HTTP binding, which this one does not.
+        /// </remarks>
+        public ArrayOf<string> ServerProfiles => [];
 
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(

@@ -40,7 +40,7 @@ namespace Opc.Ua.Aas.Server.Registry
     /// <summary>
     /// Stable NodeManager that exposes the well-known AASRegistry Object and projects registry snapshots.
     /// </summary>
-    public sealed class AasRegistryNodeManager : AsyncCustomNodeManager
+    public sealed class AasRegistryNodeManager : AsyncCustomNodeManager, IConformanceContributor
     {
         /// <summary>
         /// Initializes a registry NodeManager.
@@ -69,6 +69,60 @@ namespace Opc.Ua.Aas.Server.Registry
         /// Gets the hosted registry service.
         /// </summary>
         public IAasRegistryService Registry { get; }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The registry half is claimed unconditionally because the projection
+        /// publishes the root, its groups and the resource files, derives every
+        /// identifier per clause 6.5.3, keeps versions as the lifecycle record,
+        /// answers both discovery methods and applies the disclosure tiers.
+        /// Materialization and export follow the Materialize Method and the
+        /// Environment file the AASRegistryType declares. Packages are claimed
+        /// only when a package group is actually present, and clause 10 requires
+        /// AAS-PackageIntegrity to accompany AAS-Packages.
+        /// </remarks>
+        public ArrayOf<QualifiedName> ConformanceUnits
+        {
+            get
+            {
+                var units = new List<QualifiedName>
+                {
+                    new("AAS-Registry"),
+                    new("AAS-RegistryIdentity"),
+                    new("AAS-RegistryVersioning"),
+                    new("AAS-Discovery"),
+                    new("AAS-DisclosureTiers"),
+                    new("AAS-UpdateableRegistry"),
+                    new("AAS-EnvironmentExport")
+                };
+                if (HasPackageStore())
+                {
+                    units.Add(new QualifiedName("AAS-Packages"));
+                    units.Add(new QualifiedName("AAS-PackageIntegrity"));
+                }
+                return new ArrayOf<QualifiedName>(units.ToArray());
+            }
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Clause 10 defines conformance units but assigns no server profile
+        /// URIs, and the IDTA identifier of Annex G applies only to a Server
+        /// that also implements the HTTP binding, which this one does not.
+        /// </remarks>
+        public ArrayOf<string> ServerProfiles => [];
+
+        private bool HasPackageStore()
+        {
+            foreach (AasRegistryGroup group in Registry.Current.GroupsById.Values)
+            {
+                if (group.Kind == AasRegistryEntityKind.PackageStore)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
