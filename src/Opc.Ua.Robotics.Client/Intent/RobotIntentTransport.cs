@@ -218,14 +218,55 @@ namespace Opc.Ua.Robotics.Client.Intent
             Logger = telemetry.CreateLogger<UaRobotIntentTransport>();
             m_streaming = streaming ?? RoboticsClient.GetDefaultStreaming(session);
             m_proxy = new IntentControllerTypeClient(session, controllerId, telemetry);
-            if (observeReconnect && session is ManagedSession managedSession)
-            {
-                managedSession.ConnectionStateChanged += OnConnectionStateChanged;
-            }
+            m_reconnectSource = observeReconnect ? session as ManagedSession : null;
         }
 
         /// <inheritdoc/>
-        public event RobotIntentReconnectHandler? Reconnected;
+        /// <remarks>
+        /// The underlying session notification is attached only while somebody is
+        /// listening here, and detached again when the last listener leaves.
+        /// <para>
+        /// A transport is short-lived — a new one is created per controller
+        /// lookup, and an MCP tool call creates one per invocation — while the
+        /// <see cref="ManagedSession"/> it observes lives for the whole
+        /// connection. Subscribing in the constructor therefore handed the
+        /// session a strong reference to every transport ever created: memory
+        /// grew without bound, and each reconnect had to fan out to a longer and
+        /// longer list of transports nobody was using. Attaching on demand means
+        /// the common path, where no caller wants reconnect notifications at all,
+        /// costs nothing and retains nothing.
+        /// </para>
+        /// </remarks>
+        public event RobotIntentReconnectHandler? Reconnected
+        {
+            add
+            {
+                lock (m_reconnectLock)
+                {
+                    bool attach = m_reconnected == null;
+                    m_reconnected += value;
+                    if (attach && m_reconnected != null && m_reconnectSource != null)
+                    {
+                        m_reconnectSource.ConnectionStateChanged += OnConnectionStateChanged;
+                    }
+                }
+            }
+            remove
+            {
+                lock (m_reconnectLock)
+                {
+                    if (m_reconnected == null)
+                    {
+                        return;
+                    }
+                    m_reconnected -= value;
+                    if (m_reconnected == null && m_reconnectSource != null)
+                    {
+                        m_reconnectSource.ConnectionStateChanged -= OnConnectionStateChanged;
+                    }
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public ILogger Logger { get; }
@@ -900,7 +941,12 @@ namespace Opc.Ua.Robotics.Client.Intent
             if (e.NewState == ConnectionState.Connected &&
                 e.PreviousState is ConnectionState.Reconnecting or ConnectionState.Failover)
             {
-                Reconnected?.Invoke();
+                RobotIntentReconnectHandler? handler;
+                lock (m_reconnectLock)
+                {
+                    handler = m_reconnected;
+                }
+                handler?.Invoke();
             }
         }
 
@@ -909,6 +955,9 @@ namespace Opc.Ua.Robotics.Client.Intent
         private readonly ISession m_session;
         private readonly IStreamingSubscription m_streaming;
         private readonly IntentControllerTypeClient m_proxy;
+        private readonly ManagedSession? m_reconnectSource;
+        private readonly Lock m_reconnectLock = new();
+        private RobotIntentReconnectHandler? m_reconnected;
     }
 
     internal static partial class UaRobotIntentTransportLog
