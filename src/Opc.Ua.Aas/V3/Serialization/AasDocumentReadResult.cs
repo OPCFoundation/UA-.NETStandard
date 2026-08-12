@@ -29,20 +29,16 @@
 
 using System;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
-    /// The AAS environment and supplementary package parts read from an AASX package.
+    /// The result of reading an AAS document serialization.
     /// </summary>
-    public sealed record AasxPackageReadResult
+    public sealed record AasDocumentReadResult
     {
-        private AasxPackageReadResult(
-            AasEnvironment? environment,
-            ArrayOf<AasxSupplementaryFile> supplementaryFiles,
-            string? error)
+        private AasDocumentReadResult(AasEnvironment? environment, string? error)
         {
             Environment = environment;
-            SupplementaryFiles = supplementaryFiles;
             Error = error;
         }
 
@@ -52,59 +48,43 @@ namespace Opc.Ua.Aas
         public AasEnvironment? Environment { get; }
 
         /// <summary>
-        /// Gets the supplementary files carried by the package.
-        /// </summary>
-        public ArrayOf<AasxSupplementaryFile> SupplementaryFiles { get; }
-
-        /// <summary>
         /// Gets the diagnostic when <see cref="Succeeded"/> is <c>false</c>.
         /// </summary>
         public string? Error { get; }
 
         /// <summary>
-        /// Gets whether the package was read successfully.
+        /// Gets whether the document was read successfully.
         /// </summary>
         public bool Succeeded => Environment is not null;
 
         /// <summary>
-        /// Creates a successful AASX read result.
+        /// Creates a successful read result.
         /// </summary>
         /// <param name="environment">The parsed environment.</param>
-        /// <param name="supplementaryFiles">The supplementary files carried by the package.</param>
         /// <returns>A successful read result.</returns>
-        public static AasxPackageReadResult Success(
-            AasEnvironment environment,
-            ArrayOf<AasxSupplementaryFile> supplementaryFiles)
+        public static AasDocumentReadResult Success(AasEnvironment environment)
         {
             if (environment is null)
             {
                 throw new ArgumentNullException(nameof(environment));
             }
 
-            return new AasxPackageReadResult(environment, supplementaryFiles, null);
+            return new AasDocumentReadResult(environment, null);
         }
 
         /// <summary>
-        /// Creates a failed AASX read result.
+        /// Creates a failed read result.
         /// </summary>
         /// <param name="error">The diagnostic.</param>
         /// <returns>A failed read result.</returns>
-        public static AasxPackageReadResult Failure(string error)
+        public static AasDocumentReadResult Failure(string error)
         {
             if (error is null)
             {
                 throw new ArgumentNullException(nameof(error));
             }
 
-            return new AasxPackageReadResult(null, ArrayOf<AasxSupplementaryFile>.Empty, error);
+            return new AasDocumentReadResult(null, error);
         }
     }
-
-    /// <summary>
-    /// A supplementary file part carried by an AASX package.
-    /// </summary>
-    /// <param name="PartUri">The OPC package part URI.</param>
-    /// <param name="ContentType">The media type of the part.</param>
-    /// <param name="Content">The part content.</param>
-    public sealed record AasxSupplementaryFile(Uri PartUri, string ContentType, ByteString Content);
 }

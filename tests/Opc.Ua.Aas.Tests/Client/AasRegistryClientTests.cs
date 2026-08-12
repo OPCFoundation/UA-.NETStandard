@@ -323,9 +323,9 @@ namespace Opc.Ua.Aas.Tests.Client
             var configurationServices = new ServiceCollection();
             var sectionServices = new ServiceCollection();
 
-            new TestOpcUaBuilder(actionServices).AddAasRegistryClient(options => options.LazyConnect = false);
-            new TestOpcUaBuilder(configurationServices).AddAasRegistryClient(configuration);
-            new TestOpcUaBuilder(sectionServices).AddAasRegistryClient(configuration.GetSection("Aas"));
+            new TestOpcUaBuilder(actionServices).AddAasV3RegistryClient(options => options.LazyConnect = false);
+            new TestOpcUaBuilder(configurationServices).AddAasV3RegistryClient(configuration);
+            new TestOpcUaBuilder(sectionServices).AddAasV3RegistryClient(configuration.GetSection("Aas"));
 
             using ServiceProvider actionProvider = actionServices.BuildServiceProvider();
             using ServiceProvider configurationProvider = configurationServices.BuildServiceProvider();
@@ -348,7 +348,7 @@ namespace Opc.Ua.Aas.Tests.Client
         {
             var namespaceUris = new NamespaceTable();
             namespaceUris.GetIndexOrAppend(Namespaces.OpcUa);
-            namespaceUris.GetIndexOrAppend(Namespaces.Aas);
+            namespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
             namespaceUris.GetIndexOrAppend(Opc.Ua.XRegistry.Namespaces.xRegistry);
             ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(Mock.Of<ITelemetryContext>());
             messageContext.NamespaceUris = namespaceUris;
@@ -473,7 +473,7 @@ namespace Opc.Ua.Aas.Tests.Client
             SetupCall(
                 session,
                 registryNodeId,
-                ExpandedNodeId.ToNodeId(MethodIds.AASRegistryType_LookupShellsByAssetLink, session.Object.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Aas.V3.MethodIds.AASRegistryType_LookupShellsByAssetLink, session.Object.NamespaceUris),
                 StatusCodes.Good,
                 [new Variant(result)],
                 args => args.Count == 2 &&
@@ -498,7 +498,7 @@ namespace Opc.Ua.Aas.Tests.Client
             SetupCall(
                 session,
                 registryNodeId,
-                ExpandedNodeId.ToNodeId(MethodIds.AASRegistryType_GetSubmodel, session.Object.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Aas.V3.MethodIds.AASRegistryType_GetSubmodel, session.Object.NamespaceUris),
                 statusCode,
                 output,
                 args => args.Count == 1 && args[0].TryGetValue(out string? id) && id == identifier);

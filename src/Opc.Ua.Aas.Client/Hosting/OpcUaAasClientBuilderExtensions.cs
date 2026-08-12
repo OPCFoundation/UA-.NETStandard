@@ -47,14 +47,14 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class OpcUaAasClientBuilderExtensions
     {
         /// <summary>
-        /// Default <see cref="IConfiguration"/> section name for <see cref="AddAasClient(IOpcUaBuilder, IConfiguration)"/>.
+        /// Default <see cref="IConfiguration"/> section name for <see cref="AddAasV3Client(IOpcUaBuilder, IConfiguration)"/>.
         /// </summary>
         public const string DefaultConfigurationSection = "OpcUa:Aas:Client";
 
         /// <summary>
         /// Registers AAS metamodel client services.
         /// </summary>
-        public static IOpcUaBuilder AddAasClient(
+        public static IOpcUaBuilder AddAasV3Client(
             this IOpcUaBuilder builder,
             Action<AasClientOptions>? configure = null)
         {
@@ -79,7 +79,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers AAS metamodel client services with options bound from the default section.
         /// </summary>
-        public static IOpcUaBuilder AddAasClient(
+        public static IOpcUaBuilder AddAasV3Client(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
         {
@@ -88,13 +88,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            return builder.AddAasClient(configuration.GetSection(DefaultConfigurationSection));
+            return builder.AddAasV3Client(configuration.GetSection(DefaultConfigurationSection));
         }
 
         /// <summary>
         /// Registers AAS metamodel client services with options bound from a configuration section.
         /// </summary>
-        public static IOpcUaBuilder AddAasClient(
+        public static IOpcUaBuilder AddAasV3Client(
             this IOpcUaBuilder builder,
             IConfigurationSection section)
         {
@@ -115,7 +115,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers AAS metamodel client services on an existing OPC UA client builder.
         /// </summary>
-        public static IOpcUaClientBuilder AddAasClient(
+        public static IOpcUaClientBuilder AddAasV3Client(
             this IOpcUaClientBuilder builder,
             Action<AasClientOptions>? configure = null)
         {
@@ -124,14 +124,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            new BuilderAdapter(builder.Services).AddAasClient(configure);
+            new BuilderAdapter(builder.Services).AddAasV3Client(configure);
             return builder;
         }
 
         /// <summary>
         /// Registers AAS metamodel client services on an existing OPC UA client builder.
         /// </summary>
-        public static IOpcUaClientBuilder AddAasClient(
+        public static IOpcUaClientBuilder AddAasV3Client(
             this IOpcUaClientBuilder builder,
             IConfiguration configuration)
         {
@@ -144,14 +144,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            new BuilderAdapter(builder.Services).AddAasClient(configuration);
+            new BuilderAdapter(builder.Services).AddAasV3Client(configuration);
             return builder;
         }
 
         /// <summary>
         /// Registers AAS metamodel client services on an existing OPC UA client builder.
         /// </summary>
-        public static IOpcUaClientBuilder AddAasClient(
+        public static IOpcUaClientBuilder AddAasV3Client(
             this IOpcUaClientBuilder builder,
             IConfigurationSection section)
         {
@@ -164,14 +164,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
 
-            new BuilderAdapter(builder.Services).AddAasClient(section);
+            new BuilderAdapter(builder.Services).AddAasV3Client(section);
             return builder;
         }
 
         /// <summary>
         /// Registers AAS registry client services.
         /// </summary>
-        public static IOpcUaBuilder AddAasRegistryClient(
+        public static IOpcUaBuilder AddAasV3RegistryClient(
             this IOpcUaBuilder builder,
             Action<AasClientOptions>? configure = null)
         {
@@ -196,7 +196,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers AAS registry client services with options bound from the default section.
         /// </summary>
-        public static IOpcUaBuilder AddAasRegistryClient(
+        public static IOpcUaBuilder AddAasV3RegistryClient(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
         {
@@ -205,13 +205,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            return builder.AddAasRegistryClient(configuration.GetSection(DefaultConfigurationSection));
+            return builder.AddAasV3RegistryClient(configuration.GetSection(DefaultConfigurationSection));
         }
 
         /// <summary>
         /// Registers AAS registry client services with options bound from a configuration section.
         /// </summary>
-        public static IOpcUaBuilder AddAasRegistryClient(
+        public static IOpcUaBuilder AddAasV3RegistryClient(
             this IOpcUaBuilder builder,
             IConfigurationSection section)
         {
@@ -232,7 +232,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers AAS registry client services on an existing OPC UA client builder.
         /// </summary>
-        public static IOpcUaClientBuilder AddAasRegistryClient(
+        public static IOpcUaClientBuilder AddAasV3RegistryClient(
             this IOpcUaClientBuilder builder,
             Action<AasClientOptions>? configure = null)
         {
@@ -241,14 +241,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            new BuilderAdapter(builder.Services).AddAasRegistryClient(configure);
+            new BuilderAdapter(builder.Services).AddAasV3RegistryClient(configure);
             return builder;
         }
 
         /// <summary>
         /// Registers AAS registry client services on an existing OPC UA client builder.
         /// </summary>
-        public static IOpcUaClientBuilder AddAasRegistryClient(
+        public static IOpcUaClientBuilder AddAasV3RegistryClient(
             this IOpcUaClientBuilder builder,
             IConfiguration configuration)
         {
@@ -261,14 +261,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            new BuilderAdapter(builder.Services).AddAasRegistryClient(configuration);
+            new BuilderAdapter(builder.Services).AddAasV3RegistryClient(configuration);
             return builder;
         }
 
         /// <summary>
         /// Registers AAS registry client services on an existing OPC UA client builder.
         /// </summary>
-        public static IOpcUaClientBuilder AddAasRegistryClient(
+        public static IOpcUaClientBuilder AddAasV3RegistryClient(
             this IOpcUaClientBuilder builder,
             IConfigurationSection section)
         {
@@ -281,7 +281,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
 
-            new BuilderAdapter(builder.Services).AddAasRegistryClient(section);
+            new BuilderAdapter(builder.Services).AddAasV3RegistryClient(section);
             return builder;
         }
 
@@ -402,7 +402,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 Func<CancellationToken, Task<ManagedSession>> sessionFactory =
                     m_sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
                     ?? throw new InvalidOperationException(
-                        "AddAasClient requires AddClient to have been called first so a ManagedSession factory is registered.");
+                        "AddAasV3Client requires AddClient to have been called first so a ManagedSession factory is registered.");
 
                 ManagedSession session = await sessionFactory(ct).ConfigureAwait(false);
                 ITelemetryContext telemetry = m_sp.GetRequiredService<ITelemetryContext>();
@@ -449,7 +449,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 Func<CancellationToken, Task<ManagedSession>> sessionFactory =
                     m_sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
                     ?? throw new InvalidOperationException(
-                        "AddAasRegistryClient requires AddClient to have been called first so a ManagedSession factory is registered.");
+                        "AddAasV3RegistryClient requires AddClient to have been called first so a ManagedSession factory is registered.");
 
                 ManagedSession session = await sessionFactory(ct).ConfigureAwait(false);
                 ITelemetryContext telemetry = m_sp.GetRequiredService<ITelemetryContext>();

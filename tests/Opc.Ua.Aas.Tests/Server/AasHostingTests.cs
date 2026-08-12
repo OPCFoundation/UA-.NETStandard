@@ -65,7 +65,7 @@ namespace Opc.Ua.Aas.Tests.Server
 
             IAasServerBuilder builder = services
                 .AddOpcUa()
-                .AddAasServer(options => options.EnvironmentFolder = "aas");
+                .AddAasV3Server(options => options.EnvironmentFolder = "aas");
             using ServiceProvider provider = services.BuildServiceProvider();
 
             Assert.Multiple(() =>
@@ -93,7 +93,7 @@ namespace Opc.Ua.Aas.Tests.Server
                 .Build();
             var services = new ServiceCollection();
 
-            services.AddOpcUa().AddAasServer(configuration);
+            services.AddOpcUa().AddAasV3Server(configuration);
             using ServiceProvider provider = services.BuildServiceProvider();
 
             Assert.That(
@@ -113,7 +113,7 @@ namespace Opc.Ua.Aas.Tests.Server
                 .Build();
             var services = new ServiceCollection();
 
-            services.AddOpcUa().AddAasServer(configuration.GetSection("Aas"));
+            services.AddOpcUa().AddAasV3Server(configuration.GetSection("Aas"));
             using ServiceProvider provider = services.BuildServiceProvider();
             AasServerOptions options = provider.GetRequiredService<IOptions<AasServerOptions>>().Value;
 
@@ -128,7 +128,7 @@ namespace Opc.Ua.Aas.Tests.Server
         public void AddAasServerRejectsNullBuilder()
         {
             Assert.That(
-                () => OpcUaAasServerBuilderExtensions.AddAasServer((IOpcUaBuilder)null!),
+                () => OpcUaAasServerBuilderExtensions.AddAasV3Server((IOpcUaBuilder)null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -140,10 +140,10 @@ namespace Opc.Ua.Aas.Tests.Server
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    () => builder.AddAasServer((IConfiguration)null!),
+                    () => builder.AddAasV3Server((IConfiguration)null!),
                     Throws.TypeOf<ArgumentNullException>());
                 Assert.That(
-                    () => builder.AddAasServer((IConfigurationSection)null!),
+                    () => builder.AddAasV3Server((IConfigurationSection)null!),
                     Throws.TypeOf<ArgumentNullException>());
             });
         }

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Globalization;
 using System.IO;
@@ -143,7 +144,7 @@ namespace AasSample
                 server.IncludeUnsecurePolicyNone = true;
                 server.EndpointUrls.Add(options.Endpoint);
             });
-            opcUa.AddAasServer(aas => aas.ControlNamespaceUri = AasSampleData.InstanceNamespaceUri)
+            opcUa.AddAasV3Server(aas => aas.ControlNamespaceUri = AasSampleData.InstanceNamespaceUri)
                 .AddEnvironmentProvider(_ => new InMemoryAasEnvironmentProvider([]))
                 .AddOperationHandler<AasSampleOperationHandler>();
             builder.Services.AddSingleton(registry);
@@ -248,8 +249,8 @@ namespace AasSample
                     discovery.SecurityMode = MessageSecurityMode.None;
                     discovery.SecurityPolicyUri = SecurityPolicies.None;
                 })
-                .AddAasClient(aas => aas.InstanceNamespaceUri = Opc.Ua.Aas.Namespaces.Aas)
-                .AddAasRegistryClient();
+                .AddAasV3Client(aas => aas.InstanceNamespaceUri = Opc.Ua.Aas.V3.Namespaces.AasV3)
+                .AddAasV3RegistryClient();
             return builder.Build();
         }
 
@@ -276,7 +277,7 @@ namespace AasSample
                         {
                             ObjectId = registry.RegistryNodeId,
                             MethodId = ExpandedNodeId.ToNodeId(
-                                Opc.Ua.Aas.MethodIds.AASRegistryType_LookupShellsByAssetLink,
+                                Opc.Ua.Aas.V3.MethodIds.AASRegistryType_LookupShellsByAssetLink,
                                 session.NamespaceUris),
                             InputArguments =
                             [

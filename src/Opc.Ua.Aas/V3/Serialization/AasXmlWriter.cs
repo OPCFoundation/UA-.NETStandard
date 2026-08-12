@@ -33,7 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Writes AAS V3 XML Environment documents.

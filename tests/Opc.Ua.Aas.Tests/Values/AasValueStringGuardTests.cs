@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using NUnit.Framework;
+using Opc.Ua.Aas.V3;
 
 namespace Opc.Ua.Aas.Tests.Values
 {
@@ -38,12 +39,12 @@ namespace Opc.Ua.Aas.Tests.Values
     [Category("Aas")]
     public class AasValueStringGuardTests
     {
-        [TestCase(DataTypes.AASQualifierDataType)]
-        [TestCase(DataTypes.AASExtensionDataType)]
-        [TestCase(DataTypes.AASDataSpecificationIec61360DataType)]
+        [TestCase(Opc.Ua.Aas.V3.DataTypes.AASQualifierDataType)]
+        [TestCase(Opc.Ua.Aas.V3.DataTypes.AASExtensionDataType)]
+        [TestCase(Opc.Ua.Aas.V3.DataTypes.AASDataSpecificationIec61360DataType)]
         public void StructureCarriersAreAccepted(uint dataTypeId)
         {
-            var carrier = new ExpandedNodeId(dataTypeId, 0, Namespaces.Aas, 0);
+            var carrier = new ExpandedNodeId(dataTypeId, 0, Opc.Ua.Aas.V3.Namespaces.AasV3, 0);
 
             Assert.That(AasValueStringGuard.IsLegitimateStructureCarrier(carrier), Is.True);
         }
@@ -53,7 +54,7 @@ namespace Opc.Ua.Aas.Tests.Values
         {
             Assert.That(
                 () => AasValueStringGuard.AssertVariableDataTypeAllowed(
-                    DataTypeIds.AASValueString,
+                    Opc.Ua.Aas.V3.DataTypeIds.AASValueString,
                     "MyProperty.Value"),
                 Throws.ArgumentException.With.Message.Contains("MyProperty.Value"));
         }
@@ -73,8 +74,8 @@ namespace Opc.Ua.Aas.Tests.Values
         public void SessionLocalAasValueStringIsRejected()
         {
             var namespaceUris = new NamespaceTable();
-            ushort index = namespaceUris.GetIndexOrAppend(Namespaces.Aas);
-            var local = new NodeId(DataTypes.AASValueString, index);
+            ushort index = namespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
+            var local = new NodeId(Opc.Ua.Aas.V3.DataTypes.AASValueString, index);
 
             Assert.That(
                 () => AasValueStringGuard.AssertVariableDataTypeAllowed(

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -126,7 +127,7 @@ namespace Opc.Ua.Aas.Client.Registry
             return AasRegistryNodeReader.ReadRequiredStringPropertyAsync(
                 Session,
                 ResourceNodeId,
-                Session.NamespaceUris.GetIndexOrAppend(Namespaces.Aas),
+                Session.NamespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3),
                 SourceIdentityPropertyName,
                 ct);
         }
@@ -330,7 +331,7 @@ namespace Opc.Ua.Aas.Client.Registry
             int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
         {
-            ushort aasNs = Session.NamespaceUris.GetIndexOrAppend(Namespaces.Aas);
+            ushort aasNs = Session.NamespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
             string digest = await AasRegistryNodeReader.ReadRequiredStringPropertyAsync(
                 Session,
                 ResourceNodeId,

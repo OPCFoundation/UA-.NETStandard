@@ -44,6 +44,6 @@ namespace Opc.Ua.Aas.Client.Hosting
         /// Namespace URI containing materialized AAS instance nodes. Defaults to the AAS companion
         /// namespace used by generated NodeSet materialization.
         /// </summary>
-        public string InstanceNamespaceUri { get; set; } = Namespaces.Aas;
+        public string InstanceNamespaceUri { get; set; } = Opc.Ua.Aas.V3.Namespaces.AasV3;
     }
 }

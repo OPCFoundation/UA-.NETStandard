@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -87,7 +88,7 @@ namespace Opc.Ua.Aas.Tests.Materialization
                     })));
 
             var namespaces = new NamespaceTable();
-            namespaces.Append(Namespaces.Aas);
+            namespaces.Append(Opc.Ua.Aas.V3.Namespaces.AasV3);
             var context = new SystemContext(telemetry: null!) { NamespaceUris = namespaces };
             var nodes = new NodeStateCollection();
 
@@ -121,7 +122,7 @@ namespace Opc.Ua.Aas.Tests.Materialization
                 Assert.That(operation.FindMethod(context, invoke.MethodDeclarationId), Is.Not.Null,
                     "The Operation has to resolve Invoke by its declaration id too.");
                 Assert.That(invoke.MethodDeclarationId.NamespaceIndex,
-                    Is.EqualTo(namespaces.GetIndex(Namespaces.Aas)),
+                    Is.EqualTo(namespaces.GetIndex(Opc.Ua.Aas.V3.Namespaces.AasV3)),
                     "The declaration lives in the AAS namespace.");
 
                 // The argument definitions are emitted with the standard

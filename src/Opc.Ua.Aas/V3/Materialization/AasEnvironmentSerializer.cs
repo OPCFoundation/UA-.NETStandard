@@ -36,7 +36,7 @@ using System.Runtime.Serialization;
 using Opc.Ua.Export;
 using SystemXml = System.Xml;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Serializes an AAS V3 NodeSet subtree produced by clause 6.1.6 back into an AAS Environment.

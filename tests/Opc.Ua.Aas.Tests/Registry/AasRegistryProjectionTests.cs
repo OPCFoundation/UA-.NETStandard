@@ -26,6 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -95,13 +96,13 @@ namespace Opc.Ua.Aas.Tests.Registry
         {
             SystemContext context = ProjectionHarness.CreateContext(out NamespaceTable namespaces);
             var nodes = new NodeStateCollection();
-            nodes.AddOpcUaAas(context);
+            nodes.AddOpcUaAasV3(context);
 
             Dictionary<string, NodeId> declarations = MethodsOf(
-                nodes, context, ExpandedNodeId.ToNodeId(ObjectTypeIds.AASRegistryType, namespaces))
+                nodes, context, ExpandedNodeId.ToNodeId(Opc.Ua.Aas.V3.ObjectTypeIds.AASRegistryType, namespaces))
                 .ToDictionary(method => NameOf(method), method => method.NodeId);
             List<MethodState> concrete = MethodsOf(
-                nodes, context, ExpandedNodeId.ToNodeId(ObjectIds.AASRegistry, namespaces));
+                nodes, context, ExpandedNodeId.ToNodeId(Opc.Ua.Aas.V3.ObjectIds.AASRegistry, namespaces));
 
             Assert.Multiple(() =>
             {
@@ -170,8 +171,8 @@ namespace Opc.Ua.Aas.Tests.Registry
                 var registryNode = new AASRegistryState(null);
                 registryNode.Create(
                     context,
-                    ExpandedNodeId.ToNodeId(ObjectIds.AASRegistry, namespaces),
-                    new QualifiedName("AASRegistry", (ushort)namespaces.GetIndex(Namespaces.Aas)),
+                    ExpandedNodeId.ToNodeId(Opc.Ua.Aas.V3.ObjectIds.AASRegistry, namespaces),
+                    new QualifiedName("AASRegistry", (ushort)namespaces.GetIndex(Opc.Ua.Aas.V3.Namespaces.AasV3)),
                     new LocalizedText("AASRegistry"),
                     assignNodeIds: false);
                 using var projection = new AasRegistryProjection(
@@ -193,11 +194,11 @@ namespace Opc.Ua.Aas.Tests.Registry
                 namespaces = new NamespaceTable();
                 namespaces.Append(Opc.Ua.Namespaces.OpcUa);
                 namespaces.Append(Opc.Ua.XRegistry.Namespaces.xRegistry);
-                namespaces.Append(Namespaces.Aas);
+                namespaces.Append(Opc.Ua.Aas.V3.Namespaces.AasV3);
                 return new SystemContext(telemetry: null!)
                 {
                     NamespaceUris = namespaces,
-                    NodeIdFactory = new SequentialNodeIdFactory((ushort)namespaces.GetIndex(Namespaces.Aas))
+                    NodeIdFactory = new SequentialNodeIdFactory((ushort)namespaces.GetIndex(Opc.Ua.Aas.V3.Namespaces.AasV3))
                 };
             }
         }

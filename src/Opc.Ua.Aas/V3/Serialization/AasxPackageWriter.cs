@@ -33,7 +33,7 @@ using System.IO.Packaging;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Writes AAS environments as AASX Open Packaging Conventions packages.

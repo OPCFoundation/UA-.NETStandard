@@ -31,7 +31,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Source-generated JSON metadata used by the AAS document serializer.

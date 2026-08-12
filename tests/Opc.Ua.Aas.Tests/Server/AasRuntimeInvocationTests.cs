@@ -201,7 +201,7 @@ namespace Opc.Ua.Aas.Tests.Server
             // the Server assigned, so the context has to answer with a table
             // that places the AAS namespace where the test expects its nodes.
             var namespaces = new NamespaceTable();
-            namespaces.GetIndexOrAppend(Namespaces.Aas);
+            namespaces.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
             builder
                 .Setup(b => b.Context)
                 .Returns(new SystemContext(telemetry: null!) { NamespaceUris = namespaces });

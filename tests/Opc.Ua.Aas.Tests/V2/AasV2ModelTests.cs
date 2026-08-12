@@ -28,6 +28,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
@@ -61,10 +62,10 @@ namespace Opc.Ua.Aas.Tests.V2
             {
                 Assert.That(Opc.Ua.Aas.V2.Namespaces.AasV2,
                     Is.EqualTo("http://opcfoundation.org/UA/I4AAS/"));
-                Assert.That(Opc.Ua.Aas.Namespaces.Aas,
+                Assert.That(Opc.Ua.Aas.V3.Namespaces.AasV3,
                     Is.EqualTo("http://opcfoundation.org/UA/I4AAS/v3/"));
                 Assert.That(Opc.Ua.Aas.V2.Namespaces.AasV2,
-                    Is.Not.EqualTo(Opc.Ua.Aas.Namespaces.Aas));
+                    Is.Not.EqualTo(Opc.Ua.Aas.V3.Namespaces.AasV3));
             });
         }
 
@@ -81,10 +82,10 @@ namespace Opc.Ua.Aas.Tests.V2
             {
                 Assert.That(typeof(Opc.Ua.Aas.V2.AASSubmodelState).Namespace,
                     Is.EqualTo("Opc.Ua.Aas.V2"));
-                Assert.That(typeof(Opc.Ua.Aas.AASSubmodelState).Namespace,
-                    Is.EqualTo("Opc.Ua.Aas"));
+                Assert.That(typeof(Opc.Ua.Aas.V3.AASSubmodelState).Namespace,
+                    Is.EqualTo("Opc.Ua.Aas.V3"));
                 Assert.That(typeof(Opc.Ua.Aas.V2.AASSubmodelState).Name,
-                    Is.EqualTo(typeof(Opc.Ua.Aas.AASSubmodelState).Name),
+                    Is.EqualTo(typeof(Opc.Ua.Aas.V3.AASSubmodelState).Name),
                     "The two models really do name this type alike.");
             });
         }

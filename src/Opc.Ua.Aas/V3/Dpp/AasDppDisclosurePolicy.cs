@@ -29,7 +29,7 @@
 
 using System;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// The Annex XIII regulatory classes used by the battery passport DPP mapping.

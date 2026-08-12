@@ -404,7 +404,7 @@ namespace Opc.Ua.Aas.Tests.Client
         {
             var namespaceUris = new NamespaceTable();
             namespaceUris.GetIndexOrAppend(Namespaces.OpcUa);
-            namespaceUris.GetIndexOrAppend(Namespaces.Aas);
+            namespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
             namespaceUris.GetIndexOrAppend(Opc.Ua.XRegistry.Namespaces.xRegistry);
             ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(Mock.Of<ITelemetryContext>());
             messageContext.NamespaceUris = namespaceUris;
@@ -531,7 +531,7 @@ namespace Opc.Ua.Aas.Tests.Client
             string browseName,
             NodeId target,
             StatusCode statusCode,
-            string namespaceUri = Namespaces.Aas)
+            string namespaceUri = Opc.Ua.Aas.V3.Namespaces.AasV3)
         {
             ushort namespaceIndex = session.Object.NamespaceUris.GetIndexOrAppend(namespaceUri);
             session

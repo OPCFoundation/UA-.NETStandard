@@ -27,21 +27,54 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
-    /// Options used by the DPP dependency injection registration.
+    /// The AAS HasSemantics aspect.
     /// </summary>
-    public sealed class AasDppOptions
+    public interface IAasHasSemantics
     {
         /// <summary>
-        /// Gets or sets the default regulatory class used when no disclosure rule matches.
+        /// Gets the optional semantic identifier.
         /// </summary>
-        public AasDppRegulatoryClass DefaultRegulatoryClass { get; set; }
+        AasOptional<AASReferenceDataType> SemanticId { get; init; }
 
         /// <summary>
-        /// Gets or sets the rules evaluated before the default regulatory class is used.
+        /// Gets the optional supplemental semantic identifiers.
         /// </summary>
-        public ArrayOf<AasDppDisclosureRule> DisclosureRules { get; set; } = ArrayOf<AasDppDisclosureRule>.Empty;
+        AasOptional<ArrayOf<AASReferenceDataType>> SupplementalSemanticIds { get; init; }
+    }
+
+    /// <summary>
+    /// The AAS HasKind aspect.
+    /// </summary>
+    public interface IAasHasKind
+    {
+        /// <summary>
+        /// Gets the optional modelling kind.
+        /// </summary>
+        AasOptional<AASModellingKindDataType> Kind { get; init; }
+    }
+
+    /// <summary>
+    /// The AAS HasDataSpecification aspect.
+    /// </summary>
+    public interface IAasHasDataSpecification
+    {
+        /// <summary>
+        /// Gets the optional embedded data specifications.
+        /// </summary>
+        AasOptional<ArrayOf<AASEmbeddedDataSpecificationDataType>> EmbeddedDataSpecifications { get; init; }
+    }
+
+    /// <summary>
+    /// The AAS Qualifiable aspect.
+    /// </summary>
+    public interface IAasQualifiable
+    {
+        /// <summary>
+        /// Gets the optional qualifiers.
+        /// </summary>
+        AasOptional<ArrayOf<AASQualifierDataType>> Qualifiers { get; init; }
     }
 }

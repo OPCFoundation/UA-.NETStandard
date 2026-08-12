@@ -29,7 +29,7 @@
 
 using System;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Compares two AAS values for the equivalence clause 6.4 defines: sameness

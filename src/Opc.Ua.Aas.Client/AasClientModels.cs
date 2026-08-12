@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
+
 namespace Opc.Ua.Aas.Client
 {
     /// <summary>

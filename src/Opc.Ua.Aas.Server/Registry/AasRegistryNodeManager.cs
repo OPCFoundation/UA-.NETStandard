@@ -26,6 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -53,7 +54,7 @@ namespace Opc.Ua.Aas.Server.Registry
                 server,
                 configuration,
                 server.Telemetry.CreateLogger<AasRegistryNodeManager>(),
-                Namespaces.Aas,
+                Opc.Ua.Aas.V3.Namespaces.AasV3,
                 XRegistryWellKnown.XRegistryNamespaceUri)
         {
             Registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -131,7 +132,7 @@ namespace Opc.Ua.Aas.Server.Registry
         {
             NodeStateCollection nodes = new NodeStateCollection()
                 .AddOpcUaXRegistry(context)
-                .AddOpcUaAas(context);
+                .AddOpcUaAasV3(context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
 
@@ -141,7 +142,7 @@ namespace Opc.Ua.Aas.Server.Registry
             NodeState predefinedNode,
             CancellationToken cancellationToken = default)
         {
-            NodeId registryNodeId = ExpandedNodeId.ToNodeId(ObjectIds.AASRegistry, Server.NamespaceUris);
+            NodeId registryNodeId = ExpandedNodeId.ToNodeId(Opc.Ua.Aas.V3.ObjectIds.AASRegistry, Server.NamespaceUris);
             if (predefinedNode is AASRegistryState registry && predefinedNode.NodeId == registryNodeId)
             {
                 m_registryNode = registry;

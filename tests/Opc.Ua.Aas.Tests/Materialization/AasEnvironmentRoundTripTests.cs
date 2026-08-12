@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -444,7 +445,7 @@ namespace Opc.Ua.Aas.Tests.Materialization
         {
             var table = new NamespaceTable();
             table.GetIndexOrAppend(Opc.Ua.Namespaces.OpcUa);
-            table.GetIndexOrAppend(Namespaces.Aas);
+            table.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
             return table;
         }
 

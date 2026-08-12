@@ -35,7 +35,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Text;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// A row of the DPP SSSOM mapping set defined by Annex A.

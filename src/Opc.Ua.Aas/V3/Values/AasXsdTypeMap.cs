@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// The clause 6.3.1 assignment of each of the thirty
@@ -188,7 +188,7 @@ namespace Opc.Ua.Aas
         public static bool IsAasDefinedSubtype(ExpandedNodeId dataTypeId)
         {
             return !dataTypeId.IsNull &&
-                string.Equals(dataTypeId.NamespaceUri, Namespaces.Aas, StringComparison.Ordinal) &&
+                string.Equals(dataTypeId.NamespaceUri, Namespaces.AasV3, StringComparison.Ordinal) &&
                 s_fromDataType.ContainsKey(dataTypeId);
         }
 

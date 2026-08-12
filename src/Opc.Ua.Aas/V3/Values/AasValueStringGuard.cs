@@ -30,7 +30,7 @@
 using System;
 using System.Globalization;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Guards the clause 6.3.2 restriction on <c>AASValueString</c>.

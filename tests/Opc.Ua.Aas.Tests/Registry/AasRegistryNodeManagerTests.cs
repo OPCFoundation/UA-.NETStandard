@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -358,7 +359,7 @@ namespace Opc.Ua.Aas.Tests.Registry
         public void ConstructorRejectsAMissingRegistryService()
         {
             Mock<IServerInternal> server = AasServerTestHarness.CreateServer(
-                Namespaces.Aas, XRegistryWellKnown.XRegistryNamespaceUri);
+                Opc.Ua.Aas.V3.Namespaces.AasV3, XRegistryWellKnown.XRegistryNamespaceUri);
 
             Assert.That(
                 () => new AasRegistryNodeManager(server.Object, null!, null!),
@@ -457,7 +458,7 @@ namespace Opc.Ua.Aas.Tests.Registry
             public static async Task<Fixture> CreateAsync(IAasRegistryService? registry = null)
             {
                 Mock<IServerInternal> server = AasServerTestHarness.CreateServer(
-                    Namespaces.Aas, XRegistryWellKnown.XRegistryNamespaceUri);
+                    Opc.Ua.Aas.V3.Namespaces.AasV3, XRegistryWellKnown.XRegistryNamespaceUri);
                 IAasRegistryService service = registry ?? new AasRegistryService();
                 var nodeManager = new AasRegistryNodeManager(server.Object, null!, service);
                 await nodeManager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
@@ -465,7 +466,7 @@ namespace Opc.Ua.Aas.Tests.Registry
                 return new Fixture(
                     nodeManager,
                     service,
-                    ExpandedNodeId.ToNodeId(ObjectIds.AASRegistry, server.Object.NamespaceUris));
+                    ExpandedNodeId.ToNodeId(Opc.Ua.Aas.V3.ObjectIds.AASRegistry, server.Object.NamespaceUris));
             }
 
             public ValueTask<AasRegistryMutationResult> UpsertAsync(

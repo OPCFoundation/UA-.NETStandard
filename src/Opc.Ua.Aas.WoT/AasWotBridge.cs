@@ -30,6 +30,7 @@
 #pragma warning disable CA1307, CA1845, CA1846, CA1865
 // TODO: remove when all TFMs agree on the preferred string slicing and single-character overloads.
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -182,7 +183,7 @@ namespace Opc.Ua.Aas.WoT
                 writer.WriteStringValue("../../tools/jsonld/vendor/opc-ua-wot-binding.context.jsonld");
                 writer.WriteStartObject();
                 writer.WriteString("id", "@id");
-                writer.WriteString("i4aas", Namespaces.Aas);
+                writer.WriteString("i4aas", Opc.Ua.Aas.V3.Namespaces.AasV3);
                 writer.WriteEndObject();
                 writer.WriteEndArray();
                 writer.WritePropertyName("@type");
@@ -240,8 +241,8 @@ namespace Opc.Ua.Aas.WoT
         {
             var nodeSet = new UANodeSet
             {
-                NamespaceUris = [Namespaces.Aas],
-                Models = [new ModelTableEntry { ModelUri = Namespaces.Aas }]
+                NamespaceUris = [Opc.Ua.Aas.V3.Namespaces.AasV3],
+                Models = [new ModelTableEntry { ModelUri = Opc.Ua.Aas.V3.Namespaces.AasV3 }]
             };
             var items = new List<UANode>
             {
@@ -641,9 +642,9 @@ namespace Opc.Ua.Aas.WoT
 
         private static string NodeSetNodeId(string portable)
         {
-            if (portable.StartsWith("nsu=" + Namespaces.Aas + ";", StringComparison.Ordinal))
+            if (portable.StartsWith("nsu=" + Opc.Ua.Aas.V3.Namespaces.AasV3 + ";", StringComparison.Ordinal))
             {
-                return "ns=1;" + portable.Substring(("nsu=" + Namespaces.Aas + ";").Length);
+                return "ns=1;" + portable.Substring(("nsu=" + Opc.Ua.Aas.V3.Namespaces.AasV3 + ";").Length);
             }
             if (portable.StartsWith("i=", StringComparison.Ordinal))
             {
@@ -655,9 +656,9 @@ namespace Opc.Ua.Aas.WoT
 
         private static string NodeSetBrowseName(string portable)
         {
-            if (portable.StartsWith("nsu=" + Namespaces.Aas + ";", StringComparison.Ordinal))
+            if (portable.StartsWith("nsu=" + Opc.Ua.Aas.V3.Namespaces.AasV3 + ";", StringComparison.Ordinal))
             {
-                return "1:" + portable.Substring(("nsu=" + Namespaces.Aas + ";").Length);
+                return "1:" + portable.Substring(("nsu=" + Opc.Ua.Aas.V3.Namespaces.AasV3 + ";").Length);
             }
             int separator = portable.IndexOf(";", StringComparison.Ordinal);
             return separator >= 0 ? "1:" + portable.Substring(separator + 1) : portable;
@@ -669,13 +670,13 @@ namespace Opc.Ua.Aas.WoT
             {
                 return "i=58";
             }
-            if (nodeId.StartsWith("nsu=" + Namespaces.Aas + ";", StringComparison.Ordinal))
+            if (nodeId.StartsWith("nsu=" + Opc.Ua.Aas.V3.Namespaces.AasV3 + ";", StringComparison.Ordinal))
             {
                 return nodeId;
             }
             if (nodeId.StartsWith("ns=1;", StringComparison.Ordinal))
             {
-                return "nsu=" + Namespaces.Aas + ";" + nodeId.Substring(5);
+                return "nsu=" + Opc.Ua.Aas.V3.Namespaces.AasV3 + ";" + nodeId.Substring(5);
             }
             return nodeId;
         }

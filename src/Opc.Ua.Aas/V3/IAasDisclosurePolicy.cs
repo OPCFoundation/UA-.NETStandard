@@ -29,7 +29,7 @@
 
 using System;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Decides the information disclosure tier for an AAS entity.

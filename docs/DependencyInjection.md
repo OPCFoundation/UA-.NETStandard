@@ -59,8 +59,8 @@ you need finer control.
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
 | `Opc.Ua.WotCon.Server`         | `builder.AddWotConServer(opt => …)`      | `IWotConServerBuilder`   | yes (via `AddServer`) | `OpcUa:WotCon:Server` |
 | `Opc.Ua.WotCon.Client`         | `builder.AddWotConClient(opt => …)`      | `IOpcUaBuilder`          | —       | `OpcUa:WotCon:Client`    |
-| `Opc.Ua.Aas.Server`            | `builder.AddAasServer(opt => …)`         | `IAasServerBuilder`      | yes (via `AddServer`) | `OpcUa:Aas:Server`     |
-| `Opc.Ua.Aas.Client`            | `builder.AddAasClient(opt => …)` / `AddAasRegistryClient(opt => …)` | `IOpcUaBuilder` | — | `OpcUa:Aas:Client` |
+| `Opc.Ua.Aas.Server`            | `builder.AddAasV3Server(opt => …)`         | `IAasServerBuilder`      | yes (via `AddServer`) | `OpcUa:Aas:Server`     |
+| `Opc.Ua.Aas.Client`            | `builder.AddAasV3Client(opt => …)` / `AddAasV3RegistryClient(opt => …)` | `IOpcUaBuilder` | — | `OpcUa:Aas:Client` |
 | `Opc.Ua.PubSub`                | `builder.AddPubSub(opt => …)`            | `IPubSubBuilder`         | yes     | `OpcUa:PubSub`           |
 | `Opc.Ua.PubSub` (publish-only) | `builder.AddPubSubPublisher(opt => …)`   | `IPubSubBuilder`         | yes     | `OpcUa:PubSub`           |
 | `Opc.Ua.PubSub` (subscribe-only) | `builder.AddPubSubSubscriber(opt => …)`| `IPubSubBuilder`         | yes     | `OpcUa:PubSub`           |
@@ -1294,7 +1294,7 @@ The WoT client reuses the connected `ManagedSession` registered by
 ## Asset Administration Shell V3
 
 The AAS metamodel server is hosted inside the regular OPC UA server. Register
-custom providers first; `AddAasServer` uses `TryAddSingleton` defaults for the
+custom providers first; `AddAasV3Server` uses `TryAddSingleton` defaults for the
 document-backed value provider and operation handler.
 
 ```csharp
@@ -1305,7 +1305,7 @@ services
     .AddServer(options => { /* endpoint and application options */ })
     .Services
     .AddOpcUa()
-    .AddAasServer(options =>
+    .AddAasV3Server(options =>
     {
         options.EnvironmentFolder = "aas-environments";
         options.RetirementPolicy = AasProjectionRetirementPolicy.Graceful;
@@ -1313,19 +1313,19 @@ services
     .AddOperationHandler<MyAasOperationHandler>();
 ```
 
-`AddAasClient` registers a metamodel client factory over the connected
-`ManagedSession`; `AddAasRegistryClient` registers the registry client factory
+`AddAasV3Client` registers a metamodel client factory over the connected
+`ManagedSession`; `AddAasV3RegistryClient` registers the registry client factory
 that resolves `Server/AASRegistry` on first use:
 
 ```csharp
 services
     .AddOpcUa()
     .AddClient(options => { /* endpoint and application options */ })
-    .AddAasClient(options =>
+    .AddAasV3Client(options =>
     {
         options.InstanceNamespaceUri = "urn:example:aas:instances";
     })
-    .AddAasRegistryClient();
+    .AddAasV3RegistryClient();
 ```
 
 See [OPC UA for Asset Administration Shell V3](Aas.md).

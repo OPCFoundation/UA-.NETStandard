@@ -60,7 +60,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(_ => { });
 
-            IOpcUaClientBuilder returned = builder.AddAasClient(
+            IOpcUaClientBuilder returned = builder.AddAasV3Client(
                 options => options.InstanceNamespaceUri = "urn:instances");
 
             await using ServiceProvider sp = services.BuildServiceProvider();
@@ -84,7 +84,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(_ => { });
 
-            IOpcUaClientBuilder returned = builder.AddAasClient(CreateConfiguration());
+            IOpcUaClientBuilder returned = builder.AddAasV3Client(CreateConfiguration());
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             AasClientOptions options = ResolveOptions(sp);
@@ -106,7 +106,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(_ => { });
 
-            IOpcUaClientBuilder returned = builder.AddAasClient(
+            IOpcUaClientBuilder returned = builder.AddAasV3Client(
                 CreateConfiguration().GetSection(
                     OpcUaAasClientBuilderExtensions.DefaultConfigurationSection));
 
@@ -128,7 +128,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(_ => { });
 
-            IOpcUaClientBuilder returned = builder.AddAasRegistryClient(
+            IOpcUaClientBuilder returned = builder.AddAasV3RegistryClient(
                 options => options.LazyConnect = false);
 
             await using ServiceProvider sp = services.BuildServiceProvider();
@@ -153,7 +153,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(_ => { });
 
-            IOpcUaClientBuilder returned = builder.AddAasRegistryClient(CreateConfiguration());
+            IOpcUaClientBuilder returned = builder.AddAasV3RegistryClient(CreateConfiguration());
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Assert.Multiple(() =>
@@ -172,7 +172,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(_ => { });
 
-            IOpcUaClientBuilder returned = builder.AddAasRegistryClient(
+            IOpcUaClientBuilder returned = builder.AddAasV3RegistryClient(
                 CreateConfiguration().GetSection(
                     OpcUaAasClientBuilderExtensions.DefaultConfigurationSection));
 
@@ -194,7 +194,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             IOpcUaBuilder builder = services.AddOpcUa();
 
-            IOpcUaBuilder returned = builder.AddAasRegistryClient(CreateConfiguration());
+            IOpcUaBuilder returned = builder.AddAasV3RegistryClient(CreateConfiguration());
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             AasClientOptions options = ResolveOptions(sp);
@@ -215,14 +215,14 @@ namespace Opc.Ua.Aas.Tests.Client
         {
             IServiceCollection services = new ServiceCollection();
 
-            services.AddOpcUa().AddAasRegistryClient();
+            services.AddOpcUa().AddAasV3RegistryClient();
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             AasClientOptions options = ResolveOptions(sp);
             Assert.Multiple(() =>
             {
                 Assert.That(options.LazyConnect, Is.True);
-                Assert.That(options.InstanceNamespaceUri, Is.EqualTo(Namespaces.Aas));
+                Assert.That(options.InstanceNamespaceUri, Is.EqualTo(Opc.Ua.Aas.V3.Namespaces.AasV3));
             });
         }
 
@@ -242,41 +242,41 @@ namespace Opc.Ua.Aas.Tests.Client
 
             Assert.Multiple(() =>
             {
-                Assert.That(() => ((IOpcUaBuilder)null!).AddAasClient(),
+                Assert.That(() => ((IOpcUaBuilder)null!).AddAasV3Client(),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
-                Assert.That(() => ((IOpcUaBuilder)null!).AddAasClient(section),
+                Assert.That(() => ((IOpcUaBuilder)null!).AddAasV3Client(section),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
-                Assert.That(() => builder.AddAasClient((IConfiguration)null!),
+                Assert.That(() => builder.AddAasV3Client((IConfiguration)null!),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("configuration"));
-                Assert.That(() => builder.AddAasClient((IConfigurationSection)null!),
+                Assert.That(() => builder.AddAasV3Client((IConfigurationSection)null!),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("section"));
-                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasClient(),
+                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasV3Client(),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
-                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasClient(configuration),
+                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasV3Client(configuration),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
-                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasClient(section),
+                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasV3Client(section),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
-                Assert.That(() => clientBuilder.AddAasClient((IConfiguration)null!),
+                Assert.That(() => clientBuilder.AddAasV3Client((IConfiguration)null!),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("configuration"));
-                Assert.That(() => clientBuilder.AddAasClient((IConfigurationSection)null!),
+                Assert.That(() => clientBuilder.AddAasV3Client((IConfigurationSection)null!),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("section"));
-                Assert.That(() => ((IOpcUaBuilder)null!).AddAasRegistryClient(),
+                Assert.That(() => ((IOpcUaBuilder)null!).AddAasV3RegistryClient(),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
-                Assert.That(() => ((IOpcUaBuilder)null!).AddAasRegistryClient(section),
+                Assert.That(() => ((IOpcUaBuilder)null!).AddAasV3RegistryClient(section),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
-                Assert.That(() => builder.AddAasRegistryClient((IConfiguration)null!),
+                Assert.That(() => builder.AddAasV3RegistryClient((IConfiguration)null!),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("configuration"));
-                Assert.That(() => builder.AddAasRegistryClient((IConfigurationSection)null!),
+                Assert.That(() => builder.AddAasV3RegistryClient((IConfigurationSection)null!),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("section"));
-                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasRegistryClient(),
+                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasV3RegistryClient(),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
-                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasRegistryClient(configuration),
+                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasV3RegistryClient(configuration),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
-                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasRegistryClient(section),
+                Assert.That(() => ((IOpcUaClientBuilder)null!).AddAasV3RegistryClient(section),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
-                Assert.That(() => clientBuilder.AddAasRegistryClient((IConfiguration)null!),
+                Assert.That(() => clientBuilder.AddAasV3RegistryClient((IConfiguration)null!),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("configuration"));
-                Assert.That(() => clientBuilder.AddAasRegistryClient((IConfigurationSection)null!),
+                Assert.That(() => clientBuilder.AddAasV3RegistryClient((IConfigurationSection)null!),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("section"));
             });
         }
@@ -291,7 +291,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 _ => _ => Task.FromResult<ManagedSession>(null!));
-            services.AddOpcUa().AddAasClient(options => options.LazyConnect = false);
+            services.AddOpcUa().AddAasV3Client(options => options.LazyConnect = false);
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<AasClient>> factory =
@@ -311,7 +311,7 @@ namespace Opc.Ua.Aas.Tests.Client
         public async Task ClientFactoryReportsTheMissingSessionFactoryAsync()
         {
             IServiceCollection services = new ServiceCollection();
-            services.AddOpcUa().AddAasClient();
+            services.AddOpcUa().AddAasV3Client();
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<AasClient>> factory =
@@ -320,7 +320,7 @@ namespace Opc.Ua.Aas.Tests.Client
             InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
 
-            Assert.That(error.Message, Does.Contain("AddAasClient requires AddClient"));
+            Assert.That(error.Message, Does.Contain("AddAasV3Client requires AddClient"));
         }
 
         /// <summary>
@@ -333,7 +333,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 _ => _ => Task.FromResult<ManagedSession>(null!));
-            services.AddOpcUa().AddAasClient();
+            services.AddOpcUa().AddAasV3Client();
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<AasClient>> factory =
@@ -361,7 +361,7 @@ namespace Opc.Ua.Aas.Tests.Client
                     return Task.FromException<ManagedSession>(
                         new InvalidOperationException("attempt " + calls));
                 });
-            services.AddOpcUa().AddAasClient();
+            services.AddOpcUa().AddAasV3Client();
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<AasClient>> factory =
@@ -397,7 +397,7 @@ namespace Opc.Ua.Aas.Tests.Client
                     calls++;
                     return pending.Task;
                 });
-            services.AddOpcUa().AddAasClient();
+            services.AddOpcUa().AddAasV3Client();
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<AasClient>> factory =
@@ -428,7 +428,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 _ => _ => Task.FromResult<ManagedSession>(null!));
-            services.AddOpcUa().AddAasRegistryClient(options => options.LazyConnect = false);
+            services.AddOpcUa().AddAasV3RegistryClient(options => options.LazyConnect = false);
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<AasRegistryClient>> factory =
@@ -441,14 +441,14 @@ namespace Opc.Ua.Aas.Tests.Client
         }
 
         /// <summary>
-        /// The registry diagnostic has to name AddAasRegistryClient so a caller knows which
+        /// The registry diagnostic has to name AddAasV3RegistryClient so a caller knows which
         /// registration is missing its session factory.
         /// </summary>
         [Test]
         public async Task RegistryFactoryReportsTheMissingSessionFactoryAsync()
         {
             IServiceCollection services = new ServiceCollection();
-            services.AddOpcUa().AddAasRegistryClient();
+            services.AddOpcUa().AddAasV3RegistryClient();
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<AasRegistryClient>> factory =
@@ -457,7 +457,7 @@ namespace Opc.Ua.Aas.Tests.Client
             InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
 
-            Assert.That(error.Message, Does.Contain("AddAasRegistryClient requires AddClient"));
+            Assert.That(error.Message, Does.Contain("AddAasV3RegistryClient requires AddClient"));
         }
 
         /// <summary>
@@ -470,7 +470,7 @@ namespace Opc.Ua.Aas.Tests.Client
             IServiceCollection services = new ServiceCollection();
             services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 _ => _ => Task.FromResult<ManagedSession>(null!));
-            services.AddOpcUa().AddAasRegistryClient();
+            services.AddOpcUa().AddAasV3RegistryClient();
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<AasRegistryClient>> factory =
@@ -497,7 +497,7 @@ namespace Opc.Ua.Aas.Tests.Client
                     return Task.FromException<ManagedSession>(
                         new InvalidOperationException("attempt " + calls));
                 });
-            services.AddOpcUa().AddAasRegistryClient();
+            services.AddOpcUa().AddAasV3RegistryClient();
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<AasRegistryClient>> factory =
@@ -532,7 +532,7 @@ namespace Opc.Ua.Aas.Tests.Client
                     calls++;
                     return pending.Task;
                 });
-            services.AddOpcUa().AddAasRegistryClient();
+            services.AddOpcUa().AddAasV3RegistryClient();
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<AasRegistryClient>> factory =
@@ -561,7 +561,7 @@ namespace Opc.Ua.Aas.Tests.Client
         public async Task SessionScopedFactoriesRejectAMissingSessionAsync()
         {
             IServiceCollection services = new ServiceCollection();
-            services.AddOpcUa().AddAasClient().AddAasRegistryClient();
+            services.AddOpcUa().AddAasV3Client().AddAasV3RegistryClient();
 
             await using ServiceProvider sp = services.BuildServiceProvider();
             var clientFactory =
@@ -587,7 +587,7 @@ namespace Opc.Ua.Aas.Tests.Client
         public async Task SessionScopedClientFactoryObservesCancellationAsync()
         {
             IServiceCollection services = new ServiceCollection();
-            services.AddOpcUa().AddAasClient();
+            services.AddOpcUa().AddAasV3Client();
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 

@@ -26,6 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+using Opc.Ua.Aas.V3;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -57,7 +58,7 @@ namespace Opc.Ua.Aas.Server.Registry
             }
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             m_namespaceUris = namespaceUris;
-            m_modelNs = (ushort)namespaceUris.GetIndex(Namespaces.Aas);
+            m_modelNs = (ushort)namespaceUris.GetIndex(Opc.Ua.Aas.V3.Namespaces.AasV3);
             var context = new XRegistryProjectionContext(
                 systemContext ?? throw new ArgumentNullException(nameof(systemContext)),
                 namespaceUris,
@@ -178,10 +179,10 @@ namespace Opc.Ua.Aas.Server.Registry
         {
             return kind switch
             {
-                AasRegistryEntityKind.SubmodelTemplate => ObjectTypeIds.AASSubmodelTemplateGroupType,
-                AasRegistryEntityKind.ConceptDictionary => ObjectTypeIds.AASConceptDictionaryGroupType,
-                AasRegistryEntityKind.PackageStore => ObjectTypeIds.AASPackageStoreGroupType,
-                _ => ObjectTypeIds.AASShellGroupType
+                AasRegistryEntityKind.SubmodelTemplate => Opc.Ua.Aas.V3.ObjectTypeIds.AASSubmodelTemplateGroupType,
+                AasRegistryEntityKind.ConceptDictionary => Opc.Ua.Aas.V3.ObjectTypeIds.AASConceptDictionaryGroupType,
+                AasRegistryEntityKind.PackageStore => Opc.Ua.Aas.V3.ObjectTypeIds.AASPackageStoreGroupType,
+                _ => Opc.Ua.Aas.V3.ObjectTypeIds.AASShellGroupType
             };
         }
 
@@ -189,10 +190,10 @@ namespace Opc.Ua.Aas.Server.Registry
         {
             return kind switch
             {
-                AasRegistryEntityKind.ConceptDescription => ObjectTypeIds.AASConceptDescriptionFileType,
-                AasRegistryEntityKind.Package => ObjectTypeIds.AASPackageFileType,
-                AasRegistryEntityKind.Environment => ObjectTypeIds.AASEnvironmentFileType,
-                _ => ObjectTypeIds.AASSubmodelFileType
+                AasRegistryEntityKind.ConceptDescription => Opc.Ua.Aas.V3.ObjectTypeIds.AASConceptDescriptionFileType,
+                AasRegistryEntityKind.Package => Opc.Ua.Aas.V3.ObjectTypeIds.AASPackageFileType,
+                AasRegistryEntityKind.Environment => Opc.Ua.Aas.V3.ObjectTypeIds.AASEnvironmentFileType,
+                _ => Opc.Ua.Aas.V3.ObjectTypeIds.AASSubmodelFileType
             };
         }
 

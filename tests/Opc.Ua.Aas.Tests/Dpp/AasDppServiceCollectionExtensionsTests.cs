@@ -29,6 +29,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Aas.V3;
 
 namespace Opc.Ua.Aas.Tests.Dpp
 {

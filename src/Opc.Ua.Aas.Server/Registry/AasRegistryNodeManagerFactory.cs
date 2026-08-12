@@ -47,7 +47,7 @@ namespace Opc.Ua.Aas.Server.Registry
         }
 
         /// <inheritdoc/>
-        public ArrayOf<string> NamespacesUris => new[] { Namespaces.Aas, Opc.Ua.XRegistry.Namespaces.xRegistry };
+        public ArrayOf<string> NamespacesUris => new[] { Opc.Ua.Aas.V3.Namespaces.AasV3, Opc.Ua.XRegistry.Namespaces.xRegistry };
 
         /// <inheritdoc/>
         public ValueTask<IAsyncNodeManager> CreateAsync(

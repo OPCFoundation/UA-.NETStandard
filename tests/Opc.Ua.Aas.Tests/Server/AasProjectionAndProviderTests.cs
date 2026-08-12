@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -67,7 +68,7 @@ namespace Opc.Ua.Aas.Tests.Server
             {
                 Assert.That(handle, Is.Not.Null);
                 Assert.That(lifecycle.Factory, Is.TypeOf<RuntimeNodeSetNodeManagerFactory>());
-                Assert.That(ContainsNamespace(lifecycle.Factory!.NamespacesUris, Namespaces.Aas), Is.True);
+                Assert.That(ContainsNamespace(lifecycle.Factory!.NamespacesUris, Opc.Ua.Aas.V3.Namespaces.AasV3), Is.True);
                 Assert.That(materialized.HasErrors, Is.False);
                 Assert.That(FindNode(materialized.NodeSet, "1:AASEnvironment"), Is.Not.Null);
                 Assert.That(FindNode(materialized.NodeSet, "1:" + AasServerTestData.PropertyName), Is.Not.Null);

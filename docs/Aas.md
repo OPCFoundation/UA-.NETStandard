@@ -144,7 +144,7 @@ arrays is not equivalent.
 
 ## 4. Hosting the metamodel server
 
-`AddAasServer` registers the environment NodeManager, default providers and the
+`AddAasV3Server` registers the environment NodeManager, default providers and the
 runtime projection host. It must be used with the normal server hosting feature:
 
 ```csharp
@@ -158,7 +158,7 @@ services
     })
     .Services
     .AddOpcUa()
-    .AddAasServer(options =>
+    .AddAasV3Server(options =>
     {
         options.EnvironmentFolder = "aas-environments";
         options.RetirementPolicy = AasProjectionRetirementPolicy.Graceful;
@@ -255,7 +255,7 @@ session:
 services
     .AddOpcUa()
     .AddClient(options => { /* endpoint and application options */ })
-    .AddAasClient(options =>
+    .AddAasV3Client(options =>
     {
         options.InstanceNamespaceUri = "urn:example:aas:instances";
     });
@@ -338,13 +338,13 @@ if (StatusCode.IsGood(submodel.StatusCode))
 }
 ```
 
-The DI shortcut is `AddAasRegistryClient`:
+The DI shortcut is `AddAasV3RegistryClient`:
 
 ```csharp
 services
     .AddOpcUa()
     .AddClient(options => { /* endpoint and application options */ })
-    .AddAasRegistryClient();
+    .AddAasV3RegistryClient();
 ```
 
 ---
@@ -495,7 +495,7 @@ publishing it would claim conformance that is not met.
   and reports the status rather than working around it.
 * The AAS registry server currently exposes direct construction through
   `AasRegistryService` and `AasRegistryNodeManagerFactory`; the client has a DI
-  helper (`AddAasRegistryClient`), while the metamodel server has `AddAasServer`.
+  helper (`AddAasV3RegistryClient`), while the metamodel server has `AddAasV3Server`.
 * This branch adds new AAS packages and the OPC UA `Decimal` DataType. No manual
   migration from 1.5.378 is required solely to consume the new AAS libraries;
   the general 2.0 migration guidance remains in [Migration Guide](MigrationGuide.md).

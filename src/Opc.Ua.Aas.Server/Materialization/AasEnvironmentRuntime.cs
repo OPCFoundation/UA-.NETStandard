@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -87,7 +88,7 @@ namespace Opc.Ua.Aas.Server.Materialization
 
         private static ushort ResolveNamespaceIndex(ISystemContext context)
         {
-            int index = context?.NamespaceUris?.GetIndex(Namespaces.Aas) ?? -1;
+            int index = context?.NamespaceUris?.GetIndex(Opc.Ua.Aas.V3.Namespaces.AasV3) ?? -1;
             return index < 0 ? AuthoredNamespaceIndex : (ushort)index;
         }
 

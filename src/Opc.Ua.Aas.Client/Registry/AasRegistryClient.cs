@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -88,7 +89,7 @@ namespace Opc.Ua.Aas.Client.Registry
                 throw new ArgumentNullException(nameof(telemetry));
             }
 
-            ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.Aas);
+            ushort ns = session.NamespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
             NodeId registryId = await AasRegistryBrowsePathResolver.ResolveChildAsync(
                 session,
                 global::Opc.Ua.ObjectIds.Server,
@@ -132,7 +133,7 @@ namespace Opc.Ua.Aas.Client.Registry
                     new CallMethodRequest
                     {
                         ObjectId = RegistryNodeId,
-                        MethodId = ExpandedNodeId.ToNodeId(MethodIds.AASRegistryType_GetSubmodel, Session.NamespaceUris),
+                        MethodId = ExpandedNodeId.ToNodeId(Opc.Ua.Aas.V3.MethodIds.AASRegistryType_GetSubmodel, Session.NamespaceUris),
                         InputArguments = [new Variant(submodelIdentifier)]
                     }
                 }.ToArrayOf(),
@@ -222,8 +223,8 @@ namespace Opc.Ua.Aas.Client.Registry
             {
                 throw new ArgumentNullException(nameof(session));
             }
-            session.NamespaceUris.GetIndexOrAppend(Namespaces.Aas);
-            return Namespaces.Aas;
+            session.NamespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
+            return Opc.Ua.Aas.V3.Namespaces.AasV3;
         }
 
         private static NodeId ValidateRegistryObjectId(NodeId registryObjectId)

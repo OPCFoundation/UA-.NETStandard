@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -161,16 +162,16 @@ namespace Opc.Ua.Aas.Tests.Values
             });
         }
 
-        [TestCase(AASDataTypeDefXsdDataType.AnyUri, DataTypes.AASAnyUri)]
-        [TestCase(AASDataTypeDefXsdDataType.HexBinary, DataTypes.AASHexBinary)]
-        [TestCase(AASDataTypeDefXsdDataType.NonPositiveInteger, DataTypes.AASNonPositiveInteger)]
-        [TestCase(AASDataTypeDefXsdDataType.NegativeInteger, DataTypes.AASNegativeInteger)]
-        [TestCase(AASDataTypeDefXsdDataType.PositiveInteger, DataTypes.AASPositiveInteger)]
-        [TestCase(AASDataTypeDefXsdDataType.GYear, DataTypes.AASGYear)]
-        [TestCase(AASDataTypeDefXsdDataType.GYearMonth, DataTypes.AASGYearMonth)]
-        [TestCase(AASDataTypeDefXsdDataType.GMonth, DataTypes.AASGMonth)]
-        [TestCase(AASDataTypeDefXsdDataType.GMonthDay, DataTypes.AASGMonthDay)]
-        [TestCase(AASDataTypeDefXsdDataType.GDay, DataTypes.AASGDay)]
+        [TestCase(AASDataTypeDefXsdDataType.AnyUri, Opc.Ua.Aas.V3.DataTypes.AASAnyUri)]
+        [TestCase(AASDataTypeDefXsdDataType.HexBinary, Opc.Ua.Aas.V3.DataTypes.AASHexBinary)]
+        [TestCase(AASDataTypeDefXsdDataType.NonPositiveInteger, Opc.Ua.Aas.V3.DataTypes.AASNonPositiveInteger)]
+        [TestCase(AASDataTypeDefXsdDataType.NegativeInteger, Opc.Ua.Aas.V3.DataTypes.AASNegativeInteger)]
+        [TestCase(AASDataTypeDefXsdDataType.PositiveInteger, Opc.Ua.Aas.V3.DataTypes.AASPositiveInteger)]
+        [TestCase(AASDataTypeDefXsdDataType.GYear, Opc.Ua.Aas.V3.DataTypes.AASGYear)]
+        [TestCase(AASDataTypeDefXsdDataType.GYearMonth, Opc.Ua.Aas.V3.DataTypes.AASGYearMonth)]
+        [TestCase(AASDataTypeDefXsdDataType.GMonth, Opc.Ua.Aas.V3.DataTypes.AASGMonth)]
+        [TestCase(AASDataTypeDefXsdDataType.GMonthDay, Opc.Ua.Aas.V3.DataTypes.AASGMonthDay)]
+        [TestCase(AASDataTypeDefXsdDataType.GDay, Opc.Ua.Aas.V3.DataTypes.AASGDay)]
         public void ASubtypeIsDefinedWhereTwoXsdTypesWouldShareOneBuiltIn(
             AASDataTypeDefXsdDataType valueType,
             uint expected)
@@ -179,7 +180,7 @@ namespace Opc.Ua.Aas.Tests.Values
 
             Assert.Multiple(() =>
             {
-                Assert.That(dataTypeId.NamespaceUri, Is.EqualTo(Namespaces.Aas));
+                Assert.That(dataTypeId.NamespaceUri, Is.EqualTo(Opc.Ua.Aas.V3.Namespaces.AasV3));
                 Assert.That(IdentifierOf(dataTypeId), Is.EqualTo(expected));
                 Assert.That(AasXsdTypeMap.IsAasDefinedSubtype(dataTypeId), Is.True);
             });
@@ -208,8 +209,8 @@ namespace Opc.Ua.Aas.Tests.Values
         public void TheDeclaredTypeIsRecoveredFromASessionLocalNodeId()
         {
             var namespaceUris = new NamespaceTable();
-            ushort index = namespaceUris.GetIndexOrAppend(Namespaces.Aas);
-            var local = new NodeId(DataTypes.AASHexBinary, index);
+            ushort index = namespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
+            var local = new NodeId(Opc.Ua.Aas.V3.DataTypes.AASHexBinary, index);
 
             Assert.That(
                 AasXsdTypeMap.TryGetValueType(

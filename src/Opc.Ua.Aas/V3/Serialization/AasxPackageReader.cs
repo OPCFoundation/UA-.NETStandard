@@ -35,7 +35,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Reads AASX packages using Open Packaging Conventions relationships.

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -161,7 +162,7 @@ namespace Opc.Ua.Aas.Server.Materialization
                         _ => new ValueTask<Stream>(new MemoryStream(nodeSetXml, writable: false)),
                         new ArrayOf<string>(OwnedModelUris(materialization.NodeSet)))
                 }),
-                DefaultNamespaceUri = Namespaces.Aas,
+                DefaultNamespaceUri = Opc.Ua.Aas.V3.Namespaces.AasV3,
                 AllowLifecycleFromRequestCallback = true,
                 ConfigureAsync = runtime.ConfigureAsync
             };
@@ -191,7 +192,7 @@ namespace Opc.Ua.Aas.Server.Materialization
                     return result.ToArray();
                 }
             }
-            return new[] { Namespaces.Aas };
+            return new[] { Opc.Ua.Aas.V3.Namespaces.AasV3 };
         }
 
         private readonly INodeManagerLifecycle m_lifecycle;

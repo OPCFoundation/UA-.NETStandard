@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
-using Opc.Ua.Aas;
+using Opc.Ua.Aas.V3;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

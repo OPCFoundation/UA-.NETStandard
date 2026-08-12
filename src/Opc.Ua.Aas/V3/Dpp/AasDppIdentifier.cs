@@ -32,7 +32,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Constructs the RDF IRI for a DPP template semantic identifier.

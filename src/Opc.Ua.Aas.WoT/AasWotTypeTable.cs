@@ -64,7 +64,7 @@ namespace Opc.Ua.Aas.WoT
         {
             if (nodeId.StartsWith("ns=1;", StringComparison.Ordinal))
             {
-                return "nsu=" + Namespaces.Aas + ";" + nodeId.Substring(5);
+                return "nsu=" + Opc.Ua.Aas.V3.Namespaces.AasV3 + ";" + nodeId.Substring(5);
             }
             return nodeId;
         }

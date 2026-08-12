@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -297,7 +298,7 @@ namespace Opc.Ua.Aas.Tests.Client
             var services = new ServiceCollection();
             IOpcUaBuilder builder = new TestOpcUaBuilder(services);
 
-            builder.AddAasClient(options => options.LazyConnect = false);
+            builder.AddAasV3Client(options => options.LazyConnect = false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
             AasClientOptions options = provider.GetRequiredService<IOptions<AasClientOptions>>().Value;
@@ -316,7 +317,7 @@ namespace Opc.Ua.Aas.Tests.Client
             var services = new ServiceCollection();
             IOpcUaBuilder builder = new TestOpcUaBuilder(services);
 
-            builder.AddAasClient(configuration);
+            builder.AddAasV3Client(configuration);
 
             using ServiceProvider provider = services.BuildServiceProvider();
             AasClientOptions options = provider.GetRequiredService<IOptions<AasClientOptions>>().Value;
@@ -335,7 +336,7 @@ namespace Opc.Ua.Aas.Tests.Client
             var services = new ServiceCollection();
             IOpcUaBuilder builder = new TestOpcUaBuilder(services);
 
-            builder.AddAasClient(configuration.GetSection("Aas"));
+            builder.AddAasV3Client(configuration.GetSection("Aas"));
 
             using ServiceProvider provider = services.BuildServiceProvider();
             AasClientOptions options = provider.GetRequiredService<IOptions<AasClientOptions>>().Value;
@@ -351,7 +352,7 @@ namespace Opc.Ua.Aas.Tests.Client
         {
             var namespaceUris = new NamespaceTable();
             namespaceUris.GetIndexOrAppend(Namespaces.OpcUa);
-            namespaceUris.GetIndexOrAppend(Namespaces.Aas);
+            namespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
             namespaceUris.GetIndexOrAppend("urn:instances");
             ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(Mock.Of<ITelemetryContext>());
             messageContext.NamespaceUris = namespaceUris;

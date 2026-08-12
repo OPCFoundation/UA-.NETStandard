@@ -34,7 +34,7 @@ using System.Runtime.Serialization;
 using Opc.Ua.Export;
 using SystemXml = System.Xml;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Materializes an AAS V3 <see cref="AasEnvironment"/> into a deterministic OPC UA NodeSet.
@@ -58,9 +58,9 @@ namespace Opc.Ua.Aas
             var items = new List<UANode>();
             var nodeSet = new UANodeSet
             {
-                NamespaceUris = [Namespaces.Aas],
+                NamespaceUris = [Namespaces.AasV3],
                 Aliases = s_aliases,
-                Models = [new ModelTableEntry { ModelUri = Namespaces.Aas }]
+                Models = [new ModelTableEntry { ModelUri = Namespaces.AasV3 }]
             };
 
             var environmentNode = new UAObject
@@ -994,7 +994,7 @@ namespace Opc.Ua.Aas
         {
             using var encoder = new XmlEncoder(ServiceMessageContext.CreateEmpty(null!));
             var namespaceUris = new NamespaceTable();
-            namespaceUris.GetIndexOrAppend(Namespaces.Aas);
+            namespaceUris.GetIndexOrAppend(Namespaces.AasV3);
             encoder.SetMappingTables(namespaceUris, new StringTable());
             encoder.WriteVariantValue(null, value);
 
@@ -1109,7 +1109,7 @@ namespace Opc.Ua.Aas
 
         private static string ToNodeSetId(ExpandedNodeId dataTypeId)
         {
-            if (string.Equals(dataTypeId.NamespaceUri, Namespaces.Aas, StringComparison.Ordinal) &&
+            if (string.Equals(dataTypeId.NamespaceUri, Namespaces.AasV3, StringComparison.Ordinal) &&
                 dataTypeId.TryGetValue(out uint aasId))
             {
                 return "ns=1;i=" + aasId.ToString(CultureInfo.InvariantCulture);

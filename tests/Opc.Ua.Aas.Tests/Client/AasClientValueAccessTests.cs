@@ -450,7 +450,7 @@ namespace Opc.Ua.Aas.Tests.Client
         {
             var namespaceUris = new NamespaceTable();
             namespaceUris.GetIndexOrAppend(Namespaces.OpcUa);
-            namespaceUris.GetIndexOrAppend(Namespaces.Aas);
+            namespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3);
             namespaceUris.GetIndexOrAppend("urn:instances");
             ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(Mock.Of<ITelemetryContext>());
             messageContext.NamespaceUris = namespaceUris;

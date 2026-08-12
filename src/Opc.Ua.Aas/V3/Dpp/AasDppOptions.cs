@@ -27,29 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
-    /// The first-matching DPP identifier construction rule from clause 3.
+    /// Options used by the DPP dependency injection registration.
     /// </summary>
-    public enum AasDppIdentifierRule
+    public sealed class AasDppOptions
     {
         /// <summary>
-        /// The identifier was already an absolute IRI with at most one
-        /// fragment separator.
+        /// Gets or sets the default regulatory class used when no disclosure rule matches.
         /// </summary>
-        AlreadyIri,
+        public AasDppRegulatoryClass DefaultRegulatoryClass { get; set; }
 
         /// <summary>
-        /// The identifier was an ECLASS IRDI and was mapped to the published
-        /// ECLASS RDF resource form.
+        /// Gets or sets the rules evaluated before the default regulatory class is used.
         /// </summary>
-        EclassIrdi,
-
-        /// <summary>
-        /// The identifier matched no earlier rule and was mapped to a stable
-        /// hash IRI under the AAS DPP namespace.
-        /// </summary>
-        Hash
+        public ArrayOf<AasDppDisclosureRule> DisclosureRules { get; set; } = ArrayOf<AasDppDisclosureRule>.Empty;
     }
 }

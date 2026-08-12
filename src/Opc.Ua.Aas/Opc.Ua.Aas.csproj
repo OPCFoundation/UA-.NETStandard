@@ -67,8 +67,8 @@
          the single source of truth for the model, so a change is made upstream and
          re-pinned rather than edited here. -->
     <AdditionalFiles Include="Design\Opc.Ua.Aas.NodeSet2.xml">
-      <ModelSourceGeneratorPrefix>Opc.Ua.Aas</ModelSourceGeneratorPrefix>
-      <ModelSourceGeneratorName>Aas</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Aas.V3</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorName>AasV3</ModelSourceGeneratorName>
       <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/I4AAS/v3/</ModelSourceGeneratorModelUri>
     </AdditionalFiles>
     <AdditionalFiles Include="Design\Opc.Ua.Aas.NodeSet2.csv" />
@@ -91,6 +91,6 @@
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Dpp\mappings.sssom.tsv.gz" />
+    <EmbeddedResource Include="V3\Dpp\mappings.sssom.tsv.gz" LogicalName="Opc.Ua.Aas.Dpp.mappings.sssom.tsv.gz" />
   </ItemGroup>
 </Project>

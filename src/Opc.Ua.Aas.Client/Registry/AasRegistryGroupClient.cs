@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Aas.V3;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -113,7 +114,7 @@ namespace Opc.Ua.Aas.Client.Registry
             return AasRegistryNodeReader.ReadRequiredStringPropertyAsync(
                 Session,
                 GroupNodeId,
-                Session.NamespaceUris.GetIndexOrAppend(Namespaces.Aas),
+                Session.NamespaceUris.GetIndexOrAppend(Opc.Ua.Aas.V3.Namespaces.AasV3),
                 SourceIdentityPropertyName,
                 ct);
         }

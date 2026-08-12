@@ -54,7 +54,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the AAS server with an options callback.
         /// </summary>
-        public static IAasServerBuilder AddAasServer(
+        public static IAasServerBuilder AddAasV3Server(
             this IOpcUaBuilder builder,
             Action<AasServerOptions>? configure = null)
         {
@@ -77,19 +77,19 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the AAS server from the default configuration section.
         /// </summary>
-        public static IAasServerBuilder AddAasServer(this IOpcUaBuilder builder, IConfiguration configuration)
+        public static IAasServerBuilder AddAasV3Server(this IOpcUaBuilder builder, IConfiguration configuration)
         {
             if (configuration is null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
-            return builder.AddAasServer(configuration.GetSection(DefaultConfigurationSection));
+            return builder.AddAasV3Server(configuration.GetSection(DefaultConfigurationSection));
         }
 
         /// <summary>
         /// Registers the AAS server from a configuration section.
         /// </summary>
-        public static IAasServerBuilder AddAasServer(this IOpcUaBuilder builder, IConfigurationSection section)
+        public static IAasServerBuilder AddAasV3Server(this IOpcUaBuilder builder, IConfigurationSection section)
         {
             if (builder is null)
             {

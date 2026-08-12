@@ -31,7 +31,7 @@ using System;
 using System.Globalization;
 using System.Numerics;
 
-namespace Opc.Ua.Aas
+namespace Opc.Ua.Aas.V3
 {
     /// <summary>
     /// Converts between the xsd lexical space an AAS carries a value in and
