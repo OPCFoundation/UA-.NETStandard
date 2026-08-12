@@ -481,6 +481,48 @@ namespace AasSample
                 return m_inner.RemoveAsync(handle, cancellationToken);
             }
 
+            // The projection host serves either AAS metamodel generation. This
+            // sample only projects V3, so the V2 overloads delegate straight
+            // through rather than substituting the sample's operation handler.
+            public ValueTask<AasEnvironmentProjectionHandle> AddAsync(
+                Opc.Ua.Aas.V2.AasEnvironment environment,
+                IAasValueProvider valueProvider,
+                IAasOperationHandler operationHandler,
+                CancellationToken cancellationToken = default)
+            {
+                return m_inner.AddAsync(environment, valueProvider, operationHandler, cancellationToken);
+            }
+
+            public ValueTask<AasEnvironmentProjectionHandle> ShadowReloadAsync(
+                AasEnvironmentProjectionHandle current,
+                Opc.Ua.Aas.V2.AasEnvironment environment,
+                IAasValueProvider valueProvider,
+                IAasOperationHandler operationHandler,
+                CancellationToken cancellationToken = default)
+            {
+                return m_inner.ShadowReloadAsync(
+                    current,
+                    environment,
+                    valueProvider,
+                    operationHandler,
+                    cancellationToken);
+            }
+
+            public ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
+                AasEnvironmentProjectionHandle current,
+                Opc.Ua.Aas.V2.AasEnvironment environment,
+                IAasValueProvider valueProvider,
+                IAasOperationHandler operationHandler,
+                CancellationToken cancellationToken = default)
+            {
+                return m_inner.ImmediateReloadAsync(
+                    current,
+                    environment,
+                    valueProvider,
+                    operationHandler,
+                    cancellationToken);
+            }
+
             private readonly IAasEnvironmentProjectionHost m_inner;
             private readonly IAasOperationHandler m_operationHandler;
         }
