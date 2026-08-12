@@ -144,12 +144,14 @@ namespace Opc.Ua.Aas.Tests.V2.Materialization
             file.GetChildren(context, children);
             var names = children.ConvertAll(child => child.BrowseName.Name);
 
-            Assert.That(names, Is.SupersetOf(new[]
-            {
-                "Open", "Close", "Read", "Write", "GetPosition", "SetPosition",
-                "Size", "Writable", "UserWritable", "OpenCount"
-            }));
+            Assert.That(names, Is.SupersetOf(s_mandatoryFileMembers));
         }
+
+        private static readonly string[] s_mandatoryFileMembers =
+        [
+            "Open", "Close", "Read", "Write", "GetPosition", "SetPosition",
+            "Size", "Writable", "UserWritable", "OpenCount"
+        ];
 
         [Test]
         public void EverySubmodelElementTypeMaterializesWithItsMembers()

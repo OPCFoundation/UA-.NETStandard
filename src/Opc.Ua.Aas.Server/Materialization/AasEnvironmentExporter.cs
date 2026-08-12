@@ -255,11 +255,18 @@ namespace Opc.Ua.Aas.Server.Materialization
             ref bool filtered)
         {
             var result = new List<AasSubmodelElement>();
+            int index = 0;
             foreach (AasSubmodelElement element in elements)
             {
+                // Keyed on the source position, not on how many have been
+                // admitted so far. Deriving it from the result count shifts
+                // every later member's authorization path by one as soon as
+                // anything is denied, so a member ends up evaluated against a
+                // different member's path.
                 string idShort = element.IdShort.IsPresent
                     ? element.IdShort.Value
-                    : result.Count.ToString(CultureInfo.InvariantCulture);
+                    : index.ToString(CultureInfo.InvariantCulture);
+                index++;
                 string path = parentPath + "/" + idShort;
                 if (!Allowed(context, path))
                 {
@@ -277,23 +284,78 @@ namespace Opc.Ua.Aas.Server.Materialization
             ISystemContext? context,
             ref bool filtered)
         {
-            if (element is AasSubmodelElementCollection collection && collection.Value.IsPresent)
+            // Every collection a submodel element can nest has to be filtered,
+            // not only the two obvious ones. Clause 6.5.10 says a node the
+            // Session could not Browse or Read is absent together with
+            // everything beneath it, and anything missed here is copied into
+            // the document unevaluated - and, because no denial is recorded,
+            // published under a Digest that presents it as a complete export.
+            switch (element)
             {
-                return collection with
-                {
-                    Value = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
-                        FilterElements(collection.Value.Value, path, context, ref filtered))
-                };
+                case AasSubmodelElementCollection collection when collection.Value.IsPresent:
+                    return collection with
+                    {
+                        Value = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
+                            FilterElements(collection.Value.Value, path, context, ref filtered))
+                    };
+                case AasSubmodelElementList list when list.Value.IsPresent:
+                    return list with
+                    {
+                        Value = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
+                            FilterElements(list.Value.Value, path, context, ref filtered))
+                    };
+                case AasEntity entity when entity.Statements.IsPresent:
+                    return entity with
+                    {
+                        Statements = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
+                            FilterElements(entity.Statements.Value, path, context, ref filtered))
+                    };
+                case AasAnnotatedRelationshipElement annotated when annotated.Annotations.IsPresent:
+                    return annotated with
+                    {
+                        Annotations = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
+                            FilterElements(annotated.Annotations.Value, path, context, ref filtered))
+                    };
+                case AasOperation operation:
+                    return FilterOperation(operation, path, context, ref filtered);
+                default:
+                    return element;
             }
-            if (element is AasSubmodelElementList list && list.Value.IsPresent)
+        }
+
+        private AasOperation FilterOperation(
+            AasOperation operation,
+            string path,
+            ISystemContext? context,
+            ref bool filtered)
+        {
+            AasOptional<ArrayOf<AasSubmodelElement>> input = FilterVariables(
+                operation.InputVariables, path + "/in", context, ref filtered);
+            AasOptional<ArrayOf<AasSubmodelElement>> output = FilterVariables(
+                operation.OutputVariables, path + "/out", context, ref filtered);
+            AasOptional<ArrayOf<AasSubmodelElement>> inout = FilterVariables(
+                operation.InoutputVariables, path + "/inout", context, ref filtered);
+            return operation with
             {
-                return list with
-                {
-                    Value = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
-                        FilterElements(list.Value.Value, path, context, ref filtered))
-                };
+                InputVariables = input,
+                OutputVariables = output,
+                InoutputVariables = inout
+            };
+        }
+
+        private AasOptional<ArrayOf<AasSubmodelElement>> FilterVariables(
+            AasOptional<ArrayOf<AasSubmodelElement>> variables,
+            string parentPath,
+            ISystemContext? context,
+            ref bool filtered)
+        {
+            if (!variables.IsPresent)
+            {
+                return variables;
             }
-            return element;
+
+            return AasOptional<ArrayOf<AasSubmodelElement>>.Present(
+                FilterElements(variables.Value, parentPath, context, ref filtered));
         }
 
         private bool Allowed(ISystemContext? context, string path)

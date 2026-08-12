@@ -326,6 +326,112 @@ namespace Opc.Ua.Aas.Tests.Updateable
             });
         }
 
+        /// <summary>
+        /// Clause 6.5.10 removes a node the Session could not Browse or Read
+        /// together with everything beneath it. Submodel elements nest under
+        /// more than collections and lists - Entity.statements,
+        /// AnnotatedRelationshipElement.annotations and the three Operation
+        /// variable collections all carry them - and content the filter walks
+        /// past is copied into the document unevaluated. Because no denial is
+        /// recorded for it, the export is then stamped with a Digest that
+        /// presents it as complete.
+        /// </summary>
+        [Test]
+        public async Task ExportFiltersDeniedNodesNestedUnderEveryElementKind()
+        {
+            var policy = new Mock<IAasEnvironmentExportAccessPolicy>(MockBehavior.Strict);
+            policy.Setup(p => p.CanRead(null, It.Is<string>(path =>
+                !path.EndsWith("secret", StringComparison.Ordinal)))).Returns(true);
+            policy.Setup(p => p.CanRead(null, It.Is<string>(path =>
+                path.EndsWith("secret", StringComparison.Ordinal)))).Returns(false);
+            var exporter = new AasEnvironmentExporter(policy.Object);
+
+            var environment = new AasEnvironment
+            {
+                Submodels = AasOptional<ArrayOf<AasSubmodel>>.Present(new ArrayOf<AasSubmodel>(new[]
+                {
+                    new AasSubmodel
+                    {
+                        Id = "urn:nested",
+                        IdShort = AasOptional<string>.Present("nested"),
+                        SubmodelElements = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
+                            new ArrayOf<AasSubmodelElement>(new AasSubmodelElement[]
+                            {
+                                new AasEntity
+                                {
+                                    IdShort = AasOptional<string>.Present("entity"),
+                                    EntityType = AASEntityTypeDataType.SelfManagedEntity,
+                                    Statements = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
+                                        new ArrayOf<AasSubmodelElement>(new AasSubmodelElement[]
+                                        {
+                                            Leaf("secret")
+                                        }))
+                                },
+                                new AasAnnotatedRelationshipElement
+                                {
+                                    IdShort = AasOptional<string>.Present("annotated"),
+                                    First = ExportReference(),
+                                    Second = ExportReference(),
+                                    Annotations = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
+                                        new ArrayOf<AasSubmodelElement>(new AasSubmodelElement[]
+                                        {
+                                            Leaf("secret")
+                                        }))
+                                },
+                                new AasOperation
+                                {
+                                    IdShort = AasOptional<string>.Present("operation"),
+                                    InputVariables = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
+                                        new ArrayOf<AasSubmodelElement>(new AasSubmodelElement[]
+                                        {
+                                            Leaf("secret")
+                                        }))
+                                }
+                            }))
+                    }
+                }))
+            };
+
+            AasEnvironmentExportResult result = await exporter.ExportAsync(
+                environment,
+                new AasEnvironmentExportRequest(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            string json = System.Text.Encoding.UTF8.GetString(result.Content.Memory.ToArray());
+            Assert.Multiple(() =>
+            {
+                Assert.That(json, Does.Not.Contain("secret"));
+                Assert.That(result.Filtered, Is.True);
+                Assert.That(result.Digest.IsEmpty, Is.True,
+                    "An export that dropped content must not be stamped as complete.");
+                Assert.That(json, Does.Contain("entity"));
+                Assert.That(json, Does.Contain("annotated"));
+                Assert.That(json, Does.Contain("operation"));
+            });
+        }
+
+        private static AasProperty Leaf(string idShort)
+        {
+            return new AasProperty
+            {
+                IdShort = AasOptional<string>.Present(idShort),
+                ValueType = AASDataTypeDefXsdDataType.String,
+                Value = AasOptional<Variant>.Present(Variant.From("value"))
+            };
+        }
+
+        private static AASReferenceDataType ExportReference()
+        {
+            return new AASReferenceDataType
+            {
+                Type = AASReferenceTypesDataType.ExternalReference,
+                Keys = new ArrayOf<AASKeyDataType>(new[]
+                {
+                    new AASKeyDataType { Type = AASKeyTypesDataType.GlobalReference, Value = "urn:x" }
+                })
+            };
+        }
+
         private static readonly string[] s_rightOnly = ["right"];
         private static readonly string[] s_leftOnly = ["left"];
 
