@@ -36,6 +36,8 @@ using System.Threading.Tasks;
 using Opc.Ua.Export;
 using Opc.Ua.Server;
 using Opc.Ua.Server.RuntimeNodeSet;
+using AasV2Environment = Opc.Ua.Aas.V2.AasEnvironment;
+using AasV2EnvironmentMaterializer = Opc.Ua.Aas.V2.AasEnvironmentMaterializer;
 
 namespace Opc.Ua.Aas.Server.Materialization
 {
@@ -55,6 +57,20 @@ namespace Opc.Ua.Aas.Server.Materialization
         /// <inheritdoc/>
         public async ValueTask<AasEnvironmentProjectionHandle> AddAsync(
             AasEnvironment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default)
+        {
+            RuntimeNodeSetOptions options = CreateOptions(environment, valueProvider, operationHandler);
+            NodeManagerRegistration registration = await m_lifecycle
+                .AddRuntimeNodeSetAsync(options, callerContext: null, cancellationToken)
+                .ConfigureAwait(false);
+            return new AasEnvironmentProjectionHandle(registration);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<AasEnvironmentProjectionHandle> AddAsync(
+            AasV2Environment environment,
             IAasValueProvider valueProvider,
             IAasOperationHandler operationHandler,
             CancellationToken cancellationToken = default)
@@ -87,9 +103,49 @@ namespace Opc.Ua.Aas.Server.Materialization
         }
 
         /// <inheritdoc/>
+        public async ValueTask<AasEnvironmentProjectionHandle> ShadowReloadAsync(
+            AasEnvironmentProjectionHandle current,
+            AasV2Environment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default)
+        {
+            if (current is null)
+            {
+                throw new ArgumentNullException(nameof(current));
+            }
+
+            RuntimeNodeSetOptions options = CreateOptions(environment, valueProvider, operationHandler);
+            NodeManagerRegistration registration = await m_lifecycle
+                .ShadowReloadRuntimeNodeSetAsync(current.Registration, options, cancellationToken)
+                .ConfigureAwait(false);
+            return new AasEnvironmentProjectionHandle(registration);
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
             AasEnvironmentProjectionHandle current,
             AasEnvironment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default)
+        {
+            if (current is null)
+            {
+                throw new ArgumentNullException(nameof(current));
+            }
+
+            RuntimeNodeSetOptions options = CreateOptions(environment, valueProvider, operationHandler);
+            NodeManagerRegistration registration = await m_lifecycle
+                .ImmediateReloadRuntimeNodeSetAsync(current.Registration, options, cancellationToken)
+                .ConfigureAwait(false);
+            return new AasEnvironmentProjectionHandle(registration);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
+            AasEnvironmentProjectionHandle current,
+            AasV2Environment environment,
             IAasValueProvider valueProvider,
             IAasOperationHandler operationHandler,
             CancellationToken cancellationToken = default)
@@ -168,6 +224,53 @@ namespace Opc.Ua.Aas.Server.Materialization
             };
         }
 
+        private static RuntimeNodeSetOptions CreateOptions(
+            AasV2Environment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler)
+        {
+            if (environment is null)
+            {
+                throw new ArgumentNullException(nameof(environment));
+            }
+            if (valueProvider is null)
+            {
+                throw new ArgumentNullException(nameof(valueProvider));
+            }
+            if (operationHandler is null)
+            {
+                throw new ArgumentNullException(nameof(operationHandler));
+            }
+
+            AasMaterializationResult materialization = AasV2EnvironmentMaterializer.Materialize(environment);
+            if (materialization.HasErrors)
+            {
+                throw new InvalidOperationException("The AAS V2 environment could not be materialized.");
+            }
+
+            byte[] nodeSetXml = SerializeNodeSet(materialization.NodeSet);
+
+#pragma warning disable CA2000
+            var runtime = new Opc.Ua.Aas.Server.V2.AasV2EnvironmentRuntime(
+                environment,
+                valueProvider,
+                operationHandler);
+#pragma warning restore CA2000
+            return new RuntimeNodeSetOptions
+            {
+                Sources = new ArrayOf<RuntimeNodeSetSource>(new[]
+                {
+                    RuntimeNodeSetSource.FromStream(
+                        "AAS V2 Environment",
+                        _ => new ValueTask<Stream>(new MemoryStream(nodeSetXml, writable: false)),
+                        new ArrayOf<string>(OwnedModelUris(materialization.NodeSet, Opc.Ua.Aas.V2.Namespaces.AasV2)))
+                }),
+                DefaultNamespaceUri = Opc.Ua.Aas.V2.Namespaces.AasV2,
+                AllowLifecycleFromRequestCallback = true,
+                ConfigureAsync = runtime.ConfigureAsync
+            };
+        }
+
         private static byte[] SerializeNodeSet(UANodeSet nodeSet)
         {
             using var stream = new MemoryStream();
@@ -176,6 +279,11 @@ namespace Opc.Ua.Aas.Server.Materialization
         }
 
         private static string[] OwnedModelUris(UANodeSet nodeSet)
+        {
+            return OwnedModelUris(nodeSet, Opc.Ua.Aas.V3.Namespaces.AasV3);
+        }
+
+        private static string[] OwnedModelUris(UANodeSet nodeSet, string fallbackNamespaceUri)
         {
             if (nodeSet.Models is { Length: > 0 })
             {
@@ -192,7 +300,7 @@ namespace Opc.Ua.Aas.Server.Materialization
                     return result.ToArray();
                 }
             }
-            return new[] { Opc.Ua.Aas.V3.Namespaces.AasV3 };
+            return new[] { fallbackNamespaceUri };
         }
 
         private readonly INodeManagerLifecycle m_lifecycle;

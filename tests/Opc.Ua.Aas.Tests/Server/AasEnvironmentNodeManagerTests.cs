@@ -304,7 +304,36 @@ namespace Opc.Ua.Aas.Tests.Server
                 return new ValueTask<AasEnvironmentProjectionHandle>(CreateHandle());
             }
 
+            public ValueTask<AasEnvironmentProjectionHandle> AddAsync(
+                Opc.Ua.Aas.V2.AasEnvironment environment,
+                IAasValueProvider valueProvider,
+                IAasOperationHandler operationHandler,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<AasEnvironmentProjectionHandle>(CreateHandle());
+            }
+
             public ValueTask<AasEnvironmentProjectionHandle> ShadowReloadAsync(
+                AasEnvironmentProjectionHandle current,
+                AasEnvironment environment,
+                IAasValueProvider valueProvider,
+                IAasOperationHandler operationHandler,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<AasEnvironmentProjectionHandle>(CreateHandle());
+            }
+
+            public ValueTask<AasEnvironmentProjectionHandle> ShadowReloadAsync(
+                AasEnvironmentProjectionHandle current,
+                Opc.Ua.Aas.V2.AasEnvironment environment,
+                IAasValueProvider valueProvider,
+                IAasOperationHandler operationHandler,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<AasEnvironmentProjectionHandle>(CreateHandle());
+            }
+
+            public ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
                 AasEnvironmentProjectionHandle current,
                 AasEnvironment environment,
                 IAasValueProvider valueProvider,
@@ -316,7 +345,7 @@ namespace Opc.Ua.Aas.Tests.Server
 
             public ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
                 AasEnvironmentProjectionHandle current,
-                AasEnvironment environment,
+                Opc.Ua.Aas.V2.AasEnvironment environment,
                 IAasValueProvider valueProvider,
                 IAasOperationHandler operationHandler,
                 CancellationToken cancellationToken = default)

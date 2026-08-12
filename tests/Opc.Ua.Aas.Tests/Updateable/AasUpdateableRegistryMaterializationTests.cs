@@ -530,6 +530,15 @@ namespace Opc.Ua.Aas.Tests.Updateable
                 return new ValueTask<AasEnvironmentProjectionHandle>(CreateHandle());
             }
 
+            public ValueTask<AasEnvironmentProjectionHandle> AddAsync(
+                Opc.Ua.Aas.V2.AasEnvironment environment,
+                IAasValueProvider valueProvider,
+                IAasOperationHandler operationHandler,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<AasEnvironmentProjectionHandle>(CreateHandle());
+            }
+
             public ValueTask<AasEnvironmentProjectionHandle> ShadowReloadAsync(
                 AasEnvironmentProjectionHandle current,
                 AasEnvironment environment,
@@ -545,6 +554,16 @@ namespace Opc.Ua.Aas.Tests.Updateable
                 return new ValueTask<AasEnvironmentProjectionHandle>(CreateHandle());
             }
 
+            public ValueTask<AasEnvironmentProjectionHandle> ShadowReloadAsync(
+                AasEnvironmentProjectionHandle current,
+                Opc.Ua.Aas.V2.AasEnvironment environment,
+                IAasValueProvider valueProvider,
+                IAasOperationHandler operationHandler,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<AasEnvironmentProjectionHandle>(CreateHandle());
+            }
+
             public ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
                 AasEnvironmentProjectionHandle current,
                 AasEnvironment environment,
@@ -554,6 +573,16 @@ namespace Opc.Ua.Aas.Tests.Updateable
             {
                 m_immediateRetired = true;
                 BrowseGeneration++;
+                return new ValueTask<AasEnvironmentProjectionHandle>(CreateHandle());
+            }
+
+            public ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
+                AasEnvironmentProjectionHandle current,
+                Opc.Ua.Aas.V2.AasEnvironment environment,
+                IAasValueProvider valueProvider,
+                IAasOperationHandler operationHandler,
+                CancellationToken cancellationToken = default)
+            {
                 return new ValueTask<AasEnvironmentProjectionHandle>(CreateHandle());
             }
 

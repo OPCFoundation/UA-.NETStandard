@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using Opc.Ua.Aas.V3;
+using AasV2Environment = Opc.Ua.Aas.V2.AasEnvironment;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -48,6 +49,15 @@ namespace Opc.Ua.Aas.Server.Materialization
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Adds a live AAS V2 environment projection.
+        /// </summary>
+        ValueTask<AasEnvironmentProjectionHandle> AddAsync(
+            AasV2Environment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Shadow-reloads a live environment projection.
         /// </summary>
         ValueTask<AasEnvironmentProjectionHandle> ShadowReloadAsync(
@@ -58,11 +68,31 @@ namespace Opc.Ua.Aas.Server.Materialization
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Shadow-reloads a live AAS V2 environment projection.
+        /// </summary>
+        ValueTask<AasEnvironmentProjectionHandle> ShadowReloadAsync(
+            AasEnvironmentProjectionHandle current,
+            AasV2Environment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Reloads a live environment projection and immediately retires the previous generation.
         /// </summary>
         ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
             AasEnvironmentProjectionHandle current,
             AasEnvironment environment,
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reloads a live AAS V2 environment projection and immediately retires the previous generation.
+        /// </summary>
+        ValueTask<AasEnvironmentProjectionHandle> ImmediateReloadAsync(
+            AasEnvironmentProjectionHandle current,
+            AasV2Environment environment,
             IAasValueProvider valueProvider,
             IAasOperationHandler operationHandler,
             CancellationToken cancellationToken = default);

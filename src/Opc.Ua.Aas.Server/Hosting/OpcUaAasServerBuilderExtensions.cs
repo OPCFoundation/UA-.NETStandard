@@ -36,6 +36,8 @@ using Opc.Ua;
 using Opc.Ua.Aas.Server;
 using Opc.Ua.Aas.Server.Hosting;
 using Opc.Ua.Aas.Server.Materialization;
+using Opc.Ua.Aas.Server.V2;
+using Opc.Ua.Aas.Server.V2.Hosting;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
@@ -72,6 +74,70 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             RegisterCommonServices(builder.Services);
             return new AasServerBuilder(builder.Services);
+        }
+
+        /// <summary>
+        /// Registers the OPC 30270 AAS V2 server with an options callback.
+        /// </summary>
+        public static IAasV2ServerBuilder AddAasV2Server(
+            this IOpcUaBuilder builder,
+            Action<AasServerOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is not null)
+            {
+                builder.Services.AddOptions<AasServerOptions>().Configure(configure);
+            }
+            else
+            {
+                builder.Services.AddOptions<AasServerOptions>();
+            }
+            RegisterV2Services(builder.Services);
+            return new AasV2ServerBuilder(builder.Services);
+        }
+
+        /// <summary>
+        /// Registers the OPC 30270 AAS V2 server from the default configuration section.
+        /// </summary>
+        public static IAasV2ServerBuilder AddAasV2Server(this IOpcUaBuilder builder, IConfiguration configuration)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            return builder.AddAasV2Server(configuration.GetSection(DefaultConfigurationSection));
+        }
+
+        /// <summary>
+        /// Registers the OPC 30270 AAS V2 server from a configuration section.
+        /// </summary>
+        public static IAasV2ServerBuilder AddAasV2Server(this IOpcUaBuilder builder, IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+            builder.Services.AddOptions<AasServerOptions>().Configure(options =>
+            {
+                options.ControlNamespaceUri = section[nameof(AasServerOptions.ControlNamespaceUri)] ??
+                    options.ControlNamespaceUri;
+                options.EnvironmentFolder = section[nameof(AasServerOptions.EnvironmentFolder)] ??
+                    options.EnvironmentFolder;
+                string? retirementPolicy = section[nameof(AasServerOptions.RetirementPolicy)];
+                if (Enum.TryParse(retirementPolicy, ignoreCase: true, out AasProjectionRetirementPolicy parsed))
+                {
+                    options.RetirementPolicy = parsed;
+                }
+            });
+            RegisterV2Services(builder.Services);
+            return new AasV2ServerBuilder(builder.Services);
         }
 
         /// <summary>
@@ -147,6 +213,33 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddOpcUa();
         }
 
+        private static void RegisterV2Services(IServiceCollection services)
+        {
+            services.TryAddSingleton<ITelemetryContext>(
+                sp => new ServiceProviderTelemetryContext(sp));
+            services.TryAddSingleton<IAasValueProvider, DocumentAasV2ValueProvider>();
+            services.TryAddSingleton<IAasOperationHandler, DefaultAasOperationHandler>();
+            services.TryAddSingleton<IAasEnvironmentProjectionHost>(sp =>
+                new LifecycleAasEnvironmentProjectionHost(
+                    sp.GetRequiredService<INodeManagerLifecycle>()));
+            services.TryAddSingleton<IAasV2EnvironmentProvider>(
+                new InMemoryAasV2EnvironmentProvider([]));
+            services.TryAddSingleton(sp =>
+            {
+                AasServerOptions options = sp.GetRequiredService<IOptions<AasServerOptions>>().Value;
+                return new AasV2EnvironmentNodeManagerFactory(
+                    options,
+                    sp.GetRequiredService<IAasV2EnvironmentProvider>(),
+                    sp.GetRequiredService<IAasValueProvider>(),
+                    sp.GetRequiredService<IAasOperationHandler>(),
+                    sp.GetRequiredService<IAasEnvironmentProjectionHost>());
+            });
+            services.AddSingleton(sp =>
+                new OpcUaServerNodeManagerRegistration(
+                    sp.GetRequiredService<AasV2EnvironmentNodeManagerFactory>()));
+            services.AddOpcUa();
+        }
+
         private sealed class AasServerBuilder : IAasServerBuilder
         {
             public AasServerBuilder(IServiceCollection services)
@@ -175,6 +268,43 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             public IAasServerBuilder AddOperationHandler<
+                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
+                where T : class, IAasOperationHandler
+            {
+                Services.AddSingleton<IAasOperationHandler, T>();
+                return this;
+            }
+        }
+
+        private sealed class AasV2ServerBuilder : IAasV2ServerBuilder
+        {
+            public AasV2ServerBuilder(IServiceCollection services)
+            {
+                Services = services ?? throw new ArgumentNullException(nameof(services));
+            }
+
+            public IServiceCollection Services { get; }
+
+            public IAasV2ServerBuilder AddEnvironmentProvider<
+                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
+                where T : class, IAasV2EnvironmentProvider
+            {
+                Services.AddSingleton<IAasV2EnvironmentProvider, T>();
+                return this;
+            }
+
+            public IAasV2ServerBuilder AddEnvironmentProvider(
+                Func<IServiceProvider, IAasV2EnvironmentProvider> factory)
+            {
+                if (factory is null)
+                {
+                    throw new ArgumentNullException(nameof(factory));
+                }
+                Services.AddSingleton(factory);
+                return this;
+            }
+
+            public IAasV2ServerBuilder AddOperationHandler<
                 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
                 where T : class, IAasOperationHandler
             {
