@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -207,16 +208,176 @@ namespace Opc.Ua.Aas.Tests.Federation
                 // the transport reports None rather than re-resolving the name.
                 // Re-resolving would prove nothing - a name that resolves to a
                 // permitted address twice can still have carried a different
-                // one into the socket - and None is what makes the endpoint
-                // validator refuse, so an unverifiable connection fails closed.
+                // one into the socket. None means "not observable", and the
+                // resolver reads it that way: it falls back to the pre-connect
+                // validation of every resolved address rather than refusing,
+                // because refusing would disable federation outright on the
+                // frameworks that have no connect callback.
                 Assert.That(response.ConnectedAddress, Is.EqualTo(IPAddress.None));
-                Assert.That(new AasFederationEndpointValidator(new AasFederationEgressPolicy())
-                    .ValidateAddress("example.com", response.ConnectedAddress).Succeeded, Is.False);
                 Assert.That(response.RedirectLocation, Is.EqualTo(new Uri("https://127.0.0.2/moved")));
                 Assert.That(response.ContentLength, Is.EqualTo(body.Length));
                 Assert.That(handler.Requests[0].Method, Is.EqualTo(HttpMethod.Get));
             });
         }
+
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// The peer is observed by a connect callback, which the runtime raises
+        /// only when a new connection is established. A second request to the
+        /// same origin is served from the pool and raises nothing, so a
+        /// transport that reported the peer per request would report "unknown"
+        /// for it and fail closed - which would make the second and every
+        /// later federation fetch fail with a security-flavoured error. Two
+        /// sequential fetches through the real transport is the only thing that
+        /// shows the difference; every other federation test substitutes a fake
+        /// that hands back a truthful address.
+        /// </summary>
+        [Test]
+        public async Task RealTransportKeepsReportingThePeerAcrossAPooledConnectionAsync()
+        {
+            using var listener = new LoopbackHttpListener();
+            var policy = new AasFederationEgressPolicy();
+            policy.TrustedRestrictedHosts.Add("127.0.0.1");
+            using ServiceProvider provider = CreateRealTransportProvider(policy);
+            var transport = provider.GetRequiredService<IAasFederationHttpTransport>();
+
+            AasFederationHttpResponse first = await transport.SendAsync(
+                new AasFederationHttpRequest(listener.Uri, null), CancellationToken.None)
+                .ConfigureAwait(false);
+            ByteString firstBody = await first.ContentReader
+                .ReadAsync(1024, CancellationToken.None).ConfigureAwait(false);
+            AasFederationHttpResponse second = await transport.SendAsync(
+                new AasFederationHttpRequest(listener.Uri, null), CancellationToken.None)
+                .ConfigureAwait(false);
+            ByteString secondBody = await second.ContentReader
+                .ReadAsync(1024, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.StatusCode, Is.EqualTo(200));
+                Assert.That(first.ConnectedAddress, Is.EqualTo(IPAddress.Loopback));
+                Assert.That(Encoding.UTF8.GetString(firstBody.ToArray()), Is.EqualTo("ok"));
+                Assert.That(second.StatusCode, Is.EqualTo(200));
+                Assert.That(second.ConnectedAddress, Is.EqualTo(IPAddress.Loopback),
+                    "A pooled connection raises no connect callback, so the per-origin record " +
+                    "has to answer instead of the request reporting an unknown peer.");
+                Assert.That(Encoding.UTF8.GetString(secondBody.ToArray()), Is.EqualTo("ok"));
+            });
+        }
+
+        /// <summary>
+        /// The peer is validated inside the connect callback rather than after
+        /// the response, so a restricted peer never becomes a connection at
+        /// all. Checking afterwards would leave the rejected connection in the
+        /// pool for the next request to pick up and reuse.
+        /// </summary>
+        [Test]
+        public async Task RealTransportRefusesToConnectToARestrictedPeerAsync()
+        {
+            using var listener = new LoopbackHttpListener();
+            using ServiceProvider provider = CreateRealTransportProvider(new AasFederationEgressPolicy());
+            var transport = provider.GetRequiredService<IAasFederationHttpTransport>();
+
+            Exception? caught = null;
+            try
+            {
+                await transport.SendAsync(
+                    new AasFederationHttpRequest(listener.Uri, null), CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                caught = ex;
+            }
+
+            Assert.That(caught, Is.Not.Null);
+            Assert.That(listener.AcceptedRequests, Is.Zero,
+                "The connection has to be refused before any request is written to it.");
+        }
+
+        /// <summary>
+        /// A one-connection HTTP/1.1 listener on loopback, so the real transport
+        /// can be driven without reaching the network.
+        /// </summary>
+        private static ServiceProvider CreateRealTransportProvider(AasFederationEgressPolicy policy)
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(policy);
+            return services.AddAasFederation().BuildServiceProvider();
+        }
+
+        private sealed class LoopbackHttpListener : IDisposable
+        {
+            public LoopbackHttpListener()
+            {
+                m_listener = new TcpListener(IPAddress.Loopback, 0);
+                m_listener.Start();
+                Uri = new Uri($"http://127.0.0.1:{((IPEndPoint)m_listener.LocalEndpoint).Port}/doc");
+                m_serving = ServeAsync(m_cts.Token);
+            }
+
+            public Uri Uri { get; }
+
+            public int AcceptedRequests => Volatile.Read(ref m_acceptedRequests);
+
+            public void Dispose()
+            {
+                m_cts.Cancel();
+                m_listener.Stop();
+                try
+                {
+                    m_serving.GetAwaiter().GetResult();
+                }
+                catch (Exception)
+                {
+                    // The serve loop is torn down by cancelling the listener,
+                    // which surfaces as whichever socket error the platform
+                    // chooses; none of them mean anything to the test.
+                }
+                m_cts.Dispose();
+            }
+
+            private async Task ServeAsync(CancellationToken cancellationToken)
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    TcpClient client = await m_listener
+                        .AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
+                    _ = RespondAsync(client, cancellationToken);
+                }
+            }
+
+            private async Task RespondAsync(TcpClient client, CancellationToken cancellationToken)
+            {
+                using (client)
+                {
+                    NetworkStream stream = client.GetStream();
+                    var buffer = new byte[4096];
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        int read = await stream
+                            .ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+                        if (read <= 0)
+                        {
+                            return;
+                        }
+
+                        Interlocked.Increment(ref m_acceptedRequests);
+                        byte[] response = Encoding.ASCII.GetBytes(
+                            "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nContent-Type: text/plain\r\n\r\nok");
+                        await stream
+                            .WriteAsync(response, 0, response.Length, cancellationToken).ConfigureAwait(false);
+                        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                }
+            }
+
+            private int m_acceptedRequests;
+            private readonly TcpListener m_listener;
+            private readonly CancellationTokenSource m_cts = new();
+            private readonly Task m_serving;
+        }
+#endif
 
         /// <summary>
         /// The body is only readable through the deferred reader, which is what lets the resolver

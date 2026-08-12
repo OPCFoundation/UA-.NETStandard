@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -590,10 +591,22 @@ namespace Opc.Ua.Aas.Server.Federation
                 // is released before the next is opened or the loop returns.
                 try
                 {
-                    validation = m_validator.ValidateAddress(current.Host, response.ConnectedAddress);
-                    if (!validation.Succeeded)
+                    // A transport that cannot observe the peer reports None.
+                    // Treating that as a restricted address would disable
+                    // federation outright on the frameworks with no connect
+                    // callback, so it is read as unobservable instead: the
+                    // guarantee there is ValidateBeforeConnectAsync above,
+                    // which rejects the hop unless every address the name
+                    // resolves to is permitted. That leaves a rebind between
+                    // that lookup and the handler's own as the residual risk,
+                    // which is why the connect callback exists where it can.
+                    if (!response.ConnectedAddress.Equals(IPAddress.None))
                     {
-                        return validation;
+                        validation = m_validator.ValidateAddress(current.Host, response.ConnectedAddress);
+                        if (!validation.Succeeded)
+                        {
+                            return validation;
+                        }
                     }
 
                     if (IsRedirect(response.StatusCode))
@@ -1029,16 +1042,44 @@ namespace Opc.Ua.Aas.Server.Federation
         }
     }
 
-    internal sealed class HttpClientAasFederationTransport : IAasFederationHttpTransport
+    internal sealed class HttpClientAasFederationTransport : IAasFederationHttpTransport, IDisposable
     {
         public HttpClientAasFederationTransport()
-            : this(CreateClient())
+            : this(new AasFederationEgressPolicy())
         {
+        }
+
+        public HttpClientAasFederationTransport(AasFederationEgressPolicy policy)
+        {
+            m_validator = new AasFederationEndpointValidator(
+                policy ?? throw new ArgumentNullException(nameof(policy)));
+            m_client = CreateClient(
+#if NET6_0_OR_GREATER
+                ConnectAndValidatePeerAsync
+#endif
+                );
         }
 
         public HttpClientAasFederationTransport(HttpClient client)
         {
             m_client = client ?? throw new ArgumentNullException(nameof(client));
+            m_validator = new AasFederationEndpointValidator(new AasFederationEgressPolicy());
+            m_ownsClient = false;
+        }
+
+        /// <summary>
+        /// Disposes the client this transport created.
+        /// </summary>
+        /// <remarks>
+        /// A client supplied by the caller is left alone, because its lifetime
+        /// is the caller's to manage.
+        /// </remarks>
+        public void Dispose()
+        {
+            if (m_ownsClient)
+            {
+                m_client.Dispose();
+            }
         }
 
         [SuppressMessage(
@@ -1077,19 +1118,27 @@ namespace Opc.Ua.Aas.Server.Federation
         /// that resolves to a permitted address twice can still have carried a
         /// different one into the socket, which is the whole of a DNS rebinding
         /// attack. Only the peer the connection reached says anything, so the
-        /// connect callback records it and this reads it back. Where the
-        /// platform cannot supply it, the address is reported as
-        /// <see cref="IPAddress.None"/>, which the endpoint validator treats as
-        /// restricted, so the request fails closed rather than passing on an
-        /// approximation.
+        /// connect callback both validates it and records it, and this reads it
+        /// back. A pooled connection raises no connect callback, so the request
+        /// carries no address of its own; the per-origin record then answers,
+        /// and it is sound because every connection in that pool was validated
+        /// against the policy before a single byte was read from it. Where the
+        /// platform has no connect callback at all the address is reported as
+        /// <see cref="IPAddress.None"/>, which the resolver reads as
+        /// unobservable rather than as restricted.
         /// </remarks>
-        private static IPAddress GetConnectedAddress(HttpRequestMessage request)
+        private IPAddress GetConnectedAddress(HttpRequestMessage request)
         {
 #if NET6_0_OR_GREATER
             if (request.Options.TryGetValue(s_connectedAddress, out IPAddress? address) &&
                 address is not null)
             {
                 return address;
+            }
+            if (request.RequestUri is not null &&
+                m_peers.TryGetValue(OriginKey(request.RequestUri), out IPAddress? pooled))
+            {
+                return pooled;
             }
 #endif
             return IPAddress.None;
@@ -1100,7 +1149,11 @@ namespace Opc.Ua.Aas.Server.Federation
             "CA2000:Dispose objects before losing scope",
             Justification = "Handler ownership is transferred to HttpClient with disposeHandler: true. " +
                 "TODO: replace with a shared generalized egress transport.")]
-        private static HttpClient CreateClient()
+        private static HttpClient CreateClient(
+#if NET6_0_OR_GREATER
+            Func<SocketsHttpConnectionContext, CancellationToken, ValueTask<Stream>> connectCallback
+#endif
+            )
         {
 #if NET6_0_OR_GREATER
             SocketsHttpHandler? socketsHandler = new SocketsHttpHandler();
@@ -1113,7 +1166,7 @@ namespace Opc.Ua.Aas.Server.Federation
                 socketsHandler.Credentials = null;
                 socketsHandler.SslOptions.CertificateRevocationCheckMode =
                     System.Security.Cryptography.X509Certificates.X509RevocationMode.Online;
-                socketsHandler.ConnectCallback = ConnectAndRecordPeerAsync;
+                socketsHandler.ConnectCallback = connectCallback;
                 HttpClient socketsClient = new HttpClient(socketsHandler, disposeHandler: true);
                 socketsHandler = null;
                 return socketsClient;
@@ -1148,15 +1201,23 @@ namespace Opc.Ua.Aas.Server.Federation
 
 #if NET6_0_OR_GREATER
         /// <summary>
-        /// Connects and records the peer the socket actually reached.
+        /// Connects, validates the peer the socket actually reached, and records it.
         /// </summary>
+        /// <remarks>
+        /// Validating here rather than after the response is what makes a
+        /// pooled connection safe to reuse: a peer the policy rejects never
+        /// becomes a connection at all, so every connection the pool can hand
+        /// back was checked before any byte crossed it. Checking only after the
+        /// response would leave a rejected connection sitting in the pool for
+        /// the next request to pick up.
+        /// </remarks>
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
             Justification = "The socket is owned by the NetworkStream that is returned, which the " +
                 "handler disposes with the connection, and it is disposed here on the failure path. " +
                 "TODO: remove when CA2000 recognizes ownsSocket.")]
-        private static async ValueTask<Stream> ConnectAndRecordPeerAsync(
+        private async ValueTask<Stream> ConnectAndValidatePeerAsync(
             SocketsHttpConnectionContext context,
             CancellationToken cancellationToken)
         {
@@ -1164,9 +1225,31 @@ namespace Opc.Ua.Aas.Server.Federation
             try
             {
                 await socket.ConnectAsync(context.DnsEndPoint, cancellationToken).ConfigureAwait(false);
-                if (socket.RemoteEndPoint is IPEndPoint peer)
+                if (socket.RemoteEndPoint is not IPEndPoint peer)
                 {
-                    context.InitialRequestMessage.Options.Set(s_connectedAddress, peer.Address);
+                    throw new HttpRequestException(
+                        "Federation target peer address could not be determined.");
+                }
+
+                // A dual-mode socket reports an IPv4 peer in its mapped form,
+                // which is the same address wearing a different notation. It is
+                // normalized here so both the policy check and what the caller
+                // is told speak about the address the operator wrote down.
+                IPAddress address = peer.Address.IsIPv4MappedToIPv6
+                    ? peer.Address.MapToIPv4()
+                    : peer.Address;
+
+                AasFederationResolutionResult validation = m_validator.ValidateAddress(
+                    context.DnsEndPoint.Host, address);
+                if (!validation.Succeeded)
+                {
+                    throw new HttpRequestException(validation.Message);
+                }
+
+                context.InitialRequestMessage.Options.Set(s_connectedAddress, address);
+                if (context.InitialRequestMessage.RequestUri is Uri uri)
+                {
+                    m_peers[OriginKey(uri)] = address;
                 }
                 return new NetworkStream(socket, ownsSocket: true);
             }
@@ -1177,11 +1260,20 @@ namespace Opc.Ua.Aas.Server.Federation
             }
         }
 
+        private static string OriginKey(Uri uri)
+        {
+            return uri.GetLeftPart(UriPartial.Authority);
+        }
+
+        private readonly ConcurrentDictionary<string, IPAddress> m_peers = new(StringComparer.Ordinal);
+
         private static readonly HttpRequestOptionsKey<IPAddress?> s_connectedAddress =
             new("Opc.Ua.Aas.Federation.ConnectedAddress");
 #endif
 
 
+        private readonly AasFederationEndpointValidator m_validator;
+        private readonly bool m_ownsClient = true;
         private readonly HttpClient m_client;
     }
 
@@ -1259,7 +1351,15 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<AasFederationEgressPolicy>();
             services.TryAddSingleton<IAasFederationDnsResolver, DefaultAasFederationDnsResolver>();
-            services.TryAddSingleton<IAasFederationHttpTransport, HttpClientAasFederationTransport>();
+
+            // Selected explicitly rather than by constructor discovery: both
+            // constructors are satisfiable once a deployment registers its own
+            // HttpClient, and the container refuses to choose between them.
+            services.TryAddSingleton<IAasFederationHttpTransport>(provider =>
+                provider.GetService<HttpClient>() is HttpClient client
+                    ? new HttpClientAasFederationTransport(client)
+                    : new HttpClientAasFederationTransport(
+                        provider.GetRequiredService<AasFederationEgressPolicy>()));
             services.TryAddSingleton<AasResourceUrlFederationResolver>();
             return services;
         }
