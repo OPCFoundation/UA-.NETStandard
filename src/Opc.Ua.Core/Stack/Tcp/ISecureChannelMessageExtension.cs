@@ -34,87 +34,6 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// A secured message that arrived on a SecureChannel under a MessageType
-    /// an extension owns.
-    /// </summary>
-    public readonly struct SecureChannelMessage : IEquatable<SecureChannelMessage>
-    {
-        /// <summary>
-        /// Creates the message.
-        /// </summary>
-        /// <param name="messageType">The MessageType and chunk type as they
-        /// appeared on the wire.</param>
-        /// <param name="requestId">The RequestId from the sequence header.</param>
-        /// <param name="body">The decrypted and verified body.</param>
-        public SecureChannelMessage(uint messageType, uint requestId, ArraySegment<byte> body)
-        {
-            MessageType = messageType;
-            RequestId = requestId;
-            Body = body;
-        }
-
-        /// <summary>
-        /// The MessageType and chunk type as they appeared on the wire.
-        /// </summary>
-        public uint MessageType { get; }
-
-        /// <summary>
-        /// The RequestId carried in the sequence header.
-        /// </summary>
-        public uint RequestId { get; }
-
-        /// <summary>
-        /// The decrypted and verified body.
-        /// </summary>
-        /// <remarks>
-        /// The buffer belongs to the channel's receive loop and is valid only
-        /// for the duration of the call. An extension that needs the content
-        /// afterwards copies it.
-        /// </remarks>
-        public ArraySegment<byte> Body { get; }
-
-        /// <inheritdoc/>
-        public bool Equals(SecureChannelMessage other)
-        {
-            return MessageType == other.MessageType &&
-                RequestId == other.RequestId &&
-                Body.Equals(other.Body);
-        }
-
-        /// <inheritdoc/>
-        public override bool Equals(object? obj)
-        {
-            return obj is SecureChannelMessage other && Equals(other);
-        }
-
-        /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(MessageType, RequestId, Body);
-        }
-
-        /// <summary>
-        /// Compares two messages for equality.
-        /// </summary>
-        /// <param name="left">The first message.</param>
-        /// <param name="right">The second message.</param>
-        public static bool operator ==(SecureChannelMessage left, SecureChannelMessage right)
-        {
-            return left.Equals(right);
-        }
-
-        /// <summary>
-        /// Compares two messages for inequality.
-        /// </summary>
-        /// <param name="left">The first message.</param>
-        /// <param name="right">The second message.</param>
-        public static bool operator !=(SecureChannelMessage left, SecureChannelMessage right)
-        {
-            return !left.Equals(right);
-        }
-    }
-
-    /// <summary>
     /// The SecureChannel an extension is attached to, and everything the
     /// extension is permitted to do with it.
     /// </summary>
@@ -126,11 +45,6 @@ namespace Opc.Ua.Bindings
     /// </remarks>
     public interface ISecureChannelMessageHost
     {
-        /// <summary>
-        /// The identifier of the SecureChannel, unique across the process.
-        /// </summary>
-        string GlobalChannelId { get; }
-
         /// <summary>
         /// The largest chunk the peer accepts.
         /// </summary>
@@ -159,19 +73,6 @@ namespace Opc.Ua.Bindings
         TimeProvider TimeProvider { get; }
 
         /// <summary>
-        /// How much of the SequenceNumber space remains under the
-        /// SecurityToken currently in force.
-        /// </summary>
-        /// <remarks>
-        /// The space is per token and is shared by every MessageType the
-        /// channel carries, so an extension that emits a large number of
-        /// messages has to draw on this rather than assume it is alone.
-        /// Consume it inside the callback passed to <see cref="SendMessageAsync"/>,
-        /// which is where the reservation and the send are atomic.
-        /// </remarks>
-        SequenceNumberBudget SequenceBudget { get; }
-
-        /// <summary>
         /// Reports a fault whose blast radius is the whole SecureChannel.
         /// </summary>
         /// <param name="reason">Why the channel cannot continue.</param>
@@ -183,25 +84,23 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// Assigning the SequenceNumber and applying message security are
         /// serialized against the Service traffic on the same channel, because
-        /// both draw on the same keys and the same counter. <paramref name="onSecuring"/>
-        /// runs inside that serialization: an extension uses it to decide,
-        /// atomically with the send, whether the message may go at all, and
-        /// throws to refuse. The write itself is awaited outside it, so a slow
-        /// peer on an extension cannot stall Service traffic.
+        /// both draw on the same keys and the same counter. The channel claims
+        /// the SequenceNumber inside that serialization and refuses the send
+        /// with <c>Bad_SecureChannelTokenUnknown</c> when the space under the
+        /// current SecurityToken is exhausted, so an extension stalls rather
+        /// than reuse a number. The write itself is awaited outside it, so a
+        /// slow peer on an extension cannot stall Service traffic.
         /// </remarks>
         /// <param name="messageType">The MessageType to write.</param>
         /// <param name="requestId">The RequestId for the sequence header.</param>
         /// <param name="isRequest">True to secure with the client key set.</param>
         /// <param name="body">The already-encoded body.</param>
-        /// <param name="onSecuring">Invoked while the message is being secured,
-        /// or <c>null</c>. Throwing from it abandons the send.</param>
         /// <param name="ct">Cancellation token.</param>
         ValueTask SendMessageAsync(
             uint messageType,
             uint requestId,
             bool isRequest,
             ArraySegment<byte> body,
-            Action? onSecuring,
             CancellationToken ct);
     }
 
@@ -225,8 +124,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a secured, sequence-verified message.
         /// </summary>
-        /// <param name="message">The message.</param>
-        void OnMessageReceived(in SecureChannelMessage message);
+        /// <param name="messageType">The MessageType and chunk type as they
+        /// appeared on the wire.</param>
+        /// <param name="requestId">The RequestId from the sequence header.</param>
+        /// <param name="body">The decrypted and verified body. The buffer
+        /// belongs to the channel's receive loop and is valid only for the
+        /// duration of the call, so an extension that needs the content
+        /// afterwards copies it.</param>
+        void OnMessageReceived(uint messageType, uint requestId, ArraySegment<byte> body);
 
         /// <summary>
         /// Reports that a chunk of the owned MessageType could not be secured,

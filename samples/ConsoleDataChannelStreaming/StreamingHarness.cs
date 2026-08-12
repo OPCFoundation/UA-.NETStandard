@@ -768,10 +768,15 @@ namespace ConsoleDataChannelStreaming
         public ValueTask<bool> IsAuthorizedAsync(
             DataChannelRequestContext context,
             NodeId requestedSourceNodeId,
+            DataChannelDirection direction,
             CancellationToken ct)
         {
+            // Part 4 errata §7.2: a channel carrying payload towards the source
+            // is a write, so this sample grants only the outbound direction it
+            // actually publishes rather than whatever is asked for.
             bool authorized =
                 requestedSourceNodeId == sourceNodeId &&
+                direction == DataChannelDirection.SourceToSink &&
                 context.IsSessionActivated &&
                 context.SecurityMode == MessageSecurityMode.SignAndEncrypt;
 

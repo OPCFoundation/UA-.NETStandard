@@ -66,9 +66,6 @@ namespace Opc.Ua.Bindings
             m_host = host ?? throw new ArgumentNullException(nameof(host));
             m_isSource = isServer;
 
-            // Cached so a frame does not allocate a closure on the send path.
-            m_onSecuring = ReserveSequenceNumber;
-
             Manager = new DataChannelManager(
                 this,
                 isServer,
@@ -81,13 +78,6 @@ namespace Opc.Ua.Bindings
         /// The data channels multiplexed onto this SecureChannel.
         /// </summary>
         public DataChannelManager Manager { get; }
-
-        /// <summary>
-        /// Tracks how much of the SecureChannel SequenceNumber space remains
-        /// under the current token. STR, MSG, OPN and CLO chunks all draw on
-        /// the same space.
-        /// </summary>
-        public SequenceNumberBudget SequenceBudget => m_host.SequenceBudget;
 
         /// <summary>
         /// Raised when a frame violated the framing rules badly enough to cost
@@ -123,18 +113,16 @@ namespace Opc.Ua.Bindings
         public TimeProvider TimeProvider => m_host.TimeProvider;
 
         /// <inheritdoc/>
-        public void OnMessageReceived(in SecureChannelMessage message)
+        public void OnMessageReceived(uint messageType, uint requestId, ArraySegment<byte> body)
         {
             if (!DataChannelFrameCodec.TryValidateChunkHeaders(
-                message.MessageType,
-                message.RequestId,
+                messageType,
+                requestId,
                 out DataChannelFrameError headerError))
             {
                 OnProtocolFault(headerError);
                 return;
             }
-
-            ArraySegment<byte> body = message.Body;
 
             if (!DataChannelFrameCodec.TryDecode(
                 new ReadOnlyMemory<byte>(body.Array!, body.Offset, body.Count),
@@ -197,7 +185,6 @@ namespace Opc.Ua.Bindings
                         DataChannelConstants.FrameRequestId,
                         !m_isSource,
                         new ArraySegment<byte>(body, 0, written),
-                        m_onSecuring,
                         ct)
                     .ConfigureAwait(false);
             }
@@ -224,28 +211,7 @@ namespace Opc.Ua.Bindings
                 error));
         }
 
-        /// <summary>
-        /// Reserves a SequenceNumber for the frame being secured.
-        /// </summary>
-        /// <remarks>
-        /// Runs while the channel is securing the chunk, so the decision and
-        /// the send are atomic. Initiating renewal is not sufficient on its
-        /// own, because a slow renewal can still be overtaken: a sender stalls
-        /// its data channels rather than emitting a chunk that would reuse a
-        /// SequenceNumber under the current TokenId (Part 6 errata §5.1.1).
-        /// </remarks>
-        private void ReserveSequenceNumber()
-        {
-            if (!m_host.SequenceBudget.TryConsume())
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecureChannelTokenUnknown,
-                    "The SequenceNumber space under the current SecurityToken is exhausted.");
-            }
-        }
-
         private readonly ISecureChannelMessageHost m_host;
-        private readonly Action m_onSecuring;
         private readonly bool m_isSource;
     }
 }

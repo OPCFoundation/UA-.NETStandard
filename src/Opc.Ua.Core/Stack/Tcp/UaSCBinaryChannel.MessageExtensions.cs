@@ -55,9 +55,6 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         TimeProvider ISecureChannelMessageHost.TimeProvider => TimeProvider;
 
-        /// <inheritdoc/>
-        SequenceNumberBudget ISecureChannelMessageHost.SequenceBudget => SequenceBudget;
-
         /// <summary>
         /// Tracks how much of the SecureChannel SequenceNumber space remains
         /// under the current SecurityToken. Every MessageType the channel
@@ -127,7 +124,6 @@ namespace Opc.Ua.Bindings
             uint requestId,
             bool isRequest,
             ArraySegment<byte> body,
-            Action? onSecuring,
             CancellationToken ct)
         {
             BufferCollection? chunks = null;
@@ -154,7 +150,18 @@ namespace Opc.Ua.Bindings
                             StatusCodes.BadSecureChannelClosed,
                             "The SecureChannel has no active token.");
 
-                    onSecuring?.Invoke();
+                    // Claiming the SequenceNumber under the same lock that
+                    // secures the chunk is what makes the refusal atomic: an
+                    // extension emits far more messages than the Service path
+                    // does, and a claim taken outside this lock could be
+                    // overtaken by Service traffic and reuse a number under one
+                    // TokenId. A sender stalls rather than reuse.
+                    if (!SequenceBudget.TryConsume())
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecureChannelTokenUnknown,
+                            "The SequenceNumber space under the current SecurityToken is exhausted.");
+                    }
 
                     chunks = WriteSymmetricMessage(
                         messageType,
@@ -252,7 +259,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            extension.OnMessageReceived(new SecureChannelMessage(messageType, requestId, body));
+            extension.OnMessageReceived(messageType, requestId, body);
             return false;
         }
 

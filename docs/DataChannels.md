@@ -59,8 +59,11 @@ MessageType that is neither a Service call nor part of establishing the SecureCh
 Two things stay in Core because they are the SecureChannel's own concerns rather than the
 feature's: `SequenceNumberBudget`, which tracks the sequence space every MessageType draws
 on, and `UaSCSecureChannelRegistry`, which maps a SecureChannel identifier to the channel
-that owns it. The `opc.quic` transport remains its own package,
-`OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`.
+that owns it. Because the budget is Core's, the channel claims the SequenceNumber itself
+while it secures the chunk and refuses the send with `Bad_SecureChannelTokenUnknown` when
+the space under the current token is exhausted — an extension stalls rather than reuse a
+number, and never has to reason about the serialization to do so. The `opc.quic` transport
+remains its own package, `OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`.
 
 ## Server side
 
