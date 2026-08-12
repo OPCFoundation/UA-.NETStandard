@@ -20,8 +20,8 @@ file-transfer types.
 | Package | What it gives you | Depends on |
 |---|---|---|
 | `OPCFoundation.NetStandard.Opc.Ua.AI` | Source-generated AI model — ObjectTypes, ReferenceTypes, DataTypes, enums, node states and model loader | `Opc.Ua.Core` |
-| `OPCFoundation.NetStandard.Opc.Ua.AI.Server` | `AiNodeManager`, `AiOptions`, fallback reporting, transfer and job support, and `AddAi` hosting extensions | `Opc.Ua.AI`, `Opc.Ua.Server`, `Opc.Ua.AI.Inference` |
-| `OPCFoundation.NetStandard.Opc.Ua.AI.Client` | `AiBrowseClient`, `AiBrowseClientFactory` and `AddAiClient()` DI registration | `Opc.Ua.AI`, `Opc.Ua.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.AI.Server` | `AINodeManager`, `AIOptions`, fallback reporting, transfer and job support, and `AddAI` hosting extensions | `Opc.Ua.AI`, `Opc.Ua.Server`, `Opc.Ua.AI.Inference` |
+| `OPCFoundation.NetStandard.Opc.Ua.AI.Client` | `AIClient`, `AIClientFactory` and `AddAIClient()` DI registration | `Opc.Ua.AI`, `Opc.Ua.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.AI.Inference` | `IInferenceBackend`, `ChatClientInferenceBackend`, `RestChatCompletionsBackend`, credential resolvers and backend options | `Opc.Ua.AI`, `Microsoft.Extensions.AI` |
 
 The AI libraries target modern .NET TFMs used by the sample (`net8.0`,
@@ -50,8 +50,8 @@ instead of polling a private API.
 
 ## Minimal hosted server
 
-`AddAi` registers the node manager, options and default backend composition.
-The host supplies the `IChatClient` through `IAiChatClientFactory`; that keeps
+`AddAI` registers the node manager, options and default backend composition.
+The host supplies the `IChatClient` through `IChatClientFactory`; that keeps
 vendor packages in the host and out of `Opc.Ua.AI.Inference`.
 
 ```csharp
@@ -63,19 +63,19 @@ using Opc.Ua.Server.Fluent;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddRestChatCompletionsAiChatClientFactory();
+builder.Services.AddRestChatCompletionsAIChatClientFactory();
 
 builder.Services
     .AddOpcUa()
     .AddServer(options =>
     {
-        options.ApplicationName = "AiServer";
-        options.ApplicationUri = "urn:localhost:OPCFoundation:AiServer";
+        options.ApplicationName = "AIServer";
+        options.ApplicationUri = "urn:localhost:OPCFoundation:AIServer";
         options.AutoAcceptUntrustedCertificates = true;
-        options.EndpointUrls.Add("opc.tcp://localhost:62640/AiServer");
+        options.EndpointUrls.Add("opc.tcp://localhost:62640/AIServer");
     })
-    .AddAi(
-        ai => builder.Configuration.GetSection(AiOptions.SectionName).Bind(ai),
+    .AddAI(
+        ai => builder.Configuration.GetSection(AIOptions.SectionName).Bind(ai),
         backend => builder.Configuration
             .GetSection(InferenceBackendOptions.SectionName)
             .Bind(backend),
@@ -87,10 +87,10 @@ using IHost app = builder.Build();
 await app.RunAsync().ConfigureAwait(false);
 ```
 
-`AddRestChatCompletionsAiChatClientFactory()` is the sample-friendly factory:
+`AddRestChatCompletionsAIChatClientFactory()` is the sample-friendly factory:
 it creates an `IChatClient` over the configured OpenAI-compatible endpoint
 without adding a vendor SDK. A production host can instead register its own
-`IAiChatClientFactory` that creates `IChatClient` instances from Azure, OpenAI,
+`IChatClientFactory` that creates `IChatClient` instances from Azure, OpenAI,
 Ollama or an on-device runtime package.
 
 The direct construction path remains available for hosts that do not use the
@@ -98,9 +98,9 @@ generic hosting stack:
 
 ```csharp
 var backends = new InferenceBackends(primaryBackend, fallbackBackend);
-var factory = new AiNodeManagerFactory(
+var factory = new AINodeManagerFactory(
     backends,
-    Options.Create(new AiOptions()),
+    Options.Create(new AIOptions()),
     Options.Create(new InferenceBackendOptions()));
 ```
 
@@ -110,16 +110,16 @@ The extension method on `IOpcUaServerBuilder` is:
 
 | Method | Purpose |
 |---|---|
-| `AddAi(Action<AiOptions>?, Action<InferenceBackendOptions>?, Action<InferenceBackendOptions>?)` | Registers `AiNodeManagerFactory`, `AiOptions`, primary and fallback `InferenceBackendOptions`, an `InferenceBackends` singleton, and the OPC UA node-manager registration |
+| `AddAI(Action<AIOptions>?, Action<InferenceBackendOptions>?, Action<InferenceBackendOptions>?)` | Registers `AINodeManagerFactory`, `AIOptions`, primary and fallback `InferenceBackendOptions`, an `InferenceBackends` singleton, and the OPC UA node-manager registration |
 
-`AddAi` composes the backend from `InferenceBackendOptions.Kind`:
+`AddAI` composes the backend from `InferenceBackendOptions.Kind`:
 
 - `ChatClient` (default) creates `ChatClientInferenceBackend` from
-  `IAiChatClientFactory`.
+  `IChatClientFactory`.
 - `RestChatCompletions` creates `RestChatCompletionsBackend` directly for
   endpoints whose wire contract is the OpenAI-compatible REST shape.
 
-### `AiOptions`
+### `AIOptions`
 
 | Property | Purpose |
 |---|---|
@@ -131,11 +131,11 @@ The extension method on `IOpcUaServerBuilder` is:
 | `AsyncInferenceDelay`, `MaxRetainedJobs` | Bounds and timing for asynchronous inference jobs |
 | `SourceId` | Identifier of the model source |
 
-When `EnableLearningLoop` is true, `AiNodeManager` publishes one
+When `EnableLearningLoop` is true, `AINodeManager` publishes one
 `LearningJobType` under `LearningJobs`. Host-level coordinators report
 ground-truth corrections through `RecordLearningSampleAsync(sampleId,
 sampleKind)`. The stable `sampleId` makes retries idempotent, and
-`AiLearningSampleKind.Negative` counts empty or retracted observations exactly
+`AILearningSampleKind.Negative` counts empty or retracted observations exactly
 as positive examples count.
 
 ### `InferenceBackendOptions`
@@ -152,9 +152,9 @@ as positive examples count.
 
 ## Client surface
 
-`AddAiClient()` mirrors the other companion-family client extensions. It
-registers an `AiBrowseClientFactory` and a
-`Func<CancellationToken, Task<AiBrowseClient?>>` over the managed session.
+`AddAIClient()` mirrors the other companion-family client extensions. It
+registers an `AIClientFactory` and a
+`Func<CancellationToken, Task<AIClient?>>` over the managed session.
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -169,8 +169,8 @@ builder.Services
     .AddOpcUa()
     .AddClient(options =>
     {
-        options.ApplicationName = "AiClient";
-        options.ApplicationUri = "urn:localhost:OPCFoundation:AiClient";
+        options.ApplicationName = "AIClient";
+        options.ApplicationUri = "urn:localhost:OPCFoundation:AIClient";
         options.AutoAcceptUntrustedCertificates = true;
     })
     .AddDiscoveryAndConnect(options =>
@@ -179,14 +179,14 @@ builder.Services
         options.SecurityMode = MessageSecurityMode.SignAndEncrypt;
         options.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
     })
-    .AddAiClient();
+    .AddAIClient();
 
 using IHost app = builder.Build();
 await app.StartAsync().ConfigureAwait(false);
 
 var createClient = app.Services
-    .GetRequiredService<Func<CancellationToken, Task<AiBrowseClient?>>>();
-AiBrowseClient? client = await createClient(CancellationToken.None)
+    .GetRequiredService<Func<CancellationToken, Task<AIClient?>>>();
+AIClient? client = await createClient(CancellationToken.None)
     .ConfigureAwait(false);
 
 if (client is null)
@@ -195,7 +195,7 @@ if (client is null)
 }
 ```
 
-For one-off code, `AiBrowseClient.TryCreate(session)` is the direct fallback
+For one-off code, `AIClient.TryCreate(session)` is the direct fallback
 when you already own an `ISession`.
 
 ## Inference backends
@@ -217,7 +217,7 @@ is configuration: endpoint, credentials, data jurisdiction and egress.
 
 The sample in
 [`samples/AI/ModelManagementServer`](../samples/AI/ModelManagementServer) hosts
-the node manager with `AddAi`. By default it uses the `ChatClient` path and the
+the node manager with `AddAI`. By default it uses the `ChatClient` path and the
 sample composition root supplies a small `IChatClient` over the
 OpenAI-compatible endpoint. `verify_backend.py` is a throwaway endpoint that
 speaks enough of that contract for local validation:
@@ -245,7 +245,7 @@ different wire contract from the primary.
 - `IChatClient` has no standard model-enumeration method, so hosts that need a
   catalogue should configure `InferenceBackendOptions.Models`.
 - The libraries do not reference vendor SDKs. If a provider package is needed,
-  add it in the hosting application and expose it through `IAiChatClientFactory`.
+  add it in the hosting application and expose it through `IChatClientFactory`.
 - Native AOT is disabled for the AI inference/sample projects because the
   `Microsoft.Extensions.AI` ecosystem uses reflection in areas this repository
   builds with warnings as errors.

@@ -45,7 +45,7 @@ namespace Opc.Ua.AI.Tests
     /// Verifies the asynchronous path and the model source.
     /// </summary>
     [TestFixture]
-    [Category("AiModelManagement")]
+    [Category("AIModelManagement")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public sealed class JobAndSourceTests
@@ -53,7 +53,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task AnAsynchronousInferenceReturnsAJobThatLaterCarriesTheResultAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
 
@@ -94,10 +94,10 @@ namespace Opc.Ua.AI.Tests
         {
             var primary = new FakeInferenceBackend("primary") { Healthy = false };
 
-            using AiNodeManager nm = await AiServerTestHarness
+            using AINodeManager nm = await AIServerTestHarness
                 .CreateAsync(
                     new InferenceBackends(primary),
-                    new AiOptions
+                    new AIOptions
                     {
                         EnableFallback = false,
                         AsyncInferenceDelay = TimeSpan.Zero
@@ -148,10 +148,10 @@ namespace Opc.Ua.AI.Tests
                 Version = "2.1.0"
             });
 
-            using AiNodeManager nm = await AiServerTestHarness
+            using AINodeManager nm = await AIServerTestHarness
                 .CreateAsync(
                     new InferenceBackends(primary),
-                    new AiOptions { EnableFallback = false })
+                    new AIOptions { EnableFallback = false })
                 .ConfigureAwait(false);
 
             ModelSourceState source = FindSource(nm);
@@ -188,10 +188,10 @@ namespace Opc.Ua.AI.Tests
         {
             var primary = new FakeInferenceBackend("primary") { Reachable = false };
 
-            using AiNodeManager nm = await AiServerTestHarness
+            using AINodeManager nm = await AIServerTestHarness
                 .CreateAsync(
                     new InferenceBackends(primary),
-                    new AiOptions { EnableFallback = false })
+                    new AIOptions { EnableFallback = false })
                 .ConfigureAwait(false);
 
             ModelSourceState source = FindSource(nm);
@@ -212,18 +212,18 @@ namespace Opc.Ua.AI.Tests
             });
         }
 
-        private static Task<AiNodeManager> CreateAsync()
+        private static Task<AINodeManager> CreateAsync()
         {
-            return AiServerTestHarness.CreateAsync(
+            return AIServerTestHarness.CreateAsync(
                 new InferenceBackends(new FakeInferenceBackend("primary")),
-                new AiOptions
+                new AIOptions
                 {
                     EnableFallback = false,
                     AsyncInferenceDelay = TimeSpan.Zero
                 });
         }
 
-        private static ModelSourceState FindSource(AiNodeManager nm)
+        private static ModelSourceState FindSource(AINodeManager nm)
         {
             var root = nm.FindPredefinedNode<AiRootState>(nm.RootId);
             var children = new System.Collections.Generic.List<BaseInstanceState>();

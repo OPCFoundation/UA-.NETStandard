@@ -43,7 +43,7 @@ namespace Opc.Ua.AI.Server
     /// which backend to reach, which deployments to publish, and how the simulated
     /// scenarios behave.
     /// </remarks>
-    public sealed class AiOptions
+    public sealed class AIOptions
     {
         /// <summary>Configuration section this binds from.</summary>
         public const string SectionName = "AiModelManagement";

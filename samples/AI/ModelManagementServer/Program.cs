@@ -49,7 +49,7 @@ int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62640;
 // --host for local-only development.
 string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0";
 
-builder.Services.AddRestChatCompletionsAiChatClientFactory();
+builder.Services.AddRestChatCompletionsAIChatClientFactory();
 
 // InferenceBackend:Kind defaults to ChatClient, the Microsoft.Extensions.AI
 // path. Set it to RestChatCompletions only for endpoints where the host cannot
@@ -70,8 +70,8 @@ builder.Services
         o.MinCertificateKeySize = 2048;
         o.EndpointUrls.Add($"opc.tcp://{host}:{port}/ModelManagementServer");
     })
-    .AddAi(
-        ai => builder.Configuration.GetSection(AiOptions.SectionName).Bind(ai),
+    .AddAI(
+        ai => builder.Configuration.GetSection(AIOptions.SectionName).Bind(ai),
         backend => builder.Configuration.GetSection(InferenceBackendOptions.SectionName).Bind(backend),
         fallback => builder.Configuration
             .GetSection(InferenceBackendOptions.FallbackSectionName)

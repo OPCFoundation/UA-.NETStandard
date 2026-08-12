@@ -95,8 +95,25 @@ namespace Vision.VisualInspectionCell
                     ReturnStatus = Isa95JobReturnStatus.InvalidRequest
                 };
             }
-            return await m_provider.ReceiveJobOrderAsync(operation, jobOrder, comment, cancellationToken)
+            Isa95JobOrderReceiptV2 receipt = await m_provider.ReceiveJobOrderAsync(
+                operation,
+                jobOrder,
+                comment,
+                cancellationToken)
                 .ConfigureAwait(false);
+            if (operation == Isa95JobOrderOperationV2.StoreAndStart &&
+                (receipt.ReturnStatus & Isa95JobReturnStatus.Success) != 0)
+            {
+                Isa95JobOrderReceiptV2 transition = await m_provider.TransitionAsync(
+                    jobOrder.JobOrderID,
+                    Isa95JobExecutionTransition.BeginExecution,
+                    cancellationToken).ConfigureAwait(false);
+                if ((transition.ReturnStatus & Isa95JobReturnStatus.Success) == 0)
+                {
+                    return transition;
+                }
+            }
+            return receipt;
         }
 
         public ValueTask<Isa95JobResponseByIdResultV2> RequestJobResponseByJobOrderIdAsync(

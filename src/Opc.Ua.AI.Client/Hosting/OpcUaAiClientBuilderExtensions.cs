@@ -40,37 +40,37 @@ namespace Microsoft.Extensions.DependencyInjection
     /// <summary>
     /// Registers the AI Model Management client over the managed OPC UA session.
     /// </summary>
-    public static class OpcUaAiClientBuilderExtensions
+    public static class OpcUaAIClientBuilderExtensions
     {
         /// <summary>
-        /// Registers an <see cref="AiClientFactory"/> and a
-        /// <c>Func&lt;CancellationToken, Task&lt;AiClient&gt;&gt;</c> so
+        /// Registers an <see cref="AIClientFactory"/> and a
+        /// <c>Func&lt;CancellationToken, Task&lt;AIClient&gt;&gt;</c> so
         /// downstream services can request AI clients.
         /// </summary>
         /// <param name="builder">The client builder returned by <c>AddClient</c>.</param>
-        public static IOpcUaClientBuilder AddAiClient(
+        public static IOpcUaClientBuilder AddAIClient(
             this IOpcUaClientBuilder builder)
         {
             if (builder == null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            builder.Services.TryAddSingleton<AiClientFactory>(sp =>
+            builder.Services.TryAddSingleton<AIClientFactory>(sp =>
             {
                 Func<CancellationToken, Task<ManagedSession>> sessionFactory =
                     sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
                     ?? throw new InvalidOperationException(
-                        "AddAiClient requires AddClient to be called first.");
+                        "AddAIClient requires AddClient to be called first.");
                 ITelemetryContext telemetry =
                     sp.GetRequiredService<ITelemetryContext>();
-                return new AiClientFactory(sessionFactory, telemetry);
+                return new AIClientFactory(sessionFactory, telemetry);
             });
 
             builder.Services.TryAddSingleton<
-                Func<CancellationToken, Task<AiClient>>>(sp =>
+                Func<CancellationToken, Task<AIClient>>>(sp =>
             {
-                AiClientFactory factory =
-                    sp.GetRequiredService<AiClientFactory>();
+                AIClientFactory factory =
+                    sp.GetRequiredService<AIClientFactory>();
                 return factory.CreateAsync;
             });
 

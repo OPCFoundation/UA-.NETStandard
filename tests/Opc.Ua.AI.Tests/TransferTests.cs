@@ -50,7 +50,7 @@ namespace Opc.Ua.AI.Tests
     /// have a hole exactly where the largest requests are.
     /// </remarks>
     [TestFixture]
-    [Category("AiModelManagement")]
+    [Category("AIModelManagement")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public sealed class TransferTests
@@ -58,7 +58,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task AnOversizePayloadIsRefusedInlineAndNamesTheTransferAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
             byte[] oversize = new byte[InlineLimit + 1];
@@ -91,7 +91,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task ATransferCarriesThePayloadAndReportsTheModelUsedAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
 
@@ -130,8 +130,8 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task ATransferLargerThanTheServerAcceptsIsRefusedBeforeAnyBytesArriveAsync()
         {
-            using AiNodeManager nm = await CreateAsync(
-                new AiOptions { MaxTransferSize = 4096 })
+            using AINodeManager nm = await CreateAsync(
+                new AIOptions { MaxTransferSize = 4096 })
                 .ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
@@ -157,7 +157,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task TheResponseFileIsNotWritableAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
 
@@ -190,10 +190,10 @@ namespace Opc.Ua.AI.Tests
         {
             var backend = new BlockingFakeBackend();
 
-            using AiNodeManager nm = await AiServerTestHarness
+            using AINodeManager nm = await AIServerTestHarness
                 .CreateAsync(
                     new InferenceBackends(backend),
-                    new AiOptions { EnableFallback = false },
+                    new AIOptions { EnableFallback = false },
                     new InferenceBackendOptions { MaxInlinePayloadSize = InlineLimit })
                 .ConfigureAwait(false);
 
@@ -294,17 +294,17 @@ namespace Opc.Ua.AI.Tests
 
         private const uint InlineLimit = 512;
 
-        private static Task<AiNodeManager> CreateAsync(
-            AiOptions? options = null)
+        private static Task<AINodeManager> CreateAsync(
+            AIOptions? options = null)
         {
-            return AiServerTestHarness.CreateAsync(
+            return AIServerTestHarness.CreateAsync(
                 new InferenceBackends(new FakeInferenceBackend("primary")),
-                options ?? new AiOptions { EnableFallback = false },
+                options ?? new AIOptions { EnableFallback = false },
                 new InferenceBackendOptions { MaxInlinePayloadSize = InlineLimit });
         }
 
         private static void WriteRequest(
-            AiNodeManager nm,
+            AINodeManager nm,
             InferenceTransferState transfer,
             string body)
         {
@@ -337,7 +337,7 @@ namespace Opc.Ua.AI.Tests
         }
 
         private static string ReadResponse(
-            AiNodeManager nm,
+            AINodeManager nm,
             InferenceTransferState transfer)
         {
             uint handle = 0;

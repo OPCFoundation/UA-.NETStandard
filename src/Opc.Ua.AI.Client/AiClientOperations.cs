@@ -36,11 +36,11 @@ using Opc.Ua.Client;
 
 namespace Opc.Ua.AI.Client
 {
-    internal sealed class AiClientOperations
+    internal sealed class AIClientOperations
     {
         public const int DefaultChunkSize = 4096;
 
-        public AiClientOperations(ISession session, ITelemetryContext telemetry)
+        public AIClientOperations(ISession session, ITelemetryContext telemetry)
         {
             Session = session ?? throw new ArgumentNullException(nameof(session));
             Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
@@ -51,7 +51,7 @@ namespace Opc.Ua.AI.Client
 
         public ITelemetryContext Telemetry { get; }
 
-        public bool TryGetAiNamespaceIndex(out ushort namespaceIndex)
+        public bool TryGetAINamespaceIndex(out ushort namespaceIndex)
         {
             int index = Session.NamespaceUris.GetIndex(Namespaces.AI);
             if (index < 0)
@@ -63,9 +63,9 @@ namespace Opc.Ua.AI.Client
             return true;
         }
 
-        public NodeId AiNamespaceType(uint identifier)
+        public NodeId AINamespaceType(uint identifier)
         {
-            return TryGetAiNamespaceIndex(out ushort ns)
+            return TryGetAINamespaceIndex(out ushort ns)
                 ? new NodeId(identifier, ns)
                 : NodeId.Null;
         }
@@ -145,7 +145,7 @@ namespace Opc.Ua.AI.Client
             ArrayOf<string> browseNames,
             CancellationToken cancellationToken)
         {
-            if (!TryGetAiNamespaceIndex(out ushort ns))
+            if (!TryGetAINamespaceIndex(out ushort ns))
             {
                 var nulls = new List<NodeId>(browseNames.Count);
                 for (int ii = 0; ii < browseNames.Count; ii++)
@@ -206,7 +206,7 @@ namespace Opc.Ua.AI.Client
             uint referenceTypeIdentifier,
             CancellationToken cancellationToken)
         {
-            NodeId referenceType = AiNamespaceType(referenceTypeIdentifier);
+            NodeId referenceType = AINamespaceType(referenceTypeIdentifier);
             if (source.IsNull || referenceType.IsNull)
             {
                 return NodeId.Null;

@@ -106,8 +106,14 @@ namespace Vision.VisualInspectionCell
             InspectionCharacteristicRecipe recipe,
             MeasuredCharacteristic measurement)
         {
-            long intervalLow = ToMicrometres(measurement.Actual - measurement.Uncertainty);
-            long intervalHigh = ToMicrometres(measurement.Actual + measurement.Uncertainty);
+            if (!double.IsFinite(measurement.Actual) || !double.IsFinite(measurement.Uncertainty))
+            {
+                return VisionResultEvaluationEnum.NotDecidable;
+            }
+
+            double uncertainty = Math.Abs(measurement.Uncertainty);
+            long intervalLow = ToMicrometres(measurement.Actual - uncertainty);
+            long intervalHigh = ToMicrometres(measurement.Actual + uncertainty);
             long toleranceLow = ToMicrometres(recipe.Nominal - recipe.LowerTolerance);
             long toleranceHigh = ToMicrometres(recipe.Nominal + recipe.UpperTolerance);
             if (intervalLow >= toleranceLow && intervalHigh <= toleranceHigh)

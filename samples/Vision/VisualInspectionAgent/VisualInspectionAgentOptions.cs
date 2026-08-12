@@ -45,7 +45,7 @@ namespace Vision.VisualInspectionAgent
 
         public TimeSpan OperatorTimeout { get; init; } = TimeSpan.FromSeconds(10);
 
-        public string? AiEndpoint { get; init; }
+        public string? AIEndpoint { get; init; }
 
         public static VisualInspectionAgentOptions Parse(string[] args)
         {
@@ -63,7 +63,7 @@ namespace Vision.VisualInspectionAgent
                     out int timeout)
                     ? timeout
                     : 10)),
-                AiEndpoint = GetOption(args, "--ai-endpoint")
+                AIEndpoint = GetOption(args, "--ai-endpoint")
             };
         }
 
@@ -98,7 +98,7 @@ namespace Vision.VisualInspectionAgent
     {
         Scripted,
 
-        LiveAi,
+        LiveAI,
 
         Human
     }

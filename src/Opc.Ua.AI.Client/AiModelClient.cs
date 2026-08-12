@@ -35,14 +35,14 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.AI.Client
 {
-    public sealed class AiModelClient
+    public sealed class AIModelClient
     {
-        public AiModelClient(AiClient client, NodeId modelNodeId)
+        public AIModelClient(AIClient client, NodeId modelNodeId)
             : this(client?.Operations ?? throw new ArgumentNullException(nameof(client)), modelNodeId)
         {
         }
 
-        internal AiModelClient(AiClientOperations operations, NodeId modelNodeId)
+        internal AIModelClient(AIClientOperations operations, NodeId modelNodeId)
         {
             m_operations = operations ?? throw new ArgumentNullException(nameof(operations));
             if (modelNodeId.IsNull)
@@ -55,7 +55,7 @@ namespace Opc.Ua.AI.Client
 
         public NodeId ModelNodeId { get; }
 
-        public async ValueTask<AiModelSnapshot> ReadAsync(
+        public async ValueTask<AIModelSnapshot> ReadAsync(
             CancellationToken cancellationToken = default)
         {
             string[] members =
@@ -92,7 +92,7 @@ namespace Opc.Ua.AI.Client
                 m_operations.Telemetry, cancellationToken).ConfigureAwait(false);
             NodeId source = await m_operations.FollowReferenceAsync(
                 ModelNodeId, ReferenceTypes.ImportedFrom, cancellationToken).ConfigureAwait(false);
-            return new AiModelSnapshot
+            return new AIModelSnapshot
             {
                 NodeId = ModelNodeId,
                 ModelId = modelId,
@@ -111,24 +111,24 @@ namespace Opc.Ua.AI.Client
             };
         }
 
-        public async ValueTask<AiModelCardSnapshot> ReadCardAsync(
+        public async ValueTask<AIModelCardSnapshot> ReadCardAsync(
             CancellationToken cancellationToken = default)
         {
             ModelCardTypeClient? card = await m_proxy.GetCardAsync(
                 m_operations.Telemetry, cancellationToken).ConfigureAwait(false);
             if (card is null || card.ObjectId.IsNull)
             {
-                return new AiModelCardSnapshot();
+                return new AIModelCardSnapshot();
             }
             return await ReadCardAsync(card.ObjectId, cancellationToken).ConfigureAwait(false);
         }
 
-        public async IAsyncEnumerable<AiNodeEntry> EnumerateResourcesAsync(
+        public async IAsyncEnumerable<AINodeEntry> EnumerateResourcesAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             ArrayOf<ReferenceDescription> references = await m_operations
                 .BrowseHierarchicalObjectsAsync(ModelNodeId, cancellationToken).ConfigureAwait(false);
-            NodeId resourceType = m_operations.AiNamespaceType(ObjectTypes.ModelResourceType);
+            NodeId resourceType = m_operations.AINamespaceType(ObjectTypes.ModelResourceType);
             for (int ii = 0; ii < references.Count; ii++)
             {
                 ReferenceDescription reference = references[ii];
@@ -144,13 +144,13 @@ namespace Opc.Ua.AI.Client
                     await m_operations.Session.NodeCache.IsTypeOfAsync(
                         typeDef, resourceType, cancellationToken).ConfigureAwait(false))
                 {
-                    yield return new AiNodeEntry(
+                    yield return new AINodeEntry(
                         nodeId, reference.BrowseName, reference.DisplayName, typeDef);
                 }
             }
         }
 
-        public async ValueTask<AiModelResourceSnapshot> ReadResourceAsync(
+        public async ValueTask<AIModelResourceSnapshot> ReadResourceAsync(
             NodeId resourceNodeId,
             CancellationToken cancellationToken = default)
         {
@@ -168,7 +168,7 @@ namespace Opc.Ua.AI.Client
             ArrayOf<DataValue> values = await ReadPresentValuesAsync(nodes, cancellationToken)
                 .ConfigureAwait(false);
             int cursor = 0;
-            return new AiModelResourceSnapshot
+            return new AIModelResourceSnapshot
             {
                 NodeId = resourceNodeId,
                 ArtifactUri = ReadString(nodes, values, ref cursor, 0),
@@ -179,15 +179,15 @@ namespace Opc.Ua.AI.Client
             };
         }
 
-        public async ValueTask<AiModelSourceClient?> OpenSourceAsync(
+        public async ValueTask<AIModelSourceClient?> OpenSourceAsync(
             CancellationToken cancellationToken = default)
         {
             NodeId source = await m_operations.FollowReferenceAsync(
                 ModelNodeId, ReferenceTypes.ImportedFrom, cancellationToken).ConfigureAwait(false);
-            return source.IsNull ? null : new AiModelSourceClient(m_operations, source);
+            return source.IsNull ? null : new AIModelSourceClient(m_operations, source);
         }
 
-        private async ValueTask<AiModelCardSnapshot> ReadCardAsync(
+        private async ValueTask<AIModelCardSnapshot> ReadCardAsync(
             NodeId cardNodeId,
             CancellationToken cancellationToken)
         {
@@ -206,7 +206,7 @@ namespace Opc.Ua.AI.Client
             ArrayOf<DataValue> values = await ReadPresentValuesAsync(nodes, cancellationToken)
                 .ConfigureAwait(false);
             int cursor = 0;
-            return new AiModelCardSnapshot
+            return new AIModelCardSnapshot
             {
                 NodeId = cardNodeId,
                 IntendedUse = ReadString(nodes, values, ref cursor, 0),
@@ -229,19 +229,19 @@ namespace Opc.Ua.AI.Client
 
         private static string? ReadString(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? null : AiClientOperations.ReadString(values[cursor++]);
+            return nodes[index].IsNull ? null : AIClientOperations.ReadString(values[cursor++]);
         }
 
         private static ByteString ReadByteString(
             ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? ByteString.Empty : AiClientOperations.ReadByteString(values[cursor++]);
+            return nodes[index].IsNull ? ByteString.Empty : AIClientOperations.ReadByteString(values[cursor++]);
         }
 
         private static DateTimeUtc ReadDateTime(
             ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? default : AiClientOperations.ReadDateTime(values[cursor++]);
+            return nodes[index].IsNull ? default : AIClientOperations.ReadDateTime(values[cursor++]);
         }
 
         private static NodeId ReadNodeId(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
@@ -250,14 +250,14 @@ namespace Opc.Ua.AI.Client
             {
                 return NodeId.Null;
             }
-            return AiClientOperations.TryReadNodeId(values[cursor++], out NodeId nodeId)
+            return AIClientOperations.TryReadNodeId(values[cursor++], out NodeId nodeId)
                 ? nodeId
                 : NodeId.Null;
         }
 
         private static ulong ReadUInt64(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? 0 : AiClientOperations.ReadUInt64(values[cursor++]);
+            return nodes[index].IsNull ? 0 : AIClientOperations.ReadUInt64(values[cursor++]);
         }
 
         private static ArrayOf<T> ReadStructureArray<T>(
@@ -286,7 +286,7 @@ namespace Opc.Ua.AI.Client
             }
         }
 
-        private readonly AiClientOperations m_operations;
+        private readonly AIClientOperations m_operations;
         private readonly ModelTypeClient m_proxy;
     }
 }

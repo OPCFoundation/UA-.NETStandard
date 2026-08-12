@@ -49,7 +49,7 @@ namespace Opc.Ua.AI.Tests
     /// this quietly.
     /// </remarks>
     [TestFixture]
-    [Category("AiModelManagement")]
+    [Category("AIModelManagement")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public sealed class FallbackTests
@@ -60,7 +60,7 @@ namespace Opc.Ua.AI.Tests
             var primary = new FakeInferenceBackend("primary");
             var fallback = new FakeInferenceBackend("fallback");
 
-            using AiNodeManager nm = await CreateAsync(primary, fallback)
+            using AINodeManager nm = await CreateAsync(primary, fallback)
                 .ConfigureAwait(false);
 
             InvokeMethodStateResult result = await InvokeAsync(nm, nm.PrimaryDeploymentId)
@@ -83,7 +83,7 @@ namespace Opc.Ua.AI.Tests
             var primary = new FakeInferenceBackend("primary") { Healthy = false };
             var fallback = new FakeInferenceBackend("fallback");
 
-            using AiNodeManager nm = await CreateAsync(primary, fallback)
+            using AINodeManager nm = await CreateAsync(primary, fallback)
                 .ConfigureAwait(false);
 
             InvokeMethodStateResult result = await InvokeAsync(nm, nm.PrimaryDeploymentId)
@@ -117,10 +117,10 @@ namespace Opc.Ua.AI.Tests
 
             // No fallback deployment means no FallsBackTo and the policy stays Fail,
             // which is the default a caller gets unless someone chose otherwise.
-            using AiNodeManager nm = await CreateAsync(
+            using AINodeManager nm = await CreateAsync(
                 primary,
                 fallback,
-                new AiOptions { EnableFallback = false })
+                new AIOptions { EnableFallback = false })
                 .ConfigureAwait(false);
 
             InvokeMethodStateResult result = await InvokeAsync(nm, nm.PrimaryDeploymentId)
@@ -144,7 +144,7 @@ namespace Opc.Ua.AI.Tests
             };
             var fallback = new FakeInferenceBackend("fallback");
 
-            using AiNodeManager nm = await CreateAsync(primary, fallback)
+            using AINodeManager nm = await CreateAsync(primary, fallback)
                 .ConfigureAwait(false);
 
             await InvokeAsync(nm, nm.PrimaryDeploymentId).ConfigureAwait(false);
@@ -165,7 +165,7 @@ namespace Opc.Ua.AI.Tests
             var primary = new FakeInferenceBackend("primary") { Healthy = false };
             var fallback = new FakeInferenceBackend("fallback");
 
-            using AiNodeManager nm = await CreateAsync(primary, fallback)
+            using AINodeManager nm = await CreateAsync(primary, fallback)
                 .ConfigureAwait(false);
 
             await InvokeAsync(nm, nm.PrimaryDeploymentId).ConfigureAwait(false);
@@ -181,18 +181,18 @@ namespace Opc.Ua.AI.Tests
             Assert.That(FailuresOf(nm, nm.PrimaryDeploymentId), Is.Zero);
         }
 
-        private static Task<AiNodeManager> CreateAsync(
+        private static Task<AINodeManager> CreateAsync(
             IInferenceBackend primary,
             IInferenceBackend fallback,
-            AiOptions? options = null)
+            AIOptions? options = null)
         {
-            return AiServerTestHarness.CreateAsync(
+            return AIServerTestHarness.CreateAsync(
                 new InferenceBackends(primary, fallback),
                 options);
         }
 
         private static async Task<InvokeMethodStateResult> InvokeAsync(
-            AiNodeManager nm,
+            AINodeManager nm,
             NodeId deploymentId)
         {
             var deployment = nm.FindPredefinedNode<DeploymentState>(deploymentId);
@@ -212,7 +212,7 @@ namespace Opc.Ua.AI.Tests
         /// <summary>
         /// Follows UsesModel, the way an auditing client would.
         /// </summary>
-        private static NodeId ModelOf(AiNodeManager nm, NodeId deploymentId)
+        private static NodeId ModelOf(AINodeManager nm, NodeId deploymentId)
         {
             var deployment = nm.FindPredefinedNode<DeploymentState>(deploymentId);
             var references = new System.Collections.Generic.List<IReference>();
@@ -235,7 +235,7 @@ namespace Opc.Ua.AI.Tests
             return NodeId.Null;
         }
 
-        private static uint FailuresOf(AiNodeManager nm, NodeId deploymentId)
+        private static uint FailuresOf(AINodeManager nm, NodeId deploymentId)
         {
             var deployment = nm.FindPredefinedNode<DeploymentState>(deploymentId);
             return deployment.ConsecutiveFailures?.Value ?? 0;

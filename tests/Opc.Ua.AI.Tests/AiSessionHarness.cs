@@ -36,13 +36,13 @@ using Opc.Ua.Client;
 
 namespace Opc.Ua.AI.Tests
 {
-    internal sealed class AiSessionHarness
+    internal sealed class AISessionHarness
     {
         private readonly Dictionary<(NodeId Parent, string BrowseName), NodeId> m_children = [];
         private readonly Dictionary<NodeId, List<ReferenceDescription>> m_browse = [];
         private readonly Dictionary<NodeId, Variant> m_values = [];
 
-        public AiSessionHarness()
+        public AISessionHarness()
         {
             Telemetry = new Mock<ITelemetryContext>().Object;
             NamespaceUris.GetIndexOrAppend(Opc.Ua.Namespaces.OpcUa);
@@ -64,9 +64,9 @@ namespace Opc.Ua.AI.Tests
             SetupTranslate();
             SetupBrowse();
             SetupRead();
-            AddChild(AiRootId, BrowseNames.Models, ModelsFolderId);
-            AddChild(AiRootId, BrowseNames.Deployments, DeploymentsFolderId);
-            Client = new AiClient(Session.Object, Telemetry);
+            AddChild(AIRootId, BrowseNames.Models, ModelsFolderId);
+            AddChild(AIRootId, BrowseNames.Deployments, DeploymentsFolderId);
+            Client = new AIClient(Session.Object, Telemetry);
         }
 
         public Mock<ISession> Session { get; } = new(MockBehavior.Loose);
@@ -79,11 +79,11 @@ namespace Opc.Ua.AI.Tests
 
         public ServiceMessageContext MessageContext { get; }
 
-        public AiClient Client { get; }
+        public AIClient Client { get; }
 
-        public ushort AiNamespaceIndex => (ushort)NamespaceUris.GetIndex(Namespaces.AI);
+        public ushort AINamespaceIndex => (ushort)NamespaceUris.GetIndex(Namespaces.AI);
 
-        public NodeId AiRootId => NodeId.Create(Objects.AiModelManagement, Namespaces.AI, NamespaceUris);
+        public NodeId AIRootId => NodeId.Create(Objects.AiModelManagement, Namespaces.AI, NamespaceUris);
 
         public NodeId ModelsFolderId => NodeId.Create(Objects.AiRootType_Models, Namespaces.AI, NamespaceUris);
 
@@ -108,10 +108,10 @@ namespace Opc.Ua.AI.Tests
             return new ReferenceDescription
             {
                 NodeId = new ExpandedNodeId(nodeId),
-                BrowseName = new QualifiedName(browseName, AiNamespaceIndex),
+                BrowseName = new QualifiedName(browseName, AINamespaceIndex),
                 DisplayName = new LocalizedText(browseName),
                 NodeClass = NodeClass.Object,
-                TypeDefinition = new ExpandedNodeId(new NodeId(typeId, AiNamespaceIndex)),
+                TypeDefinition = new ExpandedNodeId(new NodeId(typeId, AINamespaceIndex)),
                 ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
                 IsForward = true
             };

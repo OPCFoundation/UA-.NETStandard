@@ -61,9 +61,9 @@ namespace Opc.Ua.AI.Server
     /// not be able to tell where it ran.
     /// </para>
     /// </remarks>
-    public sealed partial class AiNodeManager : AsyncCustomNodeManager
+    public sealed partial class AINodeManager : AsyncCustomNodeManager
     {
-        private readonly AiOptions m_options;
+        private readonly AIOptions m_options;
         private readonly InferenceBackendOptions m_backendOptions;
         private readonly InferenceBackendOptions m_fallbackBackendOptions;
         private readonly InferenceBackends m_backends;
@@ -97,14 +97,14 @@ namespace Opc.Ua.AI.Server
         /// publishing the primary's would describe a deployment that does not exist.
         /// </param>
         /// <param name="logger">Where diagnostics go.</param>
-        public AiNodeManager(
+        public AINodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             InferenceBackends backends,
-            IOptions<AiOptions>? options = null,
+            IOptions<AIOptions>? options = null,
             IOptions<InferenceBackendOptions>? backendOptions = null,
             InferenceBackendOptions? fallbackBackendOptions = null,
-            ILogger<AiNodeManager>? logger = null)
+            ILogger<AINodeManager>? logger = null)
             : base(
                 server,
                 configuration,
@@ -112,10 +112,10 @@ namespace Opc.Ua.AI.Server
                 Opc.Ua.AI.Namespaces.xRegistry)
         {
             m_backends = backends ?? throw new ArgumentNullException(nameof(backends));
-            m_options = options?.Value ?? new AiOptions();
+            m_options = options?.Value ?? new AIOptions();
             m_backendOptions = backendOptions?.Value ?? new InferenceBackendOptions();
             m_fallbackBackendOptions = fallbackBackendOptions ?? m_backendOptions;
-            m_logger = logger ?? (ILogger)NullLogger<AiNodeManager>.Instance;
+            m_logger = logger ?? (ILogger)NullLogger<AINodeManager>.Instance;
             m_files = new StreamFileManager(m_options.MaxTransferSize);
             SystemContext.NodeIdFactory = this;
         }

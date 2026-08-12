@@ -52,7 +52,7 @@ namespace Opc.Ua.AI.Tests
     /// overwritten by an instance node.
     /// </remarks>
     [TestFixture]
-    [Category("AiModelManagement")]
+    [Category("AIModelManagement")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public sealed class AddressSpaceShapeTests
@@ -60,7 +60,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task ExactlyOneEntryPointHangsOffTheServerObjectAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             int roots = nm.CountIndexed<AiRootState>();
 
@@ -82,7 +82,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task DynamicNodeIdsCannotCollideWithTheModelsOwnAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
 
@@ -125,7 +125,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task TheJobsFolderIsResolvableOnceSomethingIsInItAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
 
@@ -155,10 +155,10 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task JobsAreReclaimedRatherThanAccumulatingAsync()
         {
-            using AiNodeManager nm = await AiServerTestHarness
+            using AINodeManager nm = await AIServerTestHarness
                 .CreateAsync(
                     new InferenceBackends(new FakeInferenceBackend("primary")),
-                    new AiOptions
+                    new AIOptions
                     {
                         EnableFallback = false,
                         AsyncInferenceDelay = TimeSpan.Zero,
@@ -204,11 +204,11 @@ namespace Opc.Ua.AI.Tests
                 "the most recent job must survive");
         }
 
-        private static Task<AiNodeManager> CreateAsync()
+        private static Task<AINodeManager> CreateAsync()
         {
-            return AiServerTestHarness.CreateAsync(
+            return AIServerTestHarness.CreateAsync(
                 new InferenceBackends(new FakeInferenceBackend("primary")),
-                new AiOptions { EnableFallback = false });
+                new AIOptions { EnableFallback = false });
         }
     }
 }

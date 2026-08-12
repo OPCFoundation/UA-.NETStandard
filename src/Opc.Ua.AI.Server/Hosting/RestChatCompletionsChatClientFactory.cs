@@ -46,26 +46,26 @@ namespace Opc.Ua.AI.Server.Hosting
     /// <summary>
     /// Service registration helpers for AI chat-client factories.
     /// </summary>
-    public static class AiChatClientServiceCollectionExtensions
+    public static class AIChatClientServiceCollectionExtensions
     {
         /// <summary>
         /// Registers a chat-client factory over the OpenAI-compatible REST
         /// chat-completions contract.
         /// </summary>
         /// <param name="services">The service collection to update.</param>
-        public static IServiceCollection AddRestChatCompletionsAiChatClientFactory(
+        public static IServiceCollection AddRestChatCompletionsAIChatClientFactory(
             this IServiceCollection services)
         {
             if (services == null)
             {
                 throw new ArgumentNullException(nameof(services));
             }
-            services.TryAddSingleton<IAiChatClientFactory, RestChatCompletionsChatClientFactory>();
+            services.TryAddSingleton<IChatClientFactory, RestChatCompletionsChatClientFactory>();
             return services;
         }
     }
 
-    internal sealed class RestChatCompletionsChatClientFactory : IAiChatClientFactory
+    internal sealed class RestChatCompletionsChatClientFactory : IChatClientFactory
     {
         public IChatClient CreateChatClient(string backendName, InferenceBackendOptions options)
         {

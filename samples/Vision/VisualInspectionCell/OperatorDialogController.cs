@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -69,18 +70,27 @@ namespace Vision.VisualInspectionCell
             }
             DialogConditionState dialog = RequireDialog();
             ISystemContext context = RequireContext();
+            bool activated = false;
             lock (m_lock)
             {
-                m_pending = result;
-                dialog.Message!.Value = LocalizedText.From(
-                    "Human disposition required for inspection result " + result.ResultId + ".");
-                dialog.Retain!.Value = true;
-                dialog.SetEnableState(context, enabled: true);
-                dialog.Activate(context);
-                dialog.ClearChangeMasks(context, includeChildren: true);
-                dialog.ReportEvent(context, dialog);
+                if (m_pending != null)
+                {
+                    m_queued.Enqueue(result);
+                }
+                else
+                {
+                    ActivateLocked(context, dialog, result);
+                    activated = true;
+                }
             }
-            m_logger.DialogActivated(result.ResultId);
+            if (activated)
+            {
+                m_logger.DialogActivated(result.ResultId);
+            }
+            else
+            {
+                m_logger.DialogQueued(result.ResultId);
+            }
         }
 
         private ServiceResult OnRespond(
@@ -103,8 +113,15 @@ namespace Vision.VisualInspectionCell
                 }
                 m_pending = null;
                 dialog.SetResponse(context, selectedResponse);
-                dialog.Retain!.Value = false;
-                dialog.ClearChangeMasks(context, includeChildren: true);
+                if (m_queued.Count > 0)
+                {
+                    ActivateLocked(context, dialog, m_queued.Dequeue());
+                }
+                else
+                {
+                    dialog.Retain!.Value = false;
+                    dialog.ClearChangeMasks(context, includeChildren: true);
+                }
             }
             _ = m_feedbackSink.HandleOperatorDispositionAsync(pending, disposition, CancellationToken.None)
                 .AsTask()
@@ -114,6 +131,21 @@ namespace Vision.VisualInspectionCell
                     TaskContinuationOptions.OnlyOnFaulted,
                     TaskScheduler.Default);
             return ServiceResult.Good;
+        }
+
+        private void ActivateLocked(
+            ISystemContext context,
+            DialogConditionState dialog,
+            PublishedInspectionResult result)
+        {
+            m_pending = result;
+            dialog.Message!.Value = LocalizedText.From(
+                "Human disposition required for inspection result " + result.ResultId + ".");
+            dialog.SetEnableState(context, enabled: true);
+            dialog.Retain!.Value = true;
+            dialog.Activate(context);
+            dialog.ClearChangeMasks(context, includeChildren: true);
+            dialog.ReportEvent(context, dialog);
         }
 
         private DialogConditionState RequireDialog()
@@ -129,6 +161,7 @@ namespace Vision.VisualInspectionCell
         private readonly VisualInspectionFeedbackSink m_feedbackSink;
         private readonly ILogger<OperatorDialogController> m_logger;
         private readonly Lock m_lock = new();
+        private readonly Queue<PublishedInspectionResult> m_queued = [];
         private DialogConditionState? m_dialog;
         private ISystemContext? m_context;
         private PublishedInspectionResult? m_pending;
@@ -150,5 +183,12 @@ namespace Vision.VisualInspectionCell
             this ILogger<OperatorDialogController> logger,
             string resultId,
             Exception exception);
+
+        [LoggerMessage(EventId = VisualInspectionCellEventIds.Dialog + 3,
+            Level = LogLevel.Information,
+            Message = "Queued operator disposition dialog for result {ResultId}.")]
+        public static partial void DialogQueued(
+            this ILogger<OperatorDialogController> logger,
+            string resultId);
     }
 }

@@ -206,10 +206,10 @@ server- and client-side implementations:
   `Opc.Ua.AI.Inference` / `Opc.Ua.AI.Server` / `Opc.Ua.AI.Client` package
   family over xRegistry, with a source-generated catalogue/deployment/inference
   model, the `IInferenceBackend` contract, `Microsoft.Extensions.AI`
-  `IChatClient` and OpenAI-compatible REST backends, `AiNodeManagerFactory`
-  hosting through `AddNodeManager<AiNodeManagerFactory>`, `Invoke` routing,
+  `IChatClient` and OpenAI-compatible REST backends, `AINodeManagerFactory`
+  hosting through `AddNodeManager<AINodeManagerFactory>`, `Invoke` routing,
   learning jobs, and standard file-transfer artefact streaming. See
-  [AI Model Management](AiModelManagement.md).
+  [AI Model Management](AiIntegration.md).
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a
@@ -496,7 +496,7 @@ coverage service; see
   [Device Integration](DeviceIntegration.md),
   [Relative Spatial Location and Global Positioning](Positioning.md),
   [Vision](Vision.md),
-  [AI Model Management](AiModelManagement.md),
+  [AI Model Management](AiIntegration.md),
   [Software Update](SoftwareUpdate.md),
   [WoT Connectivity](WoTConnectivity.md),
   [Subscriptions and Monitored Items](Subscriptions.md),

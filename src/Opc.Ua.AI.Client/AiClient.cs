@@ -36,24 +36,24 @@ using Opc.Ua.Client;
 
 namespace Opc.Ua.AI.Client
 {
-    public sealed class AiClient
+    public sealed class AIClient
     {
-        public AiClient(ISession session, ITelemetryContext telemetry)
+        public AIClient(ISession session, ITelemetryContext telemetry)
         {
-            m_operations = new AiClientOperations(session, telemetry);
+            m_operations = new AIClientOperations(session, telemetry);
         }
 
         public ISession Session => m_operations.Session;
 
         public ITelemetryContext Telemetry => m_operations.Telemetry;
 
-        public bool IsAiNamespaceAvailable => m_operations.TryGetAiNamespaceIndex(out _);
+        public bool IsAINamespaceAvailable => m_operations.TryGetAINamespaceIndex(out _);
 
-        public NodeId AiRootId
+        public NodeId AIRootId
         {
             get
             {
-                if (!m_operations.TryGetAiNamespaceIndex(out ushort _))
+                if (!m_operations.TryGetAINamespaceIndex(out ushort _))
                 {
                     return NodeId.Null;
                 }
@@ -153,132 +153,132 @@ namespace Opc.Ua.AI.Client
                 .ConfigureAwait(false);
         }
 
-        public async IAsyncEnumerable<AiNodeEntry> EnumerateModelsAsync(
+        public async IAsyncEnumerable<AINodeEntry> EnumerateModelsAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             NodeId folder = await GetRootFolderIdAsync(BrowseNames.Models, cancellationToken)
                 .ConfigureAwait(false);
-            await foreach (AiNodeEntry entry in EnumerateInstancesAsync(
+            await foreach (AINodeEntry entry in EnumerateInstancesAsync(
                 folder, ObjectTypes.ModelType, cancellationToken).ConfigureAwait(false))
             {
                 yield return entry;
             }
         }
 
-        public async IAsyncEnumerable<AiNodeEntry> EnumerateDatasetsAsync(
+        public async IAsyncEnumerable<AINodeEntry> EnumerateDatasetsAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             NodeId folder = await GetRootFolderIdAsync(BrowseNames.Datasets, cancellationToken)
                 .ConfigureAwait(false);
-            await foreach (AiNodeEntry entry in EnumerateInstancesAsync(
+            await foreach (AINodeEntry entry in EnumerateInstancesAsync(
                 folder, ObjectTypes.DatasetType, cancellationToken).ConfigureAwait(false))
             {
                 yield return entry;
             }
         }
 
-        public async IAsyncEnumerable<AiNodeEntry> EnumerateDeploymentsAsync(
+        public async IAsyncEnumerable<AINodeEntry> EnumerateDeploymentsAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             NodeId folder = await GetRootFolderIdAsync(BrowseNames.Deployments, cancellationToken)
                 .ConfigureAwait(false);
-            await foreach (AiNodeEntry entry in EnumerateInstancesAsync(
+            await foreach (AINodeEntry entry in EnumerateInstancesAsync(
                 folder, ObjectTypes.DeploymentType, cancellationToken).ConfigureAwait(false))
             {
                 yield return entry;
             }
         }
 
-        public async IAsyncEnumerable<AiNodeEntry> EnumerateLearningJobsAsync(
+        public async IAsyncEnumerable<AINodeEntry> EnumerateLearningJobsAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             NodeId folder = await GetRootFolderIdAsync(BrowseNames.LearningJobs, cancellationToken)
                 .ConfigureAwait(false);
-            await foreach (AiNodeEntry entry in EnumerateInstancesAsync(
+            await foreach (AINodeEntry entry in EnumerateInstancesAsync(
                 folder, ObjectTypes.LearningJobType, cancellationToken).ConfigureAwait(false))
             {
                 yield return entry;
             }
         }
 
-        public async IAsyncEnumerable<AiNodeEntry> EnumerateInferenceJobsAsync(
+        public async IAsyncEnumerable<AINodeEntry> EnumerateInferenceJobsAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             NodeId folder = await GetJobsFolderIdAsync(cancellationToken).ConfigureAwait(false);
-            await foreach (AiNodeEntry entry in EnumerateInstancesAsync(
+            await foreach (AINodeEntry entry in EnumerateInstancesAsync(
                 folder, ObjectTypes.InferenceJobType, cancellationToken).ConfigureAwait(false))
             {
                 yield return entry;
             }
         }
 
-        public async IAsyncEnumerable<AiNodeEntry> EnumerateEvaluationRunsAsync(
+        public async IAsyncEnumerable<AINodeEntry> EnumerateEvaluationRunsAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             NodeId folder = await GetEvaluationsFolderIdAsync(cancellationToken).ConfigureAwait(false);
-            await foreach (AiNodeEntry entry in EnumerateInstancesAsync(
+            await foreach (AINodeEntry entry in EnumerateInstancesAsync(
                 folder, ObjectTypes.EvaluationRunType, cancellationToken).ConfigureAwait(false))
             {
                 yield return entry;
             }
         }
 
-        public async IAsyncEnumerable<AiNodeEntry> EnumerateSourcesAsync(
+        public async IAsyncEnumerable<AINodeEntry> EnumerateSourcesAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             NodeId folder = await GetSourcesFolderIdAsync(cancellationToken).ConfigureAwait(false);
-            await foreach (AiNodeEntry entry in EnumerateInstancesAsync(
+            await foreach (AINodeEntry entry in EnumerateInstancesAsync(
                 folder, ObjectTypes.ModelSourceType, cancellationToken).ConfigureAwait(false))
             {
                 yield return entry;
             }
         }
 
-        public AiModelClient Model(NodeId modelNodeId)
+        public AIModelClient Model(NodeId modelNodeId)
         {
-            return new AiModelClient(m_operations, modelNodeId);
+            return new AIModelClient(m_operations, modelNodeId);
         }
 
-        public AiDatasetClient Dataset(NodeId datasetNodeId)
+        public AIDatasetClient Dataset(NodeId datasetNodeId)
         {
-            return new AiDatasetClient(m_operations, datasetNodeId);
+            return new AIDatasetClient(m_operations, datasetNodeId);
         }
 
-        public AiDeploymentClient Deployment(NodeId deploymentNodeId)
+        public AIDeploymentClient Deployment(NodeId deploymentNodeId)
         {
-            return new AiDeploymentClient(m_operations, deploymentNodeId);
+            return new AIDeploymentClient(m_operations, deploymentNodeId);
         }
 
-        public AiModelSourceClient Source(NodeId sourceNodeId)
+        public AIModelSourceClient Source(NodeId sourceNodeId)
         {
-            return new AiModelSourceClient(m_operations, sourceNodeId);
+            return new AIModelSourceClient(m_operations, sourceNodeId);
         }
 
-        public AiInferenceJobClient InferenceJob(NodeId jobNodeId)
+        public AIInferenceJobClient InferenceJob(NodeId jobNodeId)
         {
-            return new AiInferenceJobClient(m_operations, jobNodeId);
+            return new AIInferenceJobClient(m_operations, jobNodeId);
         }
 
-        public AiLearningJobClient LearningJob(NodeId jobNodeId)
+        public AILearningJobClient LearningJob(NodeId jobNodeId)
         {
-            return new AiLearningJobClient(m_operations, jobNodeId);
+            return new AILearningJobClient(m_operations, jobNodeId);
         }
 
-        public AiEvaluationRunClient EvaluationRun(NodeId runNodeId)
+        public AIEvaluationRunClient EvaluationRun(NodeId runNodeId)
         {
-            return new AiEvaluationRunClient(m_operations, runNodeId);
+            return new AIEvaluationRunClient(m_operations, runNodeId);
         }
 
-        public AiInferenceTransferClient Transfer(NodeId transferNodeId)
+        public AIInferenceTransferClient Transfer(NodeId transferNodeId)
         {
-            return new AiInferenceTransferClient(m_operations, transferNodeId);
+            return new AIInferenceTransferClient(m_operations, transferNodeId);
         }
 
-        internal AiClientOperations Operations => m_operations;
+        internal AIClientOperations Operations => m_operations;
 
         private NodeId CreateWellKnownNode(uint identifier)
         {
-            return IsAiNamespaceAvailable
+            return IsAINamespaceAvailable
                 ? NodeId.Create(identifier, Namespaces.AI, Session.NamespaceUris)
                 : NodeId.Null;
         }
@@ -294,7 +294,7 @@ namespace Opc.Ua.AI.Client
             string browseName,
             CancellationToken cancellationToken)
         {
-            NodeId root = AiRootId;
+            NodeId root = AIRootId;
             if (root.IsNull)
             {
                 return NodeId.Null;
@@ -322,11 +322,11 @@ namespace Opc.Ua.AI.Client
         {
             return m_operations.DiscoverInstancesAsync(
                 folder,
-                m_operations.AiNamespaceType(typeIdentifier),
+                m_operations.AINamespaceType(typeIdentifier),
                 cancellationToken);
         }
 
-        private async IAsyncEnumerable<AiNodeEntry> EnumerateInstancesAsync(
+        private async IAsyncEnumerable<AINodeEntry> EnumerateInstancesAsync(
             NodeId root,
             uint typeIdentifier,
             [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -335,14 +335,14 @@ namespace Opc.Ua.AI.Client
             {
                 yield break;
             }
-            NodeId typeDefinition = m_operations.AiNamespaceType(typeIdentifier);
+            NodeId typeDefinition = m_operations.AINamespaceType(typeIdentifier);
             if (typeDefinition.IsNull)
             {
                 yield break;
             }
             ArrayOf<ReferenceDescription> references = await m_operations
                 .BrowseHierarchicalObjectsAsync(root, cancellationToken).ConfigureAwait(false);
-            var matches = new List<AiNodeEntry>();
+            var matches = new List<AINodeEntry>();
             for (int ii = 0; ii < references.Count; ii++)
             {
                 ReferenceDescription reference = references[ii];
@@ -357,7 +357,7 @@ namespace Opc.Ua.AI.Client
                     await Session.NodeCache.IsTypeOfAsync(
                         typeDef, typeDefinition, cancellationToken).ConfigureAwait(false))
                 {
-                    matches.Add(new AiNodeEntry(
+                    matches.Add(new AINodeEntry(
                         nodeId, reference.BrowseName, reference.DisplayName, typeDef));
                 }
             }
@@ -367,6 +367,6 @@ namespace Opc.Ua.AI.Client
             }
         }
 
-        private readonly AiClientOperations m_operations;
+        private readonly AIClientOperations m_operations;
     }
 }

@@ -33,14 +33,14 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.AI.Client
 {
-    public sealed class AiModelSourceClient
+    public sealed class AIModelSourceClient
     {
-        public AiModelSourceClient(AiClient client, NodeId sourceNodeId)
+        public AIModelSourceClient(AIClient client, NodeId sourceNodeId)
             : this(client?.Operations ?? throw new ArgumentNullException(nameof(client)), sourceNodeId)
         {
         }
 
-        internal AiModelSourceClient(AiClientOperations operations, NodeId sourceNodeId)
+        internal AIModelSourceClient(AIClientOperations operations, NodeId sourceNodeId)
         {
             m_operations = operations ?? throw new ArgumentNullException(nameof(operations));
             if (sourceNodeId.IsNull)
@@ -54,7 +54,7 @@ namespace Opc.Ua.AI.Client
 
         public NodeId SourceNodeId { get; }
 
-        public async ValueTask<AiModelSourceSnapshot> ReadAsync(
+        public async ValueTask<AIModelSourceSnapshot> ReadAsync(
             CancellationToken cancellationToken = default)
         {
             string[] members =
@@ -70,7 +70,7 @@ namespace Opc.Ua.AI.Client
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(nodes, cancellationToken)
                 .ConfigureAwait(false);
             int cursor = 0;
-            return new AiModelSourceSnapshot
+            return new AIModelSourceSnapshot
             {
                 NodeId = SourceNodeId,
                 SourceId = ReadString(nodes, values, ref cursor, 0),
@@ -81,19 +81,19 @@ namespace Opc.Ua.AI.Client
             };
         }
 
-        public async ValueTask<AiSourceConnectionResult> TestConnectionAsync(
+        public async ValueTask<AISourceConnectionResult> TestConnectionAsync(
             CancellationToken cancellationToken = default)
         {
             (bool reachable, LocalizedText detail) = await m_proxy.TestConnectionAsync(cancellationToken)
                 .ConfigureAwait(false);
-            return new AiSourceConnectionResult
+            return new AISourceConnectionResult
             {
                 Reachable = reachable,
                 Detail = detail
             };
         }
 
-        public async ValueTask<AiSourceModelListResult> ListModelsAsync(
+        public async ValueTask<AISourceModelListResult> ListModelsAsync(
             string filter = "",
             uint maxResults = 100,
             ByteString continuationPoint = default,
@@ -104,7 +104,7 @@ namespace Opc.Ua.AI.Client
                 maxResults,
                 continuationPoint,
                 cancellationToken).ConfigureAwait(false);
-            return new AiSourceModelListResult
+            return new AISourceModelListResult
             {
                 Models = models,
                 ContinuationPoint = continuationPointOut
@@ -113,7 +113,7 @@ namespace Opc.Ua.AI.Client
 
         private static string? ReadString(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? null : AiClientOperations.ReadString(values[cursor++]);
+            return nodes[index].IsNull ? null : AIClientOperations.ReadString(values[cursor++]);
         }
 
         private static TEnum ReadEnum<TEnum>(
@@ -127,12 +127,12 @@ namespace Opc.Ua.AI.Client
             {
                 return default;
             }
-            return AiClientOperations.TryReadEnum(values[cursor++], out TEnum result)
+            return AIClientOperations.TryReadEnum(values[cursor++], out TEnum result)
                 ? result
                 : default;
         }
 
-        private readonly AiClientOperations m_operations;
+        private readonly AIClientOperations m_operations;
         private readonly ModelSourceTypeClient m_proxy;
     }
 }

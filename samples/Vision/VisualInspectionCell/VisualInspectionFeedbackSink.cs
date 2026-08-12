@@ -43,7 +43,7 @@ namespace Vision.VisualInspectionCell
     {
         public VisualInspectionFeedbackSink(
             VisualInspectionResultPublisher publisher,
-            AiNodeManagerRegistry aiRegistry,
+            AINodeManagerRegistry aiRegistry,
             InspectionVerdictPolicy verdictPolicy,
             TimeProvider timeProvider,
             ILogger<VisualInspectionFeedbackSink> logger)
@@ -84,14 +84,14 @@ namespace Vision.VisualInspectionCell
             {
                 await RecordLearningSampleAsync(
                     StableSampleId(request.Pipeline, FrameKey(request.FrameReference, "empty-scene"), "scene-empty"),
-                    AiLearningSampleKind.Negative,
+                    AILearningSampleKind.Negative,
                     cancellationToken).ConfigureAwait(false);
             }
             else if (request.Purpose == VisionFeedbackPurposeEnum.GroundTruthLabel)
             {
                 await RecordLearningSampleAsync(
                     StableSampleId(request.Pipeline, FrameKey(request.FrameReference, "geometry"), "geometry"),
-                    AiLearningSampleKind.Positive,
+                    AILearningSampleKind.Positive,
                     cancellationToken).ConfigureAwait(false);
             }
             return ServiceResult.Good;
@@ -156,9 +156,9 @@ namespace Vision.VisualInspectionCell
                 return new ServiceResult(StatusCodes.BadNodeIdUnknown,
                     LocalizedText.From("The pipeline node id does not match the attached inspection pipeline."));
             }
-            AiLearningSampleKind kind = request.RetractAll
-                ? AiLearningSampleKind.Negative
-                : AiLearningSampleKind.Positive;
+            AILearningSampleKind kind = request.RetractAll
+                ? AILearningSampleKind.Negative
+                : AILearningSampleKind.Positive;
             string sampleId = StableSampleId(request.Pipeline, request.ResultId, request.Purpose.ToString());
             await RecordLearningSampleAsync(sampleId, kind, cancellationToken).ConfigureAwait(false);
             if (request.CorrectedCharacteristics.Count > 0)
@@ -223,10 +223,10 @@ namespace Vision.VisualInspectionCell
 
         private async ValueTask RecordLearningSampleAsync(
             string sampleId,
-            AiLearningSampleKind kind,
+            AILearningSampleKind kind,
             CancellationToken cancellationToken)
         {
-            AiNodeManager? manager = m_aiRegistry.NodeManager;
+            AINodeManager? manager = m_aiRegistry.NodeManager;
             if (manager == null)
             {
                 m_logger.LearningSampleSkipped(sampleId);
@@ -248,19 +248,23 @@ namespace Vision.VisualInspectionCell
             CancellationToken cancellationToken)
         {
             VisualInspectionTarget target = RequireTarget();
-            AiLearningSampleKind kind = disposition == OperatorDisposition.AcceptAsNotOk ||
-                disposition == OperatorDisposition.Stop
-                ? AiLearningSampleKind.Negative
-                : AiLearningSampleKind.Positive;
-            string sampleId = StableSampleId(target.PipelineNodeId, result.ResultId, disposition.ToString());
-            await RecordLearningSampleAsync(sampleId, kind, cancellationToken).ConfigureAwait(false);
             VisionResultEvaluationEnum evaluation = disposition switch
             {
                 OperatorDisposition.AcceptAsOk => VisionResultEvaluationEnum.Ok,
                 OperatorDisposition.AcceptAsNotOk => VisionResultEvaluationEnum.NotOk,
-                OperatorDisposition.Stop => VisionResultEvaluationEnum.NotOk,
                 _ => VisionResultEvaluationEnum.NotDecidable
             };
+            if (evaluation == VisionResultEvaluationEnum.NotDecidable)
+            {
+                m_logger.OperatorDispositionIgnored(result.ResultId, disposition);
+                return;
+            }
+
+            AILearningSampleKind kind = disposition == OperatorDisposition.AcceptAsNotOk
+                ? AILearningSampleKind.Negative
+                : AILearningSampleKind.Positive;
+            string sampleId = StableSampleId(target.PipelineNodeId, result.ResultId, disposition.ToString());
+            await RecordLearningSampleAsync(sampleId, kind, cancellationToken).ConfigureAwait(false);
             string correctionId = FormattableString.Invariant(
                 $"operator-{Sanitize(result.ResultId)}-{disposition}");
             await m_publisher.PublishAsync(
@@ -332,7 +336,7 @@ namespace Vision.VisualInspectionCell
         }
 
         private readonly VisualInspectionResultPublisher m_publisher;
-        private readonly AiNodeManagerRegistry m_aiRegistry;
+        private readonly AINodeManagerRegistry m_aiRegistry;
         private readonly InspectionVerdictPolicy m_verdictPolicy;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<VisualInspectionFeedbackSink> m_logger;
@@ -363,7 +367,7 @@ namespace Vision.VisualInspectionCell
         public static partial void CorrectionRecorded(
             this ILogger<VisualInspectionFeedbackSink> logger,
             string sampleId,
-            AiLearningSampleKind kind);
+            AILearningSampleKind kind);
 
         [LoggerMessage(EventId = VisualInspectionCellEventIds.Feedback + 4,
             Level = LogLevel.Information,
@@ -371,7 +375,7 @@ namespace Vision.VisualInspectionCell
         public static partial void LearningSampleRecorded(
             this ILogger<VisualInspectionFeedbackSink> logger,
             string sampleId,
-            AiLearningSampleKind kind,
+            AILearningSampleKind kind,
             bool added);
 
         [LoggerMessage(EventId = VisualInspectionCellEventIds.Feedback + 5,
@@ -389,6 +393,14 @@ namespace Vision.VisualInspectionCell
             string resultId,
             OperatorDisposition disposition,
             string sampleId,
-            AiLearningSampleKind kind);
+            AILearningSampleKind kind);
+
+        [LoggerMessage(EventId = VisualInspectionCellEventIds.Feedback + 7,
+            Level = LogLevel.Information,
+            Message = "Operator disposition {Disposition} for result {ResultId} is operational only; no ground-truth sample was recorded.")]
+        public static partial void OperatorDispositionIgnored(
+            this ILogger<VisualInspectionFeedbackSink> logger,
+            string resultId,
+            OperatorDisposition disposition);
     }
 }

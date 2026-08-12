@@ -40,17 +40,17 @@ namespace Opc.Ua.AI.Tests
     [TestFixture]
     [Category("AI")]
     [Category("Client")]
-    public sealed class AiClientTests
+    public sealed class AIClientTests
     {
         [Test]
-        public void RootReportsAiNamespaceAndWellKnownFolders()
+        public void RootReportsAINamespaceAndWellKnownFolders()
         {
-            var harness = new AiSessionHarness();
+            var harness = new AISessionHarness();
 
             Assert.Multiple(() =>
             {
-                Assert.That(harness.Client.IsAiNamespaceAvailable, Is.True);
-                Assert.That(harness.Client.AiRootId, Is.EqualTo(harness.AiRootId));
+                Assert.That(harness.Client.IsAINamespaceAvailable, Is.True);
+                Assert.That(harness.Client.AIRootId, Is.EqualTo(harness.AIRootId));
                 Assert.That(harness.Client.ModelsFolderId, Is.EqualTo(harness.ModelsFolderId));
                 Assert.That(harness.Client.DeploymentsFolderId, Is.EqualTo(harness.DeploymentsFolderId));
             });
@@ -59,7 +59,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task DiscoverModelsReturnsTypedModelInstances()
         {
-            var harness = new AiSessionHarness();
+            var harness = new AISessionHarness();
             harness.AddModel("ModelA");
 
             ArrayOf<NodeId> nodes = await harness.Client.DiscoverModelsAsync().ConfigureAwait(false);
@@ -71,11 +71,11 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task EnumerateDeploymentsYieldsBrowseMetadata()
         {
-            var harness = new AiSessionHarness();
+            var harness = new AISessionHarness();
             harness.AddDeployment("Primary");
 
-            var entries = new List<AiNodeEntry>();
-            await foreach (AiNodeEntry entry in harness.Client.EnumerateDeploymentsAsync())
+            var entries = new List<AINodeEntry>();
+            await foreach (AINodeEntry entry in harness.Client.EnumerateDeploymentsAsync())
             {
                 entries.Add(entry);
             }
@@ -88,13 +88,13 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task ModelReadReturnsNamedSnapshotValues()
         {
-            var harness = new AiSessionHarness();
+            var harness = new AISessionHarness();
             harness.AddValueChild(harness.ModelNodeId, BrowseNames.ModelId, new NodeId(2100u, 3), "model-1");
             harness.AddValueChild(harness.ModelNodeId, BrowseNames.Name, new NodeId(2101u, 3), "demo");
             harness.AddValueChild(harness.ModelNodeId, BrowseNames.Version, new NodeId(2102u, 3), "1.0");
             harness.AddValueChild(harness.ModelNodeId, BrowseNames.Digest, new NodeId(2103u, 3), ByteString.From([1, 2, 3]));
 
-            AiModelSnapshot snapshot = await harness.Client.Model(harness.ModelNodeId).ReadAsync()
+            AIModelSnapshot snapshot = await harness.Client.Model(harness.ModelNodeId).ReadAsync()
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -107,18 +107,18 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
-        public void AiBrowseClientIsNotPublicApi()
+        public void AIBrowseClientIsNotPublicApi()
         {
-            Type[] exported = typeof(AiClient).Assembly.GetExportedTypes();
+            Type[] exported = typeof(AIClient).Assembly.GetExportedTypes();
 
-            Assert.That(exported.Any(t => t.Name == "AiBrowseClient"), Is.False);
+            Assert.That(exported.Any(t => t.Name == "AIBrowseClient"), Is.False);
         }
 
         [Test]
         public void PublicApiDoesNotExposeObjectOrByteArrayOnClientTypes()
         {
-            Type[] exported = typeof(AiClient).Assembly.GetExportedTypes()
-                .Where(t => t.Namespace == typeof(AiClient).Namespace)
+            Type[] exported = typeof(AIClient).Assembly.GetExportedTypes()
+                .Where(t => t.Namespace == typeof(AIClient).Namespace)
                 .ToArray();
 
             foreach (Type type in exported)

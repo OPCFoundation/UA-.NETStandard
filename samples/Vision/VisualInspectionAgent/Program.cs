@@ -63,7 +63,7 @@ namespace Vision.VisualInspectionAgent
             };
 
             VisualInspectionAgentOptions options = VisualInspectionAgentOptions.Parse(args);
-            if (options.Mode == VisualInspectionAgentMode.LiveAi && string.IsNullOrWhiteSpace(options.AiEndpoint))
+            if (options.Mode == VisualInspectionAgentMode.LiveAI && string.IsNullOrWhiteSpace(options.AIEndpoint))
             {
                 Console.Error.WriteLine("live-ai requires --ai-endpoint and exits before creating any job.");
                 return 2;
@@ -97,7 +97,7 @@ namespace Vision.VisualInspectionAgent
             Console.WriteLine(FormattableString.Invariant(
                 $"Discovered pipeline={cell.Pipeline.PipelineNodeId}, deployment={cell.Snapshot.DeploymentId}, learningJob={cell.Snapshot.LearningJobId}."));
 
-            await VerifyLiveAiBeforeJobsAsync(cell, cancellationToken).ConfigureAwait(false);
+            await VerifyLiveAIBeforeJobsAsync(cell, cancellationToken).ConfigureAwait(false);
             for (int cycle = 1; cycle <= m_options.Cycles; cycle++)
             {
                 string cycleId = StableCycleId(cycle);
@@ -179,8 +179,8 @@ namespace Vision.VisualInspectionAgent
                 throw new InvalidOperationException("The image sensor has no clip endpoint.");
             }
 
-            var ai = new AiClient(m_sample.Session, m_sample.Telemetry);
-            var deployment = new AiDeploymentClient(ai, snapshot.DeploymentId);
+            var ai = new AIClient(m_sample.Session, m_sample.Telemetry);
+            var deployment = new AIDeploymentClient(ai, snapshot.DeploymentId);
             var isa95 = new Isa95Client(m_sample.Session, m_sample.Telemetry);
             Isa95JobControlDiscovery discovery = await isa95.DiscoverJobControlAsync(cancellationToken)
                 .ConfigureAwait(false);
@@ -201,15 +201,15 @@ namespace Vision.VisualInspectionAgent
                 dialog);
         }
 
-        private async Task VerifyLiveAiBeforeJobsAsync(
+        private async Task VerifyLiveAIBeforeJobsAsync(
             VisualInspectionCellContext cell,
             CancellationToken cancellationToken)
         {
-            if (m_options.Mode != VisualInspectionAgentMode.LiveAi)
+            if (m_options.Mode != VisualInspectionAgentMode.LiveAI)
             {
                 return;
             }
-            AiDeploymentSnapshot snapshot = await cell.Deployment.ReadAsync(cancellationToken).ConfigureAwait(false);
+            AIDeploymentSnapshot snapshot = await cell.Deployment.ReadAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(snapshot.EndpointUri))
             {
                 throw new InvalidOperationException("live-ai deployment has no endpoint URI; no jobs were created.");
@@ -232,7 +232,7 @@ namespace Vision.VisualInspectionAgent
 
             if (clip.HasInlineImage)
             {
-                ArrayOf<MeasuredCharacteristic> measurements = await InvokeAiForMeasurementsAsync(
+                ArrayOf<MeasuredCharacteristic> measurements = await InvokeAIForMeasurementsAsync(
                     cell,
                     cycleId,
                     fixture,
@@ -253,7 +253,7 @@ namespace Vision.VisualInspectionAgent
             CancellationToken cancellationToken)
         {
             VisionImageReferenceDataType frame = CreateFixtureImageReference(fixture);
-            ArrayOf<MeasuredCharacteristic> measurements = await InvokeAiForMeasurementsAsync(
+            ArrayOf<MeasuredCharacteristic> measurements = await InvokeAIForMeasurementsAsync(
                 cell,
                 cycleId,
                 fixture,
@@ -283,14 +283,14 @@ namespace Vision.VisualInspectionAgent
             }
         }
 
-        private Task<ArrayOf<MeasuredCharacteristic>> InvokeAiForMeasurementsAsync(
+        private Task<ArrayOf<MeasuredCharacteristic>> InvokeAIForMeasurementsAsync(
             VisualInspectionCellContext cell,
             string cycleId,
             string fixture,
             InspectionEvidence evidence,
             CancellationToken cancellationToken)
         {
-            return InvokeAiForMeasurementsAsync(
+            return InvokeAIForMeasurementsAsync(
                 cell,
                 cycleId,
                 fixture,
@@ -298,7 +298,7 @@ namespace Vision.VisualInspectionAgent
                 cancellationToken);
         }
 
-        private async Task<ArrayOf<MeasuredCharacteristic>> InvokeAiForMeasurementsAsync(
+        private async Task<ArrayOf<MeasuredCharacteristic>> InvokeAIForMeasurementsAsync(
             VisualInspectionCellContext cell,
             string cycleId,
             string fixture,
@@ -309,12 +309,12 @@ namespace Vision.VisualInspectionAgent
             {
                 throw new InvalidOperationException("The pipeline does not name an AI deployment.");
             }
-            string payload = BuildAiPayload(cycleId, fixture, frame);
+            string payload = BuildAIPayload(cycleId, fixture, frame);
             for (int attempt = 1; attempt <= MaxOperationalAttempts; attempt++)
             {
                 try
                 {
-                    AiInvokeResult result = await cell.Deployment.InvokeAsync(
+                    AIInvokeResult result = await cell.Deployment.InvokeAsync(
                         ByteString.From(Encoding.UTF8.GetBytes(payload)),
                         "application/vnd.opcfoundation.visual-inspection.measurements+json",
                         ArrayOf<global::Opc.Ua.KeyValuePair>.Empty,
@@ -326,7 +326,7 @@ namespace Vision.VisualInspectionAgent
                 }
                 catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNotImplemented)
                 {
-                    AiInvokeResult result = await InvokeAiMethodByInstanceNodeAsync(
+                    AIInvokeResult result = await InvokeAIMethodByInstanceNodeAsync(
                         cell.Snapshot.DeploymentId,
                         ByteString.From(Encoding.UTF8.GetBytes(payload)),
                         "application/vnd.opcfoundation.visual-inspection.measurements+json",
@@ -345,7 +345,7 @@ namespace Vision.VisualInspectionAgent
             throw new InvalidOperationException("AI Invoke failed after bounded retries; holding without a quality verdict.");
         }
 
-        private async Task<AiInvokeResult> InvokeAiMethodByInstanceNodeAsync(
+        private async Task<AIInvokeResult> InvokeAIMethodByInstanceNodeAsync(
             NodeId deploymentId,
             ByteString payload,
             string contentType,
@@ -383,7 +383,7 @@ namespace Vision.VisualInspectionAgent
                 throw new ServiceResultException(result.StatusCode);
             }
             ArrayOf<Variant> output = result.OutputArguments;
-            return new AiInvokeResult
+            return new AIInvokeResult
             {
                 ResponsePayload = output.Count > 0 && output[0].TryGetValue(out ByteString responsePayload)
                     ? responsePayload
@@ -690,7 +690,7 @@ namespace Vision.VisualInspectionAgent
             };
         }
 
-        private static string BuildAiPayload(
+        private static string BuildAIPayload(
             string cycleId,
             string fixture,
             VisionImageReferenceDataType frame)
@@ -952,7 +952,7 @@ namespace Vision.VisualInspectionAgent
         VisionMediaClient Media,
         NodeId ClipEndpoint,
         VisionFeedbackClient Feedback,
-        AiDeploymentClient Deployment,
+        AIDeploymentClient Deployment,
         Isa95JobControlV2Client JobControl,
         NodeId OperatorDialogId);
 

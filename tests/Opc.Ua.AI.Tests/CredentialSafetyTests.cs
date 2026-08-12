@@ -57,7 +57,7 @@ namespace Opc.Ua.AI.Tests
     /// </para>
     /// </remarks>
     [TestFixture]
-    [Category("AiModelManagement")]
+    [Category("AIModelManagement")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public sealed class CredentialSafetyTests
@@ -76,10 +76,10 @@ namespace Opc.Ua.AI.Tests
                 EgressPermitted = true
             };
 
-            using AiNodeManager nm = await AiServerTestHarness
+            using AINodeManager nm = await AIServerTestHarness
                 .CreateAsync(
                     new InferenceBackends(new FakeInferenceBackend("primary")),
-                    new AiOptions { EnableFallback = false },
+                    new AIOptions { EnableFallback = false },
                     backendOptions)
                 .ConfigureAwait(false);
 
@@ -113,10 +113,10 @@ namespace Opc.Ua.AI.Tests
                 CredentialReference = "inference-api-key"
             };
 
-            using AiNodeManager nm = await AiServerTestHarness
+            using AINodeManager nm = await AIServerTestHarness
                 .CreateAsync(
                     new InferenceBackends(new FakeInferenceBackend("primary")),
-                    new AiOptions { EnableFallback = false },
+                    new AIOptions { EnableFallback = false },
                     backendOptions)
                 .ConfigureAwait(false);
 
@@ -189,7 +189,7 @@ namespace Opc.Ua.AI.Tests
         /// <summary>
         /// Every node the Server publishes, children included.
         /// </summary>
-        private static IEnumerable<NodeState> Walk(AiNodeManager nm)
+        private static IEnumerable<NodeState> Walk(AINodeManager nm)
         {
             var root = nm.FindPredefinedNode<NodeState>(nm.RootId);
             var pending = new Stack<NodeState>();

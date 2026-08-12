@@ -123,7 +123,7 @@ namespace Vision.VisualInspectionCell
         private void AddPipeline(IVisionBuildContext context)
         {
             NodeId sensorNodeId = FindSensor(context)?.NodeId ?? NodeId.Null;
-            (NodeId deployment, NodeId learningJob) = ResolveAiBindings(context);
+            (NodeId deployment, NodeId learningJob) = ResolveAIBindings(context);
             bool offServer = m_options.InferenceLocation == VisualInspectionInferenceLocation.EdgeOffServer;
             context.Nodes.AddPipeline(PipelineBrowseName, pipeline =>
             {
@@ -205,9 +205,9 @@ namespace Vision.VisualInspectionCell
             OperatorDialogNodeId = dialog.NodeId;
         }
 
-        private static (NodeId Deployment, NodeId LearningJob) ResolveAiBindings(IVisionBuildContext context)
+        private static (NodeId Deployment, NodeId LearningJob) ResolveAIBindings(IVisionBuildContext context)
         {
-            if (context.Manager.Server.NodeManager.AsyncNodeManagers.OfType<AiNodeManager>().FirstOrDefault() is { } ai)
+            if (context.Manager.Server.NodeManager.AsyncNodeManagers.OfType<AINodeManager>().FirstOrDefault() is { } ai)
             {
                 return (ai.PrimaryDeploymentId, ai.LearningJobId);
             }

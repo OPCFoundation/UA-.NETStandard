@@ -45,26 +45,26 @@ namespace Opc.Ua.AI.Server
     /// options and logging arrive. The node manager itself is constructed per Server
     /// and owned by it.
     /// </remarks>
-    public sealed class AiNodeManagerFactory : IAsyncNodeManagerFactory
+    public sealed class AINodeManagerFactory : IAsyncNodeManagerFactory
     {
         /// <summary>Names the fallback backend's configuration section.</summary>
         public const string FallbackOptionsName = "fallback";
 
         private readonly InferenceBackends m_backends;
-        private readonly IOptions<AiOptions>? m_options;
+        private readonly IOptions<AIOptions>? m_options;
         private readonly IOptions<InferenceBackendOptions>? m_backendOptions;
         private readonly InferenceBackendOptions? m_fallbackBackendOptions;
-        private readonly ILogger<AiNodeManager>? m_logger;
+        private readonly ILogger<AINodeManager>? m_logger;
 
         /// <summary>
         /// Creates the factory.
         /// </summary>
-        public AiNodeManagerFactory(
+        public AINodeManagerFactory(
             InferenceBackends backends,
-            IOptions<AiOptions>? options = null,
+            IOptions<AIOptions>? options = null,
             IOptions<InferenceBackendOptions>? backendOptions = null,
             IOptionsMonitor<InferenceBackendOptions>? namedBackendOptions = null,
-            ILogger<AiNodeManager>? logger = null)
+            ILogger<AINodeManager>? logger = null)
         {
             m_backends = backends;
             m_options = options;
@@ -90,7 +90,7 @@ namespace Opc.Ua.AI.Server
             CancellationToken cancellationToken = default)
         {
 #pragma warning disable CA2000 // ownership transferred to the server
-            IAsyncNodeManager manager = new AiNodeManager(
+            IAsyncNodeManager manager = new AINodeManager(
                 server,
                 configuration,
                 m_backends,

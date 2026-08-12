@@ -35,14 +35,14 @@ using Opc.Ua.AI.Inference;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.AI;
-using AiRefs = Opc.Ua.AI.ReferenceTypeIds;
+using AIRefs = Opc.Ua.AI.ReferenceTypeIds;
 using BrowseNames = Opc.Ua.AI.BrowseNames;
 using ObjectIds = Opc.Ua.ObjectIds;
 using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Opc.Ua.AI.Server
 {
-    public sealed partial class AiNodeManager
+    public sealed partial class AINodeManager
     {
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(
@@ -58,7 +58,7 @@ namespace Opc.Ua.AI.Server
             {
                 try
                 {
-                    CreateAiAddressSpace(externalReferences);
+                    CreateAIAddressSpace(externalReferences);
                 }
                 catch (Exception ex)
                 {
@@ -71,7 +71,7 @@ namespace Opc.Ua.AI.Server
             }
         }
 
-        private void CreateAiAddressSpace(
+        private void CreateAIAddressSpace(
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             // The model already declares the entry point - ns=2;i=7001, parented to
@@ -263,9 +263,9 @@ namespace Opc.Ua.AI.Server
             Child<PropertyState<FallbackPolicyEnum>>(m_primary, BrowseNames.FallbackPolicy)
                 .Value = FallbackPolicyEnum.FallBackTo;
             m_primary.AddReference(
-                RefType(AiRefs.FallsBackTo), false, m_fallback.NodeId);
+                RefType(AIRefs.FallsBackTo), false, m_fallback.NodeId);
             m_fallback.AddReference(
-                RefType(AiRefs.FallsBackTo), true, m_primary.NodeId);
+                RefType(AIRefs.FallsBackTo), true, m_primary.NodeId);
         }
 
         /// <summary>
@@ -340,8 +340,8 @@ namespace Opc.Ua.AI.Server
 
             // Exactly one UsesModel reference: the only defined path from a running
             // deployment to the artefact its answers depend on.
-            deployment.AddReference(RefType(AiRefs.UsesModel), false, model.NodeId);
-            model.AddReference(RefType(AiRefs.UsesModel), true, deployment.NodeId);
+            deployment.AddReference(RefType(AIRefs.UsesModel), false, model.NodeId);
+            model.AddReference(RefType(AIRefs.UsesModel), true, deployment.NodeId);
 
             Child<FolderState>(m_root!, BrowseNames.Deployments).AddChild(deployment);
             WireDeploymentMethods(deployment);

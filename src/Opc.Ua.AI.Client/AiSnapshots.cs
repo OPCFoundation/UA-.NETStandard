@@ -29,13 +29,13 @@
 
 namespace Opc.Ua.AI.Client
 {
-    public sealed record AiNodeEntry(
+    public sealed record AINodeEntry(
         NodeId NodeId,
         QualifiedName BrowseName,
         LocalizedText DisplayName,
         NodeId TypeDefinition);
 
-    public sealed record AiModelSnapshot
+    public sealed record AIModelSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 
@@ -66,7 +66,7 @@ namespace Opc.Ua.AI.Client
         public NodeId SourceId { get; init; } = NodeId.Null;
     }
 
-    public sealed record AiModelCardSnapshot
+    public sealed record AIModelCardSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 
@@ -85,7 +85,7 @@ namespace Opc.Ua.AI.Client
         public ArrayOf<SafetyAssessmentDataType> SafetyAssessment { get; init; } = [];
     }
 
-    public sealed record AiModelResourceSnapshot
+    public sealed record AIModelResourceSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 
@@ -100,7 +100,7 @@ namespace Opc.Ua.AI.Client
         public string? DigestAlgorithm { get; init; }
     }
 
-    public sealed record AiModelSourceSnapshot
+    public sealed record AIModelSourceSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 
@@ -115,7 +115,7 @@ namespace Opc.Ua.AI.Client
         public string? CredentialReference { get; init; }
     }
 
-    public sealed record AiModelPublisherSnapshot
+    public sealed record AIModelPublisherSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 
@@ -126,7 +126,7 @@ namespace Opc.Ua.AI.Client
         public string? License { get; init; }
     }
 
-    public sealed record AiDatasetSnapshot
+    public sealed record AIDatasetSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 
@@ -145,7 +145,7 @@ namespace Opc.Ua.AI.Client
         public uint SampleCount { get; init; }
     }
 
-    public sealed record AiDeploymentSnapshot
+    public sealed record AIDeploymentSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 
@@ -168,7 +168,7 @@ namespace Opc.Ua.AI.Client
         public NodeId FallbackDeploymentId { get; init; } = NodeId.Null;
     }
 
-    public sealed record AiInferenceJobSnapshot
+    public sealed record AIInferenceJobSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 
@@ -185,7 +185,7 @@ namespace Opc.Ua.AI.Client
         public FinishReasonEnum FinishReason { get; init; }
     }
 
-    public sealed record AiLearningJobSnapshot
+    public sealed record AILearningJobSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 
@@ -200,7 +200,7 @@ namespace Opc.Ua.AI.Client
         public NodeId TargetDeploymentId { get; init; } = NodeId.Null;
     }
 
-    public sealed record AiEvaluationRunSnapshot
+    public sealed record AIEvaluationRunSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 
@@ -215,7 +215,7 @@ namespace Opc.Ua.AI.Client
         public string? ReportUri { get; init; }
     }
 
-    public sealed record AiTransferSnapshot
+    public sealed record AITransferSnapshot
     {
         public NodeId NodeId { get; init; } = NodeId.Null;
 

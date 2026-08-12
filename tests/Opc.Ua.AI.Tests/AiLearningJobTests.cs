@@ -41,15 +41,15 @@ namespace Opc.Ua.AI.Tests
     /// Verifies the learning job that accounts for submitted ground-truth samples.
     /// </summary>
     [TestFixture]
-    [Category("AiModelManagement")]
+    [Category("AIModelManagement")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public sealed class AiLearningJobTests
+    public sealed class AILearningJobTests
     {
         [Test]
         public async Task LearningJobIsIndexedByItsOwnNodeIdAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             NodeState? node = nm.IndexedNode(nm.LearningJobId);
 
@@ -63,10 +63,10 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task DisabledLearningLoopOmitsTheLearningJobAsync()
         {
-            using AiNodeManager nm = await AiServerTestHarness
+            using AINodeManager nm = await AIServerTestHarness
                 .CreateAsync(
                     new InferenceBackends(new FakeInferenceBackend("primary")),
-                    new AiOptions
+                    new AIOptions
                     {
                         EnableFallback = false,
                         EnableLearningLoop = false
@@ -83,7 +83,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task SamplesCollectedStartsAtZeroAndIncrementsAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             LearningJobState job = nm.FindPredefinedNode<LearningJobState>(nm.LearningJobId);
 
@@ -101,7 +101,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task DuplicateSampleIdIncrementsOnlyOnceAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             bool first = await nm.RecordLearningSampleAsync("sample-1").ConfigureAwait(false);
             bool second = await nm.RecordLearningSampleAsync("sample-1").ConfigureAwait(false);
@@ -118,13 +118,13 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task NegativeExampleCountsExactlyLikePositiveExampleAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             bool positive = await nm
-                .RecordLearningSampleAsync("positive-1", AiLearningSampleKind.Positive)
+                .RecordLearningSampleAsync("positive-1", AILearningSampleKind.Positive)
                 .ConfigureAwait(false);
             bool negative = await nm
-                .RecordLearningSampleAsync("negative-1", AiLearningSampleKind.Negative)
+                .RecordLearningSampleAsync("negative-1", AILearningSampleKind.Negative)
                 .ConfigureAwait(false);
             LearningJobState job = nm.FindPredefinedNode<LearningJobState>(nm.LearningJobId);
 
@@ -139,7 +139,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task ConcurrentSampleIncrementsDoNotLoseCountsAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             Task<bool>[] tasks = Enumerable
                 .Range(0, 250)
@@ -156,11 +156,11 @@ namespace Opc.Ua.AI.Tests
             });
         }
 
-        private static Task<AiNodeManager> CreateAsync()
+        private static Task<AINodeManager> CreateAsync()
         {
-            return AiServerTestHarness.CreateAsync(
+            return AIServerTestHarness.CreateAsync(
                 new InferenceBackends(new FakeInferenceBackend("primary")),
-                new AiOptions { EnableFallback = false });
+                new AIOptions { EnableFallback = false });
         }
     }
 }

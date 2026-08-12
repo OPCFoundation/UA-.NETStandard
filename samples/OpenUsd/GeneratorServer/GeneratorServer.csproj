@@ -19,15 +19,15 @@
     <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+    <ProjectReference Include="..\..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
       <OutputItemType>Analyzer</OutputItemType>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
@@ -71,7 +71,7 @@
     </AdditionalFiles>
     <AdditionalFiles Include="Model\Opc.Ua.Generators.NodeSet2.csv" />
   </ItemGroup>
-  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <Import Project="..\..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>
     <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>

@@ -95,9 +95,15 @@ namespace Vision.VisualInspectionCell
             VisionClipRequest request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!m_publisher.TryGetPublished(request.ResultId, out PublishedInspectionResult? published) ||
-                published == null ||
-                string.IsNullOrEmpty(published.FixtureName))
+            string fixture;
+            if (m_publisher.TryGetPublished(request.ResultId, out PublishedInspectionResult? published) &&
+                published != null &&
+                !string.IsNullOrEmpty(published.FixtureName))
+            {
+                fixture = published.FixtureName;
+            }
+            else if (!m_analysis.TryResolveFixtureName(request.ResultId, out fixture) &&
+                !m_analysis.TryResolveFixtureFromUri(request.ResultId, out fixture))
             {
                 return ValueTask.FromResult(new VisionClipResult(
                     new ServiceResult(StatusCodes.BadNodeIdUnknown,
@@ -106,7 +112,6 @@ namespace Vision.VisualInspectionCell
                     request.Endpoint,
                     ByteString.Empty));
             }
-            string fixture = published.FixtureName;
             string path = Path.Combine(m_analysis.FixtureDirectory, fixture);
             ByteString png = ByteString.From(File.ReadAllBytes(path));
             byte[] digest = SHA256.HashData(png.Span);

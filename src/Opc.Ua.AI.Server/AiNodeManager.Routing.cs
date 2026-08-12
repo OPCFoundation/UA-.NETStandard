@@ -35,14 +35,14 @@ using Opc.Ua.AI.Inference;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.AI;
-using AiRefs = Opc.Ua.AI.ReferenceTypeIds;
+using AIRefs = Opc.Ua.AI.ReferenceTypeIds;
 using BrowseNames = Opc.Ua.AI.BrowseNames;
 using ObjectIds = Opc.Ua.ObjectIds;
 using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Opc.Ua.AI.Server
 {
-    public sealed partial class AiNodeManager
+    public sealed partial class AINodeManager
     {
         /// <summary>
         /// One inference, and the model that actually produced it.
@@ -177,7 +177,7 @@ namespace Opc.Ua.AI.Server
             var references = new List<IReference>();
             deployment.GetReferences(SystemContext, references);
 
-            NodeId usesModel = RefType(AiRefs.UsesModel);
+            NodeId usesModel = RefType(AIRefs.UsesModel);
 
             foreach (IReference reference in references)
             {

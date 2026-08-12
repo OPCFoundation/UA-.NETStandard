@@ -47,24 +47,24 @@ namespace Opc.Ua.AI.Tests
     /// every claim these tests make is about the address space and the routing, and
     /// neither needs a socket. The tests that do need one say so.
     /// </remarks>
-    internal static class AiServerTestHarness
+    internal static class AIServerTestHarness
     {
         /// <summary>
         /// Creates a node manager with its address space already built.
         /// </summary>
-        public static async Task<AiNodeManager> CreateAsync(
+        public static async Task<AINodeManager> CreateAsync(
             InferenceBackends backends,
-            AiOptions? options = null,
+            AIOptions? options = null,
             InferenceBackendOptions? backendOptions = null)
         {
             Mock<IServerInternal> server = CreateServer();
 
 #pragma warning disable CA2000 // the caller disposes the node manager
-            var manager = new AiNodeManager(
+            var manager = new AINodeManager(
                 server.Object,
                 null!,
                 backends,
-                Options.Create(options ?? new AiOptions()),
+                Options.Create(options ?? new AIOptions()),
                 Options.Create(backendOptions ?? new InferenceBackendOptions()));
 #pragma warning restore CA2000
 

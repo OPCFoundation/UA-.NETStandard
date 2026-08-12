@@ -34,14 +34,14 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.AI.Client
 {
-    public sealed class AiInferenceTransferClient
+    public sealed class AIInferenceTransferClient
     {
-        public AiInferenceTransferClient(AiClient client, NodeId transferNodeId)
+        public AIInferenceTransferClient(AIClient client, NodeId transferNodeId)
             : this(client?.Operations ?? throw new ArgumentNullException(nameof(client)), transferNodeId)
         {
         }
 
-        internal AiInferenceTransferClient(AiClientOperations operations, NodeId transferNodeId)
+        internal AIInferenceTransferClient(AIClientOperations operations, NodeId transferNodeId)
         {
             m_operations = operations ?? throw new ArgumentNullException(nameof(operations));
             if (transferNodeId.IsNull)
@@ -55,7 +55,7 @@ namespace Opc.Ua.AI.Client
 
         public NodeId TransferNodeId { get; }
 
-        public async ValueTask<AiTransferSnapshot> ReadAsync(
+        public async ValueTask<AITransferSnapshot> ReadAsync(
             CancellationToken cancellationToken = default)
         {
             string[] members =
@@ -71,7 +71,7 @@ namespace Opc.Ua.AI.Client
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(nodes, cancellationToken)
                 .ConfigureAwait(false);
             int cursor = 0;
-            return new AiTransferSnapshot
+            return new AITransferSnapshot
             {
                 NodeId = TransferNodeId,
                 TransferId = ReadString(nodes, values, ref cursor, 0),
@@ -84,7 +84,7 @@ namespace Opc.Ua.AI.Client
 
         public async ValueTask WriteRequestAsync(
             ByteString content,
-            int chunkSize = AiClientOperations.DefaultChunkSize,
+            int chunkSize = AIClientOperations.DefaultChunkSize,
             CancellationToken cancellationToken = default)
         {
             FileTypeClient file = await OpenRequestFileAsync(cancellationToken).ConfigureAwait(false);
@@ -103,7 +103,7 @@ namespace Opc.Ua.AI.Client
 
         public async ValueTask WriteRequestAsync(
             Stream content,
-            int chunkSize = AiClientOperations.DefaultChunkSize,
+            int chunkSize = AIClientOperations.DefaultChunkSize,
             CancellationToken cancellationToken = default)
         {
             FileTypeClient file = await OpenRequestFileAsync(cancellationToken).ConfigureAwait(false);
@@ -112,7 +112,7 @@ namespace Opc.Ua.AI.Client
         }
 
         public async ValueTask<ByteString> ReadResponseAsync(
-            int chunkSize = AiClientOperations.DefaultChunkSize,
+            int chunkSize = AIClientOperations.DefaultChunkSize,
             CancellationToken cancellationToken = default)
         {
             FileTypeClient file = await OpenResponseFileAsync(cancellationToken).ConfigureAwait(false);
@@ -131,7 +131,7 @@ namespace Opc.Ua.AI.Client
 
         public async ValueTask ReadResponseAsync(
             Stream destination,
-            int chunkSize = AiClientOperations.DefaultChunkSize,
+            int chunkSize = AIClientOperations.DefaultChunkSize,
             CancellationToken cancellationToken = default)
         {
             FileTypeClient file = await OpenResponseFileAsync(cancellationToken).ConfigureAwait(false);
@@ -197,12 +197,12 @@ namespace Opc.Ua.AI.Client
 
         private static string? ReadString(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? null : AiClientOperations.ReadString(values[cursor++]);
+            return nodes[index].IsNull ? null : AIClientOperations.ReadString(values[cursor++]);
         }
 
         private static ulong ReadUInt64(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? 0 : AiClientOperations.ReadUInt64(values[cursor++]);
+            return nodes[index].IsNull ? 0 : AIClientOperations.ReadUInt64(values[cursor++]);
         }
 
         private static NodeId ReadNodeId(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
@@ -211,7 +211,7 @@ namespace Opc.Ua.AI.Client
             {
                 return NodeId.Null;
             }
-            return AiClientOperations.TryReadNodeId(values[cursor++], out NodeId nodeId)
+            return AIClientOperations.TryReadNodeId(values[cursor++], out NodeId nodeId)
                 ? nodeId
                 : NodeId.Null;
         }
@@ -227,12 +227,12 @@ namespace Opc.Ua.AI.Client
             {
                 return default;
             }
-            return AiClientOperations.TryReadEnum(values[cursor++], out TEnum result)
+            return AIClientOperations.TryReadEnum(values[cursor++], out TEnum result)
                 ? result
                 : default;
         }
 
-        private readonly AiClientOperations m_operations;
+        private readonly AIClientOperations m_operations;
         private readonly InferenceTransferTypeClient m_proxy;
     }
 }

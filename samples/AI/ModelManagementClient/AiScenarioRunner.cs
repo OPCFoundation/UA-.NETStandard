@@ -37,22 +37,22 @@ using Opc.Ua.Client;
 
 namespace Opc.Ua.AI.Client
 {
-    internal sealed class AiScenarioRunner
+    internal sealed class AIScenarioRunner
     {
-        private AiScenarioRunner(AiClient client)
+        private AIScenarioRunner(AIClient client)
         {
             m_client = client;
         }
 
-        public static AiScenarioRunner? TryCreate(ISession session, ITelemetryContext telemetry)
+        public static AIScenarioRunner? TryCreate(ISession session, ITelemetryContext telemetry)
         {
-            var client = new AiClient(session, telemetry);
-            return client.IsAiNamespaceAvailable ? new AiScenarioRunner(client) : null;
+            var client = new AIClient(session, telemetry);
+            return client.IsAINamespaceAvailable ? new AIScenarioRunner(client) : null;
         }
 
         public async Task RunAsync(CancellationToken ct)
         {
-            Console.WriteLine("AI root: {0}", m_client.AiRootId);
+            Console.WriteLine("AI root: {0}", m_client.AIRootId);
             Console.WriteLine();
             Console.WriteLine("--- model catalogue");
             await ReportModelsAsync(ct).ConfigureAwait(false);
@@ -70,7 +70,7 @@ namespace Opc.Ua.AI.Client
                 await DescribeDeploymentAsync(deployments[ii], ct).ConfigureAwait(false);
             }
 
-            AiDeploymentClient deployment = m_client.Deployment(deployments[0]);
+            AIDeploymentClient deployment = m_client.Deployment(deployments[0]);
             await RunCapabilitiesAsync(deployment, ct).ConfigureAwait(false);
             await RunInlineInferenceAsync(deployment, ct).ConfigureAwait(false);
             await RunTransferAsync(deployment, ct).ConfigureAwait(false);
@@ -80,9 +80,9 @@ namespace Opc.Ua.AI.Client
 
         private async Task ReportModelsAsync(CancellationToken ct)
         {
-            await foreach (AiNodeEntry entry in m_client.EnumerateModelsAsync(ct).ConfigureAwait(false))
+            await foreach (AINodeEntry entry in m_client.EnumerateModelsAsync(ct).ConfigureAwait(false))
             {
-                AiModelSnapshot model = await m_client.Model(entry.NodeId).ReadAsync(ct)
+                AIModelSnapshot model = await m_client.Model(entry.NodeId).ReadAsync(ct)
                     .ConfigureAwait(false);
                 Console.WriteLine(
                     "    {0} {1} {2} ({3})",
@@ -95,8 +95,8 @@ namespace Opc.Ua.AI.Client
 
         private async Task DescribeDeploymentAsync(NodeId deploymentNodeId, CancellationToken ct)
         {
-            AiDeploymentClient deployment = m_client.Deployment(deploymentNodeId);
-            AiDeploymentSnapshot snapshot = await deployment.ReadAsync(ct).ConfigureAwait(false);
+            AIDeploymentClient deployment = m_client.Deployment(deploymentNodeId);
+            AIDeploymentSnapshot snapshot = await deployment.ReadAsync(ct).ConfigureAwait(false);
 
             Console.WriteLine();
             Console.WriteLine("--- deployment {0}", snapshot.NodeId);
@@ -108,10 +108,10 @@ namespace Opc.Ua.AI.Client
             Console.WriteLine("    MaxInlinePayloadSize  {0}", snapshot.MaxInlinePayloadSize);
             Console.WriteLine("    EndpointUri           {0}", snapshot.EndpointUri);
 
-            AiModelClient? model = await deployment.OpenModelAsync(ct).ConfigureAwait(false);
+            AIModelClient? model = await deployment.OpenModelAsync(ct).ConfigureAwait(false);
             if (model is not null)
             {
-                AiModelSnapshot modelSnapshot = await model.ReadAsync(ct).ConfigureAwait(false);
+                AIModelSnapshot modelSnapshot = await model.ReadAsync(ct).ConfigureAwait(false);
                 Console.WriteLine(
                     "    uses model            {0} ({1})",
                     modelSnapshot.ModelId,
@@ -129,7 +129,7 @@ namespace Opc.Ua.AI.Client
             }
         }
 
-        private static async Task RunCapabilitiesAsync(AiDeploymentClient deployment, CancellationToken ct)
+        private static async Task RunCapabilitiesAsync(AIDeploymentClient deployment, CancellationToken ct)
         {
             Console.WriteLine();
             Console.WriteLine("--- GetCapabilities");
@@ -144,13 +144,13 @@ namespace Opc.Ua.AI.Client
             }
         }
 
-        private static async Task RunInlineInferenceAsync(AiDeploymentClient deployment, CancellationToken ct)
+        private static async Task RunInlineInferenceAsync(AIDeploymentClient deployment, CancellationToken ct)
         {
             Console.WriteLine();
             Console.WriteLine("--- Invoke");
             ByteString payload = ByteString.From(Encoding.UTF8.GetBytes(
                 "{\"messages\":[{\"role\":\"user\",\"content\":\"Summarise the last shift.\"}]}"));
-            AiInvokeResult result = await deployment.InvokeAsync(
+            AIInvokeResult result = await deployment.InvokeAsync(
                 payload,
                 "application/json",
                 ArrayOf<KeyValuePair>.Empty,
@@ -159,7 +159,7 @@ namespace Opc.Ua.AI.Client
             ReportInvokeOutputs(result);
         }
 
-        private async Task RunTransferAsync(AiDeploymentClient deployment, CancellationToken ct)
+        private async Task RunTransferAsync(AIDeploymentClient deployment, CancellationToken ct)
         {
             Console.WriteLine();
             Console.WriteLine("--- BeginTransfer");
@@ -167,7 +167,7 @@ namespace Opc.Ua.AI.Client
                 "{\"messages\":[{\"role\":\"user\",\"content\":\"" +
                 new string('x', 4096) +
                 "\"}]}"));
-            AiBeginTransferResult begun = await deployment.BeginTransferAsync(
+            AIBeginTransferResult begun = await deployment.BeginTransferAsync(
                 "application/json", (ulong)payload.Length, ct).ConfigureAwait(false);
             if (!begun.Accepted)
             {
@@ -176,10 +176,10 @@ namespace Opc.Ua.AI.Client
             }
             Console.WriteLine("    transfer      {0}", begun.TransferId);
 
-            AiInferenceTransferClient transfer = m_client.Transfer(begun.TransferId);
+            AIInferenceTransferClient transfer = m_client.Transfer(begun.TransferId);
             await transfer.WriteRequestAsync(payload, cancellationToken: ct).ConfigureAwait(false);
             bool accepted = await transfer.ExecuteAsync(ct).ConfigureAwait(false);
-            AiTransferSnapshot snapshot = await transfer.ReadAsync(ct).ConfigureAwait(false);
+            AITransferSnapshot snapshot = await transfer.ReadAsync(ct).ConfigureAwait(false);
             Console.WriteLine("    accepted      {0}", accepted);
             Console.WriteLine("    state         {0}", snapshot.State);
             Console.WriteLine("    ModelUsed     {0}", snapshot.ModelUsed);
@@ -192,7 +192,7 @@ namespace Opc.Ua.AI.Client
             }
         }
 
-        private async Task RunAsynchronousInferenceAsync(AiDeploymentClient deployment, CancellationToken ct)
+        private async Task RunAsynchronousInferenceAsync(AIDeploymentClient deployment, CancellationToken ct)
         {
             Console.WriteLine();
             Console.WriteLine("--- InvokeAsync");
@@ -209,8 +209,8 @@ namespace Opc.Ua.AI.Client
             }
             Console.WriteLine("    job           {0}", jobId);
 
-            AiInferenceJobClient job = m_client.InferenceJob(jobId);
-            AiInferenceJobSnapshot snapshot = new();
+            AIInferenceJobClient job = m_client.InferenceJob(jobId);
+            AIInferenceJobSnapshot snapshot = new();
             for (int attempt = 0; attempt < 50; attempt++)
             {
                 snapshot = await job.ReadAsync(ct).ConfigureAwait(false);
@@ -238,19 +238,19 @@ namespace Opc.Ua.AI.Client
 
             Console.WriteLine();
             Console.WriteLine("--- model source");
-            AiModelSourceClient source = m_client.Source(sourceIds[0]);
-            AiModelSourceSnapshot snapshot = await source.ReadAsync(ct).ConfigureAwait(false);
+            AIModelSourceClient source = m_client.Source(sourceIds[0]);
+            AIModelSourceSnapshot snapshot = await source.ReadAsync(ct).ConfigureAwait(false);
             Console.WriteLine("    SourceId             {0}", snapshot.SourceId);
             Console.WriteLine("    EndpointUri          {0}", snapshot.EndpointUri);
             Console.WriteLine("    ApiDialect           {0}", snapshot.ApiDialect);
             Console.WriteLine("    AuthenticationKind   {0}", snapshot.AuthenticationKind);
             Console.WriteLine("    CredentialReference  {0}", snapshot.CredentialReference);
 
-            AiSourceConnectionResult connection = await source.TestConnectionAsync(ct)
+            AISourceConnectionResult connection = await source.TestConnectionAsync(ct)
                 .ConfigureAwait(false);
             Console.WriteLine("    reachable            {0} ({1})", connection.Reachable, connection.Detail);
 
-            AiSourceModelListResult models = await source.ListModelsAsync(maxResults: 20, cancellationToken: ct)
+            AISourceModelListResult models = await source.ListModelsAsync(maxResults: 20, cancellationToken: ct)
                 .ConfigureAwait(false);
             for (int ii = 0; ii < models.Models.Count; ii++)
             {
@@ -263,7 +263,7 @@ namespace Opc.Ua.AI.Client
             }
         }
 
-        private static void ReportInvokeOutputs(AiInvokeResult result)
+        private static void ReportInvokeOutputs(AIInvokeResult result)
         {
             if (result.ResponsePayload.Length > 0)
             {
@@ -285,6 +285,6 @@ namespace Opc.Ua.AI.Client
             }
         }
 
-        private readonly AiClient m_client;
+        private readonly AIClient m_client;
     }
 }

@@ -36,7 +36,7 @@ using BrowseNames = Opc.Ua.AI.BrowseNames;
 
 namespace Opc.Ua.AI.Server
 {
-    public sealed partial class AiNodeManager
+    public sealed partial class AINodeManager
     {
         /// <summary>
         /// How many sample identifiers are retained for duplicate detection.
@@ -69,13 +69,13 @@ namespace Opc.Ua.AI.Server
         /// </remarks>
         public ValueTask<bool> RecordLearningSampleAsync(
             string sampleId,
-            AiLearningSampleKind sampleKind = AiLearningSampleKind.Positive,
+            AILearningSampleKind sampleKind = AILearningSampleKind.Positive,
             CancellationToken cancellationToken = default)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(sampleId);
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (sampleKind is not AiLearningSampleKind.Positive and not AiLearningSampleKind.Negative)
+            if (sampleKind is not AILearningSampleKind.Positive and not AILearningSampleKind.Negative)
             {
                 throw new ArgumentOutOfRangeException(nameof(sampleKind));
             }

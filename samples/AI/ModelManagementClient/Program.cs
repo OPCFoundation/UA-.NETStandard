@@ -92,7 +92,7 @@ try
                 ? SecurityPolicies.None
                 : SecurityPolicies.Basic256Sha256;
         })
-        .AddAiClient();
+        .AddAIClient();
 
     using IHost host = builder.Build();
     await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
@@ -110,7 +110,7 @@ try
             Console.WriteLine();
 
             ITelemetryContext telemetry = host.Services.GetRequiredService<ITelemetryContext>();
-            AiScenarioRunner? runner = AiScenarioRunner.TryCreate(session, telemetry);
+            AIScenarioRunner? runner = AIScenarioRunner.TryCreate(session, telemetry);
 
             if (runner is null)
             {

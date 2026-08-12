@@ -12,7 +12,7 @@
     <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalClient/MinimalClient.csproj" />
     <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
-    <Project Path="samples/GeneratorServer/GeneratorServer.csproj" />
+    <Project Path="samples/OpenUsd/GeneratorServer/GeneratorServer.csproj" />
     <Project Path="samples/SiteCompositionServer/SiteCompositionServer.csproj" />
     <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
     <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
@@ -266,6 +266,7 @@
     <Project Path="tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Intent.Tests/Opc.Ua.Robotics.Intent.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Vision.Tests/Opc.Ua.Vision.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.VisualInspection.Tests/Opc.Ua.VisualInspection.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Vision.Intent.Tests/Opc.Ua.Vision.Intent.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Diagnostics.Tests/Opc.Ua.Core.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Bindings.Https.WebApi.Tests/Opc.Ua.Bindings.Https.WebApi.Tests.csproj" />
@@ -347,4 +348,3 @@
     <Project Path="tools/Opc.Ua.SourceGeneration.Stack.Roslyn4_14/Opc.Ua.SourceGeneration.Stack.Roslyn4_14.csproj" />
   </Folder>
 </Solution>
-

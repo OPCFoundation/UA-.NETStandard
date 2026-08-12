@@ -41,7 +41,7 @@ namespace Opc.Ua.AI.Server.Hosting
     /// local runtime keeps that dependency in its own composition root and exposes
     /// the resulting abstraction here.
     /// </remarks>
-    public interface IAiChatClientFactory
+    public interface IChatClientFactory
     {
         /// <summary>
         /// Creates the chat client for one configured backend.

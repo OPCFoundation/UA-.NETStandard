@@ -74,7 +74,17 @@ namespace Vision.VisualInspectionCell
                 throw new ArgumentNullException(nameof(request));
             }
             ct.ThrowIfCancellationRequested();
-            string fixture = ReadFixtureName(request.Payload.Span);
+            if (!TryReadFixtureName(request.Payload.Span, out string fixture))
+            {
+                return ValueTask.FromResult(new InferenceResult
+                {
+                    Ok = false,
+                    ContentType = "application/json",
+                    ModelUsed = Model.Name,
+                    Finish = InferenceFinish.Error,
+                    Message = "The inference payload does not name a known fixture."
+                });
+            }
             IReadOnlyList<MeasuredCharacteristic> measurements = m_analysis.MeasureByName(fixture);
             byte[] payload = JsonSerializer.SerializeToUtf8Bytes(new
             {
@@ -105,24 +115,36 @@ namespace Vision.VisualInspectionCell
             });
         }
 
-        private string ReadFixtureName(ReadOnlySpan<byte> payload)
+        private bool TryReadFixtureName(ReadOnlySpan<byte> payload, out string fixture)
         {
+            fixture = string.Empty;
             if (payload.IsEmpty)
             {
-                return m_analysis.FixtureNames[0];
+                return false;
             }
-            using JsonDocument document = JsonDocument.Parse(payload.ToArray());
-            if (TryReadFixtureProperty(document.RootElement, "fixture", out string fixture) ||
-                TryReadFixtureProperty(document.RootElement, "fixtureName", out fixture) ||
-                TryReadFixtureProperty(document.RootElement, "image", out fixture))
+            JsonDocument document;
+            try
             {
-                return fixture;
+                document = JsonDocument.Parse(payload.ToArray());
             }
-            if (TryReadChatFixture(document.RootElement, out fixture))
+            catch (JsonException)
             {
-                return fixture;
+                return false;
             }
-            return m_analysis.FixtureNames[0];
+            using (document)
+            {
+                if (TryReadFixtureProperty(document.RootElement, "fixture", out fixture) ||
+                    TryReadFixtureProperty(document.RootElement, "fixtureName", out fixture) ||
+                    TryReadFixtureProperty(document.RootElement, "image", out fixture))
+                {
+                    return true;
+                }
+                if (TryReadChatFixture(document.RootElement, out fixture))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private bool TryReadChatFixture(JsonElement root, out string fixture)

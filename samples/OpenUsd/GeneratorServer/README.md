@@ -5,12 +5,12 @@ specification** (`http://opcfoundation.org/UA/Generators/`) end to end: N
 simulated generating sets, a datasheet-driven simulation, DI and Machinery
 integration, and a per-set OpenUSD twin.
 
-It is the sibling of [`PumpDeviceIntegrationServer`](../PumpDeviceIntegrationServer),
+It is the sibling of [`PumpDeviceIntegrationServer`](../../PumpDeviceIntegrationServer),
 and the two are composed into one scene by
-[`SiteCompositionServer`](../SiteCompositionServer).
+[`SiteCompositionServer`](../../SiteCompositionServer).
 
 ```
-dotnet run --project samples/GeneratorServer -- \
+dotnet run --project samples/OpenUsd/GeneratorServer -- \
     --host localhost --port 62543 --generators 4
 ```
 
@@ -331,6 +331,6 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
 
 - [`DATASHEET.md`](DATASHEET.md) — the product datasheet the server is aligned to
 - [`Generators.md`](Generators.md) — the model, the simulation design and cross-server composition
-- [OpenUSD bindings](../../docs/OpenUsd.md)
-- [Device integration](../../docs/DeviceIntegration.md)
-- [`SiteCompositionServer`](../SiteCompositionServer) — composes this server with the pump server
+- [OpenUSD bindings](../../../docs/OpenUsd.md)
+- [Device integration](../../../docs/DeviceIntegration.md)
+- [`SiteCompositionServer`](../../SiteCompositionServer) — composes this server with the pump server

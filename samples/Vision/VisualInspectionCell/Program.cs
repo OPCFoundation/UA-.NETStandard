@@ -41,7 +41,8 @@ using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Vision.VisualInspectionCell;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+string[] normalizedArgs = NormalizeArgs(args);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(normalizedArgs);
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -56,6 +57,7 @@ string host = builder.Configuration["host"] is { Length: > 0 } configuredHost
 _ = VisualInspectionCellOptions.TryParseLocation(
     builder.Configuration["inferenceLocation"],
     out VisualInspectionInferenceLocation inferenceLocation);
+bool insecure = bool.TryParse(builder.Configuration["insecure"], out bool parsedInsecure) && parsedInsecure;
 var cellOptions = new VisualInspectionCellOptions
 {
     InferenceLocation = inferenceLocation
@@ -73,13 +75,13 @@ builder.Services.AddSingleton<VisualInspectionInferenceProvider>();
 builder.Services.AddSingleton<VisualInspectionFeedbackSink>();
 builder.Services.AddSingleton<OperatorDialogController>();
 builder.Services.AddSingleton<VisualInspectionCell>();
-builder.Services.AddSingleton<AiNodeManagerRegistry>();
+builder.Services.AddSingleton<AINodeManagerRegistry>();
 builder.Services.AddSingleton(services => new InferenceBackends(
     new VisualInspectionInferenceBackend(
         services.GetRequiredService<VisualInspectionAnalysisService>(),
         services.GetRequiredService<VisualInspectionCellOptions>())));
 builder.Services.AddSingleton<IServerStartupTask>(services =>
-    services.GetRequiredService<AiNodeManagerRegistry>());
+    services.GetRequiredService<AINodeManagerRegistry>());
 builder.Services.AddSingleton<InspectionJobControlProvider>();
 builder.Services.AddSingleton<IIsa95JobOrderReceiverV2>(services =>
     services.GetRequiredService<InspectionJobControlProvider>());
@@ -104,7 +106,7 @@ IOpcUaServerBuilder opcUa = builder.Services
         options.ApplicationName = "VisualInspectionCell";
         options.ApplicationUri = "urn:localhost:OPCFoundation:VisualInspectionCell";
         options.ProductUri = "uri:opcfoundation.org:VisualInspectionCell";
-        options.AutoAcceptUntrustedCertificates = true;
+        options.AutoAcceptUntrustedCertificates = insecure;
         options.EndpointUrls.Add($"opc.tcp://{host}:{port}/VisualInspectionCell");
     })
     .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
@@ -119,7 +121,7 @@ IOpcUaServerBuilder opcUa = builder.Services
         }
     }));
 
-opcUa.AddAi(
+opcUa.AddAI(
     ai =>
     {
         ai.PrimaryDeploymentId = "visual-inspection-primary";
@@ -173,3 +175,15 @@ foreach (string fixture in analysis.FixtureNames)
     }
 }
 await app.RunAsync().ConfigureAwait(false);
+
+static string[] NormalizeArgs(string[] args)
+{
+    string[] normalized = new string[args.Length];
+    for (int ii = 0; ii < args.Length; ii++)
+    {
+        normalized[ii] = string.Equals(args[ii], "--insecure", StringComparison.OrdinalIgnoreCase)
+            ? "--insecure=true"
+            : args[ii];
+    }
+    return normalized;
+}

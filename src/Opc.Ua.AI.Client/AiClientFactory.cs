@@ -34,9 +34,9 @@ using Opc.Ua.Client;
 
 namespace Opc.Ua.AI.Client
 {
-    public sealed class AiClientFactory
+    public sealed class AIClientFactory
     {
-        public AiClientFactory(
+        public AIClientFactory(
             Func<CancellationToken, Task<ManagedSession>> sessionFactory,
             ITelemetryContext telemetry)
         {
@@ -45,11 +45,11 @@ namespace Opc.Ua.AI.Client
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
-        public async Task<AiClient> CreateAsync(CancellationToken cancellationToken = default)
+        public async Task<AIClient> CreateAsync(CancellationToken cancellationToken = default)
         {
             ManagedSession session = await m_sessionFactory(cancellationToken)
                 .ConfigureAwait(false);
-            return new AiClient(session, m_telemetry);
+            return new AIClient(session, m_telemetry);
         }
 
         private readonly Func<CancellationToken, Task<ManagedSession>> m_sessionFactory;

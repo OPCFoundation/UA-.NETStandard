@@ -49,31 +49,31 @@ namespace Opc.Ua.AI.Tests
     [TestFixture]
     [Category("AI")]
     [Category("Hosting")]
-    public sealed class AiHostingTests
+    public sealed class AIHostingTests
     {
         [Test]
-        public void AddAiThrowsOnNullBuilder()
+        public void AddAIThrowsOnNullBuilder()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                OpcUaServerAiBuilderExtensions.AddAi(null!));
+                OpcUaServerAIBuilderExtensions.AddAI(null!));
         }
 
         [Test]
-        public void AddAiRegistersNodeManagerFactoryAndOptions()
+        public void AddAIRegistersNodeManagerFactoryAndOptions()
         {
             IServiceCollection services = new ServiceCollection();
-            services.AddSingleton<IAiChatClientFactory>(new StubChatClientFactory());
+            services.AddSingleton<IChatClientFactory>(new StubChatClientFactory());
 
             services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test")
-                .AddAi(
+                .AddAI(
                     ai => ai.PrimaryDeploymentId = "configured",
                     backend => backend.Site = InferenceSite.EdgeOffServer,
                     fallback => fallback.Enabled = false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            AiNodeManagerFactory factory = provider.GetRequiredService<AiNodeManagerFactory>();
-            AiOptions aiOptions = provider.GetRequiredService<IOptions<AiOptions>>().Value;
+            AINodeManagerFactory factory = provider.GetRequiredService<AINodeManagerFactory>();
+            AIOptions aiOptions = provider.GetRequiredService<IOptions<AIOptions>>().Value;
             InferenceBackendOptions backendOptions =
                 provider.GetRequiredService<IOptions<InferenceBackendOptions>>().Value;
             var registrations = provider.GetServices<OpcUaServerNodeManagerRegistration>();
@@ -83,20 +83,20 @@ namespace Opc.Ua.AI.Tests
                 Assert.That(factory, Is.Not.Null);
                 Assert.That(aiOptions.PrimaryDeploymentId, Is.EqualTo("configured"));
                 Assert.That(backendOptions.Site, Is.EqualTo(InferenceSite.EdgeOffServer));
-                Assert.That(registrations.Any(r => r.AsyncFactory is AiNodeManagerFactory), Is.True);
+                Assert.That(registrations.Any(r => r.AsyncFactory is AINodeManagerFactory), Is.True);
             });
         }
 
         [Test]
-        public void AddAiDefaultsToChatClientBackend()
+        public void AddAIDefaultsToChatClientBackend()
         {
             IServiceCollection services = new ServiceCollection();
             var factory = new StubChatClientFactory();
-            services.AddSingleton<IAiChatClientFactory>(factory);
+            services.AddSingleton<IChatClientFactory>(factory);
 
             services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test")
-                .AddAi(configureFallbackBackend: options => options.Enabled = false);
+                .AddAI(configureFallbackBackend: options => options.Enabled = false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
             InferenceBackends backends = provider.GetRequiredService<InferenceBackends>();
@@ -110,13 +110,13 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
-        public void AddAiRegistersRestBackendWhenConfigured()
+        public void AddAIRegistersRestBackendWhenConfigured()
         {
             IServiceCollection services = new ServiceCollection();
 
             services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test")
-                .AddAi(
+                .AddAI(
                     configureBackend: options =>
                     {
                         options.Kind = InferenceBackendKind.RestChatCompletions;
@@ -131,15 +131,15 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
-        public void AddAiCreatesFallbackFromNamedOptions()
+        public void AddAICreatesFallbackFromNamedOptions()
         {
             IServiceCollection services = new ServiceCollection();
             var factory = new StubChatClientFactory();
-            services.AddSingleton<IAiChatClientFactory>(factory);
+            services.AddSingleton<IChatClientFactory>(factory);
 
             services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test")
-                .AddAi(configureFallbackBackend: options =>
+                .AddAI(configureFallbackBackend: options =>
                 {
                     options.Enabled = true;
                     options.Site = InferenceSite.OnServer;
@@ -149,24 +149,24 @@ namespace Opc.Ua.AI.Tests
             InferenceBackends backends = provider.GetRequiredService<InferenceBackends>();
             InferenceBackendOptions fallbackOptions = provider
                 .GetRequiredService<IOptionsMonitor<InferenceBackendOptions>>()
-                .Get(AiNodeManagerFactory.FallbackOptionsName);
+                .Get(AINodeManagerFactory.FallbackOptionsName);
 
             Assert.Multiple(() =>
             {
                 Assert.That(backends.Fallback, Is.TypeOf<ChatClientInferenceBackend>());
                 Assert.That(fallbackOptions.Site, Is.EqualTo(InferenceSite.OnServer));
-                Assert.That(factory.CreatedNames, Does.Contain(AiNodeManagerFactory.FallbackOptionsName));
+                Assert.That(factory.CreatedNames, Does.Contain(AINodeManagerFactory.FallbackOptionsName));
             });
         }
 
         [Test]
-        public void AddAiRequiresChatClientFactoryForDefaultBackend()
+        public void AddAIRequiresChatClientFactoryForDefaultBackend()
         {
             IServiceCollection services = new ServiceCollection();
 
             services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test")
-                .AddAi(configureFallbackBackend: options => options.Enabled = false);
+                .AddAI(configureFallbackBackend: options => options.Enabled = false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
 
@@ -174,7 +174,7 @@ namespace Opc.Ua.AI.Tests
                 provider.GetRequiredService<InferenceBackends>());
         }
 
-        private sealed class StubChatClientFactory : IAiChatClientFactory
+        private sealed class StubChatClientFactory : IChatClientFactory
         {
             public List<string> CreatedNames { get; } = [];
 

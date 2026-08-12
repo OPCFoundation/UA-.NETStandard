@@ -39,7 +39,7 @@ namespace Vision.VisualInspectionCell
         public const int Inference = 40;
         public const int Feedback = 80;
         public const int Isa95 = 120;
-        public const int Ai = 160;
+        public const int AI = 160;
         public const int Dialog = 200;
     }
 }

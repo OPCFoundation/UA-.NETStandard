@@ -33,14 +33,14 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.AI.Client
 {
-    public sealed class AiDeploymentClient
+    public sealed class AIDeploymentClient
     {
-        public AiDeploymentClient(AiClient client, NodeId deploymentNodeId)
+        public AIDeploymentClient(AIClient client, NodeId deploymentNodeId)
             : this(client?.Operations ?? throw new ArgumentNullException(nameof(client)), deploymentNodeId)
         {
         }
 
-        internal AiDeploymentClient(AiClientOperations operations, NodeId deploymentNodeId)
+        internal AIDeploymentClient(AIClientOperations operations, NodeId deploymentNodeId)
         {
             m_operations = operations ?? throw new ArgumentNullException(nameof(operations));
             if (deploymentNodeId.IsNull)
@@ -54,7 +54,7 @@ namespace Opc.Ua.AI.Client
 
         public NodeId DeploymentNodeId { get; }
 
-        public async ValueTask<AiDeploymentSnapshot> ReadAsync(
+        public async ValueTask<AIDeploymentSnapshot> ReadAsync(
             CancellationToken cancellationToken = default)
         {
             string[] members =
@@ -76,7 +76,7 @@ namespace Opc.Ua.AI.Client
                 DeploymentNodeId, ReferenceTypes.UsesModel, cancellationToken).ConfigureAwait(false);
             NodeId fallback = await m_operations.FollowReferenceAsync(
                 DeploymentNodeId, ReferenceTypes.FallsBackTo, cancellationToken).ConfigureAwait(false);
-            return new AiDeploymentSnapshot
+            return new AIDeploymentSnapshot
             {
                 NodeId = DeploymentNodeId,
                 DeploymentId = ReadString(nodes, values, ref cursor, 0),
@@ -97,7 +97,7 @@ namespace Opc.Ua.AI.Client
             return GetCapabilitiesCoreAsync(cancellationToken);
         }
 
-        public async ValueTask<AiInvokeResult> InvokeAsync(
+        public async ValueTask<AIInvokeResult> InvokeAsync(
             ByteString payload,
             string contentType,
             ArrayOf<global::Opc.Ua.KeyValuePair> parameters,
@@ -138,7 +138,7 @@ namespace Opc.Ua.AI.Client
             return InvokeAsyncCoreAsync(payload, contentType, parameters, payloadUri, cancellationToken);
         }
 
-        public async ValueTask<AiBeginTransferResult> BeginTransferAsync(
+        public async ValueTask<AIBeginTransferResult> BeginTransferAsync(
             string contentType,
             ulong requestSize,
             CancellationToken cancellationToken = default)
@@ -147,7 +147,7 @@ namespace Opc.Ua.AI.Client
             {
                 (NodeId transfer, bool accepted) = await m_proxy.BeginTransferAsync(
                     contentType ?? string.Empty, requestSize, cancellationToken).ConfigureAwait(false);
-                return new AiBeginTransferResult
+                return new AIBeginTransferResult
                 {
                     TransferId = transfer,
                     Accepted = accepted
@@ -160,7 +160,7 @@ namespace Opc.Ua.AI.Client
                     BrowseNames.BeginTransfer,
                     [Variant.From(contentType ?? string.Empty), Variant.From(requestSize)],
                     cancellationToken).ConfigureAwait(false);
-                return new AiBeginTransferResult
+                return new AIBeginTransferResult
                 {
                     TransferId = TryGetNodeId(outputs, 0, out NodeId transfer) ? transfer : NodeId.Null,
                     Accepted = TryGetBoolean(outputs, 1, out bool accepted) && accepted
@@ -168,20 +168,20 @@ namespace Opc.Ua.AI.Client
             }
         }
 
-        public async ValueTask<AiModelClient?> OpenModelAsync(
+        public async ValueTask<AIModelClient?> OpenModelAsync(
             CancellationToken cancellationToken = default)
         {
             NodeId model = await m_operations.FollowReferenceAsync(
                 DeploymentNodeId, ReferenceTypes.UsesModel, cancellationToken).ConfigureAwait(false);
-            return model.IsNull ? null : new AiModelClient(m_operations, model);
+            return model.IsNull ? null : new AIModelClient(m_operations, model);
         }
 
-        public async ValueTask<AiDeploymentClient?> OpenFallbackAsync(
+        public async ValueTask<AIDeploymentClient?> OpenFallbackAsync(
             CancellationToken cancellationToken = default)
         {
             NodeId fallback = await m_operations.FollowReferenceAsync(
                 DeploymentNodeId, ReferenceTypes.FallsBackTo, cancellationToken).ConfigureAwait(false);
-            return fallback.IsNull ? null : new AiDeploymentClient(m_operations, fallback);
+            return fallback.IsNull ? null : new AIDeploymentClient(m_operations, fallback);
         }
 
         internal static void ThrowIfBad(ServiceResult serviceResult)
@@ -216,7 +216,7 @@ namespace Opc.Ua.AI.Client
             }
         }
 
-        private async ValueTask<AiInvokeResult> InvokeProxyAsync(
+        private async ValueTask<AIInvokeResult> InvokeProxyAsync(
             ByteString payload,
             string contentType,
             ArrayOf<global::Opc.Ua.KeyValuePair> parameters,
@@ -240,7 +240,7 @@ namespace Opc.Ua.AI.Client
                 parameters,
                 timeout,
                 cancellationToken).ConfigureAwait(false);
-            return new AiInvokeResult
+            return new AIInvokeResult
             {
                 ResponsePayload = responsePayload,
                 ResponseContentType = responseContentType,
@@ -286,9 +286,9 @@ namespace Opc.Ua.AI.Client
             }
         }
 
-        private AiInvokeResult CreateInvokeResult(ArrayOf<Variant> outputs)
+        private AIInvokeResult CreateInvokeResult(ArrayOf<Variant> outputs)
         {
-            return new AiInvokeResult
+            return new AIInvokeResult
             {
                 ResponsePayload = TryGetByteString(outputs, 0, out ByteString responsePayload)
                     ? responsePayload
@@ -412,17 +412,17 @@ namespace Opc.Ua.AI.Client
 
         private static string? ReadString(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? null : AiClientOperations.ReadString(values[cursor++]);
+            return nodes[index].IsNull ? null : AIClientOperations.ReadString(values[cursor++]);
         }
 
         private static bool ReadBoolean(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return !nodes[index].IsNull && AiClientOperations.ReadBoolean(values[cursor++]);
+            return !nodes[index].IsNull && AIClientOperations.ReadBoolean(values[cursor++]);
         }
 
         private static ulong ReadUInt64(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? 0 : AiClientOperations.ReadUInt64(values[cursor++]);
+            return nodes[index].IsNull ? 0 : AIClientOperations.ReadUInt64(values[cursor++]);
         }
 
         private static TEnum ReadEnum<TEnum>(
@@ -436,12 +436,12 @@ namespace Opc.Ua.AI.Client
             {
                 return default;
             }
-            return AiClientOperations.TryReadEnum(values[cursor++], out TEnum result)
+            return AIClientOperations.TryReadEnum(values[cursor++], out TEnum result)
                 ? result
                 : default;
         }
 
-        private readonly AiClientOperations m_operations;
+        private readonly AIClientOperations m_operations;
         private readonly DeploymentTypeClient m_proxy;
     }
 }

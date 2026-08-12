@@ -32,7 +32,7 @@ namespace Opc.Ua.AI.Server
     /// <summary>
     /// Classifies a learning sample submitted to the server-side accounting API.
     /// </summary>
-    public enum AiLearningSampleKind
+    public enum AILearningSampleKind
     {
         /// <summary>
         /// The sample carries an observation or corrected geometry.

@@ -78,7 +78,7 @@ $env:InferenceBackend__EgressPermitted = "true"
 
 `ChatClient` is the default. This sample registers a small `IChatClient` over
 the OpenAI-compatible endpoint so no vendor package is needed. A production
-host can replace `IAiChatClientFactory` with one that creates the chat client
+host can replace `IChatClientFactory` with one that creates the chat client
 from its own SDK or local runtime. Use `RestChatCompletions` for deployments
 whose contract is the REST shape itself rather than the
 `Microsoft.Extensions.AI` abstraction.

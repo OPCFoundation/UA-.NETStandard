@@ -200,7 +200,7 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
   [Robotics samples](../samples/Robotics/README.md).
 * [`PumpDeviceIntegrationServer`](../samples/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition and served-asset delivery.
-* [`GeneratorServer`](../samples/GeneratorServer) — the Generators companion
+* [`GeneratorServer`](../samples/OpenUsd/GeneratorServer) — the Generators companion
   specification with a datasheet-driven simulation and one independent twin per
   configured generating set.
 * [`SiteCompositionServer`](../samples/SiteCompositionServer) — a supervisory server that owns no devices and

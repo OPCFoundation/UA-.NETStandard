@@ -32,9 +32,9 @@ using Opc.Ua.Client;
 
 namespace Opc.Ua.AI.Client
 {
-    public static class SessionAiExtensions
+    public static class SessionAIExtensions
     {
-        public static AiClient Ai(this ISession session, ITelemetryContext telemetry)
+        public static AIClient AI(this ISession session, ITelemetryContext telemetry)
         {
             if (session is null)
             {
@@ -44,7 +44,7 @@ namespace Opc.Ua.AI.Client
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
-            return new AiClient(session, telemetry);
+            return new AIClient(session, telemetry);
         }
     }
 }

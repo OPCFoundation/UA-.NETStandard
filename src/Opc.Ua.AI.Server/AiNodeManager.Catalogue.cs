@@ -34,14 +34,14 @@ using System.Threading.Tasks;
 using Opc.Ua.AI.Inference;
 using Opc.Ua;
 using Opc.Ua.AI;
-using AiRefs = Opc.Ua.AI.ReferenceTypeIds;
+using AIRefs = Opc.Ua.AI.ReferenceTypeIds;
 using BrowseNames = Opc.Ua.AI.BrowseNames;
 using ObjectIds = Opc.Ua.ObjectIds;
 using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Opc.Ua.AI.Server
 {
-    public sealed partial class AiNodeManager
+    public sealed partial class AINodeManager
     {
         private ModelSourceState? m_source;
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.AI.Server
             // Every model this Server publishes came from that source, and saying so
             // is what makes the provenance walk terminate somewhere meaningful
             // instead of at a name.
-            NodeId importedFrom = RefType(AiRefs.ImportedFrom);
+            NodeId importedFrom = RefType(AIRefs.ImportedFrom);
 
             foreach (ModelState? model in new[] { m_primaryModel, m_fallbackModel })
             {

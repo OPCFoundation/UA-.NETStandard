@@ -73,9 +73,15 @@ namespace Vision.VisualInspectionCell
         {
             cancellationToken.ThrowIfCancellationRequested();
             VisualInspectionTarget target = RequireTarget();
-            DateTimeUtc timestamp = request.Timestamp.IsNull
-                ? DateTimeUtc.From(DateTime.UnixEpoch)
-                : request.Timestamp;
+            if (request.Timestamp.IsNull)
+            {
+                return new VisionInferenceRunResult(
+                    new ServiceResult(StatusCodes.BadInvalidArgument,
+                        LocalizedText.From("RunInference requires a timestamp so retries use a stable result id.")),
+                    string.Empty);
+            }
+
+            DateTimeUtc timestamp = request.Timestamp;
             InspectionAnalysis analysis = m_analysis.AnalyzeForCycle(timestamp);
             string resultId = FormattableString.Invariant(
                 $"insp-{PathSafeFixtureName(analysis.FixtureName)}-{timestamp.Value}");

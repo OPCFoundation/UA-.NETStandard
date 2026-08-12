@@ -34,14 +34,14 @@ using System.Threading.Tasks;
 using Opc.Ua.AI.Inference;
 using Opc.Ua;
 using Opc.Ua.AI;
-using AiRefs = Opc.Ua.AI.ReferenceTypeIds;
+using AIRefs = Opc.Ua.AI.ReferenceTypeIds;
 using BrowseNames = Opc.Ua.AI.BrowseNames;
 using ObjectIds = Opc.Ua.ObjectIds;
 using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Opc.Ua.AI.Server
 {
-    public sealed partial class AiNodeManager
+    public sealed partial class AINodeManager
     {
         /// <summary>
         /// Attaches handlers to the methods a deployment offers.

@@ -42,15 +42,15 @@ namespace Microsoft.Extensions.DependencyInjection
     /// <summary>
     /// Hosting extensions for OPC UA AI Model Management servers.
     /// </summary>
-    public static class OpcUaServerAiBuilderExtensions
+    public static class OpcUaServerAIBuilderExtensions
     {
         /// <summary>
         /// Registers the AI node manager, its options and the configured inference
         /// backends.
         /// </summary>
-        public static IOpcUaServerBuilder AddAi(
+        public static IOpcUaServerBuilder AddAI(
             this IOpcUaServerBuilder builder,
-            Action<AiOptions>? configure = null,
+            Action<AIOptions>? configure = null,
             Action<InferenceBackendOptions>? configureBackend = null,
             Action<InferenceBackendOptions>? configureFallbackBackend = null)
         {
@@ -58,9 +58,9 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            builder.Services.AddOptions<AiOptions>();
+            builder.Services.AddOptions<AIOptions>();
             builder.Services.AddOptions<InferenceBackendOptions>();
-            builder.Services.AddOptions<InferenceBackendOptions>(AiNodeManagerFactory.FallbackOptionsName);
+            builder.Services.AddOptions<InferenceBackendOptions>(AINodeManagerFactory.FallbackOptionsName);
             if (configure != null)
             {
                 builder.Services.Configure(configure);
@@ -72,11 +72,11 @@ namespace Microsoft.Extensions.DependencyInjection
             if (configureFallbackBackend != null)
             {
                 builder.Services.Configure(
-                    AiNodeManagerFactory.FallbackOptionsName,
+                    AINodeManagerFactory.FallbackOptionsName,
                     configureFallbackBackend);
             }
             builder.Services.TryAddSingleton(CreateBackends);
-            builder.AddNodeManager<AiNodeManagerFactory>();
+            builder.AddNodeManager<AINodeManagerFactory>();
             return builder;
         }
 
@@ -89,14 +89,14 @@ namespace Microsoft.Extensions.DependencyInjection
             IInferenceBackend primary = CreateBackend(services, string.Empty, primaryOptions);
 
             InferenceBackendOptions fallbackOptions =
-                monitor.Get(AiNodeManagerFactory.FallbackOptionsName);
+                monitor.Get(AINodeManagerFactory.FallbackOptionsName);
             if (!fallbackOptions.Enabled)
             {
                 return new InferenceBackends(primary);
             }
             IInferenceBackend fallback = CreateBackend(
                 services,
-                AiNodeManagerFactory.FallbackOptionsName,
+                AINodeManagerFactory.FallbackOptionsName,
                 fallbackOptions);
             return new InferenceBackends(primary, fallback);
         }
@@ -109,7 +109,7 @@ namespace Microsoft.Extensions.DependencyInjection
             return options.Kind switch
             {
                 InferenceBackendKind.ChatClient => new ChatClientInferenceBackend(
-                    services.GetRequiredService<IAiChatClientFactory>()
+                    services.GetRequiredService<IChatClientFactory>()
                         .CreateChatClient(backendName, options),
                     options.Site,
                     [.. options.Models]),

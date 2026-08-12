@@ -50,7 +50,7 @@ namespace Opc.Ua.AI.Tests
     /// partial answer.
     /// </remarks>
     [TestFixture]
-    [Category("AiModelManagement")]
+    [Category("AIModelManagement")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public sealed class ProvenanceTests
@@ -58,7 +58,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task AResultResolvesToAModelThatCarriesItsIdentityAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
 
@@ -91,7 +91,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task EveryPublishedModelIsReachableFromTheSourceItCameFromAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
             NodeId modelId = TargetOf(
@@ -121,7 +121,7 @@ namespace Opc.Ua.AI.Tests
         [Test]
         public async Task ADigestIsEmptyRatherThanInventedWhenTheBackendDeclaresNoneAsync()
         {
-            using AiNodeManager nm = await CreateAsync().ConfigureAwait(false);
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
 
             var deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
             var model = nm.FindPredefinedNode<ModelState>(
@@ -153,10 +153,10 @@ namespace Opc.Ua.AI.Tests
                 DigestAlgorithm = "SHA-256"
             });
 
-            using AiNodeManager nm = await AiServerTestHarness
+            using AINodeManager nm = await AIServerTestHarness
                 .CreateAsync(
                     new InferenceBackends(new FakeInferenceBackend("primary")),
-                    new AiOptions { EnableFallback = false },
+                    new AIOptions { EnableFallback = false },
                     backendOptions)
                 .ConfigureAwait(false);
 
@@ -175,9 +175,9 @@ namespace Opc.Ua.AI.Tests
             });
         }
 
-        private static Task<AiNodeManager> CreateAsync()
+        private static Task<AINodeManager> CreateAsync()
         {
-            return AiServerTestHarness.CreateAsync(
+            return AIServerTestHarness.CreateAsync(
                 new InferenceBackends(
                     new FakeInferenceBackend("primary"),
                     new FakeInferenceBackend("fallback")));
@@ -187,7 +187,7 @@ namespace Opc.Ua.AI.Tests
         /// Follows one forward reference of the given type.
         /// </summary>
         private static NodeId TargetOf(
-            AiNodeManager nm,
+            AINodeManager nm,
             NodeState node,
             ExpandedNodeId referenceTypeId)
         {

@@ -29,7 +29,7 @@
 
 namespace Opc.Ua.AI.Client
 {
-    public sealed record AiInvokeResult
+    public sealed record AIInvokeResult
     {
         public ByteString ResponsePayload { get; init; } = ByteString.Empty;
 
@@ -50,21 +50,21 @@ namespace Opc.Ua.AI.Client
         public NodeId TransferId { get; init; } = NodeId.Null;
     }
 
-    public sealed record AiBeginTransferResult
+    public sealed record AIBeginTransferResult
     {
         public NodeId TransferId { get; init; } = NodeId.Null;
 
         public bool Accepted { get; init; }
     }
 
-    public sealed record AiSourceModelListResult
+    public sealed record AISourceModelListResult
     {
         public ArrayOf<ModelReferenceDataType> Models { get; init; } = [];
 
         public ByteString ContinuationPoint { get; init; } = ByteString.Empty;
     }
 
-    public sealed record AiSourceConnectionResult
+    public sealed record AISourceConnectionResult
     {
         public bool Reachable { get; init; }
 
