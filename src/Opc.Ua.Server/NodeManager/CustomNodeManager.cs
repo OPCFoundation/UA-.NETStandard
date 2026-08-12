@@ -136,7 +136,7 @@ namespace Opc.Ua.Server
                 MaxQueueSize = (uint)configuration.ServerConfiguration.MaxNotificationQueueSize;
                 MaxDurableQueueSize = (uint)configuration.ServerConfiguration
                     .MaxDurableNotificationQueueSize;
-                MinSupportedSampleRate = configuration.ServerConfiguration.MinSupportedSampleRate;
+                MinSupportedSamplingInterval = configuration.ServerConfiguration.MinSupportedSamplingInterval;
             }
 
             // save a reference to the UA server instance that owns the node manager.
@@ -271,16 +271,16 @@ namespace Opc.Ua.Server
         public uint MaxDurableQueueSize { get; set; }
 
         /// <summary>
-        /// Gets or sets the minimum sample rate supported by the server (in milliseconds).
+        /// Gets or sets the minimum sampling interval supported by the server (in milliseconds).
         /// </summary>
-        /// <value>The minimum supported sample rate.</value>
+        /// <value>The minimum supported sampling interval.</value>
         /// <remarks>
         /// Applied as a lower bound when the sampling interval of a monitored item is revised.
         /// Nodes that declare a MinimumSamplingInterval of
         /// <see cref="MinimumSamplingIntervals.Continuous"/> report by exception and are not
         /// bound by this value.
         /// </remarks>
-        public double MinSupportedSampleRate { get; set; }
+        public double MinSupportedSamplingInterval { get; set; }
 
         /// <summary>
         /// The root for the alias assigned to the node manager.
@@ -5054,7 +5054,7 @@ namespace Opc.Ua.Server
                 publishingInterval,
                 handle.Node,
                 itemToCreate.ItemToMonitor.AttributeId,
-                MinSupportedSampleRate);
+                MinSupportedSamplingInterval);
 
             // put an upper limit on queue size.
             uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(
@@ -5548,7 +5548,7 @@ namespace Opc.Ua.Server
                 previousSamplingInterval,
                 handle.Node,
                 datachangeItem.AttributeId,
-                MinSupportedSampleRate);
+                MinSupportedSamplingInterval);
 
             // put an upper limit on queue size.
             uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(

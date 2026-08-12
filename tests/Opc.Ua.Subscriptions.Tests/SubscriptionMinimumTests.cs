@@ -160,7 +160,7 @@ namespace Opc.Ua.Subscriptions.Tests
         [Test]
         public async Task MinimumPublishingIntervalFromServerCapabilitiesAsync()
         {
-            // Read MinSupportedSampleRate from ServerCapabilities
+            // Read MinSupportedSamplingInterval from ServerCapabilities
             ReadResponse readResp = await Session.ReadAsync(
                 null, 0, TimestampsToReturn.Neither,
                 new ReadValueId[]
@@ -176,7 +176,7 @@ namespace Opc.Ua.Subscriptions.Tests
             if (!StatusCode.IsGood(readResp.Results[0].StatusCode))
             {
                 Assert.Fail(
-                    "MinSupportedSampleRate not available.");
+                    "MinSupportedSamplingInterval not available.");
             }
 
             double minRate = readResp.Results[0].WrappedValue.GetDouble();

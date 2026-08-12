@@ -36,7 +36,7 @@ namespace Opc.Ua.Server.Tests
     /// <see cref="SubscriptionManager.CalculateRevisedSamplingInterval(double, double, double, double)"/>
     /// which implements the interplay between the sampling interval requested by a client,
     /// the MinimumSamplingInterval declared by a node and the server wide
-    /// MinSupportedSampleRate.
+    /// MinSupportedSamplingInterval.
     /// </summary>
     [TestFixture]
     [Category("Subscription")]
@@ -45,7 +45,7 @@ namespace Opc.Ua.Server.Tests
     public class SamplingIntervalRevisionTests
     {
         private const double kPublishingInterval = 500;
-        private const double kMinSupportedSampleRate = 2000;
+        private const double kMinSupportedSamplingInterval = 2000;
 
         [Test]
         public void NegativeSamplingIntervalResolvesToPublishingInterval()
@@ -66,22 +66,22 @@ namespace Opc.Ua.Server.Tests
                 -1,
                 kPublishingInterval,
                 MinimumSamplingIntervals.Indeterminate,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
-            Assert.That(revised, Is.EqualTo(kMinSupportedSampleRate));
+            Assert.That(revised, Is.EqualTo(kMinSupportedSamplingInterval));
         }
 
         [Test]
-        public void ContinuousNodeBypassesMinSupportedSampleRate()
+        public void ContinuousNodeBypassesMinSupportedSamplingInterval()
         {
             double revised = SubscriptionManager.CalculateRevisedSamplingInterval(
                 10,
                 kPublishingInterval,
                 MinimumSamplingIntervals.Continuous,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
             Assert.That(revised, Is.EqualTo(10.0),
-                "Nodes reporting by exception are not bound by the minimum supported sample rate.");
+                "Nodes reporting by exception are not bound by the minimum supported sampling interval.");
         }
 
         [Test]
@@ -91,21 +91,21 @@ namespace Opc.Ua.Server.Tests
                 0,
                 kPublishingInterval,
                 MinimumSamplingIntervals.Continuous,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
             Assert.That(revised, Is.Zero);
         }
 
         [Test]
-        public void IndeterminateNodeIsRaisedToMinSupportedSampleRate()
+        public void IndeterminateNodeIsRaisedToMinSupportedSamplingInterval()
         {
             double revised = SubscriptionManager.CalculateRevisedSamplingInterval(
                 10,
                 kPublishingInterval,
                 MinimumSamplingIntervals.Indeterminate,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
-            Assert.That(revised, Is.EqualTo(kMinSupportedSampleRate));
+            Assert.That(revised, Is.EqualTo(kMinSupportedSamplingInterval));
         }
 
         [Test]
@@ -121,31 +121,31 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void MinSupportedSampleRateWinsWhenAboveNodeMinimum()
+        public void MinSupportedSamplingIntervalWinsWhenAboveNodeMinimum()
         {
             double revised = SubscriptionManager.CalculateRevisedSamplingInterval(
                 10,
                 kPublishingInterval,
                 500,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
-            Assert.That(revised, Is.EqualTo(kMinSupportedSampleRate));
+            Assert.That(revised, Is.EqualTo(kMinSupportedSamplingInterval));
         }
 
         [Test]
-        public void NodeMinimumWinsWhenAboveMinSupportedSampleRate()
+        public void NodeMinimumWinsWhenAboveMinSupportedSamplingInterval()
         {
             double revised = SubscriptionManager.CalculateRevisedSamplingInterval(
                 10,
                 kPublishingInterval,
                 5000,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
             Assert.That(revised, Is.EqualTo(5000.0));
         }
 
         [Test]
-        public void NodeMinimumIsHonoredWithoutMinSupportedSampleRate()
+        public void NodeMinimumIsHonoredWithoutMinSupportedSamplingInterval()
         {
             double revised = SubscriptionManager.CalculateRevisedSamplingInterval(
                 10,
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests
                 10000,
                 kPublishingInterval,
                 5000,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
             Assert.That(revised, Is.EqualTo(10000.0));
         }
@@ -175,7 +175,7 @@ namespace Opc.Ua.Server.Tests
                 double.MaxValue,
                 kPublishingInterval,
                 MinimumSamplingIntervals.Indeterminate,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
             Assert.That(revised, Is.EqualTo(365 * 24 * 3600 * 1000.0));
         }
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Tests
                 kPublishingInterval,
                 variable,
                 Attributes.Value,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
             Assert.That(revised, Is.EqualTo(5000.0));
         }
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server.Tests
                 kPublishingInterval,
                 variable,
                 Attributes.Value,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
             Assert.That(revised, Is.EqualTo(10.0));
         }
@@ -241,9 +241,9 @@ namespace Opc.Ua.Server.Tests
                 kPublishingInterval,
                 variable,
                 Attributes.Description,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
-            Assert.That(revised, Is.EqualTo(kMinSupportedSampleRate),
+            Assert.That(revised, Is.EqualTo(kMinSupportedSamplingInterval),
                 "Only the Value Attribute of a Variable carries a MinimumSamplingInterval.");
         }
 
@@ -257,9 +257,9 @@ namespace Opc.Ua.Server.Tests
                 kPublishingInterval,
                 objectState,
                 Attributes.Value,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
-            Assert.That(revised, Is.EqualTo(kMinSupportedSampleRate));
+            Assert.That(revised, Is.EqualTo(kMinSupportedSamplingInterval));
         }
 
         [Test]
@@ -270,9 +270,9 @@ namespace Opc.Ua.Server.Tests
                 kPublishingInterval,
                 null,
                 Attributes.Value,
-                kMinSupportedSampleRate);
+                kMinSupportedSamplingInterval);
 
-            Assert.That(revised, Is.EqualTo(kMinSupportedSampleRate));
+            Assert.That(revised, Is.EqualTo(kMinSupportedSamplingInterval));
         }
     }
 }

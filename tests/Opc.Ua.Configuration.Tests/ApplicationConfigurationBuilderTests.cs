@@ -1376,7 +1376,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task ServerOptionsSetMinSupportedSampleRateAsync()
+        public async Task ServerOptionsSetMinSupportedSamplingIntervalAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
@@ -1384,10 +1384,10 @@ namespace Opc.Ua.Configuration.Tests
             {
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
-                    .SetMinSupportedSampleRate(100);
+                    .SetMinSupportedSamplingInterval(100);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MinSupportedSampleRate,
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MinSupportedSamplingInterval,
                     Is.EqualTo(100.0));
             }
         }
@@ -2150,7 +2150,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxMessageQueueSize(100)
                     .SetMaxNotificationQueueSize(1000)
                     .SetMaxNotificationsPerPublish(5000)
-                    .SetMinSupportedSampleRate(100)
+                    .SetMinSupportedSamplingInterval(100)
                     .SetMaxEventQueueSize(10000)
                     .SetMaxRegistrationInterval(30000)
                     .SetNodeManagerSaveFile("nodes.xml")

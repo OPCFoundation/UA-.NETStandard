@@ -878,11 +878,11 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions SetMinSupportedSampleRate(
-            double minSupportedSampleRate)
+        public IApplicationConfigurationBuilderServerOptions SetMinSupportedSamplingInterval(
+            double minSupportedSamplingInterval)
         {
-            ApplicationConfiguration.ServerConfiguration!.MinSupportedSampleRate
-                = minSupportedSampleRate;
+            ApplicationConfiguration.ServerConfiguration!.MinSupportedSamplingInterval
+                = minSupportedSamplingInterval;
             return this;
         }
 

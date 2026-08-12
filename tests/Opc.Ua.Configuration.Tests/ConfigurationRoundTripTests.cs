@@ -781,7 +781,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(srv.MaxMessageQueueSize, Is.EqualTo(20));
             Assert.That(srv.MaxNotificationQueueSize, Is.EqualTo(200));
             Assert.That(srv.MaxNotificationsPerPublish, Is.EqualTo(500));
-            Assert.That(srv.MinSupportedSampleRate, Is.EqualTo(2500.0));
+            Assert.That(srv.MinSupportedSamplingInterval, Is.EqualTo(2500.0));
 
             // SamplingRateGroups
             Assert.That(srv.AvailableSamplingRates, Has.Count.EqualTo(2));
@@ -953,8 +953,8 @@ namespace Opc.Ua.Configuration.Tests
                 rtSrv.MaxNotificationsPerPublish,
                 Is.EqualTo(srv.MaxNotificationsPerPublish));
             Assert.That(
-                rtSrv.MinSupportedSampleRate,
-                Is.EqualTo(srv.MinSupportedSampleRate));
+                rtSrv.MinSupportedSamplingInterval,
+                Is.EqualTo(srv.MinSupportedSamplingInterval));
             Assert.That(
                 rtSrv.AvailableSamplingRates,
                 Has.Count.EqualTo(2));

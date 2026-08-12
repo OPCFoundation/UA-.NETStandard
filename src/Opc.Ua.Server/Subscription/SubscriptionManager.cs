@@ -2168,44 +2168,50 @@ namespace Opc.Ua.Server
         /// Calculates the revised sampling interval of a data change monitored item.
         /// </summary>
         /// <remarks>
-        /// A requested sampling interval below zero is resolved to the publishing interval of
-        /// the subscription. Nodes that declare
+        /// A requested sampling interval below zero is resolved to
+        /// <paramref name="defaultSamplingInterval"/>. Nodes that declare
         /// <see cref="MinimumSamplingIntervals.Continuous"/> report by exception and are
-        /// therefore not bound by the server wide minimum supported sample rate. For every
-        /// other item the revised interval is raised to the larger of the minimum sampling
-        /// interval declared by the node and the minimum supported sample rate of the server.
-        /// Callers pass <see cref="MinimumSamplingIntervals.Indeterminate"/> when the node does
-        /// not declare a minimum sampling interval, for example when an Attribute other than
-        /// Value is monitored.
+        /// therefore not bound by the server wide minimum supported sampling interval. For
+        /// every other item the revised interval is raised to the larger of the minimum
+        /// sampling interval declared by the node and the minimum supported sampling interval
+        /// of the server. Callers pass
+        /// <see cref="MinimumSamplingIntervals.Indeterminate"/> when the node does not declare
+        /// a minimum sampling interval, for example when an Attribute other than Value is
+        /// monitored.
         /// </remarks>
         /// <param name="requestedSamplingInterval">The sampling interval requested by the client.</param>
-        /// <param name="publishingInterval">The publishing interval of the subscription.</param>
+        /// <param name="defaultSamplingInterval">
+        /// The sampling interval to fall back to when the client requests a negative value.
+        /// When a monitored item is created this is the publishing interval of the
+        /// subscription; when a monitored item is modified this is the sampling interval the
+        /// item currently uses.
+        /// </param>
         /// <param name="nodeMinimumSamplingInterval">
         /// The minimum sampling interval declared by the monitored node.
         /// </param>
-        /// <param name="minSupportedSampleRate">
-        /// The minimum sample rate supported by the server.
+        /// <param name="minSupportedSamplingInterval">
+        /// The minimum sampling interval supported by the server.
         /// </param>
         /// <returns>The revised sampling interval.</returns>
         public static double CalculateRevisedSamplingInterval(
             double requestedSamplingInterval,
-            double publishingInterval,
+            double defaultSamplingInterval,
             double nodeMinimumSamplingInterval,
-            double minSupportedSampleRate)
+            double minSupportedSamplingInterval)
         {
             double samplingInterval = requestedSamplingInterval;
 
             if (samplingInterval < 0)
             {
-                samplingInterval = publishingInterval;
+                samplingInterval = defaultSamplingInterval;
             }
 
-            // items that report by exception are not bound by a sampling rate.
+            // items that report by exception are not bound by a sampling interval.
             if (nodeMinimumSamplingInterval != MinimumSamplingIntervals.Continuous)
             {
                 double minimumSamplingInterval = Math.Max(
                     nodeMinimumSamplingInterval,
-                    minSupportedSampleRate);
+                    minSupportedSamplingInterval);
 
                 if (samplingInterval < minimumSamplingInterval)
                 {
@@ -2230,22 +2236,27 @@ namespace Opc.Ua.Server
         /// The minimum sampling interval declared by a node only applies to the Value
         /// Attribute of a Variable. For every other Attribute
         /// <see cref="MinimumSamplingIntervals.Indeterminate"/> is assumed, which leaves the
-        /// server wide minimum supported sample rate as the only lower bound.
+        /// server wide minimum supported sampling interval as the only lower bound.
         /// </remarks>
         /// <param name="requestedSamplingInterval">The sampling interval requested by the client.</param>
-        /// <param name="publishingInterval">The publishing interval of the subscription.</param>
+        /// <param name="defaultSamplingInterval">
+        /// The sampling interval to fall back to when the client requests a negative value.
+        /// When a monitored item is created this is the publishing interval of the
+        /// subscription; when a monitored item is modified this is the sampling interval the
+        /// item currently uses.
+        /// </param>
         /// <param name="node">The monitored node.</param>
         /// <param name="attributeId">The monitored Attribute.</param>
-        /// <param name="minSupportedSampleRate">
-        /// The minimum sample rate supported by the server.
+        /// <param name="minSupportedSamplingInterval">
+        /// The minimum sampling interval supported by the server.
         /// </param>
         /// <returns>The revised sampling interval.</returns>
         public static double CalculateRevisedSamplingInterval(
             double requestedSamplingInterval,
-            double publishingInterval,
+            double defaultSamplingInterval,
             NodeState? node,
             uint attributeId,
-            double minSupportedSampleRate)
+            double minSupportedSamplingInterval)
         {
             double nodeMinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate;
 
@@ -2256,9 +2267,9 @@ namespace Opc.Ua.Server
 
             return CalculateRevisedSamplingInterval(
                 requestedSamplingInterval,
-                publishingInterval,
+                defaultSamplingInterval,
                 nodeMinimumSamplingInterval,
-                minSupportedSampleRate);
+                minSupportedSamplingInterval);
         }
 
         /// <summary>

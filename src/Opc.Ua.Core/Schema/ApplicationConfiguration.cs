@@ -1192,7 +1192,7 @@ namespace Opc.Ua
         /// <summary>
         /// The minimum sampling interval supported by the server (in milliseconds).
         /// </summary>
-        /// <value>The minimum supported sample rate.</value>
+        /// <value>The minimum supported sampling interval.</value>
         /// <remarks>
         /// The value is published in the <c>Server.ServerCapabilities.MinSupportedSampleRate</c>
         /// Property and is used as a server wide lower bound when the sampling interval of a
@@ -1202,7 +1202,7 @@ namespace Opc.Ua
         /// server wide lower bound.
         /// </remarks>
         [DataTypeField(Order = 17)]
-        public double MinSupportedSampleRate { get; set; }
+        public double MinSupportedSamplingInterval { get; set; }
 
         /// <summary>
         /// The available sampling rates.

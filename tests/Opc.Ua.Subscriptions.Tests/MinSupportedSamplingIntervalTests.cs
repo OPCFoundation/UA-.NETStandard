@@ -35,16 +35,16 @@ using Opc.Ua.Client.TestFramework;
 namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
-    /// Integration tests for the server wide MinSupportedSampleRate configuration option
+    /// Integration tests for the server wide MinSupportedSamplingInterval configuration option
     /// and its interplay with the MinimumSamplingInterval declared by a node. The fixture
-    /// starts a reference server that advertises a non-zero minimum supported sample rate.
+    /// starts a reference server that advertises a non-zero minimum supported sampling interval.
     /// </summary>
     [NonParallelizable]
     [TestFixture]
     [Category("Subscription")]
     [Category("MonitoredItem")]
-    [Category("MinSupportedSampleRate")]
-    public class MinSupportedSampleRateTests : TestFixture
+    [Category("MinSupportedSamplingInterval")]
+    public class MinSupportedSamplingIntervalTests : TestFixture
     {
         /// <summary>
         /// Chosen so that it is above the MinimumSamplingInterval of
@@ -52,7 +52,7 @@ namespace Opc.Ua.Subscriptions.Tests
         /// <c>Server.ServerStatus.CurrentTime</c> (1000 ms), which lets a single server
         /// cover both directions of the interplay.
         /// </summary>
-        private const double kMinSupportedSampleRate = 500;
+        private const double kMinSupportedSamplingInterval = 500;
 
         private const double kNodeMinimumAboveFloor = 1000;
         private const double kRequestedBelowFloor = 10;
@@ -60,7 +60,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
         protected override void ConfigureServer(ApplicationConfiguration configuration)
         {
-            configuration.ServerConfiguration.MinSupportedSampleRate = kMinSupportedSampleRate;
+            configuration.ServerConfiguration.MinSupportedSamplingInterval = kMinSupportedSamplingInterval;
         }
 
         [SetUp]
@@ -86,7 +86,7 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public async Task ServerCapabilitiesReportsConfiguredMinSupportedSampleRateAsync()
+        public async Task ServerCapabilitiesReportsConfiguredMinSupportedSamplingIntervalAsync()
         {
             ReadResponse response = await Session.ReadAsync(
                 null,
@@ -105,12 +105,12 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
             Assert.That(
                 response.Results[0].WrappedValue.GetDouble(),
-                Is.EqualTo(kMinSupportedSampleRate),
-                "MinSupportedSampleRate must reflect the configured value.");
+                Is.EqualTo(kMinSupportedSamplingInterval),
+                "MinSupportedSamplingInterval must reflect the configured value.");
         }
 
         [Test]
-        public async Task SamplingIntervalBelowMinSupportedSampleRateIsRevisedAsync()
+        public async Task SamplingIntervalBelowMinSupportedSamplingIntervalIsRevisedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticFloat);
 
@@ -121,7 +121,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             Assert.That(
                 result.RevisedSamplingInterval,
-                Is.EqualTo(kMinSupportedSampleRate),
+                Is.EqualTo(kMinSupportedSamplingInterval),
                 "The server wide minimum must raise a node minimum of 100 ms to 500 ms.");
         }
 
@@ -145,10 +145,10 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public async Task ServerStatusCurrentTimeIsRaisedToMinSupportedSampleRateAsync()
+        public async Task ServerStatusCurrentTimeIsRaisedToMinSupportedSamplingIntervalAsync()
         {
             // the reference server declares a MinimumSamplingInterval of 250 ms for
-            // CurrentTime, which is below the configured minimum supported sample rate.
+            // CurrentTime, which is below the configured minimum supported sampling interval.
             MonitoredItemCreateResult result = await CreateItemAsync(
                 VariableIds.Server_ServerStatus_CurrentTime,
                 kRequestedBelowFloor).ConfigureAwait(false);
@@ -156,11 +156,11 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             Assert.That(
                 result.RevisedSamplingInterval,
-                Is.EqualTo(kMinSupportedSampleRate));
+                Is.EqualTo(kMinSupportedSamplingInterval));
         }
 
         [Test]
-        public async Task ContinuousNodeBypassesMinSupportedSampleRateAsync()
+        public async Task ContinuousNodeBypassesMinSupportedSamplingIntervalAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
 
@@ -172,11 +172,11 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(
                 result.RevisedSamplingInterval,
                 Is.EqualTo(kRequestedBelowFloor),
-                "Nodes that report by exception are not bound by the minimum sample rate.");
+                "Nodes that report by exception are not bound by the minimum supported sampling interval.");
         }
 
         [Test]
-        public async Task NonValueAttributeIsBoundByMinSupportedSampleRateAsync()
+        public async Task NonValueAttributeIsBoundByMinSupportedSamplingIntervalAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
 
@@ -188,12 +188,12 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             Assert.That(
                 result.RevisedSamplingInterval,
-                Is.EqualTo(kMinSupportedSampleRate),
+                Is.EqualTo(kMinSupportedSamplingInterval),
                 "Attributes other than Value do not declare a MinimumSamplingInterval.");
         }
 
         [Test]
-        public async Task SamplingIntervalAboveMinSupportedSampleRateIsKeptAsync()
+        public async Task SamplingIntervalAboveMinSupportedSamplingIntervalIsKeptAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticFloat);
 
@@ -222,7 +222,7 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public async Task ModifyMonitoredItemBelowMinSupportedSampleRateIsRevisedAsync()
+        public async Task ModifyMonitoredItemBelowMinSupportedSamplingIntervalIsRevisedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticFloat);
 
@@ -255,7 +255,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(StatusCode.IsGood(modifyResponse.Results[0].StatusCode), Is.True);
             Assert.That(
                 modifyResponse.Results[0].RevisedSamplingInterval,
-                Is.EqualTo(kMinSupportedSampleRate));
+                Is.EqualTo(kMinSupportedSamplingInterval));
         }
 
         [Test]
@@ -296,7 +296,7 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public async Task EventMonitoredItemIsNotBoundByMinSupportedSampleRateAsync()
+        public async Task EventMonitoredItemIsNotBoundByMinSupportedSamplingIntervalAsync()
         {
             var filter = new EventFilter();
             filter.AddSelectClause(
@@ -316,7 +316,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(
                 result.RevisedSamplingInterval,
                 Is.EqualTo(kRequestedBelowFloor),
-                "Event monitored items are not bound by the minimum supported sample rate.");
+                "Event monitored items are not bound by the minimum supported sampling interval.");
         }
 
         private async Task<MonitoredItemCreateResult> CreateItemAsync(

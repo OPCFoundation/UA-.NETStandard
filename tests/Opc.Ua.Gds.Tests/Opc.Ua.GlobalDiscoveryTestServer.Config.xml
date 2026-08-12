@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <ApplicationConfiguration
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
@@ -158,7 +158,7 @@
     <MaxMessageQueueSize>100</MaxMessageQueueSize>
     <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
-    <MinSupportedSampleRate>0</MinSupportedSampleRate>
+    <MinSupportedSamplingInterval>0</MinSupportedSamplingInterval>
     <AvailableSamplingRates />
     <RegistrationEndpoint>
       <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>

@@ -86,7 +86,7 @@ pools, when to pick which) see
 | Stream — take N items | `.TakeAsync(count)` |
 | Stream — buffer first N | `.BufferedAsync(count)` |
 | Stream — typed alarms | `streaming.SubscribeAlarmsAsync(notifierId, filter?)` |
-| Constrain the server-wide sampling rate | `ServerConfiguration.MinSupportedSampleRate` / `.SetMinSupportedSampleRate(ms)` |
+| Constrain the server-wide sampling rate | `ServerConfiguration.MinSupportedSamplingInterval` / `.SetMinSupportedSamplingInterval(ms)` |
 
 ## Sampling interval revision
 
@@ -96,34 +96,39 @@ requested `samplingInterval` before it is returned in
 
 | Input | Where it comes from |
 |---|---|
-| Requested sampling interval | `MonitoringParameters.SamplingInterval`; a negative value means "use the publishing interval of the subscription" |
+| Requested sampling interval | `MonitoringParameters.SamplingInterval`; a negative value means "use the default sampling interval" (see below) |
 | Node minimum | `BaseVariableState.MinimumSamplingInterval` of the monitored node, and only for the `Value` Attribute |
-| Server minimum | `ServerConfiguration.MinSupportedSampleRate`, published in `Server.ServerCapabilities.MinSupportedSampleRate` |
+| Server minimum | `ServerConfiguration.MinSupportedSamplingInterval`, published in `Server.ServerCapabilities.MinSupportedSampleRate` |
 
 The rule applied by `SubscriptionManager.CalculateRevisedSamplingInterval` is:
 
-1. A requested interval below zero is resolved to the publishing interval.
+1. A requested interval below zero is resolved to the default sampling
+   interval: the **publishing interval of the subscription** when the item is
+   created, and the item's **current sampling interval** when it is modified.
+   (The modify case preserves the behaviour of 1.5.378 and earlier, so a
+   `ModifyMonitoredItems` call that leaves the sampling interval unspecified
+   does not silently retune the item to the publishing interval.)
 2. If the node declares `MinimumSamplingIntervals.Continuous` (`0`) for the
    `Value` Attribute, it reports by exception and **no** lower bound is
    applied — the requested interval is returned unchanged.
 3. Otherwise the interval is raised to the larger of the node minimum and
-   `MinSupportedSampleRate`. Attributes other than `Value`, nodes that
+   `MinSupportedSamplingInterval`. Attributes other than `Value`, nodes that
    declare `MinimumSamplingIntervals.Indeterminate` (`-1`), and nodes that
-   are not Variables are only bound by `MinSupportedSampleRate`.
+   are not Variables are only bound by `MinSupportedSamplingInterval`.
 4. `double.MaxValue` is capped to one year.
 
 Event monitored items do not sample and are not affected.
 
 ### Configuring the server minimum
 
-`MinSupportedSampleRate` defaults to `0`, which means the server does not
+`MinSupportedSamplingInterval` defaults to `0`, which means the server does not
 impose a server wide lower bound. Configure it in XML:
 
 ```xml
 <ServerConfiguration>
   <!-- ... -->
   <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
-  <MinSupportedSampleRate>2000</MinSupportedSampleRate>
+  <MinSupportedSamplingInterval>2000</MinSupportedSamplingInterval>
   <!-- ... -->
 </ServerConfiguration>
 ```
@@ -133,17 +138,17 @@ or with the fluent configuration builder:
 ```csharp
 application.Build(applicationUri, productUri)
     .AsServer([endpointUrl])
-    .SetMinSupportedSampleRate(2000);
+    .SetMinSupportedSamplingInterval(2000);
 ```
 
-With `MinSupportedSampleRate` set to 2000 ms, a client that requests a
+With `MinSupportedSamplingInterval` set to 2000 ms, a client that requests a
 10 ms sampling interval on a node that declares a minimum of 100 ms is
 revised to 2000 ms; a node that declares 5000 ms still wins and is revised
 to 5000 ms.
 
 A custom node manager derived from `CustomNodeManager2` or
 `AsyncCustomNodeManager` picks the value up automatically through its
-`MinSupportedSampleRate` property; node managers that implement
+`MinSupportedSamplingInterval` property; node managers that implement
 `INodeManager` directly can call
 `SubscriptionManager.CalculateRevisedSamplingInterval` to apply the same
 rule.

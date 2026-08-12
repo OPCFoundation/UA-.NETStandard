@@ -30,44 +30,51 @@ The legacy `TraceConfiguration` application path (`TraceConfiguration.ApplySetti
 
 If your startup code used these APIs, remove those calls and configure logging providers directly on your telemetry context instead.
 
-### MinMetadataSamplingInterval replaced by MinSupportedSampleRate
+### MinMetadataSamplingInterval removed, MinSupportedSamplingInterval added
 
 `ServerConfiguration.MinMetadataSamplingInterval` and the fluent
-`SetMinMetadataSamplingInterval(int)` builder method have been removed. The
-setting was never read by the stack, so it had no effect on the sampling
-interval of any monitored item.
+`SetMinMetadataSamplingInterval(int)` builder method have been removed. In
+1.5.378 the setting defaulted to `1000` but was never read by the stack, so
+whatever value you configured had no effect on any monitored item.
 
-The 2.0 replacement is `ServerConfiguration.MinSupportedSampleRate` (a
-`double`, in milliseconds), which occupies the same position in the XML
-schema and is exposed by the fluent builder as
-`SetMinSupportedSampleRate(double)`. Unlike its predecessor, it is applied:
-it is published in `Server.ServerCapabilities.MinSupportedSampleRate` and
-acts as a server-wide lower bound when the sampling interval of a monitored
+2.0 adds `ServerConfiguration.MinSupportedSamplingInterval` (a `double`, in
+milliseconds) in the same position of the XML schema, exposed by the fluent
+builder as `SetMinSupportedSamplingInterval(double)`. Unlike its predecessor it
+is applied: it is published in `Server.ServerCapabilities.MinSupportedSampleRate`
+and acts as a server-wide lower bound when the sampling interval of a monitored
 item is revised.
 
+**These are two different settings, not a rename.** Do not carry the old value
+across — in 1.5.378 it was inert, so reusing it silently introduces a sampling
+floor that changes the `revisedSamplingInterval` your clients receive. Delete
+the old element and only add the new one if you actually want that floor:
+
 ```xml
-<!-- before -->
+<!-- before: had no effect in 1.5.378 -->
 <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
 
-<!-- after -->
-<MinSupportedSampleRate>1000</MinSupportedSampleRate>
+<!-- after: simply drop it to keep 1.5.378 behaviour -->
+
+<!-- ...or opt in deliberately, knowing clients will now be revised up -->
+<MinSupportedSamplingInterval>1000</MinSupportedSamplingInterval>
 ```
 
 ```csharp
-// before
+// before: had no effect in 1.5.378
 builder.SetMinMetadataSamplingInterval(1000);
 
-// after
-builder.SetMinSupportedSampleRate(1000);
+// after: drop the call, or opt in deliberately
+builder.SetMinSupportedSamplingInterval(1000);
 ```
 
-The two are **not** equivalent in behaviour. `MinSupportedSampleRate`
-defaults to `0`, which keeps the pre-2.0 behaviour of not imposing a
-server-wide lower bound. Setting it to a non-zero value changes the
-`revisedSamplingInterval` returned to clients for every monitored item
-except those on nodes that declare
-`MinimumSamplingIntervals.Continuous` (`0`), which report by exception and
-are not bound by a sampling rate. See
+Doing nothing is safe. `MinSupportedSamplingInterval` defaults to `0`, which
+reproduces 1.5.378 exactly: that release hard-coded
+`Server.ServerCapabilities.MinSupportedSampleRate` to `0` and bounded the
+revised sampling interval only by the `MinimumSamplingInterval` declared by the
+monitored node. Setting a non-zero value raises the `revisedSamplingInterval`
+for every monitored item except those on nodes declaring
+`MinimumSamplingIntervals.Continuous` (`0`), which report by exception and are
+not bound by a sampling interval. See
 [Subscriptions.md § Sampling interval revision](../../Subscriptions.md#sampling-interval-revision)
 for the full rule.
 
