@@ -202,7 +202,16 @@ namespace Opc.Ua.Aas.Tests.Federation
             Assert.Multiple(() =>
             {
                 Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.Found));
-                Assert.That(response.ConnectedAddress, Is.EqualTo(IPAddress.Parse("127.0.0.1")));
+
+                // A handler that never opens a socket cannot report a peer, so
+                // the transport reports None rather than re-resolving the name.
+                // Re-resolving would prove nothing - a name that resolves to a
+                // permitted address twice can still have carried a different
+                // one into the socket - and None is what makes the endpoint
+                // validator refuse, so an unverifiable connection fails closed.
+                Assert.That(response.ConnectedAddress, Is.EqualTo(IPAddress.None));
+                Assert.That(new AasFederationEndpointValidator(new AasFederationEgressPolicy())
+                    .ValidateAddress("example.com", response.ConnectedAddress).Succeeded, Is.False);
                 Assert.That(response.RedirectLocation, Is.EqualTo(new Uri("https://127.0.0.2/moved")));
                 Assert.That(response.ContentLength, Is.EqualTo(body.Length));
                 Assert.That(handler.Requests[0].Method, Is.EqualTo(HttpMethod.Get));

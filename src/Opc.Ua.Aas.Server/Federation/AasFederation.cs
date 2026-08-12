@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -584,50 +585,64 @@ namespace Opc.Ua.Aas.Server.Federation
                 AasFederationHttpResponse response =
                     await m_transport.SendAsync(request, timeout.Token).ConfigureAwait(false);
 
-                validation = m_validator.ValidateAddress(current.Host, response.ConnectedAddress);
-                if (!validation.Succeeded)
+                // Every hop opens a response whose content reader holds the
+                // connection, and only the last hop is ever read, so each one
+                // is released before the next is opened or the loop returns.
+                try
                 {
-                    return validation;
-                }
-
-                if (IsRedirect(response.StatusCode))
-                {
-                    if (response.RedirectLocation is null)
+                    validation = m_validator.ValidateAddress(current.Host, response.ConnectedAddress);
+                    if (!validation.Succeeded)
                     {
-                        return AasFederationResolutionResult.Fail("Redirect response did not include a location.");
-                    }
-                    if (redirect == Policy.MaxRedirects)
-                    {
-                        return AasFederationResolutionResult.Fail("Federation redirect limit was exceeded.");
+                        return validation;
                     }
 
-                    current = response.RedirectLocation.IsAbsoluteUri
-                        ? response.RedirectLocation
-                        : new Uri(current, response.RedirectLocation);
-                    continue;
-                }
+                    if (IsRedirect(response.StatusCode))
+                    {
+                        if (response.RedirectLocation is null)
+                        {
+                            return AasFederationResolutionResult.Fail(
+                                "Redirect response did not include a location.");
+                        }
+                        if (redirect == Policy.MaxRedirects)
+                        {
+                            return AasFederationResolutionResult.Fail(
+                                "Federation redirect limit was exceeded.");
+                        }
 
-                if (response.ContentLength.HasValue &&
-                    response.ContentLength.Value > Policy.MaxDecompressedBytes)
+                        current = response.RedirectLocation.IsAbsoluteUri
+                            ? response.RedirectLocation
+                            : new Uri(current, response.RedirectLocation);
+                        continue;
+                    }
+
+                    if (response.ContentLength.HasValue &&
+                        response.ContentLength.Value > Policy.MaxDecompressedBytes)
+                    {
+                        return AasFederationResolutionResult.Fail(
+                            "Federation response size bound was exceeded.");
+                    }
+
+                    if (response.StatusCode < 200 || response.StatusCode > 299)
+                    {
+                        return AasFederationResolutionResult.Fail(
+                            "Federation target returned an unsuccessful status.");
+                    }
+
+                    ByteString content = await response.ContentReader
+                        .ReadAsync(Policy.MaxDecompressedBytes, timeout.Token)
+                        .ConfigureAwait(false);
+                    if (content.Length > Policy.MaxDecompressedBytes)
+                    {
+                        return AasFederationResolutionResult.Fail(
+                            "Federation decompressed response size bound was exceeded.");
+                    }
+
+                    return AasFederationResolutionResult.Success(content);
+                }
+                finally
                 {
-                    return AasFederationResolutionResult.Fail("Federation response size bound was exceeded.");
+                    (response.ContentReader as IDisposable)?.Dispose();
                 }
-
-                if (response.StatusCode < 200 || response.StatusCode > 299)
-                {
-                    return AasFederationResolutionResult.Fail("Federation target returned an unsuccessful status.");
-                }
-
-                ByteString content = await response.ContentReader
-                    .ReadAsync(Policy.MaxDecompressedBytes, timeout.Token)
-                    .ConfigureAwait(false);
-                if (content.Length > Policy.MaxDecompressedBytes)
-                {
-                    return AasFederationResolutionResult.Fail(
-                        "Federation decompressed response size bound was exceeded.");
-                }
-
-                return AasFederationResolutionResult.Success(content);
             }
 
             return AasFederationResolutionResult.Fail("Federation redirect limit was exceeded.");
@@ -1026,6 +1041,12 @@ namespace Opc.Ua.Aas.Server.Federation
             m_client = client ?? throw new ArgumentNullException(nameof(client));
         }
 
+        [SuppressMessage(
+            "Reliability",
+            "CA2000:Dispose objects before losing scope",
+            Justification = "Ownership of the reader, and through it the response, transfers to the " +
+                "caller, which disposes it once per redirect hop. CA2000 cannot model that transfer " +
+                "through a return value. TODO: remove when CA2000 recognizes it.")]
         public async ValueTask<AasFederationHttpResponse> SendAsync(
             AasFederationHttpRequest request,
             CancellationToken cancellationToken)
@@ -1040,14 +1061,38 @@ namespace Opc.Ua.Aas.Server.Federation
                 .SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
             Uri? location = response.Headers.Location;
-            IPAddress connectedAddress = await ResolveConnectedApproximationAsync(
-                request.Uri.Host, cancellationToken).ConfigureAwait(false);
             return new AasFederationHttpResponse(
                 (int)response.StatusCode,
-                connectedAddress,
+                GetConnectedAddress(httpRequest),
                 location,
                 response.Content.Headers.ContentLength,
                 new HttpContentReader(response));
+        }
+
+        /// <summary>
+        /// Reports the address the transport actually connected to.
+        /// </summary>
+        /// <remarks>
+        /// Revalidating a second name resolution would prove nothing: a name
+        /// that resolves to a permitted address twice can still have carried a
+        /// different one into the socket, which is the whole of a DNS rebinding
+        /// attack. Only the peer the connection reached says anything, so the
+        /// connect callback records it and this reads it back. Where the
+        /// platform cannot supply it, the address is reported as
+        /// <see cref="IPAddress.None"/>, which the endpoint validator treats as
+        /// restricted, so the request fails closed rather than passing on an
+        /// approximation.
+        /// </remarks>
+        private static IPAddress GetConnectedAddress(HttpRequestMessage request)
+        {
+#if NET6_0_OR_GREATER
+            if (request.Options.TryGetValue(s_connectedAddress, out IPAddress? address) &&
+                address is not null)
+            {
+                return address;
+            }
+#endif
+            return IPAddress.None;
         }
 
         [SuppressMessage(
@@ -1057,6 +1102,28 @@ namespace Opc.Ua.Aas.Server.Federation
                 "TODO: replace with a shared generalized egress transport.")]
         private static HttpClient CreateClient()
         {
+#if NET6_0_OR_GREATER
+            SocketsHttpHandler? socketsHandler = new SocketsHttpHandler();
+            try
+            {
+                socketsHandler.AllowAutoRedirect = false;
+                socketsHandler.UseCookies = false;
+                socketsHandler.UseProxy = false;
+                socketsHandler.Proxy = null;
+                socketsHandler.Credentials = null;
+                socketsHandler.SslOptions.CertificateRevocationCheckMode =
+                    System.Security.Cryptography.X509Certificates.X509RevocationMode.Online;
+                socketsHandler.ConnectCallback = ConnectAndRecordPeerAsync;
+                HttpClient socketsClient = new HttpClient(socketsHandler, disposeHandler: true);
+                socketsHandler = null;
+                return socketsClient;
+            }
+            catch
+            {
+                socketsHandler?.Dispose();
+                throw;
+            }
+#else
             HttpClientHandler? handler = new HttpClientHandler();
             try
             {
@@ -1076,31 +1143,49 @@ namespace Opc.Ua.Aas.Server.Federation
                 handler?.Dispose();
                 throw;
             }
+#endif
         }
-
-        private static async ValueTask<IPAddress> ResolveConnectedApproximationAsync(
-            string host,
-            CancellationToken cancellationToken)
-        {
-            if (IPAddress.TryParse(host, out IPAddress? literal))
-            {
-                return literal;
-            }
 
 #if NET6_0_OR_GREATER
-            IPAddress[] addresses = await Dns.GetHostAddressesAsync(host, cancellationToken)
-                .ConfigureAwait(false);
-#else
-            IPAddress[] addresses = await Dns.GetHostAddressesAsync(host).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-#endif
-            return addresses.Length == 0 ? IPAddress.None : addresses[0];
+        /// <summary>
+        /// Connects and records the peer the socket actually reached.
+        /// </summary>
+        [SuppressMessage(
+            "Reliability",
+            "CA2000:Dispose objects before losing scope",
+            Justification = "The socket is owned by the NetworkStream that is returned, which the " +
+                "handler disposes with the connection, and it is disposed here on the failure path. " +
+                "TODO: remove when CA2000 recognizes ownsSocket.")]
+        private static async ValueTask<Stream> ConnectAndRecordPeerAsync(
+            SocketsHttpConnectionContext context,
+            CancellationToken cancellationToken)
+        {
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(context.DnsEndPoint, cancellationToken).ConfigureAwait(false);
+                if (socket.RemoteEndPoint is IPEndPoint peer)
+                {
+                    context.InitialRequestMessage.Options.Set(s_connectedAddress, peer.Address);
+                }
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
         }
+
+        private static readonly HttpRequestOptionsKey<IPAddress?> s_connectedAddress =
+            new("Opc.Ua.Aas.Federation.ConnectedAddress");
+#endif
+
 
         private readonly HttpClient m_client;
     }
 
-    internal sealed class HttpContentReader : IAasFederationContentReader
+    internal sealed class HttpContentReader : IAasFederationContentReader, IDisposable
     {
         public HttpContentReader(HttpResponseMessage response)
         {
@@ -1111,14 +1196,44 @@ namespace Opc.Ua.Aas.Server.Federation
             int maxDecompressedBytes,
             CancellationToken cancellationToken)
         {
+            // The bound has to be enforced while reading rather than after.
+            // Buffering the whole body first and measuring it afterwards lets a
+            // hostile or compromised peer exhaust memory with a body that the
+            // policy would have rejected, which is the opposite of a bounded
+            // egress. One byte beyond the bound is enough to reject.
 #if NET5_0_OR_GREATER
-            byte[] content = await m_response.Content.ReadAsByteArrayAsync(cancellationToken)
+            using Stream stream = await m_response.Content.ReadAsStreamAsync(cancellationToken)
                 .ConfigureAwait(false);
 #else
-            byte[] content = await m_response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            using Stream stream = await m_response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
 #endif
-            return ByteString.From(content);
+            using var buffer = new MemoryStream();
+            byte[] chunk = new byte[8192];
+            long limit = (long)maxDecompressedBytes + 1;
+            while (buffer.Length < limit)
+            {
+                int toRead = (int)Math.Min(chunk.Length, limit - buffer.Length);
+#if NET5_0_OR_GREATER || NETSTANDARD2_1
+                int read = await stream.ReadAsync(chunk.AsMemory(0, toRead), cancellationToken)
+                    .ConfigureAwait(false);
+#else
+                int read = await stream.ReadAsync(chunk, 0, toRead, cancellationToken)
+                    .ConfigureAwait(false);
+#endif
+                if (read == 0)
+                {
+                    break;
+                }
+                buffer.Write(chunk, 0, read);
+            }
+
+            return ByteString.From(buffer.ToArray());
+        }
+
+        public void Dispose()
+        {
+            m_response.Dispose();
         }
 
         private readonly HttpResponseMessage m_response;
