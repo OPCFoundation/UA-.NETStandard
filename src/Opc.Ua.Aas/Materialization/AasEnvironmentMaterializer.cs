@@ -643,6 +643,31 @@ namespace Opc.Ua.Aas
                 };
                 Nodes.Add(method);
                 AddForward(parentNodeId, "HasComponent", nodeId, Nodes);
+
+                // A Server validates a Call against the argument definitions on
+                // the Method it resolved, not on the declaration, so an
+                // instance without them rejects every call as
+                // BadTooManyArguments. Their BrowseNames are the standard ones
+                // in namespace zero, which is how MethodState binds them.
+                AddArguments(nodeId, "InputArguments", s_invokeInputArguments);
+                AddArguments(nodeId, "OutputArguments", s_invokeOutputArguments);
+            }
+
+            private void AddArguments(string methodNodeId, string browseName, Argument[] arguments)
+            {
+                var extensions = new ExtensionObject[arguments.Length];
+                for (int ii = 0; ii < arguments.Length; ii++)
+                {
+                    extensions[ii] = new ExtensionObject(arguments[ii]);
+                }
+
+                AddProperty(
+                    methodNodeId,
+                    browseName,
+                    CoreDataType(Opc.Ua.DataTypes.Argument),
+                    new Variant(new ArrayOf<ExtensionObject>(extensions.AsMemory())),
+                    valueRank: 1,
+                    standardBrowseName: true);
             }
 
             private void AddOperationRole(
@@ -854,7 +879,8 @@ namespace Opc.Ua.Aas
                 string browseName,
                 ExpandedNodeId dataTypeId,
                 Variant value,
-                int valueRank = -1)
+                int valueRank = -1,
+                bool standardBrowseName = false)
             {
                 if (HasRejectedIdentifier)
                 {
@@ -871,7 +897,7 @@ namespace Opc.Ua.Aas
                 var variable = new UAVariable
                 {
                     NodeId = nodeId,
-                    BrowseName = BrowseName(browseName),
+                    BrowseName = standardBrowseName ? browseName : BrowseName(browseName),
                     DisplayName = Text(browseName),
                     ParentNodeId = parentNodeId,
                     DataType = dataType,
@@ -1156,6 +1182,57 @@ namespace Opc.Ua.Aas
         private static NodeIdAlias Alias(string alias, string nodeId)
         {
             return new NodeIdAlias { Alias = alias, Value = nodeId };
+        }
+
+        /// <summary>
+        /// The Invoke arguments of clause 6.2.5, matching the declaration on
+        /// AASOperationType. They are repeated on every materialized instance
+        /// because a Server validates a Call against the Method it resolved.
+        /// </summary>
+        private static readonly Argument[] s_invokeInputArguments =
+        [
+            ArrayArgument("InputValues",
+                "Values for the operation's input variables, positionally matching InputVariables."),
+            ArrayArgument("InoutputValues",
+                "Values for the operation's in-out variables, positionally matching InoutputVariables."),
+            ScalarArgument("ClientTimeout", new NodeId(Opc.Ua.DataTypes.Duration),
+                "How long the caller will wait. Zero means the Server's default. " +
+                "Corresponds to clientTimeoutDuration of the AAS API request.")
+        ];
+
+        private static readonly Argument[] s_invokeOutputArguments =
+        [
+            ArrayArgument("OutputValues", "Results, positionally matching OutputVariables."),
+            ArrayArgument("InoutputResults",
+                "The in-out variables after execution, positionally matching InoutputVariables."),
+            ScalarArgument("Success", new NodeId(Opc.Ua.DataTypes.Boolean),
+                "Whether the operation executed successfully. A false result is an executed " +
+                "operation that failed, not a failed Call."),
+            ScalarArgument("Diagnostic", new NodeId(Opc.Ua.DataTypes.String),
+                "Why the operation failed, where it did.")
+        ];
+
+        private static Argument ArrayArgument(string name, string description)
+        {
+            return new Argument
+            {
+                Name = name,
+                DataType = new NodeId(Opc.Ua.DataTypes.BaseDataType),
+                ValueRank = ValueRanks.OneDimension,
+                ArrayDimensions = new ArrayOf<uint>(new uint[] { 0 }),
+                Description = new LocalizedText(description)
+            };
+        }
+
+        private static Argument ScalarArgument(string name, NodeId dataType, string description)
+        {
+            return new Argument
+            {
+                Name = name,
+                DataType = dataType,
+                ValueRank = ValueRanks.Scalar,
+                Description = new LocalizedText(description)
+            };
         }
 
         private const ushort AasNamespaceIndex = 1;

@@ -123,7 +123,30 @@ namespace Opc.Ua.Aas.Tests.Materialization
                 Assert.That(invoke.MethodDeclarationId.NamespaceIndex,
                     Is.EqualTo(namespaces.GetIndex(Namespaces.Aas)),
                     "The declaration lives in the AAS namespace.");
+
+                // The argument definitions are emitted with the standard
+                // BrowseNames in namespace zero, which is what a Client reads
+                // to build the Call.
+                ArgumentsOf(nodes, invoke!.NodeId, "InputArguments");
+                ArgumentsOf(nodes, invoke.NodeId, "OutputArguments");
             });
+        }
+
+        private static BaseVariableState ArgumentsOf(
+            NodeStateCollection nodes,
+            NodeId methodNodeId,
+            string browseName)
+        {
+            BaseVariableState? arguments = nodes.OfType<BaseVariableState>()
+                .FirstOrDefault(node =>
+                    node.BrowseName.Name == browseName &&
+                    node.BrowseName.NamespaceIndex == 0 &&
+                    node is BaseInstanceState instance &&
+                    (instance.Parent?.NodeId == methodNodeId ||
+                        UANodeSet.GetUnresolvedParentNodeId(instance) == methodNodeId));
+
+            Assert.That(arguments, Is.Not.Null, $"Invoke has to carry its {browseName}.");
+            return arguments!;
         }
 
         /// <summary>
