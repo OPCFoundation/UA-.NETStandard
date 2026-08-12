@@ -17,6 +17,7 @@
     <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
     <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
     <Project Path="samples/WotCon/FlatTagServer/FlatTagServer.csproj" />
+    <Project Path="samples/Aas/AasSample.csproj" />
     <Project Path="samples/Robotics/MinimalRobotServer/MinimalRobotServer.csproj" />
     <Project Path="samples/Robotics/IntentEnabledRobot/IntentEnabledRobot.csproj" />
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
