@@ -75,6 +75,15 @@ namespace Opc.Ua.Aas.Tests.Materialization
                                 Value = AasOptional<Variant>.Present(new Variant(1))
                             }
                         ])
+                    },
+                    new AasOperation
+                    {
+                        IdShort = Present("callable"),
+                        InputVariables = PresentElements(new AasProperty
+                        {
+                            IdShort = Present("input"),
+                            ValueType = AASDataTypeDefXsdDataType.String
+                        })
                     })));
 
             var namespaces = new NamespaceTable();
@@ -85,9 +94,24 @@ namespace Opc.Ua.Aas.Tests.Materialization
             Assert.Multiple(() =>
             {
                 Assert.That(result.Diagnostics, Is.Empty);
-                Assert.DoesNotThrow(() => result.NodeSet.Import(context, nodes),
+                Assert.DoesNotThrow(() => result.NodeSet.Import(context, nodes, linkParentChild: true),
                     "The emitted NodeSet has to import, or the metamodel half cannot publish it.");
                 Assert.That(nodes, Is.Not.Empty);
+            });
+
+            // A Call resolves the Method from the Object it was invoked on, so
+            // an Operation whose Invoke is not reachable that way answers
+            // BadMethodInvalid however well formed the NodeSet is.
+            NodeState operation = nodes.Single(node =>
+                node.BrowseName.Name == "callable");
+            MethodState? invoke = nodes.OfType<MethodState>()
+                .FirstOrDefault(method => method.BrowseName.Name == "Invoke");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(invoke, Is.Not.Null);
+                Assert.That(operation.FindMethod(context, invoke!.NodeId), Is.Not.Null,
+                    "The Operation has to resolve its own Invoke Method.");
             });
         }
 
