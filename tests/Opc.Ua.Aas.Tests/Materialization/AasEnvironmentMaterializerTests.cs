@@ -144,7 +144,8 @@ namespace Opc.Ua.Aas.Tests.Materialization
                     node.BrowseName.NamespaceIndex == 0 &&
                     node is BaseInstanceState instance &&
                     (instance.Parent?.NodeId == methodNodeId ||
-                        UANodeSet.GetUnresolvedParentNodeId(instance) == methodNodeId));
+                        (UANodeSet.TryGetUnresolvedParentNodeId(instance, out NodeId parentNodeId) &&
+                            parentNodeId == methodNodeId)));
 
             Assert.That(arguments, Is.Not.Null, $"Invoke has to carry its {browseName}.");
             return arguments!;

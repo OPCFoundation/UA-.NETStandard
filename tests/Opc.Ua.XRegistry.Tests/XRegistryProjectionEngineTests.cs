@@ -145,12 +145,12 @@ namespace Opc.Ua.XRegistry.Tests
                     (node, ct) =>
                     {
                         added.Add(node);
-                        return ValueTask.CompletedTask;
+                        return default;
                     },
                     (nodeId, ct) =>
                     {
                         deleted.Add(nodeId);
-                        return ValueTask.CompletedTask;
+                        return default;
                     },
                     (ctx, operation) => ServiceResult.Good);
                 return new ProjectionHarness(

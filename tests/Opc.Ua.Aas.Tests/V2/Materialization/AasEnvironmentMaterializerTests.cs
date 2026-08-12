@@ -453,7 +453,8 @@ namespace Opc.Ua.Aas.Tests.V2.Materialization
                     node.BrowseName.NamespaceIndex == 0 &&
                     node is BaseInstanceState instance &&
                     (instance.Parent?.NodeId == methodNodeId ||
-                        UANodeSet.GetUnresolvedParentNodeId(instance) == methodNodeId));
+                        (UANodeSet.TryGetUnresolvedParentNodeId(instance, out NodeId parentNodeId) &&
+                            parentNodeId == methodNodeId)));
 
             Assert.That(arguments, Is.Not.Null, $"{browseName} is required.");
             return arguments!;
