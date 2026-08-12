@@ -900,6 +900,7 @@ namespace Opc.Ua.Wot
 
             rootNode.References = [.. rootReferences];
             items.Insert(0, rootNode);
+            SynthesizeDataTypeDefinitions(document, nodeSet, items, diagnostics);
             nodeSet.Items = [.. items];
             return nodeSet;
         }

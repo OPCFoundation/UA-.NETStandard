@@ -179,6 +179,10 @@ namespace Opc.Ua.Wot
         public const string PropertyType = "i=68";
         public const string BaseEventType = "i=2041";
         public const string BaseDataType = "i=24";
+        public const string Structure = "i=22";
+        public const string Union = "i=12756";
+        public const string Enumeration = "i=29";
+        public const string DataTypeEncodingType = "i=76";
         public const string String = "i=12";
         public const string ByteString = "i=15";
         public const string Integer = "i=27";

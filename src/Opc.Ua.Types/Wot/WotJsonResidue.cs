@@ -242,6 +242,7 @@ namespace Opc.Ua.Wot
                     case "uav:componentOf":
                     case "uav:nodeSet":
                     case "uav:nodes":
+                    case "uav:dataTypeDefinitions":
                         break;
                     default:
                         Add(entries, pointer, property.Value);

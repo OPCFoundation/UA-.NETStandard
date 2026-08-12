@@ -1,0 +1,508 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "demo": "http://example.com/demo/dtd/"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:objectType"],
+  "title": "DataTypeDefinition examples",
+  "uav:browseName": "demo:DataTypeExampleType",
+  "uav:dataTypeDefinitions": [
+    {
+      "@id": "urn:example:dtd#MachineStateEnum",
+      "@type": "uav:EnumDefinition",
+      "uav:dataTypeName": "demo:MachineStateEnum",
+      "uav:isOptionSet": false,
+      "uav:enumFields": [
+        {
+          "@type": "uav:EnumField",
+          "uav:enumName": "Stopped",
+          "uav:enumValue": 0,
+          "title": "Stopped"
+        },
+        {
+          "@type": "uav:EnumField",
+          "uav:enumName": "Running",
+          "uav:enumValue": 10,
+          "title": "Running"
+        },
+        {
+          "@type": "uav:EnumField",
+          "uav:enumName": "Faulted",
+          "uav:enumValue": -1,
+          "title": "Faulted"
+        }
+      ]
+    },
+    {
+      "@id": "urn:example:dtd#AccessFlags",
+      "@type": "uav:EnumDefinition",
+      "uav:dataTypeName": "demo:AccessFlags",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeName": "ua:UInt32",
+        "uav:dataTypeId": "i=7"
+      },
+      "uav:isOptionSet": true,
+      "uav:enumFields": [
+        {
+          "@type": "uav:EnumField",
+          "uav:enumName": "Read",
+          "uav:enumValue": 0,
+          "title": "Read"
+        },
+        {
+          "@type": "uav:EnumField",
+          "uav:enumName": "Write",
+          "uav:enumValue": 1,
+          "title": "Write"
+        },
+        {
+          "@type": "uav:EnumField",
+          "uav:enumName": "Execute",
+          "uav:enumValue": 2,
+          "title": "Execute"
+        }
+      ]
+    },
+    {
+      "@id": "urn:example:dtd#MeasurementDataType",
+      "@type": "uav:StructureDefinition",
+      "uav:dataTypeName": "demo:MeasurementDataType",
+      "uav:structureType": "Structure",
+      "uav:fields": [
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Value",
+          "uav:fieldDataTypeName": "ua:Double",
+          "uav:fieldDataTypeId": "i=11",
+          "uav:valueRank": -1,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "State",
+          "uav:fieldDataTypeDefinition": {
+            "@id": "urn:example:dtd#MachineStateEnum"
+          },
+          "uav:valueRank": -1,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Samples",
+          "uav:fieldDataTypeName": "ua:Double",
+          "uav:fieldDataTypeId": "i=11",
+          "uav:valueRank": 2,
+          "uav:arrayDimensions": [3, 3],
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        }
+      ]
+    },
+    {
+      "@id": "urn:example:dtd#OptionalMeasurementDataType",
+      "@type": "uav:StructureDefinition",
+      "uav:dataTypeName": "demo:OptionalMeasurementDataType",
+      "uav:dataTypeSubtypeOf": {
+        "@id": "urn:example:dtd#MeasurementDataType"
+      },
+      "uav:structureType": "StructureWithOptionalFields",
+      "uav:fields": [
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Value",
+          "uav:fieldDataTypeName": "ua:Double",
+          "uav:fieldDataTypeId": "i=11",
+          "uav:valueRank": -1,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "State",
+          "uav:fieldDataTypeDefinition": {
+            "@id": "urn:example:dtd#MachineStateEnum"
+          },
+          "uav:valueRank": -1,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Samples",
+          "uav:fieldDataTypeName": "ua:Double",
+          "uav:fieldDataTypeId": "i=11",
+          "uav:valueRank": 2,
+          "uav:arrayDimensions": [3, 3],
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Quality",
+          "uav:fieldDataTypeName": "ua:StatusCode",
+          "uav:fieldDataTypeId": "i=19",
+          "uav:valueRank": -1,
+          "uav:isOptional": true,
+          "uav:allowSubtypes": false
+        }
+      ]
+    },
+    {
+      "@id": "urn:example:dtd#AnyNumberDataType",
+      "@type": "uav:StructureDefinition",
+      "uav:dataTypeName": "demo:AnyNumberDataType",
+      "uav:isAbstract": true,
+      "uav:structureType": "StructureWithSubtypedValues",
+      "uav:fields": [
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Value",
+          "uav:fieldDataTypeName": "ua:Number",
+          "uav:fieldDataTypeId": "i=26",
+          "uav:valueRank": -1,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": true
+        }
+      ]
+    },
+    {
+      "@id": "urn:example:dtd#VariantUnionDataType",
+      "@type": "uav:StructureDefinition",
+      "uav:dataTypeName": "demo:VariantUnionDataType",
+      "uav:structureType": "UnionWithSubtypedValues",
+      "uav:binaryEncodingId": "nsu=http://example.com/demo/dtd/;s=Encodings/VariantUnion/Binary",
+      "uav:xmlEncodingId": "nsu=http://example.com/demo/dtd/;s=Encodings/VariantUnion/XML",
+      "uav:jsonEncodingId": "nsu=http://example.com/demo/dtd/;s=Encodings/VariantUnion/JSON",
+      "uav:defaultEncodingId": "nsu=http://example.com/demo/dtd/;s=Encodings/VariantUnion/Binary",
+      "uav:fields": [
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "NumericValue",
+          "uav:fieldDataTypeName": "ua:Number",
+          "uav:fieldDataTypeId": "i=26",
+          "uav:valueRank": -1,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": true
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "TextValue",
+          "uav:fieldDataTypeName": "ua:String",
+          "uav:fieldDataTypeId": "i=12",
+          "uav:valueRank": -1,
+          "uav:maxStringLength": 128,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        }
+      ]
+    },
+    {
+      "@id": "urn:example:dtd#PositiveCounterType",
+      "@type": "uav:SimpleDataType",
+      "uav:dataTypeName": "demo:PositiveCounterType",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeName": "ua:UInt64",
+        "uav:dataTypeId": "i=9"
+      },
+      "type": "integer",
+      "minimum": 0
+    },
+    {
+      "@id": "urn:example:dtd#LinkedNodeDataType",
+      "@type": "uav:StructureDefinition",
+      "uav:dataTypeName": "demo:LinkedNodeDataType",
+      "uav:dataTypeId": "nsu=http://example.com/demo/dtd/;i=6001",
+      "uav:structureType": "StructureWithOptionalFields",
+      "uav:fields": [
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Value",
+          "uav:fieldDataTypeName": "ua:Int32",
+          "uav:fieldDataTypeId": "i=6",
+          "uav:valueRank": -1,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Next",
+          "uav:fieldDataTypeDefinition": {
+            "@id": "urn:example:dtd#LinkedNodeDataType"
+          },
+          "uav:valueRank": -1,
+          "uav:isOptional": true,
+          "uav:allowSubtypes": false
+        }
+      ]
+    }
+  ],
+  "properties": {
+    "measurement": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:Measurement",
+      "type": "object",
+      "uav:fieldOrder": ["Value", "State", "Samples"],
+      "properties": {
+        "Value": {
+          "type": "number",
+          "uav:dataTypeName": "ua:Double",
+          "uav:dataTypeId": "i=11"
+        },
+        "State": {
+          "type": "integer",
+          "oneOf": [
+            { "const": 0, "uav:enumName": "Stopped", "title": "Stopped" },
+            { "const": 10, "uav:enumName": "Running", "title": "Running" },
+            { "const": -1, "uav:enumName": "Faulted", "title": "Faulted" }
+          ],
+          "uav:dataTypeDefinition": {
+            "@id": "urn:example:dtd#MachineStateEnum"
+          }
+        },
+        "Samples": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "uav:dataTypeName": "ua:Double",
+            "uav:dataTypeId": "i=11"
+          },
+          "uav:valueRank": 2,
+          "uav:arrayDimensions": [3, 3]
+        }
+      },
+      "required": ["Value", "State", "Samples"],
+      "uav:dataTypeDefinition": {
+        "@id": "urn:example:dtd#MeasurementDataType"
+      }
+    },
+    "optionalMeasurement": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:OptionalMeasurement",
+      "type": "object",
+      "uav:fieldOrder": ["Value", "State", "Samples", "Quality"],
+      "properties": {
+        "Value": { "type": "number", "uav:dataTypeName": "ua:Double", "uav:dataTypeId": "i=11" },
+        "State": {
+          "type": "integer",
+          "oneOf": [
+            { "const": 0, "uav:enumName": "Stopped", "title": "Stopped" },
+            { "const": 10, "uav:enumName": "Running", "title": "Running" },
+            { "const": -1, "uav:enumName": "Faulted", "title": "Faulted" }
+          ],
+          "uav:dataTypeDefinition": { "@id": "urn:example:dtd#MachineStateEnum" }
+        },
+        "Samples": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "uav:dataTypeName": "ua:Double",
+            "uav:dataTypeId": "i=11"
+          },
+          "uav:valueRank": 2,
+          "uav:arrayDimensions": [3, 3]
+        },
+        "Quality": { "type": "integer", "uav:dataTypeName": "ua:StatusCode", "uav:dataTypeId": "i=19" }
+      },
+      "required": ["Value", "State", "Samples"],
+      "uav:dataTypeDefinition": {
+        "@id": "urn:example:dtd#OptionalMeasurementDataType"
+      }
+    },
+    "state": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:State",
+      "type": "integer",
+      "oneOf": [
+        { "const": 0, "uav:enumName": "Stopped", "title": "Stopped" },
+        { "const": 10, "uav:enumName": "Running", "title": "Running" },
+        { "const": -1, "uav:enumName": "Faulted", "title": "Faulted" }
+      ],
+      "uav:dataTypeDefinition": { "@id": "urn:example:dtd#MachineStateEnum" }
+    },
+    "access": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:Access",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 7,
+      "uav:dataTypeDefinition": { "@id": "urn:example:dtd#AccessFlags" }
+    },
+    "matrix": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:Matrix",
+      "type": "array",
+      "items": { "type": "number", "uav:dataTypeName": "ua:Double", "uav:dataTypeId": "i=11" },
+      "uav:valueRank": 2,
+      "uav:arrayDimensions": [3, 3]
+    },
+    "inferredRecord": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:InferredRecord",
+      "uav:dataTypeName": "demo:InferredRecordDataType",
+      "type": "object",
+      "uav:fieldOrder": ["Enabled", "Label", "CreatedAt"],
+      "properties": {
+        "Enabled": { "type": "boolean" },
+        "Label": { "type": "string" },
+        "CreatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["Enabled", "Label", "CreatedAt"]
+    },
+    "inferredMode": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:InferredMode",
+      "uav:dataTypeName": "demo:InferredModeEnum",
+      "type": "integer",
+      "oneOf": [
+        { "const": 0, "uav:enumName": "Idle", "title": "Idle" },
+        { "const": 1, "uav:enumName": "Active", "title": "Active" }
+      ]
+    },
+    "inferredOptional": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:InferredOptional",
+      "uav:dataTypeName": "demo:InferredOptionalDataType",
+      "type": "object",
+      "uav:fieldOrder": ["Value", "Note"],
+      "properties": {
+        "Value": {
+          "type": "number",
+          "uav:dataTypeName": "ua:Double",
+          "uav:dataTypeId": "i=11"
+        },
+        "Note": { "type": "string" }
+      },
+      "required": ["Value"]
+    },
+    "inferredUnion": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:InferredUnion",
+      "uav:dataTypeName": "demo:InferredUnionDataType",
+      "type": "object",
+      "uav:structureType": "Union",
+      "uav:fieldOrder": ["Number", "Text"],
+      "properties": {
+        "Number": {
+          "type": "number",
+          "uav:dataTypeName": "ua:Double",
+          "uav:dataTypeId": "i=11"
+        },
+        "Text": { "type": "string" }
+      },
+      "oneOf": [
+        { "required": ["Number"] },
+        { "required": ["Text"] }
+      ]
+    },
+    "inferredPositive": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:InferredPositive",
+      "uav:dataTypeName": "demo:InferredPositiveType",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeName": "ua:UInt64",
+        "uav:dataTypeId": "i=9"
+      },
+      "type": "integer",
+      "minimum": 0
+    },
+    "counter": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:Counter",
+      "type": "integer",
+      "minimum": 0,
+      "uav:dataTypeDefinition": { "@id": "urn:example:dtd#PositiveCounterType" }
+    },
+    "linkedNode": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:LinkedNode",
+      "uav:dataTypeDefinition": { "@id": "urn:example:dtd#LinkedNodeDataType" }
+    },
+    "anyNumber": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:AnyNumber",
+      "type": "object",
+      "uav:fieldOrder": ["Value"],
+      "properties": {
+        "Value": { "type": "number", "uav:dataTypeName": "ua:Number", "uav:dataTypeId": "i=26" }
+      },
+      "required": ["Value"],
+      "uav:dataTypeDefinition": { "@id": "urn:example:dtd#AnyNumberDataType" }
+    },
+    "variantUnion": {
+      "@type": "uav:variableType",
+      "uav:browseName": "demo:VariantUnion",
+      "type": "object",
+      "uav:fieldOrder": ["NumericValue", "TextValue"],
+      "properties": {
+        "NumericValue": {
+          "type": "number",
+          "uav:dataTypeName": "ua:Number",
+          "uav:dataTypeId": "i=26"
+        },
+        "TextValue": {
+          "type": "string",
+          "uav:dataTypeName": "ua:String",
+          "uav:dataTypeId": "i=12",
+          "maxLength": 128
+        }
+      },
+      "oneOf": [
+        { "required": ["NumericValue"] },
+        { "required": ["TextValue"] }
+      ],
+      "uav:structureType": "UnionWithSubtypedValues",
+      "uav:dataTypeDefinition": { "@id": "urn:example:dtd#VariantUnionDataType" }
+    }
+  },
+  "actions": {
+    "setCommand": {
+      "@type": "uav:method",
+      "uav:browseName": "demo:SetCommand",
+      "input": {
+        "type": "object",
+        "uav:fieldOrder": ["Setpoint", "Stop"],
+        "properties": {
+          "Setpoint": { "type": "number", "uav:dataTypeName": "ua:Double", "uav:dataTypeId": "i=11" },
+          "Stop": { "type": "boolean" }
+        },
+        "oneOf": [
+          { "required": ["Setpoint"] },
+          { "required": ["Stop"] }
+        ],
+        "uav:structureType": "Union",
+        "uav:dataTypeDefinition": {
+          "@id": "urn:example:dtd#CommandUnionDataType",
+          "@type": "uav:StructureDefinition",
+          "uav:dataTypeName": "demo:CommandUnionDataType",
+          "uav:structureType": "Union",
+          "uav:fields": [
+            {
+              "@type": "uav:StructureField",
+              "uav:fieldName": "Setpoint",
+              "uav:fieldDataTypeName": "ua:Double",
+              "uav:fieldDataTypeId": "i=11",
+              "uav:valueRank": -1,
+              "uav:isOptional": false,
+              "uav:allowSubtypes": false
+            },
+            {
+              "@type": "uav:StructureField",
+              "uav:fieldName": "Stop",
+              "type": "boolean",
+              "uav:valueRank": -1,
+              "uav:isOptional": false,
+              "uav:allowSubtypes": false
+            }
+          ]
+        }
+      }
+    }
+  }
+}

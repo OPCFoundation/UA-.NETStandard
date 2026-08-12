@@ -361,6 +361,94 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// The specification's DataType example states every kind of §6.11
+        /// definition, so it materializes the whole clause: a Structure, an
+        /// optional-field Structure, two subtyped-value kinds, an Enumeration,
+        /// an OptionSet and a SimpleDataType.
+        /// </summary>
+        [Test]
+        public void DataTypeExampleMaterializesEveryDefinition()
+        {
+            using WotDocument document = WotDocument.Parse(ReadExample(DataTypeExample));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Is.Empty);
+
+            UADataType[] dataTypes = result.Value!.Items!.OfType<UADataType>().ToArray();
+            Assert.That(dataTypes, Has.Length.EqualTo(8));
+
+            // A definition without uav:dataTypeId derives a namespace-scoped
+            // String NodeId from its name alone (§6.11.1), so the same document
+            // read again lands on the same Node.
+            UADataType measurement = dataTypes.Single(d => d.BrowseName!.EndsWith(
+                ":MeasurementDataType", StringComparison.Ordinal));
+            Assert.That(measurement.NodeId, Does.Contain("s=DataTypes/MeasurementDataType"));
+            Assert.That(measurement.Definition!.Field, Has.Length.EqualTo(3));
+            Assert.That(measurement.Definition.Field![0].Name, Is.EqualTo("Value"));
+            Assert.That(measurement.Definition.Field[2].ArrayDimensions, Is.EqualTo("3,3"));
+
+            // A field naming a sibling definition resolves through that
+            // definition's NodeId; the JSON-LD @id is never a NodeId (§6.11.3).
+            UADataType machineState = dataTypes.Single(d => d.BrowseName!.EndsWith(
+                ":MachineStateEnum", StringComparison.Ordinal));
+            Assert.That(measurement.Definition.Field[1].DataType, Is.EqualTo(machineState.NodeId));
+
+            // An Enumeration keeps its authored values, including a negative one.
+            Assert.That(
+                machineState.Definition!.Field!.Select(f => f.Value),
+                Is.EqualTo(new[] { 0, 10, -1 }));
+            Assert.That(machineState.Definition.IsOptionSet, Is.False);
+
+            // An OptionSet numbers bits and states its integer base (§6.11.2).
+            UADataType flags = dataTypes.Single(d => d.BrowseName!.EndsWith(
+                ":AccessFlags", StringComparison.Ordinal));
+            Assert.That(flags.Definition!.IsOptionSet, Is.True);
+            Assert.That(
+                flags.References!.Any(r => r.ReferenceType == "HasSubtype" &&
+                    !r.IsForward && r.Value == "i=7"),
+                Is.True);
+
+            // A SimpleDataType has no definition attribute and no encodings.
+            UADataType counter = dataTypes.Single(d => d.BrowseName!.EndsWith(
+                ":PositiveCounterType", StringComparison.Ordinal));
+            Assert.That(counter.Definition, Is.Null);
+            Assert.That(counter.References!.Any(r => r.ReferenceType == "HasEncoding"), Is.False);
+
+            // Every non-abstract Structure exposes all three encodings, with
+            // ids derived from its own identity (§6.11.7).
+            Assert.That(
+                measurement.References!.Count(r => r.ReferenceType == "HasEncoding" && r.IsForward),
+                Is.EqualTo(3));
+            Assert.That(
+                measurement.References!.Any(r => r.ReferenceType == "HasEncoding" &&
+                    r.Value == measurement.NodeId + "/Default Binary"),
+                Is.True);
+        }
+
+        /// <summary>
+        /// A term the converter materializes must not also be carried as
+        /// residue. Were it captured, the round trip would re-emit it as a
+        /// NodeSet Extension on top of the DataType Nodes it already produced,
+        /// so the same fact would be stated twice in two different languages.
+        /// </summary>
+        [Test]
+        public void MaterializedDataTypeDefinitionsAreNotAlsoResidue()
+        {
+            using WotDocument document = WotDocument.Parse(ReadExample(DataTypeExample));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            string extensions = result.Value!.Extensions is null
+                ? string.Empty
+                : string.Concat(result.Value.Extensions.Select(e => e.OuterXml ?? string.Empty));
+            Assert.That(extensions, Does.Not.Contain("dataTypeDefinitions"));
+        }
+
+        /// <summary>
         /// A local context holding exactly one ObjectType, so the example
         /// resolves against the type it names.
         /// </summary>
@@ -405,5 +493,6 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string ResolvedExample = "08-projection-resolved.jsonld";
         private const string ConditionExample = "21-condition-limit-alarm.jsonld";
         private const string TypeBindingExample = "22-type-binding-and-instance-reference.jsonld";
+        private const string DataTypeExample = "23-datatype-definitions.jsonld";
     }
 }
