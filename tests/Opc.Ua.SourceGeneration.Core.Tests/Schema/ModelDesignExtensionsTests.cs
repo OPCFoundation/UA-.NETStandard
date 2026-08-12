@@ -11225,6 +11225,37 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// Tests that GetWriteMaskAsCode maps a node's WriteAccess (WriteMask)
+        /// bitmask onto code: zero yields None, and any non-zero value is
+        /// emitted as an AttributeWriteMask cast so NodeSet-declared writable
+        /// attributes (for example DisplayName and Description) stay writable.
+        /// </summary>
+        /// <param name="writeAccess">The WriteAccess bitmask to test.</param>
+        /// <param name="expectedResult">The expected code string.</param>
+        [TestCase(0u, "global::Opc.Ua.AttributeWriteMask.None")]
+        [TestCase(96u, "(global::Opc.Ua.AttributeWriteMask)96")]
+        [TestCase(32u, "(global::Opc.Ua.AttributeWriteMask)32")]
+        public void GetWriteMaskAsCodeMapsWriteAccessOntoCode(uint writeAccess, string expectedResult)
+        {
+            var node = new VariableDesign { WriteAccess = writeAccess };
+
+            string result = node.GetWriteMaskAsCode();
+
+            Assert.That(result, Is.EqualTo(expectedResult));
+        }
+
+        /// <summary>
+        /// Tests that GetWriteMaskAsCode tolerates a null node and returns None.
+        /// </summary>
+        [Test]
+        public void GetWriteMaskAsCodeWithNullNodeReturnsNone()
+        {
+            string result = ((NodeDesign)null).GetWriteMaskAsCode();
+
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.AttributeWriteMask.None"));
+        }
+
+        /// <summary>
         /// Tests that GetMethodArgumentDotNetType converts object to Variant array with array value rank.
         /// Input: Array value rank, type name "object" or "object?".
         /// Expected: Returns "global::Opc.Ua.Variant[]".

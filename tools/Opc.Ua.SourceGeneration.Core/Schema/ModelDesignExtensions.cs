@@ -2442,6 +2442,24 @@ namespace Opc.Ua.Schema.Model
             }
         }
 
+        /// <summary>
+        /// Maps the WriteAccess (WriteMask) of a node onto code. The verbatim
+        /// OPC UA WriteMask bitmask is emitted so that attributes advertised as
+        /// writable in the NodeSet (for example DisplayName and Description)
+        /// stay writable at runtime instead of defaulting to None.
+        /// </summary>
+        public static string GetWriteMaskAsCode(this NodeDesign node)
+        {
+            uint writeMask = node?.WriteAccess ?? 0;
+            if (writeMask == 0)
+            {
+                return "global::Opc.Ua.AttributeWriteMask.None";
+            }
+            return CoreUtils.Format(
+                "(global::Opc.Ua.AttributeWriteMask){0}",
+                writeMask);
+        }
+
         public static string GetLocalizedTextAsCode(this string localizedText)
         {
             return GetLocalizedTextAsCode(new LocalizedText
