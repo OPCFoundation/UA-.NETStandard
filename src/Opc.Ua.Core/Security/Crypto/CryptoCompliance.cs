@@ -124,7 +124,7 @@ namespace Opc.Ua
         /// key rather than with the provider, so there is nothing to check for
         /// them. The symmetric, key derivation and random purposes are different:
         /// they are served through <see cref="ISymmetricCryptoProvider"/>,
-        /// <see cref="IKeyDerivationProvider"/> and <see cref="IRandomSource"/>,
+        /// <see cref="IKeyDerivationProvider"/> and <see cref="ISecureRandomSource"/>,
         /// and a provider bound to one of them without the matching facet is
         /// silently bypassed in favour of the platform.
         /// <para>
@@ -147,7 +147,7 @@ namespace Opc.Ua
                 registry, CryptoPurpose.ChannelSymmetric, unserved);
             AddIfUnserved<IKeyDerivationProvider>(
                 registry, CryptoPurpose.KeyDerivation, unserved);
-            AddIfUnserved<IRandomSource>(
+            AddIfUnserved<ISecureRandomSource>(
                 registry, CryptoPurpose.RandomNumberGeneration, unserved);
 
             return new ArrayOf<CryptoPurpose>(unserved.ToArray());

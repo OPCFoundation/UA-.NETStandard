@@ -43,7 +43,7 @@ namespace Opc.Ua
     /// <see cref="CryptoPurpose.RandomNumberGeneration"/> to a provider that
     /// states its provenance like every other.
     /// </remarks>
-    public sealed class PlatformRandomSource : IRandomSource
+    public sealed class PlatformRandomSource : ISecureRandomSource
     {
         /// <summary>
         /// The shared instance.

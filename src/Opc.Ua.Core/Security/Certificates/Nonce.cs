@@ -55,7 +55,7 @@ namespace Opc.Ua
         private RSADiffieHellman? m_rsadh;
         private static readonly RandomNumberGenerator s_rng = RandomNumberGenerator.Create();
         private static uint s_minNonceLength = 32;
-        private static IRandomSource? s_randomSource;
+        private static ISecureRandomSource? s_randomSource;
 
         /// <summary>
         /// Constructor
@@ -353,7 +353,7 @@ namespace Opc.Ua
         public static byte[] CreateRandomNonceData(
             int length,
             bool enforceMinimumLength,
-            IRandomSource? randomSource)
+            ISecureRandomSource? randomSource)
         {
             if (enforceMinimumLength && length < s_minNonceLength)
             {
@@ -362,7 +362,7 @@ namespace Opc.Ua
 
             byte[] randomBytes = new byte[length];
 
-            IRandomSource? source = randomSource ?? s_randomSource;
+            ISecureRandomSource? source = randomSource ?? s_randomSource;
 
             if (source != null)
             {
@@ -391,7 +391,7 @@ namespace Opc.Ua
         /// start up when a provider serving
         /// <see cref="CryptoPurpose.RandomNumberGeneration"/> is registered.
         /// </remarks>
-        public static void SetRandomSource(IRandomSource? randomSource)
+        public static void SetRandomSource(ISecureRandomSource? randomSource)
         {
             s_randomSource = randomSource;
         }

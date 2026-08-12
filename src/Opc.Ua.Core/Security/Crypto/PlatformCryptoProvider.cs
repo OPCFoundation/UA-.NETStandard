@@ -56,7 +56,7 @@ namespace Opc.Ua
         ICryptoProvider,
         ISymmetricCryptoProvider,
         IKeyDerivationProvider,
-        IRandomSource
+        ISecureRandomSource
     {
         /// <summary>
         /// The shared instance.

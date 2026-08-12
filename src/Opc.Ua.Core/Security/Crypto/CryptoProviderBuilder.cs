@@ -126,7 +126,7 @@ namespace Opc.Ua
 
             if (m_securityPolicyUri == null &&
                 m_purpose.Equals(CryptoPurpose.RandomNumberGeneration) &&
-                provider is IRandomSource randomSource)
+                provider is ISecureRandomSource randomSource)
             {
                 // Nonces are created from many places that have no container in
                 // scope, so the source is published to the process here rather

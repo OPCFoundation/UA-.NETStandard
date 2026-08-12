@@ -29,14 +29,6 @@
 
 namespace System.Runtime.CompilerServices
 {
-#if !NET5_0_OR_GREATER
-    /// <summary>
-    /// Reserved type used by the compiler to support init-only setters.
-    /// </summary>
-    public static class IsExternalInit;
-
-#endif
-
     /// <summary>
     /// Marks a type as a union type, in preparation for C# 15 union type
     /// support. A type annotated with this attribute represents a discriminated

@@ -44,7 +44,7 @@ namespace Opc.Ua
     /// resolves nothing keeps using the platform generator, at no cost.
     /// </para>
     /// </remarks>
-    public interface IRandomSource
+    public interface ISecureRandomSource
     {
         /// <summary>
         /// Fills a buffer with cryptographically strong random bytes.

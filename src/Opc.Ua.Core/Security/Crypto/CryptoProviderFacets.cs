@@ -111,11 +111,11 @@ namespace Opc.Ua
         /// The facet to use, or <c>null</c> when the caller should use the
         /// platform generator.
         /// </returns>
-        public static IRandomSource? ResolveRandom(
+        public static ISecureRandomSource? ResolveRandom(
             ICryptoProviderRegistry? registry,
             string? securityPolicyUri = null)
         {
-            return Resolve<IRandomSource>(
+            return Resolve<ISecureRandomSource>(
                 registry, CryptoPurpose.RandomNumberGeneration, securityPolicyUri);
         }
 

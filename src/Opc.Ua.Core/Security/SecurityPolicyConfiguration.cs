@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,64 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Threading;
 
 namespace Opc.Ua
 {
-    /// <summary>
-    /// Registers security policies contributed by providers.
-    /// </summary>
-    public interface ISecurityPolicyRegistry
-    {
-        /// <summary>
-        /// Registers a security policy.
-        /// </summary>
-        /// <param name="securityPolicy">The security policy to register.</param>
-        /// <param name="replaceExisting">Whether to deliberately replace an existing policy with the same name or URI.</param>
-        /// <returns>A registration that restores the previous policy snapshot when disposed.</returns>
-        IDisposable Register(SecurityPolicyInfo securityPolicy, bool replaceExisting = false);
-    }
-
-    /// <summary>
-    /// Default security policy registry backed by <see cref="SecurityPolicies"/>.
-    /// </summary>
-    public sealed class SecurityPolicyRegistry : ISecurityPolicyRegistry, IDisposable
-    {
-        /// <inheritdoc/>
-        public IDisposable Register(SecurityPolicyInfo securityPolicy, bool replaceExisting = false)
-        {
-            IDisposable registration = SecurityPolicies.Register(securityPolicy, replaceExisting);
-
-            lock (m_lock)
-            {
-                m_registrations.Add(registration);
-            }
-
-            return registration;
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            IDisposable[] registrations;
-
-            lock (m_lock)
-            {
-                registrations = [.. m_registrations];
-                m_registrations.Clear();
-            }
-
-            for (int ii = registrations.Length - 1; ii >= 0; ii--)
-            {
-                registrations[ii].Dispose();
-            }
-        }
-
-        private readonly Lock m_lock = new();
-        private readonly List<IDisposable> m_registrations = [];
-    }
-
     /// <summary>
     /// Carries a pending security policy registration through the container.
     /// </summary>

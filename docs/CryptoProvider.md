@@ -36,7 +36,7 @@ What the provider model adds is the part the platform does not express:
 |---|---|
 | Which operations a provider can serve | `ICryptoProvider`, `CryptoCapability` |
 | Which provider serves which operation | `ICryptoProviderRegistry`, `CryptoPurpose` |
-| The symmetric, derivation and random operations themselves | `ISymmetricCryptoProvider`, `IKeyDerivationProvider`, `IRandomSource` |
+| The symmetric, derivation and random operations themselves | `ISymmetricCryptoProvider`, `IKeyDerivationProvider`, `ISecureRandomSource` |
 | What may be said about the module behind it | `CryptoValidationStatus` |
 | How strictly that is enforced | `CryptoCompliancePolicy` |
 | Where a new key comes from | `IKeyPairGenerator` |
@@ -267,7 +267,7 @@ directly.
 |---|---|
 | `ISymmetricCryptoProvider` | AES-CBC, AES-GCM, ChaCha20-Poly1305 and the HMAC signatures |
 | `IKeyDerivationProvider` | P_SHA1, P_SHA256, HKDF-SHA256, HKDF-SHA384 |
-| `IRandomSource` | Nonces and other random material |
+| `ISecureRandomSource` | Nonces and other random material |
 
 A provider opts in by implementing one alongside `ICryptoProvider` and declaring the matching purpose.
 They are separate interfaces rather than members of `ICryptoProvider`, so a provider written before they

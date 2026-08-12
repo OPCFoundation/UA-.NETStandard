@@ -393,7 +393,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
                 Assert.That(provider.Capabilities, Is.Not.Empty);
                 Assert.That(provider, Is.InstanceOf<ISymmetricCryptoProvider>());
                 Assert.That(provider, Is.InstanceOf<IKeyDerivationProvider>());
-                Assert.That(provider, Is.InstanceOf<IRandomSource>());
+                Assert.That(provider, Is.InstanceOf<ISecureRandomSource>());
             });
         }
 
@@ -954,7 +954,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             });
         }
 
-        private sealed class CountingRandomSource : ICryptoProvider, IRandomSource
+        private sealed class CountingRandomSource : ICryptoProvider, ISecureRandomSource
         {
             public int Calls { get; private set; }
 

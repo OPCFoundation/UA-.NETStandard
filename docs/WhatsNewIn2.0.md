@@ -263,7 +263,7 @@ cryptographic module performed an operation, and whether it carries any
 validation, is auditable through logs, metrics and the address space, and can
 be constrained with a compliance policy.
 The symmetric primitives are pluggable too. `ISymmetricCryptoProvider`,
-`IKeyDerivationProvider` and `IRandomSource` let a validated cryptographic
+`IKeyDerivationProvider` and `ISecureRandomSource` let a validated cryptographic
 module perform *every* operation rather than only the asymmetric ones, which is
 what a FIPS deployment needs. They are optional facets a provider opts into, so
 existing providers are unaffected, and they sit behind a null fast path: a
