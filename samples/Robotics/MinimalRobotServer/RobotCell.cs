@@ -37,6 +37,7 @@ using Opc.Ua;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Gpos;
 using Opc.Ua.OpenUsd;
+using Opc.Ua.OpenUsd.Server;
 using Opc.Ua.Positioning;
 using Opc.Ua.Positioning.Server;
 using Opc.Ua.Positioning.Server.Hosting;
@@ -47,7 +48,6 @@ using Opc.Ua.Rsl;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.NodeManager;
-using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Robotics
 {
@@ -562,13 +562,11 @@ namespace Robotics
                 TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
             };
 
-            OpenUsdRepresentationState rep = SystemContext.CreateInstanceOfOpenUsdRepresentationType(
+            _ = SystemContext.CreateRepresentation(
                 tool,
-                new QualifiedName("OpenUsdRepresentation", usdNs));
-            rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
-            tool.AddChild(rep);
-            rep.CreateOrReplaceStage(SystemContext, null!).Value = m_cellStage!.NodeId;
-            rep.CreateOrReplacePrimPath(SystemContext, null!).Value = s_robots[0].PrimPath + ToolSuffix;
+                m_cellStage!.NodeId,
+                s_robots[0].PrimPath + ToolSuffix,
+                usdNs);
 
             NodeId newId = await Manager.AddNodeAsync(
                 SystemContext,

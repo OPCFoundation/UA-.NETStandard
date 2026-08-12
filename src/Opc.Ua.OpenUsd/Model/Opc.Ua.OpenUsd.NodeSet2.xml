@@ -27,6 +27,7 @@
     <Alias Alias="Organizes">i=35</Alias>
     <Alias Alias="HasTypeDefinition">i=40</Alias>
     <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasAddIn">i=17604</Alias>
     <Alias Alias="HasInterface">i=17603</Alias>
     <Alias Alias="Mandatory">i=78</Alias>
     <Alias Alias="Optional">i=80</Alias>
@@ -426,7 +427,7 @@
     <Category>OpenUSD Binding</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=17602</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=6030</Reference>
+      <Reference ReferenceType="HasAddIn">ns=1;i=6030</Reference>
     </References>
   </UAObjectType>
   <UAObject NodeId="ns=1;i=6030" BrowseName="1:&lt;OpenUsdRepresentation&gt;" ParentNodeId="ns=1;i=1010">
@@ -435,7 +436,7 @@
     <References>
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1003</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1010</Reference>
+      <Reference ReferenceType="HasAddIn" IsForward="false">ns=1;i=1010</Reference>
     </References>
   </UAObject>
   <UADataType NodeId="ns=1;i=3005" BrowseName="1:OpenUsdSignalRoleEnum">

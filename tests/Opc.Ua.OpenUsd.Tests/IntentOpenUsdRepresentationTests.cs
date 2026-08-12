@@ -27,46 +27,35 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
+#if NET10_0
+using NUnit.Framework;
+using Opc.Ua.OpenUsd.Server.Tests;
+using Robotics.IntentEnabledRobot;
 
-namespace Opc.Ua.Pcap.Models
+namespace Opc.Ua.OpenUsd.Tests
 {
-    /// <summary>
-    /// Describes a local network interface returned by
-    /// <c>list_interfaces</c>.
-    /// </summary>
-    public sealed class NetworkInterfaceInfo
+    [TestFixture]
+    [Category("OpenUsd")]
+    [Category("RobotIntent")]
+    public sealed class IntentOpenUsdRepresentationTests
     {
-        /// <summary>
-        /// Device name as understood by libpcap (e.g.
-        /// <c>\Device\NPF_{guid}</c>).
-        /// </summary>
-        public string Name { get; init; } = string.Empty;
+        [Test]
+        public void IntentSampleMountsRepresentationsAsAddIns()
+        {
+            (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();
+            OpenUsdRootState root = OpenUsdAuthoringHarness.NewFacility(context, ns);
+            OpenUsdStageState stage = OpenUsdAuthoringHarness.NewStage(context, root, ns, "Cell");
+            BaseObjectState owner = OpenUsdAuthoringHarness.NewOwner(context, ns, "Controller");
 
-        /// <summary>
-        /// Friendly name (e.g. <c>Ethernet</c>).
-        /// </summary>
-        public string? FriendlyName { get; init; }
+            _ = IntentRobotCell.AttachRepresentation(
+                context,
+                stage,
+                owner,
+                "/World/IntentCommand",
+                ns);
 
-        /// <summary>
-        /// Free-form description.
-        /// </summary>
-        public string? Description { get; init; }
-
-        /// <summary>
-        /// Bound IP addresses.
-        /// </summary>
-        public IReadOnlyList<string> Addresses { get; init; } = [];
-
-        /// <summary>
-        /// The link-layer type (e.g. <c>Ethernet</c>), or <c>null</c>
-        /// when the device is not open.
-        /// </summary>
-        public string? LinkType { get; init; }
-
-        /// <summary>
-        /// Whether this is the loopback interface.
-        /// </summary>
-        public bool IsLoopback { get; init; }
+            OpenUsdRepresentationMountAssert.AllAreAddIns(context, owner);
+        }
     }
 }
+#endif
