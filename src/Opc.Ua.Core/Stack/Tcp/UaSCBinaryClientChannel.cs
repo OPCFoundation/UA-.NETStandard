@@ -1190,7 +1190,8 @@ namespace Opc.Ua.Bindings
                         OperationCompleted(operation);
 
                         m_reconnecting = false;
-                    }                }
+                    }
+                }
             }
             catch (Exception e)
             {

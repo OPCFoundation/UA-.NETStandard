@@ -501,8 +501,10 @@ namespace Opc.Ua.Bindings
         /// Handles a socket error.
         /// </summary>
         /// <remarks>
-        /// Called without the gate held, so it takes it through the locking
-        /// entry points.
+        /// Called without the gate held, so both branches take it. The close
+        /// must be guarded: it moves the channel to <see cref="TcpChannelState.Closed"/>
+        /// and notifies the listener, and letting that race an in-flight request
+        /// on the same channel leaves the session it belongs to behind.
         /// </remarks>
         protected override void HandleSocketError(ServiceResult result)
         {
@@ -514,7 +516,10 @@ namespace Opc.Ua.Bindings
             }
 
             // gracefully shutdown the channel.
-            ChannelClosed();
+            using (Gate.Enter())
+            {
+                ChannelClosed();
+            }
         }
 
         /// <summary>

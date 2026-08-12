@@ -441,6 +441,10 @@ namespace Opc.Ua.Bindings
                     // ownership of — a double release.
                     m_logger.TcpServerLog16(e);
                 }
+                finally
+                {
+                    pending.Chunks?.Release(BufferManager, "ProcessRequestMessage");
+                }
             }
 
             return ownsBuffer;
@@ -1279,7 +1283,18 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="RequestId">The request identifier.</param>
         /// <param name="Request">The decoded request.</param>
-        private sealed record PendingRequestDispatch(uint RequestId, IServiceRequest Request);
+        /// <summary>
+        /// A request that has been decoded but not yet handed to the server.
+        /// </summary>
+        /// <param name="Chunks">
+        /// The buffers the request was decoded from. The decoder does not copy
+        /// everything it reads, so these must outlive the handler and are
+        /// released only once it returns.
+        /// </param>
+        private sealed record PendingRequestDispatch(
+            uint RequestId,
+            IServiceRequest Request,
+            BufferCollection? Chunks);
 
         /// <summary>
         /// Processes a request message.
@@ -1468,7 +1483,13 @@ namespace Opc.Ua.Bindings
                 // gate; more importantly, holding the channel's lock across
                 // arbitrary request processing serialises the whole channel on
                 // it. The caller dispatches this once it has left the gate.
-                pending = new PendingRequestDispatch(requestId, request);
+                //
+                // Ownership of the chunks transfers with it. The decoder above
+                // does not copy everything it reads, so returning them to the
+                // pool here would let the request be overwritten underneath the
+                // handler by the next message on this channel.
+                pending = new PendingRequestDispatch(requestId, request, chunksToProcess);
+                chunksToProcess = null;
 
                 return true;
             }
