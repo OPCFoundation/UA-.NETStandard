@@ -259,7 +259,8 @@ namespace Opc.Ua.Wot
             byte[]? nativeProjection,
             bool emitEnvelope,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            string? parentHref = null)
         {
             byte[]? digest = emitEnvelope ? ComputeSha256(nodeSetBytes) : null;
             using (var output = new MemoryStream())
@@ -294,7 +295,7 @@ namespace Opc.Ua.Wot
                         writer.WriteBoolean("uav:isEvent", true);
                     }
                     WriteDescription(writer, root?.Description);
-                    WriteAffordances(writer, nodeSet, root, diagnostics, options);
+                    WriteAffordances(writer, nodeSet, root, diagnostics, options, parentHref);
 
                     if (emitEnvelope)
                     {
@@ -498,10 +499,12 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             UANode? root,
             List<WotDiagnostic> diagnostics,
-            WotNodeSetConverterOptions options)
+            WotNodeSetConverterOptions options,
+            string? parentHref = null)
         {
             if (root?.References is null)
             {
+                WriteTypedComponentLinks(writer, [], parentHref);
                 return;
             }
 
@@ -622,7 +625,7 @@ namespace Opc.Ua.Wot
                 writer.WriteEndObject();
             }
 
-            WriteTypedComponentLinks(writer, typedComponentLinks);
+            WriteTypedComponentLinks(writer, typedComponentLinks, parentHref);
         }
 
         private static void WriteComponentArray(
@@ -643,16 +646,32 @@ namespace Opc.Ua.Wot
             writer.WriteEndArray();
         }
 
+        /// <summary>
+        /// Writes the document's <c>links</c> array: the typed component links a
+        /// Node carries, and — when this document describes a nested Object of a
+        /// document set — the <c>uav:componentOf</c> link naming the document
+        /// that owns its parent. Both share one array because a JSON object
+        /// cannot carry <c>links</c> twice.
+        /// </summary>
         private static void WriteTypedComponentLinks(
             Utf8JsonWriter writer,
-            List<TypedComponentLink> links)
+            List<TypedComponentLink> links,
+            string? parentHref = null)
         {
-            if (links.Count == 0)
+            if (links.Count == 0 && string.IsNullOrEmpty(parentHref))
             {
                 return;
             }
             writer.WritePropertyName("links");
             writer.WriteStartArray();
+            if (!string.IsNullOrEmpty(parentHref))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("rel", "uav:componentOf");
+                writer.WriteString("href", parentHref);
+                writer.WriteString("type", "application/td+json");
+                writer.WriteEndObject();
+            }
             foreach (TypedComponentLink link in links)
             {
                 writer.WriteStartObject();

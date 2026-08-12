@@ -761,7 +761,7 @@ namespace Opc.Ua.Wot
 
             var nodeSet = new UANodeSet
             {
-                NamespaceUris = [modelUri],
+                NamespaceUris = SeedNamespaceUris(document, modelUri),
                 Models =
                 [
                     new ModelTableEntry { ModelUri = modelUri }
@@ -1411,12 +1411,49 @@ namespace Opc.Ua.Wot
             return value is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
         }
 
+        /// <summary>
+        /// Seeds the target namespace table from the document's <c>@context</c>.
+        /// </summary>
+        /// <remarks>
+        /// <i>OPC UA — WoT Binding</i> §9.1 maps the NodeSet namespace table onto
+        /// the <c>@context</c> prefix bindings keyed by namespace index, so a
+        /// document written from a NodeSet carries <c>ns1</c>…<c>nsN</c> in that
+        /// order. Reading them back reproduces the source table instead of
+        /// rebuilding it on demand from whichever identifiers happen to be
+        /// converted, which is what makes a BrowseName keep the namespace it was
+        /// written with and what lets the documents of one set agree on index.
+        /// A gap in the sequence stops the seed: an index is only meaningful if
+        /// every index below it is bound.
+        /// </remarks>
+        private static string[] SeedNamespaceUris(WotDocument document, string modelUri)
+        {
+            var uris = new List<string>();
+            for (int index = 1; ; index++)
+            {
+                string prefix = "ns" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (!TryGetContextNamespace(document, prefix, out string namespaceUri) ||
+                    namespaceUri.Length == 0)
+                {
+                    break;
+                }
+                uris.Add(namespaceUri);
+            }
+            if (uris.Count == 0)
+            {
+                return [modelUri];
+            }
+            if (!uris.Contains(modelUri))
+            {
+                uris.Insert(0, modelUri);
+            }
+            return [.. uris];
+        }
+
         private static bool TryGetContextNamespace(
             WotDocument document,
             string prefix,
             out string namespaceUri)
-        {
-            if (string.Equals(prefix, "ua", StringComparison.Ordinal))
+        {            if (string.Equals(prefix, "ua", StringComparison.Ordinal))
             {
                 namespaceUri = WotVocabulary.OpcUaNamespace;
                 return true;
