@@ -159,7 +159,7 @@ namespace Vision.VisualInspectionCell
             AILearningSampleKind kind = request.RetractAll
                 ? AILearningSampleKind.Negative
                 : AILearningSampleKind.Positive;
-            string sampleId = StableSampleId(request.Pipeline, request.ResultId, request.Purpose.ToString());
+            string sampleId = GroundTruthSampleId(request.Pipeline, request.ResultId);
             await RecordLearningSampleAsync(sampleId, kind, cancellationToken).ConfigureAwait(false);
             if (request.CorrectedCharacteristics.Count > 0)
             {
@@ -263,7 +263,7 @@ namespace Vision.VisualInspectionCell
             AILearningSampleKind kind = disposition == OperatorDisposition.AcceptAsNotOk
                 ? AILearningSampleKind.Negative
                 : AILearningSampleKind.Positive;
-            string sampleId = StableSampleId(target.PipelineNodeId, result.ResultId, disposition.ToString());
+            string sampleId = GroundTruthSampleId(target.PipelineNodeId, result.ResultId);
             await RecordLearningSampleAsync(sampleId, kind, cancellationToken).ConfigureAwait(false);
             string correctionId = FormattableString.Invariant(
                 $"operator-{Sanitize(result.ResultId)}-{disposition}");
@@ -283,6 +283,23 @@ namespace Vision.VisualInspectionCell
         private static string StableSampleId(NodeId pipeline, string resultId, string purpose)
         {
             return FormattableString.Invariant($"{pipeline}|{resultId}|{purpose}");
+        }
+
+        /// <summary>
+        /// Identifies the ground truth held for one inspection result.
+        /// </summary>
+        /// <remarks>
+        /// A correction can arrive by two routes - an operator answering the
+        /// disposition dialog, or a caller invoking <c>SubmitCorrection</c> - and
+        /// both describe the same decision about the same frame. Keying the sample
+        /// on the result alone makes the second arrival a duplicate that the
+        /// accounting rejects. Keying it on the route, as this once did, made one
+        /// human decision count twice and inflated the very number section 9.4
+        /// asks a Server to keep honestly.
+        /// </remarks>
+        private static string GroundTruthSampleId(NodeId pipeline, string resultId)
+        {
+            return StableSampleId(pipeline, resultId, "ground-truth");
         }
 
         private static string StableResultId(
