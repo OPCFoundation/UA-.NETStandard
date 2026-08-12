@@ -589,7 +589,7 @@ namespace Opc.Ua.Wot
                         break;
                     }
                     writer.WritePropertyName(UniqueKey(LocalName(variable.BrowseName), used));
-                    WriteVariableAffordance(writer, variable, isThingModel, namespaceUris);
+                    WriteVariableAffordance(writer, variable, isThingModel, namespaceUris, nodeSet);
                 }
                 writer.WriteEndObject();
             }
@@ -769,7 +769,8 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             UAVariable variable,
             bool isThingModel,
-            string[]? namespaceUris)
+            string[]? namespaceUris,
+            UANodeSet nodeSet)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", isThingModel ? "uav:variableType" : "uav:variable");
@@ -780,6 +781,12 @@ namespace Opc.Ua.Wot
                 "uav:browseName",
                 ToPortableQualifiedName(variable.BrowseName, namespaceUris));
             WriteOptional(writer, "uav:id", ToPortableNodeId(variable.NodeId, namespaceUris));
+
+            // Section 5.2.1 puts the definitive type-binding link on an
+            // affordance as well as on the Thing. Without it every Variable
+            // converts back as a BaseDataVariableType, and a Client browsing for
+            // AnalogUnitType, PropertyType or TwoStateDiscreteType finds none.
+            WriteTypeDefinitionLink(writer, TypeDefinitionHref(variable, nodeSet));
 
             string? jsonType = MapDataTypeToJson(variable.DataType);
             if (jsonType is not null)

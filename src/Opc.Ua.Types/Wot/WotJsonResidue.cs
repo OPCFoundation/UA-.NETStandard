@@ -363,6 +363,16 @@ namespace Opc.Ua.Wot
                         case "writeOnly":
                         case "observable":
                             break;
+                        case "links":
+                            // Section 5.2.1 puts the definitive type-binding
+                            // link on an affordance as well as on the Thing, so
+                            // an affordance's links are vocabulary the converter
+                            // maps. Treating them as opaque residue would round
+                            // them back into the NodeSet as an Extensions
+                            // fragment on top of the reference they already
+                            // produced.
+                            CaptureLinks(property.Value, affordancePointer + "/links", entries);
+                            break;
                         default:
                             Add(
                                 entries,
