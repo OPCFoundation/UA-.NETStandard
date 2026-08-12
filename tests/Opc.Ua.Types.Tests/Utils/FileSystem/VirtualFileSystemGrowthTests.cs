@@ -211,7 +211,13 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             }
             finally
             {
-                File.Delete(path);
+                try
+                {
+                    File.Delete(path);
+                }
+                catch
+                { /* Ignore cleanup errors */
+                }
             }
         }
 

@@ -1004,7 +1004,13 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             }
             finally
             {
-                File.Delete(tempFile);
+                try
+                {
+                    File.Delete(tempFile);
+                }
+                catch
+                { /* Ignore cleanup errors */
+                }
             }
         }
 

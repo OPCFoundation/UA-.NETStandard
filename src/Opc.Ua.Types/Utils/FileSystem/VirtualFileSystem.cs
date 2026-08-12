@@ -27,10 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-#define STREAM_WITH_SPAN_SUPPORT
-#endif
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -304,11 +300,17 @@ namespace Opc.Ua
             /// Get file content
             /// </summary>
             /// <returns></returns>
+            /// <exception cref="IOException">The file is too large to return as an array.</exception>
             public byte[] GetContent()
             {
                 lock (m_lock)
                 {
-                    byte[] content = new byte[checked((int)m_length)];
+                    if (m_length > int.MaxValue)
+                    {
+                        throw new IOException("The virtual file is too large.");
+                    }
+
+                    byte[] content = new byte[(int)m_length];
                     CopyToCore(0, content);
                     return content;
                 }
@@ -385,6 +387,35 @@ namespace Opc.Ua
                         {
                             m_length = endPosition;
                         }
+                    }
+
+                    m_lastWrite = DateTime.UtcNow;
+                }
+            }
+
+            /// <summary>
+            /// Write a byte to the file
+            /// </summary>
+            /// <param name="position"></param>
+            /// <param name="value"></param>
+            /// <exception cref="ArgumentOutOfRangeException"></exception>
+            public void WriteByte(long position, byte value)
+            {
+                if (position < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(position));
+                }
+
+                long endPosition = checked(position + 1);
+                lock (m_lock)
+                {
+                    EnsureCapacityCore(endPosition);
+                    int chunkIndex = checked((int)(position >> kChunkSizeBits));
+                    int chunkOffset = (int)(position & kChunkOffsetMask);
+                    m_chunks[chunkIndex][chunkOffset] = value;
+                    if (endPosition > m_length)
+                    {
+                        m_length = endPosition;
                     }
 
                     m_lastWrite = DateTime.UtcNow;
@@ -510,7 +541,7 @@ namespace Opc.Ua
                     return ReadCore(buffer.AsSpan(offset, count));
                 }
 
-#if STREAM_WITH_SPAN_SUPPORT
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                 /// <inheritdoc/>
 #pragma warning disable CA1725 // .NET Framework used a different parameter name
                 public override int Read(Span<byte> buffer)
@@ -544,7 +575,7 @@ namespace Opc.Ua
                     return Task.FromResult(ReadCore(buffer.AsSpan(offset, count)));
                 }
 
-#if STREAM_WITH_SPAN_SUPPORT
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                 /// <inheritdoc/>
                 public override ValueTask<int> ReadAsync(
                     Memory<byte> buffer,
@@ -638,7 +669,7 @@ namespace Opc.Ua
                     WriteCore(buffer.AsSpan(offset, count));
                 }
 
-#if STREAM_WITH_SPAN_SUPPORT
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                 /// <inheritdoc/>
 #pragma warning disable CA1725 // .NET Framework used a different parameter name
                 public override void Write(ReadOnlySpan<byte> buffer)
@@ -651,8 +682,9 @@ namespace Opc.Ua
                 /// <inheritdoc/>
                 public override void WriteByte(byte value)
                 {
-                    Span<byte> buffer = [value];
-                    WriteCore(buffer);
+                    EnsureCanWrite();
+                    m_file.WriteByte(m_position, value);
+                    m_position = checked(m_position + 1);
                 }
 
                 /// <inheritdoc/>
@@ -673,7 +705,7 @@ namespace Opc.Ua
                     return Task.CompletedTask;
                 }
 
-#if STREAM_WITH_SPAN_SUPPORT
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                 /// <inheritdoc/>
                 public override ValueTask WriteAsync(
                     ReadOnlyMemory<byte> buffer,
