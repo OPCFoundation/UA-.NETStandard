@@ -462,6 +462,18 @@ namespace Opc.Ua
                         "is unknown, because the unscaled value has no length of its own.");
                 }
 
+                // OPC 10000-6 5.1.10 Table 3: a Length of two or less leaves no
+                // octets for the unscaled value, and the clause calls that an
+                // invalid value that cannot be used. Reading it as zero would
+                // accept a Decimal the specification says does not exist.
+                if (unscaled.Length == 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "A Decimal whose ExtensionObject body is no longer than its Scale carries " +
+                        "no unscaled value and is invalid.");
+                }
+
                 UnscaledValue = FromLittleEndian(Scale, unscaled).UnscaledValue;
                 return;
             }

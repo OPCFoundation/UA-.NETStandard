@@ -124,6 +124,38 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        /// <summary>
+        /// Clause 5.1.10 Table 3: "If the length is less than or equal to 2
+        /// then the Decimal is an invalid value that cannot be used." A body of
+        /// exactly two bytes carries the Scale and no unscaled octets at all,
+        /// so there is no value to represent and it has to be rejected rather
+        /// than read as zero.
+        /// </summary>
+        [TestCase(2)]
+        [TestCase(1)]
+        [TestCase(0)]
+        public void ABodyThatIsTooShortToCarryAnUnscaledValueIsRejected(int bodyLength)
+        {
+            byte[] buffer;
+            using (var encoder = new BinaryEncoder(m_context))
+            {
+                encoder.WriteNodeId(null, ExpandedNodeId.ToNodeId(new Opc.Ua.Decimal().TypeId, m_context.NamespaceUris));
+                encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
+                encoder.WriteInt32(null, bodyLength);
+                for (int ii = 0; ii < bodyLength; ii++)
+                {
+                    encoder.WriteByte(null, 0);
+                }
+                buffer = encoder.CloseAndReturnBuffer()!;
+            }
+
+            using var decoder = new BinaryDecoder(buffer, m_context);
+
+            Assert.That(() => decoder.ReadExtensionObject("Value"),
+                Throws.TypeOf<ServiceResultException>());
+        }
+
+        [Test]
         public void AZeroValuedDecimalCarriesNoUnscaledOctetsBeyondTheSignByte()
         {
             var value = new Opc.Ua.Decimal(BigInteger.Zero, 0);
