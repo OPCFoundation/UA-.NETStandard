@@ -415,6 +415,14 @@ namespace Opc.Ua.Types.Tests.Wot
                     !r.IsForward && r.Value == "i=7"),
                 Is.True);
 
+            // A subtyped-value kind is not expressible as an IsUnion flag, so
+            // the reverse direction has to read it back off the fields. Getting
+            // this wrong silently demotes the type to a plain Structure, which
+            // the kind checks then reject on the way back in.
+            UADataType anyNumber = dataTypes.Single(d => d.BrowseName!.EndsWith(
+                ":AnyNumberDataType", StringComparison.Ordinal));
+            Assert.That(anyNumber.Definition!.Field![0].AllowSubTypes, Is.True);
+
             // A SimpleDataType has no definition attribute and no encodings.
             UADataType counter = dataTypes.Single(d => d.BrowseName!.EndsWith(
                 ":PositiveCounterType", StringComparison.Ordinal));

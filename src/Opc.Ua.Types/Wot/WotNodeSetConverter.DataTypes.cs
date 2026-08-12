@@ -522,6 +522,7 @@ namespace Opc.Ua.Wot
                     IsOptional = GetElementBool(field, "uav:isOptional"),
                     AllowSubTypes = GetElementBool(field, "uav:allowSubtypes")
                 };
+                ValidateFieldKind(definition, field, entry, fieldName, diagnostics);
                 uint? maxStringLength = GetElementUInt32(field, "uav:maxStringLength");
                 if (maxStringLength is { } length)
                 {
@@ -536,6 +537,66 @@ namespace Opc.Ua.Wot
                 fields.Add(entry);
             }
             return [.. fields];
+        }
+
+        /// <summary>
+        /// Rejects a field whose facets contradict the kind its definition
+        /// declares, or whose dimensions contradict its rank.
+        /// </summary>
+        /// <remarks>
+        /// Both would otherwise materialize silently into a malformed OPC UA
+        /// definition. A plain Structure has no room for an absent field, and
+        /// a subtyped value needs a kind that admits one, so §6.11.2 pairs each
+        /// facet with the kinds that can carry it. ArrayDimensions describes one
+        /// bound per dimension, so its length is the rank by construction.
+        /// </remarks>
+        private static void ValidateFieldKind(
+            JsonElement definition,
+            JsonElement field,
+            Opc.Ua.Export.DataTypeField entry,
+            string fieldName,
+            List<WotDiagnostic> diagnostics)
+        {
+            string structureType = GetElementString(definition, "uav:structureType") ?? "Structure";
+            if (entry.IsOptional &&
+                !structureType.Contains("Optional", StringComparison.Ordinal) &&
+                !structureType.StartsWith("Union", StringComparison.Ordinal))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The field '{fieldName}' is optional but its definition is " +
+                    $"a '{structureType}', which has no room for an absent " +
+                    "field; §6.11.2 needs StructureWithOptionalFields for that.",
+                    new WotLocation(reference: fieldName)));
+            }
+            if (entry.AllowSubTypes &&
+                !structureType.Contains("SubtypedValues", StringComparison.Ordinal))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The field '{fieldName}' allows subtype values but its " +
+                    $"definition is a '{structureType}'; §6.11.2 needs a " +
+                    "subtyped-value kind to carry one.",
+                    new WotLocation(reference: fieldName)));
+            }
+            if (!field.TryGetProperty("uav:arrayDimensions", out JsonElement dimensions) ||
+                dimensions.ValueKind != JsonValueKind.Array)
+            {
+                return;
+            }
+            int count = dimensions.GetArrayLength();
+            if (count != 0 && count != entry.ValueRank)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The field '{fieldName}' states {count} array dimension(s) " +
+                    $"against a ValueRank of {entry.ValueRank}. ArrayDimensions " +
+                    "carries one bound per dimension, so its length is the rank.",
+                    new WotLocation(reference: fieldName)));
+            }
         }
 
         private static string ResolveFieldDataType(
@@ -822,9 +883,7 @@ namespace Opc.Ua.Wot
             }
             else
             {
-                writer.WriteString(
-                    "uav:structureType",
-                    definition.IsUnion ? "Union" : StructureTypeName(definition));
+                writer.WriteString("uav:structureType", StructureTypeName(definition));
                 WriteStructureFields(writer, definition, nodeSet);
             }
             writer.WriteEndObject();
@@ -871,19 +930,37 @@ namespace Opc.Ua.Wot
             return isEnumeration ? "uav:EnumDefinition" : "uav:StructureDefinition";
         }
 
+        /// <summary>
+        /// Names the structure kind of §6.11.2 from the facets its fields carry.
+        /// </summary>
+        /// <remarks>
+        /// A NodeSet states only <c>IsUnion</c>, so the rest of the kind has to
+        /// be read back off the fields: a field that may be absent means the
+        /// optional-field kind, and one that admits a subtype means a
+        /// subtyped-value kind. Reading only optionality would silently demote
+        /// a subtyped-value structure to a plain one.
+        /// </remarks>
         private static string StructureTypeName(Opc.Ua.Export.DataTypeDefinition definition)
         {
+            bool allowsSubtypes = false;
+            bool hasOptional = false;
             if (definition.Field is not null)
             {
                 foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
                 {
-                    if (field.IsOptional)
-                    {
-                        return "StructureWithOptionalFields";
-                    }
+                    allowsSubtypes |= field.AllowSubTypes;
+                    hasOptional |= field.IsOptional;
                 }
             }
-            return "Structure";
+            if (definition.IsUnion)
+            {
+                return allowsSubtypes ? "UnionWithSubtypedValues" : "Union";
+            }
+            if (allowsSubtypes)
+            {
+                return "StructureWithSubtypedValues";
+            }
+            return hasOptional ? "StructureWithOptionalFields" : "Structure";
         }
 
         private static void WriteBaseDataType(

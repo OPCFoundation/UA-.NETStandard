@@ -239,6 +239,80 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(new[] { false, true }));
         }
 
+        // The reference validator shipped with the specification enforces these
+        // as mutations of its own example: each breaks one rule and shall be
+        // caught. They matter to a converter as much as to a validator, because
+        // accepting them materializes a malformed OPC UA definition silently.
+        [TestCase("optional field in a plain Structure", "\"uav:isOptional\":true", "no room")]
+        [TestCase("subtyped value in a plain Structure", "\"uav:allowSubtypes\":true", "subtyped-value")]
+        public void FacetContradictingItsStructureKindIsRejected(
+            string scenario,
+            string facet,
+            string expected)
+        {
+            _ = scenario;
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(DefinitionThing(
+                    "\"uav:structureType\":\"Structure\",\"uav:fields\":[{" +
+                    "\"uav:fieldName\":\"A\",\"uav:fieldDataTypeId\":\"i=11\"," +
+                    facet + "}]"))));
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Has.Some.Contains(expected));
+        }
+
+        // ArrayDimensions carries one bound per dimension, so a rank of two
+        // with a single dimension describes nothing coherent.
+        [Test]
+        public void ArrayDimensionsDisagreeingWithValueRankIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(DefinitionThing(
+                    "\"uav:fields\":[{\"uav:fieldName\":\"A\"," +
+                    "\"uav:fieldDataTypeId\":\"i=11\",\"uav:valueRank\":2," +
+                    "\"uav:arrayDimensions\":[3]}]"))));
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Has.Some.Contains("one bound per dimension"));
+        }
+
+        // The same shape stated coherently is accepted, so the checks above
+        // reject the contradiction rather than the facet.
+        [Test]
+        public void CoherentRankAndDimensionsAreAccepted()
+        {
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(DefinitionThing(
+                    "\"uav:fields\":[{\"uav:fieldName\":\"A\"," +
+                    "\"uav:fieldDataTypeId\":\"i=11\",\"uav:valueRank\":2," +
+                    "\"uav:arrayDimensions\":[3,3]}]"))));
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Is.Empty);
+            Assert.That(
+                result.Value!.Items!.OfType<UADataType>().Single()
+                    .Definition!.Field![0].ArrayDimensions,
+                Is.EqualTo("3,3"));
+        }
+
+        private static string DefinitionThing(string body)
+        {
+            return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"demo\":\"http://example.com/demo/pump\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Thing\"," +
+                "\"uav:dataTypeDefinitions\":[{" +
+                "\"@id\":\"urn:t#A\",\"@type\":\"uav:StructureDefinition\"," +
+                "\"uav:dataTypeName\":\"demo:ADataType\"," + body + "}]}";
+        }
+
         private static string SchemaThing(string schema)
         {
             string members = schema.Length == 0 ? string.Empty : schema + ",";
