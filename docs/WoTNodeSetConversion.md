@@ -149,14 +149,26 @@ where it determines every required fact — inference fails rather than guesses:
 **Encodings.** A non-abstract Structure or Union exposes `Default Binary`,
 `Default XML` and `Default JSON`, with identities derived by appending
 `/Default Binary` and so on to the type's own identity. An abstract type is
-refused encoding identities outright.
+refused encoding identities outright. A concrete type used only inside other
+Structures — never directly in an ExtensionObject — may set
+`uav:hasDefaultEncoding: false`, and then no encodings are generated for it;
+the term is refused on any kind that has no encodings to begin with.
+
+An `OptionSet` states a base of `Byte`, `UInt16`, `UInt32` or `UInt64` wide
+enough for its highest authored bit. The abstract `UInteger` is not legal: the
+base has to say how many bits exist, and an abstract type says only that there
+are some.
 
 **NodeSet to WoT.** Every DataType a NodeSet defines is emitted back into
 `uav:dataTypeDefinitions`. Whether a definition is an enumeration is decided
 by the shape a NodeSet actually gives it — an enumeration field carries a
 value and no DataType, a structure field the reverse — because the file states
-no kind directly. An alias is resolved rather than emitted, since a name like
-`DataType="Structure"` means nothing outside the document that defines it.
+no kind directly. The same is true of the structure kind: only `IsUnion` is
+recorded, so optionality and subtype allowance are read back off the fields.
+An encoding link is searched from both ends, because a NodeSet may write it
+from either and real companion models write it from the Object. An alias is
+resolved rather than emitted, since a name like `DataType="Structure"` means
+nothing outside the document that defines it.
 
 **Known gap.** An inferred definition's own DataSchema terms
 (`uav:fieldOrder`, `properties`, `required`, `oneOf`) still travel as residue
