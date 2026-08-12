@@ -627,13 +627,12 @@ namespace Opc.Ua.Bindings
                 EndPoint? remoteEndpoint = Transport?.RemoteEndpoint;
                 if (remoteEndpoint != null)
                 {
-                    m_logger
-                        .TcpListenChannelLog4(
-                            ChannelName,
-                            remoteEndpoint,
-                            CurrentToken != null ? CurrentToken.ChannelId : 0,
-                            CurrentToken != null ? CurrentToken.TokenId : 0,
-                            reason);
+                    m_logger.TcpListenChannelLog4(
+                        ChannelName,
+                        remoteEndpoint,
+                        CurrentToken != null ? CurrentToken.ChannelId : 0,
+                        CurrentToken != null ? CurrentToken.TokenId : 0,
+                        reason);
                 }
             }
             else
@@ -654,9 +653,8 @@ namespace Opc.Ua.Bindings
             if (close)
             {
                 // mark the RemoteAddress as potential problematic if Basic128Rsa15
-                if ((SecurityPolicyUri == SecurityPolicies.Basic128Rsa15) &&
-                    (
-                        reason.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                if (SecurityPolicyUri == SecurityPolicies.Basic128Rsa15 &&
+                    (reason.StatusCode == StatusCodes.BadSecurityChecksFailed ||
                         reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
                 {
                     var tcpTransportListener = Listener as TcpTransportListener;

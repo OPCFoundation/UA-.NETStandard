@@ -1021,31 +1021,29 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private void CompleteConnectCore(WriteOperation operation)
         {
+            try
             {
-                try
+                // check for closed transport.
+                if (Transport == null)
                 {
-                    // check for closed transport.
-                    if (Transport == null)
-                    {
-                        operation.Fault(StatusCodes.BadSecureChannelClosed);
-                        return;
-                    }
-
-                    // start reading messages.
-                    StartReceiveLoop();
-
-                    // send the hello message.
-                    SendHelloMessage(operation);
+                    operation.Fault(StatusCodes.BadSecureChannelClosed);
+                    return;
                 }
-                catch (Exception ex)
-                {
-                    var fault = ServiceResult.Create(
-                        ex,
-                        StatusCodes.BadTcpInternalError,
-                        "An unexpected error occurred while connecting to the server.");
 
-                    operation.Fault(fault);
-                }
+                // start reading messages.
+                StartReceiveLoop();
+
+                // send the hello message.
+                SendHelloMessage(operation);
+            }
+            catch (Exception ex)
+            {
+                var fault = ServiceResult.Create(
+                    ex,
+                    StatusCodes.BadTcpInternalError,
+                    "An unexpected error occurred while connecting to the server.");
+
+                operation.Fault(fault);
             }
         }
 
@@ -1351,63 +1349,61 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private void ShutdownCore(ServiceResult reason)
         {
+            // channel may already be closed
+            if (State == TcpChannelState.Closed)
             {
-                // channel may already be closed
-                if (State == TcpChannelState.Closed)
-                {
-                    return;
-                }
-
-                // clear an unprocessed chunks.
-                SaveIntermediateChunk(0, new ArraySegment<byte>(), false, gateHeld: true);
-
-                // halt any scheduled tasks.
-                m_handshakeTimer?.Dispose();
-                m_handshakeTimer = null;
-
-                // halt any existing handshake.
-                if (m_handshakeOperation?.IsCompleted == false)
-                {
-                    m_handshakeOperation.Fault(reason);
-                }
-
-                // cancel all requests.
-                foreach (KeyValuePair<uint, WriteOperation> operation in m_requests.ToArray())
-                {
-                    operation.Value
-                        .Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
-                }
-                m_requests.Clear();
-
-                uint channelId = ChannelId;
-
-                // close the socket.
-                State = TcpChannelState.Closed;
-
-                // dispose of the tokens.
-                ChannelId = 0;
-                DiscardTokens();
-
-                // clear the handshake state.
-                m_handshakeOperation = null;
-                m_requestedToken?.Dispose();
-                m_requestedToken = null;
-                m_reconnecting = false;
-
-                IUaSCByteTransport? transport = Transport;
-                if (transport != null)
-                {
-                    Transport = null;
-                    m_logger
-                        .UaSCClientLog27(
-                            channelId,
-                            transport.RemoteEndpoint);
-                    transport.Close();
-                }
-
-                // set the state.
-                ChannelStateChanged(TcpChannelState.Closed, reason);
+                return;
             }
+
+            // clear an unprocessed chunks.
+            SaveIntermediateChunk(0, new ArraySegment<byte>(), false, gateHeld: true);
+
+            // halt any scheduled tasks.
+            m_handshakeTimer?.Dispose();
+            m_handshakeTimer = null;
+
+            // halt any existing handshake.
+            if (m_handshakeOperation?.IsCompleted == false)
+            {
+                m_handshakeOperation.Fault(reason);
+            }
+
+            // cancel all requests.
+            foreach (KeyValuePair<uint, WriteOperation> operation in m_requests.ToArray())
+            {
+                operation.Value
+                    .Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
+            }
+            m_requests.Clear();
+
+            uint channelId = ChannelId;
+
+            // close the socket.
+            State = TcpChannelState.Closed;
+
+            // dispose of the tokens.
+            ChannelId = 0;
+            DiscardTokens();
+
+            // clear the handshake state.
+            m_handshakeOperation = null;
+            m_requestedToken?.Dispose();
+            m_requestedToken = null;
+            m_reconnecting = false;
+
+            IUaSCByteTransport? transport = Transport;
+            if (transport != null)
+            {
+                Transport = null;
+                m_logger
+                    .UaSCClientLog27(
+                        channelId,
+                        transport.RemoteEndpoint);
+                transport.Close();
+            }
+
+            // set the state.
+            ChannelStateChanged(TcpChannelState.Closed, reason);
         }
 
         /// <summary>
@@ -1433,82 +1429,80 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private void ForceReconnectCore(ServiceResult reason)
         {
+            // check if reconnect already started.
+            if (m_reconnecting)
             {
-                // check if reconnect already started.
-                if (m_reconnecting)
-                {
-                    return;
-                }
-
-                // check if reconnects are disabled.
-                if (State == TcpChannelState.Closing || m_waitBetweenReconnects == Timeout.Infinite)
-                {
-                    ShutdownCore(reason);
-                    return;
-                }
-
-                m_logger.UaSCClientLog28(Id, reason);
-
-                // cancel all requests.
-                foreach (KeyValuePair<uint, WriteOperation> operation in m_requests.ToArray())
-                {
-                    operation.Value
-                        .Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
-                }
-                m_requests.Clear();
-
-                // halt any existing handshake.
-                if (m_handshakeOperation?.IsCompleted == false)
-                {
-                    m_handshakeOperation.Fault(reason);
-                    return;
-                }
-
-                // clear an unprocessed chunks.
-                SaveIntermediateChunk(0, new ArraySegment<byte>(), false, gateHeld: true);
-
-                // halt any scheduled tasks.
-                m_handshakeTimer?.Dispose();
-                m_handshakeTimer = null;
-
-                // clear the handshake state.
-                m_handshakeOperation = null;
-                m_requestedToken?.Dispose();
-                m_requestedToken = null;
-                m_reconnecting = true;
-
-                // close the socket.
-                State = TcpChannelState.Faulted;
-
-                // schedule a reconnect.
-                if (m_logger.IsEnabled(LogLevel.Information))
-                {
-                    m_logger.UaSCClientLog29(
-                        ChannelId,
-                        m_waitBetweenReconnects,
-                        reason.ToLongString());
-                }
-                m_handshakeTimer = TimeProvider.CreateTimer(
-                    m_startHandshake,
-                    null,
-                    TimeSpan.FromMilliseconds(m_waitBetweenReconnects),
-                    Timeout.InfiniteTimeSpan);
-
-                // set next reconnect period.
-                m_waitBetweenReconnects *= 2;
-
-                if (m_waitBetweenReconnects <= TcpMessageLimits.MinTimeBetweenReconnects)
-                {
-                    m_waitBetweenReconnects = TcpMessageLimits.MinTimeBetweenReconnects + 1000;
-                }
-
-                if (m_waitBetweenReconnects > TcpMessageLimits.MaxTimeBetweenReconnects)
-                {
-                    m_waitBetweenReconnects = TcpMessageLimits.MaxTimeBetweenReconnects;
-                }
-
-                ChannelStateChanged(TcpChannelState.Faulted, reason);
+                return;
             }
+
+            // check if reconnects are disabled.
+            if (State == TcpChannelState.Closing || m_waitBetweenReconnects == Timeout.Infinite)
+            {
+                ShutdownCore(reason);
+                return;
+            }
+
+            m_logger.UaSCClientLog28(Id, reason);
+
+            // cancel all requests.
+            foreach (KeyValuePair<uint, WriteOperation> operation in m_requests.ToArray())
+            {
+                operation.Value
+                    .Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
+            }
+            m_requests.Clear();
+
+            // halt any existing handshake.
+            if (m_handshakeOperation?.IsCompleted == false)
+            {
+                m_handshakeOperation.Fault(reason);
+                return;
+            }
+
+            // clear an unprocessed chunks.
+            SaveIntermediateChunk(0, new ArraySegment<byte>(), false, gateHeld: true);
+
+            // halt any scheduled tasks.
+            m_handshakeTimer?.Dispose();
+            m_handshakeTimer = null;
+
+            // clear the handshake state.
+            m_handshakeOperation = null;
+            m_requestedToken?.Dispose();
+            m_requestedToken = null;
+            m_reconnecting = true;
+
+            // close the socket.
+            State = TcpChannelState.Faulted;
+
+            // schedule a reconnect.
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.UaSCClientLog29(
+                    ChannelId,
+                    m_waitBetweenReconnects,
+                    reason.ToLongString());
+            }
+            m_handshakeTimer = TimeProvider.CreateTimer(
+                m_startHandshake,
+                null,
+                TimeSpan.FromMilliseconds(m_waitBetweenReconnects),
+                Timeout.InfiniteTimeSpan);
+
+            // set next reconnect period.
+            m_waitBetweenReconnects *= 2;
+
+            if (m_waitBetweenReconnects <= TcpMessageLimits.MinTimeBetweenReconnects)
+            {
+                m_waitBetweenReconnects = TcpMessageLimits.MinTimeBetweenReconnects + 1000;
+            }
+
+            if (m_waitBetweenReconnects > TcpMessageLimits.MaxTimeBetweenReconnects)
+            {
+                m_waitBetweenReconnects = TcpMessageLimits.MaxTimeBetweenReconnects;
+            }
+
+            ChannelStateChanged(TcpChannelState.Faulted, reason);
         }
 
         /// <summary>
