@@ -79,6 +79,71 @@ namespace Opc.Ua.Core.DataChannels.Tests
             m_certificate?.Dispose();
         }
 
+        /// <summary>
+        /// A QUIC listener has to accept a connection that arrives over IPv6.
+        /// </summary>
+        /// <remarks>
+        /// The peers here reach each other by name, and "localhost" resolves to
+        /// ::1 before 127.0.0.1 on some hosts, so a listener bound to the IPv4
+        /// loopback alone never sees the handshake. .NET reports that as an
+        /// ALPN failure rather than a connect failure (dotnet/runtime#85412),
+        /// which points the investigation at the wrong layer entirely. The
+        /// connection is made over IPv6 explicitly because a host that resolves
+        /// IPv4 first would otherwise never exercise this.
+        /// </remarks>
+        [Test]
+        public async Task AListenerAcceptsAConnectionArrivingOverIPv6Async()
+        {
+            var listenerOptions = new QuicListenerOptions
+            {
+                ListenEndPoint = new IPEndPoint(IPAddress.IPv6Any, 0),
+                ApplicationProtocols = [QuicTransport.ApplicationProtocol],
+                ConnectionOptionsCallback = (_, _, _) => ValueTask.FromResult(
+                    new QuicServerConnectionOptions
+                    {
+                        DefaultStreamErrorCode = 0x0A,
+                        DefaultCloseErrorCode = 0x0B,
+                        ServerAuthenticationOptions = new SslServerAuthenticationOptions
+                        {
+                            ApplicationProtocols = [QuicTransport.ApplicationProtocol],
+                            ServerCertificate = m_certificate,
+                            ClientCertificateRequired = true,
+                            RemoteCertificateValidationCallback = (_, _, _, _) => true
+                        }
+                    })
+            };
+
+            await using QuicListener listener = await QuicListener
+                .ListenAsync(listenerOptions).ConfigureAwait(false);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            Task<QuicConnection> accept = listener.AcceptConnectionAsync(cts.Token).AsTask();
+
+            await using QuicConnection client = await QuicConnection.ConnectAsync(
+                new QuicClientConnectionOptions
+                {
+                    RemoteEndPoint = new IPEndPoint(
+                        IPAddress.IPv6Loopback,
+                        listener.LocalEndPoint.Port),
+                    DefaultStreamErrorCode = 0x0A,
+                    DefaultCloseErrorCode = 0x0B,
+                    ClientAuthenticationOptions = new SslClientAuthenticationOptions
+                    {
+                        ApplicationProtocols = [QuicTransport.ApplicationProtocol],
+                        TargetHost = "localhost",
+                        ClientCertificates = [m_certificate!],
+                        RemoteCertificateValidationCallback = (_, _, _, _) => true
+                    }
+                },
+                cts.Token).ConfigureAwait(false);
+
+            await using QuicConnection server = await accept.ConfigureAwait(false);
+
+            Assert.That(
+                client.NegotiatedApplicationProtocol,
+                Is.EqualTo(QuicTransport.ApplicationProtocol));
+        }
+
         [Test]
         public async Task TheControlStreamCarriesChunksBothWaysAsync()
         {

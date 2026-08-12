@@ -389,7 +389,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             await using QuicListener listener = await QuicListener
                 .ListenAsync(new QuicListenerOptions
                 {
-                    ListenEndPoint = new IPEndPoint(IPAddress.Loopback, 0),
+                    ListenEndPoint = new IPEndPoint(IPAddress.IPv6Any, 0),
                     ApplicationProtocols = [QuicTransport.ApplicationProtocol],
                     ConnectionOptionsCallback = (_, _, _) => ValueTask.FromResult(
                         new QuicServerConnectionOptions

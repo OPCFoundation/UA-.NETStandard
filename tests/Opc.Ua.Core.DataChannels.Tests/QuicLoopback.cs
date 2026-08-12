@@ -112,7 +112,13 @@ namespace Opc.Ua.Core.DataChannels.Tests
         {
             var listenerOptions = new QuicListenerOptions
             {
-                ListenEndPoint = new IPEndPoint(IPAddress.Loopback, 0),
+                // Dual stack, like QuicTransportListener: the client below
+                // connects to "localhost", which resolves to ::1 first on some
+                // hosts, and a listener bound to the IPv4 loopback would never
+                // see the handshake. .NET reports that as an ALPN failure
+                // rather than a connect failure, which is thoroughly
+                // misleading (dotnet/runtime#85412).
+                ListenEndPoint = new IPEndPoint(IPAddress.IPv6Any, 0),
                 ApplicationProtocols = [QuicTransport.ApplicationProtocol],
                 ConnectionOptionsCallback = (_, _, _) => ValueTask.FromResult(
                     new QuicServerConnectionOptions

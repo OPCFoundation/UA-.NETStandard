@@ -223,7 +223,12 @@ namespace Opc.Ua.Core.DataChannels.Tests
             await using QuicListener listener = await QuicListener.ListenAsync(
                 new QuicListenerOptions
                 {
-                    ListenEndPoint = new IPEndPoint(IPAddress.Loopback, 0),
+                    // Dual stack, like QuicTransportListener: "localhost"
+                    // resolves to ::1 first on some hosts, and a listener bound
+                    // to the IPv4 loopback would never see the handshake. This
+                    // test would then pass for the wrong reason, because a
+                    // connection that never arrives also throws.
+                    ListenEndPoint = new IPEndPoint(IPAddress.IPv6Any, 0),
                     ApplicationProtocols = [wrongProtocol],
                     ConnectionOptionsCallback = (_, _, _) => ValueTask.FromResult(
                         new QuicServerConnectionOptions
