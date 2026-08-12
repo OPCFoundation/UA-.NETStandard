@@ -334,6 +334,7 @@ namespace Opc.Ua.Aas.Tests.Federation
                     // which surfaces as whichever socket error the platform
                     // chooses; none of them mean anything to the test.
                 }
+                m_listener.Dispose();
                 m_cts.Dispose();
             }
 
@@ -356,7 +357,7 @@ namespace Opc.Ua.Aas.Tests.Federation
                     while (!cancellationToken.IsCancellationRequested)
                     {
                         int read = await stream
-                            .ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+                            .ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
                         if (read <= 0)
                         {
                             return;
@@ -366,7 +367,7 @@ namespace Opc.Ua.Aas.Tests.Federation
                         byte[] response = Encoding.ASCII.GetBytes(
                             "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nContent-Type: text/plain\r\n\r\nok");
                         await stream
-                            .WriteAsync(response, 0, response.Length, cancellationToken).ConfigureAwait(false);
+                            .WriteAsync(response.AsMemory(), cancellationToken).ConfigureAwait(false);
                         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                     }
                 }

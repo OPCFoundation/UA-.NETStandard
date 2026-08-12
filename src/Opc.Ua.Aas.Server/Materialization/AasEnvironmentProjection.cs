@@ -50,6 +50,26 @@ namespace Opc.Ua.Aas.Server.Materialization
     }
 
     /// <summary>
+    /// Marks the host-specific registration carried by an
+    /// <see cref="AasEnvironmentProjectionHandle"/>.
+    /// </summary>
+    /// <remarks>
+    /// Implementations are opaque to the materialization pipeline; only the
+    /// owning <see cref="IAasEnvironmentProjectionHost"/> interprets them. The
+    /// handle names this rather than the concrete runtime registration so that
+    /// the host interface can be implemented outside the stack - a test double
+    /// can record the sequence of add, reload and remove without a running
+    /// server, and an alternative projection strategy is expressible at all.
+    /// </remarks>
+    public interface IAasProjectionRegistration
+    {
+        /// <summary>
+        /// Gets the stable identifier the host assigned to this registration.
+        /// </summary>
+        Guid Id { get; }
+    }
+
+    /// <summary>
     /// The live projection handle returned by the AAS projection host.
     /// </summary>
     public sealed class AasEnvironmentProjectionHandle
@@ -57,15 +77,15 @@ namespace Opc.Ua.Aas.Server.Materialization
         /// <summary>
         /// Initializes a handle.
         /// </summary>
-        /// <param name="registration">The runtime NodeManager lifecycle registration.</param>
-        public AasEnvironmentProjectionHandle(NodeManagerRegistration registration)
+        /// <param name="registration">The host-specific projection registration.</param>
+        public AasEnvironmentProjectionHandle(IAasProjectionRegistration? registration)
         {
-            Registration = registration ?? throw new ArgumentNullException(nameof(registration));
+            Registration = registration;
         }
 
         /// <summary>
-        /// Gets the runtime NodeManager lifecycle registration.
+        /// Gets the host-specific projection registration.
         /// </summary>
-        public NodeManagerRegistration Registration { get; }
+        public IAasProjectionRegistration? Registration { get; }
     }
 }

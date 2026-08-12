@@ -65,7 +65,7 @@ namespace Opc.Ua.Aas.Server.Materialization
             NodeManagerRegistration registration = await m_lifecycle
                 .AddRuntimeNodeSetAsync(options, callerContext: null, cancellationToken)
                 .ConfigureAwait(false);
-            return new AasEnvironmentProjectionHandle(registration);
+            return new AasEnvironmentProjectionHandle(new NodeManagerProjectionRegistration(registration));
         }
 
         /// <inheritdoc/>
@@ -79,7 +79,7 @@ namespace Opc.Ua.Aas.Server.Materialization
             NodeManagerRegistration registration = await m_lifecycle
                 .AddRuntimeNodeSetAsync(options, callerContext: null, cancellationToken)
                 .ConfigureAwait(false);
-            return new AasEnvironmentProjectionHandle(registration);
+            return new AasEnvironmentProjectionHandle(new NodeManagerProjectionRegistration(registration));
         }
 
         /// <inheritdoc/>
@@ -97,9 +97,9 @@ namespace Opc.Ua.Aas.Server.Materialization
 
             RuntimeNodeSetOptions options = CreateOptions(environment, valueProvider, operationHandler);
             NodeManagerRegistration registration = await m_lifecycle
-                .ShadowReloadRuntimeNodeSetAsync(current.Registration, options, cancellationToken)
+                .ShadowReloadRuntimeNodeSetAsync(Unwrap(current), options, cancellationToken)
                 .ConfigureAwait(false);
-            return new AasEnvironmentProjectionHandle(registration);
+            return new AasEnvironmentProjectionHandle(new NodeManagerProjectionRegistration(registration));
         }
 
         /// <inheritdoc/>
@@ -117,9 +117,9 @@ namespace Opc.Ua.Aas.Server.Materialization
 
             RuntimeNodeSetOptions options = CreateOptions(environment, valueProvider, operationHandler);
             NodeManagerRegistration registration = await m_lifecycle
-                .ShadowReloadRuntimeNodeSetAsync(current.Registration, options, cancellationToken)
+                .ShadowReloadRuntimeNodeSetAsync(Unwrap(current), options, cancellationToken)
                 .ConfigureAwait(false);
-            return new AasEnvironmentProjectionHandle(registration);
+            return new AasEnvironmentProjectionHandle(new NodeManagerProjectionRegistration(registration));
         }
 
         /// <inheritdoc/>
@@ -137,9 +137,9 @@ namespace Opc.Ua.Aas.Server.Materialization
 
             RuntimeNodeSetOptions options = CreateOptions(environment, valueProvider, operationHandler);
             NodeManagerRegistration registration = await m_lifecycle
-                .ImmediateReloadRuntimeNodeSetAsync(current.Registration, options, cancellationToken)
+                .ImmediateReloadRuntimeNodeSetAsync(Unwrap(current), options, cancellationToken)
                 .ConfigureAwait(false);
-            return new AasEnvironmentProjectionHandle(registration);
+            return new AasEnvironmentProjectionHandle(new NodeManagerProjectionRegistration(registration));
         }
 
         /// <inheritdoc/>
@@ -157,9 +157,9 @@ namespace Opc.Ua.Aas.Server.Materialization
 
             RuntimeNodeSetOptions options = CreateOptions(environment, valueProvider, operationHandler);
             NodeManagerRegistration registration = await m_lifecycle
-                .ImmediateReloadRuntimeNodeSetAsync(current.Registration, options, cancellationToken)
+                .ImmediateReloadRuntimeNodeSetAsync(Unwrap(current), options, cancellationToken)
                 .ConfigureAwait(false);
-            return new AasEnvironmentProjectionHandle(registration);
+            return new AasEnvironmentProjectionHandle(new NodeManagerProjectionRegistration(registration));
         }
 
         /// <inheritdoc/>
@@ -172,7 +172,27 @@ namespace Opc.Ua.Aas.Server.Materialization
                 throw new ArgumentNullException(nameof(handle));
             }
 
-            return m_lifecycle.RemoveAsync(handle.Registration, callerContext: null, cancellationToken);
+            return m_lifecycle.RemoveAsync(Unwrap(handle), callerContext: null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Recovers the lifecycle registration this host put into a handle.
+        /// </summary>
+        /// <remarks>
+        /// The handle is deliberately host-agnostic, so a handle produced by a
+        /// different host carries a registration this one cannot act on. That
+        /// is a programming error rather than a runtime condition, so it is
+        /// named as one instead of being silently ignored.
+        /// </remarks>
+        private static NodeManagerRegistration Unwrap(AasEnvironmentProjectionHandle handle)
+        {
+            if (handle.Registration is not NodeManagerProjectionRegistration wrapper)
+            {
+                throw new ArgumentException(
+                    "The projection handle was not produced by this host.", nameof(handle));
+            }
+
+            return wrapper.Registration;
         }
 
         private static RuntimeNodeSetOptions CreateOptions(
@@ -304,5 +324,21 @@ namespace Opc.Ua.Aas.Server.Materialization
         }
 
         private readonly INodeManagerLifecycle m_lifecycle;
+
+        /// <summary>
+        /// Carries the lifecycle registration owned by this host through the
+        /// host-agnostic <see cref="AasEnvironmentProjectionHandle"/>.
+        /// </summary>
+        private sealed class NodeManagerProjectionRegistration : IAasProjectionRegistration
+        {
+            public NodeManagerProjectionRegistration(NodeManagerRegistration registration)
+            {
+                Registration = registration;
+            }
+
+            public Guid Id => Registration.Id;
+
+            public NodeManagerRegistration Registration { get; }
+        }
     }
 }

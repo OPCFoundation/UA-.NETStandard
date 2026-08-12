@@ -590,11 +590,12 @@ namespace Opc.Ua.Aas.Tests.V2.Server
 
             private static AasEnvironmentProjectionHandle CreateHandle()
             {
-#pragma warning disable SYSLIB0050
-                var registration = (NodeManagerRegistration)FormatterServices.GetUninitializedObject(
-                    typeof(NodeManagerRegistration));
-#pragma warning restore SYSLIB0050
-                return new AasEnvironmentProjectionHandle(registration);
+                return new AasEnvironmentProjectionHandle(new TestProjectionRegistration());
+            }
+
+            private sealed class TestProjectionRegistration : IAasProjectionRegistration
+            {
+                public Guid Id { get; } = Guid.NewGuid();
             }
         }
 

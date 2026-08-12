@@ -243,7 +243,12 @@ namespace Opc.Ua.Aas.Tests.Serialization
 
             using Stream supplStream = supplPart.GetStream(FileMode.Create, FileAccess.Write);
             byte[] content = Encoding.UTF8.GetBytes("manual");
-            await supplStream.WriteAsync(content, 0, content.Length, CancellationToken.None).ConfigureAwait(false);
+#if NET5_0_OR_GREATER || NETSTANDARD2_1
+            await supplStream.WriteAsync(content.AsMemory(), CancellationToken.None).ConfigureAwait(false);
+#else
+            await supplStream.WriteAsync(content, 0, content.Length, CancellationToken.None)
+                .ConfigureAwait(false);
+#endif
         }
 
         private static async Task WriteManualJsonPackageAsync(
