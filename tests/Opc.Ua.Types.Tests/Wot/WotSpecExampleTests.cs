@@ -449,6 +449,86 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Half of the completeness contract of §6.11.8: a DataType Node
+        /// survives NodeSet to document and back through the readable
+        /// vocabulary alone, identity, fields and order intact.
+        /// </summary>
+        /// <remarks>
+        /// The example still leaves <c>uav:nodes</c> on the document, but no
+        /// longer because of any DataType Node. What remains is the
+        /// schema-only inference of §6.11.4 for objects and enumerations: the
+        /// example's Inferred* affordances carry <c>uav:fieldOrder</c>, which
+        /// is not yet read, so those schemas fall to residue. That is tracked
+        /// separately and is the last reason this example needs the projection.
+        /// </remarks>
+        [Test]
+        public void DataTypesSurviveTheRoundTripReadably()
+        {
+            using WotDocument authored = WotDocument.Parse(ReadExample(DataTypeExample));
+            UANodeSet first = WotNodeSetConverter.ToNodeSet(authored);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(first);
+
+            Assert.That(
+                document.RootElement.TryGetProperty("uav:dataTypeDefinitions", out JsonElement emitted),
+                Is.True,
+                "Every DataType the NodeSet defines should be stated readably.");
+            Assert.That(emitted.GetArrayLength(), Is.EqualTo(8));
+
+            UANodeSet second = WotNodeSetConverter.ToNodeSet(WithoutNativeProjection(document));
+
+            UADataType[] before = first.Items!.OfType<UADataType>()
+                .OrderBy(d => d.NodeId, StringComparer.Ordinal).ToArray();
+            UADataType[] after = second.Items!.OfType<UADataType>()
+                .OrderBy(d => d.NodeId, StringComparer.Ordinal).ToArray();
+
+            Assert.That(after.Select(d => d.NodeId), Is.EqualTo(before.Select(d => d.NodeId)));
+            Assert.That(
+                after.Select(d => d.BrowseName),
+                Is.EqualTo(before.Select(d => d.BrowseName)));
+            Assert.That(
+                after.Select(d => d.IsAbstract),
+                Is.EqualTo(before.Select(d => d.IsAbstract)));
+
+            for (int ii = 0; ii < before.Length; ii++)
+            {
+                Assert.That(
+                    after[ii].Definition?.Field?.Select(f => f.Name),
+                    Is.EqualTo(before[ii].Definition?.Field?.Select(f => f.Name)),
+                    $"Fields of '{before[ii].BrowseName}' should survive in order.");
+                Assert.That(
+                    after[ii].Definition?.Field?.Select(f => f.Value),
+                    Is.EqualTo(before[ii].Definition?.Field?.Select(f => f.Value)),
+                    $"Field values of '{before[ii].BrowseName}' should survive.");
+            }
+        }
+
+        /// <summary>
+        /// Strips the native projection so a round trip exercises the readable
+        /// mapping. Left in place the projection is preferred on the way back,
+        /// and the readable terms would never be read at all.
+        /// </summary>
+        private static WotDocument WithoutNativeProjection(WotDocument document)
+        {
+            using var buffer = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                writer.WriteStartObject();
+                foreach (JsonProperty member in document.RootElement.EnumerateObject())
+                {
+                    if (member.Name is "uav:nodes" or "uav:nodeSet")
+                    {
+                        continue;
+                    }
+                    writer.WritePropertyName(member.Name);
+                    member.Value.WriteTo(writer);
+                }
+                writer.WriteEndObject();
+            }
+            return WotDocument.Parse(buffer.ToArray());
+        }
+
+        /// <summary>
         /// A local context holding exactly one ObjectType, so the example
         /// resolves against the type it names.
         /// </summary>

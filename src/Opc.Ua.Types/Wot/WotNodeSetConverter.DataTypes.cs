@@ -735,5 +735,289 @@ namespace Opc.Ua.Wot
                 ? result
                 : null;
         }
+
+        /// <summary>
+        /// Emits every DataType the NodeSet defines into the readable
+        /// <c>uav:dataTypeDefinitions</c> of §6.11.
+        /// </summary>
+        /// <remarks>
+        /// This is the completeness contract of §6.11.8. Before it, a DataType
+        /// could only reach a document through the native projection, so a
+        /// Structure or an Enumeration was on its own enough to force
+        /// <c>uav:nodes</c> onto a document that needed nothing else from it.
+        /// </remarks>
+        private static void WriteDataTypeDefinitions(Utf8JsonWriter writer, UANodeSet nodeSet)
+        {
+            UADataType[] dataTypes = CollectDataTypeNodes(nodeSet);
+            if (dataTypes.Length == 0)
+            {
+                return;
+            }
+            writer.WritePropertyName("uav:dataTypeDefinitions");
+            writer.WriteStartArray();
+            foreach (UADataType dataType in dataTypes)
+            {
+                WriteDataTypeDefinition(writer, dataType, nodeSet);
+            }
+            writer.WriteEndArray();
+        }
+
+        private static UADataType[] CollectDataTypeNodes(UANodeSet nodeSet)
+        {
+            if (nodeSet.Items is null)
+            {
+                return [];
+            }
+            var dataTypes = new List<UADataType>();
+            foreach (UANode node in nodeSet.Items)
+            {
+                if (node is UADataType dataType)
+                {
+                    dataTypes.Add(dataType);
+                }
+            }
+            return [.. dataTypes];
+        }
+
+        private static void WriteDataTypeDefinition(
+            Utf8JsonWriter writer,
+            UADataType dataType,
+            UANodeSet nodeSet)
+        {
+            Opc.Ua.Export.DataTypeDefinition? definition = dataType.Definition;
+            bool isEnumeration = definition is not null && HasEnumFields(definition);
+
+            writer.WriteStartObject();
+            string? portableId = ToPortableNodeId(dataType.NodeId, nodeSet.NamespaceUris);
+            if (!string.IsNullOrEmpty(portableId))
+            {
+                writer.WriteString("@id", portableId);
+            }
+            writer.WriteString("@type", DefinitionKind(definition, isEnumeration));
+            string? name = ToPortableQualifiedName(dataType.BrowseName, nodeSet.NamespaceUris);
+            if (!string.IsNullOrEmpty(name))
+            {
+                writer.WriteString("uav:dataTypeName", name);
+            }
+            if (!string.IsNullOrEmpty(portableId))
+            {
+                writer.WriteString("uav:dataTypeId", portableId);
+            }
+            if (dataType.IsAbstract)
+            {
+                writer.WriteBoolean("uav:isAbstract", true);
+            }
+            WriteBaseDataType(writer, dataType, nodeSet);
+            WriteDescription(writer, dataType.Description);
+
+            if (definition is null)
+            {
+                writer.WriteEndObject();
+                return;
+            }
+            if (isEnumeration)
+            {
+                writer.WriteBoolean("uav:isOptionSet", definition.IsOptionSet);
+                WriteEnumFields(writer, definition);
+            }
+            else
+            {
+                writer.WriteString(
+                    "uav:structureType",
+                    definition.IsUnion ? "Union" : StructureTypeName(definition));
+                WriteStructureFields(writer, definition, nodeSet);
+            }
+            writer.WriteEndObject();
+        }
+
+        /// <summary>
+        /// Distinguishes an enumeration definition from a structure one.
+        /// </summary>
+        /// <remarks>
+        /// A NodeSet says which it is only by the shape of its fields: an
+        /// enumeration field carries a Value and no DataType, a structure field
+        /// the reverse. An OptionSet is an enumeration whose values are bit
+        /// numbers, which the flag records rather than the field shape.
+        /// </remarks>
+        private static bool HasEnumFields(Opc.Ua.Export.DataTypeDefinition definition)
+        {
+            if (definition.IsOptionSet)
+            {
+                return true;
+            }
+            if (definition.Field is null || definition.Field.Length == 0)
+            {
+                return false;
+            }
+            foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
+            {
+                if (!string.IsNullOrEmpty(field.DataType) &&
+                    !string.Equals(field.DataType, WotVocabulary.BaseDataType, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static string DefinitionKind(
+            Opc.Ua.Export.DataTypeDefinition? definition,
+            bool isEnumeration)
+        {
+            if (definition is null)
+            {
+                return "uav:SimpleDataType";
+            }
+            return isEnumeration ? "uav:EnumDefinition" : "uav:StructureDefinition";
+        }
+
+        private static string StructureTypeName(Opc.Ua.Export.DataTypeDefinition definition)
+        {
+            if (definition.Field is not null)
+            {
+                foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
+                {
+                    if (field.IsOptional)
+                    {
+                        return "StructureWithOptionalFields";
+                    }
+                }
+            }
+            return "Structure";
+        }
+
+        private static void WriteBaseDataType(
+            Utf8JsonWriter writer,
+            UADataType dataType,
+            UANodeSet nodeSet)
+        {
+            if (dataType.References is null)
+            {
+                return;
+            }
+            foreach (Reference reference in dataType.References)
+            {
+                if (!string.Equals(reference.ReferenceType, "HasSubtype", StringComparison.Ordinal) ||
+                    reference.IsForward)
+                {
+                    continue;
+                }
+                string? portable = ToPortableDataTypeReference(reference.Value, nodeSet);
+                if (string.IsNullOrEmpty(portable))
+                {
+                    continue;
+                }
+                writer.WritePropertyName("uav:dataTypeSubtypeOf");
+                writer.WriteStartObject();
+                writer.WriteString("uav:dataTypeId", portable);
+                writer.WriteEndObject();
+                return;
+            }
+        }
+
+        private static void WriteEnumFields(
+            Utf8JsonWriter writer,
+            Opc.Ua.Export.DataTypeDefinition definition)
+        {
+            writer.WritePropertyName("uav:enumFields");
+            writer.WriteStartArray();
+            if (definition.Field is not null)
+            {
+                foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("@type", "uav:EnumField");
+                    writer.WriteString("uav:enumName", field.Name);
+                    writer.WriteNumber("uav:enumValue", field.Value);
+                    WriteDescription(writer, field.Description);
+                    writer.WriteEndObject();
+                }
+            }
+            writer.WriteEndArray();
+        }
+
+        private static void WriteStructureFields(
+            Utf8JsonWriter writer,
+            Opc.Ua.Export.DataTypeDefinition definition,
+            UANodeSet nodeSet)
+        {
+            writer.WritePropertyName("uav:fields");
+            writer.WriteStartArray();
+            if (definition.Field is not null)
+            {
+                foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("@type", "uav:StructureField");
+                    writer.WriteString("uav:fieldName", field.Name);
+                    string? portable = ToPortableDataTypeReference(field.DataType, nodeSet);
+                    if (!string.IsNullOrEmpty(portable))
+                    {
+                        writer.WriteString("uav:fieldDataTypeId", portable);
+                    }
+                    writer.WriteNumber("uav:valueRank", field.ValueRank);
+                    WriteFieldArrayDimensions(writer, field.ArrayDimensions);
+                    if (field.MaxStringLength != 0)
+                    {
+                        writer.WriteNumber("uav:maxStringLength", field.MaxStringLength);
+                    }
+                    writer.WriteBoolean("uav:isOptional", field.IsOptional);
+                    writer.WriteBoolean("uav:allowSubtypes", field.AllowSubTypes);
+                    WriteDescription(writer, field.Description);
+                    writer.WriteEndObject();
+                }
+            }
+            writer.WriteEndArray();
+        }
+
+        private static void WriteFieldArrayDimensions(Utf8JsonWriter writer, string? arrayDimensions)
+        {
+            if (string.IsNullOrEmpty(arrayDimensions))
+            {
+                return;
+            }
+            writer.WritePropertyName("uav:arrayDimensions");
+            writer.WriteStartArray();
+            foreach (string part in arrayDimensions!.Split(','))
+            {
+                if (uint.TryParse(
+                    part.Trim(),
+                    System.Globalization.NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out uint value))
+                {
+                    writer.WriteNumberValue(value);
+                }
+            }
+            writer.WriteEndArray();
+        }
+
+        /// <summary>
+        /// Converts a NodeSet DataType attribute into its portable form,
+        /// resolving an alias name first.
+        /// </summary>
+        /// <remarks>
+        /// A NodeSet is free to write <c>DataType="Structure"</c> against its
+        /// own Aliases table. That name means nothing outside the document, so
+        /// it is resolved here rather than emitted as if it were an identifier.
+        /// </remarks>
+        private static string? ToPortableDataTypeReference(string? value, UANodeSet nodeSet)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value;
+            }
+            if (nodeSet.Aliases is not null)
+            {
+                foreach (NodeIdAlias alias in nodeSet.Aliases)
+                {
+                    if (string.Equals(alias.Alias, value, StringComparison.Ordinal))
+                    {
+                        return ToPortableNodeId(alias.Value, nodeSet.NamespaceUris);
+                    }
+                }
+            }
+            return ToPortableNodeId(value, nodeSet.NamespaceUris);
+        }
     }
 }

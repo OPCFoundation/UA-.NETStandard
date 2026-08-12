@@ -295,6 +295,7 @@ namespace Opc.Ua.Wot
                         writer.WriteBoolean("uav:isEvent", true);
                     }
                     WriteDescription(writer, root?.Description);
+                    WriteDataTypeDefinitions(writer, nodeSet);
                     WriteAffordances(
                         writer, nodeSet, root, diagnostics, options, parentHref,
                         TypeDefinitionHref(root, nodeSet));
@@ -1178,6 +1179,14 @@ namespace Opc.Ua.Wot
             }
             catch (ServiceResultException)
             {
+                return rawNodeId;
+            }
+            catch (ArgumentException)
+            {
+                // A NodeSet attribute may hold an alias name rather than a
+                // NodeId. It is not portable, but it is also not this method's
+                // to reject: hand it back unchanged so a caller enriching from
+                // an attribute cannot be made to throw by ordinary input.
                 return rawNodeId;
             }
             var buffer = new System.Text.StringBuilder();
