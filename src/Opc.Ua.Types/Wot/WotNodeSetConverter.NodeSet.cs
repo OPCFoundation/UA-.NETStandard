@@ -295,7 +295,9 @@ namespace Opc.Ua.Wot
                         writer.WriteBoolean("uav:isEvent", true);
                     }
                     WriteDescription(writer, root?.Description);
-                    WriteAffordances(writer, nodeSet, root, diagnostics, options, parentHref);
+                    WriteAffordances(
+                        writer, nodeSet, root, diagnostics, options, parentHref,
+                        TypeDefinitionHref(root, nodeSet));
 
                     if (emitEnvelope)
                     {
@@ -500,11 +502,12 @@ namespace Opc.Ua.Wot
             UANode? root,
             List<WotDiagnostic> diagnostics,
             WotNodeSetConverterOptions options,
-            string? parentHref = null)
+            string? parentHref = null,
+            string? typeDefinitionHref = null)
         {
             if (root?.References is null)
             {
-                WriteTypedComponentLinks(writer, [], parentHref);
+                WriteTypedComponentLinks(writer, [], parentHref, typeDefinitionHref);
                 return;
             }
 
@@ -625,7 +628,27 @@ namespace Opc.Ua.Wot
                 writer.WriteEndObject();
             }
 
-            WriteTypedComponentLinks(writer, typedComponentLinks, parentHref);
+            WriteTypedComponentLinks(
+                writer, typedComponentLinks, parentHref, typeDefinitionHref);
+        }
+
+        /// <summary>
+        /// Reads the portable ExpandedNodeId of a Node's <c>HasTypeDefinition</c>
+        /// target, or <c>null</c> when it declares none.
+        /// </summary>
+        private static string? TypeDefinitionHref(UANode? node, UANodeSet nodeSet)
+        {
+            foreach (Reference reference in node?.References ?? [])
+            {
+                if (reference.IsForward &&
+                    string.Equals(
+                        reference.ReferenceType, "HasTypeDefinition", StringComparison.Ordinal) &&
+                    reference.Value is { Length: > 0 })
+                {
+                    return ToPortableNodeId(reference.Value, nodeSet.NamespaceUris);
+                }
+            }
+            return null;
         }
 
         private static void WriteComponentArray(
@@ -648,22 +671,33 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// Writes the document's <c>links</c> array: the typed component links a
-        /// Node carries, and — when this document describes a nested Object of a
-        /// document set — the <c>uav:componentOf</c> link naming the document
-        /// that owns its parent. Both share one array because a JSON object
-        /// cannot carry <c>links</c> twice.
+        /// Node carries, the <c>uav:componentOf</c> link naming the document that
+        /// owns its parent when this document describes a nested Object of a
+        /// document set, and the definitive <c>ua:HasTypeDefinition</c> link of
+        /// §5.2.1. They share one array because a JSON object cannot carry
+        /// <c>links</c> twice.
         /// </summary>
         private static void WriteTypedComponentLinks(
             Utf8JsonWriter writer,
             List<TypedComponentLink> links,
-            string? parentHref = null)
+            string? parentHref = null,
+            string? typeDefinitionHref = null)
         {
-            if (links.Count == 0 && string.IsNullOrEmpty(parentHref))
+            if (links.Count == 0 &&
+                string.IsNullOrEmpty(parentHref) &&
+                string.IsNullOrEmpty(typeDefinitionHref))
             {
                 return;
             }
             writer.WritePropertyName("links");
             writer.WriteStartArray();
+            if (!string.IsNullOrEmpty(typeDefinitionHref))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("rel", "ua:HasTypeDefinition");
+                writer.WriteString("href", typeDefinitionHref);
+                writer.WriteEndObject();
+            }
             if (!string.IsNullOrEmpty(parentHref))
             {
                 writer.WriteStartObject();
