@@ -177,6 +177,75 @@ namespace Opc.Ua.Aas.Tests.Serialization
             };
         }
 
+        /// <summary>
+        /// IDTA anchors the aas-suppl relationship on the environment (aas-spec)
+        /// part, and the AASX Package Explorer - which is what writes the
+        /// packages found in the wild - does the same. Reading only the origin
+        /// part therefore returned no supplementary files for any real package,
+        /// silently. This builds the package the way the reference
+        /// implementation does, without going through our own writer, so a
+        /// writer and reader that agree with each other but not with the
+        /// ecosystem cannot make it pass.
+        /// </summary>
+        [Test]
+        public async Task SupplementaryFilesAnchoredOnTheEnvironmentPartAreReadAsync()
+        {
+            using var packageStream = new MemoryStream();
+            await WriteReferenceStylePackageAsync(packageStream, CreateEnvironment("json")).ConfigureAwait(false);
+            packageStream.Position = 0;
+
+            AasxPackageReadResult result = await new AasxPackageReader()
+                .ReadAsync(packageStream)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Succeeded, Is.True);
+                Assert.That(result.SupplementaryFiles.Count, Is.EqualTo(1));
+                Assert.That(
+                    result.SupplementaryFiles[0].PartUri.OriginalString,
+                    Is.EqualTo("/aasx/suppl/manual.txt"));
+                Assert.That(
+                    Encoding.UTF8.GetString(result.SupplementaryFiles[0].Content.ToArray()),
+                    Is.EqualTo("manual"));
+            });
+        }
+
+        private static async Task WriteReferenceStylePackageAsync(Stream stream, AasEnvironment environment)
+        {
+            using Package package = Package.Open(stream, FileMode.Create, FileAccess.ReadWrite);
+            Uri originUri = PackUriHelper.CreatePartUri(new Uri("/aasx/aasx-origin", UriKind.Relative));
+            PackagePart originPart = package.CreatePart(
+                originUri,
+                "text/plain",
+                CompressionOption.Maximum);
+            package.CreateRelationship(originUri, TargetMode.Internal, AasxPackageRelationshipTypes.Origin);
+
+            Uri specUri = PackUriHelper.CreatePartUri(new Uri("/aasx/data.json", UriKind.Relative));
+            PackagePart specPart = package.CreatePart(
+                specUri,
+                "application/asset-administration-shell+json",
+                CompressionOption.Maximum);
+            originPart.CreateRelationship(specUri, TargetMode.Internal, AasxPackageRelationshipTypes.Environment);
+
+            using (Stream environmentStream = specPart.GetStream(FileMode.Create, FileAccess.Write))
+            {
+                await new AasJsonWriter().WriteAsync(environmentStream, environment, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+
+            Uri supplUri = PackUriHelper.CreatePartUri(new Uri("/aasx/suppl/manual.txt", UriKind.Relative));
+            PackagePart supplPart = package.CreatePart(supplUri, "text/plain", CompressionOption.Maximum);
+            specPart.CreateRelationship(
+                supplUri,
+                TargetMode.Internal,
+                AasxPackageRelationshipTypes.SupplementaryFile);
+
+            using Stream supplStream = supplPart.GetStream(FileMode.Create, FileAccess.Write);
+            byte[] content = Encoding.UTF8.GetBytes("manual");
+            await supplStream.WriteAsync(content, 0, content.Length, CancellationToken.None).ConfigureAwait(false);
+        }
+
         private static async Task WriteManualJsonPackageAsync(
             Stream stream,
             Uri environmentUri,

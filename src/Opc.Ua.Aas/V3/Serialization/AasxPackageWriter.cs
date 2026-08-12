@@ -120,12 +120,12 @@ namespace Opc.Ua.Aas.V3
                 }
             }
 
-            await WriteSupplementaryFilesAsync(originPart, package, supplementaryFiles, cancellationToken)
+            await WriteSupplementaryFilesAsync(environmentPart, package, supplementaryFiles, cancellationToken)
                 .ConfigureAwait(false);
         }
 
         private static async Task WriteSupplementaryFilesAsync(
-            PackagePart originPart,
+            PackagePart environmentPart,
             Package package,
             ArrayOf<AasxSupplementaryFile> supplementaryFiles,
             CancellationToken cancellationToken)
@@ -161,7 +161,13 @@ namespace Opc.Ua.Aas.V3
 
                 Uri partUri = PackUriHelper.CreatePartUri(file.PartUri);
                 PackagePart part = package.CreatePart(partUri, file.ContentType, CompressionOption.Maximum);
-                originPart.CreateRelationship(partUri, TargetMode.Internal, AasxPackageRelationshipTypes.SupplementaryFile);
+
+                // Anchored on the environment part, which is where IDTA places
+                // it and where the reference implementation looks for it.
+                environmentPart.CreateRelationship(
+                    partUri,
+                    TargetMode.Internal,
+                    AasxPackageRelationshipTypes.SupplementaryFile);
 
                 using Stream partStream = part.GetStream(FileMode.Create, FileAccess.Write);
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER

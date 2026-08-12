@@ -161,26 +161,41 @@ namespace Opc.Ua.Aas
             CancellationToken cancellationToken)
         {
             var files = new List<AasxPackageSupplementaryFile>();
-            PackagePart originPart = package.GetPart(originUri);
-            foreach (PackageRelationship relationship in originPart.GetRelationshipsByType(
-                AasxPackageRelationshipTypes.SupplementaryFile))
+            var seen = new HashSet<Uri>();
+
+            // IDTA anchors aas-suppl on the environment (aas-spec) part, and the
+            // reference implementation reads and writes it there. Packages this
+            // library wrote before that was corrected anchor it on the origin
+            // part, so both are accepted and the environment part is walked
+            // first.
+            foreach (Uri sourceUri in new[] { environmentUri, originUri })
             {
-                if (relationship.TargetMode == TargetMode.External)
+                if (!package.PartExists(sourceUri))
                 {
                     continue;
                 }
 
-                Uri partUri = ResolvePartUri(originUri, relationship.TargetUri);
-                if (partUri == environmentUri || !package.PartExists(partUri))
+                PackagePart sourcePart = package.GetPart(sourceUri);
+                foreach (PackageRelationship relationship in sourcePart.GetRelationshipsByType(
+                    AasxPackageRelationshipTypes.SupplementaryFile))
                 {
-                    continue;
-                }
+                    if (relationship.TargetMode == TargetMode.External)
+                    {
+                        continue;
+                    }
 
-                PackagePart part = package.GetPart(partUri);
-                files.Add(new AasxPackageSupplementaryFile(
-                    part.Uri,
-                    part.ContentType,
-                    await ReadPartContentAsync(part, cancellationToken).ConfigureAwait(false)));
+                    Uri partUri = ResolvePartUri(sourceUri, relationship.TargetUri);
+                    if (partUri == environmentUri || !package.PartExists(partUri) || !seen.Add(partUri))
+                    {
+                        continue;
+                    }
+
+                    PackagePart part = package.GetPart(partUri);
+                    files.Add(new AasxPackageSupplementaryFile(
+                        part.Uri,
+                        part.ContentType,
+                        await ReadPartContentAsync(part, cancellationToken).ConfigureAwait(false)));
+                }
             }
 
             return new ArrayOf<AasxPackageSupplementaryFile>(files.ToArray());
@@ -237,7 +252,7 @@ namespace Opc.Ua.Aas
         public const string Environment = "http://www.admin-shell.io/aasx/relationships/aas-spec";
 
         /// <summary>
-        /// Relationship from the AASX origin part to a supplementary file part.
+        /// Relationship from the AAS environment part to a supplementary file part.
         /// </summary>
         public const string SupplementaryFile = "http://www.admin-shell.io/aasx/relationships/aas-suppl";
     }
