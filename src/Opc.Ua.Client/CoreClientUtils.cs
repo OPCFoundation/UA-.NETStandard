@@ -306,7 +306,7 @@ namespace Opc.Ua.Client
                             // SecurityPolicyUri is annotated nullable on EndpointDescription but is
                             // populated for any endpoint advertising security; downstream API takes
                             // a non-nullable string parameter.
-                            if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri!) == null)
+                            if (SecurityPolicyRegistry.Default.GetDisplayName(endpoint.SecurityPolicyUri!) == null)
                             {
                                 continue;
                             }

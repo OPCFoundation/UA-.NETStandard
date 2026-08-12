@@ -62,7 +62,7 @@ namespace Opc.Ua.Gds.Tests
 
         private static readonly HashSet<string> s_supportedPolicyUris =
         [
-            .. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri)
+            .. SecurityPolicyRegistry.Default.GetDisplayNames().Select(SecurityPolicyRegistry.Default.GetUri)
         ];
 
         /// <summary>

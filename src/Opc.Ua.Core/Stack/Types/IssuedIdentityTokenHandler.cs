@@ -194,11 +194,10 @@ namespace Opc.Ua
             byte[] dataToEncrypt = Utils.Append(m_decryptedTokenData, receiverNonce);
 
             ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityTokenHandler>();
-            EncryptedData encryptedData = SecurityPolicies.Encrypt(
+            EncryptedData encryptedData = SecurityPolicyRegistry.Default.Encrypt(
                 receiverCertificate,
                 securityPolicyUri,
-                dataToEncrypt,
-                logger);
+                dataToEncrypt);
 
             Array.Clear(dataToEncrypt, 0, dataToEncrypt.Length);
 
@@ -234,8 +233,8 @@ namespace Opc.Ua
             };
 
             ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityTokenHandler>();
-            byte[]? decryptedTokenData = await SecurityPolicies
-                .DecryptAsync(certificate, securityPolicyUri, encryptedData, logger, ct)
+            byte[]? decryptedTokenData = await SecurityPolicyRegistry.Default
+                .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
                 .ConfigureAwait(false);
 
             // verify the sender's nonce.

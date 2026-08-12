@@ -114,7 +114,7 @@ namespace Opc.Ua.Pcap.Tests.Stack
                 CreatedAt = DateTime.UtcNow,
                 CreatedAtTimestamp = TimeProvider.System.GetTimestamp(),
                 Lifetime = int.MaxValue,
-                SecurityPolicy = SecurityPolicies.GetInfo(SecurityPolicies.None)
+                SecurityPolicy = SecurityPolicyRegistry.Default.GetInfo(SecurityPolicies.None)
             };
         }
 

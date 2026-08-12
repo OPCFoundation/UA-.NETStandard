@@ -53,7 +53,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(context.SecurityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = SecurityPolicyRegistry.Default.GetInfo(context.SecurityPolicyUri);
 
             // CreateServerSignature is invoked only when a secure channel is bound.
             SecureChannelContext channelContext = context.ChannelContext!;
@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
                 channelContext.ClientChannelCertificate,
                 serverNonce.ToArray());
 
-            return SecurityPolicies.CreateSignatureData(
+            return SecurityPolicyRegistry.Default.CreateSignatureData(
                 context.SecurityPolicyUri,
                 instanceCertificate,
                 dataToSign);
@@ -97,7 +97,7 @@ namespace Opc.Ua.Server
 
                 logger.ReceivedRequestForNewEphmeralKeyUsingSecurityPolicyUri(policyUri);
 
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(policyUri);
+                SecurityPolicyInfo? securityPolicy = SecurityPolicyRegistry.Default.GetInfo(policyUri);
 
                 if (securityPolicy != null &&
                     securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)

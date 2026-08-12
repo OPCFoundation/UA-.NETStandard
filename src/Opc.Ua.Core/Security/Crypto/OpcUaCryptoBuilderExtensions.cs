@@ -143,9 +143,39 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(securityPolicy));
             }
 
+            builder.AddSecurityPolicyRegistry();
+
+            builder.Services.AddSingleton(new SecurityPolicyConfiguration(securityPolicy, replaceExisting));
+
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the security policy registry, so that a consumer can resolve
+        /// <see cref="ISecurityPolicyRegistry"/> whether or not the application
+        /// contributed any policy of its own.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <remarks>
+        /// The registry carries the built-in policies, and any policy registered
+        /// through <see cref="AddSecurityPolicy"/> is applied to it. It is a
+        /// registry of its own rather than
+        /// <see cref="SecurityPolicyRegistry.Default"/>, so what one application
+        /// registers does not reach another in the same process.
+        /// </remarks>
+        public static IOpcUaBuilder AddSecurityPolicyRegistry(this IOpcUaBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
             builder.Services.TryAddSingleton<ISecurityPolicyRegistry>(sp =>
             {
-                var registry = new SecurityPolicyRegistry();
+                var registry = new SecurityPolicyRegistry(
+                    sp.GetService<ITelemetryContext>());
 
                 foreach (SecurityPolicyConfiguration configuration in
                     sp.GetServices<SecurityPolicyConfiguration>())
@@ -155,8 +185,6 @@ namespace Microsoft.Extensions.DependencyInjection
 
                 return registry;
             });
-
-            builder.Services.AddSingleton(new SecurityPolicyConfiguration(securityPolicy, replaceExisting));
 
             return builder;
         }

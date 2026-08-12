@@ -280,7 +280,7 @@ namespace Opc.Ua
             foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
                 securityPolicies.AddRange(
-                    SecurityPolicies.GetSupportedUrisForCertificateType(applicationCertificate.CertificateType));
+                    SecurityPolicyRegistry.Default.GetSupportedUrisForCertificateType(applicationCertificate.CertificateType));
             }
 
             return securityPolicies.Distinct().ToArrayOf();

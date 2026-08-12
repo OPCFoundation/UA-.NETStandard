@@ -81,7 +81,7 @@ namespace Opc.Ua.Bindings
         protected string SecurityPolicyUri
         {
             get => SecurityPolicy?.Uri ?? string.Empty;
-            private set => SecurityPolicy = SecurityPolicies.GetInfo(value);
+            private set => SecurityPolicy = SecurityPolicyRegistry.Default.GetInfo(value);
         }
 
         /// <summary>
@@ -1741,7 +1741,7 @@ namespace Opc.Ua.Bindings
             Certificate senderCertificate,
             CancellationToken ct)
         {
-            SecurityPolicyInfo policy = SecurityPolicies.GetInfo(SecurityPolicyUri!)
+            SecurityPolicyInfo policy = SecurityPolicyRegistry.Default.GetInfo(SecurityPolicyUri!)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",

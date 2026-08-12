@@ -111,7 +111,7 @@ namespace Opc.Ua.Identity
                 return CanSatisfyResult.Yes;
             }
 
-            SecurityPolicyInfo? info = SecurityPolicies.GetInfo(effectivePolicyUri);
+            SecurityPolicyInfo? info = SecurityPolicyRegistry.Default.GetInfo(effectivePolicyUri);
             if (info == null)
             {
                 return CanSatisfyResult.No(

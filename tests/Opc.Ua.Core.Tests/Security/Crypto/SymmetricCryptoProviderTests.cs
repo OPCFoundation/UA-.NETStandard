@@ -630,7 +630,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         [Test]
         public void TheChannelPathUsesARegisteredSymmetricProvider()
         {
-            SecurityPolicyInfo policy = SecurityPolicies.GetInfo(SecurityPolicies.Basic256Sha256)!;
+            SecurityPolicyInfo policy = SecurityPolicyRegistry.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
             var counting = new CountingSymmetricProvider();
 
             byte[] encryptingKey = new byte[policy.SymmetricEncryptionKeyLength];
@@ -681,7 +681,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         [Test]
         public void AProviderAndThePlatformProduceTheSameBytes()
         {
-            SecurityPolicyInfo policy = SecurityPolicies.GetInfo(SecurityPolicies.Basic256Sha256)!;
+            SecurityPolicyInfo policy = SecurityPolicyRegistry.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
 
             byte[] encryptingKey = new byte[policy.SymmetricEncryptionKeyLength];
             byte[] signingKey = new byte[policy.DerivedSignatureKeyLength];

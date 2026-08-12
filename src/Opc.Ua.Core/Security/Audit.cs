@@ -81,7 +81,7 @@ namespace Opc.Ua.Security
                         secureChannelId,
                         endpointUrl,
                         endpoint.SecurityMode.ToString(),
-                        SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri ?? string.Empty),
+                        SecurityPolicyRegistry.Default.GetDisplayName(endpoint.SecurityPolicyUri ?? string.Empty),
                         encoding);
                 }
 

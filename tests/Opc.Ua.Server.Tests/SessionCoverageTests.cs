@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
                          SecurityPolicies.Basic256Sha256
                      })
             {
-                SecurityPolicyInfo? info = SecurityPolicies.GetInfo(policyUri);
+                SecurityPolicyInfo? info = SecurityPolicyRegistry.Default.GetInfo(policyUri);
                 if (info?.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                 {
                     return policyUri;

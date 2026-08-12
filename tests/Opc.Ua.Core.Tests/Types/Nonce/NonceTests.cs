@@ -48,14 +48,14 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
     {
         public static readonly string[] SupportedNoncePolicies =
         [
-            .. SecurityPolicies.GetDisplayNames()
+            .. SecurityPolicyRegistry.Default.GetDisplayNames()
                 .Where(name => !name.Equals(nameof(SecurityPolicies.None), StringComparison.Ordinal))
-                .Select(SecurityPolicies.GetUri)
+                .Select(SecurityPolicyRegistry.Default.GetUri)
         ];
 
         private static readonly HashSet<string> s_supportedPolicyUris =
         [
-            .. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri)
+            .. SecurityPolicyRegistry.Default.GetDisplayNames().Select(SecurityPolicyRegistry.Default.GetUri)
         ];
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri);
                 int nonceLength = info.SecureChannelNonceLength;
 
                 var nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
@@ -87,7 +87,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri);
                 int nonceLength = info.SecureChannelNonceLength;
                 var nonceByLen = Ua.Nonce.CreateNonce(securityPolicyUri);
 
@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri);
                 int nonceLength = info.SecureChannelNonceLength;
 
                 byte[] randomValue = Ua.Nonce.CreateRandomNonceData(nonceLength);

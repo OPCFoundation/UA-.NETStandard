@@ -168,7 +168,7 @@ namespace Opc.Ua.Sessions.Tests
 
             void AddExplicitUserTokenPolicies(string securityPolicyUri)
             {
-                if (SecurityPolicies.GetInfo(securityPolicyUri) == null)
+                if (SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri) == null)
                 {
                     return;
                 }

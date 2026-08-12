@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.TestFramework
                 if (useSecurity)
                 {
                     SecurityPolicyInfo securityPolicy =
-                        SecurityPolicies.GetInfo(endpoint.SecurityPolicyUri!)!;
+                        SecurityPolicyRegistry.Default.GetInfo(endpoint.SecurityPolicyUri!)!;
                     using CertificateCollection serverCertificateChain =
                         Utils.ParseCertificateChainBlob(
                             createSessionResponse.ServerCertificate,
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.TestFramework
                         secureChannelContext.ServerChannelCertificate,
                         secureChannelContext.ClientChannelCertificate,
                         clientNonce.ToArray());
-                    clientSignature = SecurityPolicies.CreateSignatureData(
+                    clientSignature = SecurityPolicyRegistry.Default.CreateSignatureData(
                         securityPolicy,
                         clientCertificate!,
                         dataToSign);

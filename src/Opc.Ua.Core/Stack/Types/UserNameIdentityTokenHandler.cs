@@ -119,7 +119,7 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri);
 
             if (securityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -137,11 +137,10 @@ namespace Opc.Ua
                 byte[] dataToEncrypt = Utils.Append(DecryptedPassword, receiverNonce);
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityToken>();
-                EncryptedData encryptedData = SecurityPolicies.Encrypt(
+                EncryptedData encryptedData = SecurityPolicyRegistry.Default.Encrypt(
                     receiverCertificate,
                     securityPolicyUri,
-                    dataToEncrypt,
-                    logger);
+                    dataToEncrypt);
 
                 m_token.Password = encryptedData.Data.ToByteString();
                 m_token.EncryptionAlgorithm = encryptedData.Algorithm;
@@ -212,7 +211,7 @@ namespace Opc.Ua
 
             // handle RSA encryption.
             // GetInfo returns null only for unknown URIs; bail/throw earlier handled None case.
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri)
+            SecurityPolicyInfo securityPolicy = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri)
                 ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected,
                     "Unknown security policy: " + securityPolicyUri);
 
@@ -237,8 +236,8 @@ namespace Opc.Ua
                 };
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityTokenHandler>();
-                byte[]? decryptedPassword = await SecurityPolicies
-                    .DecryptAsync(certificate, securityPolicyUri, encryptedData, logger, ct)
+                byte[]? decryptedPassword = await SecurityPolicyRegistry.Default
+                    .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
                     .ConfigureAwait(false);
 
                 if (decryptedPassword == null)

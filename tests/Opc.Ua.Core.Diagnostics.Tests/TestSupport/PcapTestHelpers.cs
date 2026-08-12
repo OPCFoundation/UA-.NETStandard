@@ -99,7 +99,7 @@ namespace Opc.Ua.Pcap.Tests
 
         public static SecurityPolicyInfo GetPolicy(string uri)
         {
-            return SecurityPolicies.GetInfo(uri) ?? throw new AssertionException($"Policy is not available: {uri}");
+            return SecurityPolicyRegistry.Default.GetInfo(uri) ?? throw new AssertionException($"Policy is not available: {uri}");
         }
 
         public static ChannelKeyMaterial CreateMaterial(

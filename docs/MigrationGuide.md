@@ -149,6 +149,68 @@ await monitoredNode.OnReportEventAsync(context, node, e, cancellationToken)
 The wrappers still work and are unchanged in behaviour, so this is a
 warning to act on rather than a break.
 
+<a id="ua0024"></a>
+
+## Migrating callers of the SecurityPolicies lookup and cryptography statics
+
+The static lookup and cryptography methods on `SecurityPolicies` have
+**moved** to `ISecurityPolicyRegistry`. They read the set of registered
+security policies, so they are members of the registry that owns that set
+rather than free functions on a constants class.
+
+Moved: `GetUri`, `GetDisplayName`, `GetDisplayNames`,
+`IsValidSecurityPolicyUri`, `GetDefaultUris`, `GetDefaultEccUris`,
+`GetDefaultDeprecatedUris`, `Encrypt` and `Decrypt`.
+
+**The policy URI constants are unaffected.** `SecurityPolicies.None`,
+`SecurityPolicies.Basic256Sha256` and the rest stay exactly where they are,
+which is the overwhelming majority of references to this type.
+
+Resolve an `ISecurityPolicyRegistry` where a container is in scope, so the
+policies that application registered are the ones used:
+
+```csharp
+// before
+string uri = SecurityPolicies.GetUri("Basic256Sha256");
+
+// after - the application's own policy set
+public sealed class MyService(ISecurityPolicyRegistry policies)
+{
+    public string? Uri => policies.GetUri("Basic256Sha256");
+}
+```
+
+Where there is no container — configuration loading, for instance — use
+the fallback, which carries the built-in policies:
+
+```csharp
+string? uri = SecurityPolicyRegistry.Default.GetUri("Basic256Sha256");
+```
+
+`Encrypt` and `Decrypt` additionally **lose their `ILogger` argument**. The
+registry is created with an `ITelemetryContext` and reports through the
+logger it made from it:
+
+```csharp
+// before
+EncryptedData data = SecurityPolicies.Encrypt(certificate, uri, plainText, logger);
+
+// after
+EncryptedData data = policies.Encrypt(certificate, uri, plainText);
+```
+
+Registering a policy through the container no longer changes what other
+code in the same process sees. `AddSecurityPolicy` applies the policy to
+the registry that container owns, so two applications hosted together keep
+separate policy sets. Use `AddSecurityPolicyRegistry()` to resolve a
+registry without contributing a policy of your own.
+
+The `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` package restores
+the removed members as `[Obsolete]` extension members that forward to
+`SecurityPolicyRegistry.Default`, so a 1.05.378 application compiles with
+a warning rather than an error. The `ILogger` argument on the `Encrypt` and
+`Decrypt` shims is accepted and **ignored**.
+
 ## Migrating channel subclasses that guarded state with DataLock
 
 `UaSCBinaryChannel.DataLock` has been **removed**. The channel no longer

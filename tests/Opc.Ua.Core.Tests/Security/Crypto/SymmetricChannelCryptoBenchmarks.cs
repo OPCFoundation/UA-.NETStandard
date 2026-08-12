@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         [GlobalSetup]
         public void Setup()
         {
-            m_policy = SecurityPolicies.GetInfo(SecurityPolicyUri)
+            m_policy = SecurityPolicyRegistry.Default.GetInfo(SecurityPolicyUri)
                 ?? throw new InvalidOperationException(
                     $"{SecurityPolicyUri} is not supported on this platform.");
 

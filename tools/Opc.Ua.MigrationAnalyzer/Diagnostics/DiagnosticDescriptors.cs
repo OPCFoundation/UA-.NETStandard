@@ -196,5 +196,12 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "'{0}' was replaced in 2.0 — use the new IPubSubApplication / PubSubApplicationBuilder surface (or AddPubSub() / AddUdpTransport() / AddMqttTransport() on IOpcUaBuilder)",
             DiagnosticSeverity.Warning,
             "The 1.04-era PubSub top-level types (UaPubSubApplication, IUaPubSubConnection, IUaPublisher, UaPubSubDataStore, UaPubSubConfigurator) ship as obsolete shims in 2.0; the new top-level surface uses provider-model abstractions wired via PubSubApplicationBuilder or Microsoft.Extensions.DependencyInjection extensions (docs/migrate/2.0.x/pubsub.md).");
+
+        public static readonly DiagnosticDescriptor UA0024_SecurityPoliciesStaticsMoved = Create(
+            DiagnosticIds.UA0024,
+            "SecurityPolicies lookup and cryptography moved to ISecurityPolicyRegistry in 2.0",
+            "'SecurityPolicies.{0}' was removed in 2.0 — resolve an 'ISecurityPolicyRegistry' and call '{0}' on it, or use 'SecurityPolicyRegistry.Default' where no container is in scope",
+            DiagnosticSeverity.Warning,
+            "These operate on the set of registered security policies rather than on constants, so they are members of the registry that owns that set. The registry also carries its own logger, so the Encrypt/Decrypt logger argument is gone. SecurityPolicies keeps the policy URI constants. See docs/MigrationGuide.md#ua0024.");
     }
 }

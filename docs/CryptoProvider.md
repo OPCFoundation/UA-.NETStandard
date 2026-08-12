@@ -455,6 +455,41 @@ table rather than from reflection over the constants. Registering a URI or name 
 throws unless `replaceExisting: true` is passed, which makes shadowing a built-in policy deliberate and
 reversible: disposing the returned registration restores what was there before.
 
+### Resolving the policy set
+
+Those lookups are members of `ISecurityPolicyRegistry`, which is the object that owns the policy set.
+Resolve it to work against the policies *this* application registered:
+
+```csharp
+public sealed class MyEndpointPicker(ISecurityPolicyRegistry policies)
+{
+    public string[] Offered => policies.GetDisplayNames();
+}
+```
+
+`AddSecurityPolicy` registers the registry for you; call `AddSecurityPolicyRegistry()` when you want to
+resolve one without contributing a policy of your own.
+
+The registry a container builds is **its own**. A policy registered by one application is not visible to
+another hosted in the same process, and it is not visible to `SecurityPolicyRegistry.Default`. That
+fallback carries exactly the built-in set and is what the paths that run before any container exists —
+configuration loading, most obviously — resolve their policies through:
+
+```csharp
+string? uri = SecurityPolicyRegistry.Default.GetUri("Basic256Sha256");
+```
+
+Construct a registry directly when you want an isolated set, which is also what makes the policy set
+testable without touching process-wide state:
+
+```csharp
+using var policies = new SecurityPolicyRegistry(telemetry);
+using IDisposable registration = policies.Register(customPolicy);
+```
+
+The registry creates its logger from the `ITelemetryContext` it is given, which is why `Encrypt`,
+`Decrypt` and the signature helpers take no `ILogger` argument.
+
 `PlatformSupport` is what decides whether the policy is offered on the machine it is running on, so a
 policy whose algorithms are unavailable is filtered out the same way the built-in ones are. The
 `ECC_curve25519` and `ECC_curve448` profiles are the worked example: they ship in the tree but are not

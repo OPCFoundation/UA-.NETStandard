@@ -855,7 +855,7 @@ namespace Opc.Ua.Sessions.Tests
 
             foreach (string policyUri in policies)
             {
-                string displayName = SecurityPolicies.GetDisplayName(policyUri);
+                string displayName = SecurityPolicyRegistry.Default.GetDisplayName(policyUri);
                 TestContext.Out.WriteLine($"\nTesting policy: {displayName} ({policyUri})");
 
                 try

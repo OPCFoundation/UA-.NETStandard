@@ -189,7 +189,7 @@ namespace Opc.Ua
             string securityPolicyUri,
             CancellationToken ct = default)
         {
-            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri) ??
+            SecurityPolicyInfo info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
@@ -209,7 +209,7 @@ namespace Opc.Ua
             {
                 using (cached)
                 {
-                    return await SecurityPolicies
+                    return await SecurityPolicyRegistry.Default
                         .CreateSignatureDataAsync(info, cached, dataToSign, ct)
                         .ConfigureAwait(false);
                 }
@@ -223,7 +223,7 @@ namespace Opc.Ua
                     StatusCodes.BadIdentityTokenInvalid,
                     "Cannot resolve private-key certificate for X509 identity token.");
 
-            return await SecurityPolicies
+            return await SecurityPolicyRegistry.Default
                 .CreateSignatureDataAsync(info, loaded, dataToSign, ct)
                 .ConfigureAwait(false);
         }
@@ -239,7 +239,7 @@ namespace Opc.Ua
 
             try
             {
-                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri) ??
+                SecurityPolicyInfo info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
                         "Unsupported security policy: {0}",
@@ -248,7 +248,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(
                         StatusCodes.BadIdentityTokenInvalid,
                         "X509IdentityToken has no certificate data to verify against.");
-                return SecurityPolicies.VerifySignatureData(
+                return SecurityPolicyRegistry.Default.VerifySignatureData(
                     signatureData,
                     info,
                     cert,
