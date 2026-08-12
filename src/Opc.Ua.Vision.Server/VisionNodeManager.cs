@@ -173,6 +173,65 @@ namespace Opc.Ua.Vision.Server
             await context.FlushPendingRegistrationsAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Registers a node, giving it and its children the reference type and
+        /// type definition an instance node is not valid without.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The generated <c>CreateOrReplace</c> helpers materialise an optional
+        /// child by constructing the state object directly, which leaves both
+        /// unset. A child with no <c>ReferenceTypeId</c> is referenced by
+        /// nothing, so it cannot be browsed from its parent; one with no
+        /// <c>TypeDefinitionId</c> is a malformed Object that any client
+        /// filtering by type silently skips.
+        /// </para>
+        /// <para>
+        /// Doing it here rather than in the builder covers the case the builder
+        /// cannot see: a result published at runtime, long after the address
+        /// space was created, by an inference provider that assembled the node
+        /// itself. That path produced results a client could list but not read,
+        /// which is how this was found.
+        /// </para>
+        /// </remarks>
+        /// <param name="context">
+        /// The system context to resolve default type definitions against.
+        /// </param>
+        /// <param name="node">The node to register.</param>
+        /// <param name="cancellationToken">Cancels the registration.</param>
+        protected override ValueTask AddPredefinedNodeAsync(
+            ISystemContext context,
+            NodeState node,
+            CancellationToken cancellationToken = default)
+        {
+            if (node != null)
+            {
+                NormalizeInstanceMetadata(context, node);
+            }
+            return base.AddPredefinedNodeAsync(context, node!, cancellationToken);
+        }
+
+        internal static void NormalizeInstanceMetadata(ISystemContext context, NodeState node)
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                BaseInstanceState child = children[ii];
+                if (child.ReferenceTypeId.IsNull)
+                {
+                    child.ReferenceTypeId = child is PropertyState
+                        ? global::Opc.Ua.ReferenceTypeIds.HasProperty
+                        : global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                }
+                if (child.TypeDefinitionId.IsNull)
+                {
+                    child.TypeDefinitionId = child.GetDefaultTypeDefinitionId(context);
+                }
+                NormalizeInstanceMetadata(context, child);
+            }
+        }
+
         internal VisionBuildContext CreateBuildContextCore(CancellationToken cancellationToken)
         {
             return new VisionBuildContext(

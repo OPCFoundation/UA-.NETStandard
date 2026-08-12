@@ -91,7 +91,8 @@ try
             options.SecurityPolicyUri = insecure
                 ? SecurityPolicies.None
                 : SecurityPolicies.Basic256Sha256;
-        });
+        })
+        .AddAiClient();
 
     using IHost host = builder.Build();
     await host.StartAsync(CancellationToken.None).ConfigureAwait(false);

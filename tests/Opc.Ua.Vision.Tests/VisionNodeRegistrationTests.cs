@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Vision.Server;
@@ -127,6 +128,45 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
+        public async Task ConfigureVisionRegistersAPipelinesFeedbackAndResultsChildren()
+        {
+            await using var fixture = new VisionServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+
+            NodeId feedbackId = NodeId.Null;
+            NodeId resultsId = NodeId.Null;
+            NodeId submitDetectionsId = NodeId.Null;
+
+            await fixture.Manager.ConfigureVisionAsync(context =>
+            {
+                context.Nodes.AddPipeline("Detector", p => p
+                    .WithPipelineId("detector")
+                    .UseInferenceProvider(new StubInferenceProvider())
+                    .UseFeedbackSink(new StubFeedbackSink()));
+
+                NodeState pipeline = FindChild(context.Root.Pipelines!, "Detector");
+                NodeState feedback = FindChild(pipeline, "Feedback");
+                feedbackId = feedback.NodeId;
+                resultsId = FindChild(pipeline, "Results").NodeId;
+                submitDetectionsId = FindChild(feedback, "SubmitDetections").NodeId;
+            }).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.Manager.FindPredefinedNode<NodeState>(feedbackId),
+                    Is.Not.Null,
+                    "the Feedback object is created after the pipeline is added to its parent, " +
+                    "so it must still be registered by its own NodeId - a client resolves it " +
+                    "with TranslateBrowsePathsToNodeIds, which yields no target for an " +
+                    "unregistered node even though Browse still lists it.");
+                Assert.That(fixture.Manager.FindPredefinedNode<NodeState>(resultsId),
+                    Is.Not.Null, "the Results folder must be reachable by its own NodeId");
+                Assert.That(fixture.Manager.FindPredefinedNode<NodeState>(submitDetectionsId),
+                    Is.Not.Null, "a Feedback method must be reachable by its own NodeId");
+            });
+        }
+
+        [Test]
         public async Task ConfigureVisionRejectsNullConfigureDelegate()
         {
             await using var fixture = new VisionServerFixture();
@@ -154,6 +194,55 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(match, Is.Not.Null,
                 $"'{browseName}' must exist below '{parent.BrowseName.Name}'.");
             return match!;
+        }
+
+        private sealed class StubInferenceProvider : IVisionInferenceProvider
+        {
+            public ValueTask<VisionInferenceRunResult> RunInferenceAsync(
+                VisionInferenceRunRequest request, CancellationToken cancellationToken)
+            {
+                return new ValueTask<VisionInferenceRunResult>(
+                    new VisionInferenceRunResult(ServiceResult.Good, string.Empty));
+            }
+
+            public ValueTask<ServiceResult> StartContinuousAsync(
+                NodeId pipeline, CancellationToken cancellationToken)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> StopAsync(
+                NodeId pipeline, CancellationToken cancellationToken)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+        }
+
+        private sealed class StubFeedbackSink : IVisionFeedbackSink
+        {
+            public ValueTask<ServiceResult> SubmitDetectionsAsync(
+                VisionSubmitDetectionsRequest request, CancellationToken cancellationToken)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> SubmitInspectionResultAsync(
+                VisionSubmitInspectionResultRequest request, CancellationToken cancellationToken)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> SubmitCorrectionAsync(
+                VisionSubmitCorrectionRequest request, CancellationToken cancellationToken)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> SubmitImageReferenceAsync(
+                VisionSubmitImageReferenceRequest request, CancellationToken cancellationToken)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
         }
     }
 }

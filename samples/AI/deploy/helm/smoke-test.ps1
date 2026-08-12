@@ -54,14 +54,14 @@ Require kind
 Require kubectl
 Require helm
 
-$image = 'aimodelmanagementserver:smoke'
+$image = 'modelmanagementserver:smoke'
 $release = 'ai-smoke'
 $created = $false
 
 try {
     Step "Building $image"
     docker build `
-        -f (Join-Path $repoRoot 'samples/AiModelManagement/AiModelManagementServer/Dockerfile') `
+        -f (Join-Path $repoRoot 'samples/AI/ModelManagementServer/Dockerfile') `
         -t $image `
         $repoRoot
     if ($LASTEXITCODE -ne 0) { throw 'The image build failed.' }
@@ -82,7 +82,7 @@ try {
 
     Step 'Installing the chart'
     helm install $release (Join-Path $here 'ai-model-management') `
-        --set image.repository=aimodelmanagementserver `
+        --set image.repository=modelmanagementserver `
         --set image.tag=smoke `
         --set image.pullPolicy=Never `
         --set backend.endpointUri=http://stub-inference-backend:5273/ `
@@ -100,8 +100,8 @@ try {
         Start-Sleep -Seconds 6
 
         $output = dotnet run `
-            --project (Join-Path $repoRoot 'samples/AiModelManagement/AiModelManagementClient') `
-            -f net10.0 -- opc.tcp://localhost:62640/AiModelManagementServer 2>&1 |
+            --project (Join-Path $repoRoot 'samples/AI/ModelManagementClient') `
+            -f net10.0 -- opc.tcp://localhost:62640/ModelManagementServer 2>&1 |
             Out-String
     }
     finally {

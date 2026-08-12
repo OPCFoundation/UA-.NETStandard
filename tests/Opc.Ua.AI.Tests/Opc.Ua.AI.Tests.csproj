@@ -13,7 +13,7 @@
     <GenerateProgramFile>false</GenerateProgramFile>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <!-- Matches the sample under test; see samples/AiModelManagement/README.md. -->
+    <!-- Matches the sample under test; see samples/AI/README.md. -->
     <PublishAot>false</PublishAot>
     <IsAotCompatible>false</IsAotCompatible>
   </PropertyGroup>

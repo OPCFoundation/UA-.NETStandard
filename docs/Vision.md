@@ -640,7 +640,10 @@ characteristic.
 > detections attached is refused because it asserts two contradictory
 > things about one frame. `RetractAll` behaves the same way against the
 > corrected arrays. §9.4 requires a Server to count a negative example
-> in `SamplesCollected` exactly as it counts one carrying geometry.
+> in `SamplesCollected` exactly as it counts one carrying geometry —
+> that counter belongs to the learning job, so see
+> [Limitations](#limitations) for where this implementation draws the
+> line and what it hands the host instead.
 
 ### Streaming detections
 
@@ -778,11 +781,25 @@ against the draft; see [Limitations](#limitations).
   Custom Vision node-manager types are not yet supported; vendor
   extension follows the same class-based-configurator pattern the
   Robotics guide describes.
-- **Learning jobs are modelled but not driven.** `InferencePipelineType`
-  carries a `LearningJob` optional child and the facet calculator
-  publishes `VIS-Learning` when one is bound, but the standalone
-  `VisionNodeManager` does not itself run training — a host provides a
-  learning-job provider through the extension pattern.
+- **Learning jobs are modelled but not driven, and `SamplesCollected` is
+  not counted here.** `InferencePipelineType` carries a `LearningJob`
+  optional child and the facet calculator publishes `VIS-Learning` when
+  one is bound, but the standalone `VisionNodeManager` does not itself
+  run training — a host provides a learning-job provider through the
+  extension pattern. This has one named conformance consequence: §9.4
+  requires a Server to count a negative example (`SceneIsEmpty` or
+  `RetractAll` carrying a `GroundTruthLabel`) in `SamplesCollected`
+  exactly as it counts one carrying geometry, and `VisionNodeManager`
+  does not do that counting. It cannot: `SamplesCollected` is a property
+  of `LearningJobType`, which the *AI Model Management* companion
+  defines, and Vision reaches it through a `NodeId` value rather than a
+  Reference precisely so this model takes no dependency on the model
+  that defines the job. What the Server does guarantee is that the
+  negative example survives the hop intact — `SceneIsEmpty` and
+  `RetractAll` are carried verbatim on
+  `VisionSubmitDetectionsRequest` / `VisionSubmitCorrectionRequest`, so
+  a host that binds a learning job has everything it needs to satisfy
+  §9.4 on the counter it owns.
 - **AOT compatibility of the OpenUSD capture provider depends on the
   native renderer payload.** The managed layer is AOT-friendly; the
   native payload ships per-RID and its presence at runtime is what

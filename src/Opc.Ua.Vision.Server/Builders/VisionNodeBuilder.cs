@@ -1325,6 +1325,7 @@ namespace Opc.Ua.Vision.Server.Builders
             {
                 FolderState results = m_pipeline.CreateOrReplaceResults(context, null);
                 results.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                results.TypeDefinitionId = global::Opc.Ua.ObjectTypeIds.FolderType;
                 Declare(
                     m_pipeline.CreateOrReplaceRunInference(context, null),
                     MethodIds.InferencePipelineType_RunInference,
@@ -1343,6 +1344,8 @@ namespace Opc.Ua.Vision.Server.Builders
                 m_pipeline.CreateOrReplaceFeedback(context, null);
                 VisionFeedbackState feedback = m_pipeline.Feedback!;
                 feedback.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                feedback.TypeDefinitionId = ExpandedNodeId.ToNodeId(
+                    ObjectTypeIds.VisionFeedbackType, context.NamespaceUris);
                 Declare(
                     feedback.CreateOrReplaceSubmitDetections(context, null),
                     MethodIds.VisionFeedbackType_SubmitDetections,

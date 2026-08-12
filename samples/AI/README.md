@@ -32,12 +32,16 @@ is the two sample applications that compose them.
 | `deploy/helm/` | The chart, its tests, and a cluster smoke test |
 | `../../tests/Opc.Ua.AI.Tests/` | Unit and integration tests against a fake backend |
 
-**No cloud-vendor SDK is referenced anywhere.** Inference goes through
-`Microsoft.Extensions.AI`, which a hosted service and an on-device runtime both
-implement, and workload identity is read from the token the platform projects —
-the mechanism every platform implements underneath its own SDK. A sample that
-only ran against one vendor would not be demonstrating a platform-independent
-Server.
+**No cloud-vendor SDK is referenced anywhere.** The default backend goes
+through `Microsoft.Extensions.AI`, which a hosted service and an on-device
+runtime both implement, and workload identity is read from the token the
+platform projects — the mechanism every platform implements underneath its own
+SDK. A sample that only ran against one vendor would not be demonstrating a
+platform-independent Server. `RestChatCompletionsBackend` remains available
+when the endpoint only exposes the OpenAI-compatible REST contract and the host
+cannot supply an `IChatClient`; set `InferenceBackend:Kind` (or
+`FallbackInferenceBackend:Kind`) to `RestChatCompletions` for that wire
+contract.
 
 ## Running it
 
@@ -64,12 +68,20 @@ deployment, follows `UsesModel` to the model and its digest, and then calls
 Point it at a real endpoint by configuration:
 
 ```powershell
+$env:InferenceBackend__Kind = "ChatClient"
 $env:InferenceBackend__EndpointUri = "https://<resource>.services.ai.azure.com/openai/"
 $env:InferenceBackend__Authentication = "ApiKey"
 $env:InferenceBackend__CredentialReference = "inference-api-key"
 $env:InferenceBackend__Site = "Cloud"
 $env:InferenceBackend__EgressPermitted = "true"
 ```
+
+`ChatClient` is the default. This sample registers a small `IChatClient` over
+the OpenAI-compatible endpoint so no vendor package is needed. A production
+host can replace `IAiChatClientFactory` with one that creates the chat client
+from its own SDK or local runtime. Use `RestChatCompletions` for deployments
+whose contract is the REST shape itself rather than the
+`Microsoft.Extensions.AI` abstraction.
 
 ## The control plane is OPC UA
 
@@ -266,4 +278,3 @@ once on the same node. Two consequences worth knowing:
 - A transfer can be aborted or expire while its inference is in flight. The
   completing call re-checks that the transfer is still live under the same lock
   that removal takes, and drops the answer if it is not.
-

@@ -1,4 +1,4 @@
-# AiModelManagementServer container image.
+# ModelManagementServer container image.
 #
 # Multi-stage, framework-dependent build on the .NET AzureLinux 3 base
 # images, following samples/PumpDeviceIntegrationServer/Dockerfile.
@@ -8,8 +8,8 @@
 # like this:
 #
 #   # from the repository root:
-#   docker build -f samples/AiModelManagement/AiModelManagementServer/Dockerfile \
-#                -t aimodelmanagementserver:local .
+#   docker build -f samples/AI/ModelManagementServer/Dockerfile \
+#                -t modelmanagementserver:local .
 #
 # The final image runs as a non-root user and listens on 0.0.0.0:62640
 # (override host/port via the `host` / `port` environment variables).
@@ -34,23 +34,32 @@ RUN test -f UA.slnx || { \
         echo '       The image needs the full source tree (src/, tools/).'; \
         echo ''; \
         echo '  From the repository root run:'; \
-        echo '    docker build -f samples/AiModelManagement/AiModelManagementServer/Dockerfile -t aimodelmanagementserver .'; \
+        echo '    docker build -f samples/AI/ModelManagementServer/Dockerfile -t modelmanagementserver .'; \
         echo ''; \
         exit 1; \
     }
+
+# The project imports use lower-case tools/, but the repository directory is
+# Tools/. Windows hides the difference; the Linux container does not.
+RUN if [ ! -d tools ] && [ -d Tools ]; then ln -s Tools tools; fi
+
+# MSBuild in the Linux SDK needs a Unix separator and stable logical names here
+# so the source generator embeds the design resources it reads during publish.
+RUN sed -i 's#<EmbeddedResource Include="Design\\\*">#<EmbeddedResource Include="Design/*" LogicalName="Opc.Ua.SourceGeneration.Design.%(Filename)%(Extension)">#' \
+        Tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj
 
 ARG Version
 ARG SimpleVersion
 ARG InformationalVersion
 
-RUN dotnet restore "samples/AiModelManagement/AiModelManagementServer/AiModelManagementServer.csproj" \
+RUN dotnet restore "samples/AI/ModelManagementServer/ModelManagementServer.csproj" \
         --force -p:NoHttps=true
 
 # PublishAot is off for this sample. The workload-identity credential path
 # resolves tokens through a library that serialises by reflection, which the
 # AOT analyzer warns on and this repository builds warnings as errors. Nothing
 # in the OPC UA surface needs AOT; see the sample README.
-RUN dotnet publish "samples/AiModelManagement/AiModelManagementServer/AiModelManagementServer.csproj" \
+RUN dotnet publish "samples/AI/ModelManagementServer/ModelManagementServer.csproj" \
         --no-restore \
         -c Release \
         -f net10.0 \
@@ -96,4 +105,4 @@ ENV host=0.0.0.0 \
 
 EXPOSE 62640
 
-ENTRYPOINT ["dotnet", "AiModelManagementServer.dll"]
+ENTRYPOINT ["dotnet", "ModelManagementServer.dll"]

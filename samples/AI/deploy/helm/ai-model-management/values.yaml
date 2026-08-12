@@ -7,7 +7,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/opcfoundation/aimodelmanagementserver
+  repository: ghcr.io/opcfoundation/modelmanagementserver
   tag: latest
   pullPolicy: IfNotPresent
 

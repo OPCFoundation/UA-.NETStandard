@@ -55,7 +55,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            IsInverse = true;
+            IsInverse = false;
             IncludeSubtypes = true;
         }
 

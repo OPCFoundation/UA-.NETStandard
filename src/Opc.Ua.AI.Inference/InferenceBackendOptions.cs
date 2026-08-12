@@ -62,6 +62,23 @@ namespace Opc.Ua.AI.Inference
     }
 
     /// <summary>
+    /// Which inference backend contract a deployment uses.
+    /// </summary>
+    public enum InferenceBackendKind
+    {
+        /// <summary>
+        /// The host supplies a <c>Microsoft.Extensions.AI.IChatClient</c>.
+        /// </summary>
+        ChatClient,
+
+        /// <summary>
+        /// The backend speaks the OpenAI-compatible REST chat-completions contract
+        /// directly.
+        /// </summary>
+        RestChatCompletions
+    }
+
+    /// <summary>
     /// Configuration for one inference backend.
     /// </summary>
     /// <remarks>
@@ -93,6 +110,12 @@ namespace Opc.Ua.AI.Inference
         /// publish no fallback deployment rather than one that always fails.
         /// </remarks>
         public bool Enabled { get; set; } = true;
+
+        /// <summary>
+        /// Which backend contract to use. Defaults to the
+        /// <c>Microsoft.Extensions.AI</c> abstraction.
+        /// </summary>
+        public InferenceBackendKind Kind { get; set; } = InferenceBackendKind.ChatClient;
 
         /// <summary>
         /// Audience a workload-identity token is requested for.

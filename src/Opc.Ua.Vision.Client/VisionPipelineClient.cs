@@ -221,14 +221,15 @@ namespace Opc.Ua.Vision.Client
         {
             FolderTypeClient? folder = await m_proxy.GetResultsAsync(
                 m_operations.Telemetry, cancellationToken).ConfigureAwait(false);
-            if (folder is null || folder.ObjectId.IsNull)
+            NodeId folderId = folder is null ? NodeId.Null : folder.ObjectId;
+            if (folderId.IsNull)
             {
                 yield break;
             }
             NodeId resultType = m_operations.VisionNamespaceType(
                 ObjectTypes.VisionResultType);
             ArrayOf<ReferenceDescription> refs = await m_operations
-                .BrowseHierarchicalObjectsAsync(folder.ObjectId, cancellationToken)
+                .BrowseHierarchicalObjectsAsync(folderId, cancellationToken)
                 .ConfigureAwait(false);
             for (int ii = 0; ii < refs.Count; ii++)
             {
@@ -263,11 +264,8 @@ namespace Opc.Ua.Vision.Client
         {
             VisionFeedbackTypeClient? feedback = await m_proxy.GetFeedbackAsync(
                 m_operations.Telemetry, cancellationToken).ConfigureAwait(false);
-            if (feedback is null || feedback.ObjectId.IsNull)
-            {
-                return null;
-            }
-            return new VisionFeedbackClient(m_operations, feedback.ObjectId);
+            NodeId feedbackId = feedback is null ? NodeId.Null : feedback.ObjectId;
+            return feedbackId.IsNull ? null : new VisionFeedbackClient(m_operations, feedbackId);
         }
     }
 }

@@ -29,16 +29,14 @@
 
 using System;
 using System.IO;
-using Opc.Ua.AI.Inference;
-using Opc.Ua.AI.Server;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Opc.Ua.AI.Inference;
+using Opc.Ua.AI.Server;
+using Opc.Ua.AI.Server.Hosting;
 using Opc.Ua.Server.Fluent;
-
-const string fallbackKey = AiNodeManagerFactory.FallbackOptionsName;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -51,48 +49,12 @@ int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62640;
 // --host for local-only development.
 string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0";
 
-builder.Services.Configure<AiOptions>(
-    builder.Configuration.GetSection(AiOptions.SectionName));
+builder.Services.AddRestChatCompletionsAiChatClientFactory();
 
-builder.Services.Configure<InferenceBackendOptions>(
-    builder.Configuration.GetSection(InferenceBackendOptions.SectionName));
-
-builder.Services.Configure<InferenceBackendOptions>(
-    fallbackKey,
-    builder.Configuration.GetSection(InferenceBackendOptions.FallbackSectionName));
-
-// Two deployments mean two backends. A fallback reached through the same client,
-// connection and credentials as the primary is a retry, not a fallback.
-builder.Services.AddSingleton(sp =>
-{
-    IOptionsMonitor<InferenceBackendOptions> monitor =
-        sp.GetRequiredService<IOptionsMonitor<InferenceBackendOptions>>();
-    ILoggerFactory loggers = sp.GetRequiredService<ILoggerFactory>();
-
-    InferenceBackendOptions primaryOptions = monitor.CurrentValue;
-
-    var primary = new RestChatCompletionsBackend(
-        primaryOptions,
-        CredentialResolverFor(primaryOptions),
-        loggers.CreateLogger<RestChatCompletionsBackend>());
-
-    InferenceBackendOptions fallbackOptions = monitor.Get(fallbackKey);
-
-    if (!fallbackOptions.Enabled)
-    {
-        return new InferenceBackends(primary);
-    }
-
-    var fallback = new RestChatCompletionsBackend(
-        fallbackOptions,
-        CredentialResolverFor(fallbackOptions),
-        loggers.CreateLogger<RestChatCompletionsBackend>());
-
-    return new InferenceBackends(primary, fallback);
-});
-
-builder.Services.AddSingleton<AiNodeManagerFactory>();
-
+// InferenceBackend:Kind defaults to ChatClient, the Microsoft.Extensions.AI
+// path. Set it to RestChatCompletions only for endpoints where the host cannot
+// supply an IChatClient and the OpenAI-compatible REST contract is the wire
+// contract itself.
 builder.Services
     .AddOpcUa()
     .AddServer(o =>
@@ -108,20 +70,12 @@ builder.Services
         o.MinCertificateKeySize = 2048;
         o.EndpointUrls.Add($"opc.tcp://{host}:{port}/ModelManagementServer");
     })
-    .AddNodeManager<AiNodeManagerFactory>();
+    .AddAi(
+        ai => builder.Configuration.GetSection(AiOptions.SectionName).Bind(ai),
+        backend => builder.Configuration.GetSection(InferenceBackendOptions.SectionName).Bind(backend),
+        fallback => builder.Configuration
+            .GetSection(InferenceBackendOptions.FallbackSectionName)
+            .Bind(fallback));
 
 await builder.Build().RunAsync().ConfigureAwait(false);
 return 0;
-
-// Which resolver a backend gets follows from how it says it authenticates, so a
-// misconfigured pair cannot silently fall back to reading a secret from disk.
-static ICredentialResolver CredentialResolverFor(InferenceBackendOptions options)
-{
-    return options.Authentication switch
-    {
-        BackendAuthentication.Anonymous => new NullCredentialResolver(),
-        BackendAuthentication.WorkloadIdentity =>
-            new WorkloadIdentityCredentialResolver(options.TokenAudience),
-        _ => new FileCredentialResolver(options.CredentialDirectory)
-    };
-}

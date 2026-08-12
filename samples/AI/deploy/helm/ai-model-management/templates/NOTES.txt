@@ -2,12 +2,12 @@ The AI Model Management sample Server is deploying.
 
   Release:   {{ .Release.Name }}
   Namespace: {{ .Release.Namespace }}
-  Endpoint:  opc.tcp://{{ include "ai-model-management.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/AiModelManagementServer
+  Endpoint:  opc.tcp://{{ include "ai-model-management.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/ModelManagementServer
 
 Reach it from your machine:
 
   kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "ai-model-management.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
-  dotnet run --project samples/AiModelManagement/AiModelManagementClient -- opc.tcp://localhost:{{ .Values.service.port }}/AiModelManagementServer
+  dotnet run --project samples/AI/ModelManagementClient -- opc.tcp://localhost:{{ .Values.service.port }}/ModelManagementServer
 
 What this Server will tell a client about itself:
 

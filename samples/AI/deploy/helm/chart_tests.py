@@ -21,6 +21,9 @@ from pathlib import Path
 
 CHART = Path(__file__).resolve().parent / "ai-model-management"
 HELM = sys.argv[1] if len(sys.argv) > 1 else shutil.which("helm")
+if HELM is None:
+    print("helm was not found on PATH. Pass path-to-helm as the first argument.", file=sys.stderr)
+    sys.exit(1)
 
 failures = []
 checks = 0
