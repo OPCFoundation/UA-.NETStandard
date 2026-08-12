@@ -53,6 +53,7 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 | `administration` | Configuration, Connection, NodeSet Export, PKI Management | Certificate trust management and NodeSet export |
 | `pubsub` | PubSub runtime, discovery, action, and capture tools (plus PubSub decode when diagnostics tools are enabled) | Part 14 PubSub publish/subscribe, discovery, and capture workflows |
 | `diagnostics` | Connection, Packet Capture (plus decode/replay when diagnostics tools are enabled) | OPC UA-aware packet capture, offline decode, and replay |
+| `robotics` | Connection plus the Robot Intent discovery, monitoring, control and mission tools | Commanding and monitoring a Robot Intent controller |
 | `full` (default) | Every tool class above | Unrestricted access; the current-major default so existing integrations keep working unchanged |
 
 `full` is the default for the current major version — `core` and the other bounded profiles are opt-in. Select a profile with:
@@ -406,7 +407,7 @@ runtime and collect publisher responses):
 
 ## Architecture
 
-The MCP tools ship as four libraries plus the executable that composes them.
+The MCP tools ship as five libraries plus the executable that composes them.
 The executable owns only transport, logging and CLI plumbing; every tool lives
 in a library that an application can reference on its own.
 
@@ -440,9 +441,12 @@ tools/
 │   └── Tools/{PacketCapture,PacketDecode,PacketReplay}Tools.cs
 ├── Opc.Ua.Mcp.PubSub.Diagnostics/       # PubSub capture and decode
 │   └── Tools/{PubSubCapture,PubSubDecode}Tools.cs
+├── Opc.Ua.Mcp.Robotics/                 # Robot Intent discovery, monitoring, control, missions
+│   ├── RoboticsIntentManager.cs
+│   └── Tools/Robotics{Discovery,Monitoring,Control,Mission}Tools.cs
 └── Opc.Ua.Mcp/                          # .NET 10 project, packaged as dotnet tool
     ├── Program.cs                       # Entry point, stdio + Streamable HTTP transport (/mcp)
-    ├── McpHostBuilder.cs                # Composes the four libraries
+    ├── McpHostBuilder.cs                # Composes the five libraries
     ├── Opc.Ua.Mcp.Config.xml            # OPC UA client application config
     └── .mcp/server.json                 # MCP server manifest for NuGet discovery
 ```
@@ -455,6 +459,7 @@ tools/
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery | Core + `Opc.Ua.PubSub` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay | Core + `Opc.Ua.Core.Diagnostics` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode | Core + `Opc.Ua.PubSub.Diagnostics` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent discovery, monitoring, control, missions | Core + `Opc.Ua.Robotics.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` tool | all of the above |
 
 The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
@@ -485,10 +490,12 @@ registration and a tool registration:
 builder.Services.AddOpcUaMcpPubSub();
 builder.Services.AddOpcUaMcpDiagnostics();
 builder.Services.AddOpcUaMcpPubSubDiagnostics();
+builder.Services.AddOpcUaMcpRobotics();
 
 mcp.WithOpcUaPubSubTools(profile)
    .WithOpcUaDiagnosticsTools(profile, diagnosticsEnabled)
-   .WithOpcUaPubSubDiagnosticsTools(profile, diagnosticsEnabled);
+   .WithOpcUaPubSubDiagnosticsTools(profile, diagnosticsEnabled)
+   .WithOpcUaRoboticsTools(profile);
 ```
 
 `WithOpcUaMcpFilters` registers the request and schema filters that make tool

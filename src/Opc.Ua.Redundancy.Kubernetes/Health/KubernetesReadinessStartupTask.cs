@@ -50,7 +50,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         }
 
         /// <inheritdoc/>
-        public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+        public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
         {
             if (server == null)
             {

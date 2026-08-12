@@ -708,6 +708,29 @@ namespace Opc.Ua
             // Capture the immutable trust-list state once for this validation.
             TrustListState state = m_state;
 
+            // A certificate whose subject or issuer is an empty distinguished name
+            // identifies nothing: two unrelated issuers become indistinguishable, so
+            // it can never take part in a trust decision. RFC 5280 §4.1.2.4 requires a
+            // non-empty issuer, and §4.1.2.6 only permits an empty subject for an end
+            // entity carrying a critical subjectAltName, which a CA may never do.
+            // Rejected here, ahead of the trust-list lookup and the chain build, so
+            // the outcome is the same on every target framework rather than depending
+            // on whether the platform parser happens to accept such a certificate.
+            // BadCertificateInvalid is deliberately not suppressible.
+            foreach (Certificate toCheck in certificates)
+            {
+                if (DistinguishedNameUtils.HasEmptyDistinguishedName(toCheck))
+                {
+                    throw new ServiceResultException(new ServiceResult(
+                        null,
+                        StatusCodes.BadCertificateInvalid,
+                        LocalizedText.From(
+                            "Certificate contains an empty subject or issuer distinguished name."),
+                        null,
+                        (ServiceResult?)null));
+                }
+            }
+
             // check for previously validated certificate.
             if (UseValidatedCertificates &&
                 m_validatedCertificates.TryGetValue(

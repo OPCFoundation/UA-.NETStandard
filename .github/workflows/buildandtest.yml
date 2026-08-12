@@ -485,7 +485,7 @@ jobs:
         ./.azurepipelines/check-coverage.ps1 `
             -CoberturaPath CodeCoverage/Cobertura.xml `
             -ThresholdsPath coverage-thresholds.json `
-            -RepoRoot . `
+            -RepoRoot '${{ github.workspace }}' `
             -BaseRef $env:BASE_REF `
             -SummaryPath coverage-summary.md
         "outcome=$LASTEXITCODE" | Out-File -FilePath $env:GITHUB_OUTPUT -Append

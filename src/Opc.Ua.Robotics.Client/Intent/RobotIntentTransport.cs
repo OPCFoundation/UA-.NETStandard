@@ -82,6 +82,21 @@ namespace Opc.Ua.Robotics.Client.Intent
         ValueTask<RobotIntentControllerInfo> ReadControllerAsync(CancellationToken ct = default);
 
         /// <summary>
+        /// Reads the current controller runtime state.
+        /// </summary>
+        ValueTask<RobotIntentControllerState> ReadControllerStateAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Lists operations published below the controller's Intents folder.
+        /// </summary>
+        ValueTask<ArrayOf<IntentOperationSnapshot>> ListOperationsAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Lists missions published below the controller's Missions folder.
+        /// </summary>
+        ValueTask<ArrayOf<MissionSnapshot>> ListMissionsAsync(CancellationToken ct = default);
+
+        /// <summary>
         /// Submits an intent.
         /// </summary>
         ValueTask<IntentSubmissionResult> SubmitIntentAsync(IntentDataType intent, CancellationToken ct = default);
@@ -335,6 +350,71 @@ namespace Opc.Ua.Robotics.Client.Intent
         }
 
         /// <inheritdoc/>
+        public async ValueTask<RobotIntentControllerState> ReadControllerStateAsync(CancellationToken ct = default)
+        {
+            return new RobotIntentControllerState
+            {
+                ControllerId = ControllerId,
+                OperationalMode = await ReadOptionalEnumChildAsync<OperationalModeEnum>(
+                    ControllerId,
+                    ["OperationalMode"],
+                    ct).ConfigureAwait(false),
+                Ready = await ReadOptionalChildAsync<bool>(ControllerId, ["Ready"], ct).ConfigureAwait(false),
+                ControlOwner = await ReadOptionalNodeIdChildAsync(ControllerId, ["ControlOwner"], ct)
+                    .ConfigureAwait(false),
+                MaxQueueDepth = await ReadOptionalChildAsync<uint>(ControllerId, ["MaxQueueDepth"], ct)
+                    .ConfigureAwait(false),
+                ActiveIntent = await ReadOptionalNodeIdChildAsync(ControllerId, ["ActiveIntent"], ct)
+                    .ConfigureAwait(false),
+                ActiveMission = await ReadOptionalNodeIdChildAsync(ControllerId, ["ActiveMission"], ct)
+                    .ConfigureAwait(false),
+                SafetyState = await ReadSafetyStateAsync(ct).ConfigureAwait(false),
+                Operations = await BrowseOptionalFolderAsync("Intents", ct).ConfigureAwait(false),
+                Missions = await BrowseOptionalFolderAsync("Missions", ct).ConfigureAwait(false)
+            };
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ArrayOf<IntentOperationSnapshot>> ListOperationsAsync(CancellationToken ct = default)
+        {
+            ArrayOf<RobotIntentNodeLookupEntry> entries = await BrowseOptionalFolderAsync("Intents", ct)
+                .ConfigureAwait(false);
+            var operationIds = new List<NodeId>(entries.Count);
+            for (int ii = 0; ii < entries.Count; ii++)
+            {
+                operationIds.Add(entries[ii].NodeId);
+            }
+
+            var snapshots = new List<IntentOperationSnapshot>(operationIds.Count);
+            for (int ii = 0; ii < operationIds.Count; ii++)
+            {
+                IntentOperationSnapshot snapshot = await ReadOperationSnapshotAsync(operationIds[ii], ct)
+                    .ConfigureAwait(false);
+                snapshots.Add(snapshot);
+            }
+            return [.. snapshots];
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ArrayOf<MissionSnapshot>> ListMissionsAsync(CancellationToken ct = default)
+        {
+            ArrayOf<RobotIntentNodeLookupEntry> entries = await BrowseOptionalFolderAsync("Missions", ct)
+                .ConfigureAwait(false);
+            var missionIds = new List<NodeId>(entries.Count);
+            for (int ii = 0; ii < entries.Count; ii++)
+            {
+                missionIds.Add(entries[ii].NodeId);
+            }
+
+            var snapshots = new List<MissionSnapshot>(missionIds.Count);
+            for (int ii = 0; ii < missionIds.Count; ii++)
+            {
+                snapshots.Add(await ReadMissionSnapshotAsync(missionIds[ii], ct).ConfigureAwait(false));
+            }
+            return [.. snapshots];
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<IntentSubmissionResult> SubmitIntentAsync(
             IntentDataType intent,
             CancellationToken ct = default)
@@ -504,6 +584,8 @@ namespace Opc.Ua.Robotics.Client.Intent
             return new IntentOperationSnapshot
             {
                 Operation = operation,
+                IntentId = await ReadChildValueOrDefaultAsync(operation, ["IntentId"], string.Empty, ct)
+                    .ConfigureAwait(false),
                 ExecutionState = stateNode.IsNull
                     ? ExecutionStateEnum.Accepted
                     : await ReadEnumValueAsync<ExecutionStateEnum>(stateNode, ct).ConfigureAwait(false),
@@ -512,7 +594,11 @@ namespace Opc.Ua.Robotics.Client.Intent
                 CurrentPose = poseNode.IsNull ? new Pose3DDataType() : await m_session
                     .ReadValueAsync<Pose3DDataType>(poseNode, ct).ConfigureAwait(false),
                 Result = resultNode.IsNull ? new IntentResultDataType() : await m_session
-                    .ReadValueAsync<IntentResultDataType>(resultNode, ct).ConfigureAwait(false)
+                    .ReadValueAsync<IntentResultDataType>(resultNode, ct).ConfigureAwait(false),
+                MissionId = await ReadChildValueOrDefaultAsync(operation, ["MissionId"], string.Empty, ct)
+                    .ConfigureAwait(false),
+                QueuePosition = await ReadChildValueOrDefaultAsync(operation, ["QueuePosition"], 0u, ct)
+                    .ConfigureAwait(false)
             };
         }
 
@@ -566,6 +652,67 @@ namespace Opc.Ua.Robotics.Client.Intent
             // OPC UA encodes Enumeration values as Int32 in Variants; convert explicitly to the generated enum type.
             int value = await m_session.ReadValueAsync<int>(nodeId, ct).ConfigureAwait(false);
             return EnumHelper.Int32ToEnum<TEnum>(value);
+        }
+
+        private async ValueTask<RobotIntentSafetyStateSnapshot> ReadSafetyStateAsync(CancellationToken ct)
+        {
+            NodeId safetyState = await TranslateAsync(ControllerId, ["SafetyState"], ct).ConfigureAwait(false);
+            if (safetyState.IsNull)
+            {
+                return new RobotIntentSafetyStateSnapshot();
+            }
+            return new RobotIntentSafetyStateSnapshot
+            {
+                Available = true,
+                ActiveFunction = await ReadOptionalEnumChildAsync<SafeMotionFunctionEnum>(
+                    safetyState,
+                    ["ActiveFunction"],
+                    ct).ConfigureAwait(false),
+                EmergencyStopActive = await ReadOptionalChildAsync<bool>(
+                    safetyState,
+                    ["EmergencyStopActive"],
+                    ct).ConfigureAwait(false),
+                ProtectiveStopActive = await ReadOptionalChildAsync<bool>(
+                    safetyState,
+                    ["ProtectiveStopActive"],
+                    ct).ConfigureAwait(false),
+                SafeSpeedLimitActive = await ReadOptionalChildAsync<bool>(
+                    safetyState,
+                    ["SafeSpeedLimitActive"],
+                    ct).ConfigureAwait(false),
+                SafeSpeedLimit = await ReadOptionalChildAsync<double>(safetyState, ["SafeSpeedLimit"], ct)
+                    .ConfigureAwait(false),
+                SafetyControllerOk = await ReadOptionalChildAsync<bool>(
+                    safetyState,
+                    ["SafetyControllerOk"],
+                    ct).ConfigureAwait(false),
+                LastStopReason = await ReadOptionalChildAsync<LocalizedText>(
+                    safetyState,
+                    ["LastStopReason"],
+                    ct).ConfigureAwait(false)
+            };
+        }
+
+        private async ValueTask<MissionSnapshot> ReadMissionSnapshotAsync(NodeId mission, CancellationToken ct)
+        {
+            NodeId stateNode = await TranslateAsync(mission, ["ExecutionState"], ct).ConfigureAwait(false);
+            return new MissionSnapshot
+            {
+                MissionNode = mission,
+                MissionId = await ReadChildValueOrDefaultAsync(mission, ["MissionId"], string.Empty, ct)
+                    .ConfigureAwait(false),
+                MissionUpdateId = await ReadChildValueOrDefaultAsync(mission, ["MissionUpdateId"], 0u, ct)
+                    .ConfigureAwait(false),
+                Mission = await ReadChildValueOrDefaultAsync(mission, ["Mission"], new MissionDataType(), ct)
+                    .ConfigureAwait(false),
+                ExecutionState = stateNode.IsNull
+                    ? ExecutionStateEnum.Accepted
+                    : await ReadEnumValueAsync<ExecutionStateEnum>(stateNode, ct).ConfigureAwait(false),
+                CurrentStepId = await ReadChildValueOrDefaultAsync(mission, ["CurrentStepId"], string.Empty, ct)
+                    .ConfigureAwait(false),
+                ReleasedStepCount = await ReadChildValueOrDefaultAsync(mission, ["ReleasedStepCount"], 0u, ct)
+                    .ConfigureAwait(false)
+            };
         }
 
         private async ValueTask<ArrayOf<RobotIntentNodeLookupEntry>> BrowseOptionalFolderAsync(
@@ -634,6 +781,49 @@ namespace Opc.Ua.Robotics.Client.Intent
                 return defaultValue;
             }
             return await m_session.ReadValueAsync<T>(nodeId, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask<RobotIntentOptionalValue<T>> ReadOptionalChildAsync<T>(
+            NodeId root,
+            IReadOnlyList<string> path,
+            CancellationToken ct)
+        {
+            NodeId nodeId = await TranslateAsync(root, path, ct).ConfigureAwait(false);
+            if (nodeId.IsNull)
+            {
+                return RobotIntentOptionalValue<T>.Unavailable;
+            }
+            return RobotIntentOptionalValue<T>.FromValue(await m_session.ReadValueAsync<T>(nodeId, ct)
+                .ConfigureAwait(false));
+        }
+
+        private async ValueTask<RobotIntentOptionalValue<NodeId>> ReadOptionalNodeIdChildAsync(
+            NodeId root,
+            IReadOnlyList<string> path,
+            CancellationToken ct)
+        {
+            NodeId nodeId = await TranslateAsync(root, path, ct).ConfigureAwait(false);
+            if (nodeId.IsNull)
+            {
+                return RobotIntentOptionalValue<NodeId>.Unavailable;
+            }
+            NodeId value = await m_session.ReadValueAsync<NodeId>(nodeId, ct).ConfigureAwait(false);
+            return RobotIntentOptionalValue<NodeId>.FromValue(value.IsNull ? NodeId.Null : value);
+        }
+
+        private async ValueTask<RobotIntentOptionalValue<TEnum>> ReadOptionalEnumChildAsync<TEnum>(
+            NodeId root,
+            IReadOnlyList<string> path,
+            CancellationToken ct)
+            where TEnum : struct, Enum
+        {
+            NodeId nodeId = await TranslateAsync(root, path, ct).ConfigureAwait(false);
+            if (nodeId.IsNull)
+            {
+                return RobotIntentOptionalValue<TEnum>.Unavailable;
+            }
+            return RobotIntentOptionalValue<TEnum>.FromValue(await ReadEnumValueAsync<TEnum>(nodeId, ct)
+                .ConfigureAwait(false));
         }
 
         private async ValueTask<ArrayOf<IntentCapabilityDataType>> ReadSupportedIntentsAsync(

@@ -32,6 +32,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Identity;
@@ -315,7 +317,7 @@ namespace Opc.Ua.Server
         public IRoleManager RoleManager { get; private set; } = new RoleManager();
 
         /// <inheritdoc/>
-        public IServerIdentityRegistry IdentityRegistry { get; private set; } = new ServerIdentityRegistry();
+        public IServerIdentityRegistry IdentityRegistry { get; } = new ServerIdentityRegistry();
 
         /// <inheritdoc/>
         public UserManagement.IUserManagement? UserManagement { get; private set; }
@@ -327,8 +329,26 @@ namespace Opc.Ua.Server
         public ISubscriptionManager SubscriptionManager { get; private set; } = null!;
 
         /// <summary>
+        /// Closes the bind phase. Subsystems are bound once, while the server starts;
+        /// every attempt to bind one after this fails.
+        /// </summary>
+        /// <remarks>
+        /// Calling this more than once is harmless. It is deliberately not on
+        /// <see cref="IServerInternal"/>: only the server that owns the startup sequence
+        /// decides when binding is over.
+        /// </remarks>
+        public void CompleteBindPhase()
+        {
+            m_bindPhaseComplete = true;
+        }
+
+        /// <summary>
         /// Stores the MasterNodeManager, the DiagnosticsNodeManager and the CoreNodeManager
         /// </summary>
+        /// <remarks>
+        /// Binding the master node manager also binds the three managers it owns, because
+        /// they are reached through it and have no independent lifetime.
+        /// </remarks>
         /// <param name="nodeManager">The node manager.</param>
         [MemberNotNull(
             nameof(NodeManager),
@@ -337,6 +357,7 @@ namespace Opc.Ua.Server
             nameof(CoreNodeManager))]
         public void SetNodeManager(IMasterNodeManager nodeManager)
         {
+            ThrowIfBindPhaseComplete();
             NodeManager = nodeManager;
             DiagnosticsNodeManager = nodeManager.DiagnosticsNodeManager!;
             ConfigurationNodeManager = nodeManager.ConfigurationNodeManager!;
@@ -350,6 +371,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(MainNodeManagerFactory))]
         public void SetMainNodeManagerFactory(IMainNodeManagerFactory mainNodeManagerFactory)
         {
+            ThrowIfBindPhaseComplete();
             MainNodeManagerFactory = mainNodeManagerFactory;
         }
 
@@ -373,6 +395,7 @@ namespace Opc.Ua.Server
             RequestManager requestManager,
             CancellationToken cancellationToken = default)
         {
+            ThrowIfBindPhaseComplete();
             EventManager = eventManager;
             ResourceManager = resourceManager;
             RequestManager = requestManager;
@@ -392,6 +415,7 @@ namespace Opc.Ua.Server
             ISessionManager sessionManager,
             ISubscriptionManager subscriptionManager)
         {
+            ThrowIfBindPhaseComplete();
             if (SessionManager != null)
             {
                 SessionManager.SessionCreated -= OnSessionCountChanged;
@@ -414,6 +438,7 @@ namespace Opc.Ua.Server
         public void SetMonitoredItemQueueFactory(
             IMonitoredItemQueueFactory monitoredItemQueueFactory)
         {
+            ThrowIfBindPhaseComplete();
             MonitoredItemQueueFactory = monitoredItemQueueFactory;
         }
 
@@ -424,25 +449,42 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(SubscriptionStore))]
         public void SetSubscriptionStore(ISubscriptionStore subscriptionStore)
         {
+            ThrowIfBindPhaseComplete();
             SubscriptionStore = subscriptionStore;
         }
 
         /// <inheritdoc/>
         public void SetRoleManager(IRoleManager roleManager)
         {
+            ThrowIfBindPhaseComplete();
             RoleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
-        }
-
-        /// <inheritdoc/>
-        public void SetIdentityRegistry(IServerIdentityRegistry registry)
-        {
-            IdentityRegistry = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
         /// <inheritdoc/>
         public void SetUserManagement(UserManagement.IUserManagement userManagement)
         {
+            ThrowIfBindPhaseComplete();
             UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
+        }
+
+        /// <summary>
+        /// Refuses a bind once the server has finished starting. A subsystem that could be
+        /// swapped underneath a running server would leave every component that already
+        /// resolved it holding the previous instance.
+        /// </summary>
+        /// <param name="member">The bind operation being attempted.</param>
+        /// <exception cref="ServiceResultException">The bind phase is over.</exception>
+        private void ThrowIfBindPhaseComplete([CallerMemberName] string member = "")
+        {
+            if (m_bindPhaseComplete)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "{0} ran after the server finished starting. Subsystems are bound once, " +
+                    "during startup; supply one through the matching StandardServer.Create* " +
+                    "override or by registering it in the service container.",
+                    member);
+            }
         }
 
         /// <summary>
@@ -452,6 +494,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(AggregateManager))]
         public void SetAggregateManager(AggregateManager aggregateManager)
         {
+            ThrowIfBindPhaseComplete();
             AggregateManager = aggregateManager;
         }
 
@@ -462,6 +505,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(ModellingRulesManager))]
         public void SetModellingRulesManager(ModellingRulesManager modellingRulesManager)
         {
+            ThrowIfBindPhaseComplete();
             ModellingRulesManager = modellingRulesManager;
         }
 
@@ -472,6 +516,7 @@ namespace Opc.Ua.Server
         [MemberNotNull(nameof(ConformanceUnitsManager))]
         public void SetConformanceUnitsManager(ConformanceUnitsManager conformanceUnitsManager)
         {
+            ThrowIfBindPhaseComplete();
             ConformanceUnitsManager = conformanceUnitsManager;
         }
 
@@ -492,6 +537,49 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The default system context.</value>
         public ServerSystemContext DefaultSystemContext { get; }
+
+        /// <inheritdoc/>
+        public ServerSystemContext CreateSystemContext(ISession session)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+
+            return DefaultSystemContext.Copy(session);
+        }
+
+        /// <inheritdoc/>
+        public T? FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
+        {
+            return DiagnosticsNodeManager?.FindPredefinedNode<T>(nodeId);
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<T> FindNodeManagers<T>() where T : class
+        {
+            IMasterNodeManager? nodeManager = NodeManager;
+            if (nodeManager == null)
+            {
+                return [];
+            }
+
+            // A node manager is registered as an asynchronous manager and surfaced again
+            // through a synchronous adapter. A manager that already implements INodeManager
+            // is its own adapter, so the two lists overlap and the capability may sit on
+            // either face; both are searched and the overlap is removed.
+            //
+            // The overlap is the *same instance* appearing twice, so identity is the only
+            // correct comparison. Distinct() would use EqualityComparer<T>.Default and
+            // honour an Equals override on an implementation, silently collapsing two
+            // managers that merely compare equal.
+            List<T> asyncManagers = [.. nodeManager.AsyncNodeManagers.OfType<T>()];
+
+            return asyncManagers.Concat(
+                nodeManager.NodeManagers
+                    .OfType<T>()
+                    .Where(manager => !asyncManagers.Exists(known => ReferenceEquals(known, manager))));
+        }
 
         /// <summary>
         /// The table of namespace uris known to the server.
@@ -673,38 +761,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reads a value derived from the server diagnostics while holding the server's
-        /// diagnostics lock.
-        /// </summary>
-        /// <remarks>
-        /// Do not let the diagnostics object itself escape the callback: once the lock is
-        /// released, any field read from it is unsynchronized.
-        /// </remarks>
-        /// <typeparam name="TResult">The type of the value produced.</typeparam>
-        /// <param name="read">The projection applied to the diagnostics.</param>
-        /// <exception cref="ArgumentNullException">Thrown if read is null.</exception>
-        public TResult ReadServerDiagnostics<TResult>(
-            Func<ServerDiagnosticsSummaryDataType, TResult> read)
-        {
-            if (read == null)
-            {
-                throw new ArgumentNullException(nameof(read));
-            }
-
-            lock (m_diagnosticsLock)
-            {
-                return read.Invoke(ServerDiagnostics);
-            }
-        }
-
-        /// <summary>
         /// Guards the server diagnostics and the server status value, which is constructed
         /// with this same lock so the two stay mutually exclusive. Never exposed: callers
-        /// reach the diagnostics through <see cref="UpdateServerDiagnostics"/> and
-        /// <see cref="ReadServerDiagnostics{TResult}"/>, and the status through
-        /// <see cref="CurrentState"/> and <see cref="UpdateServerStatus"/>.
+        /// reach the diagnostics through <see cref="UpdateServerDiagnostics"/>, and the
+        /// status through <see cref="CurrentState"/> and <see cref="UpdateServerStatus"/>.
         /// </summary>
         private readonly Lock m_diagnosticsLock = new();
+
+        /// <summary>
+        /// Whether the startup sequence has finished binding subsystems.
+        /// </summary>
+        private volatile bool m_bindPhaseComplete;
 
         /// <summary>
         /// Returns the diagnostics structure for the server.
@@ -770,22 +837,6 @@ namespace Opc.Ua.Server
         /// Status but non thread safe - internal so not part of public api
         /// </summary>
         internal ServerStatusValue NonThreadSafeStatus { get; private set; } = null!;
-
-        /// <summary>
-        /// Closes the specified session.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="sessionId">The session identifier.</param>
-        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
-        [Obsolete("Use CloseSessionAsync instead.")]
-        public void CloseSession(
-            OperationContext context,
-            NodeId sessionId,
-            bool deleteSubscriptions)
-        {
-            CloseSessionAsync(context, sessionId, deleteSubscriptions)
-                .AsTask().GetAwaiter().GetResult();
-        }
 
         /// <summary>
         /// Closes the specified session.
@@ -1373,12 +1424,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the current diagnostics.
         /// </summary>
+        /// <summary>
+        /// Returns a copy of the current diagnostics.
+        /// </summary>
+        /// <remarks>
+        /// Takes the same lock every writer takes. Locking the diagnostics object instead
+        /// would be a different monitor, so the snapshot would not be excluded from a
+        /// concurrent <see cref="UpdateServerDiagnostics"/> and could walk the structure
+        /// while its fields were being written.
+        /// </remarks>
         private ServiceResult OnUpdateDiagnostics(
             ISystemContext context,
             NodeState node,
             ref Variant value)
         {
-            lock (ServerDiagnostics)
+            lock (m_diagnosticsLock)
             {
                 value = Variant.FromStructure(ServerDiagnostics);
             }

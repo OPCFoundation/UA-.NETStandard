@@ -543,8 +543,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     continue;
                 }
 
-                NodeId parentNodeId = UANodeSet.GetUnresolvedParentNodeId(instance);
-                if (parentNodeId.IsNull)
+                if (!UANodeSet.TryGetUnresolvedParentNodeId(instance, out NodeId parentNodeId))
                 {
                     continue;
                 }

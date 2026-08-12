@@ -60,6 +60,11 @@ namespace Opc.Ua.Mcp
         Diagnostics,
 
         /// <summary>
+        /// Robot Intent discovery, monitoring, control, and mission tools.
+        /// </summary>
+        Robotics,
+
+        /// <summary>
         /// Every available tool, preserving the current-major default catalog.
         /// </summary>
         Full

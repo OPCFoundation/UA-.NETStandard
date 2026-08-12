@@ -344,8 +344,21 @@ namespace Opc.Ua.Robotics.Server.Builders
                 : supportedBlockingModes;
             ExpandedNodeId expandedIntentType = new TIntent().TypeId;
             NodeId intentType = GetIntentDataType(expandedIntentType, typeof(TIntent), m_context.Context);
-            if (m_capabilities.Any(capability => capability.IntentType == intentType))
+            IntentCapabilityDataType? existingCapability = m_capabilities.FirstOrDefault(
+                capability => capability.IntentType == intentType);
+            if (existingCapability != null)
             {
+                if (existingCapability.CancelSupported != cancelSupported ||
+                    existingCapability.PauseSupported != pauseSupported ||
+                    existingCapability.RetrySupported != retrySupported ||
+                    !HasSameValues(existingCapability.SupportedBufferModes, buffers) ||
+                    !HasSameValues(existingCapability.SupportedBlockingModes, blocking))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidArgument,
+                        "Intent capability for '{0}' is already declared with different options.",
+                        typeof(TIntent).Name);
+                }
                 return this;
             }
             m_capabilities.Add(new IntentCapabilityDataType
@@ -392,6 +405,25 @@ namespace Opc.Ua.Robotics.Server.Builders
                 MarkCommandMethod(State.Retry!);
             }
             return this;
+        }
+
+        private static bool HasSameValues<T>(ArrayOf<T> left, ArrayOf<T> right)
+        {
+            if (left.Count != right.Count)
+            {
+                return false;
+            }
+            var remaining = right.ToList();
+            foreach (T item in left)
+            {
+                int index = remaining.FindIndex(candidate => EqualityComparer<T>.Default.Equals(candidate, item));
+                if (index < 0)
+                {
+                    return false;
+                }
+                remaining.RemoveAt(index);
+            }
+            return true;
         }
 
         public ArrayOf<string> ComputeFacets()
@@ -449,7 +481,14 @@ namespace Opc.Ua.Robotics.Server.Builders
             IIntentExecutor? executor = m_executor;
             if (executor == null &&
                 m_context is RobotIntentBuildContext buildContext &&
-                buildContext.TryGetService(out IIntentExecutor? registeredExecutor) &&
+                buildContext.TryGetIntentExecutor(State, out IIntentExecutor? controllerExecutor) &&
+                controllerExecutor != null)
+            {
+                executor = controllerExecutor;
+            }
+            if (executor == null &&
+                m_context is RobotIntentBuildContext buildContextWithServices &&
+                buildContextWithServices.TryGetService(out IIntentExecutor? registeredExecutor) &&
                 registeredExecutor != null)
             {
                 executor = registeredExecutor;

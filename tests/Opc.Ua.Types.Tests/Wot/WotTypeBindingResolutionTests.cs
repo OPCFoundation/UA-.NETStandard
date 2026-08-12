@@ -260,6 +260,112 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(TypeDefinitionOf(result.Value!), Is.EqualTo("ns=1;i=9999"));
         }
 
+        [Test]
+        public async Task ThingModelWithTwoBindingNamesIsReportedAsync()
+        {
+            var resolver = new StubResolver(PumpNamespace);
+
+            WotConversionResult<UANodeSet> result = await ConvertThingModelAsync(
+                "\"pump:TankType\",\"pump:OtherType\"",
+                isEventType: false,
+                resolver).ConfigureAwait(false);
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.AmbiguousTypeBinding),
+                Is.True);
+            Assert.That(SuperTypeOf(result.Value!), Is.EqualTo(WotVocabulary.BaseObjectType));
+            Assert.That(HasTypeDefinition(result.Value!), Is.False);
+        }
+
+        [Test]
+        public async Task ThingModelWithResolvableBindingKeepsEventSubtypeAsync()
+        {
+            var resolver = new StubResolver(PumpNamespace)
+            {
+                ByName = { ["TankType"] = [Node(TankTypeId)] }
+            };
+
+            WotConversionResult<UANodeSet> result = await ConvertThingModelAsync(
+                "\"pump:TankType\"",
+                isEventType: true,
+                resolver).ConfigureAwait(false);
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code is WotDiagnosticCode.AmbiguousTypeBinding or
+                        WotDiagnosticCode.InvalidTypeBinding or
+                        WotDiagnosticCode.UnresolvedTypeBinding),
+                Is.False);
+            Assert.That(SuperTypeOf(result.Value!), Is.EqualTo(WotVocabulary.BaseEventType));
+            Assert.That(HasTypeDefinition(result.Value!), Is.False);
+        }
+
+        [Test]
+        public async Task ThingDescriptionWithTwoBindingNamesIsStillReportedAsync()
+        {
+            var resolver = new StubResolver(PumpNamespace);
+
+            WotConversionResult<UANodeSet> result = await ConvertAsync(
+                "\"pump:TankType\",\"pump:OtherType\"", link: null, resolver).ConfigureAwait(false);
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.AmbiguousTypeBinding),
+                Is.True);
+            Assert.That(TypeDefinitionOf(result.Value!), Is.EqualTo(WotVocabulary.BaseObjectType));
+        }
+
+        [Test]
+        public async Task ThingDescriptionExtendingThingModelAndBindingDifferentTypeIsInvalidAsync()
+        {
+            var nodeResolver = new StubResolver(PumpNamespace)
+            {
+                ByName = { ["OtherType"] = [Node(OtherTypeId)] }
+            };
+            var thingResolver = new StubThingResolver(TankTypeId);
+
+            WotConversionResult<UANodeSet> result = await ConvertExtendingThingModelAsync(
+                "\"pump:OtherType\"",
+                nodeResolver,
+                thingResolver).ConfigureAwait(false);
+
+            Assert.That(HasThingModelTypeMismatchDiagnostic(result), Is.True);
+        }
+
+        [Test]
+        public async Task ThingDescriptionExtendingThingModelAndBindingSameTypeIsValidAsync()
+        {
+            var nodeResolver = new StubResolver(PumpNamespace)
+            {
+                ByName = { ["TankType"] = [Node(TankTypeId)] }
+            };
+            var thingResolver = new StubThingResolver(TankTypeId);
+
+            WotConversionResult<UANodeSet> result = await ConvertExtendingThingModelAsync(
+                "\"pump:TankType\"",
+                nodeResolver,
+                thingResolver).ConfigureAwait(false);
+
+            Assert.That(HasThingModelTypeMismatchDiagnostic(result), Is.False);
+            Assert.That(TypeDefinitionOf(result.Value!), Is.EqualTo("ns=1;i=1042"));
+            Assert.That(ExtendsTargetOf(result.Value!), Is.EqualTo(TankTypeId));
+        }
+
+        [Test]
+        public async Task ThingDescriptionExtendingThingModelWithoutBindingIsUnchangedAsync()
+        {
+            var nodeResolver = new StubResolver(PumpNamespace);
+            var thingResolver = new StubThingResolver(TankTypeId);
+
+            WotConversionResult<UANodeSet> result = await ConvertExtendingThingModelAsync(
+                typeToken: null,
+                nodeResolver,
+                thingResolver).ConfigureAwait(false);
+
+            Assert.That(HasThingModelTypeMismatchDiagnostic(result), Is.False);
+            Assert.That(TypeDefinitionOf(result.Value!), Is.EqualTo(WotVocabulary.BaseObjectType));
+            Assert.That(ExtendsTargetOf(result.Value!), Is.EqualTo(TankTypeId));
+        }
+
         private static WotResolvedNode Node(string nodeId)
         {
             return new WotResolvedNode(nodeId, WotExpectedNodeClass.ObjectType);
@@ -270,6 +376,37 @@ namespace Opc.Ua.Types.Tests.Wot
             UANode root = nodeSet.Items!.First(i => i is UAObject);
             return root.References!.First(r =>
                 string.Equals(r.ReferenceType, "HasTypeDefinition", StringComparison.Ordinal)).Value!;
+        }
+
+        private static string SuperTypeOf(UANodeSet nodeSet)
+        {
+            UANode root = nodeSet.Items!.First(i => i is UAObjectType);
+            return root.References!.First(r =>
+                string.Equals(r.ReferenceType, "HasSubtype", StringComparison.Ordinal) &&
+                !r.IsForward).Value!;
+        }
+
+        private static string ExtendsTargetOf(UANodeSet nodeSet)
+        {
+            UANode root = nodeSet.Items!.First(i => i is UAObject);
+            return root.References!.First(r =>
+                string.Equals(r.ReferenceType, "HasSubtype", StringComparison.Ordinal) &&
+                !r.IsForward).Value!;
+        }
+
+        private static bool HasTypeDefinition(UANodeSet nodeSet)
+        {
+            UANode root = nodeSet.Items!.First(i => i is UAObjectType);
+            return root.References!.Any(r =>
+                string.Equals(r.ReferenceType, "HasTypeDefinition", StringComparison.Ordinal));
+        }
+
+        private static bool HasThingModelTypeMismatchDiagnostic(
+            WotConversionResult<UANodeSet> result)
+        {
+            return result.Diagnostics.Any(d =>
+                d.Code == WotDiagnosticCode.InvalidTypeBinding &&
+                d.Message.Contains("instantiates a Thing Model", StringComparison.Ordinal));
         }
 
         private static async Task<WotConversionResult<UANodeSet>> ConvertAsync(
@@ -293,6 +430,55 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}" +
                 links + "}");
+
+            using WotDocument document = WotDocument.Parse(json);
+            return await WotNodeSetConverter.ToNodeSetResultAsync(
+                document, null, null, null, resolver).ConfigureAwait(false);
+        }
+
+        private static async Task<WotConversionResult<UANodeSet>> ConvertExtendingThingModelAsync(
+            string? typeToken,
+            IWotNodeResolver nodeResolver,
+            IWotThingResolver thingResolver)
+        {
+            string typeTokens = typeToken is null
+                ? "\"Thing\",\"uav:object\""
+                : "\"Thing\",\"uav:object\"," + typeToken;
+            byte[] json = WotTestData.Utf8(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"tm\":\"https://www.w3.org/2019/wot/tm#\"," +
+                "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"ua\":\"http://opcfoundation.org/UA/\"," +
+                "\"pump\":\"" + PumpNamespace + "\"}]," +
+                "\"@type\":[" + typeTokens + "]," +
+                "\"title\":\"Tank\",\"uav:browseName\":\"pump:Tank\"," +
+                "\"uav:id\":\"nsu=urn:test:pump;i=5001\"," +
+                "\"security\":\"nosec_sc\"," +
+                "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
+                "\"links\":[{\"rel\":\"tm:extends\",\"href\":\"thing-model.json\"}]}");
+
+            using WotDocument document = WotDocument.Parse(json);
+            return await WotNodeSetConverter.ToNodeSetResultAsync(
+                document, null, thingResolver, null, nodeResolver).ConfigureAwait(false);
+        }
+
+        private static async Task<WotConversionResult<UANodeSet>> ConvertThingModelAsync(
+            string typeToken,
+            bool isEventType,
+            IWotNodeResolver resolver)
+        {
+            string projectedType = isEventType ? "uav:eventType" : "uav:objectType";
+            byte[] json = WotTestData.Utf8(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"tm\":\"https://www.w3.org/2019/wot/tm#\"," +
+                "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"ua\":\"http://opcfoundation.org/UA/\"," +
+                "\"pump\":\"" + PumpNamespace + "\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"" + projectedType + "\"," + typeToken + "]," +
+                "\"title\":\"TankType\",\"uav:browseName\":\"pump:TankType\"," +
+                "\"uav:id\":\"nsu=urn:test:pump;i=5002\"," +
+                "\"security\":\"nosec_sc\"," +
+                "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}}");
 
             using WotDocument document = WotDocument.Parse(json);
             return await WotNodeSetConverter.ToNodeSetResultAsync(
@@ -335,6 +521,27 @@ namespace Opc.Ua.Types.Tests.Wot
                     ByNodeId.TryGetValue(expandedNodeId, out WotResolvedNode found)
                         ? found
                         : null);
+            }
+        }
+
+        private sealed class StubThingResolver(string projectedTypeId) : IWotThingResolver
+        {
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
+            {
+                byte[] json = WotTestData.Utf8(
+                    "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                    "{\"tm\":\"https://www.w3.org/2019/wot/tm#\"," +
+                    "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                    "\"pump\":\"" + PumpNamespace + "\"}]," +
+                    "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                    "\"title\":\"TankType\",\"uav:browseName\":\"pump:TankType\"," +
+                    "\"uav:id\":\"" + projectedTypeId + "\"," +
+                    "\"security\":\"nosec_sc\"," +
+                    "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}}");
+                return new ValueTask<WotResolverResult>(WotResolverResult.FromBytes(json));
             }
         }
     }

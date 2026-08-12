@@ -137,12 +137,14 @@ namespace Opc.Ua.Wot
             }
             var diagnostics = new List<WotDiagnostic>();
             WotThingCatalog? thingCatalog = null;
+            WotThingCatalog? parentCatalog = null;
             if (thingResolver is not null)
             {
                 options ??= new WotNodeSetConverterOptions();
                 options.Validate();
                 resolutionContext ??= new WotResolutionContext(options.ToResolverOptions());
                 thingCatalog = new WotThingCatalog();
+                parentCatalog = new WotThingCatalog();
                 await PreresolveThingReferencesAsync(
                     document,
                     options,
@@ -151,10 +153,19 @@ namespace Opc.Ua.Wot
                     thingCatalog,
                     diagnostics,
                     cancellationToken).ConfigureAwait(false);
+                await PreresolveParentReferencesAsync(
+                    document,
+                    options,
+                    thingResolver,
+                    resolutionContext,
+                    parentCatalog,
+                    diagnostics,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             // WoT Binding Section 5.2.1 only applies to synthesized Nodes.
             WotTypeBinding? typeBinding = null;
+            WotParentPlacement? parentPlacement = null;
             if (!TakesRestorePath(document))
             {
                 typeBinding = await ResolveTypeBindingAsync(
@@ -162,10 +173,22 @@ namespace Opc.Ua.Wot
                     nodeResolver ?? NullWotNodeResolver.Instance,
                     diagnostics,
                     cancellationToken).ConfigureAwait(false);
+                parentPlacement = await ResolveParentPlacementAsync(
+                    document,
+                    parentCatalog,
+                    nodeResolver ?? NullWotNodeResolver.Instance,
+                    diagnostics,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             UANodeSet? nodeSet = ToNodeSetCore(
-                document, options, thingCatalog, resolutionContext, diagnostics, typeBinding);
+                document,
+                options,
+                thingCatalog,
+                resolutionContext,
+                diagnostics,
+                typeBinding,
+                parentPlacement);
             ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
         }
@@ -299,13 +322,30 @@ namespace Opc.Ua.Wot
             return true;
         }
 
+        private static bool TryDescribeProjectionRoot(WotDocument document, out string nodeId)
+        {
+            nodeId = string.Empty;
+            if (document.Kind is not (WotDocumentKind.ThingModel or WotDocumentKind.ThingDescription))
+            {
+                return false;
+            }
+
+            string namespaceUri = DeriveModelUri(document);
+            string browseName = LocalName(GetUavString(document, "browseName")) ??
+                SanitizeName(document.Title) ?? "Thing";
+            nodeId = GetUavString(document, "id") ??
+                "nsu=" + namespaceUri + ";s=" + browseName;
+            return true;
+        }
+
         private static UANodeSet? ToNodeSetCore(
             WotDocument document,
             WotNodeSetConverterOptions? options,
             WotThingCatalog? thingCatalog,
             WotResolutionContext? resolutionContext,
             List<WotDiagnostic> diagnostics,
-            WotTypeBinding? typeBinding = null)
+            WotTypeBinding? typeBinding = null,
+            WotParentPlacement? parentPlacement = null)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -327,7 +367,11 @@ namespace Opc.Ua.Wot
                 }
                 if (document.TryGetNativeProjection(out JsonElement projection))
                 {
-                    ValidateNativeConsistency(restored, projection, options, diagnostics);
+                    UANodeSet? projected = ValidateNativeConsistency(restored, projection, options, diagnostics);
+                    if (projected is not null)
+                    {
+                        ValidateNativeAffordanceCoverage(document, projected, diagnostics);
+                    }
                 }
                 WotJsonResidue.Replace(restored, document, options, diagnostics);
                 return restored;
@@ -341,6 +385,7 @@ namespace Opc.Ua.Wot
                     diagnostics);
                 if (restored is not null)
                 {
+                    ValidateNativeAffordanceCoverage(document, restored, diagnostics);
                     WotJsonResidue.Replace(restored, document, options, diagnostics);
                 }
                 return restored;
@@ -348,7 +393,13 @@ namespace Opc.Ua.Wot
 
             UANodeSet? synthesized =
                 Synthesize(
-                    document, options, thingCatalog, resolutionContext, diagnostics, typeBinding);
+                    document,
+                    options,
+                    thingCatalog,
+                    resolutionContext,
+                    diagnostics,
+                    typeBinding,
+                    parentPlacement);
             if (synthesized is not null)
             {
                 WotJsonResidue.Replace(synthesized, document, options, diagnostics);
@@ -489,7 +540,7 @@ namespace Opc.Ua.Wot
             return nodeSet;
         }
 
-        private static void ValidateNativeConsistency(
+        private static UANodeSet? ValidateNativeConsistency(
             UANodeSet baseline,
             JsonElement projection,
             WotNodeSetConverterOptions options,
@@ -507,7 +558,7 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.NativeProjectionConflict,
                     FirstDiagnosticMessage(nativeDiagnostics) ??
                     "The native projection could not be reconstructed."));
-                return;
+                return null;
             }
 
             NodeSetComparisonResult comparison =
@@ -521,6 +572,152 @@ namespace Opc.Ua.Wot
                         ? comparison.Differences[0]
                         : "The native projection conflicts with the preservation baseline."));
             }
+            return projected;
+        }
+
+        private static void ValidateNativeAffordanceCoverage(
+            WotDocument document,
+            UANodeSet projected,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (document.Properties.Count == 0 &&
+                document.Actions.Count == 0 &&
+                document.Events.Count == 0)
+            {
+                return;
+            }
+
+            var nodeIds = new HashSet<string>(StringComparer.Ordinal);
+            var browseNames = new HashSet<string>(StringComparer.Ordinal);
+            if (projected.Items is not null)
+            {
+                foreach (UANode node in projected.Items)
+                {
+                    if (!string.IsNullOrEmpty(node.NodeId))
+                    {
+                        nodeIds.Add(node.NodeId);
+                    }
+                    if (!string.IsNullOrEmpty(node.BrowseName))
+                    {
+                        browseNames.Add(node.BrowseName);
+                    }
+                }
+            }
+
+            var identityContext = new UANodeSet
+            {
+                NamespaceUris = projected.NamespaceUris is null
+                    ? null
+                    : (string[])projected.NamespaceUris.Clone()
+            };
+            string rootLocal = LocalName(GetUavString(document, "browseName")) ??
+                SanitizeName(document.Title) ?? "Thing";
+
+            ValidateNativeAffordanceCoverage(
+                document,
+                document.Properties,
+                "properties",
+                "property",
+                rootLocal,
+                identityContext,
+                nodeIds,
+                browseNames,
+                diagnostics);
+            ValidateNativeAffordanceCoverage(
+                document,
+                document.Actions,
+                "actions",
+                "action",
+                rootLocal,
+                identityContext,
+                nodeIds,
+                browseNames,
+                diagnostics);
+            ValidateNativeAffordanceCoverage(
+                document,
+                document.Events,
+                "events",
+                "event",
+                rootLocal,
+                identityContext,
+                nodeIds,
+                browseNames,
+                diagnostics);
+        }
+
+        private static void ValidateNativeAffordanceCoverage(
+            WotDocument document,
+            IReadOnlyDictionary<string, JsonElement> affordances,
+            string collectionName,
+            string affordanceKind,
+            string rootLocal,
+            UANodeSet identityContext,
+            HashSet<string> nodeIds,
+            HashSet<string> browseNames,
+            List<WotDiagnostic> diagnostics)
+        {
+            foreach (KeyValuePair<string, JsonElement> affordance in affordances)
+            {
+                if (IsNativeAffordanceCovered(
+                    document,
+                    affordance.Key,
+                    affordance.Value,
+                    rootLocal,
+                    identityContext,
+                    nodeIds,
+                    browseNames))
+                {
+                    continue;
+                }
+
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Warning,
+                    WotDiagnosticCode.NativeProjectionUncoveredAffordance,
+                    "The document carries uav:nodes, but its native projection " +
+                    $"does not contain a node for the {affordanceKind} affordance " +
+                    $"'{affordance.Key}'. The projection is authoritative, so " +
+                    "that readable affordance does not contribute to the restored NodeSet.",
+                    WotLocation.FromPointer(
+                        "/" + collectionName + "/" + EscapeJsonPointerToken(affordance.Key))));
+            }
+        }
+
+        private static bool IsNativeAffordanceCovered(
+            WotDocument document,
+            string key,
+            JsonElement affordance,
+            string rootLocal,
+            UANodeSet identityContext,
+            HashSet<string> nodeIds,
+            HashSet<string> browseNames)
+        {
+            string local = LocalName(GetElementString(affordance, "uav:browseName")) ?? key;
+            string? authoredNodeId = GetElementString(affordance, "uav:id");
+            string expectedNodeId = authoredNodeId is null
+                ? GenerateNodeId(rootLocal + "/" + local)
+                : ToNodeSetNodeId(authoredNodeId, identityContext, []);
+            if (authoredNodeId is not null)
+            {
+                return nodeIds.Contains(expectedNodeId);
+            }
+
+            string? authoredBrowseName = GetElementString(affordance, "uav:browseName");
+            string expectedBrowseName = authoredBrowseName is null
+                ? "1:" + local
+                : ToNodeSetQualifiedName(document, authoredBrowseName, identityContext, []);
+            return nodeIds.Contains(expectedNodeId) || browseNames.Contains(expectedBrowseName);
+        }
+
+        private static string EscapeJsonPointerToken(string token)
+        {
+            if (!token.Contains('~', StringComparison.Ordinal) &&
+                !token.Contains('/', StringComparison.Ordinal))
+            {
+                return token;
+            }
+            return token
+                .Replace("~", "~0", StringComparison.Ordinal)
+                .Replace("/", "~1", StringComparison.Ordinal);
         }
 
         private static UANodeSet? Synthesize(
@@ -529,7 +726,8 @@ namespace Opc.Ua.Wot
             WotThingCatalog? thingCatalog,
             WotResolutionContext resolutionContext,
             List<WotDiagnostic> diagnostics,
-            WotTypeBinding? typeBinding)
+            WotTypeBinding? typeBinding,
+            WotParentPlacement? parentPlacement)
         {
             WotDocumentKind kind = document.Kind;
             if (kind == WotDocumentKind.Unknown)
@@ -586,9 +784,16 @@ namespace Opc.Ua.Wot
             var rootReferences = new List<Reference>();
 
             UANode rootNode;
+            string? boundType = null;
             if (isThingModel)
             {
                 rootNode = new UAObjectType { IsAbstract = false };
+
+                // WoT Binding Section 5.2.1 makes invalid and unresolved
+                // type-binding outcomes document-wide. A Thing Model still
+                // projects a type and derives through HasSubtype, so any
+                // successfully bound NodeId is intentionally ignored here.
+                boundType = ApplyTypeBinding(document, typeBinding, diagnostics);
                 rootReferences.Add(new Reference
                 {
                     ReferenceType = "HasSubtype",
@@ -609,7 +814,7 @@ namespace Opc.Ua.Wot
                 // BaseObjectType when it declares no binding at all - an
                 // unresolved or invalid binding is reported and must not be
                 // silently mistyped as BaseObjectType.
-                string? boundType = ApplyTypeBinding(document, typeBinding, diagnostics);
+                boundType = ApplyTypeBinding(document, typeBinding, diagnostics);
                 rootReferences.Add(new Reference
                 {
                     ReferenceType = "HasTypeDefinition",
@@ -681,8 +886,17 @@ namespace Opc.Ua.Wot
                 CollectComponentTypedRefs(document, diagnostics);
             SynthesizeLinks(
                 document, rootReferences, componentTypedRefs, thingCatalog,
-                resolutionContext, options, diagnostics);
+                resolutionContext, options, boundType, diagnostics);
             SynthesizeComponentArrays(document, rootReferences, componentTypedRefs);
+            if (parentPlacement is { } placement)
+            {
+                rootReferences.Add(new Reference
+                {
+                    ReferenceType = "HasComponent",
+                    IsForward = false,
+                    Value = placement.ParentNodeId
+                });
+            }
 
             rootNode.References = [.. rootReferences];
             items.Insert(0, rootNode);
@@ -883,6 +1097,7 @@ namespace Opc.Ua.Wot
             WotThingCatalog? thingCatalog,
             WotResolutionContext resolutionContext,
             WotNodeSetConverterOptions options,
+            string? boundType,
             List<WotDiagnostic> diagnostics)
         {
             foreach (ResolvableThingReference thingReference in EnumerateResolvableThingReferences(
@@ -900,6 +1115,7 @@ namespace Opc.Ua.Wot
                         diagnostics,
                         out string extendsTarget))
                     {
+                        ValidateInstantiatedThingModelType(document, boundType, extendsTarget, diagnostics);
                         SetSuperType(rootReferences, extendsTarget);
                     }
                     continue;
@@ -921,6 +1137,79 @@ namespace Opc.Ua.Wot
                     });
                 }
             }
+        }
+
+        private static void ValidateInstantiatedThingModelType(
+            WotDocument document,
+            string? boundType,
+            string extendsTarget,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (document.Kind == WotDocumentKind.ThingModel ||
+                boundType is null ||
+                AreSameExpandedNodeId(boundType, extendsTarget))
+            {
+                return;
+            }
+
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.InvalidTypeBinding,
+                "The document instantiates a Thing Model that projects '" + extendsTarget +
+                "', but its type binding resolves to '" + boundType + "'. The two must " +
+                "resolve to the same type node (WoT Binding Section 5.2.1).",
+                new WotLocation(jsonPointer: "/links")));
+        }
+
+        private static bool AreSameExpandedNodeId(string first, string second)
+        {
+            return string.Equals(
+                NormalizeExpandedNodeId(first),
+                NormalizeExpandedNodeId(second),
+                StringComparison.Ordinal);
+        }
+
+        private static string NormalizeExpandedNodeId(string nodeId)
+        {
+            if (nodeId.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int delimiter = nodeId.IndexOf(';', 4);
+                if (delimiter > 4 && delimiter + 1 < nodeId.Length)
+                {
+                    string namespaceUri = CoreUtils.UnescapeUri(nodeId.AsSpan(4, delimiter - 4));
+                    string identifier = NormalizeNamespaceZeroNodeId(nodeId.Substring(delimiter + 1));
+                    return "nsu=" + CoreUtils.EscapeUri(namespaceUri) + ";" + identifier;
+                }
+            }
+
+            return NormalizeNamespaceZeroNodeId(nodeId);
+        }
+
+        private static string NormalizeNamespaceZeroNodeId(string nodeId)
+        {
+            NodeId parsed;
+            try
+            {
+                parsed = NodeId.Parse(nodeId);
+            }
+            catch (ServiceResultException)
+            {
+                return nodeId;
+            }
+
+            if (parsed.NamespaceIndex != 0)
+            {
+                return nodeId;
+            }
+
+            var buffer = new System.Text.StringBuilder();
+            NodeId.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                buffer,
+                parsed.IdentifierAsString,
+                parsed.IdType,
+                0);
+            return buffer.ToString();
         }
 
         private static IEnumerable<ResolvableThingReference>
@@ -1038,7 +1327,10 @@ namespace Opc.Ua.Wot
 
             // With uav:componentModel gone (spec PR #19), a binding link that
             // resolves to no ReferenceType organizes rather than composes.
-            referenceType = "Organizes";
+            // Emitted as a NodeId, not a browse name: a NodeSet may only use a
+            // name that it declares in <Aliases>, and the converter declares
+            // none, so a bare name would fail to load.
+            referenceType = WotVocabulary.Organizes;
             return true;
         }
 
@@ -1327,8 +1619,121 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Resolves a link target to the <c>uav:id</c> the referenced document
-        /// declares.
+        /// Pre-resolves registry-document parent links without consuming the
+        /// catalog used by ordinary authored references.
+        /// </summary>
+        private static async ValueTask PreresolveParentReferencesAsync(
+            WotDocument document,
+            WotNodeSetConverterOptions options,
+            IWotThingResolver resolver,
+            WotResolutionContext context,
+            WotThingCatalog parentCatalog,
+            List<WotDiagnostic> diagnostics,
+            CancellationToken cancellationToken)
+        {
+            foreach (JsonElement link in EnumerateComponentOfLinks(document))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string? href = GetElementString(link, "href");
+                if (href is null || IsNodeId(href) || LooksLikeBrowsePath(href))
+                {
+                    continue;
+                }
+
+                string? nodeId = await ResolveTargetNodeIdAsync(
+                    href,
+                    resolver,
+                    context,
+                    options,
+                    diagnostics,
+                    cancellationToken).ConfigureAwait(false);
+                parentCatalog.Add(href, nodeId);
+            }
+        }
+
+        private static async ValueTask<WotParentPlacement?> ResolveParentPlacementAsync(
+            WotDocument document,
+            WotThingCatalog? parentCatalog,
+            IWotNodeResolver nodeResolver,
+            List<WotDiagnostic> diagnostics,
+            CancellationToken cancellationToken)
+        {
+            JsonElement? componentOf = null;
+            foreach (JsonElement link in EnumerateComponentOfLinks(document))
+            {
+                componentOf = link;
+                break;
+            }
+            if (componentOf is null)
+            {
+                return null;
+            }
+
+            string? href = GetElementString(componentOf.Value, "href");
+            if (string.IsNullOrEmpty(href))
+            {
+                AddUnresolvedParentPlacement(diagnostics, href, "The uav:componentOf link has no href.");
+                return null;
+            }
+
+            if (parentCatalog is not null &&
+                parentCatalog.TryTake(href, out string? registryNodeId) &&
+                registryNodeId is not null)
+            {
+                return new WotParentPlacement(registryNodeId);
+            }
+
+            if (IsNodeId(href))
+            {
+                WotResolvedNode? addressSpaceNode = await nodeResolver
+                    .ResolveByNodeIdAsync(href, cancellationToken).ConfigureAwait(false);
+                if (addressSpaceNode is not null)
+                {
+                    return new WotParentPlacement(addressSpaceNode.Value.NodeId);
+                }
+            }
+
+            AddUnresolvedParentPlacement(
+                diagnostics,
+                href,
+                $"The uav:componentOf parent target '{href}' could not be resolved.");
+            return null;
+        }
+
+        private static IEnumerable<JsonElement> EnumerateComponentOfLinks(WotDocument document)
+        {
+            foreach (JsonElement link in document.Links)
+            {
+                if (string.Equals(
+                    GetElementString(link, "rel"),
+                    "uav:componentOf",
+                    StringComparison.Ordinal))
+                {
+                    yield return link;
+                }
+            }
+        }
+
+        private static void AddUnresolvedParentPlacement(
+            List<WotDiagnostic> diagnostics,
+            string? href,
+            string message)
+        {
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.UnresolvedParentPlacement,
+                message,
+                new WotLocation(jsonPointer: "/links", reference: href)));
+        }
+
+        private static bool LooksLikeBrowsePath(string value)
+        {
+            return value.Contains('/', StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Resolves a link target to the projection root the referenced document
+        /// declares or synthesizes.
         /// </summary>
         /// <remarks>
         /// A single resolution: spec PR #19 removed <c>uav:congruentType</c>,
@@ -1372,7 +1777,6 @@ namespace Opc.Ua.Wot
                     diagnostics.Add(limit!);
                     return null;
                 }
-
                 using WotDocument resolved = WotDocument.Parse(result.Content, options);
                 string? resolvedId = GetUavString(resolved, "id");
                 if (resolvedId is not null)
@@ -2513,5 +2917,6 @@ namespace Opc.Ua.Wot
             return access == 0 ? AccessLevelCurrentRead : access;
         }
 
+        private readonly record struct WotParentPlacement(string ParentNodeId);
     }
 }

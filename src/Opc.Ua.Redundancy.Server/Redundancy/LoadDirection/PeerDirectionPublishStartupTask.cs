@@ -71,8 +71,7 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask OnServerStartedAsync(
-            IServerInternal server,
+        public async ValueTask OnServerStartedAsync(IServerContext server,
             CancellationToken cancellationToken = default)
         {
             if (server == null)
@@ -81,7 +80,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             string? localServerUri = ResolveLocalServerUri(server);
-            m_logger = server.Telemetry.CreateLogger<PeerDirectionPublishStartupTask>();
+            m_logger = server.DefaultSystemContext.Telemetry.CreateLogger<PeerDirectionPublishStartupTask>();
             if (string.IsNullOrEmpty(localServerUri))
             {
                 m_logger.LoadDirectionDisabledLocalServerUriUnavailableForPeerDirection();
@@ -174,9 +173,9 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private static string? ResolveLocalServerUri(IServerInternal server)
+        private static string? ResolveLocalServerUri(IServerContext server)
         {
-            string[] serverUris = server.ServerUris.ToArray();
+            string[] serverUris = server.DefaultSystemContext.ServerUris.ToArray();
             return serverUris.Length > 0 ? serverUris[0] : null;
         }
 

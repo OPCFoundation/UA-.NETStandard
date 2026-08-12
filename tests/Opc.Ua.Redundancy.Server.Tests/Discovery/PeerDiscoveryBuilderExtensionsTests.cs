@@ -135,6 +135,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
+            server.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
 
             await using (var task = new PeerDiscoveryStartupTask(discovery, provider, options, registry))
             {
@@ -158,6 +159,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
+            server.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
 
             await using (var task = new PeerDiscoveryStartupTask(discovery, provider, options))
             {
@@ -180,6 +182,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
+            server.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
 
             await using (var task = new PeerDiscoveryStartupTask(discovery, provider, options, gossipSink: null))
             {

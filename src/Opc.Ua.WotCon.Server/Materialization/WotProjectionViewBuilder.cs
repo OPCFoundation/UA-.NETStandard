@@ -131,9 +131,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotResolutionContext context = resolutionContext ?? new WotResolutionContext();
             var visited = new HashSet<string>(StringComparer.Ordinal);
             var resolvedGroups = new Dictionary<string, Membership>(StringComparer.Ordinal);
-            Membership root = await BuildNodeAsync(
-                projectionDocument, visited, resolvedGroups, diagnostics, context, cancellationToken)
-                .ConfigureAwait(false);
+            var intermediates = new Dictionary<string, WotDocument?>(StringComparer.Ordinal);
+            Membership root;
+            try
+            {
+                root = await BuildNodeAsync(
+                    projectionDocument, visited, resolvedGroups, intermediates, diagnostics,
+                    context, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                foreach (KeyValuePair<string, WotDocument?> entry in intermediates)
+                {
+                    entry.Value?.Dispose();
+                }
+            }
             if (HasErrors(diagnostics))
             {
                 return new WotViewProjectionResult(null, diagnostics);
@@ -154,6 +167,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotDocument document,
             HashSet<string> visited,
             Dictionary<string, Membership> resolvedGroups,
+            Dictionary<string, WotDocument?> intermediates,
             List<WotDiagnostic> diagnostics,
             WotResolutionContext context,
             CancellationToken cancellationToken)
@@ -174,9 +188,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var omissions = new List<string>();
             using (WotDocument view = resolved.Value)
             {
-                CollectMembers(view.Properties, WotAffordanceKind.Property, members, omissions);
-                CollectMembers(view.Actions, WotAffordanceKind.Action, members, omissions);
-                CollectMembers(view.Events, WotAffordanceKind.Event, members, omissions);
+                await CollectMembersAsync(
+                    view.Properties, WotAffordanceKind.Property, members, omissions,
+                    intermediates, context, cancellationToken).ConfigureAwait(false);
+                await CollectMembersAsync(
+                    view.Actions, WotAffordanceKind.Action, members, omissions,
+                    intermediates, context, cancellationToken).ConfigureAwait(false);
+                await CollectMembersAsync(
+                    view.Events, WotAffordanceKind.Event, members, omissions,
+                    intermediates, context, cancellationToken).ConfigureAwait(false);
             }
 
             var groups = new List<WotOrganizationalGroup>();
@@ -187,8 +207,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     WotOrganizingLink link = projection.OrganizingLinks[i];
                     await BuildGroupAsync(
-                        link, visited, resolvedGroups, groups, omissions, diagnostics, context,
-                        cancellationToken)
+                        link, visited, resolvedGroups, intermediates, groups, omissions,
+                        diagnostics, context, cancellationToken)
                         .ConfigureAwait(false);
                 }
             }
@@ -200,6 +220,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotOrganizingLink link,
             HashSet<string> visited,
             Dictionary<string, Membership> resolvedGroups,
+            Dictionary<string, WotDocument?> intermediates,
             List<WotOrganizationalGroup> groups,
             List<string> omissions,
             List<WotDiagnostic> diagnostics,
@@ -244,7 +265,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 using (organized)
                 {
                     Membership child = await BuildNodeAsync(
-                        organized, visited, resolvedGroups, diagnostics, context, cancellationToken)
+                        organized, visited, resolvedGroups, intermediates, diagnostics, context,
+                        cancellationToken)
                         .ConfigureAwait(false);
                     resolvedGroups[link.Href] = child;
                     groups.Add(new WotOrganizationalGroup(
@@ -261,11 +283,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        private void CollectMembers(
+        private async ValueTask CollectMembersAsync(
             IReadOnlyDictionary<string, JsonElement> affordances,
             WotAffordanceKind kind,
             List<NodeId> members,
-            List<string> omissions)
+            List<string> omissions,
+            Dictionary<string, WotDocument?> intermediates,
+            WotResolutionContext context,
+            CancellationToken cancellationToken)
         {
             foreach (KeyValuePair<string, JsonElement> entry in affordances)
             {
@@ -281,6 +306,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 NodeId nodeId = m_nodeIndex.Locate(reference);
                 if (nodeId.IsNull)
                 {
+                    (nodeId, href) = await ChaseAsync(
+                        reference, intermediates, context, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                if (nodeId.IsNull)
+                {
                     omissions.Add(
                         $"Affordance '{entry.Key}' ({kind}) is omitted from the View: its " +
                         $"source '{href}' is not materialized in this address space.");
@@ -291,6 +322,123 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     members.Add(nodeId);
                 }
             }
+        }
+
+        /// <summary>
+        /// Follows a selection whose source is itself a projection document to
+        /// the Node its ultimate source materialized. <c>uav:resolvedFrom</c> is
+        /// by <i>OPC UA — WoT Binding</i> §12 "the reference the selection was
+        /// made by", so a projection that selects from a projection names the
+        /// intermediate document — and an intermediate materializes a View, not
+        /// Nodes, so the index cannot locate it. <i>OPC UA — WoT Connectivity</i>
+        /// §7.13 resolves such a source depth-first and organizes the Nodes the
+        /// ultimate sources materialized, which is what this walk recovers.
+        /// </summary>
+        /// <returns>
+        /// The located Node and the href it was reached through, or
+        /// <see cref="NodeId.Null"/> and the deepest href the walk reached when
+        /// no source in the chain is materialized here.
+        /// </returns>
+        private async ValueTask<(NodeId NodeId, string Href)> ChaseAsync(
+            WotMaterializedAffordanceRef reference,
+            Dictionary<string, WotDocument?> intermediates,
+            WotResolutionContext context,
+            CancellationToken cancellationToken)
+        {
+            // The href chain is acyclic because the resolver validates the
+            // projection source graph (§12.7); the depth bound is the same
+            // defence the resolver applies and stops an unvalidated chain.
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            string href = reference.SourceHref;
+            WotMaterializedAffordanceRef current = reference;
+            for (int depth = 0; depth < context.Options.MaxDepth; depth++)
+            {
+                if (!seen.Add(current.SourceHref))
+                {
+                    return (NodeId.Null, href);
+                }
+                WotDocument? view = await ResolveIntermediateAsync(
+                    current.SourceHref, intermediates, context, cancellationToken)
+                    .ConfigureAwait(false);
+                if (view is null)
+                {
+                    return (NodeId.Null, href);
+                }
+                if (!TryGetAffordance(view, current.Kind, current.AffordanceName,
+                        out JsonElement affordance) ||
+                    !TryReadResolvedFrom(
+                        affordance, out string nextHref, out WotAffordanceKind nextKind,
+                        out string nextName))
+                {
+                    return (NodeId.Null, href);
+                }
+                current = new WotMaterializedAffordanceRef(
+                    nextHref, nextKind, nextName, ReadAuthoredId(affordance));
+                href = nextHref;
+                NodeId located = m_nodeIndex.Locate(current);
+                if (!located.IsNull)
+                {
+                    return (located, href);
+                }
+            }
+            return (NodeId.Null, href);
+        }
+
+        /// <summary>
+        /// Resolves an intermediate projection document to its resolved view,
+        /// once per href. A document that is absent, unparsable or not a
+        /// projection caches as <c>null</c> so the walk stops there and does not
+        /// re-fetch it for every affordance that names it.
+        /// </summary>
+        private async ValueTask<WotDocument?> ResolveIntermediateAsync(
+            string href,
+            Dictionary<string, WotDocument?> intermediates,
+            WotResolutionContext context,
+            CancellationToken cancellationToken)
+        {
+            if (intermediates.TryGetValue(href, out WotDocument? cached))
+            {
+                return cached;
+            }
+            intermediates[href] = null;
+            WotDocument? source = await FetchAsync(href, context, cancellationToken)
+                .ConfigureAwait(false);
+            if (source is null)
+            {
+                return null;
+            }
+            using (source)
+            {
+                if (!WotProjection.IsProjection(source))
+                {
+                    return null;
+                }
+                WotConversionResult<WotDocument> resolved = await m_resolver
+                    .ResolveAsync(source, context, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!resolved.Success || resolved.Value is null)
+                {
+                    resolved.Value?.Dispose();
+                    return null;
+                }
+                intermediates[href] = resolved.Value;
+                return resolved.Value;
+            }
+        }
+
+        private static bool TryGetAffordance(
+            WotDocument view,
+            WotAffordanceKind kind,
+            string name,
+            out JsonElement affordance)
+        {
+            IReadOnlyDictionary<string, JsonElement> affordances = kind switch
+            {
+                WotAffordanceKind.Action => view.Actions,
+                WotAffordanceKind.Event => view.Events,
+                _ => view.Properties
+            };
+            return affordances.TryGetValue(name, out affordance);
         }
 
         private async ValueTask<WotDocument?> FetchAsync(

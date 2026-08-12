@@ -36,9 +36,21 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+#if INTENT_VIEWER_MCP
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+#endif
 using Microsoft.Extensions.Logging;
+#if INTENT_VIEWER_MCP
+using Microsoft.Extensions.Logging.Console;
+using ModelContextProtocol.Server;
+#endif
 using Opc.Ua;
 using Opc.Ua.Client;
+#if INTENT_VIEWER_MCP
+using Opc.Ua.Mcp;
+#endif
 using Opc.Ua.OpenUsd.Client;
 using Opc.Ua.Robotics.Client;
 using Opc.Ua.Robotics.Client.Intent;
@@ -64,7 +76,13 @@ namespace IntentViewerClient
 
         public bool Mission { get; init; }
 
+        public bool Mcp { get; init; }
+
         public string CommandPrimPath { get; init; } = "/World/IntentCommand";
+
+        public string? Transport { get; init; }
+
+        public int Port { get; init; } = 5100;
 
         public static IntentViewerOptions Parse(string[] args)
         {
@@ -83,7 +101,13 @@ namespace IntentViewerClient
                     ? pickMode
                     : UsdViewPickMode.Auto,
                 Mission = HasFlag(args, "--mission"),
-                CommandPrimPath = GetOption(args, "--command-prim") ?? "/World/IntentCommand"
+                Mcp = HasFlag(args, "--mcp"),
+                CommandPrimPath = GetOption(args, "--command-prim") ?? "/World/IntentCommand",
+                Transport = GetOption(args, "--transport"),
+                Port = int.TryParse(
+                    GetOption(args, "--port"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int port)
+                    ? port
+                    : 5100
             };
         }
 
@@ -109,9 +133,89 @@ namespace IntentViewerClient
             return Enum.TryParse(value, ignoreCase: true, out pickMode) &&
                 pickMode is UsdViewPickMode.Auto or UsdViewPickMode.Renderer or UsdViewPickMode.CommandPrim;
         }
+
+        internal IntentViewerMcpTransportSelection SelectMcpTransport()
+        {
+            if (Transport is not null &&
+                TryParseMcpTransport(Transport, out IntentViewerMcpTransport requestedTransport))
+            {
+                if (View && requestedTransport == IntentViewerMcpTransport.Stdio)
+                {
+                    return new IntentViewerMcpTransportSelection(
+                        requestedTransport,
+                        true,
+                        "WARNING: --transport stdio was explicitly requested with --view. " +
+                        "MCP stdio uses stdout for protocol frames and the in-process viewer may share that stream; " +
+                        "protocol corruption is possible.");
+                }
+
+                return new IntentViewerMcpTransportSelection(
+                    requestedTransport,
+                    true,
+                    $"Using explicitly requested MCP transport '{requestedTransport.ToOptionValue()}'.");
+            }
+
+            if (View)
+            {
+                return new IntentViewerMcpTransportSelection(
+                    IntentViewerMcpTransport.Http,
+                    false,
+                    "Using MCP transport 'http' because --view is enabled. MCP stdio frames use stdout, " +
+                    "which cannot safely coexist with the in-process OpenUSD viewer.");
+            }
+
+            return new IntentViewerMcpTransportSelection(
+                IntentViewerMcpTransport.Stdio,
+                false,
+                "Using default MCP transport 'stdio'.");
+        }
+
+        internal static bool TryParseMcpTransport(string? value, out IntentViewerMcpTransport transport)
+        {
+            if (string.Equals(value, "stdio", StringComparison.OrdinalIgnoreCase))
+            {
+                transport = IntentViewerMcpTransport.Stdio;
+                return true;
+            }
+
+            if (string.Equals(value, "http", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, "sse", StringComparison.OrdinalIgnoreCase))
+            {
+                transport = IntentViewerMcpTransport.Http;
+                return true;
+            }
+
+            transport = IntentViewerMcpTransport.Stdio;
+            return false;
+        }
     }
 
     internal sealed record TargetLocation(string PrimPath, NodeId LocationNodeId, string Name);
+
+    internal enum IntentViewerMcpTransport
+    {
+        Stdio,
+
+        Http
+    }
+
+    internal sealed record IntentViewerMcpTransportSelection(
+        IntentViewerMcpTransport Transport,
+        bool Explicit,
+        string Message);
+
+    internal static class IntentViewerMcpTransportExtensions
+    {
+        public static string ToOptionValue(this IntentViewerMcpTransport transport)
+        {
+            return transport switch
+            {
+                IntentViewerMcpTransport.Stdio => "stdio",
+                IntentViewerMcpTransport.Http => "http",
+                _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, "Unknown MCP transport.")
+            };
+        }
+    }
 
     internal static partial class Program
     {
@@ -119,6 +223,27 @@ namespace IntentViewerClient
         public static async Task<int> Main(string[] args)
         {
             var options = IntentViewerOptions.Parse(args);
+            if (options.Transport is not null &&
+                !IntentViewerOptions.TryParseMcpTransport(options.Transport, out _))
+            {
+                Console.Error.WriteLine(
+                    $"Unknown MCP transport '{options.Transport}'. Valid transports: stdio, http, sse.");
+                return 2;
+            }
+
+            IntentViewerMcpTransportSelection mcpTransport = options.SelectMcpTransport();
+            if (options.Mcp)
+            {
+#if INTENT_VIEWER_MCP
+                Console.Error.WriteLine(mcpTransport.Message);
+#else
+                Console.Error.WriteLine(
+                    "MCP hosting is unavailable for this target framework. Run the sample without --mcp, " +
+                    "or use the net8.0, net9.0, or net10.0 target framework for MCP hosting.");
+                return 2;
+#endif
+            }
+
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
                 builder.SetMinimumLevel(LogLevel.Information));
             ILogger logger = loggerFactory.CreateLogger("IntentViewerClient");
@@ -151,23 +276,26 @@ namespace IntentViewerClient
 
                 bool commandAllowed = false;
                 CommandAuthorityLease? authority = null;
+#if INTENT_VIEWER_MCP
+                IHost? mcpHost = null;
+#endif
                 try
                 {
                     authority = await controller.RequestAuthorityAsync(lifetime.Token).ConfigureAwait(false);
                     if (authority.Granted)
                     {
-                        Console.WriteLine("Command authority: granted for this session.");
+                        Console.Error.WriteLine("Command authority: granted for this session.");
                         commandAllowed = true;
                     }
                     else
                     {
-                        Console.WriteLine(
+                        Console.Error.WriteLine(
                             $"Command authority: held by {authority.CurrentOwner}; submissions may be refused.");
                     }
                 }
                 catch (ServiceResultException exception) when (exception.StatusCode == StatusCodes.BadUserAccessDenied)
                 {
-                    Console.WriteLine(
+                    Console.Error.WriteLine(
                         "Command authority request was denied: the connecting identity lacks the " +
                         "Operator role required by command Methods. Continuing in read-only mode so " +
                         "discovery, capabilities, facets and target mappings remain visible.");
@@ -175,6 +303,14 @@ namespace IntentViewerClient
 
                 try
                 {
+#if INTENT_VIEWER_MCP
+                    if (options.Mcp)
+                    {
+                        mcpHost = await StartMcpHostAsync(
+                            mcpTransport, options, sample.Session, lifetime.Token).ConfigureAwait(false);
+                    }
+#endif
+
                     var connector = new OpenUsdConnector(sample.Session, new MockUsdSink(), enableCommands: false);
                     await using (connector.ConfigureAwait(false))
                     {
@@ -196,7 +332,7 @@ namespace IntentViewerClient
                             }
                             else
                             {
-                                Console.WriteLine("Mission demo skipped because command authority was not granted.");
+                                Console.Error.WriteLine("Mission demo skipped because command authority was not granted.");
                             }
                         }
 
@@ -230,16 +366,36 @@ namespace IntentViewerClient
                         {
                             if (options.View)
                             {
-                                Console.WriteLine(
+                                Console.Error.WriteLine(
                                     $"Viewport unavailable; falling back to headless mode. {unavailable}");
                             }
-                            await RunHeadlessAsync(
-                                sample.Session, outPath, targets, processor, lifetime.Token).ConfigureAwait(false);
+                            if (options.Mcp && mcpTransport.Transport == IntentViewerMcpTransport.Stdio)
+                            {
+                                Console.Error.WriteLine(
+                                    "Headless keyboard control is disabled while MCP stdio is active because " +
+                                    "both would read from standard input. Use --transport http for the headless " +
+                                    "menu, or drive the robot through the MCP client.");
+#if INTENT_VIEWER_MCP
+                                await WaitForMcpServerAsync(mcpHost!, lifetime.Token).ConfigureAwait(false);
+#endif
+                            }
+                            else
+                            {
+                                await RunHeadlessAsync(
+                                    sample.Session, outPath, targets, processor, lifetime.Token).ConfigureAwait(false);
+                            }
                         }
                     }
                 }
                 finally
                 {
+#if INTENT_VIEWER_MCP
+                    if (mcpHost is not null)
+                    {
+                        await StopMcpHostAsync(mcpHost).ConfigureAwait(false);
+                    }
+#endif
+
                     if (authority is not null)
                     {
                         await authority.DisposeAsync().ConfigureAwait(false);
@@ -257,18 +413,131 @@ namespace IntentViewerClient
             return ReadLocationPoseAsync(session, locationNodeId, cancellationToken);
         }
 
+#if INTENT_VIEWER_MCP
+        private static async Task<IHost> StartMcpHostAsync(
+            IntentViewerMcpTransportSelection transport,
+            IntentViewerOptions options,
+            ISession session,
+            CancellationToken cancellationToken)
+        {
+            IHost host = transport.Transport == IntentViewerMcpTransport.Stdio
+                ? BuildStdioMcpHost()
+                : BuildHttpMcpHost(options.Port);
+
+            OpcUaSessionManager sessionManager = host.Services.GetRequiredService<OpcUaSessionManager>();
+            await sessionManager.RegisterExistingSessionAsync(
+                "intent-viewer",
+                session,
+                "Anonymous",
+                cancellationToken).ConfigureAwait(false);
+
+            await host.StartAsync(cancellationToken).ConfigureAwait(false);
+
+            if (transport.Transport == IntentViewerMcpTransport.Http)
+            {
+                Console.Error.WriteLine(
+                    $"MCP server is listening on http://localhost:{options.Port}/mcp with Robotics tools.");
+            }
+            else
+            {
+                Console.Error.WriteLine("MCP server is listening on stdio with Robotics tools.");
+            }
+
+            return host;
+        }
+
+        private static IHost BuildStdioMcpHost()
+        {
+            HostApplicationBuilder builder = Host.CreateApplicationBuilder();
+            ConfigureMcpLogging(builder.Logging, useStdioTransport: true);
+            ConfigureMcpServices(builder.Services);
+
+            IMcpServerBuilder mcpServerBuilder = builder.Services
+                .AddMcpServer()
+                .WithStdioServerTransport();
+            ConfigureRoboticsMcpTools(mcpServerBuilder);
+            return builder.Build();
+        }
+
+        private static WebApplication BuildHttpMcpHost(int port)
+        {
+            WebApplicationBuilder builder = WebApplication.CreateBuilder();
+            ConfigureMcpLogging(builder.Logging, useStdioTransport: false);
+            ConfigureMcpServices(builder.Services);
+
+            IMcpServerBuilder mcpServerBuilder = builder.Services
+                .AddMcpServer()
+                .WithHttpTransport();
+            ConfigureRoboticsMcpTools(mcpServerBuilder);
+
+            WebApplication app = builder.Build();
+            app.MapMcp("/mcp");
+            app.Urls.Add($"http://localhost:{port}");
+            return app;
+        }
+
+        private static void ConfigureMcpServices(IServiceCollection services)
+        {
+            services.AddOpcUaMcpCore(new OpcUaMcpOptions { ToolProfile = McpToolProfile.Robotics });
+            services.AddOpcUaMcpRobotics();
+        }
+
+        private static void ConfigureRoboticsMcpTools(IMcpServerBuilder mcpServerBuilder)
+        {
+            mcpServerBuilder
+                .WithOpcUaMcpFilters()
+                .WithOpcUaRoboticsTools(McpToolProfile.Robotics);
+        }
+
+        private static void ConfigureMcpLogging(ILoggingBuilder logging, bool useStdioTransport)
+        {
+            logging.ClearProviders();
+            logging.SetMinimumLevel(LogLevel.Information);
+            logging.AddSimpleConsole(options =>
+            {
+                options.UseUtcTimestamp = true;
+                options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+            });
+            logging.Services.Configure<ConsoleLoggerOptions>(o =>
+                o.LogToStandardErrorThreshold = useStdioTransport ? LogLevel.Trace : LogLevel.Error);
+        }
+
+        private static async Task WaitForMcpServerAsync(IHost host, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await host.WaitForShutdownAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+        }
+
+        private static async Task StopMcpHostAsync(IHost host)
+        {
+            try
+            {
+                await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                host.Dispose();
+            }
+        }
+#endif
+
         private static void PrintCapabilities(RobotIntentControllerInfo info)
         {
-            Console.WriteLine($"Controller: {info.BrowseName} ({info.NodeId})");
-            Console.WriteLine($"Axis count: {info.AxisCount}; queue depth: {info.MaxQueueDepth}");
-            Console.WriteLine("Facets:");
-            Console.WriteLine($"  Base: {info.Facets.Base}");
-            Console.WriteLine($"  Trajectories: {info.Facets.Trajectories}");
-            Console.WriteLine($"  Missions: {info.Facets.Missions}");
-            Console.WriteLine($"  Mission branching: {info.Facets.MissionBranching}");
-            Console.WriteLine($"  Force control: {info.Facets.ForceControl}");
-            Console.WriteLine($"  Real-time channels: {info.Facets.RealTimeChannels}");
-            Console.WriteLine($"  Buffer-mode rule conformant: {info.Facets.EveryCapabilitySupportsAborting}");
+            Console.Error.WriteLine($"Controller: {info.BrowseName} ({info.NodeId})");
+            Console.Error.WriteLine($"Axis count: {info.AxisCount}; queue depth: {info.MaxQueueDepth}");
+            Console.Error.WriteLine("Facets:");
+            Console.Error.WriteLine($"  Base: {info.Facets.Base}");
+            Console.Error.WriteLine($"  Trajectories: {info.Facets.Trajectories}");
+            Console.Error.WriteLine($"  Missions: {info.Facets.Missions}");
+            Console.Error.WriteLine($"  Mission branching: {info.Facets.MissionBranching}");
+            Console.Error.WriteLine($"  Force control: {info.Facets.ForceControl}");
+            Console.Error.WriteLine($"  Real-time channels: {info.Facets.RealTimeChannels}");
+            Console.Error.WriteLine($"  Buffer-mode rule conformant: {info.Facets.EveryCapabilitySupportsAborting}");
         }
 
         private static async Task<IReadOnlyList<TargetLocation>> DiscoverTargetLocationsAsync(
@@ -339,7 +608,7 @@ namespace IntentViewerClient
                 }
                 catch (ServiceResultException exception) when (exception.StatusCode == StatusCodes.BadUnexpectedError)
                 {
-                    Console.WriteLine(
+                    Console.Error.WriteLine(
                         $"Location {target.Name} ({target.LocationNodeId}) published a Pose value this " +
                         "client could not decode; it will be omitted from the command menu.");
                 }
@@ -373,11 +642,11 @@ namespace IntentViewerClient
                     .ConfigureAwait(false);
                 if (fetched.Count == 0)
                 {
-                    Console.WriteLine("Server did not advertise served OpenUSD assets.");
+                    Console.Error.WriteLine("Server did not advertise served OpenUSD assets.");
                     return;
                 }
                 WriteStageUsda(cacheDir, fetched);
-                Console.WriteLine($"Fetched {fetched.Count} OpenUSD asset(s) into {cacheDir}.");
+                Console.Error.WriteLine($"Fetched {fetched.Count} OpenUSD asset(s) into {cacheDir}.");
             }
         }
 
@@ -396,7 +665,7 @@ namespace IntentViewerClient
             string stagePath = Path.Combine(cacheDir, "stage.usda");
             if (!File.Exists(stagePath))
             {
-                Console.WriteLine("No fetched stage.usda exists; viewport will open the live override layer only.");
+                Console.Error.WriteLine("No fetched stage.usda exists; viewport will open the live override layer only.");
                 stagePath = liveLayerPath;
             }
 
@@ -411,7 +680,7 @@ namespace IntentViewerClient
                 CommandPrimPath = options.CommandPrimPath,
                 PrimPicked = processor.ProcessPickAsync
             };
-            Console.WriteLine("Opening OpenUSD viewport. Click a target puck to submit a Robot Intent.");
+            Console.Error.WriteLine("Opening OpenUSD viewport. Click a target puck to submit a Robot Intent.");
             await RunViewportOnStaThreadAsync(viewHost, viewOptions, session, cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -461,10 +730,10 @@ namespace IntentViewerClient
         {
             _ = session;
             _ = liveLayerPath;
-            Console.WriteLine("Headless target menu:");
+            Console.Error.WriteLine("Headless target menu:");
             for (int ii = 0; ii < targets.Count; ii++)
             {
-                Console.WriteLine($"  {ii + 1}. {targets[ii].Name} ({targets[ii].PrimPath})");
+                Console.Error.WriteLine($"  {ii + 1}. {targets[ii].Name} ({targets[ii].PrimPath})");
             }
             bool processed = false;
             while (!cancellationToken.IsCancellationRequested)
@@ -486,7 +755,7 @@ namespace IntentViewerClient
             bool allowExit,
             CancellationToken cancellationToken)
         {
-            Console.Write(allowExit ? "Choose target number, or press Enter to exit: " : "Choose target number: ");
+            Console.Error.Write(allowExit ? "Choose target number, or press Enter to exit: " : "Choose target number: ");
             string? line = await Task.Run(Console.In.ReadLine, cancellationToken).ConfigureAwait(false);
             if (line is null || (allowExit && string.IsNullOrWhiteSpace(line)))
             {
@@ -500,10 +769,10 @@ namespace IntentViewerClient
             }
             if (allowExit)
             {
-                Console.WriteLine("No valid selection supplied; exiting headless mode.");
+                Console.Error.WriteLine("No valid selection supplied; exiting headless mode.");
                 return null;
             }
-            Console.WriteLine("No valid selection supplied; using the first published target for headless automation.");
+            Console.Error.WriteLine("No valid selection supplied; using the first published target for headless automation.");
             return 0;
         }
 
@@ -550,7 +819,7 @@ namespace IntentViewerClient
         {
             if (targets.Count < 2)
             {
-                Console.WriteLine("Mission demo skipped: fewer than two target locations were published.");
+                Console.Error.WriteLine("Mission demo skipped: fewer than two target locations were published.");
                 return;
             }
             Pose3DDataType first = await ReadLocationPoseAsync(session, targets[0].LocationNodeId, cancellationToken)
@@ -563,7 +832,7 @@ namespace IntentViewerClient
                 .Build();
             MissionSubmissionResult result = await controller.SubmitMissionAsync(mission, cancellationToken)
                 .ConfigureAwait(false);
-            Console.WriteLine(result.Accepted
+            Console.Error.WriteLine(result.Accepted
                 ? $"Mission accepted: {result.MissionId} operation {result.Operation}."
                 : $"Mission refused: {result.Failure} {result.Message.Text}");
         }

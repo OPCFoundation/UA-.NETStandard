@@ -913,7 +913,7 @@ namespace Opc.Ua.Server
                     !string.IsNullOrEmpty(m_ownerClientApplicationUri) &&
                     string.Equals(
                         m_ownerClientApplicationUri,
-                        targetSession.SessionDiagnostics.ClientDescription.ApplicationUri,
+                        targetSession.ClientApplicationUri,
                         StringComparison.Ordinal);
             }
 
@@ -1370,8 +1370,7 @@ namespace Opc.Ua.Server
                 session.IdentityToken,
                 session.Identity,
                 out m_ownerClientUserId);
-            m_ownerClientApplicationUri =
-                session.SessionDiagnostics.ClientDescription.ApplicationUri;
+            m_ownerClientApplicationUri = session.ClientApplicationUri;
         }
 
         /// <summary>

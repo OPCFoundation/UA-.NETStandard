@@ -365,6 +365,46 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public async Task CreateUserManagementSeamBindsTheModelToTheServerAsync()
+        {
+            // The user management model is bound through the CreateUserManagement factory
+            // seam, not by reaching for IServerInternal.SetUserManagement from a node
+            // manager override. Every other hosted-server test in this fixture starts
+            // without one, which covers the default null path.
+            UserManagementCaptureServer.Reset();
+            var userManagement = new Mock<Opc.Ua.Server.UserManagement.IUserManagement>();
+            userManagement.Setup(u => u.SnapshotUsers()).Returns([]);
+            userManagement.Setup(u => u.PasswordLength).Returns(new Opc.Ua.Range(256, 1));
+            userManagement.Setup(u => u.PasswordOptions).Returns(PasswordOptionsMask.None);
+            userManagement.Setup(u => u.PasswordRestrictions).Returns((LocalizedText?)null);
+            UserManagementCaptureServer.Supplied = userManagement.Object;
+
+            try
+            {
+                await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                    services => services.AddOpcUa()
+                        .AddServer<UserManagementCaptureServer>(
+                            options => ConfigureHostedOptions(options, "UserManagementCaptureServer")))
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForAsync(
+                        () => UserManagementCaptureServer.NodeManagerStarted,
+                        TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                    Is.True,
+                    "the server must reach OnNodeManagerStarted");
+
+                Assert.That(
+                    UserManagementCaptureServer.BoundUserManagement,
+                    Is.SameAs(userManagement.Object));
+            }
+            finally
+            {
+                UserManagementCaptureServer.Reset();
+            }
+        }
+
+        [Test]
         public async Task ConfigureRolesBindsRoleSetToDependencyInjectedRoleManagerAsync()
         {
             RoleCaptureServer.Reset();
@@ -914,6 +954,44 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        public sealed class UserManagementCaptureServer : DependencyInjectionStandardServer
+        {
+            public UserManagementCaptureServer(
+                IServiceProvider services,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+                : base(services, telemetry, timeProvider)
+            {
+            }
+
+            public static Opc.Ua.Server.UserManagement.IUserManagement? Supplied { get; set; }
+
+            public static Opc.Ua.Server.UserManagement.IUserManagement? BoundUserManagement { get; private set; }
+
+            public static bool NodeManagerStarted { get; private set; }
+
+            public static void Reset()
+            {
+                Supplied = null;
+                BoundUserManagement = null;
+                NodeManagerStarted = false;
+            }
+
+            protected override Opc.Ua.Server.UserManagement.IUserManagement? CreateUserManagement(
+                IServerInternal server,
+                ApplicationConfiguration configuration)
+            {
+                return Supplied;
+            }
+
+            protected override void OnNodeManagerStarted(IServerInternal server)
+            {
+                BoundUserManagement = server.UserManagement;
+                NodeManagerStarted = true;
+                base.OnNodeManagerStarted(server);
+            }
+        }
+
         public sealed class ObservedHostedServer : StandardServer
         {
             public ObservedHostedServer(ITelemetryContext telemetry, TimeProvider timeProvider)
@@ -1031,9 +1109,9 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             public int InvocationCount => Volatile.Read(ref m_invocationCount);
 
-            public IServerInternal? ObservedServer { get; private set; }
+            public IServerContext? ObservedServer { get; private set; }
 
-            public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+            public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_invocationCount);
                 ObservedServer = server;

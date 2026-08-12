@@ -73,7 +73,8 @@ namespace Opc.Ua.Security.Certificates
 
         /// <summary>
         /// Import multiple X509 certificates from PEM data.
-        /// Supports a maximum of 99 certificates in the PEM data.
+        /// Examines at most 99 certificate blocks. Any certificate carrying an
+        /// empty subject or issuer name is skipped rather than imported.
         /// </summary>
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <returns>The certificates.</returns>
@@ -112,12 +113,26 @@ namespace Opc.Ua.Security.Certificates
                         out int bytesWritten))
                     {
 #if NET6_0_OR_GREATER
-                        certificates.Add(
-                            X509CertificateLoader.LoadCertificate(pemCertificateDecoded));
+                        X509Certificate2 certificate =
+                            X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
 #else
-                        certificates.Add(
-                            X509CertificateLoader.LoadCertificate(pemCertificateDecoded.ToArray()));
+                        X509Certificate2 certificate =
+                            X509CertificateLoader.LoadCertificate(pemCertificateDecoded.ToArray());
 #endif
+                        // A certificate with an empty subject or issuer name can never
+                        // take part in a trust decision (RFC 5280 §4.1.2.4). Skip it
+                        // rather than dropping the rest of the file, so one malformed
+                        // entry cannot empty an otherwise usable trust list, and so
+                        // this reader agrees with the BouncyCastle backed one used on
+                        // .NET Framework.
+                        if (DistinguishedNameUtils.HasEmptyDistinguishedName(certificate))
+                        {
+                            certificate.Dispose();
+                        }
+                        else
+                        {
+                            certificates.Add(certificate);
+                        }
                     }
 
                     pemText = pemText[(endIndex + endlabel.Length)..];

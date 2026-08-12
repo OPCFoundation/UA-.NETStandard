@@ -892,6 +892,16 @@ bounded by the same `MaxResolverDocuments` / `MaxResolverTotalBytes` budget the
 rest of a conversion runs under, so a large registry cannot turn one conversion
 into unbounded parsing work.
 
+One Section 5.2.1 rule remains an explicit implementation gap: the current
+`IWotNodeResolver` contract returns only a resolved node's identity and
+NodeClass, so the converter cannot learn the resolved type's mandatory
+instance declarations. Consequently, a document member whose BrowseName matches
+a mandatory declaration of the resolved type is not yet populated into that
+declaration; it is synthesized by the existing affordance rules. Implementing
+that rule requires extending both the live AddressSpace resolver and the
+snapshot resolver, where declarations would have to be derived from sibling
+Thing Model documents rather than from materialized types.
+
 Two behaviours are deliberate and worth knowing:
 
 * A binding is told apart from an ordinary `@type` annotation **by namespace,
@@ -938,6 +948,13 @@ from `BaseEventType`. That is the whole point of the mapping: a Client browsing
 a type that fell back to `BaseEventType` would see none of the Condition state
 and could not tell an alarm from an ordinary event.
 
+The runtime projection follows the same rule. An event affordance that carries
+`uav:conditionType` or `uav:conditionTypeId` materializes under the named
+ConditionType, so an OPC UA event filter for that ConditionType, or for one of
+its supertypes, can match the event. An action that carries
+`uav:conditionAction` and `uav:actsOn` is routed to the corresponding OPC
+10000-9 Condition Method on the Condition identified by the event affordance.
+
 The two forms follow the hint-plus-pin pattern of Section 5.3.
 `uav:conditionTypeId` is definitive and wins. `uav:conditionType` is a readable
 hint, resolved for the four ConditionTypes Section 13.1 scopes —
@@ -945,8 +962,9 @@ hint, resolved for the four ConditionTypes Section 13.1 scopes —
 `LimitAlarmType`. A name outside that set must be pinned; an unpinned one is
 reported rather than guessed.
 
-Four rules are enforced, each because breaking it yields a document a consumer
-can read but cannot act on:
+The converter enforces the four Section 13.3/13.4 conformance rules, each
+because breaking it yields a document a consumer can read but cannot act on, and
+also rejects an unresolvable readable ConditionType name:
 
 | Rule | Section | Diagnostic |
 | --- | --- | --- |
@@ -968,6 +986,16 @@ occurrence and are deliberately exempt from the input rule.
 
 Shelving, suppression, dialog conditions and `ConditionRefresh` are outside the
 mapping, as Section 13.1 scopes it.
+
+For the converter-default compatibility note, see
+[Condition events derive from their ConditionType](WoTNodeSetConversion.md#condition-events-derive-from-their-conditiontype).
+
+Current sample limitation: the upstream cavitation signal is proven to raise the
+upstream alarm and leave it unacknowledged, but the Pump1 Asset's `Supervision`
+view currently organizes no event affordance, Pump1 carries no `GeneratesEvent`
+reference for its cavitation alarm, and acknowledgement does not round-trip
+because the projected pump actions are Start, Stop and Reset rather than
+Condition Methods carrying `uav:conditionAction` / `uav:actsOn`.
 
 ### Compatibility switch for non-portable identifiers
 

@@ -34,20 +34,24 @@ namespace Opc.Ua.Server.Hosting
 {
     /// <summary>
     /// A task run by the hosted server immediately after the server has
-    /// started, with access to the live <see cref="IServerInternal"/>. Every
+    /// started, with access to the live <see cref="IServerContext"/>. Every
     /// implementation registered in DI is invoked once. This is the seam
     /// features use to wire runtime behavior that needs the fully-initialized
-    /// server (loaded node managers, the populated message context, the
-    /// <c>ServerObject</c>, the session manager) without subclassing
-    /// <see cref="StandardServer"/>.
+    /// server (a bound address space, the populated message context, the
+    /// <c>ServerObject</c>) without subclassing <see cref="StandardServer"/>.
     /// </summary>
+    /// <remarks>
+    /// A task that needs a particular subsystem takes it as a constructor
+    /// dependency, which is how every implementation in this repository already
+    /// obtains what it needs. The context carries only what is genuinely ambient.
+    /// </remarks>
     public interface IServerStartupTask
     {
         /// <summary>
         /// Invoked once after the server has started.
         /// </summary>
-        /// <param name="server">The live server internals.</param>
+        /// <param name="server">The live server context.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default);
+        ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default);
     }
 }

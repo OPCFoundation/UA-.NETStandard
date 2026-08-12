@@ -115,6 +115,19 @@ namespace Robotics.IntentEnabledRobot
             CreateBinding(controllerRep, usdNs, "BenchLightSignal", GuidFor("bench-light"),
                 m_benchLightValue?.NodeId ?? NodeId.Null, "/World", "inputs:benchLight", "bool",
                 OpenUsdRenderTargetKindEnum.Custom, 1.0);
+            CreateBinding(controllerRep, usdNs, "HeldPartPosition", GuidFor("payload:held:position"),
+                m_heldPartPositionValue?.NodeId ?? NodeId.Null, "/World/Payloads/HeldPart", "xformOp:translate",
+                "double3", OpenUsdRenderTargetKindEnum.Translation, 1.0);
+            CreateBinding(controllerRep, usdNs, "HeldPartVisibility", GuidFor("payload:held:visibility"),
+                m_heldPartVisibleValue?.NodeId ?? NodeId.Null, "/World/Payloads/HeldPart", "visibility", "token",
+                OpenUsdRenderTargetKindEnum.Visibility, 1.0);
+            for (int ii = 0; ii < s_payloadSlotPrimPaths.Length && ii < m_payloadSlotFilledValues.Count; ii++)
+            {
+                CreateBinding(controllerRep, usdNs, $"PayloadSlot{ii + 1:00}Visibility",
+                    GuidFor($"payload:slot:{ii + 1:00}:visibility"),
+                    m_payloadSlotFilledValues[ii]?.NodeId ?? NodeId.Null, s_payloadSlotPrimPaths[ii],
+                    "visibility", "token", OpenUsdRenderTargetKindEnum.Visibility, 1.0);
+            }
             representations.Add(controllerRep);
 
             int axisIndex = 0;
@@ -265,6 +278,18 @@ namespace Robotics.IntentEnabledRobot
         }
 
         private const string RootLayerIdentifier = "asset-repo/Bench.usd";
+        private static readonly string[] s_payloadSlotPrimPaths =
+        [
+            "/World/Payloads/FixtureStack/Slot01",
+            "/World/Payloads/FixtureStack/Slot02",
+            "/World/Payloads/FixtureStack/Slot03",
+            "/World/Payloads/FixtureStack/Slot04",
+            "/World/Payloads/FixtureStack/Slot05",
+            "/World/Payloads/FixtureStack/Slot06",
+            "/World/Payloads/FixtureStack/Slot07",
+            "/World/Payloads/FixtureStack/Slot08"
+        ];
+
         private OpenUsdRootState? m_openUsdRoot;
         private OpenUsdStageState? m_cellStage;
     }

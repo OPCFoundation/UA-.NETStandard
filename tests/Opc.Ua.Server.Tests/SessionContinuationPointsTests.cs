@@ -265,7 +265,7 @@ namespace Opc.Ua.Server.Tests
             SessionContinuationPoints holder = NewHolder();
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => holder.SaveHistory(Guid.NewGuid(), null!))!;
+                () => holder.SaveHistory(null!))!;
             Assert.That(ex.ParamName, Is.EqualTo("continuationPoint"));
         }
 
@@ -274,9 +274,9 @@ namespace Opc.Ua.Server.Tests
         {
             SessionContinuationPoints holder = NewHolder();
             var id = Guid.NewGuid();
-            object value = new();
+            var value = new TrackingDisposable(id);
 
-            holder.SaveHistory(id, value);
+            holder.SaveHistory(value);
 
             Assert.That(holder.RestoreHistory(ToByteString(id)), Is.SameAs(value));
             // The point is removed on restore, so a second restore misses.
@@ -289,12 +289,12 @@ namespace Opc.Ua.Server.Tests
             var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
             SessionContinuationPoints holder = NewHolder(maxHistory: 1, store: store.Object);
 
-            var evicted = new TrackingDisposable();
             var id1 = Guid.NewGuid();
             var id2 = Guid.NewGuid();
+            var evicted = new TrackingDisposable(id1);
 
-            holder.SaveHistory(id1, evicted);
-            holder.SaveHistory(id2, new object());
+            holder.SaveHistory(evicted);
+            holder.SaveHistory(new TrackingDisposable(id2));
 
             Assert.That(evicted.Disposed, Is.True);
             Assert.That(holder.RestoreHistory(ToByteString(id1)), Is.Null);
@@ -316,7 +316,7 @@ namespace Opc.Ua.Server.Tests
             SessionContinuationPoints holder = NewHolder(store: store.Object);
             var id = Guid.NewGuid();
 
-            holder.SaveHistory(id, new object());
+            holder.SaveHistory(new TrackingDisposable(id));
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.Id, Is.EqualTo(id));
@@ -338,7 +338,7 @@ namespace Opc.Ua.Server.Tests
         public void RestoreHistoryReturnsNullForWrongLength()
         {
             SessionContinuationPoints holder = NewHolder();
-            holder.SaveHistory(Guid.NewGuid(), new object());
+            holder.SaveHistory(new TrackingDisposable(Guid.NewGuid()));
 
             Assert.That(holder.RestoreHistory(new ByteString("\t"u8.ToArray())), Is.Null);
         }
@@ -347,7 +347,7 @@ namespace Opc.Ua.Server.Tests
         public void RestoreHistoryReturnsNullWhenNotFound()
         {
             SessionContinuationPoints holder = NewHolder();
-            holder.SaveHistory(Guid.NewGuid(), new object());
+            holder.SaveHistory(new TrackingDisposable(Guid.NewGuid()));
 
             Assert.That(holder.RestoreHistory(ToByteString(Guid.NewGuid())), Is.Null);
         }
@@ -408,7 +408,7 @@ namespace Opc.Ua.Server.Tests
 
             // Populate the local lists so restore reaches the mirrored-owner lookup.
             holder.SaveBrowse(NewBrowsePoint());
-            holder.SaveHistory(Guid.NewGuid(), new object());
+            holder.SaveHistory(new TrackingDisposable(Guid.NewGuid()));
 
             Assert.That(holder.RestoreBrowse(ToByteString(browseId)), Is.Null);
             Assert.That(holder.RestoreHistory(ToByteString(historyId)), Is.Null);
@@ -426,12 +426,12 @@ namespace Opc.Ua.Server.Tests
             var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
             SessionContinuationPoints holder = NewHolder(store: store.Object);
 
-            var browseData = new TrackingDisposable();
-            var historyValue = new TrackingDisposable();
-            ContinuationPoint cp = NewBrowsePoint(data: browseData);
+            var browseData = new TrackingDisposable(Guid.NewGuid());
             var historyId = Guid.NewGuid();
+            var historyValue = new TrackingDisposable(historyId);
+            ContinuationPoint cp = NewBrowsePoint(data: browseData);
             holder.SaveBrowse(cp);
-            holder.SaveHistory(historyId, historyValue);
+            holder.SaveHistory(historyValue);
 
             holder.Clear();
 
@@ -482,7 +482,7 @@ namespace Opc.Ua.Server.Tests
 
             // A continuation point that does not record a provider cannot be attributed to a
             // NodeManager, so it is left alone rather than dropped on a guess.
-            holder.SaveHistory(id, new object());
+            holder.SaveHistory(new TrackingDisposable(id));
 
             holder.RemoveHistoryForManager(NewNodeManager(Mock.Of<INodeManager>()));
 
@@ -517,8 +517,15 @@ namespace Opc.Ua.Server.Tests
             return new ByteString(id.ToByteArray());
         }
 
-        private sealed class TrackingDisposable : IDisposable
+        private sealed class TrackingDisposable : IHistoryContinuationPoint
         {
+            public TrackingDisposable(Guid? id = null)
+            {
+                Id = id ?? Guid.NewGuid();
+            }
+
+            public Guid Id { get; }
+
             public bool Disposed { get; private set; }
 
             public void Dispose()

@@ -510,7 +510,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     continue;
                 }
 
-                (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError) =
+                (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError, WoTPhaseEnum failurePhase) =
                     await TryConvertAsync(member, snapshot, contentCache, cancellationToken)
                         .ConfigureAwait(false);
                 if (nodeSet is not null && m_nodeSetContributors.Length > 0)
@@ -527,11 +527,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (nodeSet is null)
                 {
-                    WoTValidationOutcomeDataType validation = FormatFailure(conversionError);
                     results.Add(FailResult(
-                        member, generation, WoTPhaseEnum.FormatValidation, conversionError));
-                    projections.Add(FailProjection(member, conversionError, validation));
-                    RaiseValidationFailure(member, generation, validation, conversionError);
+                        member, generation, failurePhase, conversionError));
+                    if (failurePhase == WoTPhaseEnum.Projection)
+                    {
+                        projections.Add(FailProjection(member, conversionError));
+                        RaiseLoadFailure(member, generation, conversionError);
+                    }
+                    else
+                    {
+                        WoTValidationOutcomeDataType validation = FormatFailure(conversionError);
+                        projections.Add(FailProjection(member, conversionError, validation));
+                        RaiseValidationFailure(member, generation, validation, conversionError);
+                    }
                     return new ClosureOutcome(results.ToImmutable(), projections);
                 }
 
@@ -834,7 +842,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return (retired, dryRun ? results.ToImmutable() : []);
         }
 
-        private async ValueTask<(UANodeSet? NodeSet, ExpandedNodeId Root, string? Error)> TryConvertAsync(
+        private async ValueTask<(
+            UANodeSet? NodeSet,
+            ExpandedNodeId Root,
+            string? Error,
+            WoTPhaseEnum FailurePhase)> TryConvertAsync(
             WotResource resource,
             WotRegistrySnapshot snapshot,
             Dictionary<string, ByteString> contentCache,
@@ -843,7 +855,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotResourceVersion? version = resource.DefaultVersion;
             if (version is null)
             {
-                return (null, default, "Resource has no default version.");
+                return (
+                    null,
+                    default,
+                    "Resource has no default version.",
+                    WoTPhaseEnum.FormatValidation);
             }
             ByteString content = await ReadCachedContentAsync(contentCache, version, cancellationToken)
                 .ConfigureAwait(false);
@@ -854,9 +870,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return (null, default, output.Errors.IsDefaultOrEmpty
                     ? "The document could not be converted to a NodeSet."
-                    : string.Join("; ", output.Errors));
+                    : string.Join("; ", output.Errors), output.FailurePhase);
             }
-            return (output.NodeSet, output.RootNodeId, null);
+            return (output.NodeSet, output.RootNodeId, null, WoTPhaseEnum.Projection);
         }
 
         /// <summary>
@@ -1057,11 +1073,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 .ConfigureAwait(false);
             viewHandles.Add(viewHandle);
 
-            string message = viewHandle.Message.Length != 0
-                ? viewHandle.Message
-                : "Materialized projection View organizing " +
-                    plan.OrganizedNodeIds.Count.ToString(CultureInfo.InvariantCulture) +
-                    " Node(s).";
+            WoTOutcomeEnum outcome =
+                plan.Omissions.Count == 0 && viewHandle.Omissions.Count == 0
+                ? WoTOutcomeEnum.Success
+                : WoTOutcomeEnum.Warning;
+            string message = FormatProjectionViewMessage(plan, viewHandle);
             viewResults.Add(new WoTResourceLoadResultDataType
             {
                 Xid = member.Xid,
@@ -1069,7 +1085,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ResourceId = member.ResourceId,
                 VersionId = member.DefaultVersionId ?? string.Empty,
                 Kind = member.Kind,
-                Outcome = WoTOutcomeEnum.Success,
+                Outcome = outcome,
                 Phase = WoTPhaseEnum.Activation,
                 LoadState = WoTLoadStateEnum.Active,
                 Generation = generation,
@@ -1089,7 +1105,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 SuccessValidation(),
                 OmissionDiagnostics(plan.Omissions),
                 DateTime.UtcNow));
-            RaiseResource(member, generation, WoTOutcomeEnum.Success, WoTLoadStateEnum.Active);
+            RaiseResource(member, generation, outcome, WoTLoadStateEnum.Active);
         }
 
         private NodeId ComputeResourceNodeId(WotResource member)
@@ -1130,6 +1146,50 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 builder.Add(omissions[i]);
             }
             return builder.ToImmutable();
+        }
+
+        private static string FormatProjectionViewMessage(
+            WotViewProjectionPlan plan,
+            WotViewProjectionHandle viewHandle)
+        {
+            int selectedCount = CountOrganizedMembers(plan) + plan.Omissions.Count;
+            // The host reports the plan's own omissions back plus any member it
+            // could not organize, so its count is the authoritative one. A host
+            // that reports none (a test double) still honours the plan's.
+            int omittedCount = Math.Max(viewHandle.Omissions.Count, plan.Omissions.Count);
+            int organizedCount = selectedCount - omittedCount;
+            if (omittedCount == 0)
+            {
+                return viewHandle.Message.Length != 0
+                    ? viewHandle.Message
+                    : "Materialized projection View organizing " +
+                        organizedCount.ToString(CultureInfo.InvariantCulture) + " Node(s).";
+            }
+
+            string summary = organizedCount == 0
+                ? "Materialized projection View organizing 0 Node(s); omitted all " +
+                    selectedCount.ToString(CultureInfo.InvariantCulture) + " selected member(s)."
+                : "Materialized projection View organizing " +
+                    organizedCount.ToString(CultureInfo.InvariantCulture) + " of " +
+                    selectedCount.ToString(CultureInfo.InvariantCulture) +
+                    " selected member(s); omitted " +
+                    omittedCount.ToString(CultureInfo.InvariantCulture) + ".";
+            return viewHandle.Message.Length == 0 ? summary : summary + " " + viewHandle.Message;
+        }
+
+        private static int CountOrganizedMembers(WotViewProjectionPlan plan)
+        {
+            return plan.OrganizedNodeIds.Count + CountOrganizedMembers(plan.Groups);
+        }
+
+        private static int CountOrganizedMembers(ArrayOf<WotOrganizationalGroup> groups)
+        {
+            int count = 0;
+            for (int i = 0; i < groups.Count; i++)
+            {
+                count += groups[i].OrganizedNodeIds.Count + CountOrganizedMembers(groups[i].Groups);
+            }
+            return count;
         }
 
         private static string FormatDiagnostics(ArrayOf<WotDiagnostic> diagnostics, string fallback)

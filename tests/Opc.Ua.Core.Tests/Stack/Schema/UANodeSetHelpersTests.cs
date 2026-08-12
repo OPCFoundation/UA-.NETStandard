@@ -328,11 +328,15 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             NodeId expectedParent = new(5001u, (ushort)localContext.NamespaceUris.GetIndex(
                 "http://opcfoundation.org/UA/Elsewhere"));
 
-            Assert.That(
-                Export.UANodeSet.GetUnresolvedParentNodeId(orphan),
-                Is.EqualTo(expectedParent),
-                "The declared parent must survive the import so a caller can wire it " +
-                "as an external reference.");
+            Assert.Multiple(() => {
+                Assert.That(
+                    Export.UANodeSet.TryGetUnresolvedParentNodeId(orphan, out NodeId unresolvedParent),
+                    Is.True,
+                    "The declared parent must survive the import so a caller can wire it " +
+                    "as an external reference.");
+
+                Assert.That(unresolvedParent, Is.EqualTo(expectedParent));
+            });
         }
 
         /// <summary>
@@ -387,10 +391,14 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
             foreach (NodeState node in importedNodeStates)
             {
-                Assert.That(
-                    Export.UANodeSet.GetUnresolvedParentNodeId(node).IsNull,
-                    Is.True,
-                    $"'{node.BrowseName.Name}' resolved inside the batch, so nothing is unresolved.");
+                Assert.Multiple(() => {
+                    Assert.That(
+                        Export.UANodeSet.TryGetUnresolvedParentNodeId(node, out NodeId unresolvedParent),
+                        Is.False,
+                        $"'{node.BrowseName.Name}' resolved inside the batch, so nothing is unresolved.");
+
+                    Assert.That(unresolvedParent.IsNull, Is.True);
+                });
             }
         }
 
