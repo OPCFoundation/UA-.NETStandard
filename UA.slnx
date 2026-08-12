@@ -24,6 +24,8 @@
     <Project Path="samples/Robotics/IntentViewerClient/IntentViewerClient.csproj" />
     <Project Path="samples/Robotics/BinPickingCell/BinPickingCell.csproj" />
     <Project Path="samples/Robotics/BinPickingClient/BinPickingClient.csproj" />
+    <Project Path="samples/Vision/VisualInspectionCell/VisualInspectionCell.csproj" />
+    <Project Path="samples/Vision/VisualInspectionAgent/VisualInspectionAgent.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
   </Folder>
@@ -345,3 +347,4 @@
     <Project Path="tools/Opc.Ua.SourceGeneration.Stack.Roslyn4_14/Opc.Ua.SourceGeneration.Stack.Roslyn4_14.csproj" />
   </Folder>
 </Solution>
+
