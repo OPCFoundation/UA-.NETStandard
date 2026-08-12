@@ -636,6 +636,49 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Writes a Variable's <c>Value</c> as the property's <c>const</c>.
+        /// </summary>
+        /// <remarks>
+        /// A NodeSet <c>Value</c> is a UA-XML fragment. Only the scalar shapes
+        /// this converter can rebuild exactly are carried, because a value the
+        /// forward direction could not reconstruct would turn a gap the
+        /// completeness check reports into a value that is quietly wrong.
+        /// </remarks>
+        private static void WriteVariableValue(Utf8JsonWriter writer, UAVariable variable)
+        {
+            System.Xml.XmlElement? value = variable.Value;
+            if (value is null)
+            {
+                return;
+            }
+            switch (value.LocalName)
+            {
+                case "Boolean":
+                    if (bool.TryParse(value.InnerText, out bool flag))
+                    {
+                        writer.WriteBoolean("const", flag);
+                    }
+                    return;
+                case "String":
+                    writer.WriteString("const", value.InnerText);
+                    return;
+                case "LocalizedText":
+                    // A LocalizedText carries an optional Locale. Only the
+                    // Locale-free form maps onto a plain string, so one that
+                    // states a Locale is left to the projection.
+                    if (value.ChildNodes.Count == 1 &&
+                        string.Equals(
+                            value.FirstChild?.LocalName, "Text", StringComparison.Ordinal))
+                    {
+                        writer.WriteString("const", value.FirstChild!.InnerText);
+                    }
+                    return;
+                default:
+                    return;
+            }
+        }
+
+        /// <summary>
         /// Resolves a Variable's <c>DataType</c> attribute — which a NodeSet may
         /// write as an alias such as <c>Boolean</c> — to a portable
         /// ExpandedNodeId, or <c>null</c> when it states no identifier.
@@ -861,6 +904,12 @@ namespace Opc.Ua.Wot
                 writer,
                 "uav:mapToType",
                 ToPortableDataTypeId(variable.DataType, nodeSet));
+
+            // §9.1 maps a Variable's Value onto the property's value. Only the
+            // shapes this converter can rebuild exactly are written: emitting a
+            // value it could not reconstruct would trade a reported gap for a
+            // silent corruption.
+            WriteVariableValue(writer, variable);
 
             bool readable = (variable.AccessLevel & AccessLevelCurrentRead) != 0;
             bool writable = (variable.AccessLevel & AccessLevelCurrentWrite) != 0;

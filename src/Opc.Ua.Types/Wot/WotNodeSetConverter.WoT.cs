@@ -965,6 +965,7 @@ namespace Opc.Ua.Wot
             };
             AddModellingRule(schema, references);
             variable.References = [.. references];
+            variable.Value = BuildVariableValue(schema, variable.DataType);
 
             ReportUnsupportedSchema(schema, nodeId, diagnostics);
 
@@ -1019,6 +1020,64 @@ namespace Opc.Ua.Wot
             }
             return null;
         }
+
+        /// <summary>
+        /// Rebuilds a Variable's <c>Value</c> from the property's <c>const</c>.
+        /// </summary>
+        /// <remarks>
+        /// The DataType decides the XML shape, which is why §5.4's definitive
+        /// statement matters here: a JSON string alone cannot say whether it is
+        /// a <c>String</c> or the <c>Text</c> of a <c>LocalizedText</c>.
+        /// </remarks>
+        private static System.Xml.XmlElement? BuildVariableValue(
+            JsonElement schema, string? dataType)
+        {
+            if (schema.ValueKind != JsonValueKind.Object ||
+                !schema.TryGetProperty("const", out JsonElement constant))
+            {
+                return null;
+            }
+            string? local = dataType switch
+            {
+                "i=1" => "Boolean",
+                "i=12" => "String",
+                "i=21" => "LocalizedText",
+                _ => null
+            };
+            if (local is null)
+            {
+                return null;
+            }
+            var document = new System.Xml.XmlDocument { XmlResolver = null };
+            System.Xml.XmlElement element = document.CreateElement(
+                "uax", local, UaXmlNamespace);
+            if (string.Equals(local, "LocalizedText", StringComparison.Ordinal))
+            {
+                if (constant.ValueKind != JsonValueKind.String)
+                {
+                    return null;
+                }
+                System.Xml.XmlElement text = document.CreateElement(
+                    "uax", "Text", UaXmlNamespace);
+                text.InnerText = constant.GetString() ?? string.Empty;
+                element.AppendChild(text);
+                return element;
+            }
+            switch (constant.ValueKind)
+            {
+                case JsonValueKind.True:
+                case JsonValueKind.False:
+                    element.InnerText = constant.GetBoolean() ? "true" : "false";
+                    return element;
+                case JsonValueKind.String:
+                    element.InnerText = constant.GetString() ?? string.Empty;
+                    return element;
+                default:
+                    return null;
+            }
+        }
+
+        private const string UaXmlNamespace = "http://opcfoundation.org/UA/2008/02/Types.xsd";
 
         private static void SynthesizeAction(
             WotDocument document,
