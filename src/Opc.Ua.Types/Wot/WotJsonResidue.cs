@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -360,6 +361,7 @@ namespace Opc.Ua.Wot
                         case "uav:isEvent":
                         case "uav:modellingRule":
                         case "uav:mapToType":
+                        case "uav:dataTypeDefinition":
                         case "type":
                         case "readOnly":
                         case "writeOnly":
@@ -558,9 +560,99 @@ namespace Opc.Ua.Wot
             entries.Add(new Entry
             {
                 Pointer = pointer,
-                Json = value.GetRawText()
+                Json = WriteWithoutMappedTerms(value)
             });
         }
+
+        /// <summary>
+        /// Serializes a residue value with the terms the converter maps removed.
+        /// </summary>
+        /// <remarks>
+        /// Residue exists for what the mapping does not understand. A term it
+        /// does understand must not travel here as well, or the round trip
+        /// restores it on top of what the mapping already produced and the
+        /// document states the same fact twice. An unrecognized value is stored
+        /// whole, so a mapped term nested inside one has to be removed on the
+        /// way in rather than merely skipped at the top level.
+        /// </remarks>
+        private static string WriteWithoutMappedTerms(JsonElement value)
+        {
+            if (!ContainsMappedTerm(value))
+            {
+                return value.GetRawText();
+            }
+            using var buffer = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                WriteStripped(writer, value);
+            }
+            return Encoding.UTF8.GetString(buffer.ToArray());
+        }
+
+        private static bool ContainsMappedTerm(JsonElement value)
+        {
+            switch (value.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    foreach (JsonProperty member in value.EnumerateObject())
+                    {
+                        if (s_mappedNestedTerms.Contains(member.Name) ||
+                            ContainsMappedTerm(member.Value))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                case JsonValueKind.Array:
+                    foreach (JsonElement item in value.EnumerateArray())
+                    {
+                        if (ContainsMappedTerm(item))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
+        private static void WriteStripped(Utf8JsonWriter writer, JsonElement value)
+        {
+            switch (value.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    writer.WriteStartObject();
+                    foreach (JsonProperty member in value.EnumerateObject())
+                    {
+                        if (s_mappedNestedTerms.Contains(member.Name))
+                        {
+                            continue;
+                        }
+                        writer.WritePropertyName(member.Name);
+                        WriteStripped(writer, member.Value);
+                    }
+                    writer.WriteEndObject();
+                    break;
+                case JsonValueKind.Array:
+                    writer.WriteStartArray();
+                    foreach (JsonElement item in value.EnumerateArray())
+                    {
+                        WriteStripped(writer, item);
+                    }
+                    writer.WriteEndArray();
+                    break;
+                default:
+                    value.WriteTo(writer);
+                    break;
+            }
+        }
+
+        private static readonly HashSet<string> s_mappedNestedTerms =
+            new(StringComparer.Ordinal)
+            {
+                "uav:dataTypeDefinition"
+            };
 
         private static System.Xml.XmlElement CreateExtension(List<Entry> entries)
         {

@@ -64,14 +64,8 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics)
         {
             var empty = new Dictionary<string, string>(StringComparer.Ordinal);
-            if (!document.RootElement.TryGetProperty("uav:dataTypeDefinitions", out JsonElement declared) ||
-                declared.ValueKind != JsonValueKind.Array)
-            {
-                return empty;
-            }
-
-            Dictionary<string, JsonElement> complete = CollectDataTypeDefinitions(
-                declared, diagnostics);
+            Dictionary<string, JsonElement> complete = CollectAllDataTypeDefinitions(
+                document, diagnostics);
             if (complete.Count == 0)
             {
                 return empty;
@@ -331,45 +325,106 @@ namespace Opc.Ua.Wot
         /// than merged, because merging two ordered field lists has no defined
         /// answer.
         /// </remarks>
-        private static Dictionary<string, JsonElement> CollectDataTypeDefinitions(
-            JsonElement declared,
+        /// <summary>
+        /// Collects every DataType definition the document states, wherever it
+        /// states it.
+        /// </summary>
+        /// <remarks>
+        /// §6.11.1 lets a definition sit in the Thing root's
+        /// <c>uav:dataTypeDefinitions</c> or inline as a DataSchema's
+        /// <c>uav:dataTypeDefinition</c>, and says both identify the same graph
+        /// node. So the two have to be gathered together before anything is
+        /// resolved, or an affordance that names a definition stated inline
+        /// somewhere else in the document cannot find it.
+        /// </remarks>
+        private static Dictionary<string, JsonElement> CollectAllDataTypeDefinitions(
+            WotDocument document,
             List<WotDiagnostic> diagnostics)
         {
             var complete = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (JsonElement definition in declared.EnumerateArray())
+            if (document.RootElement.TryGetProperty(
+                    "uav:dataTypeDefinitions", out JsonElement declared) &&
+                declared.ValueKind == JsonValueKind.Array)
             {
-                if (definition.ValueKind != JsonValueKind.Object)
+                foreach (JsonElement definition in declared.EnumerateArray())
                 {
-                    continue;
+                    AddDataTypeDefinition(definition, complete, diagnostics);
                 }
-                string? graphId = GetElementString(definition, "@id");
-                if (graphId is null)
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.DataTypeDefinitionInvalid,
-                        "A DataType definition carries no @id, so nothing can " +
-                        "reference it and it cannot be checked for duplication."));
-                    continue;
-                }
-                if (IsReferenceOnlyDefinition(definition))
-                {
-                    continue;
-                }
-                if (complete.ContainsKey(graphId))
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.DataTypeDefinitionInvalid,
-                        $"The DataType definition '{graphId}' is stated completely " +
-                        "more than once; §6.11.1 permits exactly one complete " +
-                        "occurrence and requires every other to be @id-only.",
-                        new WotLocation(reference: graphId)));
-                    continue;
-                }
-                complete.Add(graphId, definition);
             }
+            CollectInlineDataTypeDefinitions(document.RootElement, complete, diagnostics);
             return complete;
+        }
+
+        private static void CollectInlineDataTypeDefinitions(
+            JsonElement element,
+            Dictionary<string, JsonElement> complete,
+            List<WotDiagnostic> diagnostics)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    foreach (JsonProperty member in element.EnumerateObject())
+                    {
+                        if (string.Equals(
+                            member.Name, "uav:dataTypeDefinition", StringComparison.Ordinal))
+                        {
+                            AddDataTypeDefinition(member.Value, complete, diagnostics);
+                            continue;
+                        }
+                        if (string.Equals(
+                            member.Name, "uav:dataTypeDefinitions", StringComparison.Ordinal))
+                        {
+                            continue;
+                        }
+                        CollectInlineDataTypeDefinitions(member.Value, complete, diagnostics);
+                    }
+                    break;
+                case JsonValueKind.Array:
+                    foreach (JsonElement item in element.EnumerateArray())
+                    {
+                        CollectInlineDataTypeDefinitions(item, complete, diagnostics);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private static void AddDataTypeDefinition(
+            JsonElement definition,
+            Dictionary<string, JsonElement> complete,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (definition.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+            string? graphId = GetElementString(definition, "@id");
+            if (graphId is null)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    "A DataType definition carries no @id, so nothing can " +
+                    "reference it and it cannot be checked for duplication."));
+                return;
+            }
+            if (IsReferenceOnlyDefinition(definition))
+            {
+                return;
+            }
+            if (complete.ContainsKey(graphId))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The DataType definition '{graphId}' is stated completely " +
+                    "more than once; §6.11.1 permits exactly one complete " +
+                    "occurrence and requires every other to be @id-only.",
+                    new WotLocation(reference: graphId)));
+                return;
+            }
+            complete.Add(graphId, definition);
         }
 
         private static bool IsReferenceOnlyDefinition(JsonElement definition)
@@ -981,6 +1036,32 @@ namespace Opc.Ua.Wot
                 {
                     return derived;
                 }
+            }
+
+            // §6.11.3 lets a field state its type through the ordinary WoT
+            // members, and requires them to agree with the DataType. The one
+            // reading §6.11.4 refuses is a bare integer or number, which inside
+            // a Structure does not say which concrete type is meant.
+            string? jsonType = GetElementString(field, "type");
+            if (jsonType is not null)
+            {
+                string? fieldName = GetElementString(field, "uav:fieldName");
+                if (jsonType is "integer" or "number")
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"The field '{fieldName}' states a bare '{jsonType}'. " +
+                        "§6.11.4 makes that ambiguous inside a Structure, " +
+                        "because permitting subtype values would need a " +
+                        "subtyped-value kind; state a concrete DataType instead.",
+                        new WotLocation(reference: fieldName)));
+                    return WotVocabulary.BaseDataType;
+                }
+                return WotVocabulary.MapJsonTypeToDataType(
+                    jsonType,
+                    GetElementString(field, "contentEncoding"),
+                    GetElementString(field, "format"));
             }
             diagnostics.Add(new WotDiagnostic(
                 WotDiagnosticSeverity.Error,

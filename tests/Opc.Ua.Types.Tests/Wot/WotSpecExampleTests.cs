@@ -380,9 +380,18 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UADataType[] dataTypes = result.Value!.Items!.OfType<UADataType>().ToArray();
 
-            // Nine are stated explicitly; five more are inferred from the
-            // Inferred* affordances' own schemas under §6.11.4 and §6.11.5.
-            Assert.That(dataTypes, Has.Length.EqualTo(14));
+            // Nine sit in the root list, one is stated inline on an action's
+            // input, and five more are inferred from the Inferred* affordances'
+            // own schemas under §6.11.4 and §6.11.5.
+            Assert.That(dataTypes, Has.Length.EqualTo(15));
+
+            // §6.11.1 lets a definition be stated inline as well as in the root
+            // list, and both identify the same graph node.
+            Assert.That(
+                dataTypes.Any(d => d.BrowseName!.EndsWith(
+                    ":CommandUnionDataType", StringComparison.Ordinal)),
+                Is.True,
+                "A definition stated inline on an affordance still materializes.");
 
             // A definition without uav:dataTypeId derives a namespace-scoped
             // String NodeId from its name alone (§6.11.1), so the same document
@@ -478,7 +487,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         /// <remarks>
         /// The example still leaves <c>uav:nodes</c> on the document, but no
-        /// longer because of any DataType Node: all fourteen materialize and
+        /// longer because of any DataType Node: all fifteen materialize and
         /// return identically. What remains is the canonical-schema
         /// equivalence of §6.11.6. An inferred definition's own DataSchema
         /// terms — <c>uav:fieldOrder</c>, <c>properties</c>, <c>required</c> —
@@ -499,7 +508,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 document.RootElement.TryGetProperty("uav:dataTypeDefinitions", out JsonElement emitted),
                 Is.True,
                 "Every DataType the NodeSet defines should be stated readably.");
-            Assert.That(emitted.GetArrayLength(), Is.EqualTo(14));
+            Assert.That(emitted.GetArrayLength(), Is.EqualTo(15));
 
             UANodeSet second = WotNodeSetConverter.ToNodeSet(WithoutNativeProjection(document));
 
@@ -552,6 +561,28 @@ namespace Opc.Ua.Types.Tests.Wot
                 writer.WriteEndObject();
             }
             return WotDocument.Parse(buffer.ToArray());
+        }
+
+        /// <summary>
+        /// A DataSchema that names a DataType definition binds its Variable to
+        /// that DataType. Reading only the json type would give the Variable
+        /// the built-in the definition was written to replace, which defeats
+        /// the point of §6.11.
+        /// </summary>
+        [Test]
+        public void VariableNamingADefinitionCarriesThatDataType()
+        {
+            using WotDocument document = WotDocument.Parse(ReadExample(DataTypeExample));
+
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(document);
+
+            UADataType machineState = nodeSet.Items!.OfType<UADataType>()
+                .Single(d => d.BrowseName!.EndsWith(":MachineStateEnum", StringComparison.Ordinal));
+            UAVariable state = nodeSet.Items!.OfType<UAVariable>()
+                .First(v => v.BrowseName!.EndsWith(":State", StringComparison.Ordinal));
+
+            Assert.That(state.DataType, Is.EqualTo(machineState.NodeId));
+            Assert.That(state.DataType, Does.Not.EqualTo("i=27"));
         }
 
         /// <summary>

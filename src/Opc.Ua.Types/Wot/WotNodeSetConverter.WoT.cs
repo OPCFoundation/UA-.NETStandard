@@ -937,7 +937,7 @@ namespace Opc.Ua.Wot
                         nodeSet,
                         diagnostics),
                 ParentNodeId = rootNodeId,
-                DataType = MapJsonSchemaToDataType(schema, nodeSet, diagnostics),
+                DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
                 AccessLevel = MapAccessLevel(schema)
             };
             string? title = GetElementString(schema, "title");
@@ -3054,6 +3054,7 @@ namespace Opc.Ua.Wot
         /// NodeSet2 <c>DataType</c> attribute is allowed to carry.
         /// </remarks>
         private static string MapJsonSchemaToDataType(
+            WotDocument document,
             JsonElement schema,
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
@@ -3062,6 +3063,17 @@ namespace Opc.Ua.Wot
             if (definitive is not null)
             {
                 return ToNodeSetNodeId(definitive, nodeSet, diagnostics);
+            }
+
+            // A DataSchema that names a DataType definition is bound to that
+            // DataType. §6.11 exists so a Variable can carry a custom Structure
+            // or Enumeration; reading only the json type here would give it the
+            // built-in the definition was written to replace.
+            string? defined = ResolveSchemaDataTypeDefinition(
+                document, schema, nodeSet, diagnostics);
+            if (defined is not null)
+            {
+                return defined;
             }
             string? annotated = GetElementString(schema, "uav:dataTypeId");
             if (annotated is not null)
@@ -3072,6 +3084,53 @@ namespace Opc.Ua.Wot
                 GetElementString(schema, "type"),
                 GetElementString(schema, "contentEncoding"),
                 GetElementString(schema, "format"));
+        }
+
+        /// <summary>
+        /// Resolves the DataType a DataSchema's <c>uav:dataTypeDefinition</c>
+        /// denotes.
+        /// </summary>
+        /// <remarks>
+        /// The definition may be stated here or anywhere else in the document
+        /// and referred to by <c>@id</c>, so an <c>@id</c>-only reference is
+        /// followed to wherever the complete definition lives. The identity is
+        /// then whatever §6.11.1 gives that definition, which is the same
+        /// answer the materializer reaches independently.
+        /// </remarks>
+        private static string? ResolveSchemaDataTypeDefinition(
+            WotDocument document,
+            JsonElement schema,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!schema.TryGetProperty("uav:dataTypeDefinition", out JsonElement declared) ||
+                declared.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+            if (!IsReferenceOnlyDefinition(declared))
+            {
+                return ResolveDataTypeIdentity(document, declared, nodeSet, diagnostics);
+            }
+            string? graphId = GetElementString(declared, "@id");
+            if (graphId is null)
+            {
+                return null;
+            }
+            var ignored = new List<WotDiagnostic>();
+            Dictionary<string, JsonElement> complete =
+                CollectAllDataTypeDefinitions(document, ignored);
+            if (!complete.TryGetValue(graphId, out JsonElement target))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"A DataSchema names the DataType definition '{graphId}', " +
+                    "which the document never states completely.",
+                    new WotLocation(reference: graphId)));
+                return null;
+            }
+            return ResolveDataTypeIdentity(document, target, nodeSet, diagnostics);
         }
 
         private static uint MapAccessLevel(JsonElement schema)
