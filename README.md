@@ -36,9 +36,10 @@ across industrial control, manufacturing, energy, and IoT systems.
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
   Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
   Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
-  Model) with OPC-10031-4 Job Control V1/V2, OPC UA for Asset
-  Administration Shell V3, OPC 10100-1 (WoT Connectivity), OPC 40001-1
-  (Industrial Automation), OPC 40010-1 (Robotics).
+  Model) with OPC-10031-4 Job Control V1/V2, OPC 30270 / OPC UA for Asset
+  Administration Shell V2 plus the AAS V3 draft, OPC 10100-1
+  (WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
+  (Robotics).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
@@ -173,9 +174,9 @@ vulnerabilities via the process documented in
   one-line description.
 - [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
-- [OPC UA for Asset Administration Shell V3](docs/Aas.md) — AAS V3
-  metamodel, registry, document round-trip, packages, federation and
-  conformance matrix.
+- [OPC UA for Asset Administration Shell](docs/Aas.md) — OPC 30270 / AAS V2
+  ingestion-only metamodel support and the AAS V3 draft metamodel, registry,
+  document round-trip, packages, federation and conformance matrices.
 - [OPC UA Profiles and Facets](docs/Profiles.md) — facets / transports /
   security policies the stack implements.
 - [Migration Guide](docs/MigrationGuide.md) — prescriptive

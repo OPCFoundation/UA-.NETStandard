@@ -1,29 +1,66 @@
-# OPC UA for Asset Administration Shell V3 (I4AAS)
+# OPC UA for Asset Administration Shell (I4AAS)
 
-This repository implements the draft **OPC UA for Asset Administration Shell V3**
-companion specification (release `3.00-draft3`, namespace
-`http://opcfoundation.org/UA/I4AAS/v3/`) through model, serialization,
-server, client, registry, package-integrity, DPP and WoT bridge libraries.
+This repository implements two **OPC UA for Asset Administration Shell**
+metamodel generations in one assembly set. They are separate alternatives, not
+revision levels of one model:
+
+* **OPC 30270, "OPC UA for Asset Administration Shell"** maps the AAS V2.0.1
+  metamodel into namespace `http://opcfoundation.org/UA/I4AAS/` and lives in
+  `Opc.Ua.Aas.V2`.
+* **OPC UA for Asset Administration Shell V3 draft** (release `3.00-draft3`)
+  maps the AAS V3 draft metamodel into namespace
+  `http://opcfoundation.org/UA/I4AAS/v3/` and lives in `Opc.Ua.Aas.V3`.
+
+The shared root `Opc.Ua.Aas` namespace contains only code that is genuinely
+metamodel-neutral: deterministic NodeId encoding and `idShortPath` handling,
+`AasOptional<T>`, digest calculation, materialization diagnostics, the AASX
+container walk and the value/operation provider contracts.
 
 | Project | Purpose |
 |---------|---------|
-| `Opc.Ua.Aas` | Source-generated I4AAS V3 model from the pinned NodeSet in `src/Opc.Ua.Aas/Design`, the object model, AAS JSON/XML/AASX serialization, clause 6.1.3 identity, clause 6.3.1 xsd type mapping, lexical canonicalization and clause 6.4 round-trip support. |
-| `Opc.Ua.Aas.Server` | Server-side metamodel projection over `INodeManagerLifecycle`, registry service and projection on `Opc.Ua.XRegistry.Server`, generational materialization, environment export, federation, package integrity and provider contracts. |
-| `Opc.Ua.Aas.Client` | High-level clients for deterministic metamodel NodeIds and the AAS registry, plus typed group/resource clients. |
-| `Opc.Ua.Aas.WoT` | The informative Annex F bridge between an AAS environment and a WoT Connectivity Thing Description projection. |
-| `Opc.Ua.Aas.Tests` | NUnit tests for the model, identity, values, serialization, registry, materialization, packages, federation, DPP and WoT bridge. |
+| `Opc.Ua.Aas` | Source-generated I4AAS V2 and V3 models from `src/Opc.Ua.Aas/Design`, the V2 object model and ingestion readers, the V3 object model and read/write serializers, shared identity/value helpers, materialization diagnostics and AASX container support. |
+| `Opc.Ua.Aas.Server` | Server-side projection for both metamodels over `INodeManagerLifecycle`; V2 ingestion materialization and runtime callbacks; V3 registry service, generational materialization, environment export, federation, package integrity and provider contracts. |
+| `Opc.Ua.Aas.Client` | High-level V2 and V3 clients for deterministic metamodel NodeIds, plus the V3 AAS registry client and typed group/resource clients. |
+| `Opc.Ua.Aas.WoT` | The V3 informative Annex F bridge between an AAS environment and a WoT Connectivity Thing Description projection. |
+| `Opc.Ua.Aas.Tests` | NUnit tests for V2 model ingestion/materialization/server/client behavior and V3 model, identity, values, serialization, registry, materialization, packages, federation, DPP and WoT bridge behavior. |
 
-The AAS implementation builds on the shared [xRegistry](XRegistry.md) registry
-base and reuses the runtime NodeManager lifecycle described in
-[Runtime NodeSets](RuntimeNodeSets.md). The IDTA HTTP API described by Annex G
-of the draft is intentionally out of scope; this implementation exposes AAS
-through OPC UA services and the xRegistry-compatible registry AddressSpace.
+The V3 AAS implementation builds on the shared [xRegistry](XRegistry.md)
+registry base and reuses the runtime NodeManager lifecycle described in
+[Runtime NodeSets](RuntimeNodeSets.md). V2 is the OPC 30270 metamodel half only:
+it has no registry, packages, federation, DPP or WoT bridge. The IDTA HTTP API
+described by Annex G of the V3 draft is intentionally out of scope; this
+implementation exposes AAS through OPC UA services and, for V3, the
+xRegistry-compatible registry AddressSpace.
 
 ---
 
-## 1. Core architecture
+## Choosing V2 or V3
 
-The companion specification has two independent halves:
+Host **one** AAS generation in a server: either V2 or V3. The stack does not
+enforce that rule at startup, because the two NodeManagers can technically be
+registered side by side, but the product decision is that a deployment chooses
+one alternative and exposes one metamodel generation. Running both would publish
+two different AAS metamodels for the same product domain and leave clients to
+guess which one is authoritative.
+
+Choose **V2** when the published OPC 30270 specification and the AAS V2.0.1
+metamodel are the interoperability target. The implementation reads V2 JSON, XML
+and AASX documents, materializes them into the `http://opcfoundation.org/UA/I4AAS/`
+AddressSpace, serves Read + Write + Call, and publishes the OPC 30270 Table 83
+conformance units. It does not export the AddressSpace back to AAS documents,
+because OPC 30270 does not require a lossless round trip.
+
+Choose **V3** when the draft AAS V3 metamodel and everything built on the draft
+registry half are required: registry, updateable materialization, environment
+export, packages, package integrity, federation, DPP vocabulary and the WoT
+bridge. V3 reads and writes JSON, XML and AASX because its draft requires a
+lossless document/AddressSpace round trip.
+
+---
+
+## 1. V3 core architecture
+
+The V3 draft companion specification has two independent halves:
 
 * **Metamodel half** — shells, submodels, concept descriptions and submodel
   elements are materialized as typed OPC UA nodes, following clauses 6.1 and
@@ -42,13 +79,13 @@ and bumps a version; a refresh derives a new generation from the document. The
 default retirement policy is `AasProjectionRetirementPolicy.Graceful`, so
 existing monitored items can keep reading the old generation until they drain.
 
-The implementation also adds the OPC UA `Decimal` DataType wire encoding needed
+The V3 half also adds the OPC UA `Decimal` DataType wire encoding needed
 by clause 6.3.1, and the source generator fix needed for recursive structure
 DataTypes.
 
 ---
 
-## 2. Model, identity and value fidelity
+## 2. Shared identity and V3 value fidelity
 
 ### Deterministic NodeIds and BrowseNames
 
@@ -82,19 +119,19 @@ parses and canonicalizes xsd lexical values, and `AasValueSpaceComparer`
 compares values in the XML Schema value space rather than by string equality:
 
 ```csharp
-ExpandedNodeId dataTypeId = AasXsdTypeMap.ToDataTypeId(
-    AASDataTypeDefXsdDataType.Decimal);
+ExpandedNodeId dataTypeId = Opc.Ua.Aas.V3.AasXsdTypeMap.ToDataTypeId(
+    Opc.Ua.Aas.V3.AASDataTypeDefXsdDataType.Decimal);
 
-bool parsed = AasLexicalCanonicalizer.TryParse(
+bool parsed = Opc.Ua.Aas.V3.AasLexicalCanonicalizer.TryParse(
     "1.500000",
-    AASDataTypeDefXsdDataType.Decimal,
+    Opc.Ua.Aas.V3.AASDataTypeDefXsdDataType.Decimal,
     out Variant value,
     out string? error);
 
-bool equivalent = AasValueSpaceComparer.AreEquivalent(
+bool equivalent = Opc.Ua.Aas.V3.AasValueSpaceComparer.AreEquivalent(
     "1.500000",
     "1.5",
-    AASDataTypeDefXsdDataType.Decimal);
+    Opc.Ua.Aas.V3.AASDataTypeDefXsdDataType.Decimal);
 ```
 
 The object model uses `AasOptional<T>` so absent remains distinct from
@@ -103,14 +140,15 @@ that distinction.
 
 ---
 
-## 3. Reading, writing and materializing AAS documents
+## 3. V3 reading, writing and materializing AAS documents
 
-AAS JSON, XML and AASX are read into the same object model. JSON and XML readers
+V3 AAS JSON, XML and AASX are read into the same object model. JSON and XML readers
 return diagnostics instead of throwing for malformed documents:
 
 ```csharp
 await using FileStream input = File.OpenRead("environment.json");
-AasDocumentReadResult read = await new AasJsonReader().ReadAsync(input, ct);
+Opc.Ua.Aas.V3.AasDocumentReadResult read = await new Opc.Ua.Aas.V3.AasJsonReader()
+    .ReadAsync(input, ct);
 
 if (!read.Succeeded)
 {
@@ -118,21 +156,21 @@ if (!read.Succeeded)
     return;
 }
 
-AasMaterializationResult materialized = AasEnvironmentMaterializer.Materialize(
-    read.Environment!);
+Opc.Ua.Aas.AasMaterializationResult materialized = Opc.Ua.Aas.V3.AasEnvironmentMaterializer
+    .Materialize(read.Environment!);
 
 await using FileStream output = File.Create("environment.aasx");
-await new AasxPackageWriter().WriteAsync(output, read.Environment!, ct);
+await new Opc.Ua.Aas.V3.AasxPackageWriter().WriteAsync(output, read.Environment!, ct);
 ```
 
 The inverse path serializes a clause 6.1.6 NodeSet back to an AAS environment:
 
 ```csharp
-AasSerializationResult serialized = AasEnvironmentSerializer.Serialize(
-    materialized.NodeSet);
+Opc.Ua.Aas.V3.AasSerializationResult serialized = Opc.Ua.Aas.V3.AasEnvironmentSerializer
+    .Serialize(materialized.NodeSet);
 
 await using FileStream json = File.Create("roundtrip.json");
-await new AasJsonWriter().WriteAsync(json, serialized.Environment, ct);
+await new Opc.Ua.Aas.V3.AasJsonWriter().WriteAsync(json, serialized.Environment, ct);
 ```
 
 The round-trip guarantee in clause 6.4 is equivalence, not byte identity. A
@@ -142,7 +180,7 @@ arrays is not equivalent.
 
 ---
 
-## 4. Hosting the metamodel server
+## 4. Hosting the V3 metamodel server
 
 `AddAasV3Server` registers the environment NodeManager, default providers and the
 runtime projection host. It must be used with the normal server hosting feature:
@@ -205,20 +243,20 @@ and a diagnostic, which is distinct from a failed Call service result.
 
 ---
 
-## 5. Using the metamodel client
+## 5. Using the V3 metamodel client
 
-`AasClient` computes the deterministic NodeIds of clause 6.1.3, opens the
+`Opc.Ua.Aas.Client.AasClient` computes the deterministic NodeIds of clause 6.1.3, opens the
 generated `*TypeClient` proxies, reads values with their declared xsd type and
 writes lexical values using that type:
 
 ```csharp
-var client = new AasClient(session, aasNamespaceIndex, telemetry);
+var client = new Opc.Ua.Aas.Client.AasClient(session, aasNamespaceIndex, telemetry);
 
-AASPropertyTypeClient temperature = client.OpenProperty(
+Opc.Ua.Aas.V3.AASPropertyTypeClient temperature = client.OpenProperty(
     "https://example.com/submodels/process",
     "Temperature");
 
-AasValueReadResult current = await client.ReadValueAsync(temperature.ObjectId, ct);
+Opc.Ua.Aas.Client.AasValueReadResult current = await client.ReadValueAsync(temperature.ObjectId, ct);
 Console.WriteLine($"{current.ValueType}: {current.LexicalValue}");
 
 StatusCode writeStatus = await client.WriteLexicalValueAsync(
@@ -230,11 +268,11 @@ StatusCode writeStatus = await client.WriteLexicalValueAsync(
 Operations keep the OPC UA Call status separate from the AAS success flag:
 
 ```csharp
-AASOperationTypeClient reset = client.OpenOperation(
+Opc.Ua.Aas.V3.AASOperationTypeClient reset = client.OpenOperation(
     "https://example.com/submodels/process",
     "Reset");
 
-AasOperationInvokeResult result = await client.InvokeAsync(
+Opc.Ua.Aas.Client.AasOperationInvokeResult result = await client.InvokeAsync(
     reset.ObjectId,
     ArrayOf<Variant>.Empty,
     ArrayOf<Variant>.Empty,
@@ -260,16 +298,16 @@ services
         options.InstanceNamespaceUri = "urn:example:aas:instances";
     });
 
-Func<CancellationToken, Task<AasClient>> clientFactory =
-    sp.GetRequiredService<Func<CancellationToken, Task<AasClient>>>();
-AasClient aas = await clientFactory(ct);
+Func<CancellationToken, Task<Opc.Ua.Aas.Client.AasClient>> clientFactory =
+    sp.GetRequiredService<Func<CancellationToken, Task<Opc.Ua.Aas.Client.AasClient>>>();
+Opc.Ua.Aas.Client.AasClient aas = await clientFactory(ct);
 ```
 
 ---
 
-## 6. AAS registry
+## 6. V3 AAS registry
 
-The AAS registry is a concrete xRegistry specialization (clause 6.5). It exposes
+The V3 AAS registry is a concrete xRegistry specialization (clause 6.5). It exposes
 the well-known `AASRegistry` object under `Server`, projects shell groups,
 submodel files, concept dictionaries, packages and environment documents, and
 wires the AAS discovery methods:
@@ -283,19 +321,19 @@ The service keeps immutable snapshots. Every mutation advances `Generation`, and
 existing readers keep their previous snapshot:
 
 ```csharp
-var registry = new AasRegistryService();
-await registry.UpsertResourceAsync(new AasUpsertResourceRequest
+var registry = new Opc.Ua.Aas.Server.Registry.AasRegistryService();
+await registry.UpsertResourceAsync(new Opc.Ua.Aas.Server.Registry.AasUpsertResourceRequest
 {
     GroupSourceIdentity = "https://example.com/aas/42",
     ResourceSourceIdentity = "https://example.com/submodels/nameplate",
-    GroupKind = AasRegistryEntityKind.Shell,
-    ResourceKind = AasRegistryEntityKind.Submodel,
+    GroupKind = Opc.Ua.Aas.Server.Registry.AasRegistryEntityKind.Shell,
+    ResourceKind = Opc.Ua.Aas.Server.Registry.AasRegistryEntityKind.Submodel,
     Content = ByteString.From(File.ReadAllBytes("nameplate.json")),
     ContentType = "application/aas+json",
     Format = "aas/3.0+json"
 });
 
-AasGetSubmodelResult document = await registry.GetSubmodelAsync(
+Opc.Ua.Aas.Server.Registry.AasGetSubmodelResult document = await registry.GetSubmodelAsync(
     "https://example.com/submodels/nameplate");
 ```
 
@@ -303,11 +341,12 @@ To expose the registry in a manually configured server, add the registry node
 manager factory to the server's node manager factories:
 
 ```csharp
-var registry = new AasRegistryService();
-server.NodeManagerFactories.Add(new AasRegistryNodeManagerFactory(registry));
+var registry = new Opc.Ua.Aas.Server.Registry.AasRegistryService();
+server.NodeManagerFactories.Add(
+    new Opc.Ua.Aas.Server.Registry.AasRegistryNodeManagerFactory(registry));
 ```
 
-The AAS registry projection uses the shared `XRegistryProjectionEngine` from
+The V3 AAS registry projection uses the shared `XRegistryProjectionEngine` from
 `Opc.Ua.XRegistry.Server`, so base xRegistry lifecycle, labels and file-transfer
 semantics match the WoT registry implementation.
 
@@ -318,17 +357,18 @@ root, inherits the base xRegistry lifecycle helpers, and adds the AAS discovery
 methods and typed resource clients:
 
 ```csharp
-AasRegistryClient registry = await AasRegistryClient.ForServerAsync(
-    session,
-    telemetry,
-    ct);
+Opc.Ua.Aas.Client.Registry.AasRegistryClient registry =
+    await Opc.Ua.Aas.Client.Registry.AasRegistryClient.ForServerAsync(
+        session,
+        telemetry,
+        ct);
 
 ArrayOf<NodeId> shells = await registry.LookupShellsByAssetLinkAsync(
     "serial",
     "42",
     ct);
 
-AasGetSubmodelDocumentResult submodel = await registry.GetSubmodelAsync(
+Opc.Ua.Aas.Client.Registry.AasGetSubmodelDocumentResult submodel = await registry.GetSubmodelAsync(
     "https://example.com/submodels/nameplate",
     ct);
 
@@ -349,7 +389,7 @@ services
 
 ---
 
-## 7. Updateable registry and environment export
+## 7. V3 updateable registry and environment export
 
 `AasMaterializationCoordinator` implements the optional updateable-registry
 profile of clause 6.5.9. It reads `AasMaterializationDocument` entries from an
@@ -379,7 +419,7 @@ because the bytes depend on the caller.
 
 ---
 
-## 8. Federation, packages, DPP and WoT
+## 8. V3 federation, packages, DPP and WoT
 
 ### Federation
 
@@ -438,9 +478,9 @@ rejected destination.
 
 ---
 
-## 10. Conformance matrix
+## 10. V3 conformance matrix
 
-The following table maps the sixteen clause 10 conformance units to tests in
+The following table maps the sixteen V3 draft clause 10 conformance units to tests in
 `tests/Opc.Ua.Aas.Tests`. Each cited test was checked against the behaviour it
 asserts; no unit is intentionally left unmapped.
 
@@ -479,10 +519,10 @@ publishing it would claim conformance that is not met.
 
 ---
 
-## 11. Limitations and migration notes
+## 11. V3 limitations and migration notes
 
 * Annex G / IDTA-01002 Part 2 HTTP APIs are not implemented by this branch.
-* **Calling an `Operation` with arguments is incomplete.** A materialized
+* **Calling a V3 `Operation` with arguments is incomplete.** A materialized
   Operation carries its `Invoke` Method, and a Client resolves it by either its
   own NodeId or the `MethodDeclarationId` of `AASOperationType.Invoke`. The
   Method also carries `InputArguments` and `OutputArguments` under the standard
@@ -492,7 +532,9 @@ publishing it would claim conformance that is not met.
   answers `BadTooManyArguments`. Closing this needs a change to how the shared
   NodeSet import claims typed children, which affects every consumer of runtime
   NodeSets and is therefore out of scope here. `samples/Aas` exercises the path
-  and reports the status rather than working around it.
+  and reports the status rather than working around it. This limitation is V3-specific;
+  the V2 `Operation` Method has no declared arguments and is called with an empty
+  input list.
 * The AAS registry server currently exposes direct construction through
   `AasRegistryService` and `AasRegistryNodeManagerFactory`; the client has a DI
   helper (`AddAasV3RegistryClient`), while the metamodel server has `AddAasV3Server`.
@@ -500,10 +542,145 @@ publishing it would claim conformance that is not met.
   migration from 1.5.378 is required solely to consume the new AAS libraries;
   the general 2.0 migration guidance remains in [Migration Guide](MigrationGuide.md).
 
+
 ---
 
-## 12. References
+## 12. OPC 30270 / AAS V2 half
 
+The OPC 30270 half implements the published "OPC UA for Asset Administration
+Shell" companion specification for the AAS V2.0.1 metamodel. The static model
+is generated into `Opc.Ua.Aas.V2`, its namespace URI is
+`http://opcfoundation.org/UA/I4AAS/`, and predefined nodes are loaded with the
+generated `AddOpcUaAasV2` extension. The server and client entry points are
+`AddAasV2Server` and `AddAasV2Client`.
+
+V2 is ingestion-only. `Opc.Ua.Aas.V2.AasJsonReader`,
+`Opc.Ua.Aas.V2.AasXmlReader` and `Opc.Ua.Aas.V2.AasxPackageReader` parse AAS
+V2.0.1 documents and AASX packages into the V2 object model; there is no
+AddressSpace-to-document serializer and therefore no round-trip guarantee. The
+materializer projects the document into an OPC UA NodeSet:
+
+```csharp
+await using FileStream input = File.OpenRead("environment.json");
+Opc.Ua.Aas.V2.AasDocumentReadResult read = await new Opc.Ua.Aas.V2.AasJsonReader()
+    .ReadAsync(input, ct);
+
+if (!read.Succeeded)
+{
+    Console.WriteLine(read.Error);
+    return;
+}
+
+Opc.Ua.Aas.AasMaterializationResult materialized = Opc.Ua.Aas.V2.AasEnvironmentMaterializer
+    .Materialize(read.Environment!);
+```
+
+`AddAasV2Server` registers the V2 environment NodeManager, the document-backed
+value provider and the shared operation handler contract:
+
+```csharp
+services
+    .AddOpcUa()
+    .AddServer(options =>
+    {
+        options.EndpointUrls.Add("opc.tcp://localhost:4840/AasV2Server");
+    })
+    .Services
+    .AddOpcUa()
+    .AddAasV2Server(options =>
+    {
+        options.ControlNamespaceUri = "urn:example:aas-v2:instances";
+    })
+    .AddEnvironmentProvider<MyAasV2EnvironmentProvider>()
+    .AddOperationHandler<MyAasOperationHandler>();
+```
+
+The runtime surface is Read + Write + Call, matching the rest of this stack. A
+V2 write reaches `IAasValueProvider.WriteValueAsync` and stops there: there is
+no V2 document writer that could persist the change back to JSON, XML or AASX.
+`Operation` is an `OptionalPlaceholder` Method named `Operation` with no
+declared arguments, unlike the V3 mandatory `Invoke` Method, so a V2 Call is
+zero-argument.
+
+File and Blob content on V2 is served through an embedded standard OPC UA
+`FileType` object. Clients call `Open`, `Read` and `Close` on that child rather
+than reading a V3-style value projection:
+
+```csharp
+var client = new Opc.Ua.Aas.Client.V2.AasClient(session, aasNamespaceIndex, telemetry);
+Opc.Ua.Aas.V2.AASFileTypeClient manual = client.OpenFile(
+    "https://example.com/submodels/nameplate",
+    "Manual");
+ByteString content = await client.ReadFileContentAsync(manual.ObjectId, ct: ct);
+```
+
+OPC 30270 leaves instance NodeIds server-specific and defines no addressing
+convention. The V2 materializer and client deliberately reuse the deterministic
+`AasNodeIdEncoding` and `AasIdShortPath` rules used by the V3 draft, so one
+addressing scheme serves both generations and neither client has to browse for
+known identifiers:
+
+```csharp
+var client = new Opc.Ua.Aas.Client.V2.AasClient(session, aasNamespaceIndex, telemetry);
+Opc.Ua.Aas.V2.AASPropertyTypeClient temperature = client.OpenProperty(
+    "https://example.com/submodels/process",
+    "Temperature");
+
+Opc.Ua.Aas.Client.V2.AasValueReadResult current = await client.ReadValueAsync(
+    temperature.ObjectId,
+    ct);
+
+StatusCode status = await client.WriteValueAsync(
+    temperature.ObjectId,
+    Opc.Ua.Aas.V2.AASValueTypeDataType.Double,
+    new Variant(42.5),
+    ct);
+```
+
+V2 has no registry, no packages, no federation and no DPP. Those are V3 draft
+additions, and the V2 implementation intentionally stops at the OPC 30270
+metamodel.
+
+### OPC 30270 conformance units
+
+The V2 server publishes the seventeen conformance units from OPC 30270 Table 83
+through `Server/ServerCapabilities/ConformanceUnits` and publishes no
+`ServerProfileArray` entry, because Table 84, which would assign profile URIs,
+is empty. Two internal specification contradictions are resolved in
+`src/Opc.Ua.Aas.Server/V2/AasV2ConformanceUnits.cs`: Table 83 misspells the
+multi-language unit as `I4AAS MultiLangaugeProperty` while Table 85 spells it
+`I4AAS MultiLanguageProperty`, and Table 85 lists an `I4AAS Security` unit that
+Table 83 never defines. The implementation publishes the corrected
+`I4AAS MultiLanguageProperty` spelling and does not publish `I4AAS Security`.
+
+Each mapping below was checked against the cited test in
+`tests/Opc.Ua.Aas.Tests/V2/`. No OPC 30270 Table 83 unit is currently unmapped.
+
+| OPC 30270 Table 83 unit | Demonstrating tests |
+|-------------------------|---------------------|
+| `I4AAS AAS` | `Model.AasV2ObjectModelTests.ConstructionRetainsV2TopLevelIdentifiablesAndReferences`; `Serialization.AasV2SerializationTests.JsonReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Server.AasV2ServerTests.ConformanceUnitsPublishOpc30270FacetWithoutProfileUris` |
+| `I4AAS Asset` | `Model.AasV2ObjectModelTests.ConstructionRetainsV2TopLevelIdentifiablesAndReferences`; `Model.AasV2ObjectModelTests.V2OnlyConceptsRoundTripThroughModel`; `Client.AasClientTests.OpenMethodsResolveByIdentifierAndIdShortPath` |
+| `I4AAS Submodel` | `Model.AasV2ObjectModelTests.ConstructionRetainsV2TopLevelIdentifiablesAndReferences`; `Materialization.AasEnvironmentMaterializerTests.EverySubmodelElementTypeMaterializesWithItsMembers`; `Client.AasClientTests.OpenMethodsResolveByIdentifierAndIdShortPath` |
+| `I4AAS ConceptDescription` | `Model.AasV2ObjectModelTests.ConceptDescriptionFlavoursRetainIdentifierKinds`; `Serialization.AasV2SerializationTests.XmlReaderParsesV2EnvironmentAndEverySubmodelElementType` |
+| `I4AAS View` | `Model.AasV2ObjectModelTests.V2OnlyConceptsRoundTripThroughModel`; `Materialization.AasEnvironmentMaterializerTests.ShellMaterializesAssetViewsInterfacesAndAasReferences` |
+| `I4AAS RelationshipElement` | `Serialization.AasV2SerializationTests.JsonReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Serialization.AasV2SerializationTests.XmlReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Materialization.AasEnvironmentMaterializerTests.EverySubmodelElementTypeMaterializesWithItsMembers` |
+| `I4AAS Property` | `Model.AasV2ObjectModelTests.SubmodelElementMembersRetainNodeSetTypes`; `Client.AasClientTests.ReadAndWriteValueUseDeclaredAasValueTypeAsync`; `Materialization.AasEnvironmentMaterializerTests.EverySubmodelElementTypeMaterializesWithItsMembers` |
+| `I4AAS MultiLanguageProperty` | `Model.AasV2ObjectModelTests.SubmodelElementMembersRetainNodeSetTypes`; `Serialization.AasV2SerializationTests.JsonReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Materialization.AasEnvironmentMaterializerTests.EverySubmodelElementTypeMaterializesWithItsMembers` |
+| `I4AAS Range` | `Serialization.AasV2SerializationTests.JsonReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Serialization.AasV2SerializationTests.XmlReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Materialization.AasEnvironmentMaterializerTests.EverySubmodelElementTypeMaterializesWithItsMembers` |
+| `I4AAS Blob` | `Serialization.AasV2SerializationTests.JsonReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Materialization.AasEnvironmentMaterializerTests.EverySubmodelElementTypeMaterializesWithItsMembers`; `Client.AasClientTests.FileAndBlobContentAreReadThroughEmbeddedFileTypeAsync` |
+| `I4AAS File` | `Serialization.AasV2SerializationTests.AasxReaderReadsXmlJsonAndSupplementaryFiles`; `Server.AasV2ServerTests.EmbeddedFileOpenReadAndCloseServeBlobContentAsync`; `Client.AasClientTests.FileAndBlobContentAreReadThroughEmbeddedFileTypeAsync` |
+| `I4AAS ReferenceElement` | `Serialization.AasV2SerializationTests.JsonReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Serialization.AasV2SerializationTests.XmlReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Materialization.AasEnvironmentMaterializerTests.EverySubmodelElementTypeMaterializesWithItsMembers` |
+| `I4AAS Capability` | `Serialization.AasV2SerializationTests.JsonReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Serialization.AasV2SerializationTests.XmlReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Materialization.AasEnvironmentMaterializerTests.EverySubmodelElementTypeMaterializesWithItsMembers` |
+| `I4AAS SubmodelElementCollection` | `Model.AasV2ObjectModelTests.V2OnlyConceptsRoundTripThroughModel`; `Materialization.AasEnvironmentMaterializerTests.OrderedCollectionUsesHasOrderedComponentAndUnorderedCollectionUsesHasComponent`; `AasV2ModelTests.OrderedCollectionRedeclaresTheSubmodelElementPlaceholder` |
+| `I4AAS Operation` | `Materialization.AasEnvironmentMaterializerTests.MaterializedNodeSetImportsIntoAnAddressSpace`; `Server.AasV2ServerTests.OperationMethodInvokesHandlerAndRejectsArgumentsAsync`; `Client.AasClientTests.InvokeCallsTheEmbeddedOperationMethodAsync` |
+| `I4AAS Event` | `Serialization.AasV2SerializationTests.JsonReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Serialization.AasV2SerializationTests.XmlReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Materialization.AasEnvironmentMaterializerTests.EverySubmodelElementTypeMaterializesWithItsMembers` |
+| `I4AAS Entity` | `Model.AasV2ObjectModelTests.SubmodelElementMembersRetainNodeSetTypes`; `Serialization.AasV2SerializationTests.JsonReaderParsesV2EnvironmentAndEverySubmodelElementType`; `Materialization.AasEnvironmentMaterializerTests.EverySubmodelElementTypeMaterializesWithItsMembers` |
+
+---
+
+## 13. References
+
+* OPC 30270, "OPC UA for Asset Administration Shell", namespace `http://opcfoundation.org/UA/I4AAS/`.
 * OPC UA for Asset Administration Shell V3 draft, release `3.00-draft3`, namespace `http://opcfoundation.org/UA/I4AAS/v3/`.
 * [xRegistry — abstract registry base model](XRegistry.md).
 * [OPC UA WoT Connectivity](WoTConnectivity.md).
