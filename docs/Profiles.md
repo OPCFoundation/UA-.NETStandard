@@ -14,9 +14,9 @@ previous 1.5.378 version. The stack now
 ships full server- and client-side support for: Part 9 (Alarms &
 Conditions), Part 11 (Historical Access) + Part 13 (Aggregates), Part 16
 (State Machines), Part 17 (Alias Names), Part 18 (Role Management), Part 20
-(File Transfer), Part 100 (Device Integration / Software Update), OPC
-10100-1 (WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC
-40010-1 (Robotics), and the Local Discovery Server. See
+(File Transfer), Part 100 (Device Integration / Software Update), OPC UA for
+Asset Administration Shell V3, OPC 10100-1 (WoT Connectivity), OPC 40001-1
+(Industrial Automation), OPC 40010-1 (Robotics), and the Local Discovery Server. See
 [What's New in 2.0](WhatsNewIn2.0.md) for the broader change narrative.
 
 The canonical list of all OPC UA profile and facet URIs is maintained by the
@@ -98,6 +98,10 @@ canonical URI string before claiming a facet):
   `Opc.Ua.WotCon.Server` / `Opc.Ua.WotCon.Client` library trio for
   surfacing OPC UA servers as Web-of-Things Thing Descriptions. See
   [WoT Connectivity](WoTConnectivity.md).
+- **Asset Administration Shell V3** — `Opc.Ua.Aas` / `Opc.Ua.Aas.Server` /
+  `Opc.Ua.Aas.Client` / `Opc.Ua.Aas.WoT` model, serialization, metamodel
+  server/client, xRegistry-based registry, packages, federation and WoT bridge.
+  See [Asset Administration Shell V3](Aas.md).
 - **Device Integration** (Part 100) — `Opc.Ua.Di` / `Opc.Ua.Di.Server` /
   `Opc.Ua.Di.Client` library trio, including the lock service and the
   software-update package store. See [Device Integration](DeviceIntegration.md)
@@ -554,6 +558,7 @@ for the variant selected by `--ctt`.
   (Parts 210 and 211)
 - [Robotics](Robotics.md) (OPC 40010-1 over OPC 40001-1)
 - [Software Update](SoftwareUpdate.md)
+- [Asset Administration Shell V3](Aas.md)
 - [WoT Connectivity](WoTConnectivity.md) (OPC 10100-1)
 - [Node Management](NodeManagement.md) (Part 4)
 
@@ -562,3 +567,4 @@ for the variant selected by `--ctt`.
 - [OPC Foundation Profile Reporting](https://profiles.opcfoundation.org/) — canonical profile and facet URI registry.
 - [OPC UA Specification](https://reference.opcfoundation.org/) — online reference for the OPC 10000 series.
 - [OPC UA Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/) — official conformance test tool.
+
