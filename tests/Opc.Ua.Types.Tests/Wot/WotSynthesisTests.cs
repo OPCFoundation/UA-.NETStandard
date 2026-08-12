@@ -90,7 +90,11 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAVariable variable = nodeSet.Items!.OfType<UAVariable>().Single();
             Assert.That(variable.NodeId, Is.EqualTo("ns=1;s=PumpType/PumpSpeed"));
-            Assert.That(variable.DataType, Is.EqualTo("i=11"));
+
+            // A bare "number" infers the abstract Number, not Double: §6.11.4
+            // reads the schema for exactly what it says and leaves a concrete
+            // width to an explicit annotation.
+            Assert.That(variable.DataType, Is.EqualTo("i=26"));
             Assert.That(variable.AccessLevel, Is.EqualTo(1));
             Assert.That(
                 variable.References!.Any(r => r.ReferenceType == "HasModellingRule" && r.Value == "i=78"),
@@ -107,6 +111,52 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 eventType.References!.Any(r => r.ReferenceType == "HasSubtype" && !r.IsForward && r.Value == "i=2041"),
                 Is.True);
+        }
+
+        // The canonical schema-to-DataType table of WoT Binding §6.11.4. A bare
+        // integer and number infer the abstract Integer and Number; a string is
+        // refined by contentEncoding and format, which is the only way a
+        // ByteString, DateTime, Guid or UriString survives as JSON Schema.
+        [TestCase("\"type\":\"boolean\"", "i=1")]
+        [TestCase("\"type\":\"integer\"", "i=27")]
+        [TestCase("\"type\":\"number\"", "i=26")]
+        [TestCase("\"type\":\"string\"", "i=12")]
+        [TestCase("\"type\":\"string\",\"contentEncoding\":\"base64\"", "i=15")]
+        [TestCase("\"type\":\"string\",\"format\":\"date-time\"", "i=13")]
+        [TestCase("\"type\":\"string\",\"format\":\"uuid\"", "i=14")]
+        [TestCase("\"type\":\"string\",\"format\":\"uri\"", "i=23751")]
+        [TestCase("\"type\":\"null\"", "i=24")]
+        [TestCase("", "i=24")]
+        public void SchemaInfersCanonicalDataType(string schema, string expected)
+        {
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(
+                Encoding.UTF8.GetBytes(SchemaThing(schema)));
+
+            UAVariable variable = nodeSet.Items!.OfType<UAVariable>().Single();
+            Assert.That(variable.DataType, Is.EqualTo(expected));
+        }
+
+        // §6.11.4: an explicit annotation selects a concrete or otherwise
+        // different built-in, and outranks whatever the json type would infer.
+        [Test]
+        public void ExplicitDataTypeAnnotationOutranksInference()
+        {
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(
+                Encoding.UTF8.GetBytes(SchemaThing("\"type\":\"number\",\"uav:dataTypeId\":\"i=10\"")));
+
+            UAVariable variable = nodeSet.Items!.OfType<UAVariable>().Single();
+            Assert.That(variable.DataType, Is.EqualTo("i=10"));
+        }
+
+        private static string SchemaThing(string schema)
+        {
+            string members = schema.Length == 0 ? string.Empty : schema + ",";
+            return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Thing\"," +
+                "\"properties\":{\"sample\":{\"@type\":\"uav:variable\"," + members +
+                "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Sample\"}}}";
         }
 
         [Test]

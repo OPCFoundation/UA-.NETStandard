@@ -3059,7 +3059,15 @@ namespace Opc.Ua.Wot
             {
                 return ToNodeSetNodeId(definitive, nodeSet, diagnostics);
             }
-            return WotVocabulary.MapJsonTypeToDataType(GetElementString(schema, "type"));
+            string? annotated = GetElementString(schema, "uav:dataTypeId");
+            if (annotated is not null)
+            {
+                return ToNodeSetNodeId(annotated, nodeSet, diagnostics);
+            }
+            return WotVocabulary.MapJsonTypeToDataType(
+                GetElementString(schema, "type"),
+                GetElementString(schema, "contentEncoding"),
+                GetElementString(schema, "format"));
         }
 
         private static uint MapAccessLevel(JsonElement schema)
