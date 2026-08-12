@@ -65,15 +65,27 @@
     <!-- OPC UA for Asset Administration Shell V3 (http://opcfoundation.org/UA/I4AAS/v3/).
          Pinned verbatim from the drafts authoring repository; the generator input is
          the single source of truth for the model, so a change is made upstream and
-         re-pinned rather than edited here. The published OPC 30270 v1.00 model of the
-         incompatible AAS v1.x metamodel keeps http://opcfoundation.org/UA/I4AAS/ and
-         is not part of this assembly. -->
+         re-pinned rather than edited here. -->
     <AdditionalFiles Include="Design\Opc.Ua.Aas.NodeSet2.xml">
       <ModelSourceGeneratorPrefix>Opc.Ua.Aas</ModelSourceGeneratorPrefix>
       <ModelSourceGeneratorName>Aas</ModelSourceGeneratorName>
       <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/I4AAS/v3/</ModelSourceGeneratorModelUri>
     </AdditionalFiles>
     <AdditionalFiles Include="Design\Opc.Ua.Aas.NodeSet2.csv" />
+    <!-- OPC 30270, the published companion specification for the AAS V2 metamodel
+         (http://opcfoundation.org/UA/I4AAS/). Pinned verbatim from
+         OPCFoundation/UA-Nodeset. It is an incompatible metamodel generation rather
+         than an earlier revision of the model above - it keeps Asset as an
+         Identifiable, identification.idType, Views and ordered collections - so the
+         two share this assembly but nothing else. Both models name their types
+         alike, so each generates into a namespace named for the AAS metamodel
+         generation it maps. -->
+    <AdditionalFiles Include="Design\Opc.Ua.I4AAS.NodeSet2.xml">
+      <ModelSourceGeneratorPrefix>Opc.Ua.Aas.V2</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorName>AasV2</ModelSourceGeneratorName>
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/I4AAS/</ModelSourceGeneratorModelUri>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Design\Opc.Ua.I4AAS.NodeSet2.csv" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

@@ -391,7 +391,8 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.AccessorSymbol, "public new");
             if (!instance.IsOverridden())
             {
-                if (!s_builtInMethodNames.Contains(instance.SymbolicName.Name))
+                if (!s_builtInMethodNames.Contains(instance.SymbolicName.Name) &&
+                    !instance.HidesBaseTypePlaceholder())
                 {
                     context.Template.AddReplacement(Tokens.AccessorSymbol, "public");
                 }
