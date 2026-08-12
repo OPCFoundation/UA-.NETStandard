@@ -380,9 +380,9 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UADataType[] dataTypes = result.Value!.Items!.OfType<UADataType>().ToArray();
 
-            // Eight are stated explicitly; five more are inferred from the
+            // Nine are stated explicitly; five more are inferred from the
             // Inferred* affordances' own schemas under §6.11.4 and §6.11.5.
-            Assert.That(dataTypes, Has.Length.EqualTo(13));
+            Assert.That(dataTypes, Has.Length.EqualTo(14));
 
             // A definition without uav:dataTypeId derives a namespace-scoped
             // String NodeId from its name alone (§6.11.1), so the same document
@@ -422,6 +422,18 @@ namespace Opc.Ua.Types.Tests.Wot
             UADataType anyNumber = dataTypes.Single(d => d.BrowseName!.EndsWith(
                 ":AnyNumberDataType", StringComparison.Ordinal));
             Assert.That(anyNumber.Definition!.Field![0].AllowSubTypes, Is.True);
+
+            // §6.11.7 (new in the PR): a concrete Structure reached only
+            // through other Structures may say it has no default encoding, and
+            // then none are generated for it.
+            UADataType nested = dataTypes.Single(d => d.BrowseName!.EndsWith(
+                ":NestedPayloadDataType", StringComparison.Ordinal));
+            Assert.That(nested.IsAbstract, Is.False);
+            Assert.That(nested.Definition, Is.Not.Null);
+            Assert.That(
+                nested.References!.Any(r => r.ReferenceType == "HasEncoding"),
+                Is.False,
+                "A type with uav:hasDefaultEncoding false exposes no encodings.");
 
             // A SimpleDataType has no definition attribute and no encodings.
             UADataType counter = dataTypes.Single(d => d.BrowseName!.EndsWith(
@@ -466,7 +478,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         /// <remarks>
         /// The example still leaves <c>uav:nodes</c> on the document, but no
-        /// longer because of any DataType Node: all thirteen materialize and
+        /// longer because of any DataType Node: all fourteen materialize and
         /// return identically. What remains is the canonical-schema
         /// equivalence of §6.11.6. An inferred definition's own DataSchema
         /// terms — <c>uav:fieldOrder</c>, <c>properties</c>, <c>required</c> —
@@ -487,7 +499,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 document.RootElement.TryGetProperty("uav:dataTypeDefinitions", out JsonElement emitted),
                 Is.True,
                 "Every DataType the NodeSet defines should be stated readably.");
-            Assert.That(emitted.GetArrayLength(), Is.EqualTo(13));
+            Assert.That(emitted.GetArrayLength(), Is.EqualTo(14));
 
             UANodeSet second = WotNodeSetConverter.ToNodeSet(WithoutNativeProjection(document));
 

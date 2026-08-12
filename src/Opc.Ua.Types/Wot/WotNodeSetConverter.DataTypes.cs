@@ -57,23 +57,24 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Materializes every DataType definition the document carries.
         /// </summary>
-        private static void SynthesizeDataTypeDefinitions(
+        private static Dictionary<string, string> SynthesizeDataTypeDefinitions(
             WotDocument document,
             UANodeSet nodeSet,
             List<UANode> items,
             List<WotDiagnostic> diagnostics)
         {
+            var empty = new Dictionary<string, string>(StringComparer.Ordinal);
             if (!document.RootElement.TryGetProperty("uav:dataTypeDefinitions", out JsonElement declared) ||
                 declared.ValueKind != JsonValueKind.Array)
             {
-                return;
+                return empty;
             }
 
             Dictionary<string, JsonElement> complete = CollectDataTypeDefinitions(
                 declared, diagnostics);
             if (complete.Count == 0)
             {
-                return;
+                return empty;
             }
 
             // Two passes: the identity of every definition has to be known
@@ -121,6 +122,7 @@ namespace Opc.Ua.Wot
             }
             ValidateEncodingIdentities(complete, identities, diagnostics);
             ValidateInheritedFieldPrefixes(complete, diagnostics);
+            return identities;
         }
 
         /// <summary>
@@ -184,6 +186,59 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Reports whether the NodeSet gives this DataType any encoding Object.
+        /// </summary>
+        /// <remarks>
+        /// The link may be written from either end, and real companion models
+        /// write it from the Object: the DI NodeSet, for instance, carries no
+        /// forward Reference on the DataType at all and declares each encoding
+        /// as an Object referring back. Looking only one way concludes that a
+        /// perfectly ordinary Structure has no encodings.
+        /// </remarks>
+        private static bool HasEncoding(UADataType dataType, UANodeSet nodeSet)
+        {
+            if (dataType.References is not null)
+            {
+                foreach (Reference reference in dataType.References)
+                {
+                    if (string.Equals(
+                            reference.ReferenceType, "HasEncoding", StringComparison.Ordinal) &&
+                        reference.IsForward)
+                    {
+                        return true;
+                    }
+                }
+            }
+            if (nodeSet.Items is null || string.IsNullOrEmpty(dataType.NodeId))
+            {
+                return false;
+            }
+            foreach (UANode node in nodeSet.Items)
+            {
+                if (node is not UAObject encoding || encoding.References is null)
+                {
+                    continue;
+                }
+                foreach (Reference reference in encoding.References)
+                {
+                    if (string.Equals(
+                            reference.ReferenceType, "HasEncoding", StringComparison.Ordinal) &&
+                        string.Equals(reference.Value, dataType.NodeId, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static bool IsEncodingSuppressed(JsonElement definition)
+        {
+            return definition.TryGetProperty("uav:hasDefaultEncoding", out JsonElement declared) &&
+                declared.ValueKind == JsonValueKind.False;
+        }
+
         private static List<string> ReadFieldNames(JsonElement definition)
         {
             var names = new List<string>();
@@ -219,7 +274,8 @@ namespace Opc.Ua.Wot
             foreach (KeyValuePair<string, JsonElement> entry in complete)
             {
                 if (!identities.TryGetValue(entry.Key, out string? identity) ||
-                    GetElementBool(entry.Value, "uav:isAbstract"))
+                    GetElementBool(entry.Value, "uav:isAbstract") ||
+                    IsEncodingSuppressed(entry.Value))
                 {
                     continue;
                 }
@@ -458,7 +514,11 @@ namespace Opc.Ua.Wot
                 : BuildDataTypeDefinition(
                     document, definition, kind, name, identities, nodeSet, diagnostics);
 
-            if (dataType.Definition is not null && !isAbstract && !IsEnumerationKind(kind))
+            bool exposesEncodings = dataType.Definition is not null &&
+                !isAbstract &&
+                !IsEnumerationKind(kind) &&
+                ExposesDefaultEncoding(definition, name, isAbstract, kind, diagnostics);
+            if (exposesEncodings)
             {
                 AppendEncodings(definition, identity, dataType.BrowseName!, references, items);
             }
@@ -469,6 +529,44 @@ namespace Opc.Ua.Wot
 
             dataType.References = [.. references];
             items.Add(dataType);
+        }
+
+        /// <summary>
+        /// Decides whether a definition exposes the three default encodings.
+        /// </summary>
+        /// <remarks>
+        /// §6.11.7 defaults <c>uav:hasDefaultEncoding</c> to true for a
+        /// non-abstract Structure or Union. A concrete type used only inside
+        /// other Structures, never directly in an ExtensionObject, may set it
+        /// false: it is never encoded on its own, so generating encodings for
+        /// it would advertise Objects nothing can reach. Only a kind that can
+        /// carry the term may state it at all.
+        /// </remarks>
+        private static bool ExposesDefaultEncoding(
+            JsonElement definition,
+            string name,
+            bool isAbstract,
+            string kind,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!definition.TryGetProperty("uav:hasDefaultEncoding", out JsonElement declared))
+            {
+                return true;
+            }
+            if (isAbstract ||
+                IsEnumerationKind(kind) ||
+                string.Equals(kind, "uav:SimpleDataType", StringComparison.Ordinal))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"'{name}' states uav:hasDefaultEncoding, which §6.11.7 " +
+                    "allows only on a non-abstract Structure or Union; every " +
+                    "other kind has no encoding Objects to begin with.",
+                    new WotLocation(reference: name)));
+                return false;
+            }
+            return declared.ValueKind != JsonValueKind.False;
         }
 
         private static bool IsEnumerationKind(string kind)
@@ -493,6 +591,7 @@ namespace Opc.Ua.Wot
                     document, declared, identities, nodeSet, diagnostics);
                 if (resolved is not null)
                 {
+                    ValidateOptionSetBase(definition, kind, resolved, diagnostics);
                     return resolved;
                 }
             }
@@ -510,8 +609,7 @@ namespace Opc.Ua.Wot
                         "bits the fields may number."));
                 }
                 return WotVocabulary.Enumeration;
-            }
-            if (string.Equals(kind, "uav:SimpleDataType", StringComparison.Ordinal))
+            }            if (string.Equals(kind, "uav:SimpleDataType", StringComparison.Ordinal))
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
@@ -524,6 +622,67 @@ namespace Opc.Ua.Wot
                 ? WotVocabulary.Union
                 : WotVocabulary.Structure;
         }
+
+        /// <summary>
+        /// Checks an OptionSet's base against §6.11.5.
+        /// </summary>
+        /// <remarks>
+        /// The PR narrowed this from "an unsigned integer" to the four concrete
+        /// unsigned types, and ruled out the abstract UInteger: the base has to
+        /// say how many bits exist, and an abstract type says only that there
+        /// are some. The highest authored bit has to fit in it for the same
+        /// reason.
+        /// </remarks>
+        private static void ValidateOptionSetBase(
+            JsonElement definition,
+            string kind,
+            string resolvedBase,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!IsEnumerationKind(kind) || !GetElementBool(definition, "uav:isOptionSet"))
+            {
+                return;
+            }
+            if (!s_optionSetBaseWidths.TryGetValue(resolvedBase, out int width))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"An OptionSet subtypes '{resolvedBase}'. §6.11.5 requires " +
+                    "the concrete Byte, UInt16, UInt32 or UInt64; an abstract " +
+                    "base does not say how many bits exist.",
+                    new WotLocation(reference: resolvedBase)));
+                return;
+            }
+            if (!definition.TryGetProperty("uav:enumFields", out JsonElement fields) ||
+                fields.ValueKind != JsonValueKind.Array)
+            {
+                return;
+            }
+            foreach (JsonElement field in fields.EnumerateArray())
+            {
+                int bit = GetElementInt32(field, "uav:enumValue") ?? -1;
+                if (bit >= width)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"The OptionSet field " +
+                        $"'{GetElementString(field, "uav:enumName")}' numbers bit " +
+                        $"{bit}, which its {width}-bit base cannot represent.",
+                        new WotLocation(reference: resolvedBase)));
+                }
+            }
+        }
+
+        private static readonly Dictionary<string, int> s_optionSetBaseWidths =
+            new(StringComparer.Ordinal)
+            {
+                ["i=3"] = 8,
+                ["i=5"] = 16,
+                ["i=7"] = 32,
+                ["i=9"] = 64
+            };
 
         private static bool IsUnionStructure(JsonElement definition)
         {
@@ -1062,6 +1221,13 @@ namespace Opc.Ua.Wot
             {
                 writer.WriteBoolean("uav:isAbstract", true);
             }
+            else if (definition is not null && !isEnumeration && !HasEncoding(dataType, nodeSet))
+            {
+                // §6.11.7: a concrete Structure reached only through other
+                // Structures has no encodings. Saying so is the only way the
+                // way back does not generate the three it never had.
+                writer.WriteBoolean("uav:hasDefaultEncoding", false);
+            }
             WriteBaseDataType(writer, dataType, nodeSet);
             WriteDescription(writer, dataType.Description);
 
@@ -1303,6 +1469,7 @@ namespace Opc.Ua.Wot
         /// </remarks>
         private static void SynthesizeInferredDataTypes(
             WotDocument document,
+            Dictionary<string, string> identities,
             UANodeSet nodeSet,
             List<UANode> items,
             List<WotDiagnostic> diagnostics)
@@ -1310,13 +1477,14 @@ namespace Opc.Ua.Wot
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, JsonElement> affordance in document.Properties)
             {
-                InferDataType(document, affordance.Value, nodeSet, items, seen, diagnostics);
+                InferDataType(document, affordance.Value, identities, nodeSet, items, seen, diagnostics);
             }
         }
 
         private static void InferDataType(
             WotDocument document,
             JsonElement schema,
+            Dictionary<string, string> identities,
             UANodeSet nodeSet,
             List<UANode> items,
             HashSet<string> seen,
@@ -1341,7 +1509,7 @@ namespace Opc.Ua.Wot
                 GetElementString(schema, "type"), "object", StringComparison.Ordinal);
             if (!isEnumeration && !isStructure)
             {
-                InferSimpleDataType(document, schema, name, identity, nodeSet, items, diagnostics);
+                InferSimpleDataType(document, schema, name, identity, identities, nodeSet, items, diagnostics);
                 return;
             }
 
@@ -1389,6 +1557,7 @@ namespace Opc.Ua.Wot
             JsonElement schema,
             string name,
             string identity,
+            Dictionary<string, string> identities,
             UANodeSet nodeSet,
             List<UANode> items,
             List<WotDiagnostic> diagnostics)
@@ -1406,7 +1575,7 @@ namespace Opc.Ua.Wot
                 return;
             }
             string? baseType = ResolveDataTypeReference(
-                document, declared, s_noIdentities, nodeSet, diagnostics);
+                document, declared, identities, nodeSet, diagnostics);
             if (baseType is null)
             {
                 return;
@@ -1662,8 +1831,5 @@ namespace Opc.Ua.Wot
                 GetElementString(fieldSchema, "contentEncoding"),
                 GetElementString(fieldSchema, "format"));
         }
-
-        private static readonly Dictionary<string, string> s_noIdentities =
-            new(StringComparer.Ordinal);
     }
 }

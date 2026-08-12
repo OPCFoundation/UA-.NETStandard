@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System.Linq;
+using System.Text.Json;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Export;
@@ -399,6 +400,118 @@ namespace Opc.Ua.Types.Tests.Wot
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
                     .Select(d => d.Message),
                 Is.Empty);
+        }
+
+        // §6.11.5, narrowed by the spec PR: an OptionSet's base shall be the
+        // concrete Byte, UInt16, UInt32 or UInt64, and shall be wide enough for
+        // the highest authored bit. An abstract base says only that some bits
+        // exist, not how many.
+        [TestCase("i=28", 0, "does not say how many bits")]
+        [TestCase("i=27", 0, "does not say how many bits")]
+        [TestCase("i=3", 8, "cannot represent")]
+        [TestCase("i=5", 16, "cannot represent")]
+        [TestCase("i=7", 32, "cannot represent")]
+        public void OptionSetBaseThatCannotCarryItsBitsIsRejected(
+            string baseId,
+            int bit,
+            string expected)
+        {
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(OptionSetThing(baseId, bit))));
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Has.Some.Contains(expected));
+        }
+
+        // The same OptionSet inside its base's width is accepted, so the check
+        // rejects the overflow rather than the OptionSet.
+        [TestCase("i=3", 7)]
+        [TestCase("i=5", 15)]
+        [TestCase("i=7", 31)]
+        [TestCase("i=9", 63)]
+        public void OptionSetWithinItsBaseWidthIsAccepted(string baseId, int bit)
+        {
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(OptionSetThing(baseId, bit))));
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Is.Empty);
+        }
+
+        // A NodeSet may write the encoding link from either end, and real
+        // companion models write it from the Object: the DI NodeSet carries no
+        // forward Reference on the DataType at all. Looking only one way marks
+        // an ordinary Structure as having no encodings, which the way back then
+        // believes.
+        [Test]
+        public void EncodingDeclaredByTheObjectIsStillFound()
+        {
+            var nodeSet = new UANodeSet
+            {
+                NamespaceUris = ["http://example.com/demo/pump"],
+                Items =
+                [
+                    new UADataType
+                    {
+                        NodeId = "ns=1;i=100",
+                        BrowseName = "1:PayloadDataType",
+                        Definition = new Opc.Ua.Export.DataTypeDefinition
+                        {
+                            Name = "1:PayloadDataType",
+                            Field =
+                            [
+                                new Opc.Ua.Export.DataTypeField
+                                {
+                                    Name = "Code",
+                                    DataType = "i=6"
+                                }
+                            ]
+                        }
+                    },
+                    new UAObject
+                    {
+                        NodeId = "ns=1;i=101",
+                        BrowseName = "Default Binary",
+                        References =
+                        [
+                            new Reference
+                            {
+                                ReferenceType = "HasEncoding",
+                                IsForward = false,
+                                Value = "ns=1;i=100"
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(nodeSet);
+
+            JsonElement definition = document.RootElement
+                .GetProperty("uav:dataTypeDefinitions")[0];
+            Assert.That(
+                definition.TryGetProperty("uav:hasDefaultEncoding", out _),
+                Is.False,
+                "A type whose encoding is declared by the Object still has one.");
+        }
+
+        private static string OptionSetThing(string baseId, int bit)
+        {
+            return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"demo\":\"http://example.com/demo/pump\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Thing\"," +
+                "\"uav:dataTypeDefinitions\":[{" +
+                "\"@id\":\"urn:t#O\",\"@type\":\"uav:EnumDefinition\"," +
+                "\"uav:dataTypeName\":\"demo:Flags\",\"uav:isOptionSet\":true," +
+                "\"uav:dataTypeSubtypeOf\":{\"uav:dataTypeId\":\"" + baseId + "\"}," +
+                "\"uav:enumFields\":[{\"uav:enumName\":\"Bit\",\"uav:enumValue\":" +
+                bit.ToString(System.Globalization.CultureInfo.InvariantCulture) + "}]}]}";
         }
 
         private static string InheritanceThing(string subtypeFields)

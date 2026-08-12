@@ -212,7 +212,26 @@
         "uav:dataTypeId": "i=9"
       },
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "multipleOf": 1
+    },
+    {
+      "@id": "urn:example:dtd#NestedPayloadDataType",
+      "@type": "uav:StructureDefinition",
+      "uav:dataTypeName": "demo:NestedPayloadDataType",
+      "uav:structureType": "Structure",
+      "uav:hasDefaultEncoding": false,
+      "uav:fields": [
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Code",
+          "uav:fieldDataTypeName": "ua:Int32",
+          "uav:fieldDataTypeId": "i=6",
+          "uav:valueRank": -1,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        }
+      ]
     },
     {
       "@id": "urn:example:dtd#LinkedNodeDataType",
@@ -235,6 +254,16 @@
           "uav:fieldName": "Next",
           "uav:fieldDataTypeDefinition": {
             "@id": "urn:example:dtd#LinkedNodeDataType"
+          },
+          "uav:valueRank": -1,
+          "uav:isOptional": true,
+          "uav:allowSubtypes": false
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Payload",
+          "uav:fieldDataTypeDefinition": {
+            "@id": "urn:example:dtd#NestedPayloadDataType"
           },
           "uav:valueRank": -1,
           "uav:isOptional": true,
@@ -406,8 +435,7 @@
       "uav:browseName": "demo:InferredPositive",
       "uav:dataTypeName": "demo:InferredPositiveType",
       "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeName": "ua:UInt64",
-        "uav:dataTypeId": "i=9"
+        "@id": "urn:example:dtd#PositiveCounterType"
       },
       "type": "integer",
       "minimum": 0
@@ -417,6 +445,7 @@
       "uav:browseName": "demo:Counter",
       "type": "integer",
       "minimum": 0,
+      "multipleOf": 1,
       "uav:dataTypeDefinition": { "@id": "urn:example:dtd#PositiveCounterType" }
     },
     "linkedNode": {

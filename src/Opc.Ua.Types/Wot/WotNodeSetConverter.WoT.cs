@@ -900,8 +900,10 @@ namespace Opc.Ua.Wot
 
             rootNode.References = [.. rootReferences];
             items.Insert(0, rootNode);
-            SynthesizeDataTypeDefinitions(document, nodeSet, items, diagnostics);
-            SynthesizeInferredDataTypes(document, nodeSet, items, diagnostics);
+            Dictionary<string, string> dataTypeIdentities =
+                SynthesizeDataTypeDefinitions(document, nodeSet, items, diagnostics);
+            SynthesizeInferredDataTypes(
+                document, dataTypeIdentities, nodeSet, items, diagnostics);
             nodeSet.Items = [.. items];
             return nodeSet;
         }
