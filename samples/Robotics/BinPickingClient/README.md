@@ -170,16 +170,41 @@ directly. Once the fluent builder registers descendants with the node manager,
 
 ## Viewport mode
 
-On a machine with the optional viewer assembly and native OpenUSD renderer
-payload installed next to the sample output, run:
+The viewer is deliberately optional: `BinPickingClient` does not reference it,
+and loads `Opc.Ua.OpenUsd.Connector.Viewer.dll` by reflection from its own
+output directory. Nothing puts it there for you, so `--view` on a fresh clone
+degrades to headless with a message on stderr. Publish the viewer once and copy
+its output beside the client:
 
 ```powershell
-dotnet run --project samples\Robotics\BinPickingClient\BinPickingClient.csproj --framework net10.0 -- --server opc.tcp://localhost:62855/BinPickingCell --insecure --view
+dotnet publish tools\Opc.Ua.OpenUsd.Connector.Viewer\Opc.Ua.OpenUsd.Connector.Viewer.csproj `
+    -c Release -f net10.0 -r win-x64 --self-contained false -o $env:TEMP\viewer-publish
+
+Copy-Item "$env:TEMP\viewer-publish\*" `
+    samples\Robotics\BinPickingClient\bin\Release\net10.0 `
+    -Recurse -Force -Exclude "*.deps.json","*.runtimeconfig.json"
 ```
+
+Publish rather than copying the viewer's `bin` directory: the viewport pulls in
+the Avalonia UI stack and the per-RID native OpenUSD renderer on top of its own
+assembly, and only a publish resolves that whole closure. Excluding the two JSON
+files matters as well - they describe the viewer as an application, and letting
+them overwrite the client's own leaves the client unable to start.
+
+Then run, from the client's output directory so the native payload resolves:
+
+```powershell
+samples\Robotics\BinPickingClient\bin\Release\net10.0\BinPickingClient.exe `
+    --server opc.tcp://localhost:62855/BinPickingCell --insecure --view
+```
+
+Add `--demo` to run the scripted pick-and-place while the viewport is open,
+which is the quickest way to watch the loop close in 3-D.
 
 Where the viewer assembly or renderer payload is missing, the client says so
 plainly on stderr and continues without opening the viewport. The renderer
-payload supports `win-x64`, `linux-x64` and `osx-arm64`.
+payload supports `win-x64`, `linux-x64` and `osx-arm64`; substitute the matching
+`-r` value above.
 
 ## Agent workflow for vision-guided bin picking
 

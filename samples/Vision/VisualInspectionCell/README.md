@@ -62,6 +62,13 @@ anonymous operator role is mapped for the local sample.
 `--insecure` is a demo convenience. It accepts untrusted certificates and must
 not be used for production systems.
 
+It is also, in practice, required to run the pair on a fresh machine. The flag
+sets `AutoAcceptUntrustedCertificates` on the server, and without it the cell
+rejects the agent's self-signed certificate with `BadCertificateUntrusted` and
+the agent fails with `BadNotConnected` - which reads like a connectivity problem
+rather than a trust one. Start both halves with `--insecure`, or trust the
+agent's certificate in the server's PKI store first.
+
 ## Startup options
 
 | Option | Meaning |
