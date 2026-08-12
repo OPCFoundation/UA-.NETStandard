@@ -28,11 +28,13 @@
  * ======================================================================*/
 using Opc.Ua.Aas.V3;
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Aas.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.Aas.Tests.Registry
 {
@@ -124,6 +126,43 @@ namespace Opc.Ua.Aas.Tests.Registry
                 Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
                 AssertNoTargetMetadata(concealed);
                 AssertNoTargetMetadata(missing);
+            });
+        }
+
+        /// <summary>
+        /// Concealment has to hold in the AddressSpace, not only at the Method.
+        /// The disclosure decision lived entirely inside GetSubmodel, so a
+        /// concealed submodel answered BadNotFound while the projection still
+        /// published its node - and with it the identifier, the semanticId and
+        /// the content digest - to an anonymous Browse. Clause 6.5.7 requires
+        /// a Server that must not reveal the existence of controlled content
+        /// to omit the entry rather than mark it, so the two views have to
+        /// agree.
+        /// </summary>
+        [Test]
+        public async Task AConcealedResourceIsAbsentFromTheProjectionAsWellAsTheMethod()
+        {
+            Mock<IAasRegistryAuthorizationEvaluator> auth = Auth(authorized: false, authenticated: true);
+            var service = new AasRegistryService(authorizationEvaluator: auth.Object);
+            await service.UpsertResourceAsync(ControlledRequest("concealed", conceal: true));
+            await service.UpsertResourceAsync(ControlledRequest("visible", conceal: false));
+
+            AasGetSubmodelResult concealed = await service.GetSubmodelAsync("concealed");
+            var projected = new List<string>();
+            foreach (IXRegistryProjectionGroup group in ((IXRegistryProjectionSnapshot)service.Current).Groups)
+            {
+                foreach (IXRegistryProjectionResource resource in group.Resources)
+                {
+                    projected.Add(resource.ResourceId);
+                }
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(concealed.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
+                Assert.That(projected, Does.Not.Contain("concealed"),
+                    "Browse must not reveal what GetSubmodel refuses to admit exists.");
+                Assert.That(projected, Does.Contain("visible"));
             });
         }
 

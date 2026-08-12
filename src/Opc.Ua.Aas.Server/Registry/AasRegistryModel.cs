@@ -712,8 +712,24 @@ namespace Opc.Ua.Aas.Server.Registry
         public string Description => Group.Description;
         public long Epoch => Group.Epoch;
         public ImmutableSortedDictionary<string, string> Labels => Group.Labels;
+
+        /// <summary>
+        /// Enumerates the resources this group projects into the AddressSpace.
+        /// </summary>
+        /// <remarks>
+        /// A resource that conceals itself from the unauthorized is left out
+        /// entirely. Clause 6.5.7 requires a Server that must not reveal even
+        /// the existence of controlled content to omit those entries rather
+        /// than mark them, and the disclosure decision otherwise lived only
+        /// inside GetSubmodel: the Method answered BadNotFound while an
+        /// anonymous Browse of the registry folder still showed the node, its
+        /// identifier, its semanticId and its content digest, so the
+        /// concealment did not hold end to end.
+        /// </remarks>
         public IEnumerable<IXRegistryProjectionResource> Resources =>
-            Group.Resources.Values.Select(resource => new AasProjectionResourceAdapter(resource));
+            Group.Resources.Values
+                .Where(resource => !resource.ConcealFromUnauthorized)
+                .Select(resource => new AasProjectionResourceAdapter(resource));
     }
     internal sealed class AasProjectionResourceAdapter : IXRegistryProjectionResource
     {
