@@ -187,6 +187,9 @@ builder.Services
     .ConfigureVision((context, ct) =>
     {
         IVisionNodeBuilder nodes = context.Nodes;
+        // Nodes is the fluent address-space builder: everything it creates
+        // becomes real OPC UA nodes under Server/Vision that any client can
+        // browse. The full build context is described further down.
 
         nodes.AddFrame("World", frame => frame
             .WithFrameId("world")
