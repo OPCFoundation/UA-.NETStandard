@@ -630,7 +630,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         [Test]
         public void TheChannelPathUsesARegisteredSymmetricProvider()
         {
-            SecurityPolicyInfo policy = SecurityPolicyRegistry.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
+            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
             var counting = new CountingSymmetricProvider();
 
             byte[] encryptingKey = new byte[policy.SymmetricEncryptionKeyLength];
@@ -681,7 +681,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         [Test]
         public void AProviderAndThePlatformProduceTheSameBytes()
         {
-            SecurityPolicyInfo policy = SecurityPolicyRegistry.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
+            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
 
             byte[] encryptingKey = new byte[policy.SymmetricEncryptionKeyLength];
             byte[] signingKey = new byte[policy.DerivedSignatureKeyLength];
@@ -786,7 +786,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
                 // The algorithm-aware check names what would fall through.
                 ArrayOf<UnservedCryptoOperation> unserved =
                     CryptoCompliance.GetUnservedOperations(
-                        registry, SecurityPolicyRegistry.Default);
+                        registry, SecurityPolicies.Default);
 
                 Assert.That(unserved, Is.Not.Empty);
 
@@ -810,7 +810,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             {
                 Assert.Throws<ArgumentNullException>(
                     () => CryptoCompliance.GetUnservedOperations(
-                        null!, SecurityPolicyRegistry.Default));
+                        null!, SecurityPolicies.Default));
                 Assert.Throws<ArgumentNullException>(
                     () => CryptoCompliance.GetUnservedOperations(registry, null!));
             });

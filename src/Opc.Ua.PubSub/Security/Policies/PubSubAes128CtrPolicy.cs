@@ -48,9 +48,9 @@ namespace Opc.Ua.PubSub.Security.Policies
     public sealed class PubSubAes128CtrPolicy : IPubSubSecurityPolicy
     {
         /// <summary>
-        /// Singleton instance.
+        /// The platform-backed instance the registry publishes.
         /// </summary>
-        public static readonly PubSubAes128CtrPolicy Instance = new();
+        internal static readonly PubSubAes128CtrPolicy Instance = new();
 
         /// <summary>
         /// Initializes a policy that performs its cryptography with the platform.

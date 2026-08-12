@@ -650,7 +650,7 @@ namespace Opc.Ua
                 {
                     if (fields.Length > 1)
                     {
-                        securityPolicyUri = SecurityPolicyRegistry.Default.GetUri(fields[1])!;
+                        securityPolicyUri = SecurityPolicies.Default.GetUri(fields[1])!;
                     }
                     else
                     {
@@ -933,7 +933,7 @@ namespace Opc.Ua
                     "{0} - [{1}:{2}:{3}]",
                     m_description.EndpointUrl!,
                     m_description.SecurityMode,
-                    SecurityPolicyRegistry.Default.GetDisplayName(m_description.SecurityPolicyUri!)!,
+                    SecurityPolicies.Default.GetDisplayName(m_description.SecurityPolicyUri!)!,
                     m_configuration != null && m_configuration.UseBinaryEncoding
                         ? "Binary"
                         : "XML");

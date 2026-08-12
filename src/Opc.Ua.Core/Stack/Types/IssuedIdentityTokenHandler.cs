@@ -75,18 +75,33 @@ namespace Opc.Ua
         /// Create handler
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
-        public IssuedIdentityTokenHandler(IssuedIdentityToken token)
+        /// <param name="token">The token to handle.</param>
+        /// <param name="securityPolicies">
+        /// The policies to resolve the token's security policy URI against, or
+        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
+        /// </param>
+        public IssuedIdentityTokenHandler(
+            IssuedIdentityToken token,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             m_token = token ?? throw new ArgumentNullException(nameof(token));
             IssuedTokenTypeProfileUri = m_token.PolicyId ??= Profiles.JwtUserToken;
+            m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
         }
 
         /// <summary>
         /// Create handler
         /// </summary>
+        /// <param name="issuedTokenTypeProfileUri">The issued token profile.</param>
+        /// <param name="decryptedTokenData">The decrypted token data.</param>
+        /// <param name="securityPolicies">
+        /// The policies to resolve the token's security policy URI against, or
+        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
+        /// </param>
         public IssuedIdentityTokenHandler(
             string issuedTokenTypeProfileUri,
-            ReadOnlySpan<byte> decryptedTokenData)
+            ReadOnlySpan<byte> decryptedTokenData,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             m_token = new IssuedIdentityToken
             {
@@ -94,6 +109,7 @@ namespace Opc.Ua
             };
             m_decryptedTokenData = decryptedTokenData.ToArray();
             IssuedTokenTypeProfileUri = m_token.PolicyId;
+            m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
         }
 
         /// <summary>
@@ -194,7 +210,7 @@ namespace Opc.Ua
             byte[] dataToEncrypt = Utils.Append(m_decryptedTokenData, receiverNonce);
 
             ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityTokenHandler>();
-            EncryptedData encryptedData = SecurityPolicyRegistry.Default.Encrypt(
+            EncryptedData encryptedData = m_securityPolicies.Encrypt(
                 receiverCertificate,
                 securityPolicyUri,
                 dataToEncrypt);
@@ -233,7 +249,7 @@ namespace Opc.Ua
             };
 
             ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityTokenHandler>();
-            byte[]? decryptedTokenData = await SecurityPolicyRegistry.Default
+            byte[]? decryptedTokenData = await m_securityPolicies
                 .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
                 .ConfigureAwait(false);
 
@@ -305,5 +321,6 @@ namespace Opc.Ua
 
         private byte[]? m_decryptedTokenData;
         private readonly IssuedIdentityToken m_token;
+        private readonly ISecurityPolicyRegistry m_securityPolicies;
     }
 }

@@ -184,7 +184,7 @@ Where there is no container — configuration loading, for instance — use
 the fallback, which carries the built-in policies:
 
 ```csharp
-string? uri = SecurityPolicyRegistry.Default.GetUri("Basic256Sha256");
+string? uri = SecurityPolicies.Default.GetUri("Basic256Sha256");
 ```
 
 `Encrypt` and `Decrypt` additionally **lose their `ILogger` argument**. The
@@ -207,7 +207,7 @@ registry without contributing a policy of your own.
 
 The `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` package restores
 the removed members as `[Obsolete]` extension members that forward to
-`SecurityPolicyRegistry.Default`, so a 1.05.378 application compiles with
+`SecurityPolicies.Default`, so a 1.05.378 application compiles with
 a warning rather than an error. The `ILogger` argument on the `Encrypt` and
 `Decrypt` shims is accepted and **ignored**.
 

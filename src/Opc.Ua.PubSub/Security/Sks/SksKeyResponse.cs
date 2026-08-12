@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         private ArrayOf<PubSubSecurityKey> UnpackKeys(DateTimeUtc issuedAt)
         {
             IPubSubSecurityPolicy? policy =
-                PubSubSecurityPolicyRegistry.GetByUri(SecurityPolicyUri);
+                PubSubSecurityPolicyRegistry.Default.GetByUri(SecurityPolicyUri);
             if (policy is null)
             {
                 return [];

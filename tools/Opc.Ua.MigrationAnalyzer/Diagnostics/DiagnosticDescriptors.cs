@@ -200,7 +200,7 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         public static readonly DiagnosticDescriptor UA0024_SecurityPoliciesStaticsMoved = Create(
             DiagnosticIds.UA0024,
             "SecurityPolicies lookup and cryptography moved to ISecurityPolicyRegistry in 2.0",
-            "'SecurityPolicies.{0}' was removed in 2.0 — resolve an 'ISecurityPolicyRegistry' and call '{0}' on it, or use 'SecurityPolicyRegistry.Default' where no container is in scope",
+            "'SecurityPolicies.{0}' was removed in 2.0 — resolve an 'ISecurityPolicyRegistry' and call '{0}' on it, or use 'SecurityPolicies.Default' where no container is in scope",
             DiagnosticSeverity.Warning,
             "These operate on the set of registered security policies rather than on constants, so they are members of the registry that owns that set. The registry also carries its own logger, so the Encrypt/Decrypt logger argument is gone. SecurityPolicies keeps the policy URI constants. See docs/MigrationGuide.md#ua0024.");
     }

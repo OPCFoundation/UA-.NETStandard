@@ -74,7 +74,7 @@ namespace Opc.Ua
             // list here that would silently go stale. Platform support is not
             // consulted: whether a policy is approved is a property of its
             // algorithms, not of whether this platform happens to implement them.
-            SecurityPolicyInfo? info = SecurityPolicyRegistry.Default.GetInfoIgnoringPlatformSupport(
+            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfoIgnoringPlatformSupport(
                 securityPolicyUri ?? string.Empty);
 
             return info != null && info.IsFipsApproved;

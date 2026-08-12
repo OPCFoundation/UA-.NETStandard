@@ -50,7 +50,7 @@ namespace Opc.Ua.Core.Tests.Security
         [Test]
         public void ARegistryStartsWithTheBuiltInPolicies()
         {
-            using var registry = new SecurityPolicyRegistry();
+            using var registry = new SecurityPolicies();
 
             Assert.Multiple(() =>
             {
@@ -71,8 +71,8 @@ namespace Opc.Ua.Core.Tests.Security
         [Test]
         public void RegisteringInOneRegistryDoesNotReachAnother()
         {
-            using var first = new SecurityPolicyRegistry();
-            using var second = new SecurityPolicyRegistry();
+            using var first = new SecurityPolicies();
+            using var second = new SecurityPolicies();
 
             string uri = SecurityPolicies.BaseUri + "IsolatedRegistryPolicy";
             using IDisposable registration = first.Register(
@@ -82,14 +82,14 @@ namespace Opc.Ua.Core.Tests.Security
             {
                 Assert.That(first.Find(uri), Is.Not.Null);
                 Assert.That(second.Find(uri), Is.Null);
-                Assert.That(SecurityPolicyRegistry.Default.Find(uri), Is.Null);
+                Assert.That(SecurityPolicies.Default.Find(uri), Is.Null);
             });
         }
 
         [Test]
         public void DisposingARegistrationRestoresTheSet()
         {
-            using var registry = new SecurityPolicyRegistry();
+            using var registry = new SecurityPolicies();
 
             string uri = SecurityPolicies.BaseUri + "TransientRegistryPolicy";
             int before = registry.Policies.Count;
@@ -115,7 +115,7 @@ namespace Opc.Ua.Core.Tests.Security
         [Test]
         public void DisposingTheRegistryUndoesItsRegistrations()
         {
-            var registry = new SecurityPolicyRegistry();
+            var registry = new SecurityPolicies();
 
             string uri = SecurityPolicies.BaseUri + "OwnedRegistryPolicy";
             registry.Register(new SecurityPolicyInfo(uri, "OwnedRegistryPolicy"));
@@ -129,7 +129,7 @@ namespace Opc.Ua.Core.Tests.Security
         [Test]
         public void FindIgnoresPlatformSupportAndGetInfoDoesNot()
         {
-            using var registry = new SecurityPolicyRegistry();
+            using var registry = new SecurityPolicies();
 
             string uri = SecurityPolicies.BaseUri + "UnsupportedRegistryPolicy";
             using IDisposable registration = registry.Register(
@@ -153,21 +153,21 @@ namespace Opc.Ua.Core.Tests.Security
         [Test]
         public void DefaultCarriesTheSameBuiltInSetAsAFreshRegistry()
         {
-            using var fresh = new SecurityPolicyRegistry();
+            using var fresh = new SecurityPolicies();
 
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    SecurityPolicyRegistry.Default.GetDefaultUris(),
+                    SecurityPolicies.Default.GetDefaultUris(),
                     Is.EqualTo(fresh.GetDefaultUris()));
                 Assert.That(
-                    SecurityPolicyRegistry.Default.GetDefaultEccUris(),
+                    SecurityPolicies.Default.GetDefaultEccUris(),
                     Is.EqualTo(fresh.GetDefaultEccUris()));
                 Assert.That(
-                    SecurityPolicyRegistry.Default.GetDefaultDeprecatedUris(),
+                    SecurityPolicies.Default.GetDefaultDeprecatedUris(),
                     Is.EqualTo(fresh.GetDefaultDeprecatedUris()));
                 Assert.That(
-                    SecurityPolicyRegistry.Default.GetDisplayNames(),
+                    SecurityPolicies.Default.GetDisplayNames(),
                     Is.EqualTo(fresh.GetDisplayNames()));
             });
         }
@@ -176,8 +176,8 @@ namespace Opc.Ua.Core.Tests.Security
         public void DefaultIsTheSameInstanceEveryTime()
         {
             Assert.That(
-                SecurityPolicyRegistry.Default,
-                Is.SameAs(SecurityPolicyRegistry.Default));
+                SecurityPolicies.Default,
+                Is.SameAs(SecurityPolicies.Default));
         }
 
         [Test]
@@ -185,7 +185,7 @@ namespace Opc.Ua.Core.Tests.Security
         {
             // The registry creates its logger from the telemetry it is handed,
             // which is what removed the ILogger argument from the crypto members.
-            using var registry = new SecurityPolicyRegistry(null);
+            using var registry = new SecurityPolicies(null);
 
             Assert.That(registry.GetInfo(SecurityPolicies.Basic256Sha256), Is.Not.Null);
         }

@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
         public void CngCertificateCompletesChannelCrypto(string securityPolicyUri)
         {
-            if (SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri) == null)
+            if (SecurityPolicies.Default.GetInfo(securityPolicyUri) == null)
             {
                 Assert.Ignore($"{securityPolicyUri} is not supported on this platform.");
             }
@@ -129,9 +129,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Is.True);
 
             byte[] secret = [42, 43, 44];
-            EncryptedData encrypted = SecurityPolicyRegistry.Default.Encrypt(
+            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(
                 certificate, securityPolicyUri, secret);
-            byte[] decrypted = SecurityPolicyRegistry.Default.Decrypt(
+            byte[] decrypted = SecurityPolicies.Default.Decrypt(
                 certificate, securityPolicyUri, encrypted);
 
             Assert.That(decrypted, Is.EqualTo(secret));

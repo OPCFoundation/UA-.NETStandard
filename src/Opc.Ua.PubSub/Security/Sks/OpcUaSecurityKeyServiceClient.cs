@@ -442,7 +442,7 @@ namespace Opc.Ua.PubSub.Security.Sks
 
         private static bool IsApprovedSksSecurityPolicy(string securityPolicyUri)
         {
-            return SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri) is not null &&
+            return SecurityPolicies.Default.GetInfo(securityPolicyUri) is not null &&
                 !string.Equals(securityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal) &&
                 !string.Equals(securityPolicyUri, SecurityPolicies.Basic128Rsa15, StringComparison.Ordinal) &&
                 !string.Equals(securityPolicyUri, SecurityPolicies.Basic256, StringComparison.Ordinal);

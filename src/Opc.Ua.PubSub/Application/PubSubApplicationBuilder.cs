@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Application
                 throw new ArgumentNullException(nameof(telemetry));
             }
             m_telemetry = telemetry;
-            foreach (IPubSubSecurityPolicy policy in PubSubSecurityPolicyRegistry.All)
+            foreach (IPubSubSecurityPolicy policy in PubSubSecurityPolicyRegistry.Default.Policies)
             {
                 m_policies.Add(policy);
             }

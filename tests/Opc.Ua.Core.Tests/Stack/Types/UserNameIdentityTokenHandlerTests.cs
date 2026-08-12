@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
-            SecurityPolicyInfo securityPolicy = SecurityPolicyRegistry.Default.GetInfo(kSecurityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] expectedPassword = Nonce.CreateNonce(96).Data;
 
@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
-            SecurityPolicyInfo securityPolicy = SecurityPolicyRegistry.Default.GetInfo(kSecurityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] expectedPassword = GetRandomBytes(TestLegacyPasswordLength);
 
@@ -103,7 +103,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 .CreateForRSA();
 
             byte[] dataToEncrypt = Utils.Append(expectedPassword, receiverNonce);
-            EncryptedData encryptedData = SecurityPolicyRegistry.Default.Encrypt(
+            EncryptedData encryptedData = SecurityPolicies.Default.Encrypt(
                 certificate,
                 kSecurityPolicyUri,
                 dataToEncrypt);
@@ -158,7 +158,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
-            SecurityPolicyInfo securityPolicy = SecurityPolicyRegistry.Default.GetInfo(kSecurityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold - 1);
 
@@ -189,7 +189,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
-            SecurityPolicyInfo securityPolicy = SecurityPolicyRegistry.Default.GetInfo(kSecurityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold);
 
@@ -220,7 +220,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
-            SecurityPolicyInfo securityPolicy = SecurityPolicyRegistry.Default.GetInfo(kSecurityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold + 1);
 
@@ -253,7 +253,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] secret,
             byte[] nonce)
         {
-            SecurityPolicyInfo securityPolicy = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri);
             if (securityPolicy.SymmetricEncryptionAlgorithm is not
                 (SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc))
             {
@@ -265,7 +265,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] iv = GetRandomBytes(securityPolicy.InitializationVectorLength);
             byte[] keyData = Utils.Append(signingKey, encryptingKey, iv);
 
-            byte[] encryptedKeyData = SecurityPolicyRegistry.Default.Encrypt(
+            byte[] encryptedKeyData = SecurityPolicies.Default.Encrypt(
                 receiverCertificate,
                 securityPolicyUri,
                 keyData).Data;

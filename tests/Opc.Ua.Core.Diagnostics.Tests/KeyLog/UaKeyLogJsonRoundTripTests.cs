@@ -51,7 +51,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
                 PcapTestHelpers.CreateMaterial(SecurityPolicies.Aes128_Sha256_RsaOaep, MessageSecurityMode.SignAndEncrypt)
             };
 
-            if (SecurityPolicyRegistry.Default.GetInfo(SecurityPolicies.ECC_nistP256_AesGcm) is not null)
+            if (SecurityPolicies.Default.GetInfo(SecurityPolicies.ECC_nistP256_AesGcm) is not null)
             {
                 records.Add(PcapTestHelpers.CreateMaterial(
                     SecurityPolicies.ECC_nistP256_AesGcm,

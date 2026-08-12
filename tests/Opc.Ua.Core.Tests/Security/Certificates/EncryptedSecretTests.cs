@@ -854,7 +854,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         private static void RequireEccPolicy(string policyUri)
         {
-            if (SecurityPolicyRegistry.Default.GetInfo(policyUri) == null)
+            if (SecurityPolicies.Default.GetInfo(policyUri) == null)
             {
                 Assert.Ignore($"Security policy '{policyUri}' is not supported on this platform.");
             }
@@ -877,7 +877,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         private static Nonce CreateEphemeralKey(string policyUri)
         {
-            return Nonce.CreateNonce(SecurityPolicyRegistry.Default.GetInfo(policyUri)!);
+            return Nonce.CreateNonce(SecurityPolicies.Default.GetInfo(policyUri)!);
         }
 
         private static DateTime EarliestValidSigningTime()

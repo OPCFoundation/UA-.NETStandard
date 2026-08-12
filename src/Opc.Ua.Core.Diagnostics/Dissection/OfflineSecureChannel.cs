@@ -327,7 +327,7 @@ namespace Opc.Ua.Pcap.Dissection
                     TokenId = material.TokenId,
                     CreatedAt = material.CreatedAt,
                     Lifetime = int.MaxValue,
-                    SecurityPolicy = SecurityPolicyRegistry.Default.GetInfo(material.SecurityPolicyUri),
+                    SecurityPolicy = SecurityPolicies.Default.GetInfo(material.SecurityPolicyUri),
                     ClientNonce = material.ClientNonce,
                     ServerNonce = material.ServerNonce,
                     ClientSigningKey = material.ClientSigningKey,

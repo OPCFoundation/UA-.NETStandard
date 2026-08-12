@@ -68,7 +68,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEccPolicy(string securityPolicyUri)
         {
-            SecurityPolicyInfo? info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfo(securityPolicyUri);
 
             if (info != null)
             {
@@ -181,7 +181,7 @@ namespace Opc.Ua
         /// <returns>the ECCCurve, null if certificatate type id has no matching supported ECC curve</returns>
         public static ECCurve? GetCurveFromCertificateTypeId(NodeId certificateType)
         {
-            return SecurityPolicyRegistry.Default.GetCurveFromCertificateTypeId(certificateType);
+            return SecurityPolicies.Default.GetCurveFromCertificateTypeId(certificateType);
         }
 
         /// <summary>
@@ -366,7 +366,7 @@ namespace Opc.Ua
             Certificate signingCertificate,
             string securityPolicyUri)
         {
-            SecurityPolicyInfo info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri)
+            SecurityPolicyInfo info = SecurityPolicies.Default.GetInfo(securityPolicyUri)
                 ?? throw new ArgumentException(
                     $"Cannot resolve SecurityPolicy '{securityPolicyUri}'.",
                     nameof(securityPolicyUri));
@@ -640,7 +640,7 @@ namespace Opc.Ua
             Certificate signingCertificate,
             string securityPolicyUri)
         {
-            SecurityPolicyInfo info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri)
+            SecurityPolicyInfo info = SecurityPolicies.Default.GetInfo(securityPolicyUri)
                 ?? throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,
                     $"Unknown security policy: {securityPolicyUri}");

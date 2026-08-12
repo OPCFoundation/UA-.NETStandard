@@ -61,9 +61,17 @@ namespace Opc.Ua
         /// key carried in <see cref="X509IdentityToken.CertificateData"/>
         /// but cannot sign (no private key available).
         /// </summary>
-        public X509IdentityTokenHandler(X509IdentityToken token)
+        /// <param name="token">The token to handle.</param>
+        /// <param name="securityPolicies">
+        /// The policies to resolve the token's security policy URI against, or
+        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
+        /// </param>
+        public X509IdentityTokenHandler(
+            X509IdentityToken token,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             m_token = token ?? throw new ArgumentNullException(nameof(token));
+            m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
         }
 
         /// <summary>
@@ -80,16 +88,25 @@ namespace Opc.Ua
         /// construction so it is ready for the
         /// <c>ActivateSession</c> request without a registry round-trip.
         /// </remarks>
+        /// <param name="identifier">The certificate identifier.</param>
+        /// <param name="passwordProvider">The certificate password provider.</param>
+        /// <param name="certificateProvider">The certificate provider.</param>
+        /// <param name="securityPolicies">
+        /// The policies to resolve the token's security policy URI against, or
+        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
+        /// </param>
         /// <exception cref="ArgumentNullException"/>
         /// <exception cref="ServiceResultException"/>
         public X509IdentityTokenHandler(
             CertificateIdentifier identifier,
             ICertificatePasswordProvider passwordProvider,
-            ICertificateProvider certificateProvider)
+            ICertificateProvider certificateProvider,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             m_identifier = identifier ?? throw new ArgumentNullException(nameof(identifier));
             m_passwordProvider = passwordProvider ?? throw new ArgumentNullException(nameof(passwordProvider));
             m_provider = certificateProvider ?? throw new ArgumentNullException(nameof(certificateProvider));
+            m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
 
             // Pre-load the public-key bytes for the wire payload. The
             // resolved Certificate is disposed immediately; the handler
@@ -123,12 +140,14 @@ namespace Opc.Ua
             X509IdentityToken token,
             CertificateIdentifier? identifier,
             ICertificatePasswordProvider? passwordProvider,
-            ICertificateProvider? provider)
+            ICertificateProvider? provider,
+            ISecurityPolicyRegistry securityPolicies)
         {
             m_token = token;
             m_identifier = identifier;
             m_passwordProvider = passwordProvider;
             m_provider = provider;
+            m_securityPolicies = securityPolicies;
         }
 
         /// <inheritdoc/>
@@ -189,7 +208,7 @@ namespace Opc.Ua
             string securityPolicyUri,
             CancellationToken ct = default)
         {
-            SecurityPolicyInfo info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri) ??
+            SecurityPolicyInfo info = m_securityPolicies.GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
@@ -209,7 +228,7 @@ namespace Opc.Ua
             {
                 using (cached)
                 {
-                    return await SecurityPolicyRegistry.Default
+                    return await m_securityPolicies
                         .CreateSignatureDataAsync(info, cached, dataToSign, ct)
                         .ConfigureAwait(false);
                 }
@@ -223,7 +242,7 @@ namespace Opc.Ua
                     StatusCodes.BadIdentityTokenInvalid,
                     "Cannot resolve private-key certificate for X509 identity token.");
 
-            return await SecurityPolicyRegistry.Default
+            return await m_securityPolicies
                 .CreateSignatureDataAsync(info, loaded, dataToSign, ct)
                 .ConfigureAwait(false);
         }
@@ -239,7 +258,7 @@ namespace Opc.Ua
 
             try
             {
-                SecurityPolicyInfo info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri) ??
+                SecurityPolicyInfo info = m_securityPolicies.GetInfo(securityPolicyUri) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
                         "Unsupported security policy: {0}",
@@ -248,7 +267,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(
                         StatusCodes.BadIdentityTokenInvalid,
                         "X509IdentityToken has no certificate data to verify against.");
-                return SecurityPolicyRegistry.Default.VerifySignatureData(
+                return m_securityPolicies.VerifySignatureData(
                     signatureData,
                     info,
                     cert,
@@ -286,7 +305,8 @@ namespace Opc.Ua
                 CoreUtils.Clone(m_token)!,
                 m_identifier,
                 m_passwordProvider,
-                m_provider);
+                m_provider,
+                m_securityPolicies);
         }
 
         /// <inheritdoc/>
@@ -314,6 +334,7 @@ namespace Opc.Ua
         }
 
         private readonly X509IdentityToken m_token;
+        private readonly ISecurityPolicyRegistry m_securityPolicies;
         private readonly CertificateIdentifier? m_identifier;
         private readonly ICertificatePasswordProvider? m_passwordProvider;
         private readonly ICertificateProvider? m_provider;

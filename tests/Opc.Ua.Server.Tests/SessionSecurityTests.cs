@@ -1181,7 +1181,7 @@ namespace Opc.Ua.Server.Tests
             ByteString serverNonce,
             Certificate signingCertificate)
         {
-            SecurityPolicyInfo securityPolicy = SecurityPolicyRegistry.Default.GetInfo(
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(
                 context.ChannelContext!.EndpointDescription!.SecurityPolicyUri!)!;
             byte[] dataToSign = securityPolicy.GetClientSignatureData(
                 context.ChannelContext.ChannelThumbprint,
@@ -1190,7 +1190,7 @@ namespace Opc.Ua.Server.Tests
                 context.ChannelContext.ServerChannelCertificate,
                 context.ChannelContext.ClientChannelCertificate,
                 clientNonce.ToArray());
-            return SecurityPolicyRegistry.Default.CreateSignatureData(
+            return SecurityPolicies.Default.CreateSignatureData(
                 securityPolicy,
                 signingCertificate,
                 dataToSign);

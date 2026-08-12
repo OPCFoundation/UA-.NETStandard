@@ -162,7 +162,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// The registry carries the built-in policies, and any policy registered
         /// through <see cref="AddSecurityPolicy"/> is applied to it. It is a
         /// registry of its own rather than
-        /// <see cref="SecurityPolicyRegistry.Default"/>, so what one application
+        /// <see cref="SecurityPolicies.Default"/>, so what one application
         /// registers does not reach another in the same process.
         /// </remarks>
         public static IOpcUaBuilder AddSecurityPolicyRegistry(this IOpcUaBuilder builder)
@@ -174,7 +174,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.TryAddSingleton<ISecurityPolicyRegistry>(sp =>
             {
-                var registry = new SecurityPolicyRegistry(
+                var registry = new SecurityPolicies(
                     sp.GetService<ITelemetryContext>());
 
                 foreach (SecurityPolicyConfiguration configuration in

@@ -45,7 +45,7 @@ namespace Opc.Ua.Pcap.Tests.Dissection
         [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
         public void ReadChunkDecryptsStackEncryptedSymmetricChunk(string securityPolicyUri)
         {
-            SecurityPolicyInfo? info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfo(securityPolicyUri);
             if (info is null)
             {
                 Assert.Ignore($"Security policy is not supported on this platform: {securityPolicyUri}");

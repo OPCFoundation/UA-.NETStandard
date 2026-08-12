@@ -100,7 +100,7 @@ namespace Opc.Ua.Sessions.Tests
             .. SupportedEccPolicies.Where(policyUri =>
             {
                 CertificateKeyAlgorithm certificateKeyAlgorithm =
-                    SecurityPolicyRegistry.Default.GetInfo(policyUri).CertificateKeyAlgorithm;
+                    SecurityPolicies.Default.GetInfo(policyUri).CertificateKeyAlgorithm;
                 return certificateKeyAlgorithm is not CertificateKeyAlgorithm.Curve25519 and
                     not CertificateKeyAlgorithm.Curve448;
             })

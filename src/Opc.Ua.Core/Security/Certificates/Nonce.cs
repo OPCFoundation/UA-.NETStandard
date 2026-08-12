@@ -207,7 +207,7 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri)
         {
-            SecurityPolicyInfo? info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfo(securityPolicyUri);
             return CreateNonce(info!);
         }
 
@@ -273,7 +273,7 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri, byte[] nonceData)
         {
-            SecurityPolicyInfo? info = SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfo(securityPolicyUri);
             return CreateNonce(info!, nonceData);
         }
 

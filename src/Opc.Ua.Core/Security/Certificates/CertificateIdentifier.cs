@@ -529,7 +529,7 @@ namespace Opc.Ua
                 return [ObjectTypeIds.HttpsCertificateType];
             }
 
-            return [.. SecurityPolicyRegistry.Default.GetCertificateTypes(securityPolicy)];
+            return [.. SecurityPolicies.Default.GetCertificateTypes(securityPolicy)];
         }
 
         /// <summary>

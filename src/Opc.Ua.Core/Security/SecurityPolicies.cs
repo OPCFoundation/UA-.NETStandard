@@ -43,252 +43,6 @@ using System.Collections.ObjectModel;
 
 namespace Opc.Ua
 {
-    /// <summary>
-    /// The set of security policies an application knows about, and the
-    /// operations that read it.
-    /// </summary>
-    /// <remarks>
-    /// Resolve this from the container to work against the policies that
-    /// application registered. Code with no container in scope - configuration
-    /// loading, for instance - uses <see cref="SecurityPolicyRegistry.Default"/>,
-    /// which carries the built-in set.
-    /// </remarks>
-    public interface ISecurityPolicyRegistry
-    {
-        /// <summary>
-        /// The registered policies, as a snapshot that does not change while it
-        /// is being enumerated.
-        /// </summary>
-        ArrayOf<SecurityPolicyInfo> Policies { get; }
-
-        /// <summary>
-        /// Looks up a policy by URI or display name, whether or not the platform
-        /// supports it.
-        /// </summary>
-        /// <param name="policyUriOrName">The policy URI or short name.</param>
-        /// <returns>The policy, or <c>null</c> when no such policy is registered.</returns>
-        SecurityPolicyInfo? Find(string policyUriOrName);
-
-        /// <summary>
-        /// Registers a security policy.
-        /// </summary>
-        /// <param name="securityPolicy">The security policy to register.</param>
-        /// <param name="replaceExisting">Whether to deliberately replace an existing policy with the same name or URI.</param>
-        /// <returns>A registration that restores the previous policy snapshot when disposed.</returns>
-        IDisposable Register(SecurityPolicyInfo securityPolicy, bool replaceExisting = false);
-
-        /// <summary>
-        /// Returns the info object associated with the SecurityPolicyUri.
-        /// Supports both full URI and short name (without SecurityPolicies.BaseUri prefix).
-        /// </summary>
-        /// <param name="securityPolicyUri">The policy uri or short name.</param>
-        SecurityPolicyInfo? GetInfo(string securityPolicyUri);
-
-        /// <summary>
-        /// Returns the info object associated with the SecurityPolicyUri whether
-        /// or not the policy is supported on this platform.
-        /// </summary>
-        /// <param name="securityPolicyUri">The policy uri or short name.</param>
-        SecurityPolicyInfo? GetInfoIgnoringPlatformSupport(string securityPolicyUri);
-
-        /// <summary>
-        /// Returns the uri associated with the display name.
-        /// </summary>
-        /// <param name="displayName">The policy display name.</param>
-        string? GetUri(string displayName);
-
-        /// <summary>
-        /// Returns a display name for a security policy uri.
-        /// </summary>
-        /// <param name="policyUri">The policy uri.</param>
-        string? GetDisplayName(string policyUri);
-
-        /// <summary>
-        /// If a security policy is known and spelled according to the spec.
-        /// </summary>
-        /// <param name="policyUri">The policy uri.</param>
-        bool IsValidSecurityPolicyUri(string policyUri);
-
-        /// <summary>
-        /// Returns the display names for all security policy uris including https.
-        /// </summary>
-        string[] GetDisplayNames();
-
-        /// <summary>
-        /// Returns the deprecated RSA security policy uri.
-        /// </summary>
-        string[] GetDefaultDeprecatedUris();
-
-        /// <summary>
-        /// Returns the default RSA security policy uri.
-        /// </summary>
-        string[] GetDefaultUris();
-
-        /// <summary>
-        /// Returns the default ECC security policy uri.
-        /// </summary>
-        string[] GetDefaultEccUris();
-
-        /// <summary>
-        /// Returns the policy uris that support the certificate type.
-        /// </summary>
-        /// <param name="certificateType">The certificate type.</param>
-        ArrayOf<string> GetSupportedUrisForCertificateType(NodeId certificateType);
-
-        /// <summary>
-        /// Returns the certificate types the security policy supports.
-        /// </summary>
-        /// <param name="securityPolicyUri">The policy uri.</param>
-        ArrayOf<NodeId> GetCertificateTypes(string securityPolicyUri);
-
-        /// <summary>
-        /// Returns the elliptic curve for the certificate type.
-        /// </summary>
-        /// <param name="certificateType">The certificate type.</param>
-        ECCurve? GetCurveFromCertificateTypeId(NodeId certificateType);
-
-        /// <summary>
-        /// Encrypts the text using the SecurityPolicyUri and returns the result.
-        /// </summary>
-        /// <param name="certificate">The certificate to encrypt for.</param>
-        /// <param name="securityPolicyUri">The policy uri.</param>
-        /// <param name="plainText">The text to encrypt.</param>
-        EncryptedData Encrypt(
-            Certificate certificate,
-            string securityPolicyUri,
-            ReadOnlySpan<byte> plainText);
-
-        /// <summary>
-        /// Decrypts the CipherText using the SecurityPolicyUri and returns the PlainText.
-        /// </summary>
-        /// <param name="certificate">The certificate holding the private key.</param>
-        /// <param name="securityPolicyUri">The policy uri.</param>
-        /// <param name="dataToDecrypt">The data to decrypt.</param>
-        byte[]? Decrypt(
-            Certificate certificate,
-            string securityPolicyUri,
-            EncryptedData dataToDecrypt);
-
-        /// <summary>
-        /// Decrypts the CipherText without occupying the calling thread while a
-        /// key served over a network completes.
-        /// </summary>
-        /// <param name="certificate">The certificate holding the private key.</param>
-        /// <param name="securityPolicyUri">The policy uri.</param>
-        /// <param name="dataToDecrypt">The data to decrypt.</param>
-        /// <param name="ct">Cancels the operation.</param>
-        ValueTask<byte[]?> DecryptAsync(
-            Certificate certificate,
-            string securityPolicyUri,
-            EncryptedData dataToDecrypt,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Signs the channel data using the SecurityPolicyUri and returns the signature.
-        /// </summary>
-        /// <param name="securityPolicyUri">The policy uri.</param>
-        /// <param name="signingCertificate">The certificate holding the private key.</param>
-        /// <param name="secureChannelSecret">The secure channel secret, when one applies.</param>
-        /// <param name="remoteCertificate">The peer certificate.</param>
-        /// <param name="remoteChannelCertificate">The peer channel certificate.</param>
-        /// <param name="localChannelCertificate">The local channel certificate.</param>
-        /// <param name="remoteNonce">The peer nonce.</param>
-        /// <param name="localNonce">The local nonce.</param>
-        SignatureData CreateSignatureData(
-            string securityPolicyUri,
-            Certificate signingCertificate,
-            byte[]? secureChannelSecret,
-            byte[]? remoteCertificate,
-            byte[]? remoteChannelCertificate,
-            byte[]? localChannelCertificate,
-            byte[]? remoteNonce,
-            byte[]? localNonce);
-
-        /// <summary>
-        /// Signs the data using the SecurityPolicyUri and returns the signature.
-        /// </summary>
-        /// <param name="securityPolicyUri">The policy uri.</param>
-        /// <param name="localCertificate">The certificate holding the private key.</param>
-        /// <param name="dataToSign">The data to sign.</param>
-        SignatureData CreateSignatureData(
-            string securityPolicyUri,
-            Certificate localCertificate,
-            byte[] dataToSign);
-
-        /// <summary>
-        /// Signs the data using the security policy and returns the signature.
-        /// </summary>
-        /// <param name="securityPolicy">The security policy.</param>
-        /// <param name="localCertificate">The certificate holding the private key.</param>
-        /// <param name="dataToSign">The data to sign.</param>
-        SignatureData CreateSignatureData(
-            SecurityPolicyInfo securityPolicy,
-            Certificate localCertificate,
-            byte[] dataToSign);
-
-        /// <summary>
-        /// Signs the data without occupying the calling thread while a key
-        /// served over a network completes.
-        /// </summary>
-        /// <param name="securityPolicy">The security policy.</param>
-        /// <param name="localCertificate">The certificate holding the private key.</param>
-        /// <param name="dataToSign">The data to sign.</param>
-        /// <param name="ct">Cancels the operation.</param>
-        ValueTask<SignatureData> CreateSignatureDataAsync(
-            SecurityPolicyInfo securityPolicy,
-            Certificate localCertificate,
-            byte[] dataToSign,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Verifies a channel signature using the SecurityPolicyUri.
-        /// </summary>
-        /// <param name="signature">The signature to verify.</param>
-        /// <param name="securityPolicyUri">The policy uri.</param>
-        /// <param name="signingCertificate">The certificate to verify against.</param>
-        /// <param name="secureChannelSecret">The secure channel secret, when one applies.</param>
-        /// <param name="localCertificate">The local certificate.</param>
-        /// <param name="localChannelCertificate">The local channel certificate.</param>
-        /// <param name="remoteChannelCertificate">The peer channel certificate.</param>
-        /// <param name="localNonce">The local nonce.</param>
-        /// <param name="remoteNonce">The peer nonce.</param>
-        bool VerifySignatureData(
-            SignatureData signature,
-            string securityPolicyUri,
-            Certificate signingCertificate,
-            byte[]? secureChannelSecret,
-            byte[]? localCertificate,
-            byte[]? localChannelCertificate,
-            byte[]? remoteChannelCertificate,
-            byte[]? localNonce,
-            byte[]? remoteNonce);
-
-        /// <summary>
-        /// Verifies the signature using the SecurityPolicyUri and returns true if valid.
-        /// </summary>
-        /// <param name="signature">The signature to verify.</param>
-        /// <param name="securityPolicyUri">The policy uri.</param>
-        /// <param name="signingCertificate">The certificate to verify against.</param>
-        /// <param name="dataToVerify">The signed data.</param>
-        bool VerifySignatureData(
-            SignatureData signature,
-            string securityPolicyUri,
-            Certificate signingCertificate,
-            byte[] dataToVerify);
-
-        /// <summary>
-        /// Verifies the signature using the security policy and returns true if valid.
-        /// </summary>
-        /// <param name="signature">The signature to verify.</param>
-        /// <param name="securityPolicy">The security policy.</param>
-        /// <param name="signingCertificate">The certificate to verify against.</param>
-        /// <param name="dataToVerify">The signed data.</param>
-        bool VerifySignatureData(
-            SignatureData signature,
-            SecurityPolicyInfo securityPolicy,
-            Certificate signingCertificate,
-            byte[] dataToVerify);
-    }
 
     /// <summary>
     /// The security policies an application knows about.
@@ -298,7 +52,7 @@ namespace Opc.Ua
     /// affect another. <see cref="Default"/> carries the built-in set and is what
     /// code with no container in scope uses.
     /// </remarks>
-    public sealed class SecurityPolicyRegistry : ISecurityPolicyRegistry, IDisposable
+    public sealed class SecurityPolicies : ISecurityPolicyRegistry, IDisposable
     {
         /// <summary>
         /// Initializes a registry carrying the built-in policies.
@@ -306,9 +60,9 @@ namespace Opc.Ua
         /// <param name="telemetry">
         /// Used to create the logger the security operations report through.
         /// </param>
-        public SecurityPolicyRegistry(ITelemetryContext? telemetry = null)
+        public SecurityPolicies(ITelemetryContext? telemetry = null)
         {
-            m_logger = telemetry.CreateLogger<SecurityPolicyRegistry>();
+            m_logger = telemetry.CreateLogger<SecurityPolicies>();
             m_snapshot = CreateBuiltInSnapshot();
         }
 
@@ -320,7 +74,7 @@ namespace Opc.Ua
         /// exists resolve their policies here. It carries exactly the built-in
         /// set, so behaviour is unchanged when an application registers nothing.
         /// </remarks>
-        public static SecurityPolicyRegistry Default { get; } = new();
+        public static SecurityPolicies Default { get; } = new();
 
         /// <inheritdoc/>
         public ArrayOf<SecurityPolicyInfo> Policies => m_snapshot.Policies;
@@ -1521,7 +1275,7 @@ namespace Opc.Ua
         private sealed class SecurityPolicyRegistration : IDisposable
         {
             public SecurityPolicyRegistration(
-                SecurityPolicyRegistry owner,
+                SecurityPolicies owner,
                 SecurityPolicyInfo policy,
                 SecurityPolicyInfo? previous,
                 int previousIndex)
@@ -1540,7 +1294,7 @@ namespace Opc.Ua
                 }
             }
 
-            private readonly SecurityPolicyRegistry m_owner;
+            private readonly SecurityPolicies m_owner;
             private readonly SecurityPolicyInfo m_policy;
             private readonly SecurityPolicyInfo? m_previous;
             private readonly int m_previousIndex;
@@ -1588,6 +1342,184 @@ namespace Opc.Ua
                     new ReadOnlyDictionary<string, SecurityPolicyInfo>(uriToInfo));
 #endif
             }
+        }
+
+        /// <summary>
+        /// The base URI for all policy URIs.
+        /// </summary>
+        public const string BaseUri = "http://opcfoundation.org/UA/SecurityPolicy#";
+
+        /// <summary>
+        /// The URI for a policy that uses no security.
+        /// </summary>
+        public const string None = BaseUri + "None";
+
+        /// <summary>
+        /// The URI for the Basic128Rsa15 security policy.
+        /// </summary>
+        public const string Basic128Rsa15 = BaseUri + "Basic128Rsa15";
+
+        /// <summary>
+        /// The URI for the Basic256 security policy.
+        /// </summary>
+        public const string Basic256 = BaseUri + "Basic256";
+
+        /// <summary>
+        /// The URI for the Aes128_Sha256_RsaOaep security policy.
+        /// </summary>
+        public const string Aes128_Sha256_RsaOaep = BaseUri + "Aes128_Sha256_RsaOaep";
+
+        /// <summary>
+        /// The URI for the Basic256Sha256 security policy.
+        /// </summary>
+        public const string Basic256Sha256 = BaseUri + "Basic256Sha256";
+
+        /// <summary>
+        /// The URI for the Aes256_Sha256_RsaPss security policy.
+        /// </summary>
+        public const string Aes256_Sha256_RsaPss = BaseUri + "Aes256_Sha256_RsaPss";
+
+        /// <summary>
+        /// The URI for the RSA_DH_AES_GCM security policy.
+        /// </summary>
+        public const string RSA_DH_AesGcm = BaseUri + "RSA_DH_AesGcm";
+
+        /// <summary>
+        /// The URI for the RSA_DH_ChaChaPoly security policy.
+        /// </summary>
+        public const string RSA_DH_ChaChaPoly = BaseUri + "RSA_DH_ChaChaPoly";
+
+        /// <summary>
+        /// The URI for the ECC_nistP256 security policy.
+        /// </summary>
+        public const string ECC_nistP256 = BaseUri + "ECC_nistP256";
+
+        /// <summary>
+        /// The URI for the ECC_nistP256 security policy with AES-GCM.
+        /// </summary>
+        public const string ECC_nistP256_AesGcm = ECC_nistP256 + "_AesGcm";
+
+        /// <summary>
+        /// The URI for the ECC_nistP256 security policy with ChaCha20Poly1305.
+        /// </summary>
+        public const string ECC_nistP256_ChaChaPoly = ECC_nistP256 + "_ChaChaPoly";
+
+        /// <summary>
+        /// The URI for the ECC_nistP384 security policy.
+        /// </summary>
+        public const string ECC_nistP384 = BaseUri + "ECC_nistP384";
+
+        /// <summary>
+        /// The URI for the ECC_nistP384 security policy with AES-GCM.
+        /// </summary>
+        public const string ECC_nistP384_AesGcm = ECC_nistP384 + "_AesGcm";
+
+        /// <summary>
+        /// The URI for the ECC_nistP384 security policy with ChaCha20Poly1305.
+        /// </summary>
+        public const string ECC_nistP384_ChaChaPoly = ECC_nistP384 + "_ChaChaPoly";
+
+        /// <summary>
+        /// The URI for the ECC_brainpoolP256r1 security policy.
+        /// </summary>
+        public const string ECC_brainpoolP256r1 = BaseUri + "ECC_brainpoolP256r1";
+
+        /// <summary>
+        /// The URI for the ECC_brainpoolP256r1 security policy with AES-GCM.
+        /// </summary>
+        public const string ECC_brainpoolP256r1_AesGcm = ECC_brainpoolP256r1 + "_AesGcm";
+
+        /// <summary>
+        /// The URI for the ECC_brainpoolP256r1 security policy with ChaCha20Poly1305.
+        /// </summary>
+        public const string ECC_brainpoolP256r1_ChaChaPoly = ECC_brainpoolP256r1 + "_ChaChaPoly";
+
+        /// <summary>
+        /// The URI for the ECC_brainpoolP384r1 security policy.
+        /// </summary>
+        public const string ECC_brainpoolP384r1 = BaseUri + "ECC_brainpoolP384r1";
+
+        /// <summary>
+        /// The URI for the ECC_brainpoolP384r1 security policy with AES-GCM.
+        /// </summary>
+        public const string ECC_brainpoolP384r1_AesGcm = ECC_brainpoolP384r1 + "_AesGcm";
+
+        /// <summary>
+        /// The URI for the ECC_brainpoolP384r1 security policy with ChaCha20Poly1305.
+        /// </summary>
+        public const string ECC_brainpoolP384r1_ChaChaPoly = ECC_brainpoolP384r1 + "_ChaChaPoly";
+
+        /// <summary>
+        /// The URI for the ECC_curve25519 security policy.brainpoolP384r1_AesGcm
+        /// </summary>
+        public const string ECC_curve25519 = BaseUri + "ECC_curve25519";
+
+        /// <summary>
+        /// The URI for the ECC_curve25519 security policy with AES-GCM.
+        /// </summary>
+        public const string ECC_curve25519_AesGcm = ECC_curve25519 + "_AesGcm";
+
+        /// <summary>
+        /// The URI for the ECC_curve25519 security policy with ChaCha20Poly1305.
+        /// </summary>
+        public const string ECC_curve25519_ChaChaPoly = ECC_curve25519 + "_ChaChaPoly";
+
+        /// <summary>
+        /// The URI for the ECC_curve448 deprecated security policy.
+        /// </summary>
+        public const string ECC_curve448 = BaseUri + "ECC_curve448";
+
+        /// <summary>
+        /// The URI for the ECC_curve448 security policy with AES-GCM.
+        /// </summary>
+        public const string ECC_curve448_AesGcm = ECC_curve448 + "_AesGcm";
+
+        /// <summary>
+        /// The URI for the ECC_curve448 security policy with ChaCha20Poly1305.
+        /// </summary>
+        public const string ECC_curve448_ChaChaPoly = ECC_curve448 + "_ChaChaPoly";
+
+        /// <summary>
+        /// The URI for the Https security policy.
+        /// </summary>
+        public const string Https = BaseUri + "Https";
+
+        internal static bool SupportsAesGcmPolicy()
+        {
+#if NET8_0_OR_GREATER
+            return AesGcm.IsSupported;
+#else
+            return false;
+#endif
+        }
+
+        internal static bool SupportsChaCha20Poly1305Policy()
+        {
+#if NET8_0_OR_GREATER
+            return ChaCha20Poly1305.IsSupported;
+#else
+            return false;
+#endif
+        }
+
+        internal static bool SupportsCertificateType(NodeId certificateType)
+        {
+            return Utils.IsSupportedCertificateType(certificateType);
+        }
+
+        internal static bool UnsupportedPolicy()
+        {
+            return false;
+        }
+
+        internal static string GetNameFromUri(string uri)
+        {
+            if (uri.StartsWith(BaseUri, StringComparison.Ordinal))
+            {
+                return uri[BaseUri.Length..];
+            }
+
+            return uri;
         }
     }
 }

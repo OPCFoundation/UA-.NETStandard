@@ -509,20 +509,29 @@ public sealed class MyEndpointPicker(ISecurityPolicyRegistry policies)
 `AddSecurityPolicy` registers the registry for you; call `AddSecurityPolicyRegistry()` when you want to
 resolve one without contributing a policy of your own.
 
+The identity token handlers take one too, so a token's security policy URI resolves against the policies
+that application offers rather than the process-wide fallback:
+
+```csharp
+var handler = new UserNameIdentityTokenHandler(username, password, policies);
+```
+
+Passing nothing keeps the previous behaviour and uses `SecurityPolicies.Default`.
+
 The registry a container builds is **its own**. A policy registered by one application is not visible to
-another hosted in the same process, and it is not visible to `SecurityPolicyRegistry.Default`. That
+another hosted in the same process, and it is not visible to `SecurityPolicies.Default`. That
 fallback carries exactly the built-in set and is what the paths that run before any container exists —
 configuration loading, most obviously — resolve their policies through:
 
 ```csharp
-string? uri = SecurityPolicyRegistry.Default.GetUri("Basic256Sha256");
+string? uri = SecurityPolicies.Default.GetUri("Basic256Sha256");
 ```
 
 Construct a registry directly when you want an isolated set, which is also what makes the policy set
 testable without touching process-wide state:
 
 ```csharp
-using var policies = new SecurityPolicyRegistry(telemetry);
+using var policies = new SecurityPolicies(telemetry);
 using IDisposable registration = policies.Register(customPolicy);
 ```
 

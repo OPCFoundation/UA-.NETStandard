@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
     public class OpcUaSecurityKeyServiceClientTests
     {
         private static IPubSubSecurityPolicy Policy =>
-            PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
+            PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
 
         private static (Mock<ISession> session, CallMethodRequest? captured) BuildSessionMock(
             CallResponse response)

@@ -855,14 +855,14 @@ namespace Opc.Ua
         /// </summary>
         internal void ValidateSecurityPolicies()
         {
-            string[] supportedPolicies = Ua.SecurityPolicyRegistry.Default.GetDisplayNames();
+            string[] supportedPolicies = Ua.SecurityPolicies.Default.GetDisplayNames();
             var newPolicies = new List<ServerSecurityPolicy>();
             foreach (ServerSecurityPolicy securityPolicy in m_securityPolicies)
             {
                 if (string.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
                 {
                     // add wild card policies
-                    foreach (string policyUri in Ua.SecurityPolicyRegistry.Default.GetDefaultUris())
+                    foreach (string policyUri in Ua.SecurityPolicies.Default.GetDefaultUris())
                     {
                         var newPolicy = new ServerSecurityPolicy
                         {

@@ -139,7 +139,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
         public async Task TokenCertificateCompletesChannelCryptoAsync(string securityPolicyUri)
         {
-            if (SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri) == null)
+            if (SecurityPolicies.Default.GetInfo(securityPolicyUri) == null)
             {
                 Assert.Ignore($"{securityPolicyUri} is not supported on this platform.");
             }
@@ -169,9 +169,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Is.True);
 
             byte[] secret = [10, 20, 30, 40];
-            EncryptedData encrypted = SecurityPolicyRegistry.Default.Encrypt(
+            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(
                 certificate, securityPolicyUri, secret);
-            byte[] decrypted = SecurityPolicyRegistry.Default.Decrypt(
+            byte[] decrypted = SecurityPolicies.Default.Decrypt(
                 certificate, securityPolicyUri, encrypted);
 
             Assert.That(decrypted, Is.EqualTo(secret), "The token must be able to unwrap the peer secret.");
@@ -180,7 +180,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task EccTokenCertificateCompletesChannelCryptoAsync()
         {
-            if (SecurityPolicyRegistry.Default.GetInfo(SecurityPolicies.ECC_nistP256) == null)
+            if (SecurityPolicies.Default.GetInfo(SecurityPolicies.ECC_nistP256) == null)
             {
                 Assert.Ignore("ECC_nistP256 is not supported on this platform.");
             }

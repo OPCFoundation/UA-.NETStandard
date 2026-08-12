@@ -92,10 +92,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using Certificate certificate = CreateDetachedRsaCertificate(out NonExportableRsa hardwareKey);
 
             byte[] secret = [1, 2, 3, 4, 5, 6, 7, 8];
-            EncryptedData encrypted = SecurityPolicyRegistry.Default.Encrypt(
+            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(
                 certificate, securityPolicyUri, secret);
 
-            byte[] decrypted = SecurityPolicyRegistry.Default.Decrypt(
+            byte[] decrypted = SecurityPolicies.Default.Decrypt(
                 certificate, securityPolicyUri, encrypted);
 
             Assert.That(decrypted, Is.EqualTo(secret));
@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [TestCase(SecurityPolicies.ECC_nistP384)]
         public void EccChannelSignatureWorksWithNonExportableKey(string securityPolicyUri)
         {
-            if (SecurityPolicyRegistry.Default.GetInfo(securityPolicyUri) == null)
+            if (SecurityPolicies.Default.GetInfo(securityPolicyUri) == null)
             {
                 Assert.Ignore($"{securityPolicyUri} is not supported on this platform.");
             }
