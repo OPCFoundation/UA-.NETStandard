@@ -347,17 +347,8 @@ namespace Pumps
             string primPath = PumpPrimPathFor(pump);
             var twin = new PumpTwin(primPath, pumpNumber);
 
-            OpenUsdRepresentationState rep = SystemContext
-                .CreateInstanceOfOpenUsdRepresentationType(
-                    pump, new QualifiedName("OpenUsdRepresentation", ns));
-            // The instance factory leaves ReferenceTypeId = Null. The representation is
-            // an AddIn, so it is mounted with HasAddIn (a subtype of HasComponent).
-            rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
-            pump.AddChild(rep);
-            rep.NodeId = SystemContext.NodeIdFactory.New(SystemContext, rep);
-
-            rep.CreateOrReplaceStage(SystemContext, null!).Value = m_plantStage.NodeId;
-            rep.CreateOrReplacePrimPath(SystemContext, null!).Value = primPath;
+            OpenUsdRepresentationState rep = SystemContext.CreateRepresentation(
+                pump, m_plantStage.NodeId, primPath, ns);
             twin.Representation = rep;
             twin.Pump = pump;
 

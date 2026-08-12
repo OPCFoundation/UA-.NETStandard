@@ -184,17 +184,8 @@ namespace Robotics
         private OpenUsdRepresentationState AttachRepresentation(
             NodeState owner, string primPath, ushort ns)
         {
-            OpenUsdRepresentationState rep = SystemContext
-                .CreateInstanceOfOpenUsdRepresentationType(
-                    owner, new QualifiedName("OpenUsdRepresentation", ns));
-            // The instance factory leaves ReferenceTypeId = Null. The representation is
-            // an AddIn, so it is mounted with HasAddIn (a subtype of HasComponent).
-            rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
-            owner.AddChild(rep);
-            rep.NodeId = SystemContext.NodeIdFactory.New(SystemContext, rep);
-            rep.CreateOrReplaceStage(SystemContext, null!).Value = m_cellStage!.NodeId;
-            rep.CreateOrReplacePrimPath(SystemContext, null!).Value = primPath;
-            AssignInstanceSubtree(rep, owner);
+            OpenUsdRepresentationState rep = SystemContext.CreateRepresentation(
+                owner, m_cellStage!.NodeId, primPath, ns);
             return rep;
         }
 

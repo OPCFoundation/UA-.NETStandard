@@ -220,14 +220,17 @@ namespace Robotics.IntentEnabledRobot
 
         private OpenUsdRepresentationState AttachRepresentation(NodeState owner, string primPath, ushort ns)
         {
-            OpenUsdRepresentationState rep = SystemContext.CreateInstanceOfOpenUsdRepresentationType(
-                owner, new QualifiedName("OpenUsdRepresentation", ns));
-            rep.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            owner.AddChild(rep);
-            AssignInstanceSubtree(rep, owner);
-            rep.CreateOrReplaceStage(SystemContext, null!).Value = m_cellStage!.NodeId;
-            rep.CreateOrReplacePrimPath(SystemContext, null!).Value = primPath;
-            return rep;
+            return AttachRepresentation(SystemContext, m_cellStage!, owner, primPath, ns);
+        }
+
+        internal static OpenUsdRepresentationState AttachRepresentation(
+            ISystemContext context,
+            OpenUsdStageState stage,
+            NodeState owner,
+            string primPath,
+            ushort ns)
+        {
+            return context.CreateRepresentation(owner, stage.NodeId, primPath, ns);
         }
 
         private void OrganiseRepresentation(OpenUsdRepresentationState rep)
