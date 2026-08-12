@@ -28,6 +28,9 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.AI.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.AI\Opc.Ua.AI.csproj" />
   </ItemGroup>
   <ItemGroup>

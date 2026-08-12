@@ -204,11 +204,81 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
+        public async Task WorkloadIdentityReadsTheTokenAGoogleExternalAccountConfigNames()
+        {
+            using var mount = new TempMount();
+            string token = mount.Write("gcp-token", "google-projected-token\n");
+            string config = mount.Write(
+                "external-account.json",
+                "{\"type\":\"external_account\",\"credential_source\":{\"file\":\"" +
+                token.Replace("\\", "\\\\", StringComparison.Ordinal) + "\"}}");
+
+            // Google is the one platform that does not name the token in a variable
+            // of its own: it names a configuration, and the configuration names the
+            // token. A variable invented to look like the Azure and AWS ones would
+            // never match anything, so this pins the mechanism that actually exists.
+            using var env = new TempEnvironment("GOOGLE_APPLICATION_CREDENTIALS", config);
+            var resolver = new WorkloadIdentityCredentialResolver();
+            string? value = await resolver.ResolveAsync(string.Empty, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(value, Is.EqualTo("google-projected-token"));
+        }
+
+        [Test]
+        public async Task WorkloadIdentityIgnoresAMalformedGoogleExternalAccountConfig()
+        {
+            using var mount = new TempMount();
+            string config = mount.Write("external-account.json", "{ not json at all");
+
+            using var env = new TempEnvironment("GOOGLE_APPLICATION_CREDENTIALS", config);
+            var resolver = new WorkloadIdentityCredentialResolver();
+            string? value = await resolver.ResolveAsync(string.Empty, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(value, Is.Null);
+        }
+
+        [Test]
+        public async Task WorkloadIdentityReadsTheTokenTheAwsVariableNames()
+        {
+            using var mount = new TempMount();
+            string token = mount.Write("aws-token", "aws-projected-token");
+
+            // AWS_WEB_IDENTITY_TOKEN_FILE is the AWS SDK's own variable, which EKS
+            // populates for a service account bound to an IAM role.
+            using var env = new TempEnvironment("AWS_WEB_IDENTITY_TOKEN_FILE", token);
+            var resolver = new WorkloadIdentityCredentialResolver();
+            string? value = await resolver.ResolveAsync(string.Empty, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(value, Is.EqualTo("aws-projected-token"));
+        }
+
+        [Test]
         public void FileResolverRefusesANullDirectory()
         {
             Assert.That(
                 () => new FileCredentialResolver(null!),
                 Throws.ArgumentNullException);
+        }
+
+        private sealed class TempEnvironment : IDisposable
+        {
+            public TempEnvironment(string name, string? value)
+            {
+                m_name = name;
+                m_previous = Environment.GetEnvironmentVariable(name);
+                Environment.SetEnvironmentVariable(name, value);
+            }
+
+            public void Dispose()
+            {
+                Environment.SetEnvironmentVariable(m_name, m_previous);
+            }
+
+            private readonly string m_name;
+            private readonly string? m_previous;
         }
 
         private sealed class TempMount : IDisposable

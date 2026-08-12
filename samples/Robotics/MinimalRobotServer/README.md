@@ -277,8 +277,8 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
 
 Compose `live.usda` over the base `Cell.usda` (see the example `stage.usda`) and open
 it in `usdview` / NVIDIA Omniverse to see the two arms articulate live. The example
-USD assets, descriptor, writer, and a step-by-step guide live in the `opcua-drafts`
-repo under `core-specs/extras/openusd-binding/examples/robotics/`.
+USD assets, descriptor, writer, and a step-by-step guide live alongside the OpenUSD
+binding specification, under its `examples/robotics/` directory.
 
 To watch the cell animate without leaving the connector, install the optional
 `Opc.Ua.OpenUsd.Connector.Viewer` assembly beside it and add `--view`:

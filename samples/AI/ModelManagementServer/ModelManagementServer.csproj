@@ -15,6 +15,9 @@
     <IsAotCompatible>false</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.AI.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\..\src\Opc.Ua.AI.Server\Opc.Ua.AI.Server.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.AI.Inference\Opc.Ua.AI.Inference.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />

@@ -53,9 +53,8 @@ into the server's `SpeedSetpoint` Variable. The stage also advertises a `RootLay
   **NVIDIA Omniverse** (USD Composer / Kit) for an RTX render with continuous `.live`
   updates. The `usd-core` PyPI wheel provides the `pxr` Python modules for validation but
   **not** the `usdview` GUI.
-- The base USD asset (`Plant.usda`) and composed stage (`stage.usda`) from the companion
-  spec repo: `marcschier/opcua-drafts` →
-  `core-specs/extras/openusd-binding/examples/pumps/`.
+- The base USD asset (`Plant.usda`) and composed stage (`stage.usda`) from the OpenUSD
+  binding pump example assets.
 
 ## Run it end-to-end
 
@@ -70,8 +69,8 @@ dotnet build tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj -c R
 
 ```bash
 mkdir ~/pump-live
-cp <opcua-drafts>/core-specs/extras/openusd-binding/examples/pumps/Plant.usda ~/pump-live/
-cp <opcua-drafts>/core-specs/extras/openusd-binding/examples/pumps/stage.usda ~/pump-live/
+cp <spec-repo>/core-specs/extras/openusd-binding/examples/pumps/Plant.usda ~/pump-live/
+cp <spec-repo>/core-specs/extras/openusd-binding/examples/pumps/stage.usda ~/pump-live/
 ```
 
 `stage.usda` sublayers `live.usda` (stronger) over `Plant.usda`.
@@ -184,5 +183,5 @@ PY
   modified. Live values live in a composed override layer (the equivalent of an Omniverse
   Nucleus `.live` layer, Part 3).
 
-The generic companion specification and the full step-by-step guide live in
-`marcschier/opcua-drafts` under `core-specs/openusd-binding/`.
+The generic companion specification defines the binding model; the guide above
+shows how the connector consumes the pump example's binding nodes and USD layers.

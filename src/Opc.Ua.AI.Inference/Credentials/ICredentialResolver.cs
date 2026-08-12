@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -160,11 +161,12 @@ namespace Opc.Ua.AI.Inference
     /// <para>
     /// Every platform that implements workload identity projects the token as a
     /// file: Kubernetes mounts a projected service-account volume, and the cloud
-    /// providers layered on it each name that path in their own environment
-    /// variable. Reading the file is therefore the whole mechanism, and doing it
-    /// directly keeps the sample free of any cloud SDK - which matters here, because
-    /// a sample that only runs against one vendor's identity service is not
-    /// demonstrating a platform-independent Server.
+    /// providers layered on it reach that path in their own way — Azure and AWS
+    /// each name it in an environment variable, while Google names a JSON
+    /// configuration that in turn carries the path. Reading the file is therefore
+    /// the whole mechanism, and doing it directly keeps this assembly free of any
+    /// cloud SDK - which matters here, because a Server that only runs against one
+    /// vendor's identity service is not demonstrating a platform-independent one.
     /// </para>
     /// <para>
     /// A host that wants a vendor SDK in the loop - to exchange the projected token
@@ -182,7 +184,7 @@ namespace Opc.Ua.AI.Inference
         /// </summary>
         /// <param name="audience">
         /// The token file path to read. Empty defers to the reference, and then to
-        /// the well-known environment variables the platforms set.
+        /// the variables the platforms genuinely set.
         /// </param>
         public WorkloadIdentityCredentialResolver(string audience = "")
             : this(ReadProjectedTokenAsync, audience)
@@ -249,17 +251,80 @@ namespace Opc.Ua.AI.Inference
                     return value;
                 }
             }
-            return null;
+            string? google = ResolveGoogleExternalAccountTokenPath();
+            if (!string.IsNullOrEmpty(google))
+            {
+                return google;
+            }
+            return System.IO.File.Exists(KubernetesProjectedTokenPath)
+                ? KubernetesProjectedTokenPath
+                : null;
         }
 
-        // The variable each platform sets to name the projected token, plus the
-        // Kubernetes default the others are all built on.
+        /// <summary>
+        /// Resolves the token path out of a Google external-account credential
+        /// configuration.
+        /// </summary>
+        /// <remarks>
+        /// Google is the platform that does not name the token in an environment
+        /// variable of its own. It names a JSON configuration in
+        /// <c>GOOGLE_APPLICATION_CREDENTIALS</c>, and for the
+        /// <c>external_account</c> type that configuration carries the projected
+        /// token's path in <c>credential_source.file</c>. Reading it here is what
+        /// makes the Google path real rather than assumed; a token file invented
+        /// under a Google-shaped variable name would simply never be found.
+        /// On GKE the token comes from the metadata server instead, which is not a
+        /// file at all — a host in that position supplies an acquisition delegate.
+        /// </remarks>
+        private static string? ResolveGoogleExternalAccountTokenPath()
+        {
+            string? configPath = Environment.GetEnvironmentVariable(
+                "GOOGLE_APPLICATION_CREDENTIALS");
+            if (string.IsNullOrEmpty(configPath) || !System.IO.File.Exists(configPath))
+            {
+                return null;
+            }
+            try
+            {
+                using System.IO.FileStream stream = System.IO.File.OpenRead(configPath);
+                using JsonDocument document = JsonDocument.Parse(stream);
+                if (!document.RootElement.TryGetProperty("credential_source", out JsonElement source) ||
+                    !source.TryGetProperty("file", out JsonElement file) ||
+                    file.ValueKind != JsonValueKind.String)
+                {
+                    return null;
+                }
+                return file.GetString();
+            }
+            catch (JsonException)
+            {
+                // A configuration this malformed is a deployment error, but failing
+                // to resolve an identity is already reported as such by the caller.
+                return null;
+            }
+            catch (System.IO.IOException)
+            {
+                return null;
+            }
+        }
+
+        // The path Kubernetes mounts a projected service-account token at, which is
+        // the mechanism every cloud workload identity is layered on. Used only when
+        // no platform variable names one.
+        private const string KubernetesProjectedTokenPath =
+            "/var/run/secrets/kubernetes.io/serviceaccount/token";
+
+        // The variables the platforms genuinely set, verified against each
+        // platform's own documentation rather than inferred from its name:
+        // AZURE_FEDERATED_TOKEN_FILE is injected by the Azure Workload Identity
+        // mutating webhook, and AWS_WEB_IDENTITY_TOKEN_FILE is the AWS SDK
+        // standard that EKS IAM-roles-for-service-accounts populates. There is
+        // deliberately no Google entry: Google has no such variable, and one
+        // invented to look like it would never match anything.
         private static readonly string[] s_tokenPathVariables =
         [
-            "WORKLOAD_IDENTITY_TOKEN_FILE",
             "AZURE_FEDERATED_TOKEN_FILE",
-            "AWS_WEB_IDENTITY_TOKEN_FILE",
-            "GOOGLE_WORKLOAD_IDENTITY_TOKEN_FILE"
+            "AWS_WEB_IDENTITY_TOKEN_FILE"
         ];
     }
 }

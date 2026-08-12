@@ -14,6 +14,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>

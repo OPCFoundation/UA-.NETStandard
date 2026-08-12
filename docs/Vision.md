@@ -8,17 +8,17 @@ Model Context Protocol tool package that lets a language-model agent see through
 a Vision server and act on what it sees.
 
 > **Draft.** The namespace `http://opcfoundation.org/UA/Vision/` and every
-> NodeId in it are provisional. The model is a working-group draft in
-> `marcschier/opcua-drafts` and is neither official nor endorsed by the OPC
-> Foundation. The API is stable within this repository but every ObjectType,
-> DataType and BrowseName can still change when the specification is published.
+> NodeId in it are provisional. The model is a working-group draft and is
+> neither official nor endorsed by the OPC Foundation. The API is stable within
+> this repository but every ObjectType, DataType and BrowseName can still change
+> when the specification is published.
 
 Vision layers on top of the base OPC UA namespace only — it does not require
-Devices, Machinery or Robotics. It composes cleanly with Robotics, and the
-sample [`samples/Robotics/BinPickingCell`](../samples/Robotics/BinPickingCell) and
-[`samples/Robotics/BinPickingClient`](../samples/Robotics/BinPickingClient) show a
-worked example doing exactly that (`Vision` + `Robot Intent` in one server,
-`vision_*` + `robotics_*` MCP tools in one agent).
+Devices, Machinery or Robotics. It composes cleanly with Robotics, as shown in the
+[`samples/Robotics/BinPickingCell`](../samples/Robotics/BinPickingCell) and
+[`samples/Robotics/BinPickingClient`](../samples/Robotics/BinPickingClient)
+samples (`Vision` + `Robot Intent` in one server, `vision_*` +
+`robotics_*` MCP tools in one agent).
 
 ## Packages
 
@@ -27,8 +27,65 @@ worked example doing exactly that (`Vision` + `Robot Intent` in one server,
 | `OPCFoundation.NetStandard.Opc.Ua.Vision` | Source-generated Vision model — ObjectTypes, ReferenceTypes, DataTypes, enums, node states, typed client proxies, `AddOpcUaVision` model loader | `Opc.Ua.Core` |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Server` | `VisionNodeManager`, `IVisionBuildContext`, fluent topology builders, `IVisionMediaProvider` / `IVisionInferenceProvider` / `IVisionFeedbackSink`, facet derivation, `AddVision` / `ConfigureVision` hosting extensions | `Opc.Ua.Vision`, `Opc.Ua.Server` |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Client` | `VisionClient` discovery, `VisionSensorClient`, `VisionPipelineClient`, `VisionResultReader`, `VisionMediaClient`, `VisionFrameGraph`, `VisionFeedbackClient`, `session.Vision(...)` extension, `AddVisionClient()` DI | `Opc.Ua.Vision`, `Opc.Ua.Client` |
-| `OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd` | `ISceneCameraCaptureProvider` implementation that renders a `UsdGeomCamera` offscreen and reports `NoRenderingBackend` gracefully when no graphics device is available | `Opc.Ua.Vision.Server`, native OpenUSD renderer payload (optional per-RID) |
+| `OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd` | `ISceneCameraCaptureProvider` implementation that renders a `UsdGeomCamera` offscreen and reports `NoRenderingBackend` gracefully when no graphics device is available | `Opc.Ua.Types`, native OpenUSD renderer payload (optional per-RID) |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | 22 MCP tools split across discovery, monitoring, seeing, inference, feedback and geometry, plus the `vision` bounded profile and composition entry point | `Opc.Ua.Mcp.Core`, `Opc.Ua.Vision.Client` |
+
+```mermaid
+graph TD
+    Model["Opc.Ua.Vision<br/>source-generated model"]
+    Server["Opc.Ua.Vision.Server<br/>VisionNodeManager + builders"]
+    Client["Opc.Ua.Vision.Client<br/>typed discovery and readers"]
+    OpenUsd["Opc.Ua.Vision.OpenUsd<br/>scene-camera capture provider"]
+    Mcp["Opc.Ua.Mcp.Vision<br/>agent tools"]
+    Media["IVisionMediaProvider"]
+    Inference["IVisionInferenceProvider"]
+    Feedback["IVisionFeedbackSink"]
+
+    Model --> Server
+    Model --> Client
+    Client --> Mcp
+    OpenUsd -.->|captures frames for| Media
+    Media -.->|plugs into| Server
+    Inference -.->|plugs into| Server
+    Feedback -.->|plugs into| Server
+```
+
+`Opc.Ua.Vision.OpenUsd` deliberately sits outside that dependency chain: it
+depends on `Opc.Ua.Types` alone and knows nothing about the Vision server. It
+offers a camera, and a host writes the `IVisionMediaProvider` that hands the
+resulting frames to a pipeline — which is what
+[`BinPickingCell`](../samples/Robotics/BinPickingCell) does. A host with a real
+camera writes the same interface over its own SDK and never references OpenUSD
+at all.
+
+The runtime address space is rooted under the standard Server object.
+Configurators add frames, sensors and pipelines through the fluent builder;
+providers plug into the sensor or pipeline nodes that the builder creates.
+
+```mermaid
+flowchart TD
+    ServerObj["Server"] --> VisionRoot["Vision<br/>VisionRootType"]
+    VisionRoot --> Sensors["Sensors"]
+    VisionRoot --> Frames["Frames"]
+    VisionRoot --> Pipelines["Pipelines"]
+
+    Frames --> Frame["CoordinateFrameType<br/>FrameId + Transform"]
+    Sensors --> Sensor["VisionSensorType<br/>ImageSensorType / Depth3DSensorType"]
+    Sensor --> Calibrations["Calibrations"]
+    Calibrations --> Intrinsic["IntrinsicCalibrationType"]
+    Calibrations --> Extrinsic["ExtrinsicCalibrationType"]
+    Sensor --> Media["Media<br/>VisionMediaManagementType"]
+    Media --> Streams["StreamEndpoints"]
+    Media --> Clips["ClipEndpoints"]
+    Sensor -.->|MountedOn| Frame
+    Sensor -.->|HasScenePrim| Scene["OpenUSD scene prim"]
+
+    Pipelines --> Pipeline["InferencePipelineType"]
+    Pipeline --> Results["Results"]
+    Pipeline --> Feedback["Feedback<br/>VisionFeedbackType"]
+    Pipeline -.->|Sensor| Sensor
+    Pipeline -.->|Deployment| Deployment["AI deployment NodeId"]
+```
 
 The libraries multi-target `net8.0;net9.0;net10.0` and `netstandard2.0`
 where applicable; the MCP tool package multi-targets `net8.0;net9.0;net10.0`.
@@ -68,6 +125,27 @@ The two paths are exclusive per pipeline by design: mixing a running
 `OnServer` provider with a `SubmitDetections` sink would let a computed
 and a submitted result publish on the same pipeline out of any known
 order.
+
+```mermaid
+flowchart LR
+    Client["Client"]
+    Server["Vision Server"]
+    Provider["IVisionInferenceProvider"]
+    Edge["Off-server agent"]
+    Sink["IVisionFeedbackSink"]
+    Results["Pipeline Results folder"]
+
+    Client -->|RunInference| Server
+    Server -->|OnServer delegates| Provider
+    Provider -->|result id + result node| Results
+
+    Edge -->|reads frame| Server
+    Edge -->|SubmitDetections / SubmitInspectionResult| Server
+    Server -->|EdgeOffServer delegates| Sink
+    Sink -->|published result| Results
+
+    Client -->|reads same result types| Results
+```
 
 ## Minimal hosted server
 
@@ -196,7 +274,11 @@ lambda in `Program.cs`.
 
 ## Build context
 
-`ConfigureVision(...)` receives an `IVisionBuildContext`:
+`ConfigureVision(...)` receives an `IVisionBuildContext`. Here `Nodes` is
+the fluent address-space builder rooted at the well-known `Server/Vision`
+object; it creates the frame, sensor, calibration, media-endpoint and
+pipeline nodes that ordinary OPC UA clients browse and read.
+
 
 | Member | Purpose |
 |---|---|
@@ -295,6 +377,11 @@ are the fallbacks for mounts that are not vision frames.
 
 ### Pipelines
 
+A pipeline is the Vision object that connects one sensor, an optional AI
+deployment reference, and the result/feedback methods for one perception task
+such as detection or inspection. Clients discover pipelines first, then run
+or observe the task through that pipeline.
+
 ```csharp
 nodes.AddPipeline("Detector", pipe => pipe
     .WithPipelineId("pipe-01")
@@ -305,11 +392,14 @@ nodes.AddPipeline("Detector", pipe => pipe
     .UseFeedbackSink(feedbackSink));
 ```
 
-`WithDeployment(NodeId)` is a plain reference — the specification
-deliberately keeps `Deployment` typed as `NodeId` so a Server never has
-to depend on the AI Model Management companion. `ProducedBy(NodeId)`
-adds the `ProducedBy` semantic reference to a controller or process
-instance.
+`WithSensor(NodeId)` points the pipeline at the sensor that supplies the
+frames. `WithDeployment(NodeId)` then records which model deployment, if
+any, is responsible for the task. The specification deliberately keeps
+`Deployment` typed as `NodeId` so a Server never has to depend on the AI
+Model Management companion; a host that implements that companion can point
+at its deployment node, and a host that does not can leave the value null.
+`ProducedBy(NodeId)` adds the `ProducedBy` semantic reference to a controller
+or process instance.
 
 `UseFeedbackSink(sink)` is optional for `OnServer` pipelines. `OnServer`
 pipelines without a feedback sink still expose a `Feedback` object
@@ -397,12 +487,27 @@ timestamp, digest and pixel format the caller needs to walk the still
 out of band, and reporting `Bad_NotSupported` on the metadata read would
 be wrong.
 
-## Rendering degrades rather than throwing
+```mermaid
+stateDiagram-v2
+    [*] --> NotYetAvailable: no acquisition yet
+    NotYetAvailable --> Available: clip captured and fits
+    Available --> Overflow: next clip exceeds limit
+    Overflow --> Available: later clip fits
+    Available --> InlineDisabled: inline delivery disabled
+    InlineDisabled --> Available: inline delivery enabled
+    Available --> Faulted: provider error
+    Overflow --> Faulted: provider error
+    Faulted --> Available: provider recovers
+```
+
+## Rendering without pixels
 
 `Opc.Ua.Vision.OpenUsd` renders a `UsdGeomCamera` from a USD stage to an
 encoded still, and is the reference `ISceneCameraCaptureProvider`
 implementation the sample cell registers with
-`services.AddOpenUsdSceneCameraCaptureProvider()`. It supports the
+`services.AddOpenUsdSceneCameraCaptureProvider()`. When rendering is not
+possible it reports the unavailable backend and leaves the address space
+walkable instead of throwing from browse/read paths. It supports the
 following behaviour explicitly:
 
 - On a machine with the native OpenUSD renderer payload present and a
@@ -420,31 +525,43 @@ walkable, even when the process has no way to produce pixels. The
 when the frame is unavailable rather than falsely reporting a rendering
 bug.
 
-## Facets
+## Facets supported
 
 `VisionServerOptions.AdditionalFacets` is additive on top of the facets
-the address-space calculator derives structurally:
+the address-space calculator derives structurally. **Supported** means the
+stock builder and calculator can claim the facet from the materialised address
+space. **Partial** means the model surface exists, but the host must attest the
+facet through `AdditionalFacets` because the calculator cannot verify the
+behaviour or provider-owned result nodes. **Not supported** means the stock
+server does not currently claim that facet.
 
-| Facet | Structural requirement |
-|---|---|
-| `VIS-Base` | The Vision root and its mandatory folders exist |
-| `VIS-Media-Stream` | At least one `StreamEndpointType` instance under a sensor |
-| `VIS-Media-Clip` | At least one `ClipEndpointType` instance under a sensor |
-| `VIS-Media-Inline` | A clip endpoint has `InlineDeliveryEnabled = true` |
-| `VIS-Calibration` | An intrinsic or extrinsic calibration is materialised |
-| `VIS-Result-Detection` | A pipeline publishes `DetectionResultType` |
-| `VIS-Result-Inspection` | A pipeline publishes `InspectionResultType` |
-| `VIS-Result-Segmentation` | A pipeline publishes `SegmentationResultType` |
-| `VIS-Feedback` | A pipeline has a `Feedback` object bound to a sink |
-| `VIS-Inference-OnServer` | A pipeline was registered with `onServer: true` |
-| `VIS-Inference-OffServer` | A pipeline was registered with `onServer: false` |
-| `VIS-Simulation` | A sensor carries an `IVisionSimulatedType` interface |
-| `VIS-Learning` | A pipeline has a bound learning job |
+| Facet | Support | Structural requirement or limitation |
+|---|---|---|
+| `VIS-Base` | Supported | A registered sensor contributes the base Vision server shape. |
+| `VIS-Sensor-Params` | Supported | A sensor includes manufacturer, model or serial-number parameters. |
+| `VIS-Optics` | Supported | A sensor has an `Optics` child. |
+| `VIS-Media-Rtsp` | Supported | A stream endpoint uses `VisionStreamProtocolEnum.Rtsp`. |
+| `VIS-Media-Jpeg` | Supported | A clip endpoint uses `VisionClipFormatEnum.Jpeg`. |
+| `VIS-Media-Inline` | Supported | A clip endpoint has `InlineDeliveryEnabled = true`. |
+| `VIS-Media-DataChannel` | Not supported | There is no stock data-channel endpoint builder or calculator rule. |
+| `VIS-Endpoint-Config` | Supported | At least one stream endpoint is materialised. |
+| `VIS-Calibration` | Supported | An intrinsic or extrinsic calibration is materialised. |
+| `VIS-Result-Detection` | Partial | Providers and sinks can publish detection results, but result ownership is provider-side and not structurally derived. |
+| `VIS-Result-Inspection` | Partial | `SubmitInspectionResult` exists, but the calculator does not infer inspection-result publication. |
+| `VIS-Result-Segmentation` | Not supported | The stock conformance URI list and feedback surface do not claim a segmentation-result facet. |
+| `VIS-Feedback` | Supported | A pipeline has a `Feedback` object bound to a sink. |
+| `VIS-Inference-OnServer` | Supported | A pipeline was registered with `onServer: true`. |
+| `VIS-Inference-OffServer` | Supported | A pipeline was registered with `onServer: false`. |
+| `VIS-Simulation` | Supported | A sensor has `RealityKind = Simulated` or `Hybrid`. |
+| `VIS-Learning` | Partial | Learning jobs are modelled by reference; the host owns the job and any `SamplesCollected` accounting. |
+| `VIS-Interop-Scene` | Supported | A sensor carries a `HasScenePrim` reference. |
+| `VIS-Interop-40100` | Partial | The host must attest cross-model behaviour through `AdditionalFacets`. |
+| `VIS-Interop-RobotIntent` | Partial | The host must attest cross-model behaviour through `AdditionalFacets`. |
 
 The Server publishes the composed set on
 `Server.ServerCapabilities.ServerProfileArray`.
 
-## Client
+## Using the client libraries
 
 ### Registration
 
@@ -708,7 +825,7 @@ composition rules.
 ## Sample: bin-picking
 
 [`samples/Robotics/BinPickingCell`](../samples/Robotics/BinPickingCell) is
-the worked reference from the *OPC UA Robotics-Vision Addendum*: a
+the reference from the *OPC UA Robotics-Vision Addendum*: a
 UR5e-style arm with a parallel gripper, an eye-in-hand camera parented
 to the flange, a bin of five parts, a fixture, and the frame tree
 `world → robot_base → flange → gripper_tcp` with `camera_eih` on the
@@ -723,10 +840,10 @@ is the paired client: `--demo` runs the whole loop without an agent,
 agent, and `--view` opens the in-process OpenUSD viewport so a human
 sees the same scene the agent sees.
 
-### Scene lighting is load-bearing
+### Scene lighting
 
-The scene is lit by a single `DomeLight` with `intensity = 1000`. Do
-**not** reintroduce a `DistantLight` or any other bright directional or
+The scene is lit by a single `DomeLight` with `intensity = 1000`.
+Do **not** reintroduce a `DistantLight` or any other bright directional or
 point light for a Vision demo: at any intensity that shows geometry, a
 `DistantLight` blows every surface to pure white regardless of
 `displayColor`, and any agent looking at the frame sees a uniform
@@ -809,12 +926,16 @@ against the draft; see [Limitations](#limitations).
 
 - [Robotics developer guide](Robotics.md) — the sibling companion
   implementation Vision composes with; the `BinPickingCell` sample is
-  the worked cross-companion example.
+  the cross-companion example.
 - [OpenUSD guide](OpenUsd.md) — the OpenUSD connector and scene
   materialisation used to bind the Vision sample cell to a live USD
   stage.
 - [MCP Server guide](McpServer.md) — the `vision` MCP profile and its
   composition with `robotics`.
+- [AI Model Management developer guide](AiModelManagement.md) — the
+  companion that owns the model, dataset and deployment a Vision
+  pipeline's `Deployment` and `LearningJob` point at, and the counter
+  §9.4 asks a learning job to keep.
 - [Dependency Injection](DependencyInjection.md) — the `AddOpcUa()`
   builder surface that hosts `AddVision`, `AddVisionClient`, and every
   other component.
