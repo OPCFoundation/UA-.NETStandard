@@ -103,11 +103,19 @@ namespace Opc.Ua.Bindings
         /// thread-safe by contract, and the listener disposes the channel from
         /// inside <c>ChannelClosed</c>, which is itself reached with the gate
         /// held — taking it here would deadlock.
+        /// <para>
+        /// Because it does not take the gate it can run while a request holds
+        /// it, so it records that it ran. A request that adopts the client
+        /// certificate checks that afterwards and disposes it itself, otherwise
+        /// a certificate adopted after this point would never be released.
+        /// </para>
         /// </remarks>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
+                Volatile.Write(ref m_disposed, 1);
+
                 ClientCertificate?.Dispose();
                 ClientCertificate = null;
                 base.Dispose(disposing);
@@ -772,6 +780,16 @@ namespace Opc.Ua.Bindings
                 else
                 {
                     ClientCertificate = clientCertificate;
+
+                    // Dispose does not take the gate, so it may have run between
+                    // the null check above and this assignment. It would then
+                    // already have released the certificate it saw — which was
+                    // not this one — and nothing else ever will.
+                    if (Volatile.Read(ref m_disposed) == 1)
+                    {
+                        ClientCertificate = null;
+                        clientCertificate?.Dispose();
+                    }
                 }
 
                 // check if it is necessary to wait for more chunks.
@@ -1658,6 +1676,7 @@ namespace Opc.Ua.Bindings
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private ReverseConnectAsyncResult? m_pendingReverseHello;
         private byte[]? m_oscRequestSignature;
+        private int m_disposed;
 
         private static readonly string s_implementationString =
             ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
