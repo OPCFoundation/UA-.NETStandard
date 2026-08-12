@@ -34,10 +34,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Aas.V3
+namespace Opc.Ua.Aas.V2
 {
     /// <summary>
-    /// Reads AASX packages using Open Packaging Conventions relationships.
+    /// Reads AASX packages containing AAS V2.0.1 environment documents.
     /// </summary>
     public sealed class AasxPackageReader
     {
@@ -75,14 +75,14 @@ namespace Opc.Ua.Aas.V3
 
             return AasxPackageReadResult.Success(
                 documentResult.Environment,
-                ToV3SupplementaryFiles(packageResult.SupplementaryFiles));
+                ToV2SupplementaryFiles(packageResult.SupplementaryFiles));
         }
 
         private static async Task<AasDocumentReadResult> ReadEnvironmentAsync(
             AasxPackageEnvironmentPart environmentPart,
             CancellationToken cancellationToken)
         {
-            using Stream stream = ToStream(environmentPart.Content);
+            using Stream stream = new MemoryStream(environmentPart.Content.ToArray(), writable: false);
             string contentType = environmentPart.ContentType;
             if (IsJsonContentType(contentType))
             {
@@ -99,7 +99,7 @@ namespace Opc.Ua.Aas.V3
                 "The AASX environment part content type is not supported: " + contentType);
         }
 
-        private static ArrayOf<AasxSupplementaryFile> ToV3SupplementaryFiles(
+        private static ArrayOf<AasxSupplementaryFile> ToV2SupplementaryFiles(
             ArrayOf<Opc.Ua.Aas.AasxPackageSupplementaryFile> files)
         {
             var result = new List<AasxSupplementaryFile>();
@@ -109,11 +109,6 @@ namespace Opc.Ua.Aas.V3
             }
 
             return new ArrayOf<AasxSupplementaryFile>(result.ToArray());
-        }
-
-        private static MemoryStream ToStream(ByteString content)
-        {
-            return new MemoryStream(content.ToArray(), writable: false);
         }
 
         private static bool IsJsonContentType(string contentType)
@@ -172,27 +167,6 @@ namespace Opc.Ua.Aas.V3
 
             return true;
         }
-    }
-
-    /// <summary>
-    /// AASX relationship type URIs.
-    /// </summary>
-    public static class AasxPackageRelationshipTypes
-    {
-        /// <summary>
-        /// Package relationship from the package root to the AASX origin part.
-        /// </summary>
-        public const string Origin = Opc.Ua.Aas.AasxPackageRelationshipTypes.Origin;
-
-        /// <summary>
-        /// Relationship from the AASX origin part to the AAS environment part.
-        /// </summary>
-        public const string Environment = Opc.Ua.Aas.AasxPackageRelationshipTypes.Environment;
-
-        /// <summary>
-        /// Relationship from the AASX origin part to a supplementary file part.
-        /// </summary>
-        public const string SupplementaryFile = Opc.Ua.Aas.AasxPackageRelationshipTypes.SupplementaryFile;
     }
 }
 
