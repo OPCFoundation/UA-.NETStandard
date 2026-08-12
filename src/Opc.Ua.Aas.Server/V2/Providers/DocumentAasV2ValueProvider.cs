@@ -36,9 +36,24 @@ using Opc.Ua.Aas.V2;
 namespace Opc.Ua.Aas.Server.V2
 {
     /// <summary>
+    /// Supplies values for an AAS V2 AddressSpace.
+    /// </summary>
+    /// <remarks>
+    /// The contract itself carries no metamodel generation - it is keyed on
+    /// <see cref="NodeId"/> and <see cref="Variant"/> - but the registration
+    /// has to, because a host that registers both generations would otherwise
+    /// resolve one <see cref="IAasValueProvider"/> for both AddressSpaces and
+    /// silently serve one generation's values through the other's nodes. This
+    /// mirrors the split already made for <see cref="IAasV2EnvironmentProvider"/>.
+    /// </remarks>
+    public interface IAasV2ValueProvider : IAasValueProvider
+    {
+    }
+
+    /// <summary>
     /// Default AAS V2 value provider that serves values carried by loaded documents.
     /// </summary>
-    public sealed class DocumentAasV2ValueProvider : IAasValueProvider
+    public sealed class DocumentAasV2ValueProvider : IAasV2ValueProvider
     {
         /// <summary>
         /// Initializes an empty provider.

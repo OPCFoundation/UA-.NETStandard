@@ -232,7 +232,12 @@ namespace Opc.Ua.Aas.Tests.V2.Server
             {
                 Assert.That(builder.Services, Is.SameAs(services));
                 Assert.That(provider.GetService<IAasV2EnvironmentProvider>(), Is.Not.Null);
-                Assert.That(provider.GetService<IAasValueProvider>(), Is.TypeOf<DocumentAasV2ValueProvider>());
+                Assert.That(provider.GetService<IAasV2ValueProvider>(), Is.TypeOf<DocumentAasV2ValueProvider>());
+
+                // Deliberately not registered under the shared contract: that
+                // is the registration the V3 half claims, and sharing it would
+                // let whichever generation was added first serve both.
+                Assert.That(provider.GetService<IAasValueProvider>(), Is.Null);
                 Assert.That(provider.GetService<IAasEnvironmentProjectionHost>(), Is.Not.Null);
                 Assert.That(provider.GetService<AasV2EnvironmentNodeManagerFactory>(), Is.Not.Null);
                 Assert.That(provider.GetService<OpcUaServerNodeManagerRegistration>(), Is.Not.Null);

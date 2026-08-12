@@ -217,20 +217,32 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
-            services.TryAddSingleton<IAasValueProvider, DocumentAasV2ValueProvider>();
+
+            // Registered under the V2 contract rather than the shared one. Both
+            // generations can be added to one host - the stack does not forbid
+            // it - and a single IAasValueProvider registration would then be
+            // won by whichever was added first, leaving the other AddressSpace
+            // reading through the wrong generation's documents with nothing to
+            // show for it.
+            services.TryAddSingleton<IAasV2ValueProvider, DocumentAasV2ValueProvider>();
             services.TryAddSingleton<IAasOperationHandler, DefaultAasOperationHandler>();
             services.TryAddSingleton<IAasEnvironmentProjectionHost>(sp =>
                 new LifecycleAasEnvironmentProjectionHost(
                     sp.GetRequiredService<INodeManagerLifecycle>()));
-            services.TryAddSingleton<IAasV2EnvironmentProvider>(
-                new InMemoryAasV2EnvironmentProvider([]));
+            services.TryAddSingleton<IAasV2EnvironmentProvider>(sp =>
+            {
+                AasServerOptions options = sp.GetRequiredService<IOptions<AasServerOptions>>().Value;
+                return string.IsNullOrEmpty(options.EnvironmentFolder)
+                    ? new InMemoryAasV2EnvironmentProvider([])
+                    : new FolderAasV2EnvironmentProvider(options.EnvironmentFolder!);
+            });
             services.TryAddSingleton(sp =>
             {
                 AasServerOptions options = sp.GetRequiredService<IOptions<AasServerOptions>>().Value;
                 return new AasV2EnvironmentNodeManagerFactory(
                     options,
                     sp.GetRequiredService<IAasV2EnvironmentProvider>(),
-                    sp.GetRequiredService<IAasValueProvider>(),
+                    sp.GetRequiredService<IAasV2ValueProvider>(),
                     sp.GetRequiredService<IAasOperationHandler>(),
                     sp.GetRequiredService<IAasEnvironmentProjectionHost>());
             });

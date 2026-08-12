@@ -37,6 +37,7 @@ using NUnit.Framework;
 using Opc.Ua.Aas.Server;
 using Opc.Ua.Aas.Server.Hosting;
 using Opc.Ua.Aas.Server.Materialization;
+using Opc.Ua.Aas.Server.V2;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
@@ -79,6 +80,65 @@ namespace Opc.Ua.Aas.Tests.Server
                 Assert.That(provider.GetService<IAasEnvironmentProjectionHost>(), Is.Not.Null);
                 Assert.That(provider.GetService<AasEnvironmentNodeManagerFactory>(), Is.Not.Null);
                 Assert.That(provider.GetService<OpcUaServerNodeManagerRegistration>(), Is.Not.Null);
+            });
+        }
+
+        /// <summary>
+        /// The two generations are alternatives, and the stack deliberately
+        /// does not forbid registering both. It must therefore not silently
+        /// mis-serve them: a single IAasValueProvider registration would be won
+        /// by whichever was added first, and the other AddressSpace would then
+        /// read every value through the wrong generation's documents - no
+        /// exception, no log, just wrong values.
+        /// </summary>
+        [Test]
+        public void HostingBothGenerationsGivesEachItsOwnValueProvider()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(Mock.Of<INodeManagerLifecycle>());
+
+            services.AddOpcUa().AddAasV3Server(options => options.EnvironmentFolder = "aas");
+            services.AddOpcUa().AddAasV2Server(options => options.EnvironmentFolder = "aas");
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            var shared = provider.GetRequiredService<IAasValueProvider>();
+            var v2 = provider.GetRequiredService<IAasV2ValueProvider>();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(shared, Is.InstanceOf<DocumentAasValueProvider>());
+                Assert.That(v2, Is.InstanceOf<DocumentAasV2ValueProvider>());
+                Assert.That(v2, Is.Not.SameAs(shared));
+                Assert.That(provider.GetRequiredService<AasEnvironmentNodeManagerFactory>(), Is.Not.Null);
+                Assert.That(provider.GetRequiredService<AasV2EnvironmentNodeManagerFactory>(), Is.Not.Null);
+            });
+        }
+
+        /// <summary>
+        /// EnvironmentFolder is bound from configuration on the V2 path too, so
+        /// it has to reach a provider that reads that folder rather than being
+        /// accepted and ignored.
+        /// </summary>
+        [Test]
+        public void AddAasV2ServerHonoursTheConfiguredEnvironmentFolder()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(Mock.Of<INodeManagerLifecycle>());
+            services.AddOpcUa().AddAasV2Server(options => options.EnvironmentFolder = "aas-v2");
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            var withFolder = provider.GetRequiredService<IAasV2EnvironmentProvider>();
+
+            var empty = new ServiceCollection();
+            empty.AddSingleton(Mock.Of<INodeManagerLifecycle>());
+            empty.AddOpcUa().AddAasV2Server(options => options.EnvironmentFolder = null);
+            using ServiceProvider emptyProvider = empty.BuildServiceProvider();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(withFolder, Is.InstanceOf<FolderAasV2EnvironmentProvider>());
+                Assert.That(emptyProvider.GetRequiredService<IAasV2EnvironmentProvider>(),
+                    Is.InstanceOf<InMemoryAasV2EnvironmentProvider>());
             });
         }
 
