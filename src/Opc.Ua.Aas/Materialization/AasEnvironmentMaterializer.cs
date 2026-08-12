@@ -1162,9 +1162,11 @@ namespace Opc.Ua.Aas
         private const string EnvironmentNodeId = "ns=1;s=i4aas3:Environment";
 
         /// <summary>
-        /// The NodeId of the Invoke Method AASOperationType declares, in the
-        /// AAS companion namespace.
+        /// The NodeId of the Invoke Method AASOperationType declares. The
+        /// emitted NodeSet declares the AAS namespace first, so the
+        /// declaration is addressed at that index rather than the index the
+        /// pinned companion NodeSet happens to use.
         /// </summary>
-        private const string InvokeDeclarationId = "ns=2;i=5103";
+        private const string InvokeDeclarationId = "ns=1;i=5103";
     }
 }

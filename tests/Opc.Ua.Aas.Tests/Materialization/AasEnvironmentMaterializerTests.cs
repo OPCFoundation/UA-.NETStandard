@@ -112,6 +112,17 @@ namespace Opc.Ua.Aas.Tests.Materialization
                 Assert.That(invoke, Is.Not.Null);
                 Assert.That(operation.FindMethod(context, invoke!.NodeId), Is.Not.Null,
                     "The Operation has to resolve its own Invoke Method.");
+
+                // A generated proxy calls with the declaration id, which
+                // FindMethod matches against MethodDeclarationId. An index that
+                // does not exist in the emitted NodeSet resolves to nothing and
+                // the Call answers BadMethodInvalid.
+                Assert.That(invoke!.MethodDeclarationId.IsNull, Is.False);
+                Assert.That(operation.FindMethod(context, invoke.MethodDeclarationId), Is.Not.Null,
+                    "The Operation has to resolve Invoke by its declaration id too.");
+                Assert.That(invoke.MethodDeclarationId.NamespaceIndex,
+                    Is.EqualTo(namespaces.GetIndex(Namespaces.Aas)),
+                    "The declaration lives in the AAS namespace.");
             });
         }
 
@@ -415,7 +426,7 @@ namespace Opc.Ua.Aas.Tests.Materialization
             {
                 Assert.That(invokes, Has.Length.EqualTo(1));
                 Assert.That(invokes[0].BrowseName, Is.EqualTo("1:Invoke"));
-                Assert.That(invokes[0].MethodDeclarationId, Is.EqualTo("ns=2;i=5103"));
+                Assert.That(invokes[0].MethodDeclarationId, Is.EqualTo("ns=1;i=5103"));
                 Assert.That(invokes[0].Executable, Is.True);
                 Assert.That(ForwardReferences(operationNode, "HasComponent")
                     .Select(reference => reference.Value),
