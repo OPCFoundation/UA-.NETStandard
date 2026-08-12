@@ -221,7 +221,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 throw new InvalidOperationException(
                     "The Vision builder must create the pipeline's Feedback object.");
             }
-            await ValueTask.CompletedTask.ConfigureAwait(false);
+            await default(ValueTask).ConfigureAwait(false);
             NodeId deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
             var target = new TestInferenceTarget(
                 context.Manager,

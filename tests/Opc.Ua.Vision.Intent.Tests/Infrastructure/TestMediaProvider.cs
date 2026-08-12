@@ -52,7 +52,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 Protocol = VisionStreamProtocolEnum.Rtsp,
                 ExpiresAt = DateTimeUtc.From(System.DateTime.UtcNow.AddMinutes(5))
             };
-            return ValueTask.FromResult(new VisionStreamLease(
+            return new ValueTask<VisionStreamLease>(new VisionStreamLease(
                 ServiceResult.Good, session, request.Endpoint));
         }
 
@@ -60,21 +60,21 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             ByteString sessionToken, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(ServiceResult.Good);
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
         public ValueTask<ServiceResult> ConfigureStreamAsync(
             VisionStreamConfigurationRequest request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(ServiceResult.Good);
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
         public ValueTask<ServiceResult> SelectEndpointAsync(
             NodeId streamEndpoint, NodeId clipEndpoint, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(ServiceResult.Good);
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
         public ValueTask<VisionClipResult> GetClipAsync(
@@ -98,7 +98,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             ByteString inline = request.RequestInline
                 ? ByteString.From(s_clipBytes!)
                 : ByteString.Empty;
-            return ValueTask.FromResult(new VisionClipResult(
+            return new ValueTask<VisionClipResult>(new VisionClipResult(
                 ServiceResult.Good, image, request.Endpoint, inline));
         }
 

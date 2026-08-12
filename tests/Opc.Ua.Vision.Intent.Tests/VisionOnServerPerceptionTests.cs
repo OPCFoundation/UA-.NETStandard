@@ -133,11 +133,13 @@ namespace Opc.Ua.Vision.Intent.Tests
             double dy = cubePoseInWorld.Position[1] - authored[1];
             double dz = cubePoseInWorld.Position[2] - authored[2];
             double residual = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-            string message = string.Create(CultureInfo.InvariantCulture,
-                $"On-server pose composition residual for TestCube = {residual:E3} m " +
-                $"(world pose = ({cubePoseInWorld.Position[0]:F9}, " +
-                $"{cubePoseInWorld.Position[1]:F9}, {cubePoseInWorld.Position[2]:F9})). " +
-                $"Frames traversed: camera_eih → flange → base → world.");
+            string message =
+                "On-server pose composition residual for TestCube = " +
+                residual.ToString("E3", CultureInfo.InvariantCulture) + " m (world pose = (" +
+                cubePoseInWorld.Position[0].ToString("F9", CultureInfo.InvariantCulture) + ", " +
+                cubePoseInWorld.Position[1].ToString("F9", CultureInfo.InvariantCulture) + ", " +
+                cubePoseInWorld.Position[2].ToString("F9", CultureInfo.InvariantCulture) + ")). " +
+                "Frames traversed: camera_eih → flange → base → world.";
             TestContext.Progress.WriteLine(message);
 
             Assert.Multiple(() =>

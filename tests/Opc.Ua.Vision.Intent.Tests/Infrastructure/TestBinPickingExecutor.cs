@@ -79,7 +79,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 && TryExtractClassLabel(intentId, "grasp-", out string graspLabel))
             {
                 m_world.MarkHeld(graspLabel);
-                return ValueTask.FromResult(IntentOutcome.Success);
+                return new ValueTask<IntentOutcome>(IntentOutcome.Success);
             }
 
             if (execution.Intent is LinearMoveIntentDataType linear
@@ -88,10 +88,10 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 Pose3DDataType target = linear.Target;
                 (double x, double y, double z) = ReadPosition(target);
                 m_world.MarkPlaced(placeLabel, x, y, z);
-                return ValueTask.FromResult(IntentOutcome.SucceededAt(target));
+                return new ValueTask<IntentOutcome>(IntentOutcome.SucceededAt(target));
             }
 
-            return ValueTask.FromResult(IntentOutcome.Success);
+            return new ValueTask<IntentOutcome>(IntentOutcome.Success);
         }
 
         private static (double X, double Y, double Z) ReadPosition(Pose3DDataType pose)

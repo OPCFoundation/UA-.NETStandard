@@ -162,18 +162,18 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             TestInferenceTarget target = RequireTarget();
             if (pipeline.IsNull || !pipeline.Equals(target.PipelineNodeId))
             {
-                return ValueTask.FromResult(new ServiceResult(
+                return new ValueTask<ServiceResult>(new ServiceResult(
                     StatusCodes.BadNodeIdUnknown,
                     LocalizedText.From("Pipeline id does not match the attached test pipeline.")));
             }
-            return ValueTask.FromResult(ServiceResult.Good);
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
         public ValueTask<ServiceResult> StopAsync(
             NodeId pipeline, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(ServiceResult.Good);
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
         public void Dispose()

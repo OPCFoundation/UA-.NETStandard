@@ -90,13 +90,13 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                         "This pipeline is configured for off-server perception. " +
                         "Publish results by calling SubmitDetections on the pipeline's Feedback object.")),
                 string.Empty);
-            return ValueTask.FromResult(result);
+            return new ValueTask<VisionInferenceRunResult>(result);
         }
 
         public ValueTask<ServiceResult> StartContinuousAsync(NodeId pipeline, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(new ServiceResult(
+            return new ValueTask<ServiceResult>(new ServiceResult(
                 StatusCodes.BadNotSupported,
                 LocalizedText.From("Continuous inference is not supported off-server.")));
         }
@@ -104,7 +104,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
         public ValueTask<ServiceResult> StopAsync(NodeId pipeline, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(ServiceResult.Good);
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
         public async ValueTask<ServiceResult> SubmitDetectionsAsync(
@@ -150,7 +150,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 throw new ArgumentNullException(nameof(request));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(new ServiceResult(
+            return new ValueTask<ServiceResult>(new ServiceResult(
                 StatusCodes.BadNotSupported,
                 LocalizedText.From("The test pipeline publishes DetectionResultType only.")));
         }
@@ -220,7 +220,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 throw new ArgumentNullException(nameof(request));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(ServiceResult.Good);
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
         private TestInferenceTarget RequireTarget()

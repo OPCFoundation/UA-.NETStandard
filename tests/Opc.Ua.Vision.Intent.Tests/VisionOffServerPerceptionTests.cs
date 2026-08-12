@@ -154,14 +154,12 @@ namespace Opc.Ua.Vision.Intent.Tests
                 profileNames.Any(p => p.Contains("Inference-OffServer",
                     System.StringComparison.OrdinalIgnoreCase)),
                 Is.True,
-                string.Create(System.Globalization.CultureInfo.InvariantCulture,
-                    $"An off-server pipeline must advertise VIS-Inference-OffServer. Advertised: {advertised}."));
+                FormattableString.Invariant($"An off-server pipeline must advertise VIS-Inference-OffServer. Advertised: {advertised}."));
             Assert.That(
                 profileNames.Any(p => p.Contains("Inference-OnServer",
                     System.StringComparison.OrdinalIgnoreCase)),
                 Is.False,
-                string.Create(System.Globalization.CultureInfo.InvariantCulture,
-                    $"An off-server pipeline must NOT advertise VIS-Inference-OnServer. Advertised: {advertised}."));
+                FormattableString.Invariant($"An off-server pipeline must NOT advertise VIS-Inference-OnServer. Advertised: {advertised}."));
         }
 
         private static async Task<List<string>> ReadServerProfileArrayAsync(
