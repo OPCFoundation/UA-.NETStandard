@@ -340,8 +340,11 @@ namespace Opc.Ua.Wot
             using WotDocument document = WotDocument.Parse(readable, options);
             WotConversionResult<UANodeSet> result =
                 ToNodeSetResult(document, options);
+            // §9.2 asks whether the readable document reproduces an equivalent
+            // NodeSet, not an identically spelled one, so the comparison
+            // resolves each side's own aliases first.
             return result.Success &&
-                NodeSetComparer.Compare(source, result.Value!, options).AreEquivalent;
+                NodeSetComparer.CompareEquivalent(source, result.Value!, options).AreEquivalent;
         }
 
         private static byte[] RemoveRootMembers(
