@@ -116,7 +116,20 @@ namespace Opc.Ua.Redundancy.Server
             byte[]? blob = null;
             try
             {
-                pkcs12 = certificateWithPrivateKey.Export(X509ContentType.Pfx, passcode);
+                try
+                {
+                    pkcs12 = certificateWithPrivateKey.Export(X509ContentType.Pfx, passcode);
+                }
+                catch (CryptographicException)
+                {
+                    // The private key is not extractable, so it cannot be staged
+                    // in a shared store for another replica to pick up. The key
+                    // lives in a TPM, an HSM, a PKCS#11 token or a remote key
+                    // service and is not reachable from another node, so the
+                    // caller is told this store cannot hold it.
+                    return false;
+                }
+
                 passcodeBytes = Encoding.UTF8.GetBytes(passcode);
                 blob = EncodeRecord(passcodeBytes, pkcs12);
 

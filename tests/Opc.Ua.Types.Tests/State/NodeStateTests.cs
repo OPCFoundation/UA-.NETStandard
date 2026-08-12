@@ -355,8 +355,84 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void AddChildSetsParentAndAddsToChildren()
+        public void AddReferenceIfMissingAddsTheReferenceOnce()
         {
+            BaseObjectState node = CreateObjectNode();
+            var targetId = new ExpandedNodeId(3000, 0);
+
+            Assert.That(
+                node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, false, targetId),
+                Is.True,
+                "the first call must add the reference");
+            Assert.That(
+                node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, false, targetId),
+                Is.False,
+                "the second call must report the reference as already present");
+
+            var references = new List<IReference>();
+            node.GetReferences(m_context, references);
+
+            Assert.That(
+                references.Count(r =>
+                    r.ReferenceTypeId == ReferenceTypeIds.HasCause &&
+                    !r.IsInverse &&
+                    r.TargetId == targetId),
+                Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AddReferenceIfMissingRaisesOnReferenceAddedOnlyWhenItAdds()
+        {
+            BaseObjectState node = CreateObjectNode();
+            var targetId = new ExpandedNodeId(3001, 0);
+
+            int raised = 0;
+            node.OnReferenceAdded += (_, _, _, _) => raised++;
+
+            node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, false, targetId);
+            node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, false, targetId);
+
+            Assert.That(raised, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AddReferenceIfMissingDistinguishesDirection()
+        {
+            BaseObjectState node = CreateObjectNode();
+            var targetId = new ExpandedNodeId(3002, 0);
+
+            Assert.That(
+                node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, false, targetId),
+                Is.True);
+            Assert.That(
+                node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, true, targetId),
+                Is.True,
+                "the inverse reference is a different reference");
+        }
+
+        [Test]
+        public void AddReferenceIfMissingThrowsOnNullReferenceType()
+        {
+            BaseObjectState node = CreateObjectNode();
+
+            Assert.Throws<ArgumentNullException>(
+                () => node.AddReferenceIfMissing(NodeId.Null, false, new ExpandedNodeId(3003, 0)));
+        }
+
+        [Test]
+        public void AddReferenceIfMissingThrowsOnNullTarget()
+        {
+            BaseObjectState node = CreateObjectNode();
+
+            Assert.Throws<ArgumentNullException>(
+                () => node.AddReferenceIfMissing(
+                    ReferenceTypeIds.HasCause,
+                    false,
+                    ExpandedNodeId.Null));
+        }
+
+        [Test]
+        public void AddChildSetsParentAndAddsToChildren()        {
             BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);

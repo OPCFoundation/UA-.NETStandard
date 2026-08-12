@@ -74,6 +74,7 @@ $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = Split-Path -Parent $PSScriptRoot
 }
+$RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).ProviderPath
 if ([string]::IsNullOrWhiteSpace($ThresholdsPath)) {
     $ThresholdsPath = Join-Path $RepoRoot 'coverage-thresholds.json'
 }
@@ -556,11 +557,21 @@ else {
     $coverableChanged = 0
     $coveredChanged = 0
     $uncoveredByFile = [ordered]@{}
+    $changedFiles = [System.Collections.Generic.List[string]]::new()
+    $matchedFiles = [System.Collections.Generic.List[string]]::new()
+    $unmatchedExistingFiles = [System.Collections.Generic.List[string]]::new()
 
     foreach ($entry in $changed.GetEnumerator()) {
         $file = $entry.Key
         if (Test-PathIgnored -relativePath $file -ignoreRegexes $ignoreRegexes) { continue }
-        if (-not $report.FileLines.ContainsKey($file)) { continue }
+        $changedFiles.Add($file)
+        if (-not $report.FileLines.ContainsKey($file)) {
+            if (Test-Path -LiteralPath (Join-Path $RepoRoot $file)) {
+                $unmatchedExistingFiles.Add($file)
+            }
+            continue
+        }
+        $matchedFiles.Add($file)
 
         $lineHits = $report.FileLines[$file]
         $uncovered = @()
@@ -574,62 +585,98 @@ else {
 
     $patchBand = Get-PatchBand -changedLines $coverableChanged -patch $thresholds.patch
     $patchFloor = $patchBand.Floor
-    if ($coverableChanged -eq 0) {
-        Write-Host 'No coverable changed lines were found; the patch gate passes vacuously.'
-        Add-SummaryRow 'Patch coverage' 'no coverable changed lines' '-' 'info'
+    if ($changedFiles.Count -eq 0) {
+        Write-Host 'No changed C# files were found; the patch gate passes.'
+        Add-SummaryRow 'Patch coverage' 'no changed C# files' '-' 'info'
+    }
+    elseif ($matchedFiles.Count -eq 0) {
+        $exampleChangedFile = @($changedFiles | Sort-Object)[0]
+        $exampleReportFile = @(
+            $report.FileLines.Keys |
+                Where-Object { -not (Test-PathIgnored -relativePath $_ -ignoreRegexes $ignoreRegexes) } |
+                Sort-Object
+        )[0]
+        if ([string]::IsNullOrWhiteSpace($exampleReportFile)) {
+            $exampleReportFile = '<no non-ignored files in the coverage report>'
+        }
+        $message = ('Changed C# files were found, but none matched any file in the coverage report. ' +
+            'The diff and report disagree on path shape. Example changed file: {0}. Example report file: {1}.' -f `
+            $exampleChangedFile, $exampleReportFile)
+        $failures += $message
+        Write-Host $message
+        Add-SummaryRow 'Patch coverage' 'changed files did not match the coverage report' '-' 'fail'
     }
     else {
-        $patchRate = 100.0 * $coveredChanged / $coverableChanged
-        Write-Host ("Patch:       {0:N2}% ({1}/{2} changed lines covered, floor {3:N2}% for {4}, {5})" -f `
-            $patchRate, $coveredChanged, $coverableChanged, $patchFloor, $patchBand.Scope,
-            $(if ($patchBand.Enforced) { 'enforced' } else { 'advisory' }))
-
-        if ($uncoveredByFile.Count -gt 0) {
-            Write-Host 'Uncovered changed lines:'
-            foreach ($file in $uncoveredByFile.Keys) {
-                Write-Host ("  {0}: {1}" -f $file, ($uncoveredByFile[$file] -join ', '))
-            }
+        if ($unmatchedExistingFiles.Count -gt 0) {
+            $exampleUnmatched = @($unmatchedExistingFiles | Sort-Object)[0]
+            Write-GateWarning ('Some changed C# files exist on disk but were not present in the coverage report. ' +
+                'Example unmatched file: {0}.' -f $exampleUnmatched)
         }
 
-        $patchBelowFloor = $patchRate -lt $patchFloor
-        $patchState = if (-not $patchBelowFloor) {
-            'pass'
-        }
-        elseif ($patchBand.Enforced) {
-            'fail'
+        if ($coverableChanged -eq 0) {
+            Write-Host 'No coverable changed lines were found; the patch gate passes vacuously.'
+            Add-SummaryRow 'Patch coverage' 'no coverable changed lines' '-' 'info'
         }
         else {
-            'warn'
-        }
+            $patchRate = 100.0 * $coveredChanged / $coverableChanged
+            Write-Host ("Patch:       {0:N2}% ({1}/{2} changed lines covered, floor {3:N2}% for {4}, {5})" -f `
+                $patchRate, $coveredChanged, $coverableChanged, $patchFloor, $patchBand.Scope,
+                $(if ($patchBand.Enforced) { 'enforced' } else { 'advisory' }))
 
-        Add-SummaryRow 'Patch coverage' `
-            ('**{0:N2}%** ({1}/{2} changed lines)' -f $patchRate, $coveredChanged, $coverableChanged) `
-            ('>= {0:N2}% ({1}{2})' -f $patchFloor, $patchBand.Scope,
-                $(if ($patchBand.Enforced) { '' } else { ', advisory' })) `
-            $patchState
-
-        # List the uncovered changed lines in the summary too - that is the
-        # actionable part for the author, and it saves opening the raw log.
-        if ($uncoveredByFile.Count -gt 0) {
-            $detail = [System.Text.StringBuilder]::new()
-            $null = $detail.AppendLine('<details><summary>Uncovered changed lines</summary>')
-            $null = $detail.AppendLine('')
-            foreach ($file in $uncoveredByFile.Keys) {
-                $null = $detail.AppendLine(('- `{0}`: {1}' -f $file, ($uncoveredByFile[$file] -join ', ')))
+            if ($uncoveredByFile.Count -gt 0) {
+                Write-Host 'Uncovered changed lines:'
+                foreach ($file in $uncoveredByFile.Keys) {
+                    Write-Host ("  {0}: {1}" -f $file, ($uncoveredByFile[$file] -join ', '))
+                }
             }
-            $null = $detail.AppendLine('')
-            $null = $detail.Append('</details>')
-            Add-SummaryNote $detail.ToString()
-        }
 
-        if ($patchBelowFloor) {
-            $message = ('Patch coverage {0:N2}% is below {1:N2}% for {2} ({3} of {4} changed lines are uncovered).' -f `
-                $patchRate, $patchFloor, $patchBand.Scope, ($coverableChanged - $coveredChanged), $coverableChanged)
-            if ($patchBand.Enforced) {
-                $failures += $message
+            $patchBelowFloor = $patchRate -lt $patchFloor
+            $patchState = if (-not $patchBelowFloor) {
+                'pass'
+            }
+            elseif ($patchBand.Enforced) {
+                'fail'
             }
             else {
-                Write-GateWarning ($message + ' Advisory at this patch size - add a test if the change deserves one.')
+                'warn'
+            }
+
+            Add-SummaryRow 'Patch coverage' `
+                ('**{0:N2}%** ({1}/{2} changed lines)' -f $patchRate, $coveredChanged, $coverableChanged) `
+                ('>= {0:N2}% ({1}{2})' -f $patchFloor, $patchBand.Scope,
+                    $(if ($patchBand.Enforced) { '' } else { ', advisory' })) `
+                $patchState
+
+            # List the uncovered changed lines in the summary too - that is the
+            # actionable part for the author, and it saves opening the raw log.
+            if ($uncoveredByFile.Count -gt 0) {
+                $detail = [System.Text.StringBuilder]::new()
+                $null = $detail.AppendLine('<details><summary>Uncovered changed lines</summary>')
+                $null = $detail.AppendLine('')
+                foreach ($file in $uncoveredByFile.Keys) {
+                    $null = $detail.AppendLine(('- `{0}`: {1}' -f $file, ($uncoveredByFile[$file] -join ', ')))
+                }
+                $null = $detail.AppendLine('')
+                $null = $detail.Append('</details>')
+                Add-SummaryNote $detail.ToString()
+            }
+
+            if ($patchBelowFloor) {
+                $message = ((
+                    'Patch coverage {0:N2}% is below {1:N2}% for {2} ' +
+                    '({3} of {4} changed lines are uncovered).') -f `
+                    $patchRate,
+                    $patchFloor,
+                    $patchBand.Scope,
+                    ($coverableChanged - $coveredChanged),
+                    $coverableChanged)
+                if ($patchBand.Enforced) {
+                    $failures += $message
+                }
+                else {
+                    Write-GateWarning ($message +
+                        ' Advisory at this patch size - add a test if the change deserves one.')
+                }
             }
         }
     }

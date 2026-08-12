@@ -32,6 +32,7 @@ using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Di.Server;
 using Opc.Ua.RobotIntent;
+using Opc.Ua.RobotIntent.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
@@ -102,6 +103,16 @@ namespace Opc.Ua.Robotics.Server
         {
             service = m_services?.GetService<T>();
             return service != null;
+        }
+
+        internal bool TryGetIntentExecutor(IntentControllerState controller, out IIntentExecutor? executor)
+        {
+            if (m_services is RobotIntentBuildServiceProvider robotIntentServices)
+            {
+                return robotIntentServices.TryGetExecutor(controller, out executor);
+            }
+            executor = null;
+            return false;
         }
 
         private readonly IServiceProvider? m_services;

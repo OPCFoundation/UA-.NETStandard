@@ -118,7 +118,7 @@ namespace Robotics.IntentEnabledRobot
                 .WithReady(true)
                 .WithMaxQueueDepth(16)
                 .Accepts<JointMoveIntentDataType>(cancelSupported: true)
-                .Accepts<LinearMoveIntentDataType>(cancelSupported: true)
+                .Accepts<LinearMoveIntentDataType>(cancelSupported: true, pauseSupported: true)
                 .Accepts<CircularMoveIntentDataType>(cancelSupported: true)
                 .Accepts<TrajectoryIntentDataType>(cancelSupported: true)
                 .Accepts<CartesianPathIntentDataType>(cancelSupported: true)
@@ -127,7 +127,7 @@ namespace Robotics.IntentEnabledRobot
                 .Accepts<PickIntentDataType>(cancelSupported: false)
                 .Accepts<PlaceIntentDataType>(cancelSupported: true)
                 .Accepts<ToolChangeIntentDataType>(cancelSupported: false)
-                .Accepts<WaitIntentDataType>(cancelSupported: true)
+                .Accepts<WaitIntentDataType>(cancelSupported: true, pauseSupported: true, retrySupported: true)
                 .WithSafetyState(m_safetySource);
 
             controller.State.Capabilities!.MissionsSupported!.Value = true;
@@ -171,10 +171,14 @@ namespace Robotics.IntentEnabledRobot
 
             foreach ((string name, string _, double x, double y, double z, double rz) in s_locations)
             {
+                uint capacity = string.Equals(name, "Bin", StringComparison.Ordinal) ||
+                    string.Equals(name, "Fixture", StringComparison.Ordinal)
+                        ? PayloadSlotCount
+                        : 1u;
                 IIntentLocationBuilder location = controller.AddLocation(
                     name,
                     Pose(WorldFrameId, x, y, z, rz),
-                    builder => builder.WithOccupancy(false, 1));
+                    builder => builder.WithOccupancy(string.Equals(name, "Bin", StringComparison.Ordinal), capacity));
                 m_locations.Add(location.State);
                 m_locationNodes[name] = location.State.NodeId;
             }
@@ -187,8 +191,27 @@ namespace Robotics.IntentEnabledRobot
                 "BenchLight",
                 Opc.Ua.DataTypeIds.Boolean,
                 ToVariant(false));
+            IIntentOutputSignalBuilder heldPartPosition = controller.AddOutput(
+                "HeldPartPosition",
+                Opc.Ua.DataTypeIds.Double,
+                ToVariant(m_executor.CurrentSnapshot.HeldPartPosition));
+            IIntentOutputSignalBuilder heldPartVisible = controller.AddOutput(
+                "HeldPartVisible",
+                Opc.Ua.DataTypeIds.Boolean,
+                ToVariant(false));
             m_gripperOpenValue = gripperOpen.State.Value;
             m_benchLightValue = benchLight.State.Value;
+            m_heldPartPositionValue = heldPartPosition.State.Value;
+            m_heldPartVisibleValue = heldPartVisible.State.Value;
+
+            for (int ii = 0; ii < PayloadSlotCount; ii++)
+            {
+                IIntentOutputSignalBuilder slotFilled = controller.AddOutput(
+                    $"PayloadSlot{ii + 1:00}Filled",
+                    Opc.Ua.DataTypeIds.Boolean,
+                    ToVariant(false));
+                m_payloadSlotFilledValues.Add(slotFilled.State.Value);
+            }
 
             controller.AddRealTimeChannel(
                 "JointTelemetry", "joint-telemetry", RealTimeTransportEnum.OpcUaFx, "udp://239.0.0.40:4840");
@@ -255,6 +278,43 @@ namespace Robotics.IntentEnabledRobot
                 m_benchLightValue.Value = snapshot.HasObject;
                 m_benchLightValue.ClearChangeMasks(SystemContext, true);
             }
+            if (m_heldPartPositionValue != null)
+            {
+                m_heldPartPositionValue.Value = snapshot.HeldPartPosition;
+                m_heldPartPositionValue.ClearChangeMasks(SystemContext, true);
+            }
+            if (m_heldPartVisibleValue != null)
+            {
+                m_heldPartVisibleValue.Value = snapshot.HasObject;
+                m_heldPartVisibleValue.ClearChangeMasks(SystemContext, true);
+            }
+            int filledCount = 0;
+            for (int ii = 0; ii < m_payloadSlotFilledValues.Count && ii < snapshot.StackSlotsFilled.Count; ii++)
+            {
+                bool filled = snapshot.StackSlotsFilled[ii];
+                if (filled)
+                {
+                    filledCount++;
+                }
+                BaseVariableState? slot = m_payloadSlotFilledValues[ii];
+                if (slot != null)
+                {
+                    slot.Value = filled;
+                    slot.ClearChangeMasks(SystemContext, true);
+                }
+            }
+            UpdateLocationOccupancy("Bin", filledCount < PayloadSlotCount || snapshot.HasObject);
+            UpdateLocationOccupancy("Fixture", filledCount > 0);
+        }
+
+        private void UpdateLocationOccupancy(string name, bool occupied)
+        {
+            global::Opc.Ua.RobotIntent.LocationState? location = FindLocation(name);
+            if (location?.Occupied != null)
+            {
+                location.Occupied.Value = occupied;
+                location.Occupied.ClearChangeMasks(SystemContext, true);
+            }
         }
 
         private static Pose3DDataType Pose(string frameId, double x, double y, double z, double rzDegrees = 0.0)
@@ -293,6 +353,12 @@ namespace Robotics.IntentEnabledRobot
             return ((IVariantBuilder<double>)builder).WithValue(value);
         }
 
+        private static Variant ToVariant(ArrayOf<double> value)
+        {
+            var builder = new VariantBuilder();
+            return ((IVariantBuilder<ArrayOf<double>>)builder).WithValue(value);
+        }
+
         private static Guid GuidFor(string key)
         {
             byte[] hash;
@@ -312,6 +378,7 @@ namespace Robotics.IntentEnabledRobot
         private const string FlangeFrameId = "ur5e-flange";
         private const string ToolFrameId = "parallel-gripper-tcp";
         private const double FullTurn = Math.PI * 2.0;
+        private const int PayloadSlotCount = 8;
 
         private static readonly (string Name, string PrimPath, double X, double Y, double Z, double Rz)[] s_locations =
         [
@@ -338,11 +405,14 @@ namespace Robotics.IntentEnabledRobot
         private readonly List<global::Opc.Ua.RobotIntent.AxisState> m_axes = [];
         private readonly List<global::Opc.Ua.RobotIntent.LocationState> m_locations = [];
         private readonly Dictionary<string, NodeId> m_locationNodes = new(StringComparer.Ordinal);
+        private readonly List<BaseVariableState?> m_payloadSlotFilledValues = [];
         private AsyncCustomNodeManager? m_manager;
         private ServerSystemContext? m_systemContext;
         private IIntentControllerBuilder? m_controller;
         private BaseVariableState? m_gripperOpenValue;
         private BaseVariableState? m_benchLightValue;
+        private BaseVariableState? m_heldPartPositionValue;
+        private BaseVariableState? m_heldPartVisibleValue;
     }
 
     internal static partial class IntentRobotCellLog

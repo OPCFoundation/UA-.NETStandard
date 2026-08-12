@@ -10,6 +10,23 @@ An MCP (Model Context Protocol) server that exposes OPC UA Part 4 service calls 
 - **Session management** via Connect/Disconnect tools
 - **Embeddable** — the tools ship as libraries so an application can offer OPC UA tools to an LLM alongside its own, without forking or shelling out; see [Embedding](#embedding-the-tools-in-your-own-server)
 
+### OPC UA sessions and the stateless MCP protocol
+
+The server is built on the ModelContextProtocol 2.x SDK, which follows the 2026-07-28 specification revision
+and is **stateless by default**: there is no `initialize` handshake and no `Mcp-Session-Id`, and every request
+carries what it needs.
+
+An OPC UA session is a different thing, and the distinction matters. It is a real, long-lived, secured
+connection to a server — application state rather than protocol state. `Connect` opens one and returns a
+**name**, and later tool calls pass that name back. Passing an explicit identifier is exactly the shape the
+stateless model asks for, so the two fit together well.
+
+What it does assume is that the same process handles both calls. `Connect` on one instance and `Read` on
+another will not find the session, because the connection lives in the process that opened it. A single server
+process — which is what both the stdio and HTTP hosts are — is therefore the supported deployment. Running
+several instances behind a load balancer would need either session affinity or a shared connection broker,
+and neither is provided here.
+
 ### Tool Inventory (`full` profile)
 
 The tables below list every tool available in the default `full` profile. Running with `--profile core|services|administration|pubsub|diagnostics` exposes only the tool classes relevant to that profile — see [Tool Profiles](../../docs/McpServer.md#tool-profiles) for the mapping.

@@ -408,17 +408,33 @@ namespace Opc.Ua
 #else
             try
             {
-                string formatted = ToDateTime().ToString(provider);
+                // Honour the format specifier. ToString(provider) ignores it and
+                // always emits the general format, so a caller asking for "O" got
+                // "1/1/2023 12:30:45 PM" instead of the round trip form - the
+                // fractional seconds and the UTC designator were silently lost.
+                string formatted = ToDateTime()
+                    .ToString(format.IsEmpty ? null : format.ToString(), provider);
                 byte[] encoded = System.Text.Encoding.UTF8.GetBytes(formatted);
-                bytesWritten = encoded.Length > utf8Destination.Length ?
-                    utf8Destination.Length :
-                    encoded.Length;
-                encoded.AsSpan(0, bytesWritten).CopyTo(utf8Destination);
+                if (encoded.Length > utf8Destination.Length)
+                {
+                    // All or nothing: reporting success for a truncated timestamp
+                    // would hand the caller a corrupt value it believes is complete.
+                    bytesWritten = 0;
+                    return false;
+                }
+                encoded.AsSpan().CopyTo(utf8Destination);
+                bytesWritten = encoded.Length;
                 return true;
             }
-            catch
+            // ToString throws FormatException for an invalid format string. That is
+            // deliberately not caught: DateTime.TryFormat throws it too, so letting
+            // it propagate keeps this method behaving the same on every target
+            // framework. ArgumentException covers an unusable provider, and
+            // EncoderFallbackException derives from it, so an unencodable character
+            // is handled too - Encoding.UTF8 replaces rather than throws in any case.
+            catch (ArgumentException)
             {
-                bytesWritten = default;
+                bytesWritten = 0;
                 return false;
             }
 #endif

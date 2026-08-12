@@ -37,6 +37,8 @@ you need finer control.
 | `Opc.Ua.Core` (root)           | `services.AddOpcUa()`                    | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Configuration`         | `builder.ConfigureApplication(opt => …)` | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Configuration`         | `builder.AddApplicationInstance()`       | `IOpcUaBuilder`          | —       | —                        |
+| `Opc.Ua.Core` (crypto)         | `builder.AddCryptoProvider(crypto => …)` | `IOpcUaBuilder`          | —       | —                        |
+| `Opc.Ua.Security.Pkcs11`       | `builder.AddPkcs11CertificateStore(…)`   | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Client`                | `builder.AddClient(opt => …)`            | `IOpcUaClientBuilder`    | —       | `OpcUa:Client`           |
 | `Opc.Ua.Client.ComplexTypes`   | `builder.AddComplexTypes()`              | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Client.Alarms` (within `Opc.Ua.Client`) | `builder.AddAlarms()`        | `IOpcUaBuilder`          | —       | —                        |
@@ -1396,3 +1398,4 @@ services.AddOpcUa()
 - [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
 - [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.
 - [Diagnostics](Diagnostics.md) — `ITelemetryContext` end-to-end.
+- [CryptoProvider](CryptoProvider.md) — `AddCryptoProvider`, hardware-held private keys, FIPS posture and audit.

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -119,25 +120,127 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
-        public async Task MotionProfileIsPublishedOnlyWhenComputedFacetsSatisfyIt()
+        public async Task MotionProfilePublishesProfileAndRequiredFacetUris()
         {
             var executor = new RecordingExecutor();
             await using ComplianceServerFixture fixture = new ComplianceServerFixture();
             await fixture.StartAsync(new MotionProfileRunner(executor)).ConfigureAwait(false);
 
-            BaseVariableState profileArray = fixture.Server.CurrentInstance
-                .ServerObject
-                .ServerCapabilities!
-                .ServerProfileArray!;
-            Assert.That(profileArray.Value.TryGetValue(out ArrayOf<string> profiles), Is.True);
+            string[] profiles = GetPublishedServerProfiles(fixture);
+            string[] expectedRobotEntries =
+            [
+                RobotIntentConformanceUris.Profiles.Motion,
+                RobotIntentConformanceUris.Facets.Base,
+                RobotIntentConformanceUris.Facets.MotionJoint,
+                RobotIntentConformanceUris.Facets.MotionLinear,
+                RobotIntentConformanceUris.Facets.Safety,
+                RobotIntentConformanceUris.Facets.Description
+            ];
 
             Assert.Multiple(() =>
             {
-                Assert.That(profiles.ToArray(), Does.Contain(RobotIntentConformanceUris.Profiles.Motion));
-                Assert.That(profiles.ToArray(), Does.Not.Contain(RobotIntentConformanceUris.Profiles.Handling));
-                Assert.That(fixture.Manager.ServerProfiles.ToArray(),
+                Assert.That(profiles, Is.SupersetOf(expectedRobotEntries));
+                Assert.That(profiles, Does.Not.Contain(RobotIntentConformanceUris.Profiles.Handling));
+                Assert.That(
+                    GetRobotIntentProfileUris(ToStringArray(fixture.Manager.ServerProfiles)),
                     Is.EqualTo(new[] { RobotIntentConformanceUris.Profiles.Motion }));
+                Assert.That(ToStringArray(fixture.Manager.ServerProfiles), Is.SupersetOf(expectedRobotEntries));
             });
+        }
+
+        [Test]
+        public async Task FacetOnlyControllerPublishesFacetUrisWithoutProfile()
+        {
+            var executor = new RecordingExecutor();
+            await using ComplianceServerFixture fixture = new ComplianceServerFixture();
+            await fixture.StartAsync(new WaitFacetRunner(executor)).ConfigureAwait(false);
+
+            string[] expectedRobotEntries =
+            [
+                RobotIntentConformanceUris.Facets.Base,
+                RobotIntentConformanceUris.Facets.Wait
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(GetRobotIntentProfileUris(ToStringArray(fixture.Manager.ServerProfiles)), Is.Empty);
+                Assert.That(ToStringArray(fixture.Manager.ServerProfiles), Is.SupersetOf(expectedRobotEntries));
+                Assert.That(GetPublishedServerProfiles(fixture), Is.SupersetOf(expectedRobotEntries));
+                Assert.That(
+                    GetPublishedServerProfiles(fixture),
+                    Does.Not.Contain(RobotIntentConformanceUris.Profiles.Motion));
+            });
+        }
+
+        [Test]
+        public async Task FacetInNoProfileIsPublishedWhenControllerClaimsIt()
+        {
+            var executor = new RecordingExecutor();
+            await using ComplianceServerFixture fixture = new ComplianceServerFixture();
+            await fixture.StartAsync(new ForceFacetRunner(executor)).ConfigureAwait(false);
+
+            string[] expectedRobotEntries =
+            [
+                RobotIntentConformanceUris.Facets.Base,
+                RobotIntentConformanceUris.Facets.Force
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(GetRobotIntentProfileUris(ToStringArray(fixture.Manager.ServerProfiles)), Is.Empty);
+                Assert.That(ToStringArray(fixture.Manager.ServerProfiles), Is.SupersetOf(expectedRobotEntries));
+                Assert.That(GetPublishedServerProfiles(fixture), Is.SupersetOf(expectedRobotEntries));
+                Assert.That(
+                    GetPublishedServerProfiles(fixture),
+                    Does.Not.Contain(RobotIntentConformanceUris.Profiles.Motion));
+            });
+        }
+
+        [Test]
+        public async Task ExistingServerProfileArrayEntriesSurviveRobotIntentPublication()
+        {
+            const string existingProfile = "urn:existing-server-profile";
+            var executor = new RecordingExecutor();
+            await using ComplianceServerFixture fixture = new ComplianceServerFixture();
+            await fixture.StartAsync(new WaitFacetRunner(executor), new[] { existingProfile }).ConfigureAwait(false);
+
+            Assert.That(
+                GetPublishedServerProfiles(fixture),
+                Is.SupersetOf(new[]
+                {
+                    existingProfile,
+                    RobotIntentConformanceUris.Facets.Base,
+                    RobotIntentConformanceUris.Facets.Wait
+                }));
+        }
+
+        [Test]
+        public async Task PublicationSkippedBeforeServerObjectExistsPublishesFacetUrisWhenItAppears()
+        {
+            var executor = new RecordingExecutor();
+            await using ComplianceServerFixture fixture = new ComplianceServerFixture();
+            await fixture.StartAsync(new WaitFacetRunner(executor)).ConfigureAwait(false);
+            ServerObjectState serverObject = fixture.Server.CurrentInstance.ServerObject;
+            serverObject.ServerCapabilities!.ServerProfileArray!.Value = Array.Empty<string>().ToArrayOf();
+
+            SetServerObject(fixture.Server.CurrentInstance, null);
+            try
+            {
+                Assert.That(() => InvokePublishServerProfiles(fixture.Manager), Throws.Nothing);
+            }
+            finally
+            {
+                SetServerObject(fixture.Server.CurrentInstance, serverObject);
+            }
+            InvokePublishServerProfiles(fixture.Manager);
+
+            Assert.That(
+                GetPublishedServerProfiles(fixture),
+                Is.SupersetOf(new[]
+                {
+                    RobotIntentConformanceUris.Facets.Base,
+                    RobotIntentConformanceUris.Facets.Wait
+                }));
         }
 
         [Test]
@@ -164,6 +267,34 @@ namespace Opc.Ua.Robotics.Tests
                     RobotIntentConformanceUris.Facets.InteropVision,
                     Is.EqualTo("http://opcfoundation.org/UA-Profile/RobotIntent/Facet/Interop-Vision"));
             });
+        }
+
+        [Test]
+        public void EveryFacetNameConstantMapsToClause124Uri()
+        {
+            FieldInfo[] fields = typeof(RobotIntentConformanceUris.FacetNames)
+                .GetFields(BindingFlags.Public | BindingFlags.Static);
+            Assert.That(fields, Is.Not.Empty);
+            foreach (FieldInfo field in fields)
+            {
+                string facetName = (string)field.GetRawConstantValue()!;
+#if NETSTANDARD || NETFRAMEWORK
+                string expectedUri = RobotIntentConformanceUris.FacetBase + facetName.Substring("RI-".Length);
+#else
+                string expectedUri = string.Concat(
+                    RobotIntentConformanceUris.FacetBase,
+                    facetName.AsSpan("RI-".Length));
+#endif
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        RobotIntentConformanceUris.TryGetFacetUri(facetName, out string facetUri),
+                        Is.True,
+                        field.Name);
+                    Assert.That(facetUri, Is.EqualTo(expectedUri), field.Name);
+                });
+            }
         }
 
         private static async Task WaitAsync(Func<bool> condition)
@@ -208,6 +339,100 @@ namespace Opc.Ua.Robotics.Tests
                     AxisVector = new[] { 0.0, 1.0, 0.0 }.ToArrayOf()
                 }
             }.ToArrayOf();
+        }
+
+        private static string[] GetPublishedServerProfiles(ComplianceServerFixture fixture)
+        {
+            BaseVariableState profileArray = fixture.Server.CurrentInstance
+                .ServerObject
+                .ServerCapabilities!
+                .ServerProfileArray!;
+            Assert.That(profileArray.Value.TryGetValue(out ArrayOf<string> profiles), Is.True);
+            return ToStringArray(profiles);
+        }
+
+        private static string[] ToStringArray(ArrayOf<string> values)
+        {
+            return values.ToArray() ?? [];
+        }
+
+        private static string[] GetRobotIntentProfileUris(string[] entries)
+        {
+            return entries
+                .Where(static entry => entry.StartsWith(
+                    RobotIntentConformanceUris.ProfileBase,
+                    StringComparison.Ordinal))
+                .ToArray();
+        }
+
+        private static void InvokePublishServerProfiles(RobotIntentNodeManager manager)
+        {
+            MethodInfo? method = typeof(RobotIntentNodeManager).GetMethod(
+                "PublishServerProfiles",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+            method!.Invoke(manager, null);
+        }
+
+        private static void SetServerObject(IServerInternal server, ServerObjectState? serverObject)
+        {
+            FieldInfo? field = server
+                .GetType()
+                .GetField("<ServerObject>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            field!.SetValue(server, serverObject);
+        }
+
+        private sealed class WaitFacetRunner : IRobotIntentPostSetupRunner
+        {
+            public WaitFacetRunner(IIntentExecutor executor)
+            {
+                m_executor = executor;
+            }
+
+            public async ValueTask RunAsync(
+                AsyncCustomNodeManager manager,
+                RobotIntentRootState root,
+                RobotIntentServerOptions options,
+                CancellationToken cancellationToken)
+            {
+                var robotIntentManager = (RobotIntentNodeManager)manager;
+                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(
+                    m_executor,
+                    cancellationToken);
+                await context.AddIntentControllerAsync(
+                    "WaitController",
+                    controller => controller.Accepts<WaitIntentDataType>(),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            private readonly IIntentExecutor m_executor;
+        }
+
+        private sealed class ForceFacetRunner : IRobotIntentPostSetupRunner
+        {
+            public ForceFacetRunner(IIntentExecutor executor)
+            {
+                m_executor = executor;
+            }
+
+            public async ValueTask RunAsync(
+                AsyncCustomNodeManager manager,
+                RobotIntentRootState root,
+                RobotIntentServerOptions options,
+                CancellationToken cancellationToken)
+            {
+                var robotIntentManager = (RobotIntentNodeManager)manager;
+                IRobotIntentBuildContext context = robotIntentManager.CreateRobotIntentBuildContext(
+                    m_executor,
+                    cancellationToken);
+                await context.AddIntentControllerAsync(
+                    "ForceController",
+                    controller => controller.Accepts<ForceIntentDataType>(),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            private readonly IIntentExecutor m_executor;
         }
 
         private sealed class MotionProfileRunner : IRobotIntentPostSetupRunner
@@ -298,7 +523,9 @@ namespace Opc.Ua.Robotics.Tests
 
             public RobotIntentNodeManager Manager { get; private set; } = null!;
 
-            public async Task StartAsync(IRobotIntentPostSetupRunner? runner = null)
+            public async Task StartAsync(
+                IRobotIntentPostSetupRunner? runner = null,
+                string[]? existingServerProfiles = null)
             {
                 m_fixture = new ServerFixture<StandardServer>(
                     telemetry => new StandardServer(telemetry))
@@ -307,6 +534,11 @@ namespace Opc.Ua.Robotics.Tests
                     SecurityNone = true
                 };
                 Server = await m_fixture.StartAsync().ConfigureAwait(false);
+                if (existingServerProfiles != null)
+                {
+                    Server.CurrentInstance.ServerObject.ServerCapabilities!.ServerProfileArray!.Value =
+                        existingServerProfiles.ToArrayOf();
+                }
                 Manager = new RobotIntentNodeManager(
                     Server.CurrentInstance,
                     m_fixture.Config,

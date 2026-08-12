@@ -61,6 +61,7 @@ namespace Opc.Ua.Mcp
 
             services.AddOpcUaMcpCore(OpcUaMcpOptions ?? CreateOpcUaMcpOptions());
             services.AddOpcUaMcpPubSub();
+            services.AddOpcUaMcpRobotics();
             services.AddOpcUaMcpDiagnostics(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -158,16 +159,9 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaMcpFilters()
                 .WithOpcUaCoreTools(toolProfile)
                 .WithOpcUaPubSubTools(toolProfile)
+                .WithOpcUaRoboticsTools(toolProfile)
                 .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
-
-            if (toolProfile == McpToolProfile.Diagnostics)
-            {
-                // The diagnostics profile is the one catalogue that pairs tools
-                // from two packages: capturing traffic is only useful next to
-                // the connection tools that generate it.
-                mcpServerBuilder.WithTools<ConnectionTools>();
-            }
 
             mcpServerBuilder.WithResources<SessionResources>();
         }

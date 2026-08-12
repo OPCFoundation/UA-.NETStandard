@@ -2265,21 +2265,12 @@ namespace Opc.Ua.Server
                 // need to prevent recursion with the server object.
                 if (activeNode.NodeId != ObjectIds.Server)
                 {
-                    lock (activeNode)
-                    {
-                        activeNode.OnReportEventAsync = OnReportEventAsync;
+                    activeNode.OnReportEventAsync = OnReportEventAsync;
 
-                        if (!activeNode.ReferenceExists(
-                            ReferenceTypeIds.HasNotifier,
-                            true,
-                            ObjectIds.Server))
-                        {
-                            activeNode.AddReference(
-                                ReferenceTypeIds.HasNotifier,
-                                true,
-                                ObjectIds.Server);
-                        }
-                    }
+                    activeNode.AddReferenceIfMissing(
+                        ReferenceTypeIds.HasNotifier,
+                        true,
+                        ObjectIds.Server);
                 }
             }
         }
@@ -2396,10 +2387,7 @@ namespace Opc.Ua.Server
             {
                 NodeState source = kvp.Value;
                 var references = new List<IReference>();
-                lock (source)
-                {
-                    source.GetReferences(SystemContext, references);
-                }
+                source.GetReferences(SystemContext, references);
 
                 for (int ii = 0; ii < references.Count; ii++)
                 {
@@ -2429,19 +2417,10 @@ namespace Opc.Ua.Server
                     // add inverse reference to internal targets.
                     if (PredefinedNodes.TryGetValue(targetId, out NodeState? target))
                     {
-                        lock (target)
-                        {
-                            if (!target.ReferenceExists(
+                        target.AddReferenceIfMissing(
                             reference.ReferenceTypeId,
                             !reference.IsInverse,
-                            source.NodeId))
-                            {
-                                target.AddReference(
-                                    reference.ReferenceTypeId,
-                                    !reference.IsInverse,
-                                    source.NodeId);
-                            }
-                        }
+                            source.NodeId);
 
                         continue;
                     }
@@ -2548,10 +2527,7 @@ namespace Opc.Ua.Server
             foreach (NodeState node in PredefinedNodes.Values)
             {
                 var references = new List<IReference>();
-                lock (node)
-                {
-                    node.GetReferences(SystemContext, references);
-                }
+                node.GetReferences(SystemContext, references);
                 foreach (IReference reference in references)
                 {
                     if (reference.IsInverse &&
@@ -2768,19 +2744,10 @@ namespace Opc.Ua.Server
                 // add reference to external target.
                 foreach (IReference reference in current.Value)
                 {
-                    lock (source.Node)
-                    {
-                        if (!source.Node.ReferenceExists(
-                                reference.ReferenceTypeId,
-                                reference.IsInverse,
-                                reference.TargetId))
-                        {
-                            source.Node.AddReference(
-                                reference.ReferenceTypeId,
-                                reference.IsInverse,
-                                reference.TargetId);
-                        }
-                    }
+                    source.Node.AddReferenceIfMissing(
+                        reference.ReferenceTypeId,
+                        reference.IsInverse,
+                        reference.TargetId);
                 }
             }
         }
@@ -2811,10 +2778,7 @@ namespace Opc.Ua.Server
             }
 
             // only support references to Source Areas.
-            lock (source.Node)
-            {
-                source.Node.RemoveReference(referenceTypeId, isInverse, targetId);
-            }
+            source.Node.RemoveReference(referenceTypeId, isInverse, targetId);
 
             if (deleteBidirectional)
             {
@@ -2825,10 +2789,7 @@ namespace Opc.Ua.Server
 
                     if (target != null && target.Validated && target.Node != null)
                     {
-                        lock (target.Node)
-                        {
-                            target.Node.RemoveReference(referenceTypeId, !isInverse, source.NodeId);
-                        }
+                        target.Node.RemoveReference(referenceTypeId, !isInverse, source.NodeId);
                     }
                 }
             }
@@ -2885,14 +2846,11 @@ namespace Opc.Ua.Server
 
             var nodeMetadataValues = new Variant[s_nodeMetaDataAttributes.Length];
 
-            // read the attributes.
-            lock (target)
-            {
-                target.ReadAttributes(
-                    systemContext,
-                    ref nodeMetadataValues,
-                    s_nodeMetaDataAttributes);
-            }
+            // read the attributes. Each attribute read guards itself on the node.
+            target.ReadAttributes(
+                systemContext,
+                ref nodeMetadataValues,
+                s_nodeMetaDataAttributes);
 
             // construct the meta-data object.
             var metadata = new NodeMetadata(target, target.NodeId)
@@ -3024,15 +2982,12 @@ namespace Opc.Ua.Server
             // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
             // The are originating from services in the context of AccessRestrictions and RolePermission validation.
             // For such calls the other attributes are ignored since reading them might trigger unnecessary callbacks
-            lock (target)
-            {
-                target.ReadAttributes(
-                    systemContext,
-                    ref values,
-                    Attributes.AccessRestrictions,
-                    Attributes.RolePermissions,
-                    Attributes.UserRolePermissions);
-            }
+            target.ReadAttributes(
+                systemContext,
+                ref values,
+                Attributes.AccessRestrictions,
+                Attributes.RolePermissions,
+                Attributes.UserRolePermissions);
         }
 
         /// <summary>
@@ -3079,20 +3034,16 @@ namespace Opc.Ua.Server
             // fetch list of references.
             if (continuationPoint.Data is not BrowserContext browserContext)
             {
-                INodeBrowser browser;
-                lock (source)
-                {
-                    // create a new browser.
-                    browser = source.CreateBrowser(
-                        systemContext,
-                        continuationPoint.View,
-                        continuationPoint.ReferenceTypeId,
-                        continuationPoint.IncludeSubtypes,
-                        continuationPoint.BrowseDirection,
-                        default,
-                        null,
-                        false);
-                }
+                // create a new browser. The node guards the browser build itself.
+                INodeBrowser browser = source.CreateBrowser(
+                    systemContext,
+                    continuationPoint.View,
+                    continuationPoint.ReferenceTypeId,
+                    continuationPoint.IncludeSubtypes,
+                    continuationPoint.BrowseDirection,
+                    default,
+                    null,
+                    false);
 
                 continuationPoint.Data = browserContext = new BrowserContext(browser);
             }
@@ -3355,11 +3306,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            INodeBrowser browser;
-            // get list of references that relative path.
-            lock (source)
-            {
-                browser = source.CreateBrowser(
+            // get list of references that relative path. The node guards the browser build itself.
+            INodeBrowser browser = source.CreateBrowser(
                 systemContext,
                 null,
                 relativePath.ReferenceTypeId,
@@ -3368,7 +3316,6 @@ namespace Opc.Ua.Server
                 relativePath.TargetName,
                 null,
                 false);
-            }
 
             // check the browse names.
             try
@@ -3593,11 +3540,9 @@ namespace Opc.Ua.Server
                 if (!string.IsNullOrEmpty(handle.ComponentPath) &&
                     cache.TryGetValue(rootId, out target))
                 {
-                    NodeState? child;
-                    lock (target)
-                    {
-                        child = target.FindChildBySymbolicName(context, handle.ComponentPath);
-                    }
+                    NodeState? child = target.FindChildBySymbolicName(
+                        context,
+                        handle.ComponentPath);
 
                     // component exists.
                     if (child != null)
@@ -4008,15 +3953,12 @@ namespace Opc.Ua.Server
 
                         var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
-                        lock (node)
-                        {
-                            node.ReadAttribute(
-                                systemContext,
-                                Attributes.Value,
-                                monitoredItem.IndexRange,
-                                default,
-                                ref value);
-                        }
+                        node.ReadAttribute(
+                            systemContext,
+                            Attributes.Value,
+                            monitoredItem.IndexRange,
+                            default,
+                            ref value);
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
 
@@ -5541,10 +5483,7 @@ namespace Opc.Ua.Server
             }
 
             MethodState? method;
-            lock (source)
-            {
-                method = source.FindMethod(systemContext, methodToCall.MethodId);
-            }
+            method = source.FindMethod(systemContext, methodToCall.MethodId);
 
             if (method != null)
             {
@@ -5552,13 +5491,10 @@ namespace Opc.Ua.Server
             }
 
             bool referenceExists;
-            lock (source)
-            {
-                referenceExists = source.ReferenceExists(
-                    ReferenceTypeIds.HasComponent,
-                    false,
-                    methodToCall.MethodId);
-            }
+            referenceExists = source.ReferenceExists(
+                ReferenceTypeIds.HasComponent,
+                false,
+                methodToCall.MethodId);
 
             if (referenceExists)
             {
@@ -5865,18 +5801,12 @@ namespace Opc.Ua.Server
             // need to prevent recursion with the server object.
             if (notifier.NodeId != ObjectIds.Server)
             {
-                lock (notifier)
-                {
-                    notifier.OnReportEventAsync = OnReportEventAsync;
+                notifier.OnReportEventAsync = OnReportEventAsync;
 
-                    if (!notifier.ReferenceExists(
-                        ReferenceTypeIds.HasNotifier,
-                        true,
-                        ObjectIds.Server))
-                    {
-                        notifier.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-                    }
-                }
+                notifier.AddReferenceIfMissing(
+                    ReferenceTypeIds.HasNotifier,
+                    true,
+                    ObjectIds.Server);
 
                 // The matching forward reference on the Server Object belongs
                 // to whichever node manager owns it, so it is published
@@ -5941,21 +5871,12 @@ namespace Opc.Ua.Server
         {
             if (RootNotifiers.TryRemove(notifier.NodeId, out notifier!))
             {
-                lock (notifier)
-                {
-                    notifier.OnReportEventAsync = null;
+                notifier.OnReportEventAsync = null;
 
-                    if (notifier.ReferenceExists(
-                        ReferenceTypeIds.HasNotifier,
-                        true,
-                        ObjectIds.Server))
-                    {
-                        notifier.RemoveReference(
-                            ReferenceTypeIds.HasNotifier,
-                            true,
-                            ObjectIds.Server);
-                    }
-                }
+                notifier.RemoveReference(
+                    ReferenceTypeIds.HasNotifier,
+                    true,
+                    ObjectIds.Server);
 
                 ServerObjectState? serverObject = Server.ServerObject;
                 if (serverObject != null &&
@@ -6039,10 +5960,7 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsGood(serviceResult) &&
                     wasSubscribed == unsubscribe)
                 {
-                    lock (source)
-                    {
-                        source.SetAreEventsMonitored(context, !unsubscribe, true);
-                    }
+                    source.SetAreEventsMonitored(context, !unsubscribe, true);
                 }
 
                 // signal update.
@@ -6855,30 +6773,26 @@ namespace Opc.Ua.Server
             // need to look up the EU range if a percent filter is requested.
             if (deadbandFilter.DeadbandType == (uint)DeadbandType.Percent)
             {
-                lock (handle.Node)
+                // FindChild and the property value read each guard themselves on the node.
+                if (handle.Node.FindChild(
+                    context,
+                    QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
                 {
-                    if (handle.Node.FindChild(
-                        context,
-                        QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
-                    {
-                        result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
-                        return result;
-                    }
-
-                    Range tmpRange;
-                    bool gotRange = property.Value.TryGetStructure(out tmpRange!);
-                    if (!gotRange)
-                    {
-                        result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
-                        return result;
-                    }
-                    Range range = tmpRange;
-
-                    result.FilterToUse = deadbandFilter;
-                    result.Range = range!;
-                    result.StatusCode = StatusCodes.Good;
+                    result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
                     return result;
                 }
+
+                Range tmpRange;
+                if (!property.Value.TryGetStructure(out tmpRange!))
+                {
+                    result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
+                    return result;
+                }
+
+                result.FilterToUse = deadbandFilter;
+                result.Range = tmpRange;
+                result.StatusCode = StatusCodes.Good;
+                return result;
             }
 
             // no other type of filter supported.

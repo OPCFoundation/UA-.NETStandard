@@ -96,9 +96,14 @@ namespace Opc.Ua.Server.Tests.Hosting
         [Test]
         public async Task ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync()
         {
+            // Short root on purpose. A ClientAndServer application provisions
+            // ECC certificates too, and those file names carry the curve
+            // ("... [BrainpoolP256r1] [<thumbprint>].pfx"), which is long
+            // enough that a root named after this test method pushes the PFX
+            // past MAX_PATH. .NET Framework cannot open such a path at all.
             string pkiRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                nameof(ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync),
+                "cfgapp",
                 Guid.NewGuid().ToString("N"));
             using var certificateManager = new CertificateManager(
                 NUnitTelemetryContext.Create(isServer: true));
@@ -357,6 +362,46 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             Assert.That(entry.Identities, Has.Exactly(1).Matches<IdentityMappingRuleType>(rule =>
                 rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
+        }
+
+        [Test]
+        public async Task CreateUserManagementSeamBindsTheModelToTheServerAsync()
+        {
+            // The user management model is bound through the CreateUserManagement factory
+            // seam, not by reaching for IServerInternal.SetUserManagement from a node
+            // manager override. Every other hosted-server test in this fixture starts
+            // without one, which covers the default null path.
+            UserManagementCaptureServer.Reset();
+            var userManagement = new Mock<Opc.Ua.Server.UserManagement.IUserManagement>();
+            userManagement.Setup(u => u.SnapshotUsers()).Returns([]);
+            userManagement.Setup(u => u.PasswordLength).Returns(new Opc.Ua.Range(256, 1));
+            userManagement.Setup(u => u.PasswordOptions).Returns(PasswordOptionsMask.None);
+            userManagement.Setup(u => u.PasswordRestrictions).Returns((LocalizedText?)null);
+            UserManagementCaptureServer.Supplied = userManagement.Object;
+
+            try
+            {
+                await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                    services => services.AddOpcUa()
+                        .AddServer<UserManagementCaptureServer>(
+                            options => ConfigureHostedOptions(options, "UserManagementCaptureServer")))
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForAsync(
+                        () => UserManagementCaptureServer.NodeManagerStarted,
+                        TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                    Is.True,
+                    "the server must reach OnNodeManagerStarted");
+
+                Assert.That(
+                    UserManagementCaptureServer.BoundUserManagement,
+                    Is.SameAs(userManagement.Object));
+            }
+            finally
+            {
+                UserManagementCaptureServer.Reset();
+            }
         }
 
         [Test]
@@ -909,6 +954,44 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        public sealed class UserManagementCaptureServer : DependencyInjectionStandardServer
+        {
+            public UserManagementCaptureServer(
+                IServiceProvider services,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+                : base(services, telemetry, timeProvider)
+            {
+            }
+
+            public static Opc.Ua.Server.UserManagement.IUserManagement? Supplied { get; set; }
+
+            public static Opc.Ua.Server.UserManagement.IUserManagement? BoundUserManagement { get; private set; }
+
+            public static bool NodeManagerStarted { get; private set; }
+
+            public static void Reset()
+            {
+                Supplied = null;
+                BoundUserManagement = null;
+                NodeManagerStarted = false;
+            }
+
+            protected override Opc.Ua.Server.UserManagement.IUserManagement? CreateUserManagement(
+                IServerInternal server,
+                ApplicationConfiguration configuration)
+            {
+                return Supplied;
+            }
+
+            protected override void OnNodeManagerStarted(IServerInternal server)
+            {
+                BoundUserManagement = server.UserManagement;
+                NodeManagerStarted = true;
+                base.OnNodeManagerStarted(server);
+            }
+        }
+
         public sealed class ObservedHostedServer : StandardServer
         {
             public ObservedHostedServer(ITelemetryContext telemetry, TimeProvider timeProvider)
@@ -1026,9 +1109,9 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             public int InvocationCount => Volatile.Read(ref m_invocationCount);
 
-            public IServerInternal? ObservedServer { get; private set; }
+            public IServerContext? ObservedServer { get; private set; }
 
-            public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+            public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_invocationCount);
                 ObservedServer = server;

@@ -833,10 +833,10 @@ namespace Opc.Ua.Server
                             session.Dispose();
 
                             // update diagnostics.
-                            lock (m_server.DiagnosticsWriteLock)
+                            m_server.UpdateServerDiagnostics(diagnostics =>
                             {
-                                m_server.ServerDiagnostics.CurrentSessionCount--;
-                            }
+                                diagnostics.CurrentSessionCount--;
+                            });
                         }
                     }
                     finally
@@ -989,8 +989,8 @@ namespace Opc.Ua.Server
                 session.ValidateDiagnosticInfo(requestHeader);
 
                 // Lazily reconcile the RoleManager subscription. The
-                // RoleManager may be injected after SessionManager
-                // construction (see IServerInternal.SetRoleManager), so we
+                // RoleManager is bound during server startup, after
+                // SessionManager construction, so we
                 // can't subscribe at startup; the first request that flows
                 // through a fully-initialized server wires it up.
                 EnsureRoleManagerSubscription();
@@ -1066,7 +1066,7 @@ namespace Opc.Ua.Server
                     {
                         channelCert = Certificate.FromRawData(rawCert.RawData);
                     }
-                    channelAppUri = session.SessionDiagnostics?.ClientDescription?.ApplicationUri;
+                    channelAppUri = session.ClientApplicationUri;
                 }
                 catch (Exception ex)
                 {
@@ -1337,11 +1337,9 @@ namespace Opc.Ua.Server
         /// event.
         /// </summary>
         /// <remarks>
-        /// <see cref="IServerInternal.SetRoleManager"/> may be called after
-        /// SessionManager construction, and the RoleManager instance can be
-        /// swapped at runtime (e.g. by integrators wiring a persistence
-        /// backend). The subscription is reconciled lazily on each request
-        /// so the wiring works regardless of injection order.
+        /// The RoleManager is bound during server startup, which can happen after
+        /// SessionManager construction. The subscription is reconciled lazily on each
+        /// request so the wiring works regardless of binding order.
         /// </remarks>
         private void EnsureRoleManagerSubscription()
         {
@@ -1518,10 +1516,10 @@ namespace Opc.Ua.Server
                         if (session.HasExpired)
                         {
                             // update diagnostics.
-                            lock (m_server.DiagnosticsWriteLock)
+                            m_server.UpdateServerDiagnostics(diagnostics =>
                             {
-                                m_server.ServerDiagnostics.SessionTimeoutCount++;
-                            }
+                                diagnostics.SessionTimeoutCount++;
+                            });
 
                             // raise audit event for session closed because of timeout
                             m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
@@ -1818,7 +1816,7 @@ namespace Opc.Ua.Server
                 return session.ClientCertificate.Thumbprint;
             }
 
-            string? applicationUri = session?.SessionDiagnostics?.ClientDescription?.ApplicationUri;
+            string? applicationUri = session?.ClientApplicationUri;
             if (!string.IsNullOrEmpty(applicationUri))
             {
                 return applicationUri!;
