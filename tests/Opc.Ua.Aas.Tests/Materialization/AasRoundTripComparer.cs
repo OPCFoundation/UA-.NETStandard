@@ -126,17 +126,40 @@ namespace Opc.Ua.Aas.Tests.Materialization
 
             CompareReferable(expected, actual, path, differences);
             CompareOptionalArray(expected.Qualifiers, actual.Qualifiers, path + ".qualifiers", CompareQualifier, differences);
+            CompareReferenceOptional(expected.SemanticId, actual.SemanticId, path + ".semanticId", differences);
             switch (expected)
             {
                 case AasProperty left:
                     var property = (AasProperty)actual;
-                    CompareValue(left.Value, property.Value, left.ValueType, path + ".value", differences);
+                    CompareValueType(left.ValueType, property.ValueType, path + ".valueType", differences);
+                    CompareValue(left.Value, property.Value, left.ValueType, property.ValueType,
+                        path + ".value", differences);
                     CompareReferenceOptional(left.ValueId, property.ValueId, path + ".valueId", differences);
                     break;
                 case AasRange left:
                     var range = (AasRange)actual;
-                    CompareValue(left.Min, range.Min, left.ValueType, path + ".min", differences);
-                    CompareValue(left.Max, range.Max, left.ValueType, path + ".max", differences);
+                    CompareValueType(left.ValueType, range.ValueType, path + ".valueType", differences);
+                    CompareValue(left.Min, range.Min, left.ValueType, range.ValueType,
+                        path + ".min", differences);
+                    CompareValue(left.Max, range.Max, left.ValueType, range.ValueType,
+                        path + ".max", differences);
+                    break;
+                case AasBlob left:
+                    var blob = (AasBlob)actual;
+                    CompareString(left.ContentType, blob.ContentType, path + ".contentType", differences);
+                    CompareOptionalByteString(left.Value, blob.Value, path + ".value", differences);
+                    break;
+                case AasFile left:
+                    var file = (AasFile)actual;
+                    CompareString(left.ContentType, file.ContentType, path + ".contentType", differences);
+                    CompareOptionalString(left.Value, file.Value, path + ".value", differences);
+                    break;
+                case AasReferenceElement left:
+                    var referenceElement = (AasReferenceElement)actual;
+                    CompareReferenceOptional(left.Value, referenceElement.Value, path + ".value", differences);
+                    break;
+                case AasBasicEventElement left:
+                    CompareBasicEvent(left, (AasBasicEventElement)actual, path, differences);
                     break;
                 case AasMultiLanguageProperty left:
                     var multiLanguage = (AasMultiLanguageProperty)actual;
@@ -172,6 +195,12 @@ namespace Opc.Ua.Aas.Tests.Materialization
                     break;
                 case AasEntity left:
                     var entity = (AasEntity)actual;
+                    if (left.EntityType != entity.EntityType)
+                    {
+                        differences.Add(path + ".entityType differs.");
+                    }
+                    CompareOptionalString(left.GlobalAssetId, entity.GlobalAssetId,
+                        path + ".globalAssetId", differences);
                     CompareOptionalArray(left.Statements, entity.Statements, path + ".statements", CompareElement, differences);
                     break;
                 case AasAnnotatedRelationshipElement left:
@@ -251,7 +280,8 @@ namespace Opc.Ua.Aas.Tests.Materialization
         private static void CompareValue(
             AasOptional<Variant> expected,
             AasOptional<Variant> actual,
-            AASDataTypeDefXsdDataType valueType,
+            AASDataTypeDefXsdDataType expectedValueType,
+            AASDataTypeDefXsdDataType actualValueType,
             string path,
             List<string> differences)
         {
@@ -260,12 +290,85 @@ namespace Opc.Ua.Aas.Tests.Materialization
                 return;
             }
 
-            string? left = Lexical(expected.Value, valueType);
-            string? right = Lexical(actual.Value, valueType);
-            if (!AasValueSpaceComparer.AreEquivalent(left, right, valueType))
+            // Each side is canonicalized under its own declared type. Reusing
+            // the expected type for both would hide a lost or altered
+            // valueType, which is a field the round trip has to preserve.
+            string? left = Lexical(expected.Value, expectedValueType);
+            string? right = Lexical(actual.Value, actualValueType);
+            if (left is null || right is null)
+            {
+                // A value that cannot be canonicalized has no place in the
+                // value space, so it cannot be equivalent to anything -
+                // including another value that also failed.
+                differences.Add(path + " could not be canonicalized on at least one side.");
+                return;
+            }
+
+            if (!AasValueSpaceComparer.AreEquivalent(left, right, expectedValueType))
             {
                 differences.Add(path + " differs in the xs value space.");
             }
+        }
+
+        private static void CompareValueType(
+            AASDataTypeDefXsdDataType expected,
+            AASDataTypeDefXsdDataType actual,
+            string path,
+            List<string> differences)
+        {
+            if (expected != actual)
+            {
+                differences.Add(path + " differs.");
+            }
+        }
+
+        private static void CompareOptionalByteString(
+            AasOptional<ByteString> expected,
+            AasOptional<ByteString> actual,
+            string path,
+            List<string> differences)
+        {
+            if (!SamePresence(expected.IsPresent, actual.IsPresent, path, differences) || !expected.IsPresent)
+            {
+                return;
+            }
+
+            if (!expected.Value.Span.SequenceEqual(actual.Value.Span))
+            {
+                differences.Add(path + " differs.");
+            }
+        }
+
+        private static void CompareBasicEvent(
+            AasBasicEventElement expected,
+            AasBasicEventElement actual,
+            string path,
+            List<string> differences)
+        {
+            CompareReference(expected.Observed, actual.Observed, path + ".observed", differences);
+            if (expected.Direction != actual.Direction)
+            {
+                differences.Add(path + ".direction differs.");
+            }
+            if (expected.State != actual.State)
+            {
+                differences.Add(path + ".state differs.");
+            }
+            CompareOptionalString(expected.MessageTopic, actual.MessageTopic, path + ".messageTopic", differences);
+            CompareReferenceOptional(
+                expected.MessageBroker, actual.MessageBroker, path + ".messageBroker", differences);
+
+            // The timing fields are DateTime and DurationString on the wire, so
+            // they are compared in their own value spaces rather than as text.
+            CompareValue(expected.LastUpdate, actual.LastUpdate,
+                AASDataTypeDefXsdDataType.DateTime, AASDataTypeDefXsdDataType.DateTime,
+                path + ".lastUpdate", differences);
+            CompareValue(expected.MinInterval, actual.MinInterval,
+                AASDataTypeDefXsdDataType.Duration, AASDataTypeDefXsdDataType.Duration,
+                path + ".minInterval", differences);
+            CompareValue(expected.MaxInterval, actual.MaxInterval,
+                AASDataTypeDefXsdDataType.Duration, AASDataTypeDefXsdDataType.Duration,
+                path + ".maxInterval", differences);
         }
 
         private static string? Lexical(in Variant value, AASDataTypeDefXsdDataType valueType)
@@ -354,10 +457,16 @@ namespace Opc.Ua.Aas.Tests.Materialization
 
             for (int ii = 0; ii < expected.Keys.Count; ii++)
             {
+                string key = path + ".keys[" + ii.ToString(CultureInfo.InvariantCulture) + "]";
+                if (expected.Keys[ii].Type != actual.Keys[ii].Type)
+                {
+                    differences.Add(key + ".type differs.");
+                }
+
                 CompareString(
                     expected.Keys[ii].Value,
                     actual.Keys[ii].Value,
-                    path + ".keys[" + ii.ToString(CultureInfo.InvariantCulture) + "].value",
+                    key + ".value",
                     differences);
             }
         }

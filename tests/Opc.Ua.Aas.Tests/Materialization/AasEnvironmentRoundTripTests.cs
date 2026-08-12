@@ -81,6 +81,92 @@ namespace Opc.Ua.Aas.Tests.Materialization
             });
         }
 
+        /// <summary>
+        /// The comparer is the clause 6.4 equivalence relation, so a field it
+        /// does not look at is a field the round trip is not actually proving.
+        /// Each case here drops or alters one field that the oracle previously
+        /// ignored, and every one of them has to be reported.
+        /// </summary>
+        [Test]
+        public void LosingAFieldTheOracleOnceIgnoredIsReported()
+        {
+            var observed = Reference("urn:observed");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Differences(
+                    new AasBlob { IdShort = Present("b"), ContentType = "application/octet-stream",
+                        Value = AasOptional<ByteString>.Present(ByteString.From([1, 2, 3])) },
+                    new AasBlob { IdShort = Present("b"), ContentType = "application/octet-stream",
+                        Value = AasOptional<ByteString>.Present(ByteString.From([1, 2, 4])) }),
+                    Is.Not.Empty, "Blob content.");
+
+                Assert.That(Differences(
+                    new AasFile { IdShort = Present("f"), ContentType = "text/plain",
+                        Value = Present("a.txt") },
+                    new AasFile { IdShort = Present("f"), ContentType = "application/pdf",
+                        Value = Present("a.txt") }),
+                    Is.Not.Empty, "File contentType.");
+
+                Assert.That(Differences(
+                    new AasReferenceElement { IdShort = Present("r"),
+                        Value = AasOptional<AASReferenceDataType>.Present(Reference("urn:a")) },
+                    new AasReferenceElement { IdShort = Present("r"),
+                        Value = AasOptional<AASReferenceDataType>.Present(Reference("urn:b")) }),
+                    Is.Not.Empty, "ReferenceElement value.");
+
+                Assert.That(Differences(
+                    new AasEntity { IdShort = Present("e"), EntityType = AASEntityTypeDataType.SelfManagedEntity },
+                    new AasEntity { IdShort = Present("e"), EntityType = AASEntityTypeDataType.CoManagedEntity }),
+                    Is.Not.Empty, "Entity entityType.");
+
+                Assert.That(Differences(
+                    new AasBasicEventElement { IdShort = Present("v"), Observed = observed,
+                        Direction = AASDirectionDataType.Output, State = AASStateOfEventDataType.On },
+                    new AasBasicEventElement { IdShort = Present("v"), Observed = observed,
+                        Direction = AASDirectionDataType.Input, State = AASStateOfEventDataType.On }),
+                    Is.Not.Empty, "BasicEventElement direction.");
+
+                // The declared type is what gives the value its meaning, so
+                // altering it while leaving the lexical form alone has to be
+                // reported even though both sides read "1".
+                Assert.That(Differences(
+                    Property("p", AASDataTypeDefXsdDataType.Int, "1"),
+                    Property("p", AASDataTypeDefXsdDataType.Short, "1")),
+                    Is.Not.Empty, "Property valueType.");
+
+                // Two references that name the same value through different
+                // key kinds are not the same reference.
+                Assert.That(Differences(
+                    new AasReferenceElement { IdShort = Present("k"),
+                        Value = AasOptional<AASReferenceDataType>.Present(
+                            Reference("urn:x", AASKeyTypesDataType.Submodel)) },
+                    new AasReferenceElement { IdShort = Present("k"),
+                        Value = AasOptional<AASReferenceDataType>.Present(
+                            Reference("urn:x", AASKeyTypesDataType.GlobalReference)) }),
+                    Is.Not.Empty, "Reference key type.");
+            });
+        }
+
+        private static IReadOnlyList<string> Differences(AasSubmodelElement left, AasSubmodelElement right)
+        {
+            return AasRoundTripComparer
+                .Compare(Environment(Submodel("s", left)), Environment(Submodel("s", right)))
+                .Differences;
+        }
+
+        private static AASReferenceDataType Reference(
+            string value,
+            AASKeyTypesDataType keyType = AASKeyTypesDataType.GlobalReference)
+        {
+            var key = new AASKeyDataType { Type = keyType, Value = value };
+            return new AASReferenceDataType
+            {
+                Type = AASReferenceTypesDataType.ExternalReference,
+                Keys = new ArrayOf<AASKeyDataType>(new[] { key })
+            };
+        }
+
         [Test]
         public void CorruptingAValueIsReported()
         {
