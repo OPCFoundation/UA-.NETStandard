@@ -196,6 +196,219 @@ def Xform "World"
         }
     }
 
+    def Xform "Payloads"
+    {
+        def Xform "BinParts"
+        {
+            def Cube "Part01" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.05, 0.32, 0.85)]
+                rel material:binding = </World/Materials/TargetBin>
+                double3 xformOp:translate = (0.3840, -0.3060, 0.8490)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            def Cube "Part02" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.05, 0.32, 0.85)]
+                rel material:binding = </World/Materials/TargetBin>
+                double3 xformOp:translate = (0.4360, -0.3060, 0.8490)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            def Cube "Part03" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.05, 0.32, 0.85)]
+                rel material:binding = </World/Materials/TargetBin>
+                double3 xformOp:translate = (0.3840, -0.2540, 0.8490)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            def Cube "Part04" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.05, 0.32, 0.85)]
+                rel material:binding = </World/Materials/TargetBin>
+                double3 xformOp:translate = (0.4360, -0.2540, 0.8490)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            def Cube "Part05" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.05, 0.32, 0.85)]
+                rel material:binding = </World/Materials/TargetBin>
+                double3 xformOp:translate = (0.3840, -0.3060, 0.8890)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            def Cube "Part06" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.05, 0.32, 0.85)]
+                rel material:binding = </World/Materials/TargetBin>
+                double3 xformOp:translate = (0.4360, -0.3060, 0.8890)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            def Cube "Part07" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.05, 0.32, 0.85)]
+                rel material:binding = </World/Materials/TargetBin>
+                double3 xformOp:translate = (0.3840, -0.2540, 0.8890)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            def Cube "Part08" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.05, 0.32, 0.85)]
+                rel material:binding = </World/Materials/TargetBin>
+                double3 xformOp:translate = (0.4360, -0.2540, 0.8890)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+
+        def Xform "FixtureStack"
+        {
+            def Cube "Slot01" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token visibility = "invisible"
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.08, 0.62, 0.24)]
+                rel material:binding = </World/Materials/TargetFixture>
+                double3 xformOp:translate = (0.4674, 0.2254, 0.8490)
+                double xformOp:rotateZ = 25
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            }
+
+            def Cube "Slot02" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token visibility = "invisible"
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.08, 0.62, 0.24)]
+                rel material:binding = </World/Materials/TargetFixture>
+                double3 xformOp:translate = (0.5146, 0.2474, 0.8490)
+                double xformOp:rotateZ = 25
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            }
+
+            def Cube "Slot03" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token visibility = "invisible"
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.08, 0.62, 0.24)]
+                rel material:binding = </World/Materials/TargetFixture>
+                double3 xformOp:translate = (0.4454, 0.2726, 0.8490)
+                double xformOp:rotateZ = 25
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            }
+
+            def Cube "Slot04" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token visibility = "invisible"
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.08, 0.62, 0.24)]
+                rel material:binding = </World/Materials/TargetFixture>
+                double3 xformOp:translate = (0.4926, 0.2946, 0.8490)
+                double xformOp:rotateZ = 25
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            }
+
+            def Cube "Slot05" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token visibility = "invisible"
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.08, 0.62, 0.24)]
+                rel material:binding = </World/Materials/TargetFixture>
+                double3 xformOp:translate = (0.4674, 0.2254, 0.8890)
+                double xformOp:rotateZ = 25
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            }
+
+            def Cube "Slot06" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token visibility = "invisible"
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.08, 0.62, 0.24)]
+                rel material:binding = </World/Materials/TargetFixture>
+                double3 xformOp:translate = (0.5146, 0.2474, 0.8890)
+                double xformOp:rotateZ = 25
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            }
+
+            def Cube "Slot07" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token visibility = "invisible"
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.08, 0.62, 0.24)]
+                rel material:binding = </World/Materials/TargetFixture>
+                double3 xformOp:translate = (0.4454, 0.2726, 0.8890)
+                double xformOp:rotateZ = 25
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            }
+
+            def Cube "Slot08" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token visibility = "invisible"
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.08, 0.62, 0.24)]
+                rel material:binding = </World/Materials/TargetFixture>
+                double3 xformOp:translate = (0.4926, 0.2946, 0.8890)
+                double xformOp:rotateZ = 25
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            }
+        }
+
+        def Cube "HeldPart" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token visibility = "invisible"
+            double size = 0.0400
+            color3f[] primvars:displayColor = [(0.08, 0.62, 0.24)]
+            rel material:binding = </World/Materials/TargetFixture>
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+        }
+    }
+
     def Xform "IntentCommand"
     {
         rel targetPrim = </World/Targets/Bin>

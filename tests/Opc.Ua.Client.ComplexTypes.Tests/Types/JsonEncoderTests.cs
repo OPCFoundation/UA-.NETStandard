@@ -249,19 +249,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             catch
             {
-                TestContext.Out.WriteLine(encodeInfo);
-                TestContext.Out.WriteLine("Data:");
-                TestContext.Out.WriteLine(data);
-                TestContext.Out.WriteLine("Expected:");
-                TestContext.Out.WriteLine(formattedExpected);
-                TestContext.Out.WriteLine("Result:");
+                TestOutput.WriteLine(encodeInfo);
+                TestOutput.WriteLine("Data:");
+                TestOutput.WriteLine(data);
+                TestOutput.WriteLine("Expected:");
+                TestOutput.WriteLine(formattedExpected);
+                TestOutput.WriteLine("Result:");
                 if (!string.IsNullOrEmpty(formattedResult))
                 {
-                    TestContext.Out.WriteLine(formattedResult);
+                    TestOutput.WriteLine(formattedResult);
                 }
                 else
                 {
-                    TestContext.Out.WriteLine(result);
+                    TestOutput.WriteLine(result);
                 }
             }
         }

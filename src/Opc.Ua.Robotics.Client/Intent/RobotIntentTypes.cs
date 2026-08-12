@@ -239,6 +239,145 @@ namespace Opc.Ua.Robotics.Client.Intent
     }
 
     /// <summary>
+    /// Represents a value that may be absent from an older or reduced Robot Intent server.
+    /// </summary>
+    /// <typeparam name="T">The value type.</typeparam>
+    public readonly record struct RobotIntentOptionalValue<T>(bool Available, T Value)
+    {
+        /// <summary>
+        /// Creates an available optional value.
+        /// </summary>
+        public static RobotIntentOptionalValue<T> FromValue(T value)
+        {
+            return new RobotIntentOptionalValue<T>(true, value);
+        }
+
+        /// <summary>
+        /// Gets an unavailable optional value.
+        /// </summary>
+        public static RobotIntentOptionalValue<T> Unavailable { get; } = new(false, CreateUnavailableValue());
+
+        private static T CreateUnavailableValue()
+        {
+            if (typeof(T) == typeof(NodeId))
+            {
+                return (T)(object)NodeId.Null;
+            }
+            if (typeof(T) == typeof(QualifiedName))
+            {
+                return (T)(object)QualifiedName.Null;
+            }
+            if (typeof(T) == typeof(LocalizedText))
+            {
+                return (T)(object)LocalizedText.Null;
+            }
+            return default!;
+        }
+    }
+
+    /// <summary>
+    /// Current observable safety state of a Robot Intent controller.
+    /// </summary>
+    public sealed record RobotIntentSafetyStateSnapshot
+    {
+        /// <summary>
+        /// Gets a value indicating whether the SafetyState object is published.
+        /// </summary>
+        public bool Available { get; init; }
+
+        /// <summary>
+        /// Gets the safe motion function currently enforced.
+        /// </summary>
+        public RobotIntentOptionalValue<SafeMotionFunctionEnum> ActiveFunction { get; init; }
+
+        /// <summary>
+        /// Gets a value indicating whether an emergency stop is asserted.
+        /// </summary>
+        public RobotIntentOptionalValue<bool> EmergencyStopActive { get; init; }
+
+        /// <summary>
+        /// Gets a value indicating whether a protective stop is asserted.
+        /// </summary>
+        public RobotIntentOptionalValue<bool> ProtectiveStopActive { get; init; }
+
+        /// <summary>
+        /// Gets a value indicating whether safely limited speed is enforced.
+        /// </summary>
+        public RobotIntentOptionalValue<bool> SafeSpeedLimitActive { get; init; }
+
+        /// <summary>
+        /// Gets the enforced tool-centre-point speed limit in metres per second.
+        /// </summary>
+        public RobotIntentOptionalValue<double> SafeSpeedLimit { get; init; }
+
+        /// <summary>
+        /// Gets a value indicating whether the safety controller reports itself healthy.
+        /// </summary>
+        public RobotIntentOptionalValue<bool> SafetyControllerOk { get; init; }
+
+        /// <summary>
+        /// Gets the human-readable reason for the last stop.
+        /// </summary>
+        public RobotIntentOptionalValue<LocalizedText> LastStopReason { get; init; }
+    }
+
+    /// <summary>
+    /// Current observable state of a Robot Intent controller.
+    /// </summary>
+    public sealed record RobotIntentControllerState
+    {
+        /// <summary>
+        /// Gets the controller node.
+        /// </summary>
+        public NodeId ControllerId { get; init; } = NodeId.Null;
+
+        /// <summary>
+        /// Gets the operational mode reported by the robot.
+        /// </summary>
+        public RobotIntentOptionalValue<OperationalModeEnum> OperationalMode { get; init; }
+
+        /// <summary>
+        /// Gets a value indicating whether the robot will accept intents now.
+        /// </summary>
+        public RobotIntentOptionalValue<bool> Ready { get; init; }
+
+        /// <summary>
+        /// Gets the SessionId of the client holding command authority, or NodeId.Null when none does.
+        /// </summary>
+        public RobotIntentOptionalValue<NodeId> ControlOwner { get; init; }
+
+        /// <summary>
+        /// Gets the maximum number of intents the controller may queue behind the executing one.
+        /// </summary>
+        public RobotIntentOptionalValue<uint> MaxQueueDepth { get; init; }
+
+        /// <summary>
+        /// Gets the IntentOperation executing now, or NodeId.Null.
+        /// </summary>
+        public RobotIntentOptionalValue<NodeId> ActiveIntent { get; init; }
+
+        /// <summary>
+        /// Gets the Mission executing now, or NodeId.Null.
+        /// </summary>
+        public RobotIntentOptionalValue<NodeId> ActiveMission { get; init; }
+
+        /// <summary>
+        /// Gets the published safety state.
+        /// </summary>
+        public RobotIntentSafetyStateSnapshot SafetyState { get; init; } = new();
+
+        /// <summary>
+        /// Gets the operations currently published below the Intents folder.
+        /// </summary>
+        public ArrayOf<RobotIntentNodeLookupEntry> Operations { get; init; } = [];
+
+        /// <summary>
+        /// Gets the missions currently published below the Missions folder.
+        /// </summary>
+        public ArrayOf<RobotIntentNodeLookupEntry> Missions { get; init; } = [];
+    }
+
+    /// <summary>
     /// Outcome returned when a submission may be refused without a Bad StatusCode.
     /// </summary>
     public sealed record IntentSubmissionResult
@@ -318,6 +457,68 @@ namespace Opc.Ua.Robotics.Client.Intent
     public sealed record CommandAuthorityOutcome(bool Granted, NodeId CurrentOwner);
 
     /// <summary>
+    /// Current observable state of a mission.
+    /// </summary>
+    public sealed record MissionSnapshot
+    {
+        /// <summary>
+        /// Gets the mission node.
+        /// </summary>
+        public NodeId MissionNode { get; init; } = NodeId.Null;
+
+        /// <summary>
+        /// Gets the mission id.
+        /// </summary>
+        public string MissionId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the mission update id currently in force.
+        /// </summary>
+        public uint MissionUpdateId { get; init; }
+
+        /// <summary>
+        /// Gets the mission as it now stands.
+        /// </summary>
+        public MissionDataType Mission { get; init; } = new();
+
+        /// <summary>
+        /// Gets the mission execution state.
+        /// </summary>
+        public ExecutionStateEnum ExecutionState { get; init; } = ExecutionStateEnum.Accepted;
+
+        /// <summary>
+        /// Gets the step executing now, or an empty string.
+        /// </summary>
+        public string CurrentStepId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the number of committed steps in the mission base.
+        /// </summary>
+        public uint ReleasedStepCount { get; init; }
+    }
+
+    /// <summary>
+    /// Result of a bounded wait for an intent operation.
+    /// </summary>
+    public sealed record IntentOperationWaitResult
+    {
+        /// <summary>
+        /// Gets a value indicating whether the operation reached a terminal result before the timeout.
+        /// </summary>
+        public bool Completed { get; init; }
+
+        /// <summary>
+        /// Gets the terminal result when <see cref="Completed"/> is true.
+        /// </summary>
+        public IntentResultDataType Result { get; init; } = new();
+
+        /// <summary>
+        /// Gets the current operation snapshot, refreshed on timeout.
+        /// </summary>
+        public IntentOperationSnapshot Current { get; init; } = new();
+    }
+
+    /// <summary>
     /// Outcome returned when a real-time channel lease may be refused.
     /// </summary>
     public sealed record RealTimeChannelOpenResult
@@ -364,6 +565,11 @@ namespace Opc.Ua.Robotics.Client.Intent
         public NodeId Operation { get; init; } = NodeId.Null;
 
         /// <summary>
+        /// Gets the intent id.
+        /// </summary>
+        public string IntentId { get; init; } = string.Empty;
+
+        /// <summary>
         /// Gets the execution state.
         /// </summary>
         public ExecutionStateEnum ExecutionState { get; init; } = ExecutionStateEnum.Accepted;
@@ -382,6 +588,16 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// Gets the operation result.
         /// </summary>
         public IntentResultDataType Result { get; init; } = new();
+
+        /// <summary>
+        /// Gets the mission id this intent belongs to, or an empty string.
+        /// </summary>
+        public string MissionId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the queue position, where one means next and zero means not queued.
+        /// </summary>
+        public uint QueuePosition { get; init; }
     }
 
     /// <summary>

@@ -494,6 +494,14 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Links parent-child relationships for imported nodes.
         /// </summary>
+        /// <remarks>
+        /// A node may declare a parent that is not part of this batch, because
+        /// the parent lives in another NodeSet or is owned by another
+        /// NodeManager. That parent cannot be linked in memory here, but it
+        /// must not be discarded either: the caller needs it to wire the node
+        /// as an external reference. Such a parent is recorded through
+        /// <see cref="TryGetUnresolvedParentNodeId"/> instead of being dropped.
+        /// </remarks>
         /// <param name="nodes">The collection of imported nodes.</param>
         private static void LinkParentChildRelationships(NodeStateCollection nodes)
         {
@@ -512,7 +520,11 @@ namespace Opc.Ua.Export
             {
                 if (node is BaseInstanceState instance && instance.Handle is NodeId parentNodeId)
                 {
-                    // Find the parent node
+                    // The Handle is only a carrier for the authored parent
+                    // between Import and this pass, so it is always cleared;
+                    // an unresolved parent is preserved separately.
+                    instance.Handle = null;
+
                     if (nodeTable.TryGetValue(parentNodeId, out NodeState? parent))
                     {
                         // Set the Parent property to establish the relationship
@@ -520,13 +532,78 @@ namespace Opc.Ua.Export
 
                         // Add the child to the parent's children collection
                         parent.AddChild(instance);
+                        continue;
                     }
 
-                    // Clear the Handle since we've processed it
-                    instance.Handle = null;
+                    // Add throws on a duplicate key and AddOrUpdate is not
+                    // available on netstandard2.0. Handle is a general-purpose
+                    // slot, so a caller can legitimately present the same
+                    // instance again carrying an authored parent; the most
+                    // recent import wins rather than throwing.
+                    s_unresolvedParents.Remove(instance);
+                    s_unresolvedParents.Add(instance, new UnresolvedParent(parentNodeId));
                 }
             }
         }
+
+        /// <summary>
+        /// Gets the parent a node declared at import when that parent was not
+        /// part of the same import batch.
+        /// </summary>
+        /// <remarks>
+        /// The parent of a node owned by another NodeManager cannot be linked
+        /// in memory, so a caller that wants the hierarchical reference has to
+        /// add it as an external reference. This reports the parent for exactly
+        /// those nodes; a node whose parent was linked normally, or that
+        /// declared no parent, yields <c>false</c>.
+        /// <para>
+        /// The record is held in a table keyed by weak reference, so it does
+        /// not keep an imported node alive and does not widen
+        /// <see cref="NodeState"/>'s public surface, whose
+        /// <see cref="NodeState.Handle"/> is a general-purpose slot a caller
+        /// may use for its own purposes.
+        /// </para>
+        /// </remarks>
+        /// <param name="node">The imported node.</param>
+        /// <param name="parentNodeId">
+        /// The unresolved parent NodeId, or <see cref="NodeId.Null"/> when there
+        /// is none.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> if the node declared a parent that was not part of the
+        /// import batch; otherwise <c>false</c>.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="node"/> is <c>null</c>.
+        /// </exception>
+        public static bool TryGetUnresolvedParentNodeId(NodeState node, out NodeId parentNodeId)
+        {
+            if (node is null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+
+            if (s_unresolvedParents.TryGetValue(node, out UnresolvedParent? parent))
+            {
+                parentNodeId = parent.NodeId;
+                return true;
+            }
+
+            parentNodeId = NodeId.Null;
+            return false;
+        }
+
+        /// <summary>
+        /// Boxes the unresolved parent so it can live in a weak-keyed table;
+        /// <see cref="NodeId"/> is a value type.
+        /// </summary>
+        private sealed class UnresolvedParent(NodeId nodeId)
+        {
+            public NodeId NodeId { get; } = nodeId;
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<NodeState, UnresolvedParent>
+            s_unresolvedParents = new();
 
         /// <summary>
         /// Adds a node to the set.

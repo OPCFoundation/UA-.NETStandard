@@ -201,14 +201,7 @@ namespace Opc.Ua.Subscriptions.Tests
             session.SetupGet(value => value.Id).Returns(new NodeId(Guid.NewGuid()));
             session.SetupGet(value => value.Identity).Returns(new UserIdentity());
             session.SetupGet(value => value.IdentityToken).Returns(CreateIdentityToken().Object);
-            session.SetupGet(value => value.SessionDiagnostics).Returns(
-                new SessionDiagnosticsDataType
-                {
-                    ClientDescription = new ApplicationDescription
-                    {
-                        ApplicationUri = "urn:test"
-                    }
-                });
+            session.SetupGet(value => value.ClientApplicationUri).Returns("urn:test");
             session.Setup(value => value.IsSecureChannelValid(It.IsAny<string>())).Returns(true);
 
             return new SessionPublishQueue(server.Object, session.Object, 10, TimeProvider.System);

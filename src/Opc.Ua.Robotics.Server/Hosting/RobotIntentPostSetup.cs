@@ -99,16 +99,13 @@ namespace Opc.Ua.Robotics.Server.Hosting
     internal sealed class RobotIntentHostStartupTask : IServerStartupTask
     {
         public ValueTask OnServerStartedAsync(
-            IServerInternal server,
+            IServerContext server,
             CancellationToken cancellationToken = default)
         {
-            IReadOnlyList<IAsyncNodeManager> nodeManagers = server.NodeManager.AsyncNodeManagers;
-            for (int ii = 0; ii < nodeManagers.Count; ii++)
+            foreach (RobotIntentNodeManager robotIntentNodeManager in
+                server.FindNodeManagers<RobotIntentNodeManager>())
             {
-                if (nodeManagers[ii] is RobotIntentNodeManager robotIntentNodeManager)
-                {
-                    robotIntentNodeManager.StartIntentControllerHosts();
-                }
+                robotIntentNodeManager.StartIntentControllerHosts();
             }
             return default;
         }

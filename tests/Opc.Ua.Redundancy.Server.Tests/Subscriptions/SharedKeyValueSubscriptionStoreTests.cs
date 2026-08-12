@@ -1330,12 +1330,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(cacheField, Is.Not.Null);
             object? cache = cacheField!.GetValue(store);
             Assert.That(cache, Is.Not.Null);
-            PropertyInfo? subscriptionsProperty = cache!.GetType().GetProperty(
-                "Subscriptions",
-                BindingFlags.Instance | BindingFlags.Public);
-            Assert.That(subscriptionsProperty, Is.Not.Null);
+
+            // The cache guards its own dictionary and exposes only operations, so the
+            // field is private; this white-box helper reaches past that deliberately.
+            FieldInfo? subscriptionsField = cache!.GetType().GetField(
+                "m_subscriptions",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(subscriptionsField, Is.Not.Null);
             var subscriptions =
-                (Dictionary<uint, StoredSubscription>)subscriptionsProperty!.GetValue(cache)!;
+                (Dictionary<uint, StoredSubscription>)subscriptionsField!.GetValue(cache)!;
             uint[] ids = [.. subscriptions.Keys];
             Array.Sort(ids);
             return ids;

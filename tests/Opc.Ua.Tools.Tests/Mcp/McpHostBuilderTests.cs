@@ -145,6 +145,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("administration", McpToolProfile.Administration)]
         [TestCase("pubsub", McpToolProfile.PubSub)]
         [TestCase("diagnostics", McpToolProfile.Diagnostics)]
+        [TestCase("robotics", McpToolProfile.Robotics)]
         [TestCase("full", McpToolProfile.Full)]
         public void CreateOpcUaMcpOptionsParsesConfiguredProfile(
             string configuredProfile,
@@ -284,6 +285,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             HashSet<string> administration = GetToolNames(McpToolProfile.Administration, false);
             HashSet<string> pubSub = GetToolNames(McpToolProfile.PubSub, false);
             HashSet<string> diagnostics = GetToolNames(McpToolProfile.Diagnostics, false);
+            HashSet<string> robotics = GetToolNames(McpToolProfile.Robotics, false);
             HashSet<string> full = GetToolNames(McpToolProfile.Full, false);
 
             Assert.That(core, Has.Count.LessThanOrEqualTo(25));
@@ -309,11 +311,16 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(diagnostics, Does.Contain("start_capture"));
             Assert.That(diagnostics, Does.Not.Contain("pubsub_runtime_start_publisher"));
 
+            Assert.That(robotics, Does.Contain("robotics_list_controllers"));
+            Assert.That(robotics, Does.Contain("robotics_submit_linear_move"));
+            Assert.That(robotics, Does.Contain("Connect"));
+
             Assert.That(full, Does.Contain("Browse"));
             Assert.That(full, Does.Contain("ListCertificates"));
             Assert.That(full, Does.Contain("SetConfiguration"));
             Assert.That(full, Does.Contain("SetTransportConfiguration"));
             Assert.That(full, Does.Contain("pubsub_runtime_start_publisher"));
+            Assert.That(full, Does.Contain("robotics_list_controllers"));
             Assert.That(full, Has.Count.GreaterThan(core.Count));
         }
 
@@ -332,6 +339,30 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(disabledPubSub, Does.Not.Contain("pubsub_decode_pcap"));
             Assert.That(enabledPubSub, Does.Contain("pubsub_decode_pcap"));
+        }
+
+        [Test]
+        public void ConfigureMcpToolsPairsSessionScopedProfilesWithConnectionTools()
+        {
+            foreach (McpToolProfile toolProfile in Enum.GetValues<McpToolProfile>())
+            {
+                HashSet<string> tools = GetToolNames(toolProfile, false);
+
+                bool needsSession = tools.Any(
+                    name => name.StartsWith("robotics_", StringComparison.Ordinal));
+
+                if (!needsSession)
+                {
+                    continue;
+                }
+
+                Assert.That(
+                    tools,
+                    Does.Contain("Connect"),
+                    $"Profile '{toolProfile}' exposes tools that resolve a named OPC UA session, " +
+                    "so it must also expose the connection tools that open one.");
+                Assert.That(tools, Does.Contain("Disconnect"));
+            }
         }
 
         [Test]

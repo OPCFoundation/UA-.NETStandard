@@ -1078,26 +1078,32 @@ namespace Opc.Ua.RobotIntent.Server
         /// same branch. An empty ContentFilter is always true, which is what makes a
         /// default branch expressible without a special case.
         /// </remarks>
-        public static MissionTransitionDataType? SelectTransition(
+        public static MissionTransitionSelection SelectTransition(
             ArrayOf<MissionTransitionDataType> transitions,
             string fromStepId,
             Func<ContentFilter, bool> evaluate)
         {
             if (transitions.IsNull)
             {
-                return null;
+                return MissionTransitionSelection.Terminus;
             }
+            bool hasOutgoingTransitions = false;
             for (int ii = 0; ii < transitions.Count; ii++)
             {
                 MissionTransitionDataType edge = transitions[ii];
-                if (edge != null &&
-                    string.Equals(edge.FromStepId, fromStepId, StringComparison.Ordinal) &&
-                    evaluate(edge.Condition))
+                if (edge == null || !string.Equals(edge.FromStepId, fromStepId, StringComparison.Ordinal))
                 {
-                    return edge;
+                    continue;
+                }
+                hasOutgoingTransitions = true;
+                if (evaluate(edge.Condition))
+                {
+                    return MissionTransitionSelection.Selected(edge);
                 }
             }
-            return null;
+            return hasOutgoingTransitions
+                ? MissionTransitionSelection.NoConditionMatched
+                : MissionTransitionSelection.Terminus;
         }
 
         /// <summary>
@@ -1116,6 +1122,7 @@ namespace Opc.Ua.RobotIntent.Server
                     return ii;
                 }
             }
+
             return -1;
         }
 
@@ -1164,6 +1171,20 @@ namespace Opc.Ua.RobotIntent.Server
                 return left == right;
             }
             return left.IsEqual(right);
+        }
+    }
+
+    internal sealed record MissionTransitionSelection(
+        MissionTransitionDataType? Transition,
+        bool HasOutgoingTransitions)
+    {
+        public static MissionTransitionSelection Terminus { get; } = new(null, false);
+
+        public static MissionTransitionSelection NoConditionMatched { get; } = new(null, true);
+
+        public static MissionTransitionSelection Selected(MissionTransitionDataType transition)
+        {
+            return new MissionTransitionSelection(transition, true);
         }
     }
 }

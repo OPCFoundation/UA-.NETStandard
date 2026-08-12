@@ -276,6 +276,23 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
             }
         }
 
+        [Test]
+        public async Task AllRepresentationsAreMountedAsAddInsAsync()
+        {
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink(), enableCommands: false);
+            await using (connector.ConfigureAwait(false))
+            {
+                List<OpenUsdConnector.RepresentationInfo> representations = await connector
+                    .DiscoverAllRepresentationsAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                await OpenUsdRepresentationMountAssert.AllAreAddInsAsync(
+                    m_session!,
+                    representations,
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
         private ApplicationConfiguration CreateClientConfiguration()
         {
             string pkiRoot = Path.Combine(

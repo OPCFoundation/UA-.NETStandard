@@ -102,6 +102,10 @@ namespace Opc.Ua.Mcp
             {
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Full:
+                    mcpServerBuilder.WithRequestFilters(filters =>
+                    {
+                        filters.AddCallToolFilter(PubSubPcapMcpFilters.SurfaceDiagnosticsErrors);
+                    });
                     mcpServerBuilder.WithTools<PubSubCaptureTools>();
 
                     if (diagnosticsToolsEnabled)
@@ -114,6 +118,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Services:
                 case McpToolProfile.Administration:
                 case McpToolProfile.Diagnostics:
+                case McpToolProfile.Robotics:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

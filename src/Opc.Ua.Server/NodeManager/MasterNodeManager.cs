@@ -3424,7 +3424,7 @@ namespace Opc.Ua.Server
                         if (current != null && !current.ContinuationPoint.IsEmpty)
                         {
                             ContinuationPoint? cp = context.Session
-                                .RestoreContinuationPoint(current.ContinuationPoint);
+                                .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
                             cp?.Dispose();
                         }
                     }
@@ -3582,7 +3582,7 @@ namespace Opc.Ua.Server
                         if (current != null && !current.ContinuationPoint.IsEmpty)
                         {
                             cp = context.Session
-                                .RestoreContinuationPoint(current.ContinuationPoint);
+                                .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
                             cp?.Dispose();
                         }
                     }
@@ -3591,7 +3591,7 @@ namespace Opc.Ua.Server
                 }
 
                 // find the continuation point.
-                cp = context.Session.RestoreContinuationPoint(continuationPoints[ii]);
+                cp = context.Session.ContinuationPoints.RestoreBrowse(continuationPoints[ii]);
 
                 // validate access rights and role permissions
                 if (cp != null)
@@ -3898,7 +3898,7 @@ namespace Opc.Ua.Server
                     }
 
                     currentCp.Id = Guid.NewGuid();
-                    context!.Session!.SaveContinuationPoint(currentCp);
+                    context!.Session!.ContinuationPoints.SaveBrowse(currentCp);
                     break;
                 }
             }

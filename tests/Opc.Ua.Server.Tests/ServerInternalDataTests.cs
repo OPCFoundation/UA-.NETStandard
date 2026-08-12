@@ -29,6 +29,7 @@
 
 using System;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -48,6 +49,8 @@ namespace Opc.Ua.Server.Tests
         private ApplicationConfiguration m_configuration;
         private ServiceMessageContext m_messageContext;
         private ITelemetryContext m_telemetry;
+
+        private static readonly string[] s_locales = ["de-DE"];
 
         [SetUp]
         public void SetUp()
@@ -207,11 +210,64 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void FindNodeManagersYieldsAManagerOnBothFacesOnce()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            // A manager that implements INodeManager is its own synchronous adapter, so
+            // the same instance appears on both faces.
+            var manager = new Mock<IAsyncNodeManager>();
+            INodeManager syncFace = manager.As<INodeManager>().Object;
+
+            data.SetNodeManager(CreateMasterNodeManager([manager.Object], [syncFace]));
+
+            Assert.That(
+                data.FindNodeManagers<IAsyncNodeManager>().ToList(),
+                Is.EqualTo(new[] { manager.Object }).AsCollection);
+        }
+
+        [Test]
+        public void FindNodeManagersYieldsEveryDistinctManager()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+            var asyncOnly = new Mock<IAsyncNodeManager>();
+            var syncManager = new Mock<INodeManager>();
+            IAsyncNodeManager syncAsAsync = syncManager.As<IAsyncNodeManager>().Object;
+
+            data.SetNodeManager(
+                CreateMasterNodeManager([asyncOnly.Object], [syncManager.Object]));
+
+            Assert.That(
+                data.FindNodeManagers<IAsyncNodeManager>().ToList(),
+                Is.EqualTo(new[] { asyncOnly.Object, syncAsAsync }).AsCollection);
+        }
+
+        [Test]
+        public void FindNodeManagersReturnsEmptyWhenNoNodeManagerIsSet()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(data.FindNodeManagers<IAsyncNodeManager>(), Is.Empty);
+        }
+
+        private static IMasterNodeManager CreateMasterNodeManager(
+            IAsyncNodeManager[] asyncNodeManagers,
+            INodeManager[] nodeManagers)
+        {
+            var mock = new Mock<IMasterNodeManager>();
+            mock.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
+            mock.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
+            mock.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null);
+            mock.Setup(m => m.AsyncNodeManagers).Returns(asyncNodeManagers);
+            mock.Setup(m => m.NodeManagers).Returns(nodeManagers);
+            return mock.Object;
+        }
+
+        [Test]
         public void SetMainNodeManagerFactoryStoresFactory()
         {
             using ServerInternalData data = CreateServerInternalData();
             var mockFactory = new Mock<IMainNodeManagerFactory>();
-
             data.SetMainNodeManagerFactory(mockFactory.Object);
 
             Assert.That(data.MainNodeManagerFactory, Is.SameAs(mockFactory.Object));
@@ -298,10 +354,231 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void DiagnosticsLockIsNotNull()
+        public void BindingAfterTheBindPhaseIsRefused()
+        {
+            // A subsystem swapped underneath a running server would leave every component
+            // that already resolved it holding the previous instance.
+            using ServerInternalData data = CreateServerInternalData();
+            data.CompleteBindPhase();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => data.SetNodeManager(new Mock<IMasterNodeManager>().Object),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property("StatusCode").EqualTo((StatusCode)StatusCodes.BadInvalidState));
+
+                Assert.That(
+                    () => data.SetRoleManager(new Mock<IRoleManager>().Object),
+                    Throws.TypeOf<ServiceResultException>());
+
+                Assert.That(
+                    () => data.SetSubscriptionStore(new Mock<ISubscriptionStore>().Object),
+                    Throws.TypeOf<ServiceResultException>());
+
+                Assert.That(
+                    () => data.SetSessionManager(
+                        new Mock<ISessionManager>().Object,
+                        new Mock<ISubscriptionManager>().Object),
+                    Throws.TypeOf<ServiceResultException>());
+            });
+        }
+
+        [Test]
+        public void TheRefusedBindNamesTheOperation()
         {
             using ServerInternalData data = CreateServerInternalData();
-            Assert.That(data.DiagnosticsLock, Is.Not.Null);
+            data.CompleteBindPhase();
+
+            Assert.That(
+                () => data.SetMonitoredItemQueueFactory(new Mock<IMonitoredItemQueueFactory>().Object),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Message.Contains(nameof(ServerInternalData.SetMonitoredItemQueueFactory)));
+        }
+
+        [Test]
+        public void BindingIsAllowedUntilTheBindPhaseCloses()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+            var first = new Mock<IRoleManager>();
+            var second = new Mock<IRoleManager>();
+
+            // Rebinding during startup stays legal; only binding afterwards is refused.
+            data.SetRoleManager(first.Object);
+            data.SetRoleManager(second.Object);
+
+            Assert.That(data.RoleManager, Is.SameAs(second.Object));
+
+            data.CompleteBindPhase();
+
+            Assert.That(
+                () => data.SetRoleManager(first.Object),
+                Throws.TypeOf<ServiceResultException>());
+        }
+
+        [Test]
+        public void CompletingTheBindPhaseTwiceIsHarmless()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            data.CompleteBindPhase();
+
+            Assert.That(() => data.CompleteBindPhase(), Throws.Nothing);
+        }
+
+        [Test]
+        public void UpdateServerDiagnosticsInvokesTheUpdateUnderTheLock()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            // ServerDiagnostics is only populated once the server object is created, so
+            // this asserts the callback is invoked rather than inspecting the payload.
+            bool invoked = false;
+
+            data.UpdateServerDiagnostics(_ => invoked = true);
+
+            Assert.That(invoked, Is.True);
+        }
+
+        [Test]
+        public void UpdateServerDiagnosticsThrowsOnNullUpdate()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(
+                () => data.UpdateServerDiagnostics(null!),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        /// <summary>
+        /// The read callback behind the ServerDiagnosticsSummary node must take the same lock
+        /// every writer takes through <c>UpdateServerDiagnostics</c>.
+        /// </summary>
+        /// <remarks>
+        /// It used to lock the payload — <c>lock (ServerDiagnostics)</c> — which is a different
+        /// monitor from the one the writers take, so a client's snapshot was never excluded
+        /// from a concurrent writer and <c>Variant.FromStructure</c> could walk the structure
+        /// mid-mutation. Reflection is used because the callback is private and is reachable
+        /// in production only through the diagnostic node manager's wiring.
+        /// </remarks>
+        [Test]
+        public async Task DiagnosticsReadBlocksWhileAWriterHoldsTheLockAsync()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            SetServerDiagnostics(data, new ServerDiagnosticsSummaryDataType());
+
+            using var writerEntered = new ManualResetEventSlim(false);
+            using var readerStarted = new ManualResetEventSlim(false);
+            using var releaseWriter = new ManualResetEventSlim(false);
+
+            Task writer = Task.Factory.StartNew(
+                () => data.UpdateServerDiagnostics(
+                    _ =>
+                    {
+                        writerEntered.Set();
+                        releaseWriter.Wait(TimeSpan.FromSeconds(30));
+                    }),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+
+            try
+            {
+                Assert.That(
+                    writerEntered.Wait(TimeSpan.FromSeconds(30)),
+                    Is.True,
+                    "the writer never entered its critical section");
+
+                // LongRunning gets a dedicated thread, so the reader cannot simply fail to be
+                // scheduled behind the writer's blocked pool thread; and the timeout starts
+                // only once the reader has signalled that it is about to take the lock.
+                Task<Variant> reader = Task.Factory.StartNew(
+                    () =>
+                    {
+                        readerStarted.Set();
+                        return InvokeOnUpdateDiagnostics(data);
+                    },
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
+
+                Assert.That(
+                    readerStarted.Wait(TimeSpan.FromSeconds(30)),
+                    Is.True,
+                    "the reader never started");
+
+                Assert.That(
+                    reader.Wait(TimeSpan.FromMilliseconds(500)),
+                    Is.False,
+                    "the read callback completed while a writer held the diagnostics lock, so " +
+                    "it is not taking the lock the writers take");
+
+                releaseWriter.Set();
+
+                Variant snapshot = await reader.ConfigureAwait(false);
+
+                Assert.That(snapshot.IsNull, Is.False, "the read callback produced no snapshot");
+            }
+            finally
+            {
+                releaseWriter.Set();
+                await writer.ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The snapshot handed to a client must be detached from the live diagnostics, so a
+        /// later update cannot change a value the client has already read.
+        /// </summary>
+        /// <remarks>
+        /// Holding the lock is not on its own enough: <c>Variant.FromStructure</c> does not
+        /// copy by default, and the caller reads the fields long after the lock was released.
+        /// </remarks>
+        [Test]
+        public async Task DiagnosticsReadReturnsADetachedSnapshotAsync()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            SetServerDiagnostics(data, new ServerDiagnosticsSummaryDataType());
+
+            data.UpdateServerDiagnostics(diagnostics => diagnostics.RejectedSessionCount = 7);
+
+            Variant snapshot = await Task.Run(() => InvokeOnUpdateDiagnostics(data))
+                .ConfigureAwait(false);
+
+            data.UpdateServerDiagnostics(diagnostics => diagnostics.RejectedSessionCount = 99);
+
+            Assert.That(
+                snapshot.TryGetStructure(out ServerDiagnosticsSummaryDataType read),
+                Is.True);
+            Assert.That(
+                read.RejectedSessionCount,
+                Is.EqualTo(7u),
+                "a later update changed a value that had already been handed out");
+        }
+
+        private static void SetServerDiagnostics(
+            ServerInternalData data,
+            ServerDiagnosticsSummaryDataType diagnostics)
+        {
+            typeof(ServerInternalData)
+                .GetProperty(
+                    nameof(ServerInternalData.ServerDiagnostics),
+                    BindingFlags.Instance | BindingFlags.Public)!
+                .SetValue(data, diagnostics);
+        }
+
+        private static Variant InvokeOnUpdateDiagnostics(ServerInternalData data)
+        {
+            MethodInfo callback = typeof(ServerInternalData).GetMethod(
+                "OnUpdateDiagnostics",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+            object[] arguments = [data.DefaultSystemContext, null!, Variant.Null];
+            callback.Invoke(data, arguments);
+
+            return (Variant)arguments[2];
         }
 
         [Test]
@@ -309,6 +586,56 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerInternalData data = CreateServerInternalData();
             Assert.That(data.DiagnosticsEnabled, Is.False);
+        }
+
+        [Test]
+        public void ServerContextDefaultSystemContextIsTheServerSystemContext()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(
+                ((IServerContext)data).DefaultSystemContext,
+                Is.SameAs(data.DefaultSystemContext));
+        }
+
+        [Test]
+        public void CreateSystemContextCarriesTheSessionIdentityAndLocales()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            var sessionId = new NodeId(Guid.NewGuid());
+            var identity = new UserIdentity(new AnonymousIdentityToken());
+
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(sessionId);
+            session.Setup(s => s.Identity).Returns(identity);
+            session.Setup(s => s.PreferredLocales).Returns(s_locales);
+
+            ServerSystemContext created = data.CreateSystemContext(session.Object);
+
+            Assert.That(created, Is.Not.SameAs(data.DefaultSystemContext));
+            Assert.That(created.PreferredLocales.ToArray(), Is.EqualTo(s_locales));
+            Assert.That(created.NamespaceUris, Is.SameAs(data.NamespaceUris));
+        }
+
+        [Test]
+        public void CreateSystemContextThrowsOnNullSession()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            Assert.That(
+                () => data.CreateSystemContext(null!),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void FindPredefinedNodeReturnsNullBeforeTheDiagnosticsNodeManagerExists()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            // The datastore is published before the node managers are bound, so callers
+            // must tolerate an address space that is not there yet.
+            Assert.That(data.FindPredefinedNode<BaseObjectState>(ObjectIds.Server), Is.Null);
         }
 
         [Test]

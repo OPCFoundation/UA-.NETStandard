@@ -192,7 +192,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 mode: "mock-server").ConfigureAwait(false);
             m_replaySessionIds.Add(started.SessionId);
 
-            Assert.That(started.Mode, Is.EqualTo("MockServer"));
+            Assert.That(started.Mode, Is.EqualTo("mock-server"));
             Assert.That(started.IsRunning, Is.True);
             Assert.That(started.ListenUri, Is.Not.Null.And.Not.Empty);
 
@@ -229,7 +229,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 mode: "mockserver").ConfigureAwait(false);
             m_replaySessionIds.Add(started.SessionId);
 
-            Assert.That(started.Mode, Is.EqualTo("MockServer"));
+            Assert.That(started.Mode, Is.EqualTo("mock-server"));
             Assert.That(started.TargetEndpointUrl, Is.Null);
         }
 

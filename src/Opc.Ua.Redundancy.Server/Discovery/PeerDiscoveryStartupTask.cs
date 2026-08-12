@@ -64,14 +64,14 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+        public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
         {
             if (server == null)
             {
                 throw new ArgumentNullException(nameof(server));
             }
 
-            m_logger = server.Telemetry.CreateLogger<PeerDiscoveryStartupTask>();
+            m_logger = server.DefaultSystemContext.Telemetry.CreateLogger<PeerDiscoveryStartupTask>();
             m_discovery.PeersChanged += OnPeersChanged;
             m_loop = Task.Run(() => RefreshLoopAsync(m_cts.Token), CancellationToken.None);
             return default;

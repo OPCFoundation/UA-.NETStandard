@@ -274,6 +274,135 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         }
 
         /// <summary>
+        /// A node whose declared parent is not part of the same import batch —
+        /// because it lives in another NodeSet or another NodeManager — must
+        /// not have that parent silently discarded. The caller needs it so it
+        /// can be wired as an external reference.
+        /// </summary>
+        [Test]
+        public void ImportKeepsAParentThatIsNotInTheSameBatch()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            const string importBuffer =
+                @"<?xml version='1.0' encoding='utf-8'?>
+                <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
+                           xmlns:xsd='http://www.w3.org/2001/XMLSchema'
+                           LastModified='2024-01-01T00:00:00.000Z'
+                           xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>http://opcfoundation.org/UA/Test</Uri>
+                    <Uri>http://opcfoundation.org/UA/Elsewhere</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='HasComponent'>i=47</Alias>
+                    <Alias Alias='HasTypeDefinition'>i=40</Alias>
+                  </Aliases>
+                  <UAObject ParentNodeId='ns=2;i=5001' NodeId='ns=1;i=1001' BrowseName='1:Orphan'>
+                    <DisplayName>Orphan</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=58</Reference>
+                      <Reference ReferenceType='HasComponent' IsForward='false'>ns=2;i=5001</Reference>
+                    </References>
+                  </UAObject>
+                </UANodeSet>";
+
+            using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
+            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream);
+
+            var importedNodeStates = new NodeStateCollection();
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            {
+                localContext.NamespaceUris.Append(namespaceUri);
+            }
+
+            importedNodeSet.Import(localContext, importedNodeStates, linkParentChild: true);
+
+            Assert.That(importedNodeStates, Has.Count.EqualTo(1));
+            var orphan = (BaseInstanceState)importedNodeStates[0];
+
+            Assert.That(orphan.Parent, Is.Null,
+                "The parent is not in this batch, so it cannot be linked as an in-memory parent.");
+
+            NodeId expectedParent = new(5001u, (ushort)localContext.NamespaceUris.GetIndex(
+                "http://opcfoundation.org/UA/Elsewhere"));
+
+            Assert.Multiple(() => {
+                Assert.That(
+                    Export.UANodeSet.TryGetUnresolvedParentNodeId(orphan, out NodeId unresolvedParent),
+                    Is.True,
+                    "The declared parent must survive the import so a caller can wire it " +
+                    "as an external reference.");
+
+                Assert.That(unresolvedParent, Is.EqualTo(expectedParent));
+            });
+        }
+
+        /// <summary>
+        /// The record must be precise: a parent that was linked normally is not
+        /// an unresolved parent, or a caller would wire references that already
+        /// exist.
+        /// </summary>
+        [Test]
+        public void ImportRecordsNoUnresolvedParentWhenTheParentIsInTheBatch()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            const string importBuffer =
+                @"<?xml version='1.0' encoding='utf-8'?>
+                <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
+                           xmlns:xsd='http://www.w3.org/2001/XMLSchema'
+                           LastModified='2024-01-01T00:00:00.000Z'
+                           xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>http://opcfoundation.org/UA/Test</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='HasComponent'>i=47</Alias>
+                    <Alias Alias='HasTypeDefinition'>i=40</Alias>
+                  </Aliases>
+                  <UAObject NodeId='ns=1;i=1000' BrowseName='1:ParentObject'>
+                    <DisplayName>ParentObject</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=58</Reference>
+                    </References>
+                  </UAObject>
+                  <UAObject ParentNodeId='ns=1;i=1000' NodeId='ns=1;i=1002' BrowseName='1:ChildObject'>
+                    <DisplayName>ChildObject</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=58</Reference>
+                      <Reference ReferenceType='HasComponent' IsForward='false'>ns=1;i=1000</Reference>
+                    </References>
+                  </UAObject>
+                </UANodeSet>";
+
+            using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
+            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream);
+
+            var importedNodeStates = new NodeStateCollection();
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            {
+                localContext.NamespaceUris.Append(namespaceUri);
+            }
+
+            importedNodeSet.Import(localContext, importedNodeStates, linkParentChild: true);
+
+            foreach (NodeState node in importedNodeStates)
+            {
+                Assert.Multiple(() => {
+                    Assert.That(
+                        Export.UANodeSet.TryGetUnresolvedParentNodeId(node, out NodeId unresolvedParent),
+                        Is.False,
+                        $"'{node.BrowseName.Name}' resolved inside the batch, so nothing is unresolved.");
+
+                    Assert.That(unresolvedParent.IsNull, Is.True);
+                });
+            }
+        }
+
+        /// <summary>
         /// Test that parent-child references are NOT established by default (backward compatibility).
         /// </summary>
         [Test]

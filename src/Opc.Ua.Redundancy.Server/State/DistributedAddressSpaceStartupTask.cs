@@ -77,14 +77,14 @@ namespace Opc.Ua.Redundancy.Server
         public INodeStateStoreRegistry? NodeStateStoreRegistry { get; private set; }
 
         /// <inheritdoc/>
-        public async ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+        public async ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
         {
             if (server == null)
             {
                 throw new ArgumentNullException(nameof(server));
             }
 
-            ILogger logger = server.Telemetry.CreateLogger<DistributedAddressSpaceStartupTask>();
+            ILogger logger = server.DefaultSystemContext.Telemetry.CreateLogger<DistributedAddressSpaceStartupTask>();
 
             // Build the store with the server's populated message context so
             // NodeId namespace indices resolve correctly. Disposal ownership is
@@ -97,7 +97,7 @@ namespace Opc.Ua.Redundancy.Server
             // Own the node state store registry; nothing in the core server
             // surface holds it. The default store is the fallback for every
             // node that does not have a more specific binding.
-            var registry = new NodeStateStoreRegistry(server.NamespaceUris);
+            var registry = new NodeStateStoreRegistry(server.DefaultSystemContext.NamespaceUris);
             registry.RegisterDefault(store);
             m_registry = registry;
             NodeStateStoreRegistry = registry;
@@ -107,13 +107,9 @@ namespace Opc.Ua.Redundancy.Server
             await m_election.TryAcquireOrRenewAsync(cancellationToken).ConfigureAwait(false);
             m_election.Start();
 
-            foreach (INodeManager nodeManager in server.NodeManager.NodeManagers)
+            foreach (ILocalAddressSpaceSource source in
+                server.FindNodeManagers<ILocalAddressSpaceSource>())
             {
-                if (nodeManager is not ILocalAddressSpaceSource source)
-                {
-                    continue;
-                }
-
                 ILocalAddressSpace addressSpace = source.CreateLocalAddressSpace();
                 var synchronizer = new AddressSpaceSynchronizer(
                     store, addressSpace, m_election, logger);

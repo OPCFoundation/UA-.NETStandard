@@ -6,6 +6,11 @@
     <TargetFrameworks Condition="'$(TargetFrameworks)' == '' AND ('$(CustomTestTarget)' == 'netstandard2.0' OR '$(CustomTestTarget)' == 'netstandard2.1')">net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <!-- Deliberately NOT IsAotCompatible, unlike Opc.Ua.Mcp.Core. The capture tools sit on
+         Opc.Ua.Core.Diagnostics, which reaches SharpPcap for live capture and reflects over
+         IEncodeable properties when dissecting service calls; neither is trim- or AOT-safe,
+         which is why that package does not opt in either. Hosts publishing ahead of time
+         should take Opc.Ua.Mcp.Core alone. -->
     <AssemblyName>$(AssemblyPrefix).Mcp.Diagnostics</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Mcp.Diagnostics</PackageId>
     <RootNamespace>Opc.Ua.Mcp</RootNamespace>

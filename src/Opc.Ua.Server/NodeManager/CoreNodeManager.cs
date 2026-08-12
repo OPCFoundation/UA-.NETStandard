@@ -84,10 +84,10 @@ namespace Opc.Ua.Server
 
                 if (!isInternal)
                 {
-                    lock (Server.DiagnosticsLock)
+                    Server.UpdateServerDiagnostics(diagnostics =>
                     {
                         UpdateDiagnostics(context, node);
-                    }
+                    });
                 }
             }
         }

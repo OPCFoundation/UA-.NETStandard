@@ -117,6 +117,46 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers an application executor for one Robot Intent controller browse name.
+        /// </summary>
+        /// <typeparam name="TExecutor">
+        /// The executor implementation type.
+        /// </typeparam>
+        public static IOpcUaServerBuilder AddRobotIntentExecutor<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TExecutor>(
+            this IOpcUaServerBuilder builder,
+            string controllerBrowseName)
+            where TExecutor : class, IIntentExecutor
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.AddSingleton<TExecutor>();
+            builder.Services.AddSingleton(services => new RobotIntentControllerExecutorRegistration(
+                controllerBrowseName,
+                services.GetRequiredService<TExecutor>()));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers an executor instance for one Robot Intent controller browse name.
+        /// </summary>
+        public static IOpcUaServerBuilder AddRobotIntentExecutor(
+            this IOpcUaServerBuilder builder,
+            string controllerBrowseName,
+            IIntentExecutor executor)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.AddSingleton(
+                new RobotIntentControllerExecutorRegistration(controllerBrowseName, executor));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a Robot Intent configurator for the standalone manager.
         /// </summary>
         public static IOpcUaServerBuilder ConfigureRobotIntent(

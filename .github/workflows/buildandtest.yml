@@ -305,6 +305,15 @@ jobs:
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
       shell: pwsh
+      # Bound the step, not just the job. The blame collector below only reacts
+      # to inactivity *inside* the test host, and even once it has written its
+      # dump the run can fail to unwind: on run 31249610490 the hang dump was
+      # taken at +50 min and vstest.console still had not exited when the
+      # 60-minute job timeout cancelled the job (issue #4213). A step timeout
+      # ends that state while `Upload test results` (if: always()) still
+      # publishes the dump. 30 minutes is well clear of every leg here, which
+      # spend at most ~12 minutes in this step.
+      timeout-minutes: 30
       run: |
         $testArgs = @(
           '${{ env.CSPROJECT }}',
@@ -476,7 +485,7 @@ jobs:
         ./.azurepipelines/check-coverage.ps1 `
             -CoberturaPath CodeCoverage/Cobertura.xml `
             -ThresholdsPath coverage-thresholds.json `
-            -RepoRoot . `
+            -RepoRoot '${{ github.workspace }}' `
             -BaseRef $env:BASE_REF `
             -SummaryPath coverage-summary.md
         "outcome=$LASTEXITCODE" | Out-File -FilePath $env:GITHUB_OUTPUT -Append

@@ -79,14 +79,28 @@ namespace Opc.Ua.Server
         bool IsDurable { get; }
 
         /// <summary>
-        /// Gets the lock that must be acquired before accessing the contents of the Diagnostics property.
+        /// Applies an update to the subscription diagnostics while holding the
+        /// subscription's diagnostics lock.
         /// </summary>
-        object DiagnosticsLock { get; }
+        /// <remarks>
+        /// The subscription owns its lock and never exposes it, so callers cannot
+        /// participate in the server's locking order. The diagnostic nodes are marked dirty
+        /// inside the critical section.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        void UpdateDiagnostics(Action<SubscriptionDiagnosticsDataType> update);
 
         /// <summary>
-        /// Gets the lock that must be acquired before updating the contents of the Diagnostics property.
+        /// Reads a value derived from the subscription diagnostics while holding the
+        /// subscription's diagnostics lock.
         /// </summary>
-        object DiagnosticsWriteLock { get; }
+        /// <remarks>
+        /// Do not let the diagnostics object escape the callback: once the lock is
+        /// released, any field read from it is unsynchronized.
+        /// </remarks>
+        /// <typeparam name="TResult">The type of the value produced.</typeparam>
+        /// <param name="read">The projection applied to the diagnostics.</param>
+        TResult ReadDiagnostics<TResult>(Func<SubscriptionDiagnosticsDataType, TResult> read);
 
         /// <summary>
         /// Gets the current diagnostics for the subscription.

@@ -66,18 +66,18 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+        public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
         {
             if (server == null)
             {
                 throw new ArgumentNullException(nameof(server));
             }
 
-            string[] serverUris = server.ServerUris.ToArray();
+            string[] serverUris = server.DefaultSystemContext.ServerUris.ToArray();
             string? localServerUri = serverUris.Length > 0 ? serverUris[0] : null;
             if (string.IsNullOrEmpty(localServerUri))
             {
-                server.Telemetry
+                server.DefaultSystemContext.Telemetry
                     .CreateLogger<LoadDirectionStartupTask>()
                     .LoadDirectionDisabledLocalServerUriUnavailable();
                 return default;

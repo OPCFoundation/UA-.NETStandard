@@ -73,8 +73,11 @@ namespace Opc.Ua.Server.Tests
             m_server.Setup(s => s.MessageContext).Returns(
                 ServiceMessageContext.CreateEmpty(m_telemetry));
             var serverDiagnostics = new ServerDiagnosticsSummaryDataType();
-            m_server.Setup(s => s.DiagnosticsWriteLock).Returns(serverDiagnostics);
-            m_server.Setup(s => s.ServerDiagnostics).Returns(serverDiagnostics);
+            m_server
+                .Setup(s => s.UpdateServerDiagnostics(
+                    It.IsAny<Action<ServerDiagnosticsSummaryDataType>>()))
+                .Callback<Action<ServerDiagnosticsSummaryDataType>>(
+                    update => update(serverDiagnostics));
 
             var diagnostics = new Mock<IDiagnosticsNodeManager>();
             diagnostics
@@ -378,40 +381,6 @@ namespace Opc.Ua.Server.Tests
                     default).ConfigureAwait(false))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
-        }
-
-        [Test]
-        public async Task SynchronousActivationValidationRequiresAsyncPathForSecureEndpointsAsync()
-        {
-            EndpointDescription endpoint = CreateEndpoint(
-                MessageSecurityMode.SignAndEncrypt,
-                includeUserName: true);
-            using SecuritySessionManager manager = CreateManager();
-            CreatedSession created = await CreateSessionAsync(
-                manager,
-                endpoint,
-                "channel-1",
-                m_clientCertificate).ConfigureAwait(false);
-            SignatureData signature = CreateClientSignature(
-                created.Context,
-                created.ClientNonce,
-                created.ServerNonce,
-                m_clientCertificate);
-            var session = (Opc.Ua.Server.Session)created.Result.Session;
-
-            // The retained synchronous contract cannot verify a user token that
-            // requires decryption, so it fails closed and directs callers to
-            // ValidateBeforeActivateAsync instead of validating with less rigour.
-            ServiceResultException exception = Assert.Throws<ServiceResultException>(
-                () => session.ValidateBeforeActivate(
-                    created.Context,
-                    signature,
-                    CreateUserNameToken("alice"),
-                    null!,
-                    out _,
-                    out _))!;
-
-            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
         [Test]

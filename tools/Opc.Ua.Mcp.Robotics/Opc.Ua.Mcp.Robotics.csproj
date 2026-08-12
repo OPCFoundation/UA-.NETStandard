@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Same TFM shape as Opc.Ua.Mcp.Core; see the comment there. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == '' AND ('$(CustomTestTarget)' == 'netstandard2.0' OR '$(CustomTestTarget)' == 'netstandard2.1')">net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>$(AssemblyPrefix).Mcp.Robotics</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Mcp.Robotics</PackageId>
+    <RootNamespace>Opc.Ua.Mcp</RootNamespace>
+    <Description>OPC UA MCP tools for Robot Intent: discover, monitor, command, and submit missions to Robotics controllers. Embed in any MCP server host.</Description>
+    <Company>OPC Foundation</Company>
+    <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
+    <PackageTags>OPCFoundation OPC UA MCP ModelContextProtocol Robotics RobotIntent AI LLM</PackageTags>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Tools.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Client\Opc.Ua.Robotics.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

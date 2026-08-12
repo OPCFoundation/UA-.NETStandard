@@ -72,33 +72,37 @@ The OPC UA .NET Standard Stack validates certificates according to the OPC UA sp
 
 The certificate validation process follows these steps:
 
-1. **Pre-validation Check**: If the certificate was previously validated and `UseValidatedCertificates` is enabled, the validation is skipped.
+1. **Structural Check**: Any certificate in the chain whose **subject or issuer is an empty distinguished name** is rejected immediately with the non-suppressible `Bad_CertificateInvalid`. An empty name is an empty `RDNSequence`: it identifies nothing, and two unrelated issuers become indistinguishable, so such a certificate can never take part in a trust decision. RFC 5280 §4.1.2.4 requires a non-empty issuer, and §4.1.2.6 only permits an empty subject for an end entity carrying a critical `subjectAltName` — which a CA may never do. This check runs before the trust-list lookup and the chain build so the outcome is identical on every target framework, rather than depending on whether the platform's X.509 parser happens to accept the certificate.
 
-2. **Trust Check**: The validator checks if the certificate is explicitly trusted by searching in:
+2. **Pre-validation Check**: If the certificate was previously validated and `UseValidatedCertificates` is enabled, the validation is skipped.
+
+3. **Trust Check**: The validator checks if the certificate is explicitly trusted by searching in:
    - The **trusted certificate list** (`TrustedPeerCertificates.TrustedCertificates`) - An in-memory collection of explicitly trusted certificates
    - The **trusted certificate store** (`TrustedPeerCertificates.StorePath`) - A file system directory or X509Store containing trusted certificates
    - The **application's own certificate collection** (`ApplicationCertificates`) - The certificates used by the application itself
 
    See [Certificate List Configuration](#certificate-list-configuration) for details on how these lists are populated.
 
-3. **Issuer Chain Validation**: For certificates issued by a CA, the validator builds and validates the complete certificate chain. See [Chain Building Process](#chain-building-process) for detailed technical documentation.
+4. **Issuer Chain Validation**: For certificates issued by a CA, the validator builds and validates the complete certificate chain. See [Chain Building Process](#chain-building-process) for detailed technical documentation.
 
-4. **Certificate Properties Validation**: The validator checks:
+5. **Certificate Properties Validation**: The validator checks:
    - Certificate expiration dates (NotBefore/NotAfter)
    - Key usage flags (DigitalSignature for ECDSA, DataEncipherment for RSA)
    - Minimum key size requirements
    - Signature algorithm strength (e.g., rejecting SHA-1 if configured)
    - Certificate signature validity
 
-5. **Domain Validation**: If an endpoint is provided, the validator checks that the certificate contains the endpoint's domain name in its Subject Alternative Names.
+6. **Domain Validation**: If an endpoint is provided, the validator checks that the certificate contains the endpoint's domain name in its Subject Alternative Names.
 
-6. **Application URI Validation**: Verifies that the certificate contains the expected Application URI in the Subject Alternative Name extension.
+7. **Application URI Validation**: Verifies that the certificate contains the expected Application URI in the Subject Alternative Name extension.
 
-7. **Error Handling**: If validation errors occur, they are classified as either:
+8. **Error Handling**: If validation errors occur, they are classified as either:
    - **Suppressible errors**: Can be accepted via the `CertificateValidation` event callback
    - **Non-suppressible errors**: Always cause validation to fail
 
-8. **Rejected Certificate Storage**: Failed certificates are saved to the rejected certificate store for administrator review.
+9. **Rejected Certificate Storage**: Failed certificates are saved to the rejected certificate store for administrator review.
+
+Certificates with an empty distinguished name are also skipped when a PEM file is read, so they never reach a trust list in the first place. `PEMReader.ImportPublicKeysFromPEM` drops only the offending entry and returns the remaining certificates, so one malformed certificate cannot empty an otherwise usable trust list. `DistinguishedNameUtils.HasEmptyDistinguishedName` exposes the same check to applications.
 
 ### Chain Building Process
 

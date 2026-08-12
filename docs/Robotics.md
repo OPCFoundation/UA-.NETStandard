@@ -53,6 +53,12 @@ The generated Robot Intent types live in `Opc.Ua.RobotIntent`. The hand-written 
 `Opc.Ua.Robotics.Server` and `Opc.Ua.Robotics.Server.Builders`; the hand-written client APIs live in
 `Opc.Ua.Robotics.Client.Intent`.
 
+The Robot Intent client is also exposed as an MCP tool package for agent hosts:
+`OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` registers discovery, monitoring, direct-control and
+mission tools over an already connected OPC UA Session. The tools are an adapter over
+`RobotIntentClient` and `RobotIntentControllerClient`; they do not implement an independent robot
+state machine.
+
 ## Minimal hosted server
 
 `AddRobotics()` registers the stock `RoboticsNodeManager`, the built-in DI/IA/
@@ -1221,7 +1227,7 @@ if (frames.TryExpress(inBase, "world", out Pose3DDataType inWorld, out string? f
 A refusal is an ordinary method outcome: the Method call returns `Good`, `Accepted` is false and the
 failure is in the output arguments. A Bad `StatusCode` still means the transport, Session or Service
 layer failed. The point of the small failure set is that the client can choose a policy without parsing
-human text:
+human text. `NoTransition` is `IntentFailureEnum` value 20:
 
 ```csharp
 IntentSubmissionResult submission = await controller.TrySubmitIntentAsync(intent, ct);
@@ -1233,6 +1239,7 @@ if (!submission.Accepted)
             await Task.Delay(TimeSpan.FromSeconds(1), ct);
             break;
         case IntentFailureEnum.ParameterInvalid:
+        case IntentFailureEnum.NoTransition:
         case IntentFailureEnum.JointLimit:
         case IntentFailureEnum.WorkspaceLimit:
             Console.WriteLine("Re-plan with a reachable target.");
@@ -1248,6 +1255,144 @@ if (!submission.Accepted)
     }
 }
 ```
+
+### Monitoring and direct control for agents
+
+An agent needs the same client API a conventional supervisory application needs, but it uses it in a
+tighter loop: discover, read the declaration, read live state, request authority, submit one bounded
+piece of work, and observe the operation before deciding what to do next. The client exposes those
+steps directly:
+
+```csharp
+using Opc.Ua;
+using Opc.Ua.RobotIntent;
+using Opc.Ua.Robotics.Client.Intent;
+
+RobotIntentClient robots = new(session, telemetry, streamingSubscription);
+ArrayOf<RobotIntentNodeLookupEntry> controllers =
+    await robots.DiscoverControllersAsync(ct);
+
+RobotIntentControllerClient controller = robots.Controller(controllers[0].NodeId);
+RobotIntentControllerInfo info = await controller.ReadAsync(ct);
+RobotIntentControllerState state = await controller.ReadStateAsync(ct);
+
+if (!info.SupportedFacets.Contains("RI-Motion-Linear") ||
+    !(state.Ready.Available && state.Ready.Value))
+{
+    return;
+}
+
+await using CommandAuthorityLease authority = await controller.RequestAuthorityAsync(ct);
+if (!authority.Granted)
+{
+    Console.WriteLine($"Command authority is held by {authority.CurrentOwner}.");
+    return;
+}
+
+IntentSubmissionResult submission = await controller.TrySubmitIntentAsync(
+    RobotIntentBuilder.LinearMove(RobotIntentBuilder.Pose(
+        0.40,
+        0.10,
+        0.20,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        "world")).Build(),
+    ct);
+
+if (!submission.Accepted)
+{
+    Console.WriteLine($"{submission.Failure}: {submission.Message.Text}");
+    return;
+}
+
+await using IntentOperationHandle operation = await controller.TrackOperationAsync(
+    submission.IntentId,
+    submission.Operation,
+    ct);
+IntentOperationWaitResult waited = await operation.WaitForCompletionAsync(
+    TimeSpan.FromSeconds(2),
+    ct);
+
+if (!waited.Completed)
+{
+    ArrayOf<IntentOperationSnapshot> operations = await controller.ListOperationsAsync(ct);
+    Console.WriteLine($"Still running; {operations.Count} operations are published.");
+}
+```
+
+`ReadStateAsync` reads the values an agent must not infer from the declaration: `OperationalMode`,
+`Ready`, `ControlOwner`, `ActiveIntent`, `ActiveMission` when missions are supported, the safety state
+and the published operation and mission lists. `ListOperationsAsync` and `ListMissionsAsync` return the
+server's outstanding work, not a client-side cache. `WaitForCompletionAsync` is deliberately bounded:
+timeout returns `Completed=false` with a refreshed operation snapshot, so an agent can report progress
+or re-read state instead of blocking forever.
+
+The same client carries the explicit control methods: `CancelIntentAsync`, `CancelAllAsync`,
+`PauseAsync`, `ResumeAsync`, `RetryAsync` and `ReleaseControlAsync`. Each returns the server's outcome.
+No helper retries, converts a refusal into a different command, or obtains command authority as a side
+effect.
+
+### MCP tools for Robot Intent
+
+`OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` packages the client surface above as Model Context
+Protocol tools for an LLM host. Register it beside the core OPC UA MCP package and select the Robotics
+profile when the host should expose robot tools:
+
+```csharp
+using ModelContextProtocol.Server;
+using Opc.Ua.Mcp;
+
+builder.Services.AddOpcUaMcpCore();
+builder.Services.AddOpcUaMcpRobotics();
+
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithOpcUaMcpFilters()
+    .WithOpcUaCoreTools(McpToolProfile.Robotics)
+    .WithOpcUaRoboticsTools(McpToolProfile.Robotics)
+    .WithTools<MyApplicationTools>();
+```
+
+`McpToolProfile.Robotics` gates registration. Passing the same profile to every OPC UA MCP package is
+safe: packages whose tools are not selected contribute nothing instead of failing. The Robotics package
+adds four tool groups:
+
+* discovery: list controllers and read a controller's declared `SupportedIntents`, `SupportedFacets`
+  and lookup tables;
+* monitoring: read live state, list operations and missions, and wait for an operation with a bounded
+  timeout;
+* direct control: request and release authority, cancel, pause, resume, retry, and submit one tool per
+  intent kind;
+* missions: submit, update the horizon of, and cancel missions.
+
+The sample `IntentViewerClient --mcp` is one host for these tools. In headless mode it defaults to MCP
+stdio. With `--view`, it automatically uses Streamable HTTP because MCP stdio carries protocol frames
+on stdout and the in-process OpenUSD viewport shares that stream. An explicit `--transport stdio
+--view` is honoured for diagnostics but warned about.
+
+The safe agent pattern is not a longer tool catalogue; it is a contract:
+
+1. Read `SupportedIntents` and `SupportedFacets` before commanding. The declaration is how the server
+   tells the truth about itself. Asking for an undeclared intent, buffer mode, facet or mission feature
+   is refused rather than probed into existence.
+2. Request command authority explicitly. Observation is open, but commanding is arbitrated between
+   sessions. Authority is never acquired as a side effect of submitting an intent or mission.
+3. Treat a refusal as information, not a transient failure. `NotPermittedInMode`,
+   `SafetyLimitExceeded`, `ControlNotOwned` and `CapabilityNotSupported` are decisions by the server:
+   mode selection, safety state, command ownership and capability are not things an agent should
+   brute-force. The MCP tools deliberately never retry on the agent's behalf.
+
+Those rules are load-bearing because clauses 9 and 10 of the Robot Intent draft make the server's
+honesty about capabilities and safety awareness part of the safety case. A server that declares only
+what it can perform and refuses what it cannot lets a planner re-plan, escalate to an operator, or stop.
+An agent that hides refusals in a retry loop turns that honesty back into an unsafe black box.
+
+The boundary remains the same whether the caller is a person, a program, or an LLM. Robot Intent
+commands a robot at the level of task intent. It does not change operational mode, clear stops, command
+safe motion functions, satisfy a safety-rated single-point-of-control requirement, stream cyclic servo
+samples, or bypass the robot controller's path planning and safety system.
 
 ### Facets in code
 
@@ -1409,6 +1554,12 @@ it, because `Queued`, `Cancelling` and the three distinct terminal outcomes cann
 `Cancelling` is **not** terminal. A client that treats acceptance of a cancel as the end of motion acts
 too early.
 
+`ActiveIntent` and, on servers with `MissionsSupported` true, `ActiveMission` summarize the currently executing work.
+`ActiveMission` is null when no executing intent belongs to a mission; servers without mission support omit it.
+Because `ActiveMission` is required whenever `MissionsSupported` is true, a client can treat a mission-capable server
+that omits it the same way it treats any other contradiction between declaration and address space: the capability
+claim is not usable as stated.
+
 #### Refusal is an ordinary outcome
 
 `SubmitIntent` refuses in a fixed order, and the order matters — a caller that lacks authority must be
@@ -1487,6 +1638,10 @@ grammar, reused rather than invented — and `DivergenceKind` says whether exact
 (`Parallel`). Per-step `ErrorPolicy` covers `Abort`, `Retry`, `Skip`, `Fallback` and `Compensate`. An
 empty `Transitions` array leaves the mission the flat sequence it was, which is what makes the graph an
 addition rather than a replacement.
+
+Where a step has outgoing transitions and none of their conditions holds, the mission terminates `Failed` with
+`NoTransition` (`IntentFailureEnum` value 20). The same outcome is reported if the selected transition target no
+longer resolves to a step of the mission, rather than reporting success while leaving requested work unexecuted.
 
 ### Command authority
 
@@ -1583,11 +1738,16 @@ to no node at all, is never acted on.
 | `SetOutputIntentDataType.Output` | an `OutputSignalType` under the controller; `Value` must match that signal's own DataType |
 | `CallProgramIntentDataType.Program`, `ProcessIntentDataType.ProcessProgram` | a `ProgramType` under the controller |
 | `WaitIntentDataType.Signal` | an `OutputSignalType` under the controller, or a Boolean Variable under it |
-| `FastenIntentDataType.Joint` | a joint in an OPC 40450/40451 model where one is implemented |
+| `FastenIntentDataType.Joint` | a joint in an OPC 40450/40451 model under the controller where one is implemented; otherwise the member is null and the intent's own parameters stand alone |
 
 `CallProgramIntentDataType` deserves particular care because it runs code the server holds: it is
 restricted to programs published as `ProgramType` instances, and a program identifier naming anything
 else is refused.
+
+For `FastenIntentDataType.Joint`, absence of an OPC 40450/40451 joining or tightening model under the controller is
+the structural statement that non-null `Joint` values are not supported. The stock host refuses such values with
+`CapabilityNotSupported`. Where the controller does expose an OPC 40450/40451 model, a `Joint` that does not resolve
+to a joint in that model is malformed input and is refused with `ParameterInvalid`.
 
 Commanding is a privileged operation. Every Method here moves a machine that can injure people and
 destroy property, so the server requires an authenticated Session and restricts the Methods of
@@ -1649,10 +1809,36 @@ statement in exactly the sense the honesty rules forbid, whatever `BlendingSuppo
 | **RI-Queue** | `MaxQueueDepth` greater than zero and `Buffered` accepted; `QueuePosition` maintained *(attested)* |
 | **RI-Blending** | `BlendingSupported` true and the four blending modes accepted; the modes honoured and `Result.AchievedPose` at the blend point *(attested)* |
 | **RI-Pause** / **RI-Retry** | `Pause` and `Resume`; `Retry` with `Retriable` reachable |
-| **RI-Mission** | `MissionsSupported` true, `SubmitMission`, `CancelMission`, `MissionType` instances |
+| **RI-Mission** | `MissionsSupported` true, `ActiveMission`, `SubmitMission`, `CancelMission`, `MissionType` instances |
 | **RI-Mission-Horizon** | RI-Mission plus `MissionHorizonSupported` and `UpdateMission`; base immutability *(attested)* |
 | **RI-Mission-Branching** | RI-Mission plus `MissionBranchingSupported`; transitions evaluated and error policies honoured *(attested)* |
 | **RI-Interop-40010** | inverse `HasIntentController` from the `MotionDeviceSystemType` instance to the `IntentControllerType` instance; operational-mode agreement with OPC 40010, `ProgramType` instances exactly matching the programs the OPC 40010 task control can load, pose/frame consistency and safety consistency *(attested)* |
+
+### Profile and facet URI publication
+
+`SupportedFacets` is per controller, but `ServerProfileArray` is per server. A Robot Intent server
+therefore publishes both levels: every controller lists its facet names in
+`Capabilities.SupportedFacets`, and the server publishes the URI of every claimed profile and every
+backing facet in `Server/ServerCapabilities/ServerProfileArray`. The two paths shall agree. A profile
+URI is backed by at least one controller whose `SupportedFacets` contains every facet in that profile,
+and a facet URI is backed by at least one controller that lists that facet.
+
+Profiles use the base `http://opcfoundation.org/UA-Profile/RobotIntent/Server/`:
+
+| Profile | URI |
+|---|---|
+| Robot Motion Server | `http://opcfoundation.org/UA-Profile/RobotIntent/Server/Motion` |
+| Robot Handling Server | `http://opcfoundation.org/UA-Profile/RobotIntent/Server/Handling` |
+| Robot Path Server | `http://opcfoundation.org/UA-Profile/RobotIntent/Server/Path` |
+| Robot Mission Server | `http://opcfoundation.org/UA-Profile/RobotIntent/Server/Mission` |
+
+Facets use the base `http://opcfoundation.org/UA-Profile/RobotIntent/Facet/`, with the suffix being
+the facet name after the `RI-` prefix: **RI-Base** is
+`http://opcfoundation.org/UA-Profile/RobotIntent/Facet/Base`, **RI-Motion-Joint** is
+`http://opcfoundation.org/UA-Profile/RobotIntent/Facet/Motion-Joint`, and **RI-Process-ArcWeld** is
+`http://opcfoundation.org/UA-Profile/RobotIntent/Facet/Process-ArcWeld`. These URIs are provisional
+while Robot Intent is a draft; the controller's `SupportedFacets` remains the authority on what that
+controller satisfies.
 
 ## See also
 

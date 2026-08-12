@@ -40,7 +40,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
 {
     /// <summary>
     /// Verifies <see cref="MigrationGenerator"/> emits one
-    /// <c>internal sealed [Obsolete] class &lt;Name&gt;Collection : List&lt;TElement&gt;</c>
+    /// <c>public sealed [Obsolete] class &lt;Name&gt;Collection : List&lt;TElement&gt;</c>
     /// per uniquely-referenced legacy wrapper, falls back to semantic lookup for
     /// model-compiled element types, and surfaces <c>MIG01</c> for unresolvable
     /// references.
@@ -153,9 +153,10 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             Assert.That(generated, Is.Not.Null, $"No generated file for '{shortName}.g.cs'");
             string text = generated!.Value.SourceText.ToString();
             Assert.That(text, Does.Contain("namespace Opc.Ua"));
-            Assert.That(text, Does.Contain($"internal sealed class {shortName} : global::System.Collections.Generic.List<{elementDisplay}>"));
+            Assert.That(text, Does.Contain($"public sealed class {shortName} : global::System.Collections.Generic.List<{elementDisplay}>"));
             Assert.That(text, Does.Contain("[global::System.Obsolete("));
             Assert.That(text, Does.Contain("(UA0002)"));
+            Assert.That(text, Does.Contain("#pragma warning disable CS1591"));
             Assert.That(text, Does.Contain($"implicit operator global::Opc.Ua.ArrayOf<{elementDisplay}>"));
         }
 
@@ -185,7 +186,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
 
             Assert.That(generated, Is.Not.Null);
             string text = generated!.Value.SourceText.ToString();
-            Assert.That(text, Does.Contain("internal sealed class WaterPumpCollection : global::System.Collections.Generic.List<global::Acme.WaterPump>"));
+            Assert.That(text, Does.Contain("public sealed class WaterPumpCollection : global::System.Collections.Generic.List<global::Acme.WaterPump>"));
         }
 
         [Test]
@@ -210,7 +211,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
 
             Assert.That(generated, Is.Not.Null, "Semantic-lookup fallback must emit NodeIdCollection");
             string text = generated!.Value.SourceText.ToString();
-            Assert.That(text, Does.Contain("internal sealed class NodeIdCollection : global::System.Collections.Generic.List<global::Opc.Ua.NodeId>"));
+            Assert.That(text, Does.Contain("public sealed class NodeIdCollection : global::System.Collections.Generic.List<global::Opc.Ua.NodeId>"));
         }
 
         [Test]
@@ -239,7 +240,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             // FullyQualifiedFormat uses C# keyword aliases for primitives, so
             // System.Int32 is rendered as `int` — that's intentional, the emitted
             // shim is consumer-facing and reads more naturally with the alias.
-            Assert.That(text, Does.Contain("internal sealed class Int32Collection : global::System.Collections.Generic.List<int>"));
+            Assert.That(text, Does.Contain("public sealed class Int32Collection : global::System.Collections.Generic.List<int>"));
         }
 
         [Test]

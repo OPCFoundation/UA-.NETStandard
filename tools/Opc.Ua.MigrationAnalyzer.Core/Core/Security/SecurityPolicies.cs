@@ -59,8 +59,8 @@ namespace Opc.Ua
             [Obsolete("SecurityPolicies.GetUri was moved in 2.0 to ISecurityPolicyRegistry, " +
                 "because it reads the set of registered policies. Resolve an " +
                 "ISecurityPolicyRegistry, or use SecurityPolicies.Default.GetUri(displayName). " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0024")]
-            [OpcUaShim("UA0024")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0029")]
+            [OpcUaShim("UA0029")]
             public static string? GetUri(string displayName)
                 => SecurityPolicies.Default.GetUri(displayName);
 
@@ -70,8 +70,8 @@ namespace Opc.Ua
             [Obsolete("SecurityPolicies.GetDisplayName was moved in 2.0 to ISecurityPolicyRegistry, " +
                 "because it reads the set of registered policies. Resolve an " +
                 "ISecurityPolicyRegistry, or use SecurityPolicies.Default.GetDisplayName(policyUri). " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0024")]
-            [OpcUaShim("UA0024")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0029")]
+            [OpcUaShim("UA0029")]
             public static string? GetDisplayName(string policyUri)
                 => SecurityPolicies.Default.GetDisplayName(policyUri);
 
@@ -81,8 +81,8 @@ namespace Opc.Ua
             [Obsolete("SecurityPolicies.IsValidSecurityPolicyUri was moved in 2.0 to ISecurityPolicyRegistry, " +
                 "because it reads the set of registered policies. Resolve an ISecurityPolicyRegistry, or use " +
                 "SecurityPolicies.Default.IsValidSecurityPolicyUri(policyUri). " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0024")]
-            [OpcUaShim("UA0024")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0029")]
+            [OpcUaShim("UA0029")]
             public static bool IsValidSecurityPolicyUri(string policyUri)
                 => SecurityPolicies.Default.IsValidSecurityPolicyUri(policyUri);
 
@@ -92,8 +92,8 @@ namespace Opc.Ua
             [Obsolete("SecurityPolicies.GetDisplayNames was moved in 2.0 to ISecurityPolicyRegistry, " +
                 "because it reads the set of registered policies. Resolve an ISecurityPolicyRegistry, or use " +
                 "SecurityPolicies.Default.GetDisplayNames(). " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0024")]
-            [OpcUaShim("UA0024")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0029")]
+            [OpcUaShim("UA0029")]
             public static string[] GetDisplayNames()
                 => SecurityPolicies.Default.GetDisplayNames();
 
@@ -103,8 +103,8 @@ namespace Opc.Ua
             [Obsolete("SecurityPolicies.GetDefaultDeprecatedUris was moved in 2.0 to ISecurityPolicyRegistry, " +
                 "because it reads the set of registered policies. Resolve an ISecurityPolicyRegistry, or use " +
                 "SecurityPolicies.Default.GetDefaultDeprecatedUris(). " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0024")]
-            [OpcUaShim("UA0024")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0029")]
+            [OpcUaShim("UA0029")]
             public static string[] GetDefaultDeprecatedUris()
                 => SecurityPolicies.Default.GetDefaultDeprecatedUris();
 
@@ -114,8 +114,8 @@ namespace Opc.Ua
             [Obsolete("SecurityPolicies.GetDefaultUris was moved in 2.0 to ISecurityPolicyRegistry, " +
                 "because it reads the set of registered policies. Resolve an ISecurityPolicyRegistry, or use " +
                 "SecurityPolicies.Default.GetDefaultUris(). " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0024")]
-            [OpcUaShim("UA0024")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0029")]
+            [OpcUaShim("UA0029")]
             public static string[] GetDefaultUris()
                 => SecurityPolicies.Default.GetDefaultUris();
 
@@ -125,8 +125,8 @@ namespace Opc.Ua
             [Obsolete("SecurityPolicies.GetDefaultEccUris was moved in 2.0 to ISecurityPolicyRegistry, " +
                 "because it reads the set of registered policies. Resolve an ISecurityPolicyRegistry, or use " +
                 "SecurityPolicies.Default.GetDefaultEccUris(). " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0024")]
-            [OpcUaShim("UA0024")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0029")]
+            [OpcUaShim("UA0029")]
             public static string[] GetDefaultEccUris()
                 => SecurityPolicies.Default.GetDefaultEccUris();
 
@@ -141,8 +141,8 @@ namespace Opc.Ua
                 "the policy from the set it owns and logs through its own logger. Resolve an " +
                 "ISecurityPolicyRegistry, or use SecurityPolicies.Default.Encrypt(certificate, " +
                 "securityPolicyUri, plainText) - note the logger argument is gone. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0024")]
-            [OpcUaShim("UA0024")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0029")]
+            [OpcUaShim("UA0029")]
             public static EncryptedData Encrypt(
                 Certificate certificate,
                 string securityPolicyUri,
@@ -161,8 +161,8 @@ namespace Opc.Ua
                 "the policy from the set it owns and logs through its own logger. Resolve an " +
                 "ISecurityPolicyRegistry, or use SecurityPolicies.Default.Decrypt(certificate, " +
                 "securityPolicyUri, dataToDecrypt) - note the logger argument is gone. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0024")]
-            [OpcUaShim("UA0024")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0029")]
+            [OpcUaShim("UA0029")]
             public static byte[]? Decrypt(
                 Certificate certificate,
                 string securityPolicyUri,

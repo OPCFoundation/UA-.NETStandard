@@ -58,6 +58,26 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         public const string UA0022 = "UA0022";
         public const string UA0023 = "UA0023";
         public const string UA0024 = "UA0024";
+        public const string UA0025 = "UA0025";
+        public const string UA0026 = "UA0026";
+
+        /// <summary>
+        /// NodeBrowser.DataLock was removed: a browser is single-consumer in 2.0.
+        /// </summary>
+        public const string UA0027 = "UA0027";
+
+        /// <summary>
+        /// ApplicationConfiguration.PropertiesLock was removed: the properties
+        /// dictionary synchronizes itself in 2.0.
+        /// </summary>
+        public const string UA0028 = "UA0028";
+
+        /// <summary>
+        /// The SecurityPolicies lookup and cryptography statics moved onto
+        /// ISecurityPolicyRegistry: they operate on the set of registered
+        /// policies rather than on constants.
+        /// </summary>
+        public const string UA0029 = "UA0029";
 
         /// <summary>The diagnostic category every UA00xx rule belongs to.</summary>
         public const string Category = "Migration";

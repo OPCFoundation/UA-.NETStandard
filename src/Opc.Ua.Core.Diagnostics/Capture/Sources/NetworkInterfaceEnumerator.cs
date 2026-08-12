@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Opc.Ua.Pcap.Models;
+using SharpPcap;
 using SharpPcap.LibPcap;
 
 namespace Opc.Ua.Pcap.Capture.Sources
@@ -54,14 +55,35 @@ namespace Opc.Ua.Pcap.Capture.Sources
         /// </exception>
         public static IReadOnlyList<NetworkInterfaceInfo> ListLocalInterfaces()
         {
+            LibPcapLiveDeviceList devices;
             try
             {
-                return [.. LibPcapLiveDeviceList.Instance.Select(CreateInfo)];
+                devices = LibPcapLiveDeviceList.Instance;
             }
             catch (Exception ex) when (ex is not PcapDiagnosticsException)
             {
                 throw new PcapDiagnosticsException(
                     "Unable to enumerate devices — is libpcap / Npcap installed?", ex);
+            }
+
+            return [.. devices.Select(CreateInfo)];
+        }
+
+        internal static string? GetLinkType(bool opened, Func<string> readLinkType)
+        {
+            ArgumentNullException.ThrowIfNull(readLinkType);
+            if (!opened)
+            {
+                return null;
+            }
+
+            try
+            {
+                return readLinkType();
+            }
+            catch (DeviceNotReadyException)
+            {
+                return null;
             }
         }
 
@@ -75,7 +97,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 FriendlyName = device.Interface?.FriendlyName,
                 Description = device.Description,
                 Addresses = [.. device.Addresses.Select(a => a.Addr?.ToString() ?? string.Empty)],
-                LinkType = device.LinkType.ToString(),
+                LinkType = GetLinkType(device.Opened, () => device.LinkType.ToString()),
                 IsLoopback = device.Loopback
             };
         }

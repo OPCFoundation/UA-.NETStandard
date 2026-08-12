@@ -33,6 +33,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -43,6 +44,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Xml;
 using NUnit.Framework;
+using NUnit.Framework.Interfaces;
 using Opc.Ua.Bindings;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
@@ -80,6 +82,25 @@ namespace Opc.Ua.Core.TestFramework
             AllowTrailingCommas = true
         };
 
+        /// <summary>
+        /// Diagnostic output for the test that is currently running. Only written
+        /// out when the test does not pass.
+        /// </summary>
+        /// <remarks>
+        /// The encoder tests dump the input, the encoded payload and the decoded
+        /// result of every case, which is what makes a failure diagnosable. There
+        /// are however thousands of cases, and the NUnit adapter forwards each
+        /// captured line to the test runner as an individual message over the
+        /// socket it shares with the test host. Emitting them unconditionally
+        /// produced roughly 500 MB of output per run of the encoder suite, which
+        /// throttled the run, made its published results a 164 MB artifact, and
+        /// eventually wedged that socket: the run then hung with no output at all
+        /// until the CI job timed out (issue #4213). Buffering the dumps and
+        /// writing them only when they are actually read - on a failure - keeps
+        /// the diagnostics without the flood.
+        /// </remarks>
+        protected TextWriter TestOutput { get; private set; }
+
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
         protected IServiceMessageContext Context { get; private set; }
@@ -112,6 +133,10 @@ namespace Opc.Ua.Core.TestFramework
         [SetUp]
         protected void SetUp()
         {
+            // One writer per fixture over the reused buffer; the buffer, not the
+            // writer, carries the per-test state.
+            TestOutput ??= new StringWriter(m_testOutput, CultureInfo.CurrentCulture);
+            m_testOutput.Clear();
             // ensure tests are reproducible, reset for every test
             RandomSource = new RandomSource(kRandomStart);
             DataGenerator = new DataGenerator(RandomSource, Telemetry);
@@ -120,8 +145,24 @@ namespace Opc.Ua.Core.TestFramework
         [TearDown]
         protected void TearDown()
         {
+            FlushTestOutput();
             // ensure after every test that the Null NodeId was not modified
             Assert.That(NodeId.Null.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Hand the buffered diagnostics to NUnit when the test did not pass, and
+        /// drop them otherwise. See <see cref="TestOutput"/> for why they are not
+        /// written as they are produced.
+        /// </summary>
+        private void FlushTestOutput()
+        {
+            if (m_testOutput.Length != 0 &&
+                TestContext.CurrentContext.Result.Outcome.Status != TestStatus.Passed)
+            {
+                TestContext.Out.Write(m_testOutput.ToString());
+            }
+            m_testOutput.Clear();
         }
 
         /// <summary>
@@ -208,11 +249,11 @@ namespace Opc.Ua.Core.TestFramework
             JsonEncodingType encoding)
         {
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType} Encoding:{encoding}";
-            TestContext.Out.WriteLine(encodeInfo);
-            TestContext.Out.WriteLine(data);
+            TestOutput.WriteLine(encodeInfo);
+            TestOutput.WriteLine(data);
             DataValue expected = CreateDataValue(data);
-            TestContext.Out.WriteLine("Expected:");
-            TestContext.Out.WriteLine(expected);
+            TestOutput.WriteLine("Expected:");
+            TestOutput.WriteLine(expected);
             Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
             using MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType);
             using (IEncoder encoder = CreateEncoder(
@@ -241,8 +282,8 @@ namespace Opc.Ua.Core.TestFramework
             Variant data)
         {
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
-            TestContext.Out.WriteLine(encodeInfo);
-            TestContext.Out.WriteLine(data);
+            TestOutput.WriteLine(encodeInfo);
+            TestOutput.WriteLine(data);
             DataValue expected = CreateDataValue(data);
             Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
 
@@ -296,18 +337,18 @@ namespace Opc.Ua.Core.TestFramework
             }
             catch
             {
-                TestContext.Out.WriteLine("Expected:");
-                TestContext.Out.WriteLine(expected);
+                TestOutput.WriteLine("Expected:");
+                TestOutput.WriteLine(expected);
                 if (formatted != null)
                 {
-                    TestContext.Out.WriteLine("Encoded:");
-                    TestContext.Out.WriteLine(formatted);
+                    TestOutput.WriteLine("Encoded:");
+                    TestOutput.WriteLine(formatted);
                 }
 
-                TestContext.Out.WriteLine("Result:");
+                TestOutput.WriteLine("Result:");
                 if (!result.IsNull)
                 {
-                    TestContext.Out.WriteLine(result);
+                    TestOutput.WriteLine(result);
                 }
             }
         }
@@ -329,7 +370,7 @@ namespace Opc.Ua.Core.TestFramework
             {
                 string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
                 IBuiltInType type = TypeInfo.GetSystemType(builtInType);
-                TestContext.Out.WriteLine(encodeInfo);
+                TestOutput.WriteLine(encodeInfo);
 
                 byte[] buffer;
                 using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
@@ -378,14 +419,14 @@ namespace Opc.Ua.Core.TestFramework
             catch
             {
                 // only print infos if test fails, to reduce log output
-                TestContext.Out.WriteLine("Expected:");
-                TestContext.Out.WriteLine(expected);
-                TestContext.Out.WriteLine("Result:");
-                TestContext.Out.WriteLine(result);
+                TestOutput.WriteLine("Expected:");
+                TestOutput.WriteLine(expected);
+                TestOutput.WriteLine("Result:");
+                TestOutput.WriteLine(result);
                 if (formatted != null)
                 {
-                    TestContext.Out.WriteLine("Encoded:");
-                    TestContext.Out.WriteLine(formatted);
+                    TestOutput.WriteLine("Encoded:");
+                    TestOutput.WriteLine(formatted);
                 }
                 throw;
             }
@@ -406,7 +447,7 @@ namespace Opc.Ua.Core.TestFramework
             try
             {
                 string encodeInfo = $"Encoder: Json Type:{builtInType} Encoding: {jsonEncoding}";
-                TestContext.Out.WriteLine(encodeInfo);
+                TestOutput.WriteLine(encodeInfo);
                 if (!string.IsNullOrEmpty(expected))
                 {
                     expected = $"{{\"{builtInType}\":" + expected + "}";
@@ -439,7 +480,7 @@ namespace Opc.Ua.Core.TestFramework
                     buffer = encoderStream.ToArray();
                 }
 
-                TestContext.Out.WriteLine("Result:");
+                TestOutput.WriteLine("Result:");
                 result = Encoding.UTF8.GetString(buffer);
                 formattedResult = PrettifyAndValidateJson(result);
                 var resultParsed = JsonNode.Parse(result,
@@ -451,19 +492,19 @@ namespace Opc.Ua.Core.TestFramework
             }
             catch
             {
-                TestContext.Out.WriteLine("Data:");
-                TestContext.Out.WriteLine(data);
-                TestContext.Out.WriteLine("Expected:");
+                TestOutput.WriteLine("Data:");
+                TestOutput.WriteLine(data);
+                TestOutput.WriteLine("Expected:");
                 string formattedExpected = PrettifyAndValidateJson(expected);
-                TestContext.Out.WriteLine(formattedExpected);
-                TestContext.Out.WriteLine("Result:");
+                TestOutput.WriteLine(formattedExpected);
+                TestOutput.WriteLine("Result:");
                 if (!string.IsNullOrEmpty(formattedResult))
                 {
-                    TestContext.Out.WriteLine(formattedResult);
+                    TestOutput.WriteLine(formattedResult);
                 }
                 else
                 {
-                    TestContext.Out.WriteLine(result);
+                    TestOutput.WriteLine(result);
                 }
                 throw;
             }
@@ -707,6 +748,8 @@ namespace Opc.Ua.Core.TestFramework
                 }
             }
         }
+
+        private readonly StringBuilder m_testOutput = new();
 
         protected enum TestEnumType
         {

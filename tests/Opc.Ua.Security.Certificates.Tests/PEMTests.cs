@@ -129,8 +129,172 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
         }
 
+        /// <summary>
+        /// A certificate whose subject or issuer is an empty distinguished name
+        /// identifies nothing, so it is skipped by the reader on every target
+        /// framework rather than being handed to a trust decision.
+        /// </summary>
+        [Test]
+        public void ImportCertificateChainWithEmptyDistinguishedNamesReturnsNoCertificates()
+        {
+            byte[] file = File.ReadAllBytes(
+                TestUtils.EnumerateTestAssets("Test_chain_empty_dn.pem").First());
+
+            X509Certificate2Collection certs = PEMReader.ImportPublicKeysFromPEM(file);
+
+            Assert.That(certs, Is.Not.Null);
+            Assert.That(certs, Is.Empty, "Certificates with an empty DN must not be imported.");
+        }
+
+        /// <summary>
+        /// One unparseable entry must not discard the rest of the file: the
+        /// valid certificates around it are still returned.
+        /// </summary>
+        [Test]
+        public void ImportCertificateChainSkipsOnlyTheEntriesWithEmptyDistinguishedNames()
+        {
+            byte[] valid = File.ReadAllBytes(
+                TestUtils.EnumerateTestAssets("Test_chain.pem").First());
+            byte[] empty = File.ReadAllBytes(
+                TestUtils.EnumerateTestAssets("Test_chain_empty_dn.pem").First());
+
+            // Interleave so a rejected entry is both the first block and between
+            // two good ones.
+            byte[] mixed = [.. empty, .. valid];
+
+            X509Certificate2Collection certs = PEMReader.ImportPublicKeysFromPEM(mixed);
+
+            Assert.That(certs, Has.Count.EqualTo(3), "The well formed chain must survive.");
+            foreach (X509Certificate2 cert in certs)
+            {
+                Assert.That(
+                    DistinguishedNameUtils.HasEmptyDistinguishedName(cert),
+                    Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Verifies the empty distinguished name detection itself.
+        /// </summary>
+        [Test]
+        public void HasEmptyDistinguishedNameDetectsEmptyNames()
+        {
+            byte[] empty = File.ReadAllBytes(
+                TestUtils.EnumerateTestAssets("Test_chain_empty_dn.pem").First());
+            byte[] valid = File.ReadAllBytes(
+                TestUtils.EnumerateTestAssets("Test_chain.pem").First());
+
+            using X509Certificate2 emptyDnCertificate = LoadFirstCertificate(empty);
+            using X509Certificate2 validCertificate = LoadFirstCertificate(valid);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    DistinguishedNameUtils.HasEmptyDistinguishedName(emptyDnCertificate),
+                    Is.True);
+                Assert.That(
+                    DistinguishedNameUtils.HasEmptyDistinguishedName(validCertificate),
+                    Is.False);
+                Assert.That(DistinguishedNameUtils.IsEmpty(null), Is.True);
+                Assert.That(
+                    DistinguishedNameUtils.IsEmpty(emptyDnCertificate.IssuerName),
+                    Is.True);
+                Assert.That(
+                    DistinguishedNameUtils.IsEmpty(validCertificate.SubjectName),
+                    Is.False);
+            });
+        }
+
+        /// <summary>
+        /// Loads the first certificate of a PEM file without going through the
+        /// reader under test.
+        /// </summary>
+        private static X509Certificate2 LoadFirstCertificate(byte[] pem)
+        {
+            string text = System.Text.Encoding.UTF8.GetString(pem);
+            const string begin = "-----BEGIN CERTIFICATE-----";
+            const string end = "-----END CERTIFICATE-----";
+            int start = text.IndexOf(begin, StringComparison.Ordinal) + begin.Length;
+            int stop = text.IndexOf(end, StringComparison.Ordinal);
+            byte[] der = Convert.FromBase64String(
+                new string([.. text[start..stop].Where(c => !char.IsWhiteSpace(c))]));
+            return X509CertificateLoader.LoadCertificate(der);
+        }
+
+        /// <summary>
+        /// A block the PEM parser rejects must not hide the private key that
+        /// follows it. On .NET Framework BouncyCastle 2.7.0 throws on an empty
+        /// issuer name, which used to abandon the rest of the file and silently
+        /// cost an application certificate its private key.
+        /// </summary>
+        [Test]
+        public void ContainsPrivateKeyLooksPastUnparseableBlocks()
+        {
+            byte[] emptyDn = File.ReadAllBytes(
+                TestUtils.EnumerateTestAssets("Test_chain_empty_dn.pem").First());
+            byte[] keyPair = DecryptKeyPairPemBase64();
+
+            byte[] combined = [.. emptyDn, .. keyPair];
+
+            Assert.That(
+                PEMReader.ContainsPrivateKey(combined),
+                Is.True,
+                "the private key after the rejected blocks must still be found.");
+        }
+
+        /// <summary>
+        /// Same for the private key import itself.
+        /// </summary>
+        [Test]
+        public void ImportPrivateKeyLooksPastUnparseableBlocks()
+        {
+            byte[] emptyDn = File.ReadAllBytes(
+                TestUtils.EnumerateTestAssets("Test_chain_empty_dn.pem").First());
+            byte[] keyPair = DecryptKeyPairPemBase64();
+
+            byte[] combined = [.. emptyDn, .. keyPair];
+
+            using RSA rsa = PEMReader.ImportRsaPrivateKeyFromPEM(combined, ReadOnlySpan<char>.Empty);
+
+            Assert.That(rsa, Is.Not.Null);
+            Assert.That(rsa.KeySize, Is.GreaterThan(0));
+        }
+
+        /// <summary>
+        /// A private key that follows a long run of certificates must still be
+        /// found. The reader caps the certificates it returns, but that cap must
+        /// not stop it scanning for the key.
+        /// </summary>
+        [Test]
+        public void ContainsPrivateKeyLooksPastMoreCertificatesThanItWouldReturn()
+        {
+            byte[] chain = File.ReadAllBytes(
+                TestUtils.EnumerateTestAssets("Test_chain.pem").First());
+            byte[] keyPair = DecryptKeyPairPemBase64();
+
+            // 40 copies of a three certificate chain is 120 certificates, well
+            // past the 99 the importer is willing to return.
+            byte[] combined =
+            [
+                .. Enumerable.Repeat(chain, 40).SelectMany(c => c),
+                .. keyPair
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    PEMReader.ImportPublicKeysFromPEM(combined),
+                    Has.Count.EqualTo(99),
+                    "the importer still caps what it returns.");
+                Assert.That(
+                    PEMReader.ContainsPrivateKey(combined),
+                    Is.True,
+                    "the key past the cap must still be found.");
+            });
+        }
+
         private const string kKeyPairPemBase64Encrypted =
-            "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";
+            "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";
 
         /// <summary>
         /// 16 bytes for AES-128

@@ -908,6 +908,12 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public IntentOperationSnapshot Snapshot { get; set; } = new();
 
+            public RobotIntentControllerState ControllerState { get; set; } = new();
+
+            public ArrayOf<IntentOperationSnapshot> Operations { get; set; } = [];
+
+            public ArrayOf<MissionSnapshot> Missions { get; set; } = [];
+
             public IntentCommandOutcome CancelOutcome { get; set; } = new(true);
 
             public IntentSubmissionResult SubmitResult { get; set; } = new()
@@ -1057,6 +1063,21 @@ namespace Opc.Ua.Robotics.Client.Tests
             public ValueTask<RobotIntentControllerInfo> ReadControllerAsync(CancellationToken ct = default)
             {
                 return new ValueTask<RobotIntentControllerInfo>(new RobotIntentControllerInfo());
+            }
+
+            public ValueTask<RobotIntentControllerState> ReadControllerStateAsync(CancellationToken ct = default)
+            {
+                return new ValueTask<RobotIntentControllerState>(ControllerState);
+            }
+
+            public ValueTask<ArrayOf<IntentOperationSnapshot>> ListOperationsAsync(CancellationToken ct = default)
+            {
+                return new ValueTask<ArrayOf<IntentOperationSnapshot>>(Operations);
+            }
+
+            public ValueTask<ArrayOf<MissionSnapshot>> ListMissionsAsync(CancellationToken ct = default)
+            {
+                return new ValueTask<ArrayOf<MissionSnapshot>>(Missions);
             }
 
             public ValueTask<IntentSubmissionResult> SubmitIntentAsync(

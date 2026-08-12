@@ -84,6 +84,13 @@ id, component name and installation bay. They publish monitored data
 changes every 250 ms, with deterministic phase offsets so their values do
 not move in lockstep.
 
+The sample uses the bundled `InMemoryHistorianProvider`, whose default
+raw-data retention window is one hour per historized variable. This keeps
+the continuously running 250 ms simulation memory-bounded. Applications
+that need another horizon can pass `InMemoryHistorianOptions` to
+`UseInMemoryProvider`; setting `RawDataRetentionPeriod` to `TimeSpan.Zero`
+restores unbounded process-lifetime retention.
+
 Subscribe to the `EventNotifier` attribute on any pump to receive alarm
 condition events when its simulated `MotorOverheat` state activates or
 clears. Each pump is also registered as a root notifier, so the same events
@@ -117,7 +124,7 @@ flowchart TD
     P1 -->|HasComponent| Ev
     P1 -->|HasComponent| Maint
     P1 -->|HasComponent| Diag
-    P1 -->|HasComponent| Usd
+    P1 -->|HasAddIn| Usd
     Op -->|HasComponent| Meas
     Meas --> Vals
     Ev -->|HasComponent| Alarm
@@ -133,7 +140,8 @@ up to `--pumps N`) carries an identical one. `Diagnostics` is the one
 group that is not part of the model — it is added declaratively per pump
 by the non-typed `WithFunctionalGroup(QualifiedName, ...)` overload from
 `Program.cs`. `OpenUsdRepresentation` carries the twin bindings described
-in [The OpenUSD twin](#the-openusd-twin).
+in [The OpenUSD twin](#the-openusd-twin) and is mounted as an AddIn through
+the shared `CreateRepresentation` authoring helper.
 
 ## Startup and hosting flow
 

@@ -39,7 +39,8 @@ namespace Opc.Ua.Server
     /// implementation lives in <see cref="RoleManager"/>; integrators that
     /// want to back roles with a custom store (e.g. an LDAP directory or a
     /// database) implement this interface and inject an instance via
-    /// <see cref="IServerInternal.SetRoleManager"/>.
+    /// <see cref="StandardServer.CreateRoleManager"/>, or by registering it in
+    /// the service container.
     /// </summary>
     /// <remarks>
     /// <para>

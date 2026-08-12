@@ -282,14 +282,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             var car = (BaseComplexType)carTypeActivator.CreateInstance();
 
-            TestContext.Out.WriteLine(car.ToString());
+            TestOutput.WriteLine(car.ToString());
 
             car["Make"] = "Toyota";
             car["Model"] = "Land Cruiser";
             car["Engine"] = "Diesel";
             car["NoOfPassengers"] = (uint)5;
 
-            TestContext.Out.WriteLine(car.ToString());
+            TestOutput.WriteLine(car.ToString());
 
             var encoderContext = new ServiceMessageContext(telemetry, mockResolver.Factory)
             {
@@ -479,7 +479,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             var arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes.Type);
 
-            TestContext.Out.WriteLine(arrays.ToString());
+            TestOutput.WriteLine(arrays.ToString());
 
             arrays["ArrayOfInteger"] = Variant.From(ArrayOf.Wrapped(1, 4, 8, 12, 22));
             arrays["Array2DOfInteger"] = Variant.From(new int[,]
@@ -530,7 +530,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
             }.ToMatrixOf());
 
-            TestContext.Out.WriteLine(arrays.ToString());
+            TestOutput.WriteLine(arrays.ToString());
 
             var encoderContext = new ServiceMessageContext(telemetry, mockResolver.Factory)
             {
@@ -671,7 +671,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var testType = (BaseComplexType)Activator.CreateInstance(arraysTypes.Type);
             Assert.That(testType, Is.Not.Null);
 
-            TestContext.Out.WriteLine(testType.ToString());
+            TestOutput.WriteLine(testType.ToString());
 
             Variant value;
             IType valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
@@ -736,7 +736,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             testType[field.Name] = value;
 
-            TestContext.Out.WriteLine(testType.ToString());
+            TestOutput.WriteLine(testType.ToString());
 
             var encoderContext = new ServiceMessageContext(telemetry, mockResolver.Factory)
             {
@@ -931,7 +931,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 return;
             }
             ExpandedNodeId internalNodeId = NormalizeExpandedNodeId(typeId, namespaceUris);
-            TestContext.Out.WriteLine("Adding Type {0} as: {1}", enumType.FullName, internalNodeId);
+            TestOutput.WriteLine("Adding Type {0} as: {1}", enumType.FullName, internalNodeId);
             factory.AddType(internalNodeId, enumType);
         }
 

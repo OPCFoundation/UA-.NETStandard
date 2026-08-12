@@ -347,7 +347,7 @@ namespace Opc.Ua.Client.TestFramework
                         if (current != null && !current.ContinuationPoint.IsEmpty)
                         {
                             ContinuationPoint cp = context.Session
-                                .RestoreContinuationPoint(current.ContinuationPoint);
+                                .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
                             cp.Dispose();
                         }
                     }

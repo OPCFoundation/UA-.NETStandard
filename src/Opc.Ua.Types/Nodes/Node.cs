@@ -470,12 +470,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// A synchronization object that can be used to safely access the node.
-        /// </summary>
-        /// <value>The data lock.</value>
-        public object DataLock => this;
-
-        /// <summary>
         /// A mask indicating which attributes are writeable.
         /// </summary>
         /// <value>The write mask.</value>

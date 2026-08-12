@@ -114,7 +114,7 @@ namespace Opc.Ua.Robotics.Server
         public ArrayOf<QualifiedName> ConformanceUnits => [];
 
         /// <inheritdoc/>
-        public ArrayOf<string> ServerProfiles => ComputeServerProfiles();
+        public ArrayOf<string> ServerProfiles => ComputeServerProfileArrayEntries();
 
         internal bool BaseDisposeStarted => Volatile.Read(ref m_baseDisposeStarted) != 0;
 
@@ -479,13 +479,22 @@ namespace Opc.Ua.Robotics.Server
             }
         }
 
-        private ArrayOf<string> ComputeServerProfiles()
+        private ArrayOf<string> ComputeServerProfileArrayEntries()
         {
             var profiles = new List<string>();
+            var facetNames = new List<string>();
+            var seenFacetNames = new HashSet<string>(StringComparer.Ordinal);
             ArrayOf<IntentControllerHost> hosts = IntentControllerHosts;
             for (int ii = 0; ii < hosts.Count; ii++)
             {
                 ArrayOf<string> facets = RobotIntentFacetCalculator.Compute(hosts[ii].Controller);
+                for (int jj = 0; jj < facets.Count; jj++)
+                {
+                    if (!string.IsNullOrEmpty(facets[jj]) && seenFacetNames.Add(facets[jj]))
+                    {
+                        facetNames.Add(facets[jj]);
+                    }
+                }
                 AddProfileIfSatisfied(
                     profiles,
                     facets,
@@ -537,7 +546,12 @@ namespace Opc.Ua.Robotics.Server
                     RobotIntentConformanceUris.FacetNames.Pause,
                     RobotIntentConformanceUris.FacetNames.Retry);
             }
-            return profiles.ToArrayOf();
+            var entries = new List<string>(profiles);
+            for (int ii = 0; ii < facetNames.Count; ii++)
+            {
+                AddFacetUriIfClaimed(entries, facetNames[ii]);
+            }
+            return entries.ToArrayOf();
         }
 
         private static void AddProfileIfSatisfied(
@@ -560,20 +574,32 @@ namespace Opc.Ua.Robotics.Server
             profiles.Add(profileUri);
         }
 
+        private static void AddFacetUriIfClaimed(
+            List<string> entries,
+            string facetName)
+        {
+            if (RobotIntentConformanceUris.TryGetFacetUri(facetName, out string facetUri) &&
+                !entries.Contains(facetUri))
+            {
+                entries.Add(facetUri);
+            }
+        }
+
         private void PublishServerProfiles()
         {
-            ArrayOf<string> profiles = ServerProfiles;
-            if (profiles.Count == 0 || Server.ServerObject.ServerCapabilities?.ServerProfileArray == null)
+            ServerObjectState? serverObject = Server?.ServerObject;
+            BaseVariableState? profileArray = serverObject?.ServerCapabilities?.ServerProfileArray;
+            if (profileArray == null)
             {
                 return;
             }
-            BaseVariableState profileArray = Server.ServerObject.ServerCapabilities.ServerProfileArray;
+            ArrayOf<string> profiles = ServerProfiles;
             var merged = new List<string>();
             if (profileArray.Value.TryGetValue(out ArrayOf<string> existing))
             {
                 for (int ii = 0; ii < existing.Count; ii++)
                 {
-                    if (!string.IsNullOrEmpty(existing[ii]))
+                    if (!string.IsNullOrEmpty(existing[ii]) && !merged.Contains(existing[ii]))
                     {
                         merged.Add(existing[ii]);
                     }

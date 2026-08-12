@@ -216,9 +216,15 @@ namespace Quickstarts.ReferenceServer
             // AliasNameNodeManager configured with their own namespace.
             ConfigureAliasNameStore(server);
 
-            ServerInternal.SetUserManagement(m_userManagement);
-
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
+        }
+
+        /// <inheritdoc/>
+        protected override Opc.Ua.Server.UserManagement.IUserManagement CreateUserManagement(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return m_userManagement;
         }
 
         private static void ConfigureAliasNameStore(IServerInternal server)
