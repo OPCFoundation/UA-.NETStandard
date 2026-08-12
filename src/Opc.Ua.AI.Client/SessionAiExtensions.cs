@@ -28,42 +28,24 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.AI.Client
 {
-    /// <summary>
-    /// Session-bound factory for creating AI Model Management browse clients.
-    /// </summary>
-    public sealed class AiBrowseClientFactory
+    public static class SessionAiExtensions
     {
-        /// <summary>
-        /// Creates an AI browse client factory.
-        /// </summary>
-        /// <param name="sessionFactory">
-        /// The managed-session factory registered by <c>AddClient</c>.
-        /// </param>
-        public AiBrowseClientFactory(Func<CancellationToken, Task<ManagedSession>> sessionFactory)
+        public static AiClient Ai(this ISession session, ITelemetryContext telemetry)
         {
-            m_sessionFactory = sessionFactory
-                ?? throw new ArgumentNullException(nameof(sessionFactory));
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+            return new AiClient(session, telemetry);
         }
-
-        /// <summary>
-        /// Creates a client over the current managed session, or returns
-        /// <c>null</c> when the Server does not implement the AI namespace.
-        /// </summary>
-        /// <param name="cancellationToken">Cancels session acquisition.</param>
-        public async Task<AiBrowseClient?> CreateAsync(
-            CancellationToken cancellationToken = default)
-        {
-            ManagedSession session = await m_sessionFactory(cancellationToken)
-                .ConfigureAwait(false);
-            return AiBrowseClient.TryCreate(session);
-        }
-
-        private readonly Func<CancellationToken, Task<ManagedSession>> m_sessionFactory;
     }
 }
+

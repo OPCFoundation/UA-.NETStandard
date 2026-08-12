@@ -1,6 +1,8 @@
 # Client support for OPC UA AI Model Management
 
-Discovery of the model catalogue, datasets, deployments and inference endpoints, typed reads and Method calls, and artefact transfer through the standard file-transfer types.
+`Opc.Ua.AI.Client` provides a high-level client facade for the draft OPC UA AI Model Management and Inference companion model. The API is organised around the specification concepts: AI root, model catalogue, model cards and resources, datasets, deployments, model sources, inference jobs, learning jobs, evaluation runs, and inference transfers.
+
+The root `AiClient` resolves the AI namespace and folders, enumerates typed instances, and opens focused clients such as `AiModelClient`, `AiDeploymentClient`, `AiModelSourceClient`, and `AiInferenceTransferClient`. These clients use the generated ObjectType proxies for method calls and return named snapshot records for reads. Artefact transfer is exposed through `ByteString` and stream helpers over the standard OPC UA `FileType` methods.
 
 Part of the [OPC UA .NET Standard](https://github.com/OPCFoundation/UA-.NETStandard) stack.
 
@@ -11,9 +13,9 @@ Part of the [OPC UA .NET Standard](https://github.com/OPCFoundation/UA-.NETStand
 
 ## Documentation
 
-See the [AI Model Management guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/AI/README.md)
+See the [AI Model Management sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/AI/README.md)
 for the worked example: `ModelManagementServer` publishes a catalogue and
-routes inference, and `ModelManagementClient` walks it.
+routes inference, and `ModelManagementClient` walks it with `AiClient`.
 
 ## License
 

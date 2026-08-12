@@ -109,7 +109,8 @@ try
             Console.WriteLine("Connected.");
             Console.WriteLine();
 
-            AiScenarioRunner? runner = AiScenarioRunner.TryCreate(session);
+            ITelemetryContext telemetry = host.Services.GetRequiredService<ITelemetryContext>();
+            AiScenarioRunner? runner = AiScenarioRunner.TryCreate(session, telemetry);
 
             if (runner is null)
             {

@@ -40,6 +40,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.AI.Server\Opc.Ua.AI.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.AI.Inference\Opc.Ua.AI.Inference.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AI.Client\Opc.Ua.AI.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>

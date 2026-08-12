@@ -28,9 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,457 +37,254 @@ using Opc.Ua.Client;
 
 namespace Opc.Ua.AI.Client
 {
-    /// <summary>
-    /// Walks the address space the way a client that has never seen this Server
-    /// would, and exercises what it finds.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Nothing here is hard-coded to the sample's own NodeIds. Everything is reached
-    /// by browsing from the well-known entry point under the Server Object, because
-    /// that is the only thing the specification lets a client assume - and a client
-    /// that cheated here would not demonstrate that the address space is navigable.
-    /// </para>
-    /// <para>
-    /// It also means this client works against any Server implementing the
-    /// companion specification, not just this one.
-    /// </para>
-    /// </remarks>
     internal sealed class AiScenarioRunner
     {
-        private readonly ISession m_session;
-        private readonly ushort m_ns;
-        private readonly AiBrowseClient m_client;
-
-        private AiScenarioRunner(ISession session, ushort namespaceIndex)
+        private AiScenarioRunner(AiClient client)
         {
-            m_session = session;
-            m_ns = namespaceIndex;
-            m_client = new AiBrowseClient(session, namespaceIndex);
+            m_client = client;
         }
 
-        /// <summary>
-        /// Finds the AI namespace and prepares a runner, or returns null when the
-        /// Server does not implement the specification.
-        /// </summary>
-        public static AiScenarioRunner? TryCreate(ISession session)
+        public static AiScenarioRunner? TryCreate(ISession session, ITelemetryContext telemetry)
         {
-            int index = session.NamespaceUris.GetIndex(AiNamespaceUri);
-            return index < 0 ? null : new AiScenarioRunner(session, (ushort)index);
+            var client = new AiClient(session, telemetry);
+            return client.IsAiNamespaceAvailable ? new AiScenarioRunner(client) : null;
         }
 
-        private const string AiNamespaceUri = "http://opcfoundation.org/UA/AI/";
-
-        /// <summary>
-        /// Reads the value out of a DataValue as an object.
-        /// </summary>
-        /// <remarks>
-        /// A generic client cannot know the type in advance, which is exactly what
-        /// the legacy boxing behaviour is for. Code that knows the type should use
-        /// the TryGet pattern instead.
-        /// </remarks>
-        private static object? Unbox(DataValue value)
-        {
-            return value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
-        }
-        /// <summary>
-        /// Runs every scenario the Server publishes the means for.
-        /// </summary>
         public async Task RunAsync(CancellationToken ct)
         {
-            NodeId root = await FindAiRootAsync(ct).ConfigureAwait(false);
+            Console.WriteLine("AI root: {0}", m_client.AiRootId);
+            Console.WriteLine();
+            Console.WriteLine("--- model catalogue");
+            await ReportModelsAsync(ct).ConfigureAwait(false);
 
-            if (root.IsNull)
-            {
-                Console.WriteLine("This Server publishes no AI root.");
-                return;
-            }
-
-            Console.WriteLine("AI root: {0}", root);
-            await ReportSpecificationVersionAsync(root, ct).ConfigureAwait(false);
-
-            IReadOnlyList<NodeId> deployments =
-                await m_client.BrowseFolderAsync(root, "Deployments", ct).ConfigureAwait(false);
-
+            ArrayOf<NodeId> deployments = await m_client.DiscoverDeploymentsAsync(ct)
+                .ConfigureAwait(false);
             if (deployments.Count == 0)
             {
                 Console.WriteLine("No deployments are published.");
                 return;
             }
 
-            foreach (NodeId deployment in deployments)
+            for (int ii = 0; ii < deployments.Count; ii++)
             {
-                await DescribeDeploymentAsync(deployment, ct).ConfigureAwait(false);
+                await DescribeDeploymentAsync(deployments[ii], ct).ConfigureAwait(false);
             }
 
-            NodeId primary = deployments[0];
-
-            await RunCapabilitiesAsync(primary, ct).ConfigureAwait(false);
-            await RunInlineInferenceAsync(primary, ct).ConfigureAwait(false);
-            await RunTransferAsync(primary, ct).ConfigureAwait(false);
-            await RunAsynchronousInferenceAsync(primary, ct).ConfigureAwait(false);
-            await RunSourceAsync(root, ct).ConfigureAwait(false);
+            AiDeploymentClient deployment = m_client.Deployment(deployments[0]);
+            await RunCapabilitiesAsync(deployment, ct).ConfigureAwait(false);
+            await RunInlineInferenceAsync(deployment, ct).ConfigureAwait(false);
+            await RunTransferAsync(deployment, ct).ConfigureAwait(false);
+            await RunAsynchronousInferenceAsync(deployment, ct).ConfigureAwait(false);
+            await RunSourceAsync(ct).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Finds the entry point by browsing the Server Object.
-        /// </summary>
-        private async Task<NodeId> FindAiRootAsync(CancellationToken ct)
+        private async Task ReportModelsAsync(CancellationToken ct)
         {
-            IReadOnlyList<ReferenceDescription> children =
-                await m_client.BrowseAsync(Opc.Ua.ObjectIds.Server, ct).ConfigureAwait(false);
-
-            foreach (ReferenceDescription child in children)
+            await foreach (AiNodeEntry entry in m_client.EnumerateModelsAsync(ct).ConfigureAwait(false))
             {
-                if (child.BrowseName.NamespaceIndex == m_ns)
-                {
-                    return ExpandedNodeId.ToNodeId(child.NodeId, m_session.NamespaceUris);
-                }
-            }
-
-            return NodeId.Null;
-        }
-
-        private async Task ReportSpecificationVersionAsync(NodeId root, CancellationToken ct)
-        {
-            NodeId version = await m_client.FindChildAsync(root, "SpecificationVersion", ct)
-                .ConfigureAwait(false);
-
-            if (!version.IsNull)
-            {
-                DataValue value = await m_client.ReadAsync(version, ct).ConfigureAwait(false);
-                Console.WriteLine("Specification version: {0}", Unbox(value));
+                AiModelSnapshot model = await m_client.Model(entry.NodeId).ReadAsync(ct)
+                    .ConfigureAwait(false);
+                Console.WriteLine(
+                    "    {0} {1} {2} ({3})",
+                    model.ModelId,
+                    model.Name,
+                    model.Version,
+                    model.NodeId);
             }
         }
 
-        private async Task DescribeDeploymentAsync(NodeId deployment, CancellationToken ct)
+        private async Task DescribeDeploymentAsync(NodeId deploymentNodeId, CancellationToken ct)
         {
+            AiDeploymentClient deployment = m_client.Deployment(deploymentNodeId);
+            AiDeploymentSnapshot snapshot = await deployment.ReadAsync(ct).ConfigureAwait(false);
+
             Console.WriteLine();
-            Console.WriteLine("--- deployment {0}", deployment);
+            Console.WriteLine("--- deployment {0}", snapshot.NodeId);
+            Console.WriteLine("    DeploymentId          {0}", snapshot.DeploymentId);
+            Console.WriteLine("    InferenceLocation     {0}", snapshot.InferenceLocation);
+            Console.WriteLine("    State                 {0}", snapshot.State);
+            Console.WriteLine("    DataJurisdiction      {0}", snapshot.DataJurisdiction);
+            Console.WriteLine("    EgressPermitted       {0}", snapshot.EgressPermitted);
+            Console.WriteLine("    MaxInlinePayloadSize  {0}", snapshot.MaxInlinePayloadSize);
+            Console.WriteLine("    EndpointUri           {0}", snapshot.EndpointUri);
 
-            foreach (string name in new[]
+            AiModelClient? model = await deployment.OpenModelAsync(ct).ConfigureAwait(false);
+            if (model is not null)
             {
-                "DeploymentId",
-                "InferenceLocation",
-                "State",
-                "DataJurisdiction",
-                "EgressPermitted",
-                "MaxInlinePayloadSize",
-                "EndpointUri"
-            })
-            {
-                NodeId child = await m_client.FindChildAsync(deployment, name, ct).ConfigureAwait(false);
-
-                if (!child.IsNull)
-                {
-                    DataValue value = await m_client.ReadAsync(child, ct).ConfigureAwait(false);
-                    Console.WriteLine("    {0,-22} {1}", name, Unbox(value));
-                }
-            }
-
-            // The provenance walk, done the way an auditing client would: follow
-            // UsesModel to the artefact and read the digest it terminates at.
-            NodeId model = await m_client.FollowAsync(deployment, "UsesModel", ct).ConfigureAwait(false);
-
-            if (!model.IsNull)
-            {
-                NodeId modelId = await m_client.FindChildAsync(model, "ModelId", ct).ConfigureAwait(false);
-                NodeId digest = await m_client.FindChildAsync(model, "Digest", ct).ConfigureAwait(false);
-
+                AiModelSnapshot modelSnapshot = await model.ReadAsync(ct).ConfigureAwait(false);
                 Console.WriteLine(
                     "    uses model            {0} ({1})",
-                    Unbox(await m_client.ReadAsync(modelId, ct).ConfigureAwait(false)),
-                    model);
-
-                if (!digest.IsNull)
-                {
-                    DataValue value = await m_client.ReadAsync(digest, ct).ConfigureAwait(false);
-                    var bytes = Unbox(value) as byte[];
-                    Console.WriteLine(
-                        "    digest                {0}",
-                        bytes is { Length: > 0 }
-                            ? Convert.ToHexString(bytes)
-                            : "(none declared)");
-                }
+                    modelSnapshot.ModelId,
+                    modelSnapshot.NodeId);
+                Console.WriteLine(
+                    "    digest                {0}",
+                    modelSnapshot.Digest.Length > 0
+                        ? Convert.ToHexString(modelSnapshot.Digest.Span)
+                        : "(none declared)");
             }
 
-            NodeId fallback = await m_client.FollowAsync(deployment, "FallsBackTo", ct)
-                .ConfigureAwait(false);
-
-            if (!fallback.IsNull)
+            if (!snapshot.FallbackDeploymentId.IsNull)
             {
-                Console.WriteLine("    falls back to         {0}", fallback);
+                Console.WriteLine("    falls back to         {0}", snapshot.FallbackDeploymentId);
             }
         }
 
-        private async Task RunCapabilitiesAsync(NodeId deployment, CancellationToken ct)
+        private static async Task RunCapabilitiesAsync(AiDeploymentClient deployment, CancellationToken ct)
         {
-            NodeId method = await m_client.FindChildAsync(deployment, "GetCapabilities", ct)
-                .ConfigureAwait(false);
-
-            if (method.IsNull)
-            {
-                return;
-            }
-
             Console.WriteLine();
             Console.WriteLine("--- GetCapabilities");
-
-            IList<object> outputs = await m_client.CallAsync(deployment, method, [], ct)
+            ArrayOf<CapabilityDataType> capabilities = await deployment.GetCapabilitiesAsync(ct)
                 .ConfigureAwait(false);
-
-            if (outputs.Count > 0)
+            for (int ii = 0; ii < capabilities.Count; ii++)
             {
-                Console.WriteLine("    {0}", AiBrowseClient.Describe(outputs[0]));
+                Console.WriteLine(
+                    "    {0}: {1}",
+                    capabilities[ii].Name,
+                    capabilities[ii].Supported);
             }
         }
 
-        private async Task RunInlineInferenceAsync(NodeId deployment, CancellationToken ct)
+        private static async Task RunInlineInferenceAsync(AiDeploymentClient deployment, CancellationToken ct)
         {
-            NodeId method = await m_client.FindChildAsync(deployment, "Invoke", ct).ConfigureAwait(false);
-
-            if (method.IsNull)
-            {
-                return;
-            }
-
             Console.WriteLine();
             Console.WriteLine("--- Invoke");
-
-            byte[] payload = Encoding.UTF8.GetBytes(
-                "{\"messages\":[{\"role\":\"user\",\"content\":\"Summarise the last shift.\"}]}");
-
-            IList<object> outputs = await m_client.CallAsync(
-                deployment,
-                method,
-                [
-                    Variant.From(ByteString.From(payload)),
-                    Variant.From("application/json"),
-                    Variant.FromStructure(ArrayOf<Opc.Ua.KeyValuePair>.Empty),
-                    Variant.From(5000d)
-                ],
-                ct).ConfigureAwait(false);
-
-            ReportInvokeOutputs(outputs);
+            ByteString payload = ByteString.From(Encoding.UTF8.GetBytes(
+                "{\"messages\":[{\"role\":\"user\",\"content\":\"Summarise the last shift.\"}]}"));
+            AiInvokeResult result = await deployment.InvokeAsync(
+                payload,
+                "application/json",
+                ArrayOf<KeyValuePair>.Empty,
+                5000,
+                cancellationToken: ct).ConfigureAwait(false);
+            ReportInvokeOutputs(result);
         }
 
-        private static void ReportInvokeOutputs(IList<object> outputs)
+        private async Task RunTransferAsync(AiDeploymentClient deployment, CancellationToken ct)
         {
-            if (outputs.Count < 8)
-            {
-                Console.WriteLine("    (unexpected output shape)");
-                return;
-            }
-
-            if (outputs[0] is ByteString body && body.Length > 0)
-            {
-                Console.WriteLine("    response      {0}", Encoding.UTF8.GetString(body.Span));
-            }
-
-            // The output that matters. A caller that cannot see which model produced
-            // a result cannot tell a degraded answer from a good one.
-            Console.WriteLine("    ModelUsed     {0}", outputs[2]);
-            Console.WriteLine("    Usage         {0}", AiBrowseClient.Describe(outputs[3]));
-            Console.WriteLine("    FinishReason  {0}", outputs[4]);
-
-            if (outputs[6] is bool transferRequired && transferRequired)
-            {
-                Console.WriteLine("    payload too large; transfer at {0}", outputs[7]);
-            }
-        }
-
-        private async Task RunTransferAsync(NodeId deployment, CancellationToken ct)
-        {
-            NodeId begin = await m_client.FindChildAsync(deployment, "BeginTransfer", ct)
-                .ConfigureAwait(false);
-
-            if (begin.IsNull)
-            {
-                return;
-            }
-
             Console.WriteLine();
             Console.WriteLine("--- BeginTransfer");
-
-            byte[] payload = Encoding.UTF8.GetBytes(
+            ByteString payload = ByteString.From(Encoding.UTF8.GetBytes(
                 "{\"messages\":[{\"role\":\"user\",\"content\":\"" +
                 new string('x', 4096) +
-                "\"}]}");
-
-            IList<object> outputs = await m_client.CallAsync(
-                deployment,
-                begin,
-                ["application/json", (ulong)payload.Length],
-                ct).ConfigureAwait(false);
-
-            if (outputs.Count < 2 || outputs[1] is not bool accepted || !accepted)
+                "\"}]}"));
+            AiBeginTransferResult begun = await deployment.BeginTransferAsync(
+                "application/json", (ulong)payload.Length, ct).ConfigureAwait(false);
+            if (!begun.Accepted)
             {
                 Console.WriteLine("    refused");
                 return;
             }
+            Console.WriteLine("    transfer      {0}", begun.TransferId);
 
-            var transfer = (NodeId)outputs[0];
-            Console.WriteLine("    transfer      {0}", transfer);
+            AiInferenceTransferClient transfer = m_client.Transfer(begun.TransferId);
+            await transfer.WriteRequestAsync(payload, cancellationToken: ct).ConfigureAwait(false);
+            bool accepted = await transfer.ExecuteAsync(ct).ConfigureAwait(false);
+            AiTransferSnapshot snapshot = await transfer.ReadAsync(ct).ConfigureAwait(false);
+            Console.WriteLine("    accepted      {0}", accepted);
+            Console.WriteLine("    state         {0}", snapshot.State);
+            Console.WriteLine("    ModelUsed     {0}", snapshot.ModelUsed);
 
-            NodeId request = await m_client.FindChildAsync(transfer, "Request", ct).ConfigureAwait(false);
-            await m_client.WriteFileAsync(request, payload, ct).ConfigureAwait(false);
-
-            NodeId execute = await m_client.FindChildAsync(transfer, "Execute", ct).ConfigureAwait(false);
-            await m_client.CallAsync(transfer, execute, [], ct).ConfigureAwait(false);
-
-            NodeId state = await m_client.FindChildAsync(transfer, "State", ct).ConfigureAwait(false);
-            NodeId modelUsed = await m_client.FindChildAsync(transfer, "ModelUsed", ct)
+            ByteString answer = await transfer.ReadResponseAsync(cancellationToken: ct)
                 .ConfigureAwait(false);
-
-            Console.WriteLine(
-                "    state         {0}",
-                Unbox(await m_client.ReadAsync(state, ct).ConfigureAwait(false)));
-
-            if (!modelUsed.IsNull)
-            {
-                Console.WriteLine(
-                    "    ModelUsed     {0}",
-                    Unbox(await m_client.ReadAsync(modelUsed, ct).ConfigureAwait(false)));
-            }
-
-            NodeId response = await m_client.FindChildAsync(transfer, "Response", ct)
-                .ConfigureAwait(false);
-            byte[] answer = await m_client.ReadFileAsync(response, ct).ConfigureAwait(false);
-
             if (answer.Length > 0)
             {
-                Console.WriteLine("    response      {0}", Encoding.UTF8.GetString(answer));
+                Console.WriteLine("    response      {0}", Encoding.UTF8.GetString(answer.Span));
             }
         }
 
-        private async Task RunAsynchronousInferenceAsync(NodeId deployment, CancellationToken ct)
+        private async Task RunAsynchronousInferenceAsync(AiDeploymentClient deployment, CancellationToken ct)
         {
-            NodeId method = await m_client.FindChildAsync(deployment, "InvokeAsync", ct)
-                .ConfigureAwait(false);
-
-            if (method.IsNull)
-            {
-                return;
-            }
-
             Console.WriteLine();
             Console.WriteLine("--- InvokeAsync");
-
-            byte[] payload = Encoding.UTF8.GetBytes(
-                "{\"messages\":[{\"role\":\"user\",\"content\":\"Explain the trend.\"}]}");
-
-            IList<object> outputs = await m_client.CallAsync(
-                deployment,
-                method,
-                [
-                    Variant.From(ByteString.From(payload)),
-                    Variant.From("application/json"),
-                    Variant.FromStructure(ArrayOf<Opc.Ua.KeyValuePair>.Empty)
-                ],
-                ct).ConfigureAwait(false);
-
-            if (outputs.Count == 0 || outputs[0] is not NodeId job || job.IsNull)
+            ByteString payload = ByteString.From(Encoding.UTF8.GetBytes(
+                "{\"messages\":[{\"role\":\"user\",\"content\":\"Explain the trend.\"}]}"));
+            NodeId jobId = await deployment.InvokeAsyncAsync(
+                payload,
+                "application/json",
+                ArrayOf<KeyValuePair>.Empty,
+                cancellationToken: ct).ConfigureAwait(false);
+            if (jobId.IsNull)
             {
                 return;
             }
+            Console.WriteLine("    job           {0}", jobId);
 
-            Console.WriteLine("    job           {0}", job);
-
-            NodeId currentState = await m_client.FindChildAsync(job, "CurrentState", ct)
-                .ConfigureAwait(false);
-
-            // Poll the program state machine rather than sleeping a fixed interval:
-            // the point of the job is that its duration is not known in advance.
+            AiInferenceJobClient job = m_client.InferenceJob(jobId);
+            AiInferenceJobSnapshot snapshot = new();
             for (int attempt = 0; attempt < 50; attempt++)
             {
-                DataValue value = await m_client.ReadAsync(currentState, ct).ConfigureAwait(false);
-                string state = Unbox(value)?.ToString() ?? string.Empty;
-
-                if (state.Contains("Halted", StringComparison.Ordinal))
+                snapshot = await job.ReadAsync(ct).ConfigureAwait(false);
+                if (snapshot.ResponsePayload.Length > 0 || !snapshot.ModelUsed.IsNull)
                 {
                     break;
                 }
-
                 await Task.Delay(200, ct).ConfigureAwait(false);
             }
-
-            foreach (string name in new[] { "ResponsePayload", "ModelUsed", "FinishReason" })
+            if (snapshot.ResponsePayload.Length > 0)
             {
-                NodeId child = await m_client.FindChildAsync(job, name, ct).ConfigureAwait(false);
-
-                if (child.IsNull)
-                {
-                    continue;
-                }
-
-                DataValue value = await m_client.ReadAsync(child, ct).ConfigureAwait(false);
-                object? shown = Unbox(value) is byte[] bytes
-                    ? Encoding.UTF8.GetString(bytes)
-                    : Unbox(value);
-
-                Console.WriteLine("    {0,-13} {1}", name, shown);
+                Console.WriteLine("    Response      {0}", Encoding.UTF8.GetString(snapshot.ResponsePayload.Span));
             }
+            Console.WriteLine("    ModelUsed     {0}", snapshot.ModelUsed);
+            Console.WriteLine("    FinishReason  {0}", snapshot.FinishReason);
         }
 
-        private async Task RunSourceAsync(NodeId root, CancellationToken ct)
+        private async Task RunSourceAsync(CancellationToken ct)
         {
-            IReadOnlyList<NodeId> sources =
-                await m_client.BrowseFolderAsync(root, "Sources", ct).ConfigureAwait(false);
-
-            if (sources.Count == 0)
+            ArrayOf<NodeId> sourceIds = await m_client.DiscoverSourcesAsync(ct).ConfigureAwait(false);
+            if (sourceIds.Count == 0)
             {
                 return;
             }
 
             Console.WriteLine();
             Console.WriteLine("--- model source");
+            AiModelSourceClient source = m_client.Source(sourceIds[0]);
+            AiModelSourceSnapshot snapshot = await source.ReadAsync(ct).ConfigureAwait(false);
+            Console.WriteLine("    SourceId             {0}", snapshot.SourceId);
+            Console.WriteLine("    EndpointUri          {0}", snapshot.EndpointUri);
+            Console.WriteLine("    ApiDialect           {0}", snapshot.ApiDialect);
+            Console.WriteLine("    AuthenticationKind   {0}", snapshot.AuthenticationKind);
+            Console.WriteLine("    CredentialReference  {0}", snapshot.CredentialReference);
 
-            NodeId source = sources[0];
-
-            foreach (string name in new[]
-            {
-                "SourceId",
-                "EndpointUri",
-                "ApiDialect",
-                "AuthenticationKind",
-                "CredentialReference"
-            })
-            {
-                NodeId child = await m_client.FindChildAsync(source, name, ct).ConfigureAwait(false);
-
-                if (!child.IsNull)
-                {
-                    DataValue value = await m_client.ReadAsync(child, ct).ConfigureAwait(false);
-                    Console.WriteLine("    {0,-20} {1}", name, Unbox(value));
-                }
-            }
-
-            NodeId test = await m_client.FindChildAsync(source, "TestConnection", ct)
+            AiSourceConnectionResult connection = await source.TestConnectionAsync(ct)
                 .ConfigureAwait(false);
+            Console.WriteLine("    reachable            {0} ({1})", connection.Reachable, connection.Detail);
 
-            if (!test.IsNull)
+            AiSourceModelListResult models = await source.ListModelsAsync(maxResults: 20, cancellationToken: ct)
+                .ConfigureAwait(false);
+            for (int ii = 0; ii < models.Models.Count; ii++)
             {
-                IList<object> outputs = await m_client.CallAsync(source, test, [], ct)
-                    .ConfigureAwait(false);
-
-                if (outputs.Count >= 2)
-                {
-                    Console.WriteLine("    reachable            {0} ({1})", outputs[0], outputs[1]);
-                }
-            }
-
-            NodeId list = await m_client.FindChildAsync(source, "ListModels", ct).ConfigureAwait(false);
-
-            if (!list.IsNull)
-            {
-                IList<object> outputs = await m_client.CallAsync(source, list, [Variant.From(string.Empty), Variant.From(20u)], ct)
-                    .ConfigureAwait(false);
-
-                if (outputs.Count > 0)
-                {
-                    Console.WriteLine("    offers               {0}", AiBrowseClient.Describe(outputs[0]));
-                }
+                ModelReferenceDataType model = models.Models[ii];
+                Console.WriteLine(
+                    "    offers               {0}/{1}/{2}",
+                    model.Publisher,
+                    model.Name,
+                    model.Version);
             }
         }
+
+        private static void ReportInvokeOutputs(AiInvokeResult result)
+        {
+            if (result.ResponsePayload.Length > 0)
+            {
+                Console.WriteLine("    response      {0}", Encoding.UTF8.GetString(result.ResponsePayload.Span));
+            }
+            Console.WriteLine("    ModelUsed     {0}", result.ModelUsed);
+            if (result.Usage is not null)
+            {
+                Console.WriteLine(
+                    "    Usage         {0} in, {1} out {2}",
+                    result.Usage.InputUnits,
+                    result.Usage.OutputUnits,
+                    result.Usage.UnitKind);
+            }
+            Console.WriteLine("    FinishReason  {0}", result.FinishReason);
+            if (result.TransferRequired)
+            {
+                Console.WriteLine("    payload too large; transfer at {0}", result.TransferId);
+            }
+        }
+
+        private readonly AiClient m_client;
     }
 }

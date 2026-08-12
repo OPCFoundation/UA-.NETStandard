@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua;
 using Opc.Ua.AI.Client;
 using Opc.Ua.Client;
 
@@ -42,8 +43,8 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class OpcUaAiClientBuilderExtensions
     {
         /// <summary>
-        /// Registers an <see cref="AiBrowseClientFactory"/> and a
-        /// <c>Func&lt;CancellationToken, Task&lt;AiBrowseClient?&gt;&gt;</c> so
+        /// Registers an <see cref="AiClientFactory"/> and a
+        /// <c>Func&lt;CancellationToken, Task&lt;AiClient&gt;&gt;</c> so
         /// downstream services can request AI clients.
         /// </summary>
         /// <param name="builder">The client builder returned by <c>AddClient</c>.</param>
@@ -54,20 +55,22 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            builder.Services.TryAddSingleton<AiBrowseClientFactory>(sp =>
+            builder.Services.TryAddSingleton<AiClientFactory>(sp =>
             {
                 Func<CancellationToken, Task<ManagedSession>> sessionFactory =
                     sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
                     ?? throw new InvalidOperationException(
                         "AddAiClient requires AddClient to be called first.");
-                return new AiBrowseClientFactory(sessionFactory);
+                ITelemetryContext telemetry =
+                    sp.GetRequiredService<ITelemetryContext>();
+                return new AiClientFactory(sessionFactory, telemetry);
             });
 
             builder.Services.TryAddSingleton<
-                Func<CancellationToken, Task<AiBrowseClient?>>>(sp =>
+                Func<CancellationToken, Task<AiClient>>>(sp =>
             {
-                AiBrowseClientFactory factory =
-                    sp.GetRequiredService<AiBrowseClientFactory>();
+                AiClientFactory factory =
+                    sp.GetRequiredService<AiClientFactory>();
                 return factory.CreateAsync;
             });
 
