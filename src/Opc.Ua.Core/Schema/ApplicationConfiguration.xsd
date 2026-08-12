@@ -158,6 +158,7 @@
                     <xs:element name="MaxMessageQueueSize" type="xs:int" minOccurs="0" />
                     <xs:element name="MaxNotificationQueueSize" type="xs:int" minOccurs="0" />
                     <xs:element name="MaxNotificationsPerPublish" type="xs:int" minOccurs="0" />
+                    <xs:element name="MinSupportedSampleRate" type="xs:double" minOccurs="0" />
                     <xs:element name="AvailableSamplingRates" type="ListOfSamplingRateGroup" minOccurs="0" />
                     <xs:element name="RegistrationEndpoint" type="ua:EndpointDescription" minOccurs="0" />
                     <xs:element name="MaxRegistrationInterval" type="xs:int" minOccurs="0" />

@@ -225,6 +225,10 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerOptions SetMaxNotificationsPerPublish(
             int maxNotificationsPerPublish);
 
+        /// <inheritdoc cref="ServerConfiguration.MinSupportedSampleRate"/>
+        IApplicationConfigurationBuilderServerOptions SetMinSupportedSampleRate(
+            double minSupportedSampleRate);
+
         /// <inheritdoc cref="ServerConfiguration.AvailableSamplingRates"/>
         IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(
             ArrayOf<SamplingRateGroup> availableSampleRates);

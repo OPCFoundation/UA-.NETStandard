@@ -31,6 +31,8 @@ pools, when to pick which) see
 [Sessions.md §4](Sessions.md#4-subscription-engines).
 
 - [Quick reference](#quick-reference)
+- [Sampling interval revision](#sampling-interval-revision)
+  - [Configuring the server minimum](#configuring-the-server-minimum)
 - [Triggering (SetTriggering)](#triggering-settriggering)
   - [Declarative triggering](#declarative-triggering)
   - [Imperative triggering](#imperative-triggering)
@@ -84,6 +86,67 @@ pools, when to pick which) see
 | Stream — take N items | `.TakeAsync(count)` |
 | Stream — buffer first N | `.BufferedAsync(count)` |
 | Stream — typed alarms | `streaming.SubscribeAlarmsAsync(notifierId, filter?)` |
+| Constrain the server-wide sampling rate | `ServerConfiguration.MinSupportedSampleRate` / `.SetMinSupportedSampleRate(ms)` |
+
+## Sampling interval revision
+
+When a client creates or modifies a monitored item the server revises the
+requested `samplingInterval` before it is returned in
+`revisedSamplingInterval`. Three inputs take part:
+
+| Input | Where it comes from |
+|---|---|
+| Requested sampling interval | `MonitoringParameters.SamplingInterval`; a negative value means "use the publishing interval of the subscription" |
+| Node minimum | `BaseVariableState.MinimumSamplingInterval` of the monitored node, and only for the `Value` Attribute |
+| Server minimum | `ServerConfiguration.MinSupportedSampleRate`, published in `Server.ServerCapabilities.MinSupportedSampleRate` |
+
+The rule applied by `SubscriptionManager.CalculateRevisedSamplingInterval` is:
+
+1. A requested interval below zero is resolved to the publishing interval.
+2. If the node declares `MinimumSamplingIntervals.Continuous` (`0`) for the
+   `Value` Attribute, it reports by exception and **no** lower bound is
+   applied — the requested interval is returned unchanged.
+3. Otherwise the interval is raised to the larger of the node minimum and
+   `MinSupportedSampleRate`. Attributes other than `Value`, nodes that
+   declare `MinimumSamplingIntervals.Indeterminate` (`-1`), and nodes that
+   are not Variables are only bound by `MinSupportedSampleRate`.
+4. `double.MaxValue` is capped to one year.
+
+Event monitored items do not sample and are not affected.
+
+### Configuring the server minimum
+
+`MinSupportedSampleRate` defaults to `0`, which means the server does not
+impose a server wide lower bound. Configure it in XML:
+
+```xml
+<ServerConfiguration>
+  <!-- ... -->
+  <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
+  <MinSupportedSampleRate>2000</MinSupportedSampleRate>
+  <!-- ... -->
+</ServerConfiguration>
+```
+
+or with the fluent configuration builder:
+
+```csharp
+application.Build(applicationUri, productUri)
+    .AsServer([endpointUrl])
+    .SetMinSupportedSampleRate(2000);
+```
+
+With `MinSupportedSampleRate` set to 2000 ms, a client that requests a
+10 ms sampling interval on a node that declares a minimum of 100 ms is
+revised to 2000 ms; a node that declares 5000 ms still wins and is revised
+to 5000 ms.
+
+A custom node manager derived from `CustomNodeManager2` or
+`AsyncCustomNodeManager` picks the value up automatically through its
+`MinSupportedSampleRate` property; node managers that implement
+`INodeManager` directly can call
+`SubscriptionManager.CalculateRevisedSamplingInterval` to apply the same
+rule.
 
 ## Triggering (SetTriggering)
 

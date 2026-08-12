@@ -223,6 +223,7 @@
     <MaxMessageQueueSize>100</MaxMessageQueueSize>
     <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
+    <MinSupportedSampleRate>0</MinSupportedSampleRate>
     <AvailableSamplingRates>
       <SamplingRateGroup>
         <Start>5</Start>

@@ -81,6 +81,7 @@
     </AvailableSamplingRates>
     <MaxNotificationQueueSize>200</MaxNotificationQueueSize>
     <MaxNotificationsPerPublish>500</MaxNotificationsPerPublish>
+    <MinSupportedSampleRate>2500</MinSupportedSampleRate>
     <MaxRegistrationInterval>60000</MaxRegistrationInterval>
     <MinSubscriptionLifetime>5000</MinSubscriptionLifetime>
     <MaxPublishRequestCount>50</MaxPublishRequestCount>

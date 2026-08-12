@@ -30,6 +30,47 @@ The legacy `TraceConfiguration` application path (`TraceConfiguration.ApplySetti
 
 If your startup code used these APIs, remove those calls and configure logging providers directly on your telemetry context instead.
 
+### MinMetadataSamplingInterval replaced by MinSupportedSampleRate
+
+`ServerConfiguration.MinMetadataSamplingInterval` and the fluent
+`SetMinMetadataSamplingInterval(int)` builder method have been removed. The
+setting was never read by the stack, so it had no effect on the sampling
+interval of any monitored item.
+
+The 2.0 replacement is `ServerConfiguration.MinSupportedSampleRate` (a
+`double`, in milliseconds), which occupies the same position in the XML
+schema and is exposed by the fluent builder as
+`SetMinSupportedSampleRate(double)`. Unlike its predecessor, it is applied:
+it is published in `Server.ServerCapabilities.MinSupportedSampleRate` and
+acts as a server-wide lower bound when the sampling interval of a monitored
+item is revised.
+
+```xml
+<!-- before -->
+<MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
+
+<!-- after -->
+<MinSupportedSampleRate>1000</MinSupportedSampleRate>
+```
+
+```csharp
+// before
+builder.SetMinMetadataSamplingInterval(1000);
+
+// after
+builder.SetMinSupportedSampleRate(1000);
+```
+
+The two are **not** equivalent in behaviour. `MinSupportedSampleRate`
+defaults to `0`, which keeps the pre-2.0 behaviour of not imposing a
+server-wide lower bound. Setting it to a non-zero value changes the
+`revisedSamplingInterval` returned to clients for every monitored item
+except those on nodes that declare
+`MinimumSamplingIntervals.Continuous` (`0`), which report by exception and
+are not bound by a sampling rate. See
+[Subscriptions.md § Sampling interval revision](../../Subscriptions.md#sampling-interval-revision)
+for the full rule.
+
 ### Newtonsoft.Json removed from Opc.Ua.Core
 
 `Newtonsoft.Json` is no longer a dependency of `Opc.Ua.Core`. Projects relying on its transitive availability must add an explicit reference:

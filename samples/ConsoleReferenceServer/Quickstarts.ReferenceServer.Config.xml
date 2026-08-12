@@ -271,6 +271,10 @@
     <MaxMessageQueueSize>100</MaxMessageQueueSize>
     <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
+    <!-- The minimum sampling interval the server supports. 0 means the server does not
+         impose a server wide lower bound on the revised sampling interval. The value is
+         published in Server.ServerCapabilities.MinSupportedSampleRate. -->
+    <MinSupportedSampleRate>0</MinSupportedSampleRate>
     <AvailableSamplingRates>
       <SamplingRateGroup>
         <Start>5</Start>

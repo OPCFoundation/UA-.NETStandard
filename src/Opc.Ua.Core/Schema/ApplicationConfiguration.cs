@@ -1190,6 +1190,21 @@ namespace Opc.Ua
         public int MaxNotificationsPerPublish { get; set; } = 100;
 
         /// <summary>
+        /// The minimum sampling interval supported by the server (in milliseconds).
+        /// </summary>
+        /// <value>The minimum supported sample rate.</value>
+        /// <remarks>
+        /// The value is published in the <c>Server.ServerCapabilities.MinSupportedSampleRate</c>
+        /// Property and is used as a server wide lower bound when the sampling interval of a
+        /// monitored item is revised. Nodes that declare a MinimumSamplingInterval of
+        /// <see cref="MinimumSamplingIntervals.Continuous"/> report by exception and are not
+        /// bound by this value. The default of zero means the server does not impose a
+        /// server wide lower bound.
+        /// </remarks>
+        [DataTypeField(Order = 17)]
+        public double MinSupportedSampleRate { get; set; }
+
+        /// <summary>
         /// The available sampling rates.
         /// </summary>
         /// <value>The available sampling rates.</value>
