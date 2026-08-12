@@ -1479,7 +1479,7 @@ namespace Opc.Ua.Bindings
             {
                 // A callback that throws must not fault the request loop; the
                 // response itself has already been handed to the transport.
-                m_logger.TcpTransportLog24(e);
+                m_logger.TcpTransportResponseDispatchedCallbackFailed(e);
             }
         }
 
@@ -1788,6 +1788,13 @@ namespace Opc.Ua.Bindings
         public static partial void TcpTransportLog30(
             this ILogger logger,
             int count);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 31, Level = LogLevel.Error,
+            Message = "TCPLISTENER - A response-dispatched callback threw. " +
+                "The response itself has already been written.")]
+        public static partial void TcpTransportResponseDispatchedCallbackFailed(
+            this ILogger logger,
+            global::System.Exception? exception);
     }
 
 }

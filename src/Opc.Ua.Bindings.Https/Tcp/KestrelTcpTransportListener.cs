@@ -648,7 +648,7 @@ namespace Opc.Ua.Bindings
             {
                 // A callback that throws must not fault the request loop; the
                 // response has already been handed to the transport.
-                Logger.RequestProcessingFailed(ex);
+                Logger.KestrelResponseDispatchedCallbackFailed(ex);
             }
         }
 
@@ -805,6 +805,13 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 6, Level = LogLevel.Information,
             Message = "KestrelTcp closed {Count} SecureChannel(s) whose peer certificate is no longer trusted.")]
         public static partial void KestrelClosedUntrustedPeerSecureChannels(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 7, Level = LogLevel.Error,
+            Message = "KestrelTcp - A response-dispatched callback threw. " +
+                "The response itself has already been written.")]
+        public static partial void KestrelResponseDispatchedCallbackFailed(
+            this ILogger logger,
+            global::System.Exception? exception);
     }
 }
 #endif // NET8_0_OR_GREATER

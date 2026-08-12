@@ -1715,7 +1715,7 @@ namespace Opc.Ua.Bindings
             {
                 // A callback that throws must not fault the request loop; the
                 // response has already been handed to the transport.
-                m_logger.ErrorProcessingRequest(ex, 0);
+                m_logger.HttpsResponseDispatchedCallbackFailed(ex);
             }
         }
 
@@ -2558,5 +2558,12 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 13, Level = LogLevel.Error,
             Message = "WSSLISTENER - unexpected OpenAPI WebSocket error.")]
         public static partial void UnexpectedOpenApiWebSocketError(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 14, Level = LogLevel.Error,
+            Message = "HTTPSLISTENER - A response-dispatched callback threw. " +
+                "The response itself has already been written.")]
+        public static partial void HttpsResponseDispatchedCallbackFailed(
+            this ILogger logger,
+            Exception exception);
     }
 }

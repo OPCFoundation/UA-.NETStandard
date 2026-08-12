@@ -1235,11 +1235,9 @@ namespace Opc.Ua.Redundancy.Client
         }
 
         /// <inheritdoc/>
-#if NET8_0_OR_GREATER
         [System.Diagnostics.CodeAnalysis.Experimental(
             Opc.Ua.DataChannelFeature.ExperimentalDiagnosticId,
             UrlFormat = Opc.Ua.DataChannelFeature.ExperimentalUrlFormat)]
-#endif
         public async ValueTask<OpenDataChannelResponse> OpenDataChannelAsync(
             RequestHeader? requestHeader,
             NodeId sourceNodeId,
@@ -1260,11 +1258,9 @@ namespace Opc.Ua.Redundancy.Client
         }
 
         /// <inheritdoc/>
-#if NET8_0_OR_GREATER
         [System.Diagnostics.CodeAnalysis.Experimental(
             Opc.Ua.DataChannelFeature.ExperimentalDiagnosticId,
             UrlFormat = Opc.Ua.DataChannelFeature.ExperimentalUrlFormat)]
-#endif
         public async ValueTask<ModifyDataChannelResponse> ModifyDataChannelAsync(
             RequestHeader? requestHeader,
             uint channelId,
@@ -1281,11 +1277,9 @@ namespace Opc.Ua.Redundancy.Client
         }
 
         /// <inheritdoc/>
-#if NET8_0_OR_GREATER
         [System.Diagnostics.CodeAnalysis.Experimental(
             Opc.Ua.DataChannelFeature.ExperimentalDiagnosticId,
             UrlFormat = Opc.Ua.DataChannelFeature.ExperimentalUrlFormat)]
-#endif
         public async ValueTask<CloseDataChannelResponse> CloseDataChannelAsync(
             RequestHeader? requestHeader,
             uint channelId,

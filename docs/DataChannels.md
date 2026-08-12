@@ -36,12 +36,12 @@ it, and a peer that does use it never speaks first: it may not transmit a frame 
 because an unrecognized `MessageType` is a protocol error that closes the SecureChannel,
 taking every Session, Subscription and Service call with it.
 
-Consumers opt in by referencing the package and suppressing the experimental diagnostic:
+Consumers opt in by suppressing the experimental diagnostic. The engine is part of
+`OPCFoundation.NetStandard.Opc.Ua.Core`, so no extra package is needed for inline
+framing; `opc.quic` is a separate package because it carries channels on native QUIC
+streams:
 
 ```xml
-<ItemGroup>
-  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Core.Channels" />
-</ItemGroup>
 <PropertyGroup>
   <NoWarn>$(NoWarn);DataChannels</NoWarn>
 </PropertyGroup>
@@ -49,32 +49,32 @@ Consumers opt in by referencing the package and suppressing the experimental dia
 
 ## Where the code lives
 
-The engine ships in `OPCFoundation.NetStandard.Opc.Ua.Core.Channels` rather than in
-`Opc.Ua.Core`. It is a consumer of the message-extension seam in Core: it registers as the
-owner of the `STR` MessageType, and the SecureChannel decrypts, verifies and
-sequence-checks every chunk before the engine sees it. Core itself carries no data channel
-vocabulary — `ISecureChannelMessageExtension` and `ISecureChannelMessageHost` name only "a
-MessageType that is neither a Service call nor part of establishing the SecureChannel".
+The engine is part of `Opc.Ua.Core`, under `Stack/DataChannels`. `UaSCUaBinaryChannel`
+owns the `DataChannelManager` for its SecureChannel and dispatches `STR` chunks to it
+after decrypting, verifying and sequence-checking them, so the engine only ever sees
+authenticated content. `EnableDataChannels` turns the feature on for a channel; until it
+is called an incoming `STR` chunk closes the SecureChannel, which is what the
+interoperability rule of §5.16 requires of a peer that does not implement this
+specification.
 
-Both are `internal`, reached through the `InternalsVisibleTo` that Core already grants its
-sibling first-party assemblies (`Opc.Ua.Client`, `Opc.Ua.Bindings.Quic`,
-`Opc.Ua.Bindings.Https`). The seam exists to keep the engine out of Core, not to invite
-other implementers — there is exactly one, and the `opc.quic` binding does not use any of
-it, because a QUIC data channel rides its own stream and never becomes a UASC chunk.
-Publishing it would commit Core to an abstraction with one implementer for ever.
+`SequenceNumberBudget` tracks the sequence space every MessageType on the channel draws
+on. The channel claims a SequenceNumber while it secures a frame and refuses the send with
+`Bad_SecureChannelTokenUnknown` when the space under the current token is exhausted, so a
+sender stalls rather than reuse a number (§5.1.1). Assigning the number and applying
+message security are serialized against Service traffic — both draw on the same keys and
+the same counter — while the write itself is awaited outside that serialization, so a slow
+peer on a data channel cannot stall `Publish`.
 
-Two things stay in Core because they are the SecureChannel's own concerns rather than the
-feature's: `SequenceNumberBudget`, which tracks the sequence space every MessageType draws
-on, and `UaSCSecureChannelRegistry`, which maps a SecureChannel identifier to the channel
-that owns it. The budget is internal for the same reason as the seam; the registry is
-public because an application writing its own `IServerDataChannelTransport` for inline
-framing needs it to resolve the channel behind a request, which
-`samples/ConsoleDataChannelStreaming` demonstrates. Because the budget is Core's, the
-channel claims the SequenceNumber itself while it secures the chunk and refuses the send
-with `Bad_SecureChannelTokenUnknown` when the space under the current token is exhausted —
-an extension stalls rather than reuse a number, and never has to reason about the
-serialization to do so. The `opc.quic` transport remains its own package,
-`OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`.
+`UaSCSecureChannelRegistry` maps a SecureChannel identifier to the channel that owns it.
+It is public because an application writing its own `IServerDataChannelTransport` for
+inline framing needs it to resolve the channel behind a request, which
+`samples/Core/ConsoleDataChannelStreaming` demonstrates.
+
+The server-side Service surface — `IServerDataChannelTransport` and
+`InlineServerDataChannelTransport` — is part of `Opc.Ua.Server`. The `opc.quic` transport
+is its own package, `OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`, because it carries
+data channels on native QUIC streams rather than as UASC chunks and needs no part of the
+inline framing.
 
 ## Server side
 
@@ -154,29 +154,55 @@ if (message != null)
 | `OpenDataChannel`, `ModifyDataChannel`, `CloseDataChannel` | Complete, and served by `StandardServer`: a real Client opens a channel through a real Session |
 | Inline framing (`opc.tcp`, `opc.wss`) on the Server | Complete on the raw-socket `opc.tcp` listener. `InlineServerDataChannelTransport` resolves the UASC channel behind the request and enables the engine on it, so a Server with no transport configured still carries channels over the connection the Client already holds. A SecureChannel that can carry no frames is refused with `Bad_DataChannelTransportUnsupported` rather than accepted and then drained silently, which §5.16 requires |
 | Authorization | Complete, and **direction-aware**: `SourceToSink` requires Read on the source, `SinkToSource` requires Write, `Bidirectional` requires both (Part 4 errata §7.2, DCS-023). Re-evaluated on an interval, on `ActivateSession` and on role change |
-| Parameter negotiation, Session scoping, authorization recheck, audit | Complete, driven from the Server rather than only callable. **Server-initiated offers (Part 4 §6) are not implemented**: the registry exists but nothing creates an offer or raises `DataChannelOfferedEventType`, so `TryRedeem` can only fail |
-| `opc.quic` — url scheme, ALPN negotiation and enforcement, control stream, client channel and factory | Complete (`Opc.Ua.Bindings.Quic`, **net9.0+**) |
+| Parameter negotiation, Session scoping, authorization recheck, audit | Complete, and driven from the Server. **Server-initiated offers (Part 4 §6) are not implemented**: the registry exists but nothing creates an offer or raises `DataChannelOfferedEventType`, so `TryRedeem` can only fail |
+| `opc.quic` — url scheme, ALPN negotiation and enforcement, control stream, client channel and factory | Complete (`Opc.Ua.Bindings.Quic`, **net8.0+**) |
 | `opc.quic` — listener, service host, endpoint discovery, reverse connect, certificate rotation | Complete |
 | `opc.quic` — data channels bound to per-channel streams, `RESET_STREAM` carrying the StatusCode | Complete. The stream is released when the channel reaches a terminal state, so an orderly close completes the writes and a `RESET` becomes a `RESET_STREAM` carrying the StatusCode |
 | `opc.quic` — direction to stream type and initiator (§7.4), `revisedTransportChannelId` | Complete; `SourceToSink` gets a server-initiated unidirectional stream whose id is returned to the Client |
-| `opc.quic` — TLS-to-OPC-UA key binding (§7.6.1) | Complete, and **invoked on the connect path** — it previously existed only as tested, uncalled code, which left the profile unbound |
+| `opc.quic` — TLS-to-OPC-UA key binding (§7.6.1) | Complete. The binding is verified on the connect path, comparing the TLS peer's subjectPublicKeyInfo against the OPN senderCertificate in constant time |
 | `DataChannelCapabilities` model projection | **Not wired.** `DataChannelModel` builds the values, but the Object is never instantiated under `ServerCapabilities`, so a Client cannot read the capabilities or discover the feature through the address space (Part 3 §6, Part 4 §10) |
-| Worked sample | `samples/ConsoleDataChannelStreaming` |
+| Worked samples | `samples/Core/ConsoleDataChannelStreaming` (throughput benchmark) and `samples/Core/ConsoleDataChannelAudio` (looping audio, played back by the Client) |
 | Unreliable datagrams (§7.5) | **Not implementable on .NET.** `QuicConnection` exposes no RFC 9221 datagram API through .NET 10, so `SupportsUnreliableDatagrams` is `False` and the Server refuses `Unreliable` and `PartiallyReliable` with `Bad_DeliveryModeUnsupported` — which is what the errata requires rather than silently carrying them on the stream |
-| DI / fluent builder extension | Complete. `AddQuicTransport()` registers the listener and channel factories **and** the server-side data channel transport, so a DI-built Server carries channels on `opc.quic` streams with no further wiring. `UseQuicDataChannelTransport()` remains the direct-construction fallback |
+| DI / fluent builder extension | Complete. `AddQuicTransport()` registers the listener and channel factories **and** the server-side data channel transport, so a DI-built Server carries channels on `opc.quic` streams with no further wiring. `UseQuicDataChannelTransport()` is the direct-construction fallback |
 | Connection loss and SecureChannel close | Complete. A closed SecureChannel or lost transport faults every data channel riding on it (§5.13), on both the inline and `opc.quic` paths |
 
-## Why the QUIC binding is net9.0+
+## Why the QUIC binding is net8.0+
 
-`System.Net.Quic` is still behind `[RequiresPreviewFeatures]` on net8.0. Opting in
-would emit a `RequiresPreviewFeatures` assembly attribute that every consumer would
-then have to opt into as well, so the binding targets net9.0 and net10.0, where the
-API is stable. `Opc.Ua.Core` itself is unaffected and still builds for all six TFMs.
+`System.Net.Quic` carries `[RequiresPreviewFeatures]` on net8.0, so the binding enables
+preview features for that target and a net8.0 consumer sets `EnablePreviewFeatures` in
+its own project to use it. On net9.0 and net10.0 the API is stable and no opt-in applies.
+`QuicServerConnectionOptions.HandshakeTimeout` is .NET 9+, so on net8.0 the platform
+default bounds the handshake and the listener's own admission expiry still releases a
+stalled peer's slot. `Opc.Ua.Core` is unaffected and builds for all six TFMs.
 
 ## Running the sample
 
+### Audio streaming
+
+`samples/Core/ConsoleDataChannelAudio` is the shortest path to seeing the feature do
+something a Subscription cannot. It stands up a Server and a Client in one process,
+synthesises a short melody as 16-bit PCM, and streams it on repeat over a data channel
+while the Client plays it:
+
 ```sh
-cd samples/ConsoleDataChannelStreaming
+cd samples/Core/ConsoleDataChannelAudio
+dotnet run                 # 20 ms frames
+dotnet run -- 60           # 60 ms frames
+```
+
+The source writes in real time rather than as fast as the channel will take it, because a
+media source is paced by its own clock and writing faster would only add latency. The
+progress line reports frames, bytes and credit stalls, so a consumer that cannot keep up
+is visible rather than silently buffered.
+
+Playback uses NAudio, whose output devices are Windows interfaces; on Linux and macOS the
+sample writes the received stream to a WAV in the temp directory instead and says so on
+startup.
+
+### Throughput benchmark
+
+```sh
+cd samples/Core/ConsoleDataChannelStreaming
 dotnet run -- --transport tcp  --mode server --frames 2000 --size 1200
 dotnet run -- --transport quic --mode server --frames 2000 --size 1200
 ```
@@ -288,12 +314,9 @@ second. The sample measured 0.5 Mbit/s before the fix and 1.3 Gbit/s after it, a
 
 ## Test coverage
 
-The suite is 311 tests on `net10.0` and 237 tests on `net48` over
-`tests/Opc.Ua.Core.DataChannels.Tests`, covering
-`Opc.Ua.Core.Channels`, `Stack/Tcp/UaSCBinaryChannel.MessageExtensions.cs`
-and `Opc.Ua.Bindings.Quic`. By assembly that is **92.9% line / 82.5% branch**
-for `Opc.Ua.Core.Channels` and **80.7% line / 68.3% branch** for
-`Opc.Ua.Bindings.Quic`.
+The suite is 316 tests on `net10.0` and 242 tests on `net48` over
+`tests/Opc.Ua.Core.DataChannels.Tests`, covering `Stack/DataChannels`,
+`Stack/Tcp/UaSCBinaryChannel.DataChannels.cs` and `Opc.Ua.Bindings.Quic`.
 
 `DataChannelIntegrationTests` is the end-to-end leg: a real Client Session
 drives `OpenDataChannel`, `ModifyDataChannel` and `CloseDataChannel` against a
@@ -303,62 +326,19 @@ SecureChannel inline alongside the Service traffic. It is the only place
 the per-SecureChannel state and the authorization chain — is exercised by a
 request that actually arrived off a socket.
 
-The paths still at zero are not evenly distributed, which matters more than the
+The paths at zero are not evenly distributed, which matters more than the
 percentage does: `opc.quic` reverse connect and the retired-key teardown of
-§7.6.1 are the largest remaining gaps. Re-measure with the repo's own settings:
+§7.6.1 are the largest gaps. Re-measure with the repo's own settings:
 
 ```sh
 dotnet test tests/Opc.Ua.Core.DataChannels.Tests/Opc.Ua.Core.DataChannels.Tests.csproj \
   -f net10.0 -c Release --collect:"XPlat Code Coverage" --settings tests/coverlet.runsettings.xml
 ```
 
-QUIC tests are guarded by `QuicConnection.IsSupported` and `#if NET9_0_OR_GREATER`, so
-the net472 and net8.0 legs and any agent without msquic run 237 of them and skip the
-rest rather than failing. There is deliberately **no build-time coverage gate**: a gate
-would fail exactly those agents.
-
-Three defects were found by writing these tests, all in code that the pre-existing
-end-to-end tests had executed without asserting:
-
-| Defect | Consequence |
-| --- | --- |
-| `TryPing()` had no channel-state guard, though `Write()` guards `Closed`/`Faulted` | On a dead channel it took a sequence number, enqueued a PING, re-woke the scheduler and latched `m_pingOutstanding`, so the channel could later be declared dead by a ping that should never have been sent. `TryPing` is public API. |
-| `QuicConnectionBuilder.ConnectAsync` caught only `QuicException` | An ALPN or certificate rejection surfaces from the TLS handshake as `AuthenticationException` and escaped as a raw platform exception, so callers using the stack's `catch (ServiceResultException)` idiom missed it entirely. Now mapped to `Bad_SecurityChecksFailed`. |
-| `QuicTransportListener` captured the TLS certificate in the accept callback's closure | `CertificateUpdate` moved the UASC layer to the rotated certificate while TLS kept presenting the retired one — breaking the very key-equality check of §7.6.1 that the errata exists to enforce. The callback now reads a field, endpoint descriptions are refreshed, and retired certificates are held until close so an in-flight handshake is never pulled out from under. |
-
-The one lesson worth carrying forward: none of these were caught by coverage of the
-*happy path*. The scheduler bug in particular had every line executed and still shipped,
-because nothing asserted the rate.
-
-## What running it found that tests did not
-
-A later conformance review showed the components were right and the **wiring** was
-missing: `QuicPeerBinding.Verify` had eight test references and no production callers,
-`DataChannelServiceHandler` was never constructed, `DataChannelManager.Remove` was never
-called. Wiring them, and then driving a real Client against a real Server, found four
-more defects that the suite could not reach:
-
-| Defect | Why no test caught it |
-| --- | --- |
-| `SendDataChannelFrameAsync` secured a `STR` chunk without holding `DataLock`, so the scheduler thread and the Service path reached the same HMAC concurrently — a `CryptographicException` from the CNG provider on Windows, and duplicate `SequenceNumber`s where it did not throw | Data channels are the first thing to write to a SecureChannel off the Service thread; no unit test runs both writers at once. Now a normative rule with conformance unit DCF-038 |
-| `Session` rejected the DataChannel request types as an unexpected `RequestType` | Unit tests construct the handler directly and never traverse Session validation |
-| `StandardServer` created listeners only for schemes in the hardcoded `Utils.DefaultUriSchemes`, so registering any out-of-tree binding silently did nothing | Listener tests construct the listener directly rather than going through server startup |
-| `ServerBase` did not map `opc.quic` to a transport profile, so its endpoints advertised none | Same |
-
-`MaxDataChannels` also counted channels that had already ended, so a SecureChannel
-refused every new channel after sixteen open-close cycles with none open — reachable
-only because the connection-level limit had no test at all, unlike the source limit.
-
-A later specification-compliance review found the same pattern four more times, and every
-regression test added for these goes through the production entry point rather than the
-component, because that is what the component-level tests kept missing:
-
-| Defect | Why no test caught it |
-| --- | --- |
-| `QuicServerDataChannelTransport.BindClientStreamAsync` discarded the task carrying the §7.4 `transportChannelId` checks, so a Client could name a stream it did not own and the Server answered `Good` and echoed it | The validation had tests, but they called `BindChannelAsync` directly; nothing exercised the Service path that consumes it |
-| The per-channel delivery queue was bounded in frames but derived from a byte credit, and blocked the shared receive loop when full — one unread channel stalled `MSG`, `OPN` and `CLO` for the whole SecureChannel | No test enqueued more small frames than the queue held while nothing consumed |
-| `OnResponseSent` ran before the response object was even encoded, so the scheduler could emit a frame for a ChannelId the peer had not been told about | The state model was right and unit-tested; only the call site was wrong |
-| `StandardServer` fell back to a transport whose `SendFrameAsync` returned without doing anything, so `opc.tcp` was advertised, accepted, and then silently dropped every frame | No test opened a data channel through `StandardServer` at all |
+QUIC tests are guarded by `QuicConnection.IsSupported`, so the net472 and net48
+legs and any agent without msquic skip them rather than failing. There is
+deliberately **no build-time coverage gate**: a gate would fail exactly those
+agents.
 
 ## Deviation from the errata
 
