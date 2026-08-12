@@ -88,7 +88,7 @@ For stdio MCP, point the MCP client at the command instead:
       "args": [
         "run",
         "--project",
-        "samples\\Vision\\BinPickingClient\\BinPickingClient.csproj",
+        "samples\\Robotics\\BinPickingClient\\BinPickingClient.csproj",
         "--",
         "--server",
         "opc.tcp://localhost:62855/BinPickingCell",
@@ -184,7 +184,44 @@ payload supports `win-x64`, `linux-x64` and `osx-arm64`.
 ## Agent workflow for vision-guided bin picking
 
 Use `--mcp --view` when an LLM agent should drive the same cell a human
-watches. The agent's tool sequence to pick one part:
+watches. The perception-to-grasp loop is deliberately short: observe the same
+cell, request authority, compose the detected camera pose into `world`, then
+submit and wait for the robot intents.
+
+```mermaid
+sequenceDiagram
+    participant Agent as LLM agent
+    participant Vision as Vision tools
+    participant Robotics as Robotics tools
+    participant Cell as BinPickingCell server
+
+    Agent->>Robotics: robotics_list_controllers
+    Robotics->>Cell: browse Server/RobotIntent/Controllers
+    Cell-->>Agent: BinPickingController
+    Agent->>Robotics: robotics_request_control
+    Robotics->>Cell: RequestControl
+    Cell-->>Agent: granted
+    Agent->>Vision: vision_get_frame BinPickingCameraTwin
+    Vision->>Cell: read eye-in-hand camera frame
+    Cell-->>Agent: PNG frame
+    Agent->>Vision: vision_run_inference BinPickingPipeline
+    Vision->>Cell: RunInference or submitted detections
+    Cell-->>Agent: detections in camera_eih
+    Agent->>Vision: vision_compose_pose camera_eih to world
+    Vision->>Cell: compose frame tree
+    Cell-->>Agent: target pose in world
+    Agent->>Robotics: robotics_submit_pick
+    Robotics->>Cell: SubmitIntent Pick
+    Cell-->>Agent: IntentOperation
+    Agent->>Robotics: robotics_wait_operation
+    Robotics->>Cell: watch ExecutionState
+    Cell-->>Agent: terminal result
+    Agent->>Robotics: robotics_submit_place
+    Robotics->>Cell: SubmitIntent Place
+    Cell-->>Agent: terminal result
+```
+
+The agent's tool sequence to pick one part:
 
 ```text
 agent -> robotics_list_controllers()
@@ -200,7 +237,7 @@ server -> Ready=true, OperationalMode=AutomaticExternal, ControlOwner=<other ses
 agent -> robotics_request_control(controllerId)
 server -> { granted: true }
 
-agent -> vision_get_frame(sensor="OverheadCamera")
+agent -> vision_get_frame(sensor="BinPickingCameraTwin")
 server -> <ImageContentBlock: PNG of the current bin>
 
 agent decision: identify the red cube on the far right of the bin.

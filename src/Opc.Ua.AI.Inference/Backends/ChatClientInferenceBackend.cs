@@ -270,15 +270,211 @@ namespace Opc.Ua.AI.Inference
                 {
                     continue;
                 }
-                string role = element.TryGetProperty("role", out JsonElement r)
-                    ? r.GetString() ?? "user"
-                    : "user";
-                string text = element.TryGetProperty("content", out JsonElement c)
-                    ? c.ToString()
-                    : string.Empty;
-                messages.Add(new ChatMessage(ToRole(role), text));
+                string role = "user";
+                if (element.TryGetProperty("role", out JsonElement r))
+                {
+                    // GetString throws on a non-string element, and that would
+                    // escape the handler that turns a bad payload into a refusal.
+                    if (r.ValueKind is not JsonValueKind.String and not JsonValueKind.Null)
+                    {
+                        throw new JsonException("A chat message role must be a string.");
+                    }
+                    role = r.GetString() ?? "user";
+                }
+                ChatRole chatRole = ToRole(role);
+                if (!element.TryGetProperty("content", out JsonElement c) ||
+                    c.ValueKind == JsonValueKind.String ||
+                    c.ValueKind == JsonValueKind.Null)
+                {
+                    string text = c.ValueKind == JsonValueKind.String
+                        ? c.GetString() ?? string.Empty
+                        : string.Empty;
+                    messages.Add(new ChatMessage(chatRole, text));
+                    continue;
+                }
+                if (c.ValueKind == JsonValueKind.Array)
+                {
+                    messages.Add(new ChatMessage(chatRole, ReadContentParts(c)));
+                    continue;
+                }
+                throw new JsonException("The chat message content must be a string or an array of content parts.");
             }
             return messages;
+        }
+
+        private static List<AIContent> ReadContentParts(JsonElement array)
+        {
+            var contents = new List<AIContent>();
+            foreach (JsonElement part in array.EnumerateArray())
+            {
+                if (part.ValueKind != JsonValueKind.Object)
+                {
+                    throw new JsonException("A chat content part must be an object.");
+                }
+                if (!part.TryGetProperty("type", out JsonElement t) ||
+                    t.ValueKind != JsonValueKind.String)
+                {
+                    throw new JsonException("A chat content part must name its type.");
+                }
+                string type = t.GetString() ?? string.Empty;
+                if (string.Equals(type, "text", StringComparison.OrdinalIgnoreCase))
+                {
+                    contents.Add(ReadTextContent(part));
+                    continue;
+                }
+                if (string.Equals(type, "image_url", StringComparison.OrdinalIgnoreCase))
+                {
+                    contents.Add(ReadImageContent(part));
+                    continue;
+                }
+
+                // Refuse unsupported parts rather than skipping them: dropping the
+                // only image would let a model answer confidently about content it
+                // never received.
+                throw new JsonException(
+                    "The backend does not support chat content part type '" + type + "'.");
+            }
+            return contents;
+        }
+
+        private static TextContent ReadTextContent(JsonElement part)
+        {
+            if (!part.TryGetProperty("text", out JsonElement text) ||
+                text.ValueKind != JsonValueKind.String)
+            {
+                throw new JsonException("A text chat content part must carry string text.");
+            }
+            return new TextContent(text.GetString() ?? string.Empty);
+        }
+
+        private static AIContent ReadImageContent(JsonElement part)
+        {
+            if (!part.TryGetProperty("image_url", out JsonElement image) ||
+                image.ValueKind != JsonValueKind.Object ||
+                !image.TryGetProperty("url", out JsonElement urlElement) ||
+                urlElement.ValueKind != JsonValueKind.String)
+            {
+                throw new JsonException("An image_url chat content part must carry a string url.");
+            }
+
+            string url = urlElement.GetString() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                throw new JsonException("An image_url chat content part must carry a non-empty url.");
+            }
+
+            AIContent content;
+            if (url.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            {
+                content = ReadDataImageContent(url);
+            }
+            else if (Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                content = new UriContent(uri);
+            }
+            else
+            {
+                throw new JsonException(
+                    "An image_url chat content part must carry a data, http, or https url.");
+            }
+
+            ApplyImageDetail(image, content);
+            return content;
+        }
+
+        private static DataContent ReadDataImageContent(string url)
+        {
+            int comma = url.IndexOf(',', StringComparison.Ordinal);
+            if (comma < 0)
+            {
+                throw new JsonException("The image_url data URI is missing its data separator.");
+            }
+
+            string metadata = url.Substring("data:".Length, comma - "data:".Length);
+            string payload = url.Substring(comma + 1);
+            string mediaType = ReadDataUriMediaType(metadata);
+            if (!HasBase64Marker(metadata))
+            {
+                throw new JsonException("The image_url data URI must be base64 encoded.");
+            }
+
+            try
+            {
+                return new DataContent(Convert.FromBase64String(payload), mediaType);
+            }
+            catch (FormatException ex)
+            {
+                throw new JsonException("The image_url data URI base64 payload is malformed.", ex);
+            }
+            catch (ArgumentException ex)
+            {
+                // DataContent validates the media type itself and is stricter than
+                // the shape check above. Letting that escape would unwind past the
+                // handler that turns a bad payload into a structured refusal, so the
+                // caller would get a bare Bad status carrying an internal exception
+                // message instead of a result naming what was wrong.
+                throw new JsonException(
+                    "The image_url data URI does not name a valid media type.", ex);
+            }
+        }
+
+        private static string ReadDataUriMediaType(string metadata)
+        {
+            int semicolon = metadata.IndexOf(';', StringComparison.Ordinal);
+            string mediaType = semicolon < 0 ? metadata : metadata[..semicolon];
+            if (string.IsNullOrWhiteSpace(mediaType))
+            {
+                throw new JsonException("The image_url data URI must name a media type.");
+            }
+
+            // A media type is type/subtype. Rejecting anything else here keeps the
+            // refusal specific; DataContent would otherwise throw a less helpful
+            // ArgumentException from inside the projection.
+            int slash = mediaType.IndexOf('/', StringComparison.Ordinal);
+            if (slash <= 0 ||
+                slash == mediaType.Length - 1 ||
+                mediaType.IndexOf('/', slash + 1) >= 0)
+            {
+                throw new JsonException(
+                    "The image_url data URI media type must be of the form type/subtype.");
+            }
+            return mediaType;
+        }
+
+        private static bool HasBase64Marker(string metadata)
+        {
+            string[] tokens = metadata.Split(';');
+            for (int ii = 1; ii < tokens.Length; ii++)
+            {
+                if (string.Equals(tokens[ii], "base64", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static void ApplyImageDetail(JsonElement image, AIContent content)
+        {
+            if (!image.TryGetProperty("detail", out JsonElement detailElement) ||
+                detailElement.ValueKind != JsonValueKind.String)
+            {
+                return;
+            }
+
+            string? detail = detailElement.GetString();
+            if (!string.Equals(detail, "low", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(detail, "high", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(detail, "auto", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            content.AdditionalProperties = new AdditionalPropertiesDictionary
+            {
+                ["detail"] = detail!
+            };
         }
 
         private static ChatRole ToRole(string role)

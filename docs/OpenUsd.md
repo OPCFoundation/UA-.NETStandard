@@ -32,6 +32,37 @@ requires the other.
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsdScene` | Part 2: the source-generated companion model, the scene document model, the `.usda` reader/writer, and the value-type map. |
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsdScene.Server` | Part 2: materializer, exporter, discovery, and Part 1 interop. |
 
+The runtime path is intentionally narrow: the connector is an OPC UA client that
+discovers binding descriptors, subscribes to source Variables, converts values to
+USD-shaped `Variant`s, and writes them into one or more sinks. The optional viewer
+is just another sink, so the on-disk override layer and the picture receive the
+same updates.
+
+```mermaid
+flowchart LR
+    Server["OPC UA Server<br/>OpenUSD representations + bindings"]
+    Registry["Server/OpenUSD/Representations"]
+    Sources["Bound source Variables<br/>telemetry + alarms"]
+    History["Historized source Variables"]
+    Connector["OpenUsdConnector<br/>discover + subscribe + compose"]
+    Descriptor["RepresentationInfo + BindingInfo<br/>prim path + property + conversion"]
+    Sink["IUsdSink"]
+    File["UsdFileSink<br/>live.usda override layer"]
+    Viewer["Viewport sink<br/>optional --view"]
+    Stage["USD stage assets<br/>fetched and digest-verified"]
+
+    Server --> Registry --> Connector
+    Sources -->|"MonitoredItems"| Connector
+    History -->|"ReplayHistoryAsync"| Connector
+    Connector -->|"discovers"| Descriptor
+    Descriptor -.->|"selects prim + conversion"| Connector
+    Connector -->|"converted Variant"| Sink
+    Connector -->|"FetchServedAssetsAsync"| Stage
+    Sink --> File
+    Sink --> Viewer
+    Stage --> Viewer
+```
+
 ## The connector
 
 `OpenUsdConnector` is a **client**: it discovers a server's `OpenUsdRepresentation` instances through the Part 1

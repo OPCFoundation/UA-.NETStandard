@@ -71,6 +71,8 @@ namespace Opc.Ua.AI.Server
         private readonly Lock m_sync = new();
         private readonly Dictionary<NodeId, TransferEntry> m_transfers = [];
         private readonly List<NodeId> m_jobs = [];
+        private readonly HashSet<string> m_learningSampleIds = new(StringComparer.Ordinal);
+        private readonly Queue<string> m_learningSampleOrder = new();
         private readonly StreamFileManager m_files;
         private int m_nextId;
 
@@ -79,6 +81,7 @@ namespace Opc.Ua.AI.Server
         private ModelState? m_fallbackModel;
         private DeploymentState? m_primary;
         private DeploymentState? m_fallback;
+        private LearningJobState? m_learningJob;
 
         /// <summary>
         /// Creates the node manager.
@@ -152,6 +155,11 @@ namespace Opc.Ua.AI.Server
         /// NodeId of the fallback deployment, or a null NodeId when none is published.
         /// </summary>
         public NodeId FallbackDeploymentId => m_fallback?.NodeId ?? NodeId.Null;
+
+        /// <summary>
+        /// NodeId of the learning job that accounts for submitted ground-truth samples.
+        /// </summary>
+        public NodeId LearningJobId => m_learningJob?.NodeId ?? NodeId.Null;
 
         /// <inheritdoc/>
         /// <remarks>

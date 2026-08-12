@@ -126,11 +126,17 @@ The extension method on `IOpcUaServerBuilder` is:
 | `PrimaryDeploymentId` / `FallbackDeploymentId` | Deployment identifiers published in the address space |
 | `EnableFallback` | Publishes the fallback deployment and `FallsBackTo` reference |
 | `EnableCatalogue` | Publishes catalogue and import-job nodes |
-| `EnableLearningLoop` | Publishes the simulated learning-loop job |
-| `LearningStageInterval` | Delay between simulated learning stages |
+| `EnableLearningLoop` | Publishes a `LearningJobType` node for ground-truth sample accounting |
 | `TransferExpiry`, `MaxTransferSize`, `MaxConcurrentTransfers`, `TransferInferenceTimeout` | Bounds for chunked transfers |
 | `AsyncInferenceDelay`, `MaxRetainedJobs` | Bounds and timing for asynchronous inference jobs |
 | `SourceId` | Identifier of the model source |
+
+When `EnableLearningLoop` is true, `AiNodeManager` publishes one
+`LearningJobType` under `LearningJobs`. Host-level coordinators report
+ground-truth corrections through `RecordLearningSampleAsync(sampleId,
+sampleKind)`. The stable `sampleId` makes retries idempotent, and
+`AiLearningSampleKind.Negative` counts empty or retracted observations exactly
+as positive examples count.
 
 ### `InferenceBackendOptions`
 
@@ -231,8 +237,11 @@ different wire contract from the primary.
 
 - The companion specification is a draft, so namespace URIs and NodeIds can
   change.
-- The sample learning loop is simulated. It exercises the state machine and
-  promotion flow; it does not train a model.
+- The sample publishes a real `LearningJobType` instance and a real
+  `SamplesCollected` counter. Host-level code can call the server-side
+  accounting API when ground-truth corrections arrive, including empty or
+  retracted observations. Retraining, candidate generation and promotion are
+  deliberately not simulated.
 - `IChatClient` has no standard model-enumeration method, so hosts that need a
   catalogue should configure `InferenceBackendOptions.Models`.
 - The libraries do not reference vendor SDKs. If a provider package is needed,

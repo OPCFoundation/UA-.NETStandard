@@ -1251,6 +1251,15 @@ namespace Opc.Ua.Vision.Server.Builders
             return this;
         }
 
+        public IVisionPipelineBuilder WithLearningJob(NodeId learningJobNodeId)
+        {
+            m_pipeline.CreateOrReplaceLearningJob(m_context.Context, null);
+            m_pipeline.LearningJob!.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasProperty;
+            m_pipeline.LearningJob.TypeDefinitionId = global::Opc.Ua.VariableTypeIds.PropertyType;
+            m_pipeline.LearningJob.Value = learningJobNodeId;
+            return this;
+        }
+
         public IVisionPipelineBuilder ProducedBy(NodeId producerNodeId)
         {
             if (!producerNodeId.IsNull)

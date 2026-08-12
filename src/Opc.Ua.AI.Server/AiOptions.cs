@@ -81,19 +81,6 @@ namespace Opc.Ua.AI.Server
         public bool EnableLearningLoop { get; set; } = true;
 
         /// <summary>
-        /// How long the simulated learning loop takes to move between stages.
-        /// </summary>
-        /// <remarks>
-        /// The loop is simulated. Nothing here trains anything: a candidate model
-        /// appears on this interval so that the state machine and the promotion
-        /// authorization can be exercised. The README says so plainly, because a
-        /// reader who mistook it for a working MLOps integration would be misled
-        /// about the one part of the specification a sample cannot honestly
-        /// implement.
-        /// </remarks>
-        public TimeSpan LearningStageInterval { get; set; } = TimeSpan.FromSeconds(20);
-
-        /// <summary>
         /// How long an inference transfer survives without completing before the
         /// Server may reclaim it.
         /// </summary>

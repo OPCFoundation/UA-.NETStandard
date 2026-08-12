@@ -500,6 +500,16 @@ namespace Opc.Ua.Vision.Server.Builders
         IVisionPipelineBuilder WithDeployment(NodeId deploymentNodeId);
 
         /// <summary>
+        /// Sets the learning job node id. The specification deliberately
+        /// keeps <c>LearningJob</c> as a plain <see cref="NodeId"/>; the
+        /// Server does not require any AI Model Management dependency. Section
+        /// 9.5.1 requires this to be non-null when ground-truth corrections are
+        /// retained so a client can tell whether its label reached a learning
+        /// loop.
+        /// </summary>
+        IVisionPipelineBuilder WithLearningJob(NodeId learningJobNodeId);
+
+        /// <summary>
         /// Adds a <c>ProducedBy</c> reference from the pipeline to the
         /// referenced node (typically a controller or process instance).
         /// </summary>

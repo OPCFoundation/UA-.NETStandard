@@ -33,6 +33,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.AI;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.AI.Inference;
 
@@ -108,6 +109,176 @@ namespace Opc.Ua.AI.Tests
             // The request named a model and nothing observed contradicts it, so it
             // is reported rather than second-guessed.
             Assert.That(result.ModelUsed, Is.EqualTo("asked-model"));
+        }
+
+        [Test]
+        public async Task InvokeKeepsPlainStringContentAsATextMessage()
+        {
+            List<ChatMessage>? captured = null;
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
+            {
+                captured = new List<ChatMessage>(messages);
+            });
+            using var backend = new ChatClientInferenceBackend(client.Object);
+
+            await backend.InvokeAsync(
+                Request("""{"messages":[{"role":"user","content":"ping"}]}"""),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(captured, Is.Not.Null);
+                Assert.That(captured![0].Role, Is.EqualTo(ChatRole.User));
+                Assert.That(captured[0].Text, Is.EqualTo("ping"));
+            });
+        }
+
+        [Test]
+        public async Task InvokeProjectsTextAndDataImagePartsToMultimodalContent()
+        {
+            byte[] imageBytes = [1, 2, 3, 4];
+            string image = Convert.ToBase64String(imageBytes);
+            List<ChatMessage>? captured = null;
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
+            {
+                captured = new List<ChatMessage>(messages);
+            });
+            using var backend = new ChatClientInferenceBackend(client.Object);
+
+            await backend.InvokeAsync(
+                Request(
+                    """
+                    {"messages":[{"role":"user","content":[
+                      {"type":"text","text":"Measure the bore diameter."},
+                      {"type":"image_url","image_url":{"url":"data:image/png;base64,$IMAGE$","detail":"high"}}
+                    ]}]}
+                    """.Replace("$IMAGE$", image, StringComparison.Ordinal)),
+                CancellationToken.None).ConfigureAwait(false);
+
+            IList<AIContent> contents = captured![0].Contents;
+            var text = (TextContent)contents[0];
+            var data = (DataContent)contents[1];
+            Assert.Multiple(() =>
+            {
+                Assert.That(contents, Has.Count.EqualTo(2));
+                Assert.That(text.Text, Is.EqualTo("Measure the bore diameter."));
+                Assert.That(data.MediaType, Is.EqualTo("image/png"));
+                Assert.That(data.Data.ToArray(), Is.EqualTo(imageBytes).AsCollection);
+                Assert.That(data.AdditionalProperties?["detail"], Is.EqualTo("high"));
+            });
+        }
+
+        [Test]
+        public async Task InvokeProjectsRemoteImagePartToUriContent()
+        {
+            List<ChatMessage>? captured = null;
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
+            {
+                captured = new List<ChatMessage>(messages);
+            });
+            using var backend = new ChatClientInferenceBackend(client.Object);
+
+            await backend.InvokeAsync(
+                Request("""
+                    {"messages":[{"role":"user","content":[
+                      {"type":"image_url","image_url":{"url":"https://example.test/frame.png"}}
+                    ]}]}
+                    """),
+                CancellationToken.None).ConfigureAwait(false);
+
+            var uri = (UriContent)captured![0].Contents[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(uri.Uri, Is.EqualTo(new Uri("https://example.test/frame.png")));
+                Assert.That(uri.MediaType, Is.EqualTo("image/png"));
+            });
+        }
+
+        [Test]
+        public async Task InvokeRefusesMalformedImageDataUriBeforeCallingTheClient()
+        {
+            List<ChatMessage>? captured = null;
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
+            {
+                captured = new List<ChatMessage>(messages);
+            });
+            using var backend = new ChatClientInferenceBackend(client.Object);
+
+            InferenceResult result = await backend.InvokeAsync(
+                Request("""
+                    {"messages":[{"role":"user","content":[
+                      {"type":"image_url","image_url":{"url":"data:image/png;base64,not-base64"}}
+                    ]}]}
+                    """),
+                CancellationToken.None).ConfigureAwait(false);
+
+            // A malformed image is refused before inference so callers do not get
+            // an answer about a picture the model never received.
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Ok, Is.False);
+                Assert.That(result.Message, Does.Contain("base64"));
+                Assert.That(captured, Is.Null);
+            });
+        }
+
+        [Test]
+        [TestCase("data:foo;base64,AAAA", TestName = "MediaTypeWithoutASubtype")]
+        [TestCase("data:image;base64,AAAA", TestName = "MediaTypeMissingItsSubtype")]
+        [TestCase("data:image//png;base64,AAAA", TestName = "MediaTypeWithTwoSeparators")]
+        public async Task InvokeRefusesAnInvalidImageMediaTypeAsAStructuredResult(string url)
+        {
+            List<ChatMessage>? captured = null;
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
+            {
+                captured = new List<ChatMessage>(messages);
+            });
+            using var backend = new ChatClientInferenceBackend(client.Object);
+
+            InferenceResult result = await backend.InvokeAsync(
+                Request(
+                    "{\"messages\":[{\"role\":\"user\",\"content\":[" +
+                    "{\"type\":\"image_url\",\"image_url\":{\"url\":\"" + url + "\"}}" +
+                    "]}]}"),
+                CancellationToken.None).ConfigureAwait(false);
+
+            // DataContent validates the media type itself and throws
+            // ArgumentException, not FormatException. Left uncaught that escapes
+            // InvokeAsync entirely, so the caller gets a bare Bad status carrying an
+            // internal exception message rather than a refusal naming the problem -
+            // and on the chunked-transfer path the transfer is stranded Executing,
+            // holding a concurrency slot until it expires.
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Ok, Is.False);
+                Assert.That(result.Finish, Is.EqualTo(InferenceFinish.Error));
+                Assert.That(result.Message, Does.Contain("media type"));
+                Assert.That(captured, Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task InvokeRefusesANonStringRoleAsAStructuredResult()
+        {
+            List<ChatMessage>? captured = null;
+            Mock<IChatClient> client = CreateCapturingClient((messages, _, _) =>
+            {
+                captured = new List<ChatMessage>(messages);
+            });
+            using var backend = new ChatClientInferenceBackend(client.Object);
+
+            InferenceResult result = await backend.InvokeAsync(
+                Request("""{"messages":[{"role":5,"content":"hi"}]}"""),
+                CancellationToken.None).ConfigureAwait(false);
+
+            // JsonElement.GetString throws on a non-string element, which would
+            // escape the handler that turns a bad payload into a refusal.
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Ok, Is.False);
+                Assert.That(result.Message, Does.Contain("role"));
+                Assert.That(captured, Is.Null);
+            });
         }
 
         [Test]
@@ -363,6 +534,20 @@ namespace Opc.Ua.AI.Tests
                 ContentType = "application/json",
                 Parameters = parameters ?? new Dictionary<string, string>()
             };
+        }
+
+        private static Mock<IChatClient> CreateCapturingClient(
+            Action<IEnumerable<ChatMessage>, ChatOptions?, CancellationToken> callback)
+        {
+            var client = new Mock<IChatClient>();
+            client
+                .Setup(c => c.GetResponseAsync(
+                    It.IsAny<IEnumerable<ChatMessage>>(),
+                    It.IsAny<ChatOptions?>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(callback)
+                .ReturnsAsync(new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok")));
+            return client;
         }
 
         private sealed class StubChatClient : IChatClient

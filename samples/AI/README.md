@@ -130,15 +130,17 @@ people copy.
 **Real.** The address space, the Methods, the provenance references, the
 chunked transfer over Part 5 `FileType`, the asynchronous job on the Part 10
 program lifecycle, the fallback and its reporting, the credential handling, and
-the HTTP client that reaches an OpenAI-compatible endpoint. All of it has been
-run end to end against a live endpoint, in a container, and in a Kubernetes
-cluster.
+the HTTP client that reaches an OpenAI-compatible endpoint. The learning job
+node is also real: the Server publishes a `LearningJobType` instance, and
+`SamplesCollected` is incremented only when host-level code records a distinct
+ground-truth sample. Empty or retracted observations count the same way as
+samples carrying geometry. All of the inference pieces have been run end to end
+against a live endpoint, in a container, and in a Kubernetes cluster.
 
-**Not real.** There is no learning loop. A sample cannot retrain a model, and
-the specification's `LearningJobType` and `PromoteModel` are not implemented
-here rather than being faked — a simulated MLOps integration that appeared to
-work would mislead a reader about the one part of the specification a sample
-cannot honestly demonstrate.
+**Not real.** There is no retraining loop. A sample cannot retrain a model, and
+`PromoteModel` is not wired to a simulated MLOps integration — faking candidate
+generation or timed promotion would mislead a reader about the one part of the
+specification a sample cannot honestly demonstrate.
 
 **A test double, not a provider.** `FakeInferenceBackend` lives in the test
 project and is not configurable from the Server. It exists so CI needs no

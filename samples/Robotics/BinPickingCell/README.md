@@ -20,6 +20,14 @@ world → robot_base → flange → gripper_tcp
                           ↳ camera_eih
 ```
 
+```mermaid
+flowchart TD
+    World["world<br/>/World"] --> Base["robot_base<br/>/World/Robot/Arm/Base"]
+    Base --> Flange["flange<br/>/World/Robot/Arm/.../Flange"]
+    Flange --> Tcp["gripper_tcp<br/>/World/Robot/Arm/.../Flange/Gripper/Tcp"]
+    Flange --> Camera["camera_eih<br/>/World/Robot/Arm/.../Flange/Camera"]
+```
+
 Five parts (`RedCube`, `GreenCylinder`, `BlueSphere`, `YellowSlab`,
 `OrangeBrick`) sit in a bin on the workbench; a fixture is placed next
 to it. The sample's paired client at

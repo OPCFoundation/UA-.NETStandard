@@ -95,6 +95,11 @@ namespace Opc.Ua.AI.Server
             BuildModels();
             BuildDeployments();
 
+            if (m_options.EnableLearningLoop)
+            {
+                BuildLearningJob();
+            }
+
             if (m_options.EnableCatalogue)
             {
                 BuildCatalogue();
