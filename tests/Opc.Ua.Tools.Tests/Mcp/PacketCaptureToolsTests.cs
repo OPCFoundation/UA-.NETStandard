@@ -41,6 +41,7 @@ using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.Models;
+using SharpPcap;
 
 namespace Opc.Ua.Tools.Tests.Mcp
 {
@@ -99,6 +100,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Assert.That(
                     exception.Message,
                     Does.Contain("Unable to enumerate devices"));
+                Assert.That(
+                    exception.InnerException,
+                    Is.Not.TypeOf<DeviceNotReadyException>(),
+                    "An unopened device's LinkType must not fail the whole interface listing.");
             }
         }
 

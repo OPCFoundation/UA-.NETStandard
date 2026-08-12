@@ -1403,10 +1403,7 @@ namespace Opc.Ua.Server
             foreach (NodeState node in PredefinedNodes.Values)
             {
                 var references = new List<IReference>();
-                lock (node)
-                {
-                    node.GetReferences(SystemContext, references);
-                }
+                node.GetReferences(SystemContext, references);
                 foreach (IReference reference in references)
                 {
                     if (reference.IsInverse &&
@@ -1964,7 +1961,9 @@ namespace Opc.Ua.Server
                         false);
                 }
             }
-            // prevent multiple access the browser object.
+            // A NodeBrowser is single-consumer, and this one is reachable from a continuation
+            // point that concurrent BrowseNext calls may share, so the caller serializes it.
+            // The async manager does the same through BrowserContext.Semaphore.
             lock (browser)
             {
                 // apply filters to references.

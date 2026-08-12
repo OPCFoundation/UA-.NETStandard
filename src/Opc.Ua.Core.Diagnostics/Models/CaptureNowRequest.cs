@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.ComponentModel;
+using System.Text.Json.Serialization;
+using Opc.Ua.Pcap.Serialization;
+
 namespace Opc.Ua.Pcap.Models
 {
     /// <summary>
@@ -47,6 +51,10 @@ namespace Opc.Ua.Pcap.Models
         /// <summary>
         /// Format to return the captured data in.
         /// </summary>
+        [Description(
+            "Output format: pcap | pcapng | json | csv | text | service-timeline. " +
+            "CLR names such as ServiceTimeline are also accepted.")]
+        [JsonConverter(typeof(FormatKindJsonConverter))]
         public FormatKind Format { get; init; } = FormatKind.ServiceTimeline;
     }
 }
