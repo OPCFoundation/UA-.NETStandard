@@ -301,6 +301,69 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("3,3"));
         }
 
+        // More rules the specification's reference validator enforces as
+        // mutations of its own example. Each would otherwise materialize
+        // silently into a definition that cannot be read back unambiguously.
+        [TestCase(
+            "two definitions on one identity",
+            "\"uav:dataTypeDefinitions\":[" +
+            "{\"@id\":\"urn:t#A\",\"@type\":\"uav:StructureDefinition\"," +
+            "\"uav:dataTypeName\":\"demo:A\",\"uav:dataTypeId\":\"nsu=http://x/;s=Same\"}," +
+            "{\"@id\":\"urn:t#B\",\"@type\":\"uav:StructureDefinition\"," +
+            "\"uav:dataTypeName\":\"demo:B\",\"uav:dataTypeId\":\"nsu=http://x/;s=Same\"}]",
+            "claim the identity")]
+        [TestCase(
+            "two types on one encoding",
+            "\"uav:dataTypeDefinitions\":[" +
+            "{\"@id\":\"urn:t#A\",\"@type\":\"uav:StructureDefinition\"," +
+            "\"uav:dataTypeName\":\"demo:A\",\"uav:binaryEncodingId\":\"nsu=http://x/;s=Shared\"}," +
+            "{\"@id\":\"urn:t#B\",\"@type\":\"uav:StructureDefinition\"," +
+            "\"uav:dataTypeName\":\"demo:B\",\"uav:binaryEncodingId\":\"nsu=http://x/;s=Shared\"}]",
+            "ambiguous to decode")]
+        [TestCase(
+            "a default naming a fourth encoding",
+            "\"uav:dataTypeDefinitions\":[" +
+            "{\"@id\":\"urn:t#A\",\"@type\":\"uav:StructureDefinition\"," +
+            "\"uav:dataTypeName\":\"demo:A\"," +
+            "\"uav:defaultEncodingId\":\"nsu=http://x/;s=Elsewhere\"}]",
+            "none of the three")]
+        [TestCase(
+            "two enumeration fields on one value",
+            "\"uav:dataTypeDefinitions\":[" +
+            "{\"@id\":\"urn:t#E\",\"@type\":\"uav:EnumDefinition\"," +
+            "\"uav:dataTypeName\":\"demo:E\",\"uav:enumFields\":[" +
+            "{\"uav:enumName\":\"A\",\"uav:enumValue\":0}," +
+            "{\"uav:enumName\":\"B\",\"uav:enumValue\":0}]}]",
+            "share the value")]
+        [TestCase(
+            "an OptionSet numbering a negative bit",
+            "\"uav:dataTypeDefinitions\":[" +
+            "{\"@id\":\"urn:t#O\",\"@type\":\"uav:EnumDefinition\"," +
+            "\"uav:dataTypeName\":\"demo:O\",\"uav:isOptionSet\":true," +
+            "\"uav:dataTypeSubtypeOf\":{\"uav:dataTypeId\":\"i=7\"}," +
+            "\"uav:enumFields\":[{\"uav:enumName\":\"A\",\"uav:enumValue\":-1}]}]",
+            "no negative bit")]
+        public void DefinitionThatCannotBeReadBackIsRejected(
+            string scenario,
+            string definitions,
+            string expected)
+        {
+            _ = scenario;
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(
+                    "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                    "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                    "\"demo\":\"http://example.com/demo/pump\"}]," +
+                    "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                    "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Thing\"," +
+                    definitions + "}")));
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Has.Some.Contains(expected));
+        }
+
         private static string DefinitionThing(string body)
         {
             return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +

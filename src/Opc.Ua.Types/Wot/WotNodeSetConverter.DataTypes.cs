@@ -81,14 +81,33 @@ namespace Opc.Ua.Wot
             // name a sibling definition by its JSON-LD @id and that @id is not
             // itself a NodeId.
             var identities = new Dictionary<string, string>(StringComparer.Ordinal);
+            var claimed = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, JsonElement> entry in complete)
             {
                 string? identity = ResolveDataTypeIdentity(
                     document, entry.Value, nodeSet, diagnostics);
-                if (identity is not null)
+                if (identity is null)
                 {
-                    identities[entry.Key] = identity;
+                    continue;
                 }
+
+                // Two definitions on one NodeId would materialize as one Node
+                // silently overwriting the other, so the collision is refused
+                // rather than resolved by document order.
+                if (claimed.TryGetValue(identity, out string? owner))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"The DataTypes '{owner}' and " +
+                        $"'{GetElementString(entry.Value, "uav:dataTypeName")}' both " +
+                        $"claim the identity '{identity}'.",
+                        new WotLocation(reference: identity)));
+                    continue;
+                }
+                claimed[identity] =
+                    GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key;
+                identities[entry.Key] = identity;
             }
 
             foreach (KeyValuePair<string, JsonElement> entry in complete)
@@ -98,6 +117,69 @@ namespace Opc.Ua.Wot
                     SynthesizeDataType(
                         document, entry.Value, identity, identities, nodeSet, items,
                         diagnostics);
+                }
+            }
+            ValidateEncodingIdentities(complete, identities, diagnostics);
+        }
+
+        /// <summary>
+        /// Checks the encoding identities across all definitions.
+        /// </summary>
+        /// <remarks>
+        /// Two types sharing one encoding Object would make a value ambiguous
+        /// to decode, and a default encoding that names none of the three
+        /// points at an Object the type does not have.
+        /// </remarks>
+        private static void ValidateEncodingIdentities(
+            Dictionary<string, JsonElement> complete,
+            Dictionary<string, string> identities,
+            List<WotDiagnostic> diagnostics)
+        {
+            var claimed = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, JsonElement> entry in complete)
+            {
+                if (!identities.TryGetValue(entry.Key, out string? identity) ||
+                    GetElementBool(entry.Value, "uav:isAbstract"))
+                {
+                    continue;
+                }
+                string name = GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key;
+                string binary = GetElementString(entry.Value, "uav:binaryEncodingId") ??
+                    identity + BinaryEncodingSuffix;
+                string xml = GetElementString(entry.Value, "uav:xmlEncodingId") ??
+                    identity + XmlEncodingSuffix;
+                string json = GetElementString(entry.Value, "uav:jsonEncodingId") ??
+                    identity + JsonEncodingSuffix;
+
+                foreach (string encoding in new[] { binary, xml, json })
+                {
+                    if (claimed.TryGetValue(encoding, out string? owner))
+                    {
+                        diagnostics.Add(new WotDiagnostic(
+                            WotDiagnosticSeverity.Error,
+                            WotDiagnosticCode.DataTypeDefinitionInvalid,
+                            $"The DataTypes '{owner}' and '{name}' both claim the " +
+                            $"encoding '{encoding}', which would leave a value of " +
+                            "either ambiguous to decode.",
+                            new WotLocation(reference: encoding)));
+                        continue;
+                    }
+                    claimed[encoding] = name;
+                }
+
+                string? declaredDefault = GetElementString(entry.Value, "uav:defaultEncodingId");
+                if (declaredDefault is not null &&
+                    !string.Equals(declaredDefault, binary, StringComparison.Ordinal) &&
+                    !string.Equals(declaredDefault, xml, StringComparison.Ordinal) &&
+                    !string.Equals(declaredDefault, json, StringComparison.Ordinal))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"The DataType '{name}' defaults to the encoding " +
+                        $"'{declaredDefault}', which is none of the three it " +
+                        "exposes; §6.11.7 gives it no fourth encoding to name.",
+                        new WotLocation(reference: name)));
                 }
             }
         }
@@ -440,7 +522,7 @@ namespace Opc.Ua.Wot
             if (IsEnumerationKind(kind))
             {
                 result.IsOptionSet = GetElementBool(definition, "uav:isOptionSet");
-                result.Field = BuildEnumFields(definition, diagnostics);
+                    result.Field = BuildEnumFields(definition, result.IsOptionSet, name, diagnostics);
                 return result;
             }
             result.IsUnion = IsUnionStructure(definition);
@@ -454,9 +536,12 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static Opc.Ua.Export.DataTypeField[] BuildEnumFields(
             JsonElement definition,
+            bool isOptionSet,
+            string typeName,
             List<WotDiagnostic> diagnostics)
         {
             var fields = new List<Opc.Ua.Export.DataTypeField>();
+            var values = new Dictionary<int, string>();
             if (!definition.TryGetProperty("uav:enumFields", out JsonElement declared) ||
                 declared.ValueKind != JsonValueKind.Array)
             {
@@ -474,10 +559,39 @@ namespace Opc.Ua.Wot
                         "§6.11.5 makes mandatory."));
                     continue;
                 }
+                int value = GetElementInt32(field, "uav:enumValue") ?? -1;
+
+                // Two names on one value cannot be told apart on the way back,
+                // so the value would no longer say which field it is.
+                if (values.TryGetValue(value, out string? owner))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"The fields '{owner}' and '{fieldName}' of '{typeName}' " +
+                        $"share the value {value}, so the value no longer says " +
+                        "which field it is.",
+                        new WotLocation(reference: typeName)));
+                    continue;
+                }
+                values[value] = fieldName;
+
+                // §6.11.5 makes an OptionSet value a bit number rather than a
+                // mask, and there is no negative bit.
+                if (isOptionSet && value < 0)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"The OptionSet field '{fieldName}' of '{typeName}' " +
+                        $"numbers bit {value}, and there is no negative bit.",
+                        new WotLocation(reference: fieldName)));
+                    continue;
+                }
                 var entry = new Opc.Ua.Export.DataTypeField
                 {
                     Name = fieldName,
-                    Value = GetElementInt32(field, "uav:enumValue") ?? -1
+                    Value = value
                 };
                 ApplyFieldText(entry, field);
                 fields.Add(entry);
