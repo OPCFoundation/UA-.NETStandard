@@ -364,6 +364,61 @@ namespace Opc.Ua.Types.Tests.Wot
                 Has.Some.Contains(expected));
         }
 
+        // §6.11.3 states inherited fields first, and the encoding writes them
+        // before the subtype's own, so a renamed or dropped inherited field
+        // shifts everything after it and the value decodes as something else.
+        [TestCase("\"Renamed\",\"State\",\"Extra\"", "where it inherits")]
+        [TestCase("\"Value\",\"Extra\"", "where it inherits")]
+        [TestCase("\"State\",\"Value\",\"Extra\"", "where it inherits")]
+        [TestCase("\"Value\"", "dropping one shifts")]
+        public void SubtypeChangingItsInheritedFieldsIsRejected(string fields, string expected)
+        {
+            string names = string.Join(",", fields.Split(',')
+                .Select(f => "{\"uav:fieldName\":" + f + ",\"uav:fieldDataTypeId\":\"i=11\"}"));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(InheritanceThing(names))));
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Has.Some.Contains(expected));
+        }
+
+        // The same subtype stating its inherited prefix faithfully is accepted,
+        // so the check rejects the change rather than the inheritance.
+        [Test]
+        public void SubtypeRepeatingItsInheritedFieldsIsAccepted()
+        {
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                WotDocument.Parse(Encoding.UTF8.GetBytes(InheritanceThing(
+                    "{\"uav:fieldName\":\"Value\",\"uav:fieldDataTypeId\":\"i=11\"}," +
+                    "{\"uav:fieldName\":\"State\",\"uav:fieldDataTypeId\":\"i=11\"}," +
+                    "{\"uav:fieldName\":\"Extra\",\"uav:fieldDataTypeId\":\"i=11\"}"))));
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
+                    .Select(d => d.Message),
+                Is.Empty);
+        }
+
+        private static string InheritanceThing(string subtypeFields)
+        {
+            return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"demo\":\"http://example.com/demo/pump\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Thing\"," +
+                "\"uav:dataTypeDefinitions\":[" +
+                "{\"@id\":\"urn:t#Base\",\"@type\":\"uav:StructureDefinition\"," +
+                "\"uav:dataTypeName\":\"demo:BaseDataType\",\"uav:fields\":[" +
+                "{\"uav:fieldName\":\"Value\",\"uav:fieldDataTypeId\":\"i=11\"}," +
+                "{\"uav:fieldName\":\"State\",\"uav:fieldDataTypeId\":\"i=11\"}]}," +
+                "{\"@id\":\"urn:t#Sub\",\"@type\":\"uav:StructureDefinition\"," +
+                "\"uav:dataTypeName\":\"demo:SubDataType\"," +
+                "\"uav:dataTypeSubtypeOf\":{\"@id\":\"urn:t#Base\"}," +
+                "\"uav:fields\":[" + subtypeFields + "]}]}";
+        }
+
         private static string DefinitionThing(string body)
         {
             return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +

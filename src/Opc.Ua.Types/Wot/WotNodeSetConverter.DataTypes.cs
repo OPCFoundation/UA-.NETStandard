@@ -120,6 +120,86 @@ namespace Opc.Ua.Wot
                 }
             }
             ValidateEncodingIdentities(complete, identities, diagnostics);
+            ValidateInheritedFieldPrefixes(complete, diagnostics);
+        }
+
+        /// <summary>
+        /// Checks that a subtype repeats its base's fields, in order, unchanged.
+        /// </summary>
+        /// <remarks>
+        /// §6.11.3 states inherited fields first. That is not a formatting
+        /// preference: the encoding writes the base's fields before the
+        /// subtype's own, so renaming, reordering or dropping one silently
+        /// shifts every field after it and the value decodes as something else.
+        /// </remarks>
+        private static void ValidateInheritedFieldPrefixes(
+            Dictionary<string, JsonElement> complete,
+            List<WotDiagnostic> diagnostics)
+        {
+            foreach (KeyValuePair<string, JsonElement> entry in complete)
+            {
+                if (!entry.Value.TryGetProperty("uav:dataTypeSubtypeOf", out JsonElement baseRef) ||
+                    baseRef.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+                string? baseId = GetElementString(baseRef, "@id");
+                if (baseId is null || !complete.TryGetValue(baseId, out JsonElement baseType))
+                {
+                    continue;
+                }
+                string name = GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key;
+                List<string> inherited = ReadFieldNames(baseType);
+                List<string> declared = ReadFieldNames(entry.Value);
+                if (inherited.Count == 0)
+                {
+                    continue;
+                }
+                if (declared.Count < inherited.Count)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"'{name}' states {declared.Count} field(s) but inherits " +
+                        $"{inherited.Count}. §6.11.3 states inherited fields " +
+                        "first, and dropping one shifts every field after it.",
+                        new WotLocation(reference: name)));
+                    continue;
+                }
+                for (int ii = 0; ii < inherited.Count; ii++)
+                {
+                    if (!string.Equals(declared[ii], inherited[ii], StringComparison.Ordinal))
+                    {
+                        diagnostics.Add(new WotDiagnostic(
+                            WotDiagnosticSeverity.Error,
+                            WotDiagnosticCode.DataTypeDefinitionInvalid,
+                            $"'{name}' states '{declared[ii]}' where it inherits " +
+                            $"'{inherited[ii]}'. §6.11.3 requires the inherited " +
+                            "fields first and unchanged, because the encoding " +
+                            "writes them before the subtype's own.",
+                            new WotLocation(reference: name)));
+                        break;
+                    }
+                }
+            }
+        }
+
+        private static List<string> ReadFieldNames(JsonElement definition)
+        {
+            var names = new List<string>();
+            if (definition.TryGetProperty("uav:fields", out JsonElement fields) &&
+                fields.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement field in fields.EnumerateArray())
+                {
+                    string? name = GetElementString(field, "uav:fieldName");
+                    if (name is not null)
+                    {
+                        names.Add(name);
+                    }
+                }
+            }
+            return names;
         }
 
         /// <summary>
