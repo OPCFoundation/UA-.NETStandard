@@ -817,7 +817,7 @@ The specification defines ten conformance units and four recommended profiles
 | Unit | Status | Where |
 |---|---|---|
 | **WoT-ProtocolBinding** | covered | URI/base/href handling, the four service mappings, access levels and the security schemes, in `Opc.Ua.WotCon.Bindings` and its planners |
-| **WoT-NativeMapping** | covered | `WotNodeSetConverter`, including the proof that `uav:nodes` is omitted when the readable mapping is complete |
+| **WoT-NativeMapping** | covered | `WotNodeSetConverter`, including the proof that `uav:nodes` is omitted when the readable mapping is complete. It descends the whole composition tree (`FromNodeSetDocuments`, §9.1's "Thing / nested Thing"), seeds namespaces from `@context`, and keeps type definitions, DataTypes and scalar values. See *What the readable mapping cannot express* below |
 | **WoT-StructuredFallback** | covered | the structured `uav:nodes` projection in `WotNativeProjection` |
 | **WoT-JsonResidue** | covered | `WotJsonResidue`, pointer-addressed preservation through the NodeSet Extension |
 | **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
@@ -830,6 +830,37 @@ The specification defines ten conformance units and four recommended profiles
 
 All four profiles - **WoT-Reader**, **WoT-Modeller**, **WoT-Converter** and
 **WoT-ArchivalConverter** - are therefore satisfied by the units above.
+
+### What the readable mapping cannot express
+
+Section 9.2 emits the exceptional `uav:nodes` projection only where converting the
+readable document back would not reproduce an equivalent NodeSet. One case in the
+sample pump is known and is a limit of the vocabulary rather than of the converter.
+
+An `AnalogUnitType` Variable carries an `EngineeringUnits` Property whose value is an
+`EUInformation`: a NamespaceUri, a numeric `UnitId`, a DisplayName and a Description.
+Section 6.4 gives the readable vocabulary a `unit` string, `uav:unitProperty`,
+`uav:scaleFactor` and `uav:decimalPlaces`. None of them carries the whole
+`EUInformation`, and the symbol alone does not determine the `UnitId` or the
+Description without a UNECE units table. The value therefore cannot be rebuilt, the
+round trip is not equivalent, and `uav:nodes` is emitted - correctly, and for exactly
+the reason Section 9.2 describes.
+
+The neighbouring `EURange` Property does not have this problem: its `Low` and `High`
+are the WoT `minimum` and `maximum`, and the value is determined by those two numbers.
+
+Two conventions follow from this and are worth knowing when reading a generated
+document:
+
+* A `Value` is carried only where the forward direction can rebuild it exactly -
+  `Boolean`, `String` and a Locale-free `LocalizedText`. Carrying one it could not
+  reconstruct would turn a gap the completeness check reports into a value that is
+  quietly wrong, and a wrong value is worse than an absent one.
+* Completeness is tested with `NodeSetComparer.CompareEquivalent`, which reads each
+  side through its own `Aliases` table, because Section 9.2 asks for an equivalent
+  NodeSet and not an identically spelled one. `NodeSetComparer.Compare` keeps the
+  stricter text comparison for callers that need to know a document was reproduced as
+  written.
 
 ### How this is checked
 
