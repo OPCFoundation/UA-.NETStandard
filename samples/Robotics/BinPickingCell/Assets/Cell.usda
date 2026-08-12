@@ -61,16 +61,16 @@ def Xform "World"
             {
                 over "J1"
                 {
-                    double xformOp:rotateZ = 0
+                    double xformOp:rotateZ = 180
                     over "J2"
                     {
-                        double xformOp:rotateY = -55
+                        double xformOp:rotateY = 40
                         over "J3"
                         {
-                            double xformOp:rotateY = 100
+                            double xformOp:rotateY = -100
                             over "J4"
                             {
-                                double xformOp:rotateY = -45
+                                double xformOp:rotateY = 100
                                 over "J5"
                                 {
                                     double xformOp:rotateZ = 0
