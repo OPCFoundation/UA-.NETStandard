@@ -120,7 +120,6 @@
     <Project Path="src/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
     <Project Path="src/Opc.Ua.Bindings.Quic/Opc.Ua.Bindings.Quic.csproj" />
     <Project Path="src/Opc.Ua.Core/Opc.Ua.Core.csproj" />
-    <Project Path="src/Opc.Ua.Core.Channels/Opc.Ua.Core.Channels.csproj" />
     <Project Path="src/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj" />
     <Project Path="src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj" />
     <Project Path="src/Opc.Ua.Core.Schema/Opc.Ua.Core.Schema.csproj" />

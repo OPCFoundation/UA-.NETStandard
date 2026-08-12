@@ -84,7 +84,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     {
                         Assert.That(maxFrameSize, Is.GreaterThan(0u));
                         Assert.That(isReliable, Is.True);
-                        Assert.That(manager, Is.SameAs(channel.GetDataChannels()));
+                        Assert.That(manager, Is.SameAs(channel.DataChannels));
                     });
 
                     DataChannel source = manager.Register(

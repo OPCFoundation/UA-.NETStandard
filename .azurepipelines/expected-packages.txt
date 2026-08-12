@@ -20,7 +20,6 @@ OPCFoundation.NetStandard.Opc.Ua.Client
 OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
 OPCFoundation.NetStandard.Opc.Ua.Configuration
 OPCFoundation.NetStandard.Opc.Ua.Core
-OPCFoundation.NetStandard.Opc.Ua.Core.Channels
 OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics
 OPCFoundation.NetStandard.Opc.Ua.Core.Schema
 OPCFoundation.NetStandard.Opc.Ua.Core.Types

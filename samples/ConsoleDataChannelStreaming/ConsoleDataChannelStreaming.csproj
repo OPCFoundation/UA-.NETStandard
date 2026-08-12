@@ -20,7 +20,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Core.Channels\Opc.Ua.Core.Channels.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Quic\Opc.Ua.Bindings.Quic.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />

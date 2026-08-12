@@ -210,7 +210,15 @@ namespace Opc.Ua.Bindings
                         DefaultCloseErrorCode = 0x0B,
                         MaxInboundBidirectionalStreams = MaxInboundStreams,
                         MaxInboundUnidirectionalStreams = MaxInboundStreams,
+#if NET9_0_OR_GREATER
+                        // QuicServerConnectionOptions.HandshakeTimeout is .NET 9+.
+                        // On net8.0 the platform default applies instead; the
+                        // pending admission still expires on this listener's own
+                        // clock through ExpirePendingAdmissionAsync, so a peer
+                        // that stalls the handshake cannot hold an admission
+                        // slot open there either.
                         HandshakeTimeout = handshakeTimeout,
+#endif
                         ServerAuthenticationOptions = new SslServerAuthenticationOptions
                         {
                             ApplicationProtocols = [QuicTransport.ApplicationProtocol],

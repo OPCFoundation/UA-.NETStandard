@@ -126,14 +126,14 @@ namespace Opc.Ua.Core.DataChannels.Tests
             channel.AttachTransport(transport);
             channel.Activate(SecureChannelId, TokenId);
             DataChannel sink = OpenSink(channel);
-            await PumpSchedulerRoundAsync(channel.GetDataChannels()!).ConfigureAwait(false);
+            await PumpSchedulerRoundAsync(channel.DataChannels!).ConfigureAwait(false);
             transport.ClearChunks();
 
             byte[] chunk = SpecVectors.Load("inline_data_first");
             chunk[SpecVectors.InlinePrefix + 4] = frameType;
 
             Assert.That(channel.DispatchStream(chunk), Is.False);
-            await PumpSchedulerRoundAsync(channel.GetDataChannels()!).ConfigureAwait(false);
+            await PumpSchedulerRoundAsync(channel.DataChannels!).ConfigureAwait(false);
 
             DataChannelFrame reset = await WaitForOutboundFrameAsync(transport, DataChannelFrameType.Reset)
                 .ConfigureAwait(false);
@@ -151,7 +151,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 Assert.That(expectedDecodeError.ToStatusCode(), Is.EqualTo(expectedStatus));
             });
 
-            await channel.GetDataChannels()!.DisposeAsync().ConfigureAwait(false);
+            await channel.DataChannels!.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -473,7 +473,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             public bool DispatchStream(byte[] chunk)
             {
-                return ProcessExtensionMessage(
+                return ProcessDataChannelMessage(
                     BitConverter.ToUInt32(chunk, 0),
                     new ArraySegment<byte>(chunk),
                     isRequest: true);
@@ -485,19 +485,12 @@ namespace Opc.Ua.Core.DataChannels.Tests
             }
 
             /// <summary>
-            /// Records the typed framing faults the data channel extension
-            /// raises. The channel itself only sees a transport error, so the
-            /// rule that was broken has to be observed at the extension.
+            /// Records the typed framing faults the channel raises. A transport
+            /// error alone does not carry which rule was broken.
             /// </summary>
             public void TrackProtocolFaults()
             {
-                if (TryGetMessageExtension(
-                        TcpMessageType.Stream,
-                        out ISecureChannelMessageExtension? extension) &&
-                    extension is DataChannelExtension dataChannels)
-                {
-                    dataChannels.ProtocolFault += (_, error) => m_protocolFaults.Add(error);
-                }
+                DataChannelProtocolFault += (_, error) => m_protocolFaults.Add(error);
             }
 
             private readonly List<DataChannelFrameError> m_protocolFaults = [];

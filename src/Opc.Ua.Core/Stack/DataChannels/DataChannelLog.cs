@@ -37,23 +37,23 @@ namespace Opc.Ua.Bindings
     /// </summary>
     internal static partial class DataChannelLog
     {
-        [LoggerMessage(EventId = ChannelsEventIds.DataChannelManager + 0, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = CoreEventIds.DataChannelManager + 0, Level = LogLevel.Warning,
             Message = "DataChannel: A frame named ChannelId {ChannelId}, which is not open on this SecureChannel.")]
         public static partial void DataChannelManagerUnknownChannel(
             this ILogger logger,
             uint channelId);
 
-        [LoggerMessage(EventId = ChannelsEventIds.DataChannelManager + 1, Level = LogLevel.Error,
+        [LoggerMessage(EventId = CoreEventIds.DataChannelManager + 1, Level = LogLevel.Error,
             Message = "DataChannel: A connection level credit grant would overflow the window.")]
         public static partial void DataChannelManagerCreditOverflow(this ILogger logger);
 
-        [LoggerMessage(EventId = ChannelsEventIds.DataChannelManager + 2, Level = LogLevel.Error,
+        [LoggerMessage(EventId = CoreEventIds.DataChannelManager + 2, Level = LogLevel.Error,
             Message = "DataChannel: The scheduler round faulted.")]
         public static partial void DataChannelManagerSchedulerFault(
             this ILogger logger,
             Exception exception);
 
-        [LoggerMessage(EventId = ChannelsEventIds.DataChannel + 0, Level = LogLevel.Debug,
+        [LoggerMessage(EventId = CoreEventIds.DataChannel + 0, Level = LogLevel.Debug,
             Message = "DataChannel {ChannelId}: entered {State} with {Status}.")]
         public static partial void DataChannelStateChanged(
             this ILogger logger,
@@ -61,14 +61,14 @@ namespace Opc.Ua.Bindings
             DataChannelState state,
             StatusCode status);
 
-        [LoggerMessage(EventId = ChannelsEventIds.DataChannel + 1, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = CoreEventIds.DataChannel + 1, Level = LogLevel.Warning,
             Message = "DataChannel {ChannelId}: rejected a frame, resetting with {Status}.")]
         public static partial void DataChannelFrameRejected(
             this ILogger logger,
             uint channelId,
             StatusCode status);
 
-        [LoggerMessage(EventId = ChannelsEventIds.DataChannel + 2, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = CoreEventIds.DataChannel + 2, Level = LogLevel.Warning,
             Message = "DataChannel: a STR frame arrived but the data channel feature is not enabled.")]
         public static partial void DataChannelFeatureDisabled(this ILogger logger);
     }

@@ -439,7 +439,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
         private static async Task DisposeDataChannelsAsync(TestChannel channel)
         {
-            DataChannelManager? manager = channel.GetDataChannels();
+            DataChannelManager? manager = channel.DataChannels;
 
             if (manager != null)
             {
@@ -449,14 +449,12 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
         private static async Task SendFrameAsync(TestChannel channel, DataChannelFrame frame)
         {
-            // The send path now belongs to the extension that owns the STR
-            // MessageType; the channel only secures and writes the body.
+            // The send path belongs to the channel itself: it secures the frame
+            // and writes it as one STR chunk.
             channel.EnableDataChannels(isServer: false, NUnitTelemetryContext.Create());
 
-            DataChannelExtension extension = channel.Extension
-                ?? throw new AssertionException("The data channel extension was not registered.");
-
-            await extension.SendFrameAsync(frame, CancellationToken.None).ConfigureAwait(false);
+            await channel.SendDataChannelFrameAsync(frame, CancellationToken.None)
+                .ConfigureAwait(false);
         }
 
         private static byte[] ExpectedPayload()
@@ -491,17 +489,6 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             public List<DataChannelFrameError> ProtocolFaults => m_protocolFaults;
 
-            /// <summary>
-            /// The registered data channel extension, or null when the feature
-            /// has not been enabled on this channel.
-            /// </summary>
-            public DataChannelExtension? Extension
-                => TryGetMessageExtension(
-                        TcpMessageType.Stream,
-                        out ISecureChannelMessageExtension? extension)
-                    ? extension as DataChannelExtension
-                    : null;
-
             public List<ServiceResult> TransportErrors => m_transportErrors;
 
             public List<ServiceResult> ProcessingErrors => m_processingErrors;
@@ -528,7 +515,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             public bool DispatchStream(byte[] chunk)
             {
-                return ProcessExtensionMessage(
+                return ProcessDataChannelMessage(
                     BitConverter.ToUInt32(chunk, 0),
                     new ArraySegment<byte>(chunk),
                     isRequest: true);
@@ -638,7 +625,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             {
                 if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
                 {
-                    return ProcessExtensionMessage(messageType, messageChunk, isRequest: true);
+                    return ProcessDataChannelMessage(messageType, messageChunk, isRequest: true);
                 }
 
                 return false;
@@ -655,19 +642,12 @@ namespace Opc.Ua.Core.DataChannels.Tests
             }
 
             /// <summary>
-            /// Records the typed framing faults the data channel extension
-            /// raises. The channel itself only sees a transport error, so the
-            /// rule that was broken has to be observed at the extension.
+            /// Records the typed framing faults the channel raises. A transport
+            /// error alone does not carry which rule was broken.
             /// </summary>
             public void TrackProtocolFaults()
             {
-                if (TryGetMessageExtension(
-                        TcpMessageType.Stream,
-                        out ISecureChannelMessageExtension? extension) &&
-                    extension is DataChannelExtension dataChannels)
-                {
-                    dataChannels.ProtocolFault += (_, error) => m_protocolFaults.Add(error);
-                }
+                DataChannelProtocolFault += (_, error) => m_protocolFaults.Add(error);
             }
 
             private readonly List<DataChannelFrameError> m_protocolFaults = [];

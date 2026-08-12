@@ -409,7 +409,7 @@ namespace Opc.Ua.Bindings
                     // would.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
                     {
-                        return ProcessExtensionMessage(messageType, messageChunk, true);
+                        return ProcessDataChannelMessage(messageType, messageChunk, true);
                     }
 
                     // invalid message type - must close socket and reconnect.

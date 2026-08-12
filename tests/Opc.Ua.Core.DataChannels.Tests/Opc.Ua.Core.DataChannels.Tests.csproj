@@ -42,7 +42,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Core.Channels\Opc.Ua.Core.Channels.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Quic\Opc.Ua.Bindings.Quic.csproj" Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net9.0'))" />

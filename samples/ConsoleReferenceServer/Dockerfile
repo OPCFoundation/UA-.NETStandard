@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/runtime AS base
+FROM mcr.microsoft.com/dotnet/runtime AS base
 WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk AS build
@@ -19,7 +19,6 @@ COPY ["src/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj", "src/Opc.Ua.Core.Types/"
 COPY ["src/Opc.Ua.Core/Opc.Ua.Core.csproj", "src/Opc.Ua.Core/"]
 COPY ["src/Opc.Ua.Core.Schema/Opc.Ua.Core.Schema.csproj", "src/Opc.Ua.Core.Schema/"]
 COPY ["src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj", "src/Opc.Ua.Core.Diagnostics/"]
-COPY ["src/Opc.Ua.Core.Channels/Opc.Ua.Core.Channels.csproj", "src/Opc.Ua.Core.Channels/"]
 COPY ["src/Opc.Ua.Types/Opc.Ua.Types.csproj", "src/Opc.Ua.Types/"]
 COPY ["src/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj", "src/Opc.Ua.Security.Certificates/"]
 COPY ["src/Opc.Ua.Client/Opc.Ua.Client.csproj", "src/Opc.Ua.Client/"]

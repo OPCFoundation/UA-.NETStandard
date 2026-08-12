@@ -1,4 +1,3 @@
-#if NET9_0_OR_GREATER
 /* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
@@ -274,5 +273,3 @@ namespace Opc.Ua.Bindings
         private static readonly ConcurrentDictionary<string, Binding> s_bindings = new();
     }
 }
-
-#endif

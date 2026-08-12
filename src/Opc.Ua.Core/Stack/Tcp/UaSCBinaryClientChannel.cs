@@ -892,7 +892,7 @@ namespace Opc.Ua.Bindings
             // SecureChannel as an unrecognized MessageType would.
             if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
             {
-                return ProcessExtensionMessage(messageType, messageChunk, false);
+                return ProcessDataChannelMessage(messageType, messageChunk, false);
             }
 
             lock (DataLock)

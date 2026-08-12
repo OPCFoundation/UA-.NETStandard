@@ -95,7 +95,7 @@ namespace Opc.Ua.Bindings
                 capabilities.MaxDataChannels,
                 capabilities.MaxCreditPerChannel);
 
-            int body = channel.GetMaxDataChannelBodySize();
+            int body = channel.MaxDataChannelBodySize;
             maxFrameSize = body <= 0 ? 0 : (uint)body;
 
             // Inline framing rides the SecureChannel, which is ordered and
@@ -137,7 +137,7 @@ namespace Opc.Ua.Bindings
                     out UaSCUaBinaryChannel? channel) &&
                 channel != null)
             {
-                channel.GetDataChannels()?.AbortAll(reason);
+                channel.DataChannels?.AbortAll(reason);
             }
         }
 
