@@ -315,7 +315,17 @@ namespace Opc.Ua.Aas.Server.V2
             string contentType)
         {
             NodeId fileNodeId = MemberNodeId(elementNodeId, "File");
-            m_valueNodeIds.Add(MemberNodeId(fileNodeId, "Value"));
+
+            // The materializer emits the FileType object unconditionally, because
+            // OPC 30270 declares it Mandatory, but emits its Value Variable only
+            // when content is actually carried. Binding a Variable the NodeSet
+            // does not contain makes the builder throw BadNodeIdUnknown and
+            // aborts the whole projection, so the two have to agree.
+            if (file.IsPresent)
+            {
+                m_valueNodeIds.Add(MemberNodeId(fileNodeId, "Value"));
+            }
+
             ByteString content = file.IsPresent && file.Value.Value.IsPresent
                 ? file.Value.Value.Value
                 : ByteString.Empty;

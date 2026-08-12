@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
@@ -261,7 +262,100 @@ namespace Opc.Ua.Aas.Tests.V2.Server
             "I4AAS Entity"
         ];
 
+        /// <summary>
+        /// The runtime binds callbacks by NodeId against the NodeSet the
+        /// materializer produced, and the real builder throws BadNodeIdUnknown
+        /// for a NodeId that is not in it - which aborts the entire projection,
+        /// not just the one node. The two therefore have to agree exactly, and
+        /// this pins that rather than any single member, because the mock
+        /// builder used by the other tests answers every NodeId and so can
+        /// never notice the disagreement.
+        /// </summary>
+        [Test]
+        public async Task EveryBoundNodeIdExistsInTheMaterializedNodeSetAsync()
+        {
+            AasEnvironment environment = CreateEnvironment("one");
+            HashSet<string> materialized = MaterializedIdentifiers(environment);
+
+            RuntimeCallbacks callbacks = await CreateCallbacksAsync(
+                environment,
+                Mock.Of<IAasValueProvider>(),
+                new DefaultAasOperationHandler()).ConfigureAwait(false);
+
+            List<NodeId> bound = [.. callbacks.Reads.Keys
+                .Concat(callbacks.Writes.Keys)
+                .Concat(callbacks.Calls.Keys)
+                .Distinct()];
+            var missing = bound
+                .Where(nodeId => !materialized.Contains(Identifier(nodeId)))
+                .Select(nodeId => nodeId.ToString())
+                .ToList();
+
+            Assert.That(bound, Is.Not.Empty);
+            Assert.That(missing, Is.Empty);
+        }
+
+        /// <summary>
+        /// A File read from a document carries no content - the bytes live in
+        /// the AASX package, not the XML - so File is absent on every element
+        /// either reader produces. The projection has to come up regardless.
+        /// </summary>
+        [Test]
+        public async Task ProjectionBindsAFileThatCarriesNoContentAsync()
+        {
+            var element = new AasFile
+            {
+                IdShort = "Manual",
+                Category = "FILE",
+                ModelingKind = AASModelingKindDataType.Instance,
+                MimeType = "text/plain",
+                Value = "/aasx/manual.txt"
+            };
+
+            AasEnvironment environment = EnvironmentWith("one", element);
+            HashSet<string> materialized = MaterializedIdentifiers(environment);
+
+            RuntimeCallbacks callbacks = await CreateCallbacksAsync(
+                environment,
+                Mock.Of<IAasValueProvider>(),
+                new DefaultAasOperationHandler()).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(element.File.IsPresent, Is.False);
+                Assert.That(callbacks.Reads.Keys.Select(Identifier), Is.SubsetOf(materialized));
+            });
+        }
+
+        private static HashSet<string> MaterializedIdentifiers(AasEnvironment environment)
+        {
+            return [.. (AasEnvironmentMaterializer
+                .Materialize(environment).NodeSet.Items ?? [])
+                .Select(item => item.NodeId)
+                .Where(nodeId => !string.IsNullOrEmpty(nodeId))
+                .Select(nodeId => StripNamespace(nodeId!))];
+        }
+
+        private static string Identifier(NodeId nodeId)
+        {
+            return StripNamespace(nodeId.ToString() ?? string.Empty);
+        }
+
+        private static string StripNamespace(string nodeId)
+        {
+            int separator = nodeId.IndexOf(';', StringComparison.Ordinal);
+            return separator < 0 ? nodeId : nodeId[(separator + 1)..];
+        }
+
+        private static Task<RuntimeCallbacks> CreateCallbacksAsync(
+            IAasValueProvider valueProvider,
+            IAasOperationHandler operationHandler)
+        {
+            return CreateCallbacksAsync(CreateEnvironment("one"), valueProvider, operationHandler);
+        }
+
         private static async Task<RuntimeCallbacks> CreateCallbacksAsync(
+            AasEnvironment environment,
             IAasValueProvider valueProvider,
             IAasOperationHandler operationHandler)
         {
@@ -273,7 +367,7 @@ namespace Opc.Ua.Aas.Tests.V2.Server
             namespaces.GetIndexOrAppend(Opc.Ua.Aas.V2.Namespaces.AasV2);
             builder.Setup(b => b.Context)
                 .Returns(new SystemContext(telemetry: null!) { NamespaceUris = namespaces });
-            var runtime = new AasV2EnvironmentRuntime(CreateEnvironment("one"), valueProvider, operationHandler);
+            var runtime = new AasV2EnvironmentRuntime(environment, valueProvider, operationHandler);
             await runtime.ConfigureAsync(builder.Object, CancellationToken.None).AsTask().ConfigureAwait(false);
             return callbacks;
         }
@@ -303,6 +397,26 @@ namespace Opc.Ua.Aas.Tests.V2.Server
                 names[i] = units[i].Name ?? string.Empty;
             }
             return names;
+        }
+
+        private static AasEnvironment EnvironmentWith(string id, params AasSubmodelElement[] elements)
+        {
+            return new AasEnvironment
+            {
+                Submodels = AasOptional<ArrayOf<AasSubmodel>>.Present(new ArrayOf<AasSubmodel>(new[]
+                {
+                    new AasSubmodel
+                    {
+                        IdShort = "submodel",
+                        Category = "CONSTANT",
+                        Identification = Identifier(id),
+                        Administration = Administration(),
+                        ModelingKind = AASModelingKindDataType.Instance,
+                        SubmodelElements = AasOptional<ArrayOf<AasSubmodelElement>>.Present(
+                            new ArrayOf<AasSubmodelElement>(elements))
+                    }
+                }))
+            };
         }
 
         private static AasEnvironment CreateEnvironment(string id)
