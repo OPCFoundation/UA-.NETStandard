@@ -454,8 +454,7 @@ namespace Opc.Ua
 
             if (decoder.EncodingType == EncodingType.Binary && decoder is BinaryDecoder binary)
             {
-                int remaining = binary.BodyBytesRemaining;
-                if (remaining < 0)
+                if (!binary.TryReadRemainingBodyBytes(out byte[] unscaled))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
@@ -463,8 +462,7 @@ namespace Opc.Ua
                         "is unknown, because the unscaled value has no length of its own.");
                 }
 
-                UnscaledValue = FromLittleEndian(Scale, binary.ReadBodyBytes(remaining))
-                    .UnscaledValue;
+                UnscaledValue = FromLittleEndian(Scale, unscaled).UnscaledValue;
                 return;
             }
 

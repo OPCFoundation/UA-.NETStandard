@@ -203,9 +203,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets the number of bytes left in the ExtensionObject body currently
-        /// being decoded, or <c>-1</c> when no body is being decoded or the
-        /// writer did not fill in its length.
+        /// Reads whatever is left of the ExtensionObject body currently being
+        /// decoded.
         /// </summary>
         /// <remarks>
         /// Almost every encodeable knows where each of its fields ends, because
@@ -214,18 +213,25 @@ namespace Opc.Ua
         /// unscaled value is a run of raw octets whose count is the
         /// ExtensionObject <c>Length</c> minus the two bytes of <c>Scale</c>,
         /// so the field cannot be read without knowing the extent of the body
-        /// that contains it.
+        /// that contains it. <see cref="Decimal.Decode"/> is the only caller,
+        /// and this stays internal so it remains the only one.
         /// </remarks>
-        internal int BodyBytesRemaining => m_bodyEnd < 0 ? -1 : m_bodyEnd - Position;
-
-        /// <summary>
-        /// Reads a run of raw bytes from the body currently being decoded.
-        /// </summary>
-        /// <param name="count">The number of bytes to read.</param>
-        /// <returns>The bytes read.</returns>
-        internal byte[] ReadBodyBytes(int count)
+        /// <param name="bytes">The rest of the body.</param>
+        /// <returns>
+        /// <c>false</c> when no body is being decoded or the writer did not
+        /// fill in its length, in which case the extent is unknown and nothing
+        /// is read.
+        /// </returns>
+        internal bool TryReadRemainingBodyBytes(out byte[] bytes)
         {
-            return SafeReadBytes(count);
+            if (m_bodyEnd < 0)
+            {
+                bytes = [];
+                return false;
+            }
+
+            bytes = SafeReadBytes(m_bodyEnd - Position);
+            return true;
         }
 
         /// <summary>
@@ -2652,7 +2658,7 @@ namespace Opc.Ua
         private uint m_nestingLevel;
 
         // The end position of the ExtensionObject body being decoded, or -1
-        // when none is. See BodyBytesRemaining.
+        // when none is. See TryReadRemainingBodyBytes.
         private int m_bodyEnd = -1;
         private uint m_encodeablesRecovered;
         private readonly bool m_hasBuffer;

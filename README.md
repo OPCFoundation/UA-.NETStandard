@@ -37,7 +37,7 @@ across industrial control, manufacturing, energy, and IoT systems.
   Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
   Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
   Model) with OPC-10031-4 Job Control V1/V2, OPC 30270 / OPC UA for Asset
-  Administration Shell V2 plus the AAS V3 draft, OPC 10100-1
+  Administration Shell V2 and V3, OPC 10100-1
   (WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
   (Robotics).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
@@ -107,7 +107,7 @@ Each sample has its own `README.md` with build and run instructions.
   Robotics with independently configurable RSL/GPOS motion and live OpenUSD
   transforms.
 - [Intent Enabled Robot](samples/Robotics/IntentEnabledRobot/README.md) —
-  one collaborative arm exposing the draft Robot Intent command surface: task-level
+  one collaborative arm exposing the Robot Intent command surface: task-level
   motion verbs tracked on a Part 10 program lifecycle, with missions, command
   authority and safety-aware refusal.
 - [Intent Viewer Client](samples/Robotics/IntentViewerClient/README.md) — click a
@@ -175,7 +175,7 @@ vulnerabilities via the process documented in
 - [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
 - [OPC UA for Asset Administration Shell](docs/Aas.md) — OPC 30270 / AAS V2
-  ingestion-only metamodel support and the AAS V3 draft metamodel, registry,
+  ingestion-only metamodel support and the AAS V3 metamodel, registry,
   document round-trip, packages, federation and conformance matrices.
 - [OPC UA Profiles and Facets](docs/Profiles.md) — facets / transports /
   security policies the stack implements.
