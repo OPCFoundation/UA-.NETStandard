@@ -213,7 +213,7 @@ and probe reachability. Two implementations ship:
 Both hosted and on-device deployments use the same OPC UA nodes. The difference
 is configuration: endpoint, credentials, data jurisdiction and egress.
 
-## Worked example
+## Example
 
 The sample in
 [`samples/AI/ModelManagementServer`](../samples/AI/ModelManagementServer) hosts

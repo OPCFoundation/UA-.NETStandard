@@ -67,7 +67,7 @@ if (det.Detections.Count > 0 && det.Detections[0].HasPose)
 ```
 
 See the [Vision developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md)
-for discovery, streaming, feedback and the frame-graph composition worked
+for discovery, streaming, feedback and the frame-graph composition
 example.
 
 > The namespace `http://opcfoundation.org/UA/Vision/` and every NodeId in it

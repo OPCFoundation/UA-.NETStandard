@@ -467,7 +467,7 @@ model, and the configured instance namespace before returning. The manager's
 must be thread-safe, must reserve unique NodeIds for unregistered nodes, and must
 allocate Robotics instances in the configured instance namespace.
 
-[`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) is the worked example of
+[`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) is the example of
 the custom-manager route: it composes Robotics, IA, DI, the draft OpenUSD
 binding, and RSL/GPOS in one `DiNodeManager` subclass.
 

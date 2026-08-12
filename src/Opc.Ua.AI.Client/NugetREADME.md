@@ -14,7 +14,7 @@ Part of the [OPC UA .NET Standard](https://github.com/OPCFoundation/UA-.NETStand
 ## Documentation
 
 See the [AI Model Management sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/AI/README.md)
-for the worked example: `ModelManagementServer` publishes a catalogue and
+for the example: `ModelManagementServer` publishes a catalogue and
 routes inference, and `ModelManagementClient` walks it with `AiClient`.
 
 ## License

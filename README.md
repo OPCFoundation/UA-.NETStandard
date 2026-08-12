@@ -117,6 +117,13 @@ Each sample has its own `README.md` with build and run instructions.
   reference cell.
 - [Bin Picking Client](samples/Robotics/BinPickingClient/README.md) — closes the
   Vision-to-Robot-Intent loop, with optional MCP hosting and an OpenUSD viewport.
+- [Visual Inspection Cell](samples/Vision/VisualInspectionCell/README.md) — hosts
+  Vision, AI Model Management, ISA-95 Job Control V2, and an operator dialog for
+  deterministic machined-bracket inspection.
+- [Visual Inspection Agent](samples/Vision/VisualInspectionAgent/README.md) — drives
+  the inspection loop with typed clients, routes inference through deployment
+  `Invoke`, applies recipe verdicts, schedules allowlisted jobs, and records
+  operator ground truth.
 - [AI Model Management sample](samples/AI/README.md) — `ModelManagementServer`
   publishes the draft AI Model Management catalogue and routes inference;
   `ModelManagementClient` discovers deployments and exercises the Methods.

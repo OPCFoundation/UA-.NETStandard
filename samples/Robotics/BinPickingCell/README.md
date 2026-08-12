@@ -12,7 +12,7 @@ http://opcfoundation.org/License/MIT/1.00/
 Reference server for the vision-guided bin-picking sample. Hosts a
 UR5e-style robot arm as a Robot Intent controller, a Vision companion
 with an eye-in-hand camera parented to the flange, an in-address-space
-OpenUSD scene, and the frame tree the Robotics-Vision Addendum's worked
+OpenUSD scene, and the frame tree the Robotics-Vision Addendum's
 example uses:
 
 ```text
@@ -35,7 +35,7 @@ to it. The sample's paired client at
 perception-to-action loop against this server, either as a scripted
 demo or under the control of an MCP-connected language model.
 
-The cell is the worked example that motivates the [Vision developer
+The cell is the example that motivates the [Vision developer
 guide](../../../docs/Vision.md) — every §5.12 convention (quaternion
 `(x, y, z, w)`, metres, corner-datum principal point, empty-covariance
 sentinel), every §6.4 media state and every facet the guide lists

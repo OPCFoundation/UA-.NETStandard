@@ -201,7 +201,7 @@ server- and client-side implementations:
   fluent frame/sensor/calibration/pipeline builders, typed `VisionClient`
   discovery, result streaming, off-server feedback, facet derivation, and
   OpenUSD camera capture. See [Vision](Vision.md), including the Robotics +
-  Vision bin-picking worked example.
+  Vision bin-picking example.
 - **OPC UA — AI Model Management and Inference** (draft): the `Opc.Ua.AI` /
   `Opc.Ua.AI.Inference` / `Opc.Ua.AI.Server` / `Opc.Ua.AI.Client` package
   family over xRegistry, with a source-generated catalogue/deployment/inference

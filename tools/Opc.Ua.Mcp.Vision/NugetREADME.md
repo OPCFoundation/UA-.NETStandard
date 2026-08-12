@@ -103,7 +103,7 @@ host references.
 
 See the [Vision developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md#mcp-tools)
 and the [MCP Server guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/McpServer.md)
-for the profile table, composition rules and the worked bin-picking sample.
+for the profile table, composition rules and the bin-picking sample.
 
 ## License
 
