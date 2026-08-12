@@ -933,7 +933,7 @@ namespace Opc.Ua.Wot
                         nodeSet,
                         diagnostics),
                 ParentNodeId = rootNodeId,
-                DataType = MapJsonSchemaToDataType(schema),
+                DataType = MapJsonSchemaToDataType(schema, nodeSet, diagnostics),
                 AccessLevel = MapAccessLevel(schema)
             };
             string? title = GetElementString(schema, "title");
@@ -2976,8 +2976,30 @@ namespace Opc.Ua.Wot
             return "urn:opcua:wot:synthesized";
         }
 
-        private static string MapJsonSchemaToDataType(JsonElement schema)
+        /// <summary>
+        /// Resolves the DataType a property affordance declares.
+        /// </summary>
+        /// <remarks>
+        /// §9.1 gives the readable mapping one channel for a DataType, the
+        /// DataSchema's json type, and that channel carries six types — so a
+        /// LocalizedText and a String are the same thing by the time it is read
+        /// back. §5.4 states the definitive DataType at property level, so it
+        /// wins where it is present. It is resolved through
+        /// <see cref="ToNodeSetNodeId"/> rather than taken verbatim because that
+        /// is what registers its namespace in the table and rewrites the
+        /// portable <c>nsu=</c> form into the <c>ns=&lt;index&gt;</c> form a
+        /// NodeSet2 <c>DataType</c> attribute is allowed to carry.
+        /// </remarks>
+        private static string MapJsonSchemaToDataType(
+            JsonElement schema,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
         {
+            string? definitive = GetElementString(schema, "uav:mapToType");
+            if (definitive is not null)
+            {
+                return ToNodeSetNodeId(definitive, nodeSet, diagnostics);
+            }
             return WotVocabulary.MapJsonTypeToDataType(GetElementString(schema, "type"));
         }
 

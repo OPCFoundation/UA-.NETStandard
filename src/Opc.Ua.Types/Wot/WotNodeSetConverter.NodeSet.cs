@@ -633,6 +633,62 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Resolves a Variable's <c>DataType</c> attribute — which a NodeSet may
+        /// write as an alias such as <c>Boolean</c> — to a portable
+        /// ExpandedNodeId, or <c>null</c> when it states no identifier.
+        /// </summary>
+        /// <remarks>
+        /// A <c>DataType</c> attribute is free text in the schema, so one that
+        /// names an alias no <c>Aliases</c> table declares, or that starts like
+        /// an identifier and is not one, states nothing definitive. The
+        /// DataSchema's json type stays the only claim rather than the
+        /// conversion failing over a value it was only trying to enrich.
+        /// </remarks>
+        private static string? ToPortableDataTypeId(string? dataType, UANodeSet nodeSet)
+        {
+            if (string.IsNullOrEmpty(dataType))
+            {
+                return null;
+            }
+            string resolved = dataType!;
+            foreach (NodeIdAlias alias in nodeSet.Aliases ?? [])
+            {
+                if (string.Equals(alias.Alias, dataType, StringComparison.Ordinal) &&
+                    alias.Value is { Length: > 0 })
+                {
+                    resolved = alias.Value;
+                    break;
+                }
+            }
+            if (!LooksLikeNodeId(resolved))
+            {
+                return null;
+            }
+            try
+            {
+                return ToPortableNodeId(resolved, nodeSet.NamespaceUris);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (ServiceResultException)
+            {
+                return null;
+            }
+        }
+
+        private static bool LooksLikeNodeId(string value)
+        {
+            return value.StartsWith("i=", StringComparison.Ordinal) ||
+                value.StartsWith("ns=", StringComparison.Ordinal) ||
+                value.StartsWith("nsu=", StringComparison.Ordinal) ||
+                value.StartsWith("s=", StringComparison.Ordinal) ||
+                value.StartsWith("g=", StringComparison.Ordinal) ||
+                value.StartsWith("b=", StringComparison.Ordinal);
+        }
+
+        /// <summary>
         /// Writes an affordance's definitive <c>ua:HasTypeDefinition</c> link.
         /// </summary>
         private static void WriteTypeDefinitionLink(Utf8JsonWriter writer, string? href)
@@ -793,6 +849,15 @@ namespace Opc.Ua.Wot
             {
                 writer.WriteString("type", jsonType);
             }
+
+            // §9.1 gives a DataType one readable channel, the DataSchema's json
+            // type, and that channel carries six types — so a LocalizedText and
+            // a String come back the same. §5.4 states the definitive DataType
+            // at property level, and the reverse direction prefers it.
+            WriteOptional(
+                writer,
+                "uav:mapToType",
+                ToPortableDataTypeId(variable.DataType, nodeSet));
 
             bool readable = (variable.AccessLevel & AccessLevelCurrentRead) != 0;
             bool writable = (variable.AccessLevel & AccessLevelCurrentWrite) != 0;

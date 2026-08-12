@@ -358,6 +358,7 @@ namespace Opc.Ua.Wot
                         case "uav:id":
                         case "uav:isEvent":
                         case "uav:modellingRule":
+                        case "uav:mapToType":
                         case "type":
                         case "readOnly":
                         case "writeOnly":
