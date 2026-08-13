@@ -136,6 +136,7 @@ namespace Opc.Ua.Server
                 MaxQueueSize = (uint)configuration.ServerConfiguration.MaxNotificationQueueSize;
                 MaxDurableQueueSize = (uint)configuration.ServerConfiguration
                     .MaxDurableNotificationQueueSize;
+                MinSupportedSamplingInterval = configuration.ServerConfiguration.MinSupportedSamplingInterval;
             }
 
             // save a reference to the UA server instance that owns the node manager.
@@ -268,6 +269,18 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The maximum size of a durable monitored item queue.</value>
         public uint MaxDurableQueueSize { get; set; }
+
+        /// <summary>
+        /// Gets or sets the minimum sampling interval supported by the server (in milliseconds).
+        /// </summary>
+        /// <value>The minimum supported sampling interval.</value>
+        /// <remarks>
+        /// Applied as a lower bound when the sampling interval of a monitored item is revised.
+        /// Nodes that declare a MinimumSamplingInterval of
+        /// <see cref="MinimumSamplingIntervals.Continuous"/> report by exception and are not
+        /// bound by this value.
+        /// </remarks>
+        public double MinSupportedSamplingInterval { get; set; }
 
         /// <summary>
         /// The root for the alias assigned to the node manager.
@@ -5036,26 +5049,12 @@ namespace Opc.Ua.Server
             }
 
             // determine the sampling interval.
-            double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
-
-            if (samplingInterval < 0)
-            {
-                samplingInterval = publishingInterval;
-            }
-
-            // ensure minimum sampling interval is not exceeded.
-            if (itemToCreate.ItemToMonitor.AttributeId == Attributes.Value &&
-                handle.Node is BaseVariableState variable &&
-                samplingInterval < variable.MinimumSamplingInterval)
-            {
-                samplingInterval = variable.MinimumSamplingInterval;
-            }
-
-            // put a large upper limit on sampling.
-            if (samplingInterval == double.MaxValue)
-            {
-                samplingInterval = 365 * 24 * 3600 * 1000.0;
-            }
+            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                itemToCreate.RequestedParameters.SamplingInterval,
+                publishingInterval,
+                handle.Node,
+                itemToCreate.ItemToMonitor.AttributeId,
+                MinSupportedSamplingInterval);
 
             // put an upper limit on queue size.
             uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(
@@ -5544,26 +5543,12 @@ namespace Opc.Ua.Server
             double previousSamplingInterval = datachangeItem!.SamplingInterval;
 
             // check if the variable needs to be sampled.
-            double samplingInterval = itemToModify.RequestedParameters.SamplingInterval;
-
-            if (samplingInterval < 0)
-            {
-                samplingInterval = previousSamplingInterval;
-            }
-
-            // ensure minimum sampling interval is not exceeded.
-            if (datachangeItem.AttributeId == Attributes.Value &&
-                handle.Node is BaseVariableState variable &&
-                samplingInterval < variable.MinimumSamplingInterval)
-            {
-                samplingInterval = variable.MinimumSamplingInterval;
-            }
-
-            // put a large upper limit on sampling.
-            if (samplingInterval == double.MaxValue)
-            {
-                samplingInterval = 365 * 24 * 3600 * 1000.0;
-            }
+            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                itemToModify.RequestedParameters.SamplingInterval,
+                previousSamplingInterval,
+                handle.Node,
+                datachangeItem.AttributeId,
+                MinSupportedSamplingInterval);
 
             // put an upper limit on queue size.
             uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(

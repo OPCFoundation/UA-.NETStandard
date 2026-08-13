@@ -220,7 +220,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StartGetListStopAndGetCompletedReplaySessionRoundTripsAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("start-get-list-stop");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("start-get-list-stop");
             m_tempFolders.Add(folder);
             (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
                 folder,
@@ -302,7 +302,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task CaptureNowAsyncStartsCapturesAndStopsWithZeroDurationAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("capture-now");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("capture-now");
             m_tempFolders.Add(folder);
             (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
                 folder,
@@ -341,7 +341,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task CaptureNowAsyncStopsSessionInFinallyBlockWhenCanceledAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("capture-now-cancel");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("capture-now-cancel");
             m_tempFolders.Add(folder);
             (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
                 folder,
