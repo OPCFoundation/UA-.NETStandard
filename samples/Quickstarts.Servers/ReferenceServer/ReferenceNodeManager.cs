@@ -300,7 +300,6 @@ namespace Quickstarts.ReferenceServer
             {
                 if (FindPredefinedNode<BaseVariableState>(new NodeId(identifier, NamespaceIndex)) is BaseVariableState node)
                 {
-                    node.OnWriteValue = OnWriteDiscrete;
                     node.Value = (uint)0;
                     node.StatusCode = StatusCodes.Good;
                     _ = node.SetChildValue(
@@ -315,7 +314,6 @@ namespace Quickstarts.ReferenceServer
             {
                 if (FindPredefinedNode<BaseVariableState>(new NodeId(identifier, NamespaceIndex)) is BaseVariableState node)
                 {
-                    node.OnWriteValue = OnWriteValueDiscrete;
                     node.Value = CreateZeroValue(node.DataType);
                     node.StatusCode = StatusCodes.Good;
                     ArrayOf<EnumValueType> values = CreateEnumValues(enumNames).ToArrayOf();
@@ -426,87 +424,6 @@ namespace Quickstarts.ReferenceServer
                 m_logger.ErrorWritingIntervalVariable(e);
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Interval variable.");
             }
-        }
-
-        private ServiceResult OnWriteDiscrete(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref Variant value,
-            ref StatusCode statusCode,
-            ref DateTimeUtc timestamp)
-        {
-            if (node is not BaseVariableState variable)
-            {
-                return StatusCodes.BadTypeMismatch;
-            }
-
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
-                value,
-                variable.DataType,
-                variable.ValueRank,
-                context.NamespaceUris,
-                context.TypeTable);
-
-            if (typeInfo.IsUnknown)
-            {
-                return StatusCodes.BadTypeMismatch;
-            }
-
-            if (!indexRange.IsNull)
-            {
-                return StatusCodes.BadIndexRangeInvalid;
-            }
-
-            double number = value.GetDouble();
-            if (number >= GetLocalizedTextChildCount(node, context, EnumStringsBrowseName) || number < 0)
-            {
-                return StatusCodes.BadOutOfRange;
-            }
-
-            return ServiceResult.Good;
-        }
-
-        private ServiceResult OnWriteValueDiscrete(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref Variant value,
-            ref StatusCode statusCode,
-            ref DateTimeUtc timestamp)
-        {
-            TypeInfo typeInfo = value.TypeInfo;
-            if (node is not BaseVariableState ||
-                typeInfo.IsUnknown ||
-                !TypeInfo.IsNumericType(typeInfo.BuiltInType))
-            {
-                return StatusCodes.BadTypeMismatch;
-            }
-
-            if (!indexRange.IsNull)
-            {
-                return StatusCodes.BadIndexRangeInvalid;
-            }
-
-            int number = (int)value.GetUInt32();
-            if (!TryGetEnumValueDisplayName(node, context, number, out LocalizedText displayName))
-            {
-                return StatusCodes.BadOutOfRange;
-            }
-
-            if (!node.SetChildValue(
-                context,
-                ValueAsTextBrowseName,
-                Variant.From(displayName),
-                true))
-            {
-                return StatusCodes.BadOutOfRange;
-            }
-
-            node.ClearChangeMasks(context, true);
-            return ServiceResult.Good;
         }
 
         private void ResetRandomGenerator(int seed, int boundaryValueFrequency = 0)
@@ -703,39 +620,6 @@ namespace Quickstarts.ReferenceServer
                 };
             }
             return values;
-        }
-
-        private static int GetLocalizedTextChildCount(
-            NodeState node,
-            ISystemContext context,
-            string browseName)
-        {
-            return node.FindChild(context, new QualifiedName(browseName)) is BaseVariableState child
-                ? child.Value.TryGetValue(out ArrayOf<LocalizedText> values) ? values.Count : 0
-                : 0;
-        }
-
-        private static bool TryGetEnumValueDisplayName(
-            NodeState node,
-            ISystemContext context,
-            int index,
-            out LocalizedText displayName)
-        {
-            displayName = LocalizedText.Null;
-            if (index < 0 ||
-                node.FindChild(context, new QualifiedName(EnumValuesBrowseName)) is not BaseVariableState child)
-            {
-                return false;
-            }
-
-            if (!child.Value.TryGetValue(out ArrayOf<EnumValueType> values, null) ||
-                index >= values.Count)
-            {
-                return false;
-            }
-
-            displayName = values[index].DisplayName;
-            return true;
         }
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
