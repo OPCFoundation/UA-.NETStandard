@@ -148,6 +148,35 @@ $rawCode = $rawCode -replace '(?m)^\[assembly:System\.Security\.SecurityTranspar
 $rawCode = $rawCode -replace '(?m)^\[assembly:System\.Security\.SecurityRules\([^\)]+\)\]\r?\n', ''
 $rawCode = $rawCode -replace '(?m)^\[assembly:System\.Xml\.Serialization\.XmlSerializerVersionAttribute\([^\)]+\)\]\r?\n', ''
 
+# Canonicalize non-deterministic emission order.
+# The sgen tool enumerates its internal name/id hash table in an unstable order, so the
+# generated "string idNN_Name;" field declarations and their "idNN_Name = Reader.NameTable.Add(...)"
+# initializers appear in a different order on every run even though the assigned id numbers are
+# stable. Sort each contiguous block by the numeric id so re-running the generator on unchanged
+# input yields byte-identical output.
+$sortByNumericId = {
+    param([System.Text.RegularExpressions.Match]$m)
+    $lines = ($m.Value -replace "`r", "") -split "`n" | Where-Object { $_.Length -gt 0 }
+    $sorted = $lines | Sort-Object { [int]([regex]::Match($_, 'id(\d+)_').Groups[1].Value) }
+    return ($sorted -join "`r`n") + "`r`n"
+}
+$mlOption = [System.Text.RegularExpressions.RegexOptions]::Multiline
+
+# Field declarations: contiguous block of "        string idNN_Name;" lines.
+$rawCode = [regex]::Replace(
+    $rawCode,
+    '(?:^[ \t]*string id\d+_[A-Za-z0-9]+;[ \t]*\r?\n)+',
+    $sortByNumericId,
+    $mlOption)
+
+# InitIDs body: contiguous block of "            idNN_Name = Reader.NameTable.Add(@""Name"");" lines.
+# The quoted name can be empty (e.g. id3_Item) or contain URI characters, so match any content.
+$rawCode = [regex]::Replace(
+    $rawCode,
+    '(?:^[ \t]*id\d+_[A-Za-z0-9]* = Reader\.NameTable\.Add\(@"[^"]*"\);[ \t]*\r?\n)+',
+    $sortByNumericId,
+    $mlOption)
+
 # Add AOT attributes to InitCallbacks() overrides.
 # The sgen tool generates: protected override void InitCallbacks() { }
 # Under NativeAOT, the base class methods have AOT attributes, so overrides must match (IL2046/IL3051).
