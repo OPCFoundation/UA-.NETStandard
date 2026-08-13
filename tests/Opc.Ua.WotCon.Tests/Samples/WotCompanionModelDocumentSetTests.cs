@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using NUnit.Framework;
+using Opc.Ua.Export;
 using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Tests.Samples
@@ -132,6 +133,66 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 documents.Select(d => d.Href).Distinct(StringComparer.Ordinal).Count(),
                 Is.EqualTo(documents.Count),
                 "Every document in the set should have a distinct href.");
+
+            // The assertion above is necessary but not sufficient on its own:
+            // the document-set path never writes uav:nodes, so its absence
+            // proves nothing by itself. What earns the omission is that the set
+            // rebuilds the model — every Node, and no Node the source never
+            // stated. Without this the model could be silently emptied and the
+            // projection check would still pass.
+            AssertSetRebuildsTheModel(sourcePath, modelPrefix, title);
+        }
+
+        private static void AssertSetRebuildsTheModel(
+            string sourcePath,
+            string modelPrefix,
+            string title)
+        {
+            using FileStream stream = File.OpenRead(sourcePath);
+            UANodeSet? source = UANodeSet.Read(stream);
+            Assert.That(source, Is.Not.Null);
+
+            WotConversionResult<WotDocumentSet> result =
+                WotNodeSetConverter.FromNodeSetDocuments(source!, modelPrefix, title);
+            using WotDocumentSet set = result.Value!;
+            WotConversionResult<UANodeSet> restored =
+                WotNodeSetConverter.ToNodeSetAsync(set).AsTask().GetAwaiter().GetResult();
+
+            Assert.That(restored.Value, Is.Not.Null);
+
+            var before = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (UANode node in source!.Items ?? [])
+            {
+                if (!string.IsNullOrEmpty(node.NodeId))
+                {
+                    before[node.NodeId!] = node.GetType().Name;
+                }
+            }
+            var after = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (UANode node in restored.Value!.Items ?? [])
+            {
+                if (!string.IsNullOrEmpty(node.NodeId))
+                {
+                    after[node.NodeId!] = node.GetType().Name;
+                }
+            }
+
+            string name = Path.GetFileName(sourcePath);
+            Assert.That(
+                before.Keys.Where(id => !after.ContainsKey(id)).ToArray(),
+                Is.Empty,
+                $"{name}: Nodes were lost, so the set does not rebuild the model.");
+            Assert.That(
+                after.Keys.Where(id => !before.ContainsKey(id)).ToArray(),
+                Is.Empty,
+                $"{name}: Nodes were created that the source never stated.");
+            foreach (KeyValuePair<string, string> entry in before)
+            {
+                Assert.That(
+                    after[entry.Key],
+                    Is.EqualTo(entry.Value),
+                    $"{name}: '{entry.Key}' came back as a different NodeClass.");
+            }
         }
 
         private static string RepositoryRoot
