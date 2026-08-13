@@ -793,9 +793,12 @@ namespace Opc.Ua.Wot
                 // VariableType into an ObjectType: the type is lost and a
                 // different one invented in its place.
                 bool isVariableType = HasTypeAnnotation(document, "uav:variableType");
-                rootNode = isVariableType
-                    ? new UAVariableType { IsAbstract = false }
-                    : new UAObjectType { IsAbstract = false };
+                bool isReferenceType = HasTypeAnnotation(document, "uav:referenceType");
+                rootNode = isReferenceType
+                    ? new UAReferenceType { IsAbstract = false }
+                    : isVariableType
+                        ? new UAVariableType { IsAbstract = false }
+                        : new UAObjectType { IsAbstract = false };
 
                 // WoT Binding Section 5.2.1 makes invalid and unresolved
                 // type-binding outcomes document-wide. A Thing Model still
@@ -808,11 +811,13 @@ namespace Opc.Ua.Wot
                     IsForward = false,
                     // An event-type Thing Model (@type uav:eventType) derives
                     // from BaseEventType rather than BaseObjectType.
-                    Value = isVariableType
-                        ? WotVocabulary.BaseDataVariableType
-                        : isEventType
-                            ? WotVocabulary.BaseEventType
-                            : WotVocabulary.BaseObjectType
+                    Value = isReferenceType
+                        ? WotVocabulary.NonHierarchicalReferences
+                        : isVariableType
+                            ? WotVocabulary.BaseDataVariableType
+                            : isEventType
+                                ? WotVocabulary.BaseEventType
+                                : WotVocabulary.BaseObjectType
                 });
             }
             else

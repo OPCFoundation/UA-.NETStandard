@@ -479,6 +479,13 @@ namespace Opc.Ua.Wot
                     writer.WriteStringValue("uav:variableType");
                     writer.WriteEndArray();
                     break;
+                case UAReferenceType:
+                    writer.WritePropertyName("@type");
+                    writer.WriteStartArray();
+                    writer.WriteStringValue(WotVocabulary.ThingModelType);
+                    writer.WriteStringValue("uav:referenceType");
+                    writer.WriteEndArray();
+                    break;
                 case UAObject:
                     writer.WriteString("@type", "uav:object");
                     break;

@@ -579,6 +579,49 @@ namespace Opc.Ua.Types.Tests.Wot
                 "Each type's own Variable belongs to that type's document.");
         }
 
+        /// <summary>
+        /// A ReferenceType is a type definition like any other. §9.1 maps it to
+        /// the compact name a link <c>rel</c> uses, which says how it is
+        /// referred to, not how it is defined — so without a document of its
+        /// own its BrowseName, supertype and inverse name have nowhere to live
+        /// and the type is lost.
+        /// </summary>
+        [Test]
+        public void ReferenceTypeRootsItsOwnDocument()
+        {
+            var nodeSet = new UANodeSet
+            {
+                NamespaceUris = ["http://example.com/demo/pump"],
+                Items =
+                [
+                    new UAReferenceType
+                    {
+                        NodeId = "ns=1;i=900",
+                        BrowseName = "1:ConnectsTo",
+                        References =
+                        [
+                            new Reference
+                            {
+                                ReferenceType = "HasSubtype",
+                                IsForward = false,
+                                Value = "i=32"
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            WotConversionResult<WotDocumentSet> result =
+                WotNodeSetConverter.FromNodeSetDocuments(nodeSet, "model");
+
+            using WotDocumentSet set = result.Value!;
+            Assert.That(set.Entries, Has.Count.EqualTo(1));
+
+            UANodeSet back = WotNodeSetConverter.ToNodeSet(set.Entries[0].Document);
+            UAReferenceType restored = back.Items!.OfType<UAReferenceType>().Single();
+            Assert.That(restored.BrowseName, Does.EndWith(":ConnectsTo"));
+        }
+
         private static UAObjectType TypeWithVariable(
             string nodeId,
             string browseName,

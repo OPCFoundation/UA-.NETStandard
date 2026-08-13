@@ -343,13 +343,16 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// A DataType is carried by <c>uav:dataTypeDefinitions</c> and a
-        /// ReferenceType by the compact name a link uses, so neither roots a
-        /// document of its own (§9.1).
+        /// A DataType is carried by <c>uav:dataTypeDefinitions</c> (§6.11), so
+        /// it does not root a document of its own. A ReferenceType does: §9.1
+        /// maps it to the compact name a link <c>rel</c> uses, which is how it
+        /// is <em>referred to</em> rather than how it is <em>defined</em>, and
+        /// its BrowseName, supertype, symmetry and inverse name have to be
+        /// stated somewhere or the type is lost.
         /// </summary>
         private static bool RootsItsOwnDocument(UANode node)
         {
-            return node is UAObjectType or UAVariableType or UAObject;
+            return node is UAObjectType or UAVariableType or UAObject or UAReferenceType;
         }
 
         private static HashSet<string> CollectContainedNodes(UANodeSet nodeSet)
