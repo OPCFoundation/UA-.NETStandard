@@ -98,6 +98,9 @@
     <PackageVersion Include="Roslynator.Analyzers" Version="4.16.0" />
     <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="4.16.0" />
     <PackageVersion Include="SharpFuzz" Version="2.3.0" />
+    <!-- Transitive vulnerability pin (consumed via Testcontainers.*):
+         - SSH.NET 2026.0.0 fixes GHSA-q939-rpr3-3284 -->
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Testcontainers" Version="4.13.0" />
     <PackageVersion Include="Testcontainers.Kafka" Version="4.13.0" />
