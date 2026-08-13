@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -40,36 +42,31 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a scalar integer variant to a <see cref="long"/> regardless of its
         /// concrete built-in type. Returns false for values that are not scalar
-        /// integers so the caller can defer to the base class.
+        /// integers that fit in <see cref="long"/> so the caller can defer to the
+        /// base class for non-integer or overflowing unsigned values.
         /// </summary>
         private protected static bool TryGetIntegerValue(in Variant value, out long number)
         {
             switch (value.TypeInfo.BuiltInType)
             {
                 case BuiltInType.SByte:
-                    number = value.GetSByte();
-                    return true;
                 case BuiltInType.Byte:
-                    number = value.GetByte();
-                    return true;
                 case BuiltInType.Int16:
-                    number = value.GetInt16();
-                    return true;
                 case BuiltInType.UInt16:
-                    number = value.GetUInt16();
-                    return true;
                 case BuiltInType.Int32:
-                    number = value.GetInt32();
-                    return true;
                 case BuiltInType.UInt32:
-                    number = value.GetUInt32();
-                    return true;
                 case BuiltInType.Int64:
-                    number = value.GetInt64();
-                    return true;
                 case BuiltInType.UInt64:
-                    number = unchecked((long)value.GetUInt64());
-                    return true;
+                    try
+                    {
+                        number = value.ConvertToInt64().GetInt64();
+                        return true;
+                    }
+                    catch (OverflowException)
+                    {
+                        number = 0;
+                        return false;
+                    }
                 default:
                     number = 0;
                     return false;
