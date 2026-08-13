@@ -787,7 +787,15 @@ namespace Opc.Ua.Wot
             string? boundType = null;
             if (isThingModel)
             {
-                rootNode = new UAObjectType { IsAbstract = false };
+                // A Thing Model is not always an ObjectType. §9.1 maps a
+                // VariableType to one too, and the document says which through
+                // its @type. Reading only "Thing Model" turns every
+                // VariableType into an ObjectType: the type is lost and a
+                // different one invented in its place.
+                bool isVariableType = HasTypeAnnotation(document, "uav:variableType");
+                rootNode = isVariableType
+                    ? new UAVariableType { IsAbstract = false }
+                    : new UAObjectType { IsAbstract = false };
 
                 // WoT Binding Section 5.2.1 makes invalid and unresolved
                 // type-binding outcomes document-wide. A Thing Model still
@@ -800,9 +808,11 @@ namespace Opc.Ua.Wot
                     IsForward = false,
                     // An event-type Thing Model (@type uav:eventType) derives
                     // from BaseEventType rather than BaseObjectType.
-                    Value = isEventType
-                        ? WotVocabulary.BaseEventType
-                        : WotVocabulary.BaseObjectType
+                    Value = isVariableType
+                        ? WotVocabulary.BaseDataVariableType
+                        : isEventType
+                            ? WotVocabulary.BaseEventType
+                            : WotVocabulary.BaseObjectType
                 });
             }
             else
@@ -2310,6 +2320,18 @@ namespace Opc.Ua.Wot
             uris.Add(namespaceUri);
             nodeSet.NamespaceUris = [.. uris];
             return uris.Count;
+        }
+
+        private static bool HasTypeAnnotation(WotDocument document, string annotation)
+        {
+            foreach (string token in document.TypeTokens)
+            {
+                if (string.Equals(token, annotation, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static bool HasEventTypeAnnotation(WotDocument document)

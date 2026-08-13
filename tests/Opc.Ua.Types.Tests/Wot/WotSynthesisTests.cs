@@ -698,6 +698,69 @@ namespace Opc.Ua.Types.Tests.Wot
             return WotDocument.Parse(buffer.ToArray());
         }
 
+        /// <summary>
+        /// A Method holds its InputArguments and OutputArguments as Variables.
+        /// They are two levels below the Node that roots the document, so the
+        /// affordance walk never reached them and every argument of every
+        /// Method was left behind.
+        /// </summary>
+        [Test]
+        public void MethodArgumentsSurviveWithTheirMethod()
+        {
+            var nodeSet = new UANodeSet
+            {
+                NamespaceUris = ["http://example.com/demo/pump"],
+                Items =
+                [
+                    new UAObjectType
+                    {
+                        NodeId = "ns=1;i=100",
+                        BrowseName = "1:PumpType",
+                        References =
+                        [
+                            new Reference
+                            {
+                                ReferenceType = "HasComponent",
+                                IsForward = true,
+                                Value = "ns=1;i=110"
+                            }
+                        ]
+                    },
+                    new UAMethod
+                    {
+                        NodeId = "ns=1;i=110",
+                        BrowseName = "1:Start",
+                        References =
+                        [
+                            new Reference
+                            {
+                                ReferenceType = "HasProperty",
+                                IsForward = true,
+                                Value = "ns=1;i=111"
+                            }
+                        ]
+                    },
+                    Variable("ns=1;i=111", "1:InputArguments", "ns=1;i=110")
+                ]
+            };
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(nodeSet);
+
+            Assert.That(document.Actions, Has.Count.EqualTo(1));
+            Assert.That(document.Properties, Has.Count.EqualTo(1));
+            Assert.That(
+                document.Properties["InputArguments"].GetProperty("uav:componentOf")[0].GetString(),
+                Is.EqualTo("nsu=http://example.com/demo/pump;i=110"));
+
+            UANodeSet back = WotNodeSetConverter.ToNodeSet(StripProjection(document));
+            UAVariable arguments = back.Items!.OfType<UAVariable>().Single();
+            Assert.That(
+                arguments.References!.Any(r => r.ReferenceType == "HasComponent" &&
+                    !r.IsForward && r.Value == "ns=1;i=110"),
+                Is.True,
+                "The arguments belong to the Method, not to the Thing.");
+        }
+
         private static UAVariable NestingVariable(
             string nodeId,
             string browseName,

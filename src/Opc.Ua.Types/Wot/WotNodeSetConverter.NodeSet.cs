@@ -581,10 +581,12 @@ namespace Opc.Ua.Wot
 
             // A Variable may itself hold Variables — EURange and
             // EngineeringUnits sit below an analog Variable, two levels under
-            // the Node that roots this document. Walking only the root's
-            // references leaves them unreachable, so they are collected here
-            // and stated as properties of the same Thing, each naming the
-            // Variable it belongs to (§9.1's `uav:componentOf`).
+            // the Node that roots this document. A Method holds its
+            // InputArguments and OutputArguments the same way. Walking only the
+            // root's references leaves all of them unreachable, so they are
+            // collected here and stated as properties of the same Thing, each
+            // naming the Node it belongs to (§9.1's `uav:componentOf`).
+            CollectOwnedVariables(actions, properties, index, nestedParents, namespaceUris);
             CollectNestedVariables(properties, index, nestedParents, namespaceUris);
 
             WriteComponentArray(writer, "uav:hasComponent", componentChildren);
@@ -877,6 +879,54 @@ namespace Opc.Ua.Wot
                 return "ua:" + browseName;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Adds the Variables a Method holds — its InputArguments and
+        /// OutputArguments — as properties naming the Method.
+        /// </summary>
+        /// <remarks>
+        /// §9.1 maps a Method to an action, and its arguments belong in that
+        /// action's input and output schemas. Deriving those schemas means
+        /// decoding the <c>Argument</c> structures the argument Variable holds,
+        /// which needs the value work that is still open. Until then the
+        /// argument Variables are carried readably in their own right, with the
+        /// Method they belong to stated, so no Node is lost and none is
+        /// re-parented; the richer schema shape can replace this without
+        /// changing what the address space contains.
+        /// </remarks>
+        private static void CollectOwnedVariables(
+            List<UAMethod> actions,
+            List<UAVariable> properties,
+            Dictionary<string, UANode> index,
+            Dictionary<string, string> nestedParents,
+            string[]? namespaceUris)
+        {
+            foreach (UAMethod method in actions)
+            {
+                if (method.References is null || method.NodeId is null)
+                {
+                    continue;
+                }
+                string? portableOwner = ToPortableNodeId(method.NodeId, namespaceUris);
+                foreach (Reference reference in method.References)
+                {
+                    if (reference.Value is null ||
+                        !reference.IsForward ||
+                        !IsComponentReference(reference.ReferenceType) ||
+                        !index.TryGetValue(reference.Value, out UANode? target) ||
+                        target is not UAVariable argument ||
+                        argument.NodeId is null)
+                    {
+                        continue;
+                    }
+                    properties.Add(argument);
+                    if (!string.IsNullOrEmpty(portableOwner))
+                    {
+                        nestedParents[argument.NodeId] = portableOwner!;
+                    }
+                }
+            }
         }
 
         /// <summary>
