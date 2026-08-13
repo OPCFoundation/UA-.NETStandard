@@ -62,7 +62,16 @@ namespace Vision.VisualInspectionAgent
                 cts.Cancel();
             };
 
-            VisualInspectionAgentOptions options = VisualInspectionAgentOptions.Parse(args);
+            VisualInspectionAgentOptions options;
+            try
+            {
+                options = VisualInspectionAgentOptions.Parse(args);
+            }
+            catch (FormatException ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                return 2;
+            }
             if (options.Mode == VisualInspectionAgentMode.LiveAI && string.IsNullOrWhiteSpace(options.AIEndpoint))
             {
                 Console.Error.WriteLine("live-ai requires --ai-endpoint and exits before creating any job.");
@@ -75,7 +84,18 @@ namespace Vision.VisualInspectionAgent
             await using (sample.ConfigureAwait(false))
             {
                 var runner = new VisualInspectionAgentRunner(sample, options);
-                await runner.RunAsync(cts.Token).ConfigureAwait(false);
+                try
+                {
+                    await runner.RunAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    // Business refusals - an ISA-95 ReturnStatus that is not success, or a
+                    // deployment that cannot serve live-ai - are expected outcomes of the demo.
+                    // Report them as a diagnostic rather than a crash dump.
+                    Console.Error.WriteLine(ex.Message);
+                    return 3;
+                }
                 return 0;
             }
         }
@@ -399,6 +419,7 @@ namespace Vision.VisualInspectionAgent
             string cycleId,
             CancellationToken cancellationToken)
         {
+            await EnsureInspectionOrderExecutingAsync(cell, cycleId, cancellationToken).ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant(
                 $"[{cycleId}] Completing ISA-95 inspection order {InspectionOrderId} from the execution state."));
             await EnsureJobMethodSucceededAsync(
@@ -411,6 +432,36 @@ namespace Vision.VisualInspectionAgent
                 cycleId).ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant(
                 $"[{cycleId}] Inspection job completed and closed; no ReturnStatus=0x8."));
+        }
+
+        /// <summary>
+        /// Re-establishes the inspection order when an earlier run left none executing.
+        /// </summary>
+        /// <remarks>
+        /// A run that ends on <c>NotDecidable</c> holds without scheduling the next inspection,
+        /// so the order the cell seeded at start-up is already closed by the time the next run
+        /// begins. Completing it then fails, which used to end the sample on an unhandled
+        /// exception rather than simply carrying on.
+        /// </remarks>
+        private static async Task EnsureInspectionOrderExecutingAsync(
+            VisualInspectionCellContext cell,
+            string cycleId,
+            CancellationToken cancellationToken)
+        {
+            ulong returnStatus = await cell.JobControl.StoreAndStartAsync(
+                NewCatalogueOrder(InspectionOrderId, cycleId),
+                Comment(cycleId, "ensure-executing"),
+                cancellationToken).ConfigureAwait(false);
+            if ((returnStatus & Isa95ReturnStatusSuccess) != 0)
+            {
+                Console.WriteLine(FormattableString.Invariant(
+                    $"[{cycleId}] No inspection order was executing; re-established {InspectionOrderId}."));
+                return;
+            }
+            if ((returnStatus & Isa95ReturnStatusUnableToAccept) == 0)
+            {
+                ThrowJobMethodFailure("Ensure inspection order", cycleId, returnStatus);
+            }
         }
 
         private async Task StoreAndStartIdempotentAsync(

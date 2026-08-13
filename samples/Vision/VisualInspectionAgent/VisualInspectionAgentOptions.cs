@@ -69,11 +69,25 @@ namespace Vision.VisualInspectionAgent
 
         private static VisualInspectionAgentMode ParseMode(string? value)
         {
-            if (Enum.TryParse(value, ignoreCase: true, out VisualInspectionAgentMode mode))
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return VisualInspectionAgentMode.Scripted;
+            }
+
+            // The documented spellings are hyphenated ("live-ai"), the enum members are not.
+            // Silently defaulting an unrecognised mode would drop live-ai into the simulated
+            // analyser, which is exactly the degraded run the mode exists to prevent.
+            string candidate = value.Replace("-", string.Empty, StringComparison.Ordinal)
+                .Replace("_", string.Empty, StringComparison.Ordinal);
+            if (Enum.TryParse(candidate, ignoreCase: true, out VisualInspectionAgentMode mode) &&
+                Enum.IsDefined(mode))
             {
                 return mode;
             }
-            return VisualInspectionAgentMode.Scripted;
+
+            throw new FormatException(
+                FormattableString.Invariant(
+                    $"Unknown --mode '{value}'. Expected one of: scripted, live-ai, human."));
         }
 
         private static string? GetOption(string[] args, string name)

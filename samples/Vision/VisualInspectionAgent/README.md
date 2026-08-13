@@ -59,6 +59,20 @@ dotnet run --project samples\Vision\VisualInspectionAgent\VisualInspectionAgent.
 | `--operator-timeout <seconds>` | Bounded human wait. Default `10`, minimum `1`. |
 | `--ai-endpoint <uri>` | Required for `live-ai`. |
 
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | The requested cycles ran to completion. |
+| `2` | The command line was rejected, for example an unknown `--mode` or `live-ai` without `--ai-endpoint`. No session is opened and no job is created. |
+| `3` | The cell refused the run, for example an ISA-95 `ReturnStatus` that is not success, or a deployment that cannot serve `live-ai`. Reported as a single diagnostic line, not a stack trace. |
+
+Mode names are matched without regard to case, hyphens or underscores, so
+`live-ai`, `live_ai` and `LiveAI` are the same mode. An unrecognised mode is
+rejected rather than quietly treated as `scripted`, because a silent downgrade
+would run the simulated analyser while the operator believed a real model was
+deciding.
+
 ## Modes
 
 - `scripted` — the unattended path. The analyser and operator disposition are
