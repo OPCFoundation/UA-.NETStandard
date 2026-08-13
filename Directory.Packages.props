@@ -104,8 +104,6 @@
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Testcontainers" Version="4.13.0" />
     <PackageVersion Include="Testcontainers.Kafka" Version="4.13.0" />
-    <!-- Testcontainers 4.13.0 pulls SSH.NET 2025.1.0; 2026.0.0 fixes GHSA-q939-rpr3-3284. -->
-    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
     <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
