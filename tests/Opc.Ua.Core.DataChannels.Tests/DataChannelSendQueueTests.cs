@@ -122,6 +122,57 @@ namespace Opc.Ua.Core.DataChannels.Tests
             });
         }
 
+        /// <summary>
+        /// Dequeuing from an empty queue reports nothing rather than
+        /// inventing a frame.
+        /// </summary>
+        /// <remarks>
+        /// The scheduler asks every ready channel for work each round, so
+        /// this is the ordinary answer for a channel whose queue has just
+        /// drained, not an error path.
+        /// </remarks>
+        [Test]
+        public void DequeuingFromAnEmptyQueueYieldsNothing()
+        {
+            object queue = CreateQueue(out _);
+
+            Assert.That(
+                TryDequeuePayload(queue, 9, out DataChannelFrame frame, out byte[]? buffer),
+                Is.False);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(frame.Payload.Length, Is.Zero);
+                Assert.That(buffer, Is.Null, "An empty queue handed out a buffer to release.");
+            });
+        }
+
+        /// <summary>
+        /// Expiry does no work when nothing has expired.
+        /// </summary>
+        /// <remarks>
+        /// The scan runs on every scheduler round for every channel with a
+        /// deadline, so the common case has to leave the queue untouched
+        /// rather than rebuild it.
+        /// </remarks>
+        [Test]
+        public void ExpiryLeavesTheQueueUntouchedWhenNothingHasExpired()
+        {
+            object queue = CreateQueue(out _);
+            Enqueue(queue, [1], DataChannelFrameFlags.Droppable, 1000);
+            Enqueue(queue, [2], DataChannelFrameFlags.Droppable, 1000);
+
+            var runs = new List<DataChannelGapRun>();
+            int expired = ExpireDroppable(queue, 10, runs);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(expired, Is.Zero);
+                Assert.That(runs, Is.Empty);
+                Assert.That(GetProperty<int>(queue, "PayloadCount"), Is.EqualTo(2));
+            });
+        }
+
         [Test]
         public void TakeSequenceNumberWrapsOverExcludedZero()
         {

@@ -75,6 +75,76 @@ namespace Opc.Ua.Core.DataChannels.Tests
             };
         }
 
+        /// <summary>
+        /// Negotiation refuses to proceed without the capabilities it revises
+        /// against.
+        /// </summary>
+        /// <remarks>
+        /// Both are what every limit in the revised parameters is derived
+        /// from. Continuing without them would produce a channel whose frame
+        /// size and credit were bounded by nothing.
+        /// </remarks>
+        [Test]
+        public void RevisingWithoutCapabilitiesIsRefused()
+        {
+            var requested = new DataChannelParametersDataType();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => DataChannelNegotiator.TryRevise(
+                        requested,
+                        null!,
+                        Server(),
+                        0,
+                        true,
+                        out _,
+                        out _),
+                    Throws.ArgumentNullException.With.Property("ParamName").EqualTo("source"));
+                Assert.That(
+                    () => DataChannelNegotiator.TryRevise(
+                        requested,
+                        Source(),
+                        null!,
+                        0,
+                        true,
+                        out _,
+                        out _),
+                    Throws.ArgumentNullException.With.Property("ParamName").EqualTo("server"));
+            });
+        }
+
+        /// <summary>
+        /// A mutation check needs the parameters currently in force.
+        /// </summary>
+        [Test]
+        public void AMutationCheckWithoutParametersInForceIsRefused()
+        {
+            Assert.That(
+                () => DataChannelNegotiator.IsMutation(null!, new DataChannelParametersDataType()),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("inForce"));
+        }
+
+        /// <summary>
+        /// A modify that carries no parameters changes nothing.
+        /// </summary>
+        /// <remarks>
+        /// Direction and DeliveryMode are immutable, so the question a
+        /// mutation check answers is whether the request would change one.
+        /// An absent request cannot.
+        /// </remarks>
+        [Test]
+        public void AnAbsentRequestIsNotAMutation()
+        {
+            var inForce = new DataChannelParametersDataType
+            {
+                Direction = DataChannelDirection.SourceToSink,
+                DeliveryMode = DataChannelDeliveryMode.ReliableOrdered
+            };
+
+            Assert.That(DataChannelNegotiator.IsMutation(inForce, null), Is.False);
+        }
+
         // DCS-004: Direction is not revised, it is rejected.
         [Test]
         public void DcS004UnsupportedDirectionIsRejected()

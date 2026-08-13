@@ -318,6 +318,31 @@ namespace Opc.Ua.Core.DataChannels.Tests
             });
         }
 
+        /// <summary>
+        /// Encoding into a buffer that cannot hold the frame is refused.
+        /// </summary>
+        /// <remarks>
+        /// The alternative is a silently truncated frame on the wire, which
+        /// the peer would read as a framing violation and answer by
+        /// resetting a channel that did nothing wrong.
+        /// </remarks>
+        [Test]
+        public void EncodingIntoATooSmallBufferIsRefused()
+        {
+            DataChannelFrame frame = DataChannelFrame.Data(
+                7,
+                1,
+                DataChannelFrameFlags.MessageStart | DataChannelFrameFlags.MessageEnd,
+                new byte[32]);
+
+            byte[] tooSmall = new byte[frame.EncodedSize - 1];
+
+            ArgumentException exception = Assert.Throws<ArgumentException>(
+                () => DataChannelFrameCodec.Encode(tooSmall, frame))!;
+
+            Assert.That(exception.ParamName, Is.EqualTo("destination"));
+        }
+
         [Test]
         public void EncodeRoundTripsEverySpecVectorByteForByte(
             [Values(

@@ -223,6 +223,91 @@ namespace Opc.Ua.Core.DataChannels.Tests
             });
         }
 
+        /// <summary>
+        /// Accounting and release ignore a non-positive length.
+        /// </summary>
+        /// <remarks>
+        /// A frame with no payload still arrives and still has to be
+        /// accounted for. Charging it nothing is what keeps a stream of
+        /// header-only frames from draining the window, and releasing
+        /// nothing is what keeps it from inventing credit.
+        /// </remarks>
+        [Test]
+        public void EmptyPayloadNeitherSpendsNorReleasesCredit()
+        {
+            var credit = new DataChannelReceiveCredit(100);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(credit.TryAccount(0), Is.True);
+                Assert.That(credit.TryAccount(-1), Is.True);
+                Assert.That(credit.Outstanding, Is.EqualTo(100u));
+            });
+
+            credit.Release(0);
+            credit.Release(-1);
+
+            Assert.That(credit.Released, Is.Zero);
+        }
+
+        /// <summary>
+        /// A receiver that has released nothing has nothing to replenish.
+        /// </summary>
+        [Test]
+        public void ReplenishmentIsNotDueBeforeAnythingIsReleased()
+        {
+            var credit = new DataChannelReceiveCredit(1024);
+
+            Assert.That(credit.TryAccount(1000), Is.True);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    credit.TryTakeReplenishment(100, out uint amount),
+                    Is.False,
+                    "The window is well below the threshold, but nothing has been consumed.");
+                Assert.That(amount, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// A replenishment that would carry the window past its ceiling is
+        /// clamped rather than wrapped.
+        /// </summary>
+        /// <remarks>
+        /// Outstanding plus Released is computed in 64 bits precisely so a
+        /// receiver that has released almost the whole 32-bit space cannot
+        /// wrap its window back down to nearly nothing and stall the sender.
+        /// </remarks>
+        [Test]
+        public void ReplenishmentSaturatesRatherThanWrappingTheWindow()
+        {
+            var credit = new DataChannelReceiveCredit(1024);
+
+            // Drive the window low enough that a replenishment is due, then
+            // saturate Released. Release is not bounded by Outstanding, so a
+            // long-lived channel accumulates there.
+            Assert.That(credit.TryAccount(1000), Is.True);
+            credit.Release(int.MaxValue);
+            credit.Release(int.MaxValue);
+            credit.Release(int.MaxValue);
+
+            Assert.That(credit.Released, Is.EqualTo(uint.MaxValue));
+            Assert.That(credit.TryTakeReplenishment(100, out uint amount), Is.True);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    credit.Outstanding,
+                    Is.EqualTo(uint.MaxValue),
+                    "The window saturated instead of wrapping back down to nearly nothing.");
+                Assert.That(
+                    amount,
+                    Is.EqualTo(uint.MaxValue - 24u),
+                    "The grant is capped at what the window can still hold.");
+            });
+        }
+
         private static DataChannel CreateOpenChannel(
             IDataChannelTransport transport,
             uint initialCredit,

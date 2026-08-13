@@ -264,6 +264,70 @@ namespace Opc.Ua.Core.DataChannels.Tests
             });
         }
 
+        /// <summary>
+        /// A control frame that overtakes its OpenDataChannel response is
+        /// replayed with its own fields intact.
+        /// </summary>
+        /// <remarks>
+        /// Over a transport with no ordering between streams any frame can
+        /// arrive before the response that names its ChannelId (7.4), not
+        /// just DATA. The buffer holds a copy rather than the frame, so each
+        /// frame type has to carry its own fields through: a CREDIT replayed
+        /// with a zero grant would leave the sender blocked, and a GAP
+        /// replayed with the wrong range would report the wrong frames
+        /// discarded.
+        /// </remarks>
+        [Test]
+        public async Task ControlFramesThatOvertakeTheOpenResponseReplayIntactAsync()
+        {
+            var transport = new LoopbackTransport(m_bufferManager, m_timeProvider);
+            DataChannelManager manager = CreateManager(transport, isServer: true);
+
+            // GAP is only legal where the delivery mode allows discard.
+            var settings = new DataChannelSettings
+            {
+                Direction = DataChannelDirection.SourceToSink,
+                DeliveryMode = DataChannelDeliveryMode.PartiallyReliable,
+                MaxFrameSize = 4096,
+                InitialCredit = 65536,
+                DrainTimeout = DataChannelConstants.DefaultDrainTimeout
+            };
+
+            DataChannel removed = manager.Register(61, new NodeId(1u), settings, isSource: true);
+            manager.Remove(removed.ChannelId);
+
+            manager.HandleFrame(DataChannelFrame.Credit(61, 1, 4096, 8192));
+            manager.HandleFrame(DataChannelFrame.Gap(61, 2, 1, 2));
+            manager.HandleFrame(DataChannelFrame.Data(
+                61,
+                3,
+                DataChannelFrameFlags.MessageStart | DataChannelFrameFlags.MessageEnd,
+                new byte[] { 0x01, 0x02 }));
+
+            DataChannel target = manager.Register(61, new NodeId(1u), settings, isSource: false);
+            manager.MarkOpen(target.ChannelId);
+
+            using DataChannelMessage? message = await ReadWithTimeoutAsync(target)
+                .ConfigureAwait(false);
+
+            DataChannelDiagnosticsDataType diagnostics = target.GetDiagnostics();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    diagnostics.LastGapSequenceNumber,
+                    Is.EqualTo(2u),
+                    "The buffered GAP replayed without its range, so the wrong frames " +
+                        "are reported discarded.");
+                Assert.That(message, Is.Not.Null);
+                Assert.That(message!.FrameSequenceNumber, Is.EqualTo(3u));
+                Assert.That(
+                    transport.Faults,
+                    Is.Empty,
+                    "A frame that legitimately overtook the response was treated as a fault.");
+            });
+        }
+
         [Test]
         public async Task ConnectionPingRatePongAndRttAreTrackedAtManagerLevel()
         {
