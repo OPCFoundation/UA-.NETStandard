@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Xml;
 
 namespace Opc.Ua
 {
@@ -48,46 +47,19 @@ namespace Opc.Ua
             StatusCode statusCode,
             DateTimeUtc sourceTimestamp)
         {
-            if (!IsWriteAllowed(context, value))
+            // The Selections restriction only applies to a value that the base class would
+            // otherwise accept. Checking index range, access level, user access and data
+            // type up front keeps the base error codes (BadNotWritable, BadUserAccessDenied,
+            // BadTypeMismatch, BadIndexRangeInvalid) in precedence over BadOutOfRange.
+            if (indexRange.IsNull &&
+                IsRestrictedToList(context) &&
+                WouldBaseAcceptWrite(context, value) &&
+                !IsMemberOfSelections(context, value))
             {
                 return StatusCodes.BadOutOfRange;
             }
 
             return base.WriteValueAttribute(context, indexRange, value, statusCode, sourceTimestamp);
-        }
-
-        /// <summary>
-        /// Determines whether <paramref name="value"/> may be written given the
-        /// current Selections and RestrictToList property values.
-        /// </summary>
-        private bool IsWriteAllowed(ISystemContext context, Variant value)
-        {
-            // Part 5 7.18: the value is only restricted when RestrictToList is present and true.
-            if (!IsRestrictedToList(context))
-            {
-                return true;
-            }
-
-            Variant selections = GetSelectionsValue(context);
-
-            // Selections is mandatory. When it is missing or not an array the node is
-            // malformed; reject the write rather than silently accepting any value.
-            if (!selections.TypeInfo.IsArray)
-            {
-                return false;
-            }
-
-            // The Selections DataType matches this variable's DataType. When the two
-            // built-in types differ (and Selections is not an untyped BaseDataType array)
-            // defer to the base class so it can report the type mismatch.
-            if (selections.TypeInfo.BuiltInType != BuiltInType.Variant &&
-                selections.TypeInfo.BuiltInType != value.TypeInfo.BuiltInType)
-            {
-                return true;
-            }
-
-            // An empty Selections array means no value can be written.
-            return IsMember(selections, value);
         }
 
         /// <summary>
@@ -101,78 +73,40 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the value of the Selections property or a null variant when the
-        /// property is not present.
+        /// Mirrors the base class access level, user access and data type checks so that
+        /// their error codes keep precedence over the Selections membership restriction.
+        /// The membership restriction is only applied to a value the base class accepts.
         /// </summary>
-        private Variant GetSelectionsValue(ISystemContext context)
+        private bool WouldBaseAcceptWrite(ISystemContext context, Variant value)
         {
-            return FindChild(context, new QualifiedName(BrowseNames.Selections)) is BaseVariableState selections
-                ? selections.WrappedValue
-                : Variant.Null;
-        }
-
-        /// <summary>
-        /// Checks whether <paramref name="value"/> is contained in the
-        /// <paramref name="selections"/> array. Comparison is data-type independent:
-        /// each entry is compared to the written value using <see cref="Variant"/>
-        /// equality, so every OPC UA built-in type is supported.
-        /// </summary>
-        private static bool IsMember(Variant selections, Variant value)
-        {
-            return selections.TypeInfo.BuiltInType switch
-            {
-                BuiltInType.Boolean => Contains<bool>(selections, value, Variant.From),
-                BuiltInType.SByte => Contains<sbyte>(selections, value, Variant.From),
-                BuiltInType.Byte => Contains<byte>(selections, value, Variant.From),
-                BuiltInType.Int16 => Contains<short>(selections, value, Variant.From),
-                BuiltInType.UInt16 => Contains<ushort>(selections, value, Variant.From),
-                BuiltInType.Int32 => Contains<int>(selections, value, Variant.From),
-                BuiltInType.UInt32 => Contains<uint>(selections, value, Variant.From),
-                BuiltInType.Int64 => Contains<long>(selections, value, Variant.From),
-                BuiltInType.UInt64 => Contains<ulong>(selections, value, Variant.From),
-                BuiltInType.Float => Contains<float>(selections, value, Variant.From),
-                BuiltInType.Double => Contains<double>(selections, value, Variant.From),
-                BuiltInType.String => Contains<string>(selections, value, Variant.From),
-                BuiltInType.DateTime => Contains<DateTimeUtc>(selections, value, Variant.From),
-                BuiltInType.Guid => Contains<Uuid>(selections, value, Variant.From),
-                BuiltInType.ByteString => Contains<ByteString>(selections, value, Variant.From),
-                BuiltInType.XmlElement => Contains<XmlElement>(selections, value, Variant.From),
-                BuiltInType.NodeId => Contains<NodeId>(selections, value, Variant.From),
-                BuiltInType.ExpandedNodeId => Contains<ExpandedNodeId>(selections, value, Variant.From),
-                BuiltInType.StatusCode => Contains<StatusCode>(selections, value, Variant.From),
-                BuiltInType.QualifiedName => Contains<QualifiedName>(selections, value, Variant.From),
-                BuiltInType.LocalizedText => Contains<LocalizedText>(selections, value, Variant.From),
-                BuiltInType.ExtensionObject => Contains<ExtensionObject>(selections, value, Variant.From),
-                BuiltInType.DataValue => Contains<DataValue>(selections, value, Variant.From),
-                BuiltInType.Enumeration => Contains<EnumValue>(selections, value, Variant.From),
-                BuiltInType.Variant => Contains<Variant>(selections, value, static entry => entry),
-                _ => false,
-            };
-        }
-
-        /// <summary>
-        /// Iterates the typed Selections array and returns true when one of its
-        /// entries equals the written value.
-        /// </summary>
-        /// <typeparam name="T">
-        /// The element type of the Selections array.
-        /// </typeparam>
-        private static bool Contains<T>(Variant selections, Variant value, Func<T, Variant> toVariant)
-        {
-            if (!selections.TryGetArray(out ArrayOf<T> entries, selections.TypeInfo.BuiltInType) || entries.IsNull)
+            if ((AccessLevel & AccessLevels.CurrentWrite) == 0 ||
+                (UserAccessLevel & AccessLevels.CurrentWrite) == 0)
             {
                 return false;
             }
 
-            foreach (T entry in entries)
-            {
-                if (value.Equals(toVariant(entry)))
-                {
-                    return true;
-                }
-            }
+            return !TypeInfo.IsInstanceOfDataType(
+                value,
+                DataType,
+                ValueRank,
+                context.NamespaceUris,
+                context.TypeTable).IsUnknown;
+        }
 
-            return false;
+        /// <summary>
+        /// Determines whether <paramref name="value"/> is one of the entries in the
+        /// mandatory Selections property. Selections is mandatory: a missing or non-array
+        /// value is a malformed node and rejects the write, and an empty array permits no
+        /// value. Expand lifts each entry into a Variant, so membership is a data-type
+        /// independent Variant equality check across every OPC UA built-in type.
+        /// </summary>
+        private bool IsMemberOfSelections(ISystemContext context, Variant value)
+        {
+            Variant selections = FindChild(context, new QualifiedName(BrowseNames.Selections)) is BaseVariableState property
+                ? property.WrappedValue
+                : Variant.Null;
+
+            return selections.TypeInfo.IsArray && selections.Expand().Contains(value);
         }
     }
 }
