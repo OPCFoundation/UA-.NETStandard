@@ -264,9 +264,9 @@ namespace Opc.Ua.Pcap.Capture
                 BpfFilter = request.BpfFilter,
                 Promiscuous = request.Promiscuous,
                 PcapFilePath = ValidateAndResolveArtifactPath(
-                    request.PcapFilePath, m_baseFolder, nameof(request.PcapFilePath)),
+                    request.PcapFilePath, folder, m_baseFolder, nameof(request.PcapFilePath)),
                 KeyLogFilePath = ValidateAndResolveArtifactPath(
-                    request.KeyLogFilePath, m_baseFolder, nameof(request.KeyLogFilePath)),
+                    request.KeyLogFilePath, folder, m_baseFolder, nameof(request.KeyLogFilePath)),
                 MaxBytes = request.MaxBytes,
                 MaxFrames = request.MaxFrames,
                 MaxDurationSeconds = request.MaxDurationSeconds,
@@ -350,13 +350,7 @@ namespace Opc.Ua.Pcap.Capture
                 : Path.Combine(fullBase, folder);
             string fullFolder = Path.GetFullPath(rootedFolder);
 
-            if (!fullBase.EndsWith(Path.DirectorySeparatorChar))
-            {
-                fullBase += Path.DirectorySeparatorChar;
-            }
-
-            if (!fullFolder.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(fullFolder + Path.DirectorySeparatorChar, fullBase, StringComparison.OrdinalIgnoreCase))
+            if (!IsPathContainedByBaseFolder(fullFolder, fullBase, allowBaseFolder: true))
             {
                 throw new ArgumentException(
                     $"SessionFolder '{folder}' resolves to '{fullFolder}' which is " +
@@ -370,7 +364,8 @@ namespace Opc.Ua.Pcap.Capture
 
         /// <summary>
         /// Validates a caller supplied capture artifact path (the pcap file or
-        /// the key log file) and resolves it to a full path inside
+        /// the key log file), resolves relative paths against
+        /// <paramref name="sessionFolder"/>, and confines the result to
         /// <paramref name="baseFolder"/>.
         /// </summary>
         /// <remarks>
@@ -381,6 +376,7 @@ namespace Opc.Ua.Pcap.Capture
         /// session folder for that reason.
         /// </remarks>
         /// <param name="path"></param>
+        /// <param name="sessionFolder"></param>
         /// <param name="baseFolder"></param>
         /// <param name="paramName"></param>
         /// <exception cref="ArgumentException">
@@ -389,6 +385,7 @@ namespace Opc.Ua.Pcap.Capture
         /// </exception>
         private static string? ValidateAndResolveArtifactPath(
             string? path,
+            string sessionFolder,
             string baseFolder,
             string paramName)
         {
@@ -400,15 +397,10 @@ namespace Opc.Ua.Pcap.Capture
             string fullBase = Path.GetFullPath(baseFolder);
             string rootedPath = Path.IsPathRooted(path)
                 ? path
-                : Path.Combine(fullBase, path);
+                : Path.Combine(sessionFolder, path);
             string fullPath = Path.GetFullPath(rootedPath);
 
-            if (!fullBase.EndsWith(Path.DirectorySeparatorChar))
-            {
-                fullBase += Path.DirectorySeparatorChar;
-            }
-
-            if (!fullPath.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase))
+            if (!IsPathContainedByBaseFolder(fullPath, fullBase, allowBaseFolder: false))
             {
                 throw new ArgumentException(
                     $"{paramName} '{path}' resolves to '{fullPath}' which is " +
@@ -418,6 +410,30 @@ namespace Opc.Ua.Pcap.Capture
             }
 
             return fullPath;
+        }
+
+        private static bool IsPathContainedByBaseFolder(
+            string fullPath,
+            string fullBaseFolder,
+            bool allowBaseFolder)
+        {
+            StringComparison comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            string normalizedPath = Path.TrimEndingDirectorySeparator(fullPath);
+            string normalizedBaseFolder = Path.TrimEndingDirectorySeparator(fullBaseFolder);
+
+            if (string.Equals(normalizedPath, normalizedBaseFolder, comparison))
+            {
+                return allowBaseFolder;
+            }
+
+            if (!normalizedBaseFolder.EndsWith(Path.DirectorySeparatorChar))
+            {
+                normalizedBaseFolder += Path.DirectorySeparatorChar;
+            }
+
+            return fullPath.StartsWith(normalizedBaseFolder, comparison);
         }
 
         /// <summary>

@@ -88,6 +88,38 @@ namespace Opc.Ua.Pcap.Tests.Capture
         }
 
         /// <summary>
+        /// Verifies path containment remains case-sensitive on Unix.
+        /// </summary>
+        [Test]
+        [Platform("Linux")]
+        public async Task StartAsyncRejectsCaseVariantArtifactPathOutsideBaseFolder()
+        {
+            var factory = new RecordingSourceFactory();
+            string fullBaseFolder = Path.GetFullPath(TempDirectory);
+            string folderName = Path.GetFileName(fullBaseFolder);
+            string caseVariant = folderName.ToUpperInvariant();
+            if (caseVariant == folderName)
+            {
+                caseVariant = folderName.ToLowerInvariant();
+            }
+
+            Assert.That(caseVariant, Is.Not.EqualTo(folderName));
+            string outsidePath = Path.Combine(
+                Path.GetDirectoryName(fullBaseFolder)!,
+                caseVariant,
+                "evil.pcap");
+            await using var manager = new CaptureSessionManager(factory, TempDirectory);
+
+            Assert.That(
+                async () => await manager.StartAsync(
+                    new StartCaptureRequest { PcapFilePath = outsidePath },
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>()
+                    .With.Property("ParamName").EqualTo("PcapFilePath"));
+            Assert.That(factory.SessionFolders, Is.Empty);
+        }
+
+        /// <summary>
         /// Verifies relative session folders are resolved beneath the
         /// configured base folder.
         /// </summary>
@@ -210,13 +242,14 @@ namespace Opc.Ua.Pcap.Tests.Capture
             CaptureSession session = await manager.StartAsync(
                 new StartCaptureRequest
                 {
+                    SessionFolder = "capture-session",
                     PcapFilePath = "capture.pcap",
                     KeyLogFilePath = Path.Combine(TempDirectory, "keys.log")
                 },
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(session.Request.PcapFilePath, Is.EqualTo(
-                Path.Combine(Path.GetFullPath(TempDirectory), "capture.pcap")));
+                Path.Combine(Path.GetFullPath(TempDirectory), "capture-session", "capture.pcap")));
             Assert.That(session.Request.KeyLogFilePath, Is.EqualTo(
                 Path.GetFullPath(Path.Combine(TempDirectory, "keys.log"))));
         }
@@ -224,7 +257,8 @@ namespace Opc.Ua.Pcap.Tests.Capture
         /// <summary>
         /// Verifies null and empty session folders use the generated
         /// per-session folder beneath the configured base folder.
-        /// </summary>        [Test]
+        /// </summary>
+        [Test]
         public async Task StartAsyncAcceptsNullOrEmptySessionFolder()
         {
             var factory = new RecordingSourceFactory();
