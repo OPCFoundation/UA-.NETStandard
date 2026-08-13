@@ -179,7 +179,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task ReplayStartListStopMockServerRoundTripsAsync()
         {
-            string folder = CreateCaptureFolderUnderPcapRoot("replay-round-trip");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("replay-round-trip");
             m_tempFolders.Add(folder);
             (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
                 folder,
@@ -216,7 +216,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task ReplayPcapAsyncAcceptsAlternateModeSpellingAndExplicitPortAsync()
         {
-            string folder = CreateCaptureFolderUnderPcapRoot("replay-alt-mode");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("replay-alt-mode");
             m_tempFolders.Add(folder);
             (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
                 folder,
@@ -231,21 +231,6 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(started.Mode, Is.EqualTo("mock-server"));
             Assert.That(started.TargetEndpointUrl, Is.Null);
-        }
-
-        /// <summary>
-        /// Creates a capture folder inside the environment's configured Pcap
-        /// base folder. Replay confines caller-supplied paths to that root, so
-        /// a capture written anywhere else is correctly rejected — which is
-        /// also where a real host writes captures.
-        /// </summary>
-        private static string CreateCaptureFolderUnderPcapRoot(string suffix)
-        {
-            string folder = System.IO.Path.Combine(
-                McpTestEnvironment.PcapBaseFolder,
-                suffix + "-" + Guid.NewGuid().ToString("N"));
-            System.IO.Directory.CreateDirectory(folder);
-            return folder;
         }
 
         /// <summary>
