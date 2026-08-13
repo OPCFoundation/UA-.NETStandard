@@ -26,14 +26,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- Deliberately NOT IsAotCompatible/IsTrimmable. NicCaptureSource is backed by
-         SharpPcap, which loads libpcap/Npcap dynamically, so its StartAsync override
-         must carry [RequiresDynamicCode]/[RequiresUnreferencedCode]; ICaptureSource
-         itself stays unannotated because most other sources do not need the
-         requirement, so the interface member and this one implementation
-         intentionally disagree (IL2046/IL3051). Hosts that need a trim/AOT-clean
-         subset should reference Opc.Ua.Mcp.Core (or another capture source) instead
-         of this package. -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- ICaptureSource.StartAsync itself is intentionally NOT annotated, because most
+         capture sources do not need SharpPcap's dynamic-loading requirement.
+         NicCaptureSource.StartAsync keeps [RequiresDynamicCode]/[RequiresUnreferencedCode]
+         so the analyzer flags IL2046/IL3051 on this one implementation: any caller that
+         is itself analyzed for trim/AOT (including hosts publishing this package with
+         PublishAot/PublishTrimmed) still gets warned the moment it calls
+         NicCaptureSource.StartAsync directly, and the mismatch is surfaced here rather
+         than silently hidden by opting the whole assembly out of analysis. -->
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics.Tests" />

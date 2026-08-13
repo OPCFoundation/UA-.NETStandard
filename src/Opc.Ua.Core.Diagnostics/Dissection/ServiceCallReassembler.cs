@@ -474,10 +474,9 @@ namespace Opc.Ua.Pcap.Dissection
 
         // TODO: Replace these string-keyed property lookups with a source-generated
         // accessor (or an interface the generated message types already implement)
-        // so summary formatting no longer depends on reflection. Tracked by the fact
-        // that Opc.Ua.Core.Diagnostics is deliberately not IsAotCompatible/IsTrimmable
-        // (see the project file); until then, GetType().GetProperty(...) here is
-        // unavoidable and is suppressed rather than silently left unannotated.
+        // so summary formatting no longer depends on reflection; until then,
+        // GetType().GetProperty(...) here is unavoidable and is suppressed rather
+        // than silently left unannotated.
         [UnconditionalSuppressMessage(
             "ReflectionAnalysis",
             "IL2075:UnrecognizedReflectionPattern",
