@@ -27,10 +27,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
         [SetUp]
         public void SetUp()
         {
-            if (!QuicConnection.IsSupported || !QuicListener.IsSupported)
-            {
-                Assert.Ignore("QUIC is unavailable on this platform (msquic missing).");
-            }
+            QuicTestSupport.SkipUnlessAvailable();
 
             m_telemetry = NUnitTelemetryContext.Create();
             m_bufferManager = new BufferManager("data-channel-transport-join", 65536, m_telemetry);

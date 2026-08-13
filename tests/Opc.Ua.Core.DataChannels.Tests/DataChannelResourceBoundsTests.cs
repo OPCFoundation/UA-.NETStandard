@@ -222,10 +222,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
         [SetUp]
         public void SetUp()
         {
-            if (!QuicListener.IsSupported || !QuicConnection.IsSupported)
-            {
-                Assert.Ignore("QUIC is unavailable on this platform (msquic missing).");
-            }
+            QuicTestSupport.SkipUnlessAvailable();
 
             m_telemetry = NUnitTelemetryContext.Create();
             m_serverCertificate = CreateCertificate("QuicResourceBoundsServer");

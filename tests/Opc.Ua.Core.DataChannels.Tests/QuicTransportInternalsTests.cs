@@ -449,10 +449,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
         private static void RequireQuic()
         {
-            if (!QuicListener.IsSupported || !QuicConnection.IsSupported)
-            {
-                Assert.Ignore("QUIC is unavailable on this platform (msquic missing).");
-            }
+            QuicTestSupport.SkipUnlessAvailable();
         }
 
         private static DataChannel OpenPair(

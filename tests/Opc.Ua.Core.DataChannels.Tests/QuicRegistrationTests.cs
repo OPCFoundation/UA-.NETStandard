@@ -213,10 +213,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
         [Test]
         public async Task MismatchedAlpnListenerIsRefused()
         {
-            if (!QuicConnection.IsSupported)
-            {
-                Assert.Ignore("QUIC is unavailable on this platform.");
-            }
+            QuicTestSupport.SkipUnlessAvailable();
 
             using X509Certificate2 certificate = CreateTlsCertificate();
             var wrongProtocol = new SslApplicationProtocol("not-opcua");
