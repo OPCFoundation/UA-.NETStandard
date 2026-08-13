@@ -29,8 +29,10 @@
       (UsdGeomCamera) that the Vision sensor renders from.
     - /World/Robot/Arm/.../Flange/Gripper/Tcp is the gripper_tcp frame.
 
-    The camera looks straight down the flange -Z axis at the bin. The authored
-    joint angles put the flange over the bin at the sample's start pose.
+    The camera is a child of the flange with no stack reset, so it travels with
+    the arm as a real eye-in-hand sensor does: rotateY = -90 turns its view axis
+    onto the flange +X tool direction. The authored joint angles put the flange
+    over the bin at the sample's start pose, so it opens looking into the bin.
     """
     defaultPrim = "World"
     metersPerUnit = 1
@@ -92,8 +94,9 @@ def Xform "World"
                                                 float horizontalAperture = 14.688
                                                 float verticalAperture = 12.288
                                                 float2 clippingRange = (0.02, 5.0)
-                                                double3 xformOp:translate = (0.3800, 0.0000, 1.3500)
-                                                uniform token[] xformOpOrder = ["!resetXformStack!", "xformOp:translate"]
+                                                double3 xformOp:translate = (0.0200, 0.0000, 0.0600)
+                                                double xformOp:rotateY = -90
+                                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
                                             }
                                         }
                                     }

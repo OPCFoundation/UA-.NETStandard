@@ -94,7 +94,15 @@ namespace BinPickingClient
                     },
                     AutoAcceptUntrustedCertificates = options.Insecure
                 },
-                TransportQuotas = new TransportQuotas { MaxMessageSize = 8 * 1024 * 1024 },
+                // Camera frames are multi-megabyte ByteStrings. The default ByteString
+                // ceiling is about 1 MB, so a frame this cell happily serves would be
+                // refused on decode with BadEncodingLimitsExceeded.
+                TransportQuotas = new TransportQuotas
+                {
+                    MaxMessageSize = 32 * 1024 * 1024,
+                    MaxByteStringLength = 32 * 1024 * 1024,
+                    MaxArrayLength = 32 * 1024 * 1024
+                },
                 ClientConfiguration = new ClientConfiguration(),
                 ServerConfiguration = new ServerConfiguration()
             };
@@ -132,7 +140,11 @@ namespace BinPickingClient
             ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
                 .UseEndpoint(endpoint)
                 .WithSessionName("BinPickingClient")
-                .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                // Command authority is held per Session and is only handed back when the
+                // Session ends, so a client that is killed keeps the robot until its
+                // Session lapses. Sixty seconds of a locked cell is a long time in a
+                // demo; fifteen still comfortably survives a transient reconnect.
+                .WithSessionTimeout(TimeSpan.FromSeconds(15))
                 .WithUserIdentity(new UserIdentity(new AnonymousIdentityToken()))
                 .ConnectAsync(cancellationToken).ConfigureAwait(false);
             return new BinPickingSampleSession(session, session.DefaultStreaming, configuration);

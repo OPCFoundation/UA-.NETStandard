@@ -176,7 +176,12 @@ namespace Vision.BinPickingCell
             for (uint index = 0; index < s_axes.Length; index++)
             {
                 IIntentAxisBuilder axis = controller.AddAxis(s_axes[index], index, AxisKindEnum.Revolute);
-                ConfigureAxis(axis.State, index == 2 ? -Math.PI : -FullTurn, index == 2 ? Math.PI : FullTurn);
+
+                // Degrees, to match Position: PublishSnapshot converts the simulator's
+                // radians before publishing, so limits expressed in radians would tell a
+                // client the axis spans +/-6.28 while it reports values up to +/-360.
+                double limit = index == 2 ? HalfTurnDegrees : FullTurnDegrees;
+                ConfigureAxis(axis.State, -limit, limit);
                 m_axes.Add(axis.State);
             }
 
@@ -205,7 +210,7 @@ namespace Vision.BinPickingCell
         {
             axis.CreateOrReplaceMinPosition(SystemContext, null!).Value = min;
             axis.CreateOrReplaceMaxPosition(SystemContext, null!).Value = max;
-            axis.CreateOrReplaceMaxSpeed(SystemContext, null!).Value = 2.0;
+            axis.CreateOrReplaceMaxSpeed(SystemContext, null!).Value = MaxAxisSpeedDegreesPerSecond;
             if (axis.Position != null)
             {
                 axis.Position.Value = 0.0;
@@ -275,7 +280,12 @@ namespace Vision.BinPickingCell
         internal const string FlangeFrameId = "flange";
         internal const string ToolFrameId = "gripper_tcp";
         internal const string CameraFrameId = "camera_eih";
-        private const double FullTurn = Math.PI * 2.0;
+        private const double FullTurnDegrees = 360.0;
+        private const double HalfTurnDegrees = 180.0;
+
+        // The simulator's DefaultJointSpeed is 0.9 rad/s; Position and the limits are
+        // published in degrees, so the speed limit is too.
+        private const double MaxAxisSpeedDegreesPerSecond = 0.9 * 180.0 / Math.PI;
         private const uint PayloadSlotCount = 8u;
 
         private static readonly (string Name, double X, double Y, double Z, double Rz)[] s_locations =

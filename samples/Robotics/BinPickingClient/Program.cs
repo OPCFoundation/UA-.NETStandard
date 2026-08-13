@@ -247,7 +247,11 @@ namespace BinPickingClient
             {
                 StagePath = stagePath,
                 Renderer = options.Renderer,
-                CameraPath = "/World/Camera",
+
+                // Deliberately no CameraPath. /World/Camera is the eye-in-hand sensor
+                // bolted to the flange, so opening on it shows what the tool sees, not
+                // the cell. The viewport frames the scene instead, which is what someone
+                // watching the robot work actually wants.
                 Title = "OPC UA Bin-picking Viewer",
                 Telemetry = telemetry
             };
