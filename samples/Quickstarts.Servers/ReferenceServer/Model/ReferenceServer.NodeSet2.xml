@@ -58067,6 +58067,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_001_FalseState" BrowseName="FalseState" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_001" DataType="LocalizedText" AccessLevel="3">
     <DisplayName>FalseState</DisplayName>
@@ -58074,6 +58075,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_001</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>blue</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_001_TrueState" BrowseName="TrueState" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_001" DataType="LocalizedText" AccessLevel="3">
     <DisplayName>TrueState</DisplayName>
@@ -58081,6 +58083,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_001</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>red</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_002" BrowseName="1:DataAccess_TwoStateDiscreteType_002" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType" DataType="Boolean" AccessLevel="3">
     <DisplayName>DataAccess_TwoStateDiscreteType_002</DisplayName>
@@ -58091,6 +58094,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_002_FalseState" BrowseName="FalseState" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_002" DataType="LocalizedText" AccessLevel="3">
     <DisplayName>FalseState</DisplayName>
@@ -58098,6 +58102,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_002</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>close</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_002_TrueState" BrowseName="TrueState" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_002" DataType="LocalizedText" AccessLevel="3">
     <DisplayName>TrueState</DisplayName>
@@ -58105,6 +58110,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_002</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>open</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_003" BrowseName="1:DataAccess_TwoStateDiscreteType_003" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType" DataType="Boolean" AccessLevel="3">
     <DisplayName>DataAccess_TwoStateDiscreteType_003</DisplayName>
@@ -58115,6 +58121,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_003_FalseState" BrowseName="FalseState" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_003" DataType="LocalizedText" AccessLevel="3">
     <DisplayName>FalseState</DisplayName>
@@ -58122,6 +58129,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_003</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>down</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_003_TrueState" BrowseName="TrueState" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_003" DataType="LocalizedText" AccessLevel="3">
     <DisplayName>TrueState</DisplayName>
@@ -58129,6 +58137,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_003</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>up</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_004" BrowseName="1:DataAccess_TwoStateDiscreteType_004" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType" DataType="Boolean" AccessLevel="3">
     <DisplayName>DataAccess_TwoStateDiscreteType_004</DisplayName>
@@ -58139,6 +58148,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_004_FalseState" BrowseName="FalseState" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_004" DataType="LocalizedText" AccessLevel="3">
     <DisplayName>FalseState</DisplayName>
@@ -58146,6 +58156,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_004</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>right</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_004_TrueState" BrowseName="TrueState" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_004" DataType="LocalizedText" AccessLevel="3">
     <DisplayName>TrueState</DisplayName>
@@ -58153,6 +58164,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_004</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>left</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_005" BrowseName="1:DataAccess_TwoStateDiscreteType_005" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType" DataType="Boolean" AccessLevel="3">
     <DisplayName>DataAccess_TwoStateDiscreteType_005</DisplayName>
@@ -58163,6 +58175,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_005_FalseState" BrowseName="FalseState" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_005" DataType="LocalizedText" AccessLevel="3">
     <DisplayName>FalseState</DisplayName>
@@ -58170,6 +58183,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_005</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>cross</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_005_TrueState" BrowseName="TrueState" ParentNodeId="ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_005" DataType="LocalizedText" AccessLevel="3">
     <DisplayName>TrueState</DisplayName>
@@ -58177,6 +58191,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_005</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>circle</Text></LocalizedText></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=DataAccess_MultiStateDiscreteType" BrowseName="1:DataAccess_MultiStateDiscreteType" ParentNodeId="ns=1;s=DataAccess_DiscreteType">
     <DisplayName Locale="en">MultiStateDiscreteType</DisplayName>
@@ -58206,7 +58221,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_001</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>open</Text></LocalizedText><LocalizedText><Text>closed</Text></LocalizedText><LocalizedText><Text>jammed</Text></LocalizedText></ListOfLocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_002" BrowseName="1:DataAccess_MultiStateDiscreteType_002" ParentNodeId="ns=1;s=DataAccess_MultiStateDiscreteType" DataType="UInt32" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateDiscreteType_002</DisplayName>
@@ -58224,7 +58239,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_002</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>red</Text></LocalizedText><LocalizedText><Text>green</Text></LocalizedText><LocalizedText><Text>blue</Text></LocalizedText><LocalizedText><Text>cyan</Text></LocalizedText></ListOfLocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_003" BrowseName="1:DataAccess_MultiStateDiscreteType_003" ParentNodeId="ns=1;s=DataAccess_MultiStateDiscreteType" DataType="UInt32" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateDiscreteType_003</DisplayName>
@@ -58242,7 +58257,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_003</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>lolo</Text></LocalizedText><LocalizedText><Text>lo</Text></LocalizedText><LocalizedText><Text>normal</Text></LocalizedText><LocalizedText><Text>hi</Text></LocalizedText><LocalizedText><Text>hihi</Text></LocalizedText></ListOfLocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_004" BrowseName="1:DataAccess_MultiStateDiscreteType_004" ParentNodeId="ns=1;s=DataAccess_MultiStateDiscreteType" DataType="UInt32" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateDiscreteType_004</DisplayName>
@@ -58260,7 +58275,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_004</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>left</Text></LocalizedText><LocalizedText><Text>right</Text></LocalizedText><LocalizedText><Text>center</Text></LocalizedText></ListOfLocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_005" BrowseName="1:DataAccess_MultiStateDiscreteType_005" ParentNodeId="ns=1;s=DataAccess_MultiStateDiscreteType" DataType="UInt32" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateDiscreteType_005</DisplayName>
@@ -58278,7 +58293,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_005</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>circle</Text></LocalizedText><LocalizedText><Text>cross</Text></LocalizedText><LocalizedText><Text>triangle</Text></LocalizedText></ListOfLocalizedText></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" BrowseName="1:DataAccess_MultiStateValueDiscreteType" ParentNodeId="ns=1;s=DataAccess_DiscreteType">
     <DisplayName Locale="en">MultiStateValueDiscreteType</DisplayName>
@@ -58309,6 +58324,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</UInt32></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_001_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_001" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58316,7 +58332,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_001</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>open</Text></DisplayName><Description><Text>open</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>closed</Text></DisplayName><Description><Text>closed</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>jammed</Text></DisplayName><Description><Text>jammed</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_001_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_001" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58324,6 +58340,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_001</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>open</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_002" BrowseName="1:DataAccess_MultiStateValueDiscreteType_002" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="UInt32" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_002</DisplayName>
@@ -58334,6 +58351,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</UInt32></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_002_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_002" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58341,7 +58359,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_002</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>red</Text></DisplayName><Description><Text>red</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>green</Text></DisplayName><Description><Text>green</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>blue</Text></DisplayName><Description><Text>blue</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>3</Value><DisplayName><Text>cyan</Text></DisplayName><Description><Text>cyan</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_002_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_002" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58349,6 +58367,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_002</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>red</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_003" BrowseName="1:DataAccess_MultiStateValueDiscreteType_003" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="UInt32" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_003</DisplayName>
@@ -58359,6 +58378,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</UInt32></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_003_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_003" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58366,7 +58386,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_003</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>lolo</Text></DisplayName><Description><Text>lolo</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>lo</Text></DisplayName><Description><Text>lo</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>normal</Text></DisplayName><Description><Text>normal</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>3</Value><DisplayName><Text>hi</Text></DisplayName><Description><Text>hi</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>4</Value><DisplayName><Text>hihi</Text></DisplayName><Description><Text>hihi</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_003_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_003" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58374,6 +58394,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_003</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>lolo</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_004" BrowseName="1:DataAccess_MultiStateValueDiscreteType_004" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="UInt32" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_004</DisplayName>
@@ -58384,6 +58405,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</UInt32></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_004_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_004" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58391,7 +58413,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_004</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>left</Text></DisplayName><Description><Text>left</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>right</Text></DisplayName><Description><Text>right</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>center</Text></DisplayName><Description><Text>center</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_004_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_004" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58399,6 +58421,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_004</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>left</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_005" BrowseName="1:DataAccess_MultiStateValueDiscreteType_005" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="UInt32" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_005</DisplayName>
@@ -58409,6 +58432,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</UInt32></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_005_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_005" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58416,7 +58440,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_005</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>circle</Text></DisplayName><Description><Text>circle</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>cross</Text></DisplayName><Description><Text>cross</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>triangle</Text></DisplayName><Description><Text>triangle</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_005_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_005" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58424,6 +58448,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_005</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>circle</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Byte" BrowseName="1:DataAccess_MultiStateValueDiscreteType_Byte" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="Byte" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_Byte</DisplayName>
@@ -58434,6 +58459,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Byte xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Byte></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Byte_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Byte" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58441,7 +58467,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Byte</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>open</Text></DisplayName><Description><Text>open</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>closed</Text></DisplayName><Description><Text>closed</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>jammed</Text></DisplayName><Description><Text>jammed</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Byte_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Byte" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58449,6 +58475,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Byte</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>open</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int16" BrowseName="1:DataAccess_MultiStateValueDiscreteType_Int16" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="Int16" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_Int16</DisplayName>
@@ -58459,6 +58486,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Int16 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int16></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int16_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int16" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58466,7 +58494,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int16</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>red</Text></DisplayName><Description><Text>red</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>green</Text></DisplayName><Description><Text>green</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>blue</Text></DisplayName><Description><Text>blue</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>3</Value><DisplayName><Text>cyan</Text></DisplayName><Description><Text>cyan</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int16_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int16" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58474,6 +58502,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int16</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>red</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int32" BrowseName="1:DataAccess_MultiStateValueDiscreteType_Int32" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="Int32" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_Int32</DisplayName>
@@ -58484,6 +58513,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int32_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int32" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58491,7 +58521,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int32</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>lolo</Text></DisplayName><Description><Text>lolo</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>lo</Text></DisplayName><Description><Text>lo</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>normal</Text></DisplayName><Description><Text>normal</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>3</Value><DisplayName><Text>hi</Text></DisplayName><Description><Text>hi</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>4</Value><DisplayName><Text>hihi</Text></DisplayName><Description><Text>hihi</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int32_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int32" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58499,6 +58529,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int32</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>lolo</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int64" BrowseName="1:DataAccess_MultiStateValueDiscreteType_Int64" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="Int64" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_Int64</DisplayName>
@@ -58509,6 +58540,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Int64 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int64></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int64_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int64" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58516,7 +58548,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int64</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>left</Text></DisplayName><Description><Text>left</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>right</Text></DisplayName><Description><Text>right</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>center</Text></DisplayName><Description><Text>center</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int64_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int64" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58524,6 +58556,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int64</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>left</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_SByte" BrowseName="1:DataAccess_MultiStateValueDiscreteType_SByte" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="SByte" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_SByte</DisplayName>
@@ -58534,6 +58567,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><SByte xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</SByte></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_SByte_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_SByte" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58541,7 +58575,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_SByte</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>open</Text></DisplayName><Description><Text>open</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>closed</Text></DisplayName><Description><Text>closed</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>jammed</Text></DisplayName><Description><Text>jammed</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_SByte_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_SByte" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58549,6 +58583,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_SByte</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>open</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt16" BrowseName="1:DataAccess_MultiStateValueDiscreteType_UInt16" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="UInt16" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_UInt16</DisplayName>
@@ -58559,6 +58594,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><UInt16 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</UInt16></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt16_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt16" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58566,7 +58602,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt16</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>red</Text></DisplayName><Description><Text>red</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>green</Text></DisplayName><Description><Text>green</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>blue</Text></DisplayName><Description><Text>blue</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>3</Value><DisplayName><Text>cyan</Text></DisplayName><Description><Text>cyan</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt16_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt16" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58574,6 +58610,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt16</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>red</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt32" BrowseName="1:DataAccess_MultiStateValueDiscreteType_UInt32" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="UInt32" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_UInt32</DisplayName>
@@ -58584,6 +58621,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</UInt32></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt32_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt32" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58591,7 +58629,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt32</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>lolo</Text></DisplayName><Description><Text>lolo</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>lo</Text></DisplayName><Description><Text>lo</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>normal</Text></DisplayName><Description><Text>normal</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>3</Value><DisplayName><Text>hi</Text></DisplayName><Description><Text>hi</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>4</Value><DisplayName><Text>hihi</Text></DisplayName><Description><Text>hihi</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt32_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt32" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58599,6 +58637,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt32</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>lolo</Text></LocalizedText></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt64" BrowseName="1:DataAccess_MultiStateValueDiscreteType_UInt64" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType" DataType="UInt64" AccessLevel="3">
     <DisplayName>DataAccess_MultiStateValueDiscreteType_UInt64</DisplayName>
@@ -58609,6 +58648,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><UInt64 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</UInt64></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt64_EnumValues" BrowseName="EnumValues" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt64" DataType="i=7594" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>EnumValues</DisplayName>
@@ -58616,7 +58656,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt64</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" /></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>0</Value><DisplayName><Text>left</Text></DisplayName><Description><Text>left</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>1</Value><DisplayName><Text>right</Text></DisplayName><Description><Text>right</Text></Description></EnumValueType></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=7616</Identifier></TypeId><Body><EnumValueType><Value>2</Value><DisplayName><Text>center</Text></DisplayName><Description><Text>center</Text></Description></EnumValueType></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt64_ValueAsText" BrowseName="ValueAsText" ParentNodeId="ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt64" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
@@ -58624,6 +58664,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt64</Reference>
     </References>
+    <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Text>left</Text></LocalizedText></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=DataAccess_ArrayItemType" BrowseName="1:DataAccess_ArrayItemType" ParentNodeId="ns=1;s=DataAccess">
     <DisplayName Locale="en">ArrayItemType</DisplayName>

@@ -219,7 +219,6 @@ namespace Quickstarts.ReferenceServer
                 // dynamic nodes stays imperative here. The loop itself is wired
                 // through the fluent builder in Configure().
                 RegisterSimulationVariables();
-                InitializeDataAccessDiscreteNodes();
                 InitializeMissingStaticValues();
 
                 // Reset the random generator and generate boundary values so the
@@ -271,62 +270,6 @@ namespace Quickstarts.ReferenceServer
                     !string.Equals(identifier, SimulationEnabledNodeName, StringComparison.Ordinal))
                 {
                     m_dynamicNodes.Add(variable);
-                }
-            }
-        }
-
-        private void InitializeDataAccessDiscreteNodes()
-        {
-            foreach ((string identifier, string trueState, string falseState) in s_twoStateDiscreteValues)
-            {
-                if (FindPredefinedNode<BaseVariableState>(new NodeId(identifier, NamespaceIndex)) is BaseVariableState node)
-                {
-                    node.Value = false;
-                    node.StatusCode = StatusCodes.Good;
-                    _ = node.SetChildValue(
-                        SystemContext,
-                        TrueStateBrowseName,
-                        Variant.From(LocalizedText.From(trueState)),
-                        false);
-                    _ = node.SetChildValue(
-                        SystemContext,
-                        FalseStateBrowseName,
-                        Variant.From(LocalizedText.From(falseState)),
-                        false);
-                }
-            }
-
-            foreach ((string identifier, string[] enumStrings) in s_multiStateDiscreteValues)
-            {
-                if (FindPredefinedNode<BaseVariableState>(new NodeId(identifier, NamespaceIndex)) is BaseVariableState node)
-                {
-                    node.Value = (uint)0;
-                    node.StatusCode = StatusCodes.Good;
-                    _ = node.SetChildValue(
-                        SystemContext,
-                        EnumStringsBrowseName,
-                        Variant.From(CreateLocalizedTextArray(enumStrings).ToArrayOf()),
-                        false);
-                }
-            }
-
-            foreach ((string identifier, string[] enumNames) in s_multiStateValueDiscreteValues)
-            {
-                if (FindPredefinedNode<BaseVariableState>(new NodeId(identifier, NamespaceIndex)) is BaseVariableState node)
-                {
-                    node.Value = CreateZeroValue(node.DataType);
-                    node.StatusCode = StatusCodes.Good;
-                    ArrayOf<EnumValueType> values = CreateEnumValues(enumNames).ToArrayOf();
-                    _ = node.SetChildValue(
-                        SystemContext,
-                        EnumValuesBrowseName,
-                        Variant.FromStructure(values, false),
-                        false);
-                    _ = node.SetChildValue(
-                        SystemContext,
-                        ValueAsTextBrowseName,
-                        Variant.From(values[0].DisplayName),
-                        false);
                 }
             }
         }
@@ -562,66 +505,6 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private static Variant CreateZeroValue(NodeId dataType)
-        {
-            if (dataType == DataTypeIds.Byte)
-            {
-                return new Variant((byte)0);
-            }
-            if (dataType == DataTypeIds.Int16)
-            {
-                return new Variant((short)0);
-            }
-            if (dataType == DataTypeIds.Int32)
-            {
-                return new Variant(0);
-            }
-            if (dataType == DataTypeIds.Int64)
-            {
-                return new Variant((long)0);
-            }
-            if (dataType == DataTypeIds.SByte)
-            {
-                return new Variant((sbyte)0);
-            }
-            if (dataType == DataTypeIds.UInt16)
-            {
-                return new Variant((ushort)0);
-            }
-            if (dataType == DataTypeIds.UInt64)
-            {
-                return new Variant((ulong)0);
-            }
-
-            return new Variant((uint)0);
-        }
-
-        private static LocalizedText[] CreateLocalizedTextArray(string[] values)
-        {
-            var result = new LocalizedText[values.Length];
-            for (int ii = 0; ii < values.Length; ii++)
-            {
-                result[ii] = LocalizedText.From(values[ii]);
-            }
-            return result;
-        }
-
-        private static EnumValueType[] CreateEnumValues(string[] enumNames)
-        {
-            var values = new EnumValueType[enumNames.Length];
-            for (int ii = 0; ii < values.Length; ii++)
-            {
-                LocalizedText text = LocalizedText.From(enumNames[ii]);
-                values[ii] = new EnumValueType
-                {
-                    Value = ii,
-                    Description = text,
-                    DisplayName = text
-                };
-            }
-            return values;
-        }
-
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private RandomSource m_randomSource = null!;
         private DataGenerator m_generator = null!;
@@ -665,12 +548,6 @@ namespace Quickstarts.ReferenceServer
         /// from the discovered dynamic-node set.
         /// </summary>
         private const string SimulationEnabledNodeName = "Scalar_Simulation_Enabled";
-
-        private const string TrueStateBrowseName = "TrueState";
-        private const string FalseStateBrowseName = "FalseState";
-        private const string EnumStringsBrowseName = "EnumStrings";
-        private const string EnumValuesBrowseName = "EnumValues";
-        private const string ValueAsTextBrowseName = "ValueAsText";
 
         /// <summary>
         /// NodeId identifier of the historizing node whose historian intentionally
@@ -1109,41 +986,6 @@ namespace Quickstarts.ReferenceServer
             9.007d,
             9.008d,
             9.0009d
-        ];
-
-        private static readonly (string Identifier, string TrueState, string FalseState)[] s_twoStateDiscreteValues =
-        [
-            ("DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_001", "red", "blue"),
-            ("DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_002", "open", "close"),
-            ("DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_003", "up", "down"),
-            ("DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_004", "left", "right"),
-            ("DataAccess_TwoStateDiscreteType_DataAccess_TwoStateDiscreteType_005", "circle", "cross")
-        ];
-
-        private static readonly (string Identifier, string[] EnumStrings)[] s_multiStateDiscreteValues =
-        [
-            ("DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_001", ["open", "closed", "jammed"]),
-            ("DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_002", ["red", "green", "blue", "cyan"]),
-            ("DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_003", ["lolo", "lo", "normal", "hi", "hihi"]),
-            ("DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_004", ["left", "right", "center"]),
-            ("DataAccess_MultiStateDiscreteType_DataAccess_MultiStateDiscreteType_005", ["circle", "cross", "triangle"])
-        ];
-
-        private static readonly (string Identifier, string[] EnumNames)[] s_multiStateValueDiscreteValues =
-        [
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_001", ["open", "closed", "jammed"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_002", ["red", "green", "blue", "cyan"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_003", ["lolo", "lo", "normal", "hi", "hihi"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_004", ["left", "right", "center"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_005", ["circle", "cross", "triangle"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Byte", ["open", "closed", "jammed"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int16", ["red", "green", "blue", "cyan"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int32", ["lolo", "lo", "normal", "hi", "hihi"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_Int64", ["left", "right", "center"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_SByte", ["open", "closed", "jammed"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt16", ["red", "green", "blue", "cyan"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt32", ["lolo", "lo", "normal", "hi", "hihi"]),
-            ("DataAccess_MultiStateValueDiscreteType_DataAccess_MultiStateValueDiscreteType_UInt64", ["left", "right", "center"])
         ];
     }
     internal static partial class ReferenceNodeManagerLog
