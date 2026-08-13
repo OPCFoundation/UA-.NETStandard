@@ -1752,20 +1752,20 @@ namespace Opc.Ua.Client.Subscriptions
                                 await DelayUnresolvedSubscriptionAsync(ct)
                                     .ConfigureAwait(false);
                             }
-                            else if (m_outer.m_session.SessionOwnsSubscription(subscriptionId))
+                            else if (m_outer.m_session.TryDispatchToSessionSubscription(
+                                subscriptionId,
+                                notificationMessage,
+                                availableSequenceNumbers,
+                                response.ResponseHeader.StringTable,
+                                moreNotifications))
                             {
                                 // The session holds this subscription through the classic
-                                // API, so it is live and owned by the application even though
-                                // the V2 registry cannot resolve it. Deleting it here would
-                                // silently take down a subscription the caller still believes
-                                // is streaming.
-                                if (m_lastUnknownSubscriptionId != subscriptionId)
-                                {
-                                    m_lastUnknownSubscriptionId = subscriptionId;
-                                    m_logger.PublishWorkerUnmanagedSubscriptionRetained(
-                                        Index, handle, subscriptionId);
-                                }
-                                moreNotifications = true;
+                                // API. It is live and owned by the application, so the
+                                // notification belongs to it: deliver rather than drop it,
+                                // and never delete it as abandoned.
+                                Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
+                                m_lastUnknownSubscriptionId = 0;
+                                m_consecutiveUnresolvedResponses = 0;
                             }
                             else
                             {
@@ -2307,16 +2307,6 @@ namespace Opc.Ua.Client.Subscriptions
             Message = "PUBLISH Worker #{Handle}-{Id} - Received Publish Response for Unknown " +
                 "SubscriptionId={SubscriptionId}. Deleting...")]
         public static partial void PublishWorkerReceivedUnknownSubscription(
-            this ILogger logger,
-            int handle,
-            uint id,
-            uint subscriptionId);
-
-        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 36, Level = LogLevel.Warning,
-            Message = "PUBLISH Worker #{Handle}-{Id} - Received Publish Response for SubscriptionId=" +
-                "{SubscriptionId} which the session owns outside the subscription manager. Keeping it: it is" +
-                " live and owned by the application, so it must not be deleted as abandoned.")]
-        public static partial void PublishWorkerUnmanagedSubscriptionRetained(
             this ILogger logger,
             int handle,
             uint id,

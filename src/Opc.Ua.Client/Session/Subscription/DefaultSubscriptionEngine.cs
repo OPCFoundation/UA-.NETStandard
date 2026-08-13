@@ -264,9 +264,16 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public bool SessionOwnsSubscription(uint subscriptionId)
+            public bool TryDispatchToSessionSubscription(
+                uint subscriptionId,
+                NotificationMessage message,
+                ArrayOf<uint> availableSequenceNumbers,
+                ArrayOf<string> stringTable,
+                bool moreNotifications)
             {
-                return m_context.SessionOwnsSubscription(subscriptionId);
+                return m_context.TryDispatchToSessionSubscription(
+                    subscriptionId, message, availableSequenceNumbers,
+                    stringTable, moreNotifications);
             }
 
             private readonly ISubscriptionEngineContext m_context;

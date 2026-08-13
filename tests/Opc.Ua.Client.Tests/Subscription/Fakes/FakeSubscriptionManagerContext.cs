@@ -150,10 +150,25 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public HashSet<uint> SessionOwnedSubscriptionIds { get; } = [];
 
-        public bool SessionOwnsSubscription(uint subscriptionId)
+        /// <summary>Recorded dispatches to session-owned subscriptions.</summary>
+        public int SessionDispatchCount => Volatile.Read(ref m_sessionDispatchCount);
+
+        public bool TryDispatchToSessionSubscription(
+            uint subscriptionId,
+            NotificationMessage message,
+            ArrayOf<uint> availableSequenceNumbers,
+            ArrayOf<string> stringTable,
+            bool moreNotifications)
         {
-            return SessionOwnedSubscriptionIds.Contains(subscriptionId);
+            if (!SessionOwnedSubscriptionIds.Contains(subscriptionId))
+            {
+                return false;
+            }
+            Interlocked.Increment(ref m_sessionDispatchCount);
+            return true;
         }
+
+        private int m_sessionDispatchCount;
 
         /// <summary>
         /// Appends a recorded call. Publish workers run on background

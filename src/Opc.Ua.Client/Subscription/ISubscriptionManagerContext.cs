@@ -98,18 +98,31 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
-        /// Whether the owning session already holds a subscription with this
-        /// identifier outside the V2 manager's own registry.
+        /// Delivers a publish response to a subscription the session holds outside
+        /// this manager's registry, for example one created through the classic
+        /// <c>Session.AddSubscription</c> API.
         /// </summary>
         /// <remarks>
-        /// A session can carry subscriptions created through the classic
-        /// <c>Session.AddSubscription</c> API while the V2 publish worker drives
-        /// the wire. Those identifiers are unknown to the manager, and treating
-        /// unknown as abandoned would delete a live subscription belonging to the
-        /// application. Deleting is only safe when nothing in the session claims
-        /// the identifier.
+        /// A session can carry subscriptions the manager never created. Their
+        /// identifiers do not resolve here, and dropping the notification would
+        /// leave the subscription silent while it still reports itself as created
+        /// and publishing; deleting it as abandoned would destroy a live
+        /// subscription the application owns.
         /// </remarks>
         /// <param name="subscriptionId">The identifier from the publish response.</param>
-        bool SessionOwnsSubscription(uint subscriptionId);
+        /// <param name="message">The notification message to deliver.</param>
+        /// <param name="availableSequenceNumbers">Sequence numbers still available
+        /// for republish on the server.</param>
+        /// <param name="stringTable">The response string table.</param>
+        /// <param name="moreNotifications">Whether the server has more notifications
+        /// queued for this subscription.</param>
+        /// <returns><c>true</c> when the session owned the identifier and the
+        /// message was delivered.</returns>
+        bool TryDispatchToSessionSubscription(
+            uint subscriptionId,
+            NotificationMessage message,
+            ArrayOf<uint> availableSequenceNumbers,
+            ArrayOf<string> stringTable,
+            bool moreNotifications);
     }
 }

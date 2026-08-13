@@ -260,12 +260,31 @@ namespace Opc.Ua.Client
         ValueTask DeleteOrphanedSubscriptionAsync(uint subscriptionId);
 
         /// <summary>
-        /// Whether the session holds a subscription with this identifier
-        /// outside the subscription manager's own registry, for example one
-        /// created through the classic <c>Session.AddSubscription</c> API.
+        /// Delivers a publish response to a subscription the session holds outside
+        /// the subscription manager's registry, for example one created through the
+        /// classic <c>Session.AddSubscription</c> API.
         /// </summary>
-        /// <param name="subscriptionId">The subscription ID to look up.</param>
-        bool SessionOwnsSubscription(uint subscriptionId);
+        /// <remarks>
+        /// Without this the V2 publish worker has no way to reach a classic
+        /// subscription: it cannot resolve the identifier, so the notification is
+        /// dropped and the subscription goes silent while still reporting itself as
+        /// created and publishing.
+        /// </remarks>
+        /// <param name="subscriptionId">The identifier from the publish response.</param>
+        /// <param name="message">The notification message to deliver.</param>
+        /// <param name="availableSequenceNumbers">Sequence numbers still available
+        /// for republish on the server.</param>
+        /// <param name="stringTable">The response string table.</param>
+        /// <param name="moreNotifications">Whether the server has more notifications
+        /// queued for this subscription.</param>
+        /// <returns><c>true</c> when the session owned the identifier and the
+        /// message was delivered.</returns>
+        bool TryDispatchToSessionSubscription(
+            uint subscriptionId,
+            NotificationMessage message,
+            ArrayOf<uint> availableSequenceNumbers,
+            ArrayOf<string> stringTable,
+            bool moreNotifications);
 
         /// <summary>
         /// The number of good outstanding publish requests that

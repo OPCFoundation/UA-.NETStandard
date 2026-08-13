@@ -1034,6 +1034,8 @@ namespace Opc.Ua.Client.Subscriptions
 
                 Assert.That(session.DeleteCalls, Is.Empty,
                     "A subscription the session owns must never be deleted as abandoned.");
+                Assert.That(session.SessionDispatchCount, Is.GreaterThan(0),
+                    "Notifications for a session-owned subscription must be delivered to it.");
             }
         }
 
