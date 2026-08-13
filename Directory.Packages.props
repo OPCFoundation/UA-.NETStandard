@@ -115,10 +115,6 @@
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Formats.Asn1" Version="10.0.10" />
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
-    <!-- Transitive vulnerability pin (consumed via Testcontainers 4.13.0, whose
-         default transitive is SSH.NET 2025.1.0 with NU1903):
-         - SSH.NET 2026.0.0 fixes GHSA-q939-rpr3-3284 -->
-    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
     <!-- Transitive vulnerability pins (consumed via Microsoft.AspNetCore.* 2.3.x on
          net8.0/net9.0/netstandard2.1 - default transitives are 4.3.0 with NU1903):
          - System.Net.Http 4.3.4 fixes GHSA-7jgj-8wvc-jh57
