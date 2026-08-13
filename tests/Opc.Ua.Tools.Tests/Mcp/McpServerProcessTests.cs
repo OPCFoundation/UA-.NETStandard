@@ -32,6 +32,7 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -215,6 +216,34 @@ namespace Opc.Ua.Tools.Tests.Mcp
                         $"Tool {tool.GetProperty("name").GetString()} omits required.");
                 }
 
+                JsonElement startCaptureSchema = FindTool(tools, "start_capture")
+                    .GetProperty("inputSchema")
+                    .GetProperty("properties")
+                    .GetProperty("request")
+                    .GetProperty("properties")
+                    .GetProperty("source");
+                AssertCanonicalStringEnum(
+                    startCaptureSchema,
+                    ["nic", "inproc-client", "inproc-server", "replay"],
+                    "inproc-client");
+
+                JsonElement captureNowRequest = FindTool(tools, "capture_now")
+                    .GetProperty("inputSchema")
+                    .GetProperty("properties")
+                    .GetProperty("request")
+                    .GetProperty("properties");
+                AssertCanonicalStringEnum(
+                    captureNowRequest
+                        .GetProperty("start")
+                        .GetProperty("properties")
+                        .GetProperty("source"),
+                    ["nic", "inproc-client", "inproc-server", "replay"],
+                    "inproc-client");
+                AssertCanonicalStringEnum(
+                    captureNowRequest.GetProperty("format"),
+                    ["pcap", "pcapng", "json", "csv", "text", "service-timeline"],
+                    "service-timeline");
+
                 string[] toolNames = ["Connect", "ModifySubscription", "HistoryUpdate", "ExportNodeSet"];
                 string[] requiredArguments = ["endpointUrl", "subscriptionId", "nodeId", "filePath"];
                 for (int index = 0; index < toolNames.Length; index++)
@@ -241,6 +270,145 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Assert.That(errorText, Does.Contain(toolNames[index]));
                     Assert.That(errorText, Does.Contain(requiredArguments[index]));
                 }
+            }
+
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(true);
+                }
+                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                await standardError.ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task StdioProtocolAcceptsCanonicalCaptureEnumNamesAsync()
+        {
+            using Process process = StartMcpProcess("--profile", "full");
+            Task<string> standardError = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            try
+            {
+                using JsonDocument initialize = await SendRequestAsync(
+                    process,
+                    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"," +
+                    "\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{}," +
+                    "\"clientInfo\":{\"name\":\"Opc.Ua.Tools.Tests\",\"version\":\"1.0\"}}}",
+                    1,
+                    timeout.Token).ConfigureAwait(false);
+                Assert.That(initialize.RootElement.TryGetProperty("result", out _), Is.True);
+
+                await process.StandardInput.WriteLineAsync(
+                    """
+                    {"jsonrpc":"2.0","method":"notifications/initialized"}
+                    """).ConfigureAwait(false);
+                await process.StandardInput.FlushAsync(timeout.Token).ConfigureAwait(false);
+
+                using JsonDocument startCapture = await SendRequestAsync(
+                    process,
+                    "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\"," +
+                    "\"params\":{\"name\":\"start_capture\",\"arguments\":{\"request\":" +
+                    "{\"source\":\"inproc-client\",\"maxDurationSeconds\":1}}}}",
+                    2,
+                    timeout.Token).ConfigureAwait(false);
+                JsonElement startResult = startCapture.RootElement.GetProperty("result");
+                Assert.That(
+                    startResult.TryGetProperty("isError", out JsonElement startIsError) &&
+                    startIsError.GetBoolean(),
+                    Is.False);
+                string startText = startResult
+                    .GetProperty("content")[0]
+                    .GetProperty("text")
+                    .GetString()!;
+                Assert.That(startText, Does.Contain("inproc-client"));
+
+                using JsonDocument captureNow = await SendRequestAsync(
+                    process,
+                    "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\"," +
+                    "\"params\":{\"name\":\"capture_now\",\"arguments\":{\"request\":" +
+                    "{\"start\":{\"source\":\"inproc-client\"},\"durationSeconds\":0," +
+                    "\"format\":\"service-timeline\"}}}}",
+                    3,
+                    timeout.Token).ConfigureAwait(false);
+                JsonElement captureNowResult = captureNow.RootElement.GetProperty("result");
+                Assert.That(captureNowResult.GetProperty("isError").GetBoolean(), Is.True);
+                string errorText = captureNowResult
+                    .GetProperty("content")[0]
+                    .GetProperty("text")
+                    .GetString()!;
+                Assert.That(errorText, Does.Contain("Service timeline requires"));
+                Assert.That(errorText, Does.Not.Contain("could not be converted"));
+
+                using JsonDocument missingInterface = await SendRequestAsync(
+                    process,
+                    "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\"," +
+                    "\"params\":{\"name\":\"start_capture\",\"arguments\":" +
+                    "{\"request\":{\"source\":\"nic\"}}}}",
+                    4,
+                    timeout.Token).ConfigureAwait(false);
+                JsonElement missingInterfaceResult =
+                    missingInterface.RootElement.GetProperty("result");
+                Assert.That(missingInterfaceResult.GetProperty("isError").GetBoolean(), Is.True);
+                string missingInterfaceText = missingInterfaceResult
+                    .GetProperty("content")[0]
+                    .GetProperty("text")
+                    .GetString()!;
+                Assert.That(missingInterfaceText, Does.Contain("NIC capture requires 'interfaceName'"));
+                Assert.That(missingInterfaceText, Does.Not.Contain("An error occurred invoking"));
+            }
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(true);
+                }
+                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                await standardError.ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task PubSubProfileSurfacesDiagnosticsErrorsAsync()
+        {
+            using Process process = StartMcpProcess("--profile", "pubsub");
+            Task<string> standardError = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            try
+            {
+                using JsonDocument initialize = await SendRequestAsync(
+                    process,
+                    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"," +
+                    "\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{}," +
+                    "\"clientInfo\":{\"name\":\"Opc.Ua.Tools.Tests\",\"version\":\"1.0\"}}}",
+                    1,
+                    timeout.Token).ConfigureAwait(false);
+                Assert.That(initialize.RootElement.TryGetProperty("result", out _), Is.True);
+
+                await process.StandardInput.WriteLineAsync(
+                    """
+                    {"jsonrpc":"2.0","method":"notifications/initialized"}
+                    """).ConfigureAwait(false);
+                await process.StandardInput.FlushAsync(timeout.Token).ConfigureAwait(false);
+
+                using JsonDocument response = await SendRequestAsync(
+                    process,
+                    "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\"," +
+                    "\"params\":{\"name\":\"pubsub_write_pcap\",\"arguments\":" +
+                    "{\"filePath\":\"missing.pcap\"}}}",
+                    2,
+                    timeout.Token).ConfigureAwait(false);
+                JsonElement result = response.RootElement.GetProperty("result");
+                Assert.That(result.GetProperty("isError").GetBoolean(), Is.True);
+                string errorText = result
+                    .GetProperty("content")[0]
+                    .GetProperty("text")
+                    .GetString()!;
+                Assert.That(errorText, Does.Contain("No stopped PubSub capture"));
+                Assert.That(errorText, Does.Not.Contain("An error occurred invoking"));
             }
             finally
             {
@@ -400,6 +568,35 @@ namespace Opc.Ua.Tools.Tests.Mcp
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
             return request;
+        }
+
+        private static JsonElement FindTool(JsonElement tools, string name)
+        {
+            foreach (JsonElement tool in tools.EnumerateArray())
+            {
+                if (string.Equals(
+                    tool.GetProperty("name").GetString(),
+                    name,
+                    StringComparison.Ordinal))
+                {
+                    return tool;
+                }
+            }
+
+            throw new AssertionException($"Tool '{name}' was not returned by tools/list.");
+        }
+
+        private static void AssertCanonicalStringEnum(
+            JsonElement schema,
+            string[] expectedValues,
+            string expectedDefault)
+        {
+            Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("string"));
+            string?[] actualValues = [.. schema.GetProperty("enum")
+                .EnumerateArray()
+                .Select(static value => value.GetString())];
+            Assert.That(actualValues, Is.EqualTo(expectedValues));
+            Assert.That(schema.GetProperty("default").GetString(), Is.EqualTo(expectedDefault));
         }
 
         private static async Task<JsonDocument> SendRequestAsync(

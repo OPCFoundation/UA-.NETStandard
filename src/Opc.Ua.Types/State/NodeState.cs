@@ -3263,7 +3263,27 @@ namespace Opc.Ua
         /// <param name="browseName">The browse name of the targets to return.</param>
         /// <param name="additionalReferences">Any additional references that should be included in the list.</param>
         /// <param name="internalOnly">Only return references that are stored in memory.</param>
-        /// <returns>A thread safe object which enumerates the references for an entity.</returns>
+        /// <returns>A browser which enumerates the references for an entity.</returns>
+        /// <remarks>
+        /// <para>
+        /// The node guards the browser build itself, so callers must not take a lock on the
+        /// node. Browser construction on a node is serialized: two concurrent calls do not
+        /// interleave their <see cref="PopulateBrowser"/> and <see cref="OnPopulateBrowser"/>
+        /// work, which is what a handler that mutates the node during population relies on.
+        /// </para>
+        /// <para>
+        /// The browser is a point-in-time copy - changes made to the node afterwards do not
+        /// appear in it. It is <b>not</b> an atomic snapshot across the node's children,
+        /// notifiers and references: writers take those collections' own locks and not the
+        /// browse lock, so a browser built while a writer is running can pair children from
+        /// before a change with references from after it. Each individual collection is read
+        /// consistently; the combination is not a transaction.
+        /// </para>
+        /// <para>
+        /// The returned browser is single-consumer: the caller owns it and must not share it
+        /// with another thread. See <see cref="NodeBrowser"/>.
+        /// </para>
+        /// </remarks>
         public virtual INodeBrowser CreateBrowser(
             ISystemContext context,
             ViewDescription? view,
@@ -3302,9 +3322,12 @@ namespace Opc.Ua
                     browser = newBrowser;
                 }
 
-                PopulateBrowser(context, browser);
+                lock (m_browseLock)
+                {
+                    PopulateBrowser(context, browser);
 
-                OnPopulateBrowser?.Invoke(context, this, browser);
+                    OnPopulateBrowser?.Invoke(context, this, browser);
+                }
 
                 newBrowser = null;
                 return browser;
@@ -3312,6 +3335,34 @@ namespace Opc.Ua
             finally
             {
                 newBrowser?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Populates the browser while holding the node's browse lock.
+        /// </summary>
+        /// <remarks>
+        /// An override of <see cref="CreateBrowser"/> that builds its own browser instead of
+        /// delegating to the base implementation must fill it through this method rather than
+        /// calling <see cref="PopulateBrowser"/> directly. Calling <see cref="PopulateBrowser"/>
+        /// straight leaves browser construction unserialized against other browses of the same
+        /// node and skips <see cref="OnPopulateBrowser"/> altogether.
+        /// </remarks>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="browser">The browser to populate.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        protected void PopulateBrowserSynchronized(ISystemContext context, NodeBrowser browser)
+        {
+            if (browser == null)
+            {
+                throw new ArgumentNullException(nameof(browser));
+            }
+
+            lock (m_browseLock)
+            {
+                PopulateBrowser(context, browser);
+
+                OnPopulateBrowser?.Invoke(context, this, browser);
             }
         }
 
@@ -3506,6 +3557,14 @@ namespace Opc.Ua
         /// <summary>
         /// Populates the browser with references that meet the criteria.
         /// </summary>
+        /// <remarks>
+        /// Called by <see cref="PopulateBrowserSynchronized"/> while the node's browse lock is
+        /// held, so it does not run concurrently with another browse of the same node. Keep an
+        /// override to in-memory work: the lock is held for its duration, so blocking on I/O
+        /// here stalls every other browse of this node. A browser that needs to reach an
+        /// underlying system should defer that work to its own <see cref="INodeBrowser.Next"/>,
+        /// as <c>DirectoryBrowser</c> does.
+        /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="browser">The browser to populate.</param>
         protected virtual void PopulateBrowser(ISystemContext context, NodeBrowser browser)
@@ -5210,6 +5269,57 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Adds a reference unless an identical one already exists.
+        /// </summary>
+        /// <remarks>
+        /// The existence check and the insert happen under the same lock, so concurrent
+        /// callers cannot both observe the reference as missing and both add it. Callers
+        /// that pair <see cref="ReferenceExists"/> with
+        /// <see cref="AddReference(NodeId, bool, ExpandedNodeId)"/> themselves must use this
+        /// method instead: the two calls each guard themselves, but the pair does not.
+        /// </remarks>
+        /// <param name="referenceTypeId">Type of the reference.</param>
+        /// <param name="isInverse">If set to <c>true</c> the reference is an inverse reference.</param>
+        /// <param name="targetId">The target of the reference.</param>
+        /// <returns>True if the reference was added, false if it already existed.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public bool AddReferenceIfMissing(
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId)
+        {
+            if (referenceTypeId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(referenceTypeId));
+            }
+
+            if (targetId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(targetId));
+            }
+
+            var reference = new NodeStateReference(referenceTypeId, isInverse, targetId);
+
+            lock (m_referencesLock)
+            {
+                m_references ??= [];
+
+                if (m_references.ContainsKey(reference))
+                {
+                    return false;
+                }
+
+                m_references.Add(reference, null);
+            }
+
+            m_changeMasks |= NodeStateChangeMasks.References;
+
+            OnReferenceAdded?.Invoke(this, referenceTypeId, isInverse, targetId);
+
+            return true;
+        }
+
+        /// <summary>
         /// Removes a reference.
         /// </summary>
         /// <param name="referenceTypeId">Type of the reference.</param>
@@ -5228,19 +5338,29 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(targetId));
             }
 
+            bool removed;
+
             lock (m_referencesLock)
             {
-                if (m_references != null &&
+                removed = m_references != null &&
                     m_references.Remove(
-                        new NodeStateReference(referenceTypeId, isInverse, targetId)))
-                {
-                    m_changeMasks |= NodeStateChangeMasks.References;
-                    OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
-                    return true;
-                }
+                        new NodeStateReference(referenceTypeId, isInverse, targetId));
             }
 
-            return false;
+            if (!removed)
+            {
+                return false;
+            }
+
+            m_changeMasks |= NodeStateChangeMasks.References;
+
+            // Raised outside the lock, matching AddReference. A handler is free to call back
+            // into this node - or into another one that browses this one - and raising it
+            // while m_referencesLock is held makes that a lock-ordering cycle against
+            // CreateBrowser, which takes the browse lock and then this one.
+            OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
+
+            return true;
         }
 
         /// <summary>
@@ -5506,6 +5626,7 @@ namespace Opc.Ua
         private readonly Lock m_notifiersLock = new();
         private readonly Lock m_referencesLock = new();
         private readonly Lock m_childrenLock = new();
+        private readonly Lock m_browseLock = new();
         private NodeId m_nodeId;
         private QualifiedName m_browseName;
         private LocalizedText m_displayName;

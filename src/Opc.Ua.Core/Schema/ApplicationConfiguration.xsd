@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <xs:schema id="ApplicationConfiguration"
     targetNamespace="http://opcfoundation.org/UA/SDK/Configuration.xsd"
     elementFormDefault="qualified"
@@ -158,6 +158,7 @@
                     <xs:element name="MaxMessageQueueSize" type="xs:int" minOccurs="0" />
                     <xs:element name="MaxNotificationQueueSize" type="xs:int" minOccurs="0" />
                     <xs:element name="MaxNotificationsPerPublish" type="xs:int" minOccurs="0" />
+                    <xs:element name="MinSupportedSamplingInterval" type="xs:double" minOccurs="0" />
                     <xs:element name="AvailableSamplingRates" type="ListOfSamplingRateGroup" minOccurs="0" />
                     <xs:element name="RegistrationEndpoint" type="ua:EndpointDescription" minOccurs="0" />
                     <xs:element name="MaxRegistrationInterval" type="xs:int" minOccurs="0" />

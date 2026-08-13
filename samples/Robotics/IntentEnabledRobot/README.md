@@ -52,7 +52,8 @@ These modes do not select or imply IEC 60204-1 stop categories.
 
 The stage serves `Bench.usda` as the root layer and `arm.usda` / `gripper.usda` as referenced assets.
 Viewer clients discover picked target prims through OpenUSD live bindings, not a hardcoded table.
-Browse `Server/OpenUSD/Representations`; for each `OpenUsdRepresentation`, browse its live bindings
+Each `OpenUsdRepresentation` is mounted on its represented Object with `HasAddIn` through the shared
+`CreateRepresentation` authoring helper. Browse `Server/OpenUSD/Representations`; for each representation, browse its live bindings
 and read the binding with `SourceSemanticId = "RobotIntent.Location"`. Its `TargetPrimPath` is the
 USD prim and its `SourceNodeId` is the corresponding `LocationType` NodeId.
 

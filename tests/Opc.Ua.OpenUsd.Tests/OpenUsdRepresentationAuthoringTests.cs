@@ -71,6 +71,49 @@ namespace Opc.Ua.OpenUsd.Server.Tests
         }
 
         [Test]
+        public void RepresentedInterfacePlaceholderIsMountedWithHasAddIn()
+        {
+            (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();
+            var represented = new IOpenUsdRepresentedState(null);
+
+            OpenUsdRepresentationState rep = represented.AddOpenUsdRepresentation_Placeholder(
+                context,
+                new QualifiedName("OpenUsdRepresentation", ns));
+
+            Assert.That(rep.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasAddIn));
+        }
+
+        [Test]
+        public void CreateRepresentationAssignsDistinctInstanceNodeIds()
+        {
+            (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();
+            OpenUsdRootState root = OpenUsdAuthoringHarness.NewFacility(context, ns);
+            OpenUsdStageState stage = OpenUsdAuthoringHarness.NewStage(context, root, ns, "Cell");
+            BaseObjectState firstOwner = OpenUsdAuthoringHarness.NewOwner(context, ns, "Robot1");
+            BaseObjectState secondOwner = OpenUsdAuthoringHarness.NewOwner(context, ns, "Robot2");
+
+            OpenUsdRepresentationState first = context.CreateRepresentation(
+                firstOwner, stage.NodeId, "/Cell/Robots/R1", ns);
+            OpenUsdRepresentationState second = context.CreateRepresentation(
+                secondOwner, stage.NodeId, "/Cell/Robots/R2", ns);
+
+            Assert.That(first.NodeId, Is.Not.EqualTo(second.NodeId));
+        }
+
+        [Test]
+        public void CreateRepresentationRejectsAContextWithoutANodeIdFactory()
+        {
+            (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();
+            BaseObjectState owner = OpenUsdAuthoringHarness.NewOwner(context, ns, "Robot1");
+            context.NodeIdFactory = null!;
+
+            Assert.That(
+                () => context.CreateRepresentation(
+                    owner, new NodeId(1u, ns), "/Cell/Robots/R1", ns),
+                Throws.InvalidOperationException);
+        }
+
+        [Test]
         public void CreateRepresentationRejectsANullContext()
         {
             (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();

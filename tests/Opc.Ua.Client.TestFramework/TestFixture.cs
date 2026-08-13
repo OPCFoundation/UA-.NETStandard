@@ -97,6 +97,10 @@ namespace Opc.Ua.Client.TestFramework
             // CloseSession.
             ServerFixture.Config.ServerConfiguration.AuditingEnabled = true;
 
+            // Let a derived fixture adjust the server configuration before the
+            // server is started.
+            ConfigureServer(ServerFixture.Config);
+
             ReferenceServer = await ServerFixture.StartAsync().ConfigureAwait(false);
 
             // Attach the mock response controller so individual tests
@@ -383,6 +387,17 @@ namespace Opc.Ua.Client.TestFramework
         {
             Telemetry = NUnitTelemetryContext.Create();
             m_logger = Telemetry.CreateLogger<TestFixture>();
+        }
+
+        /// <summary>
+        /// Lets a derived fixture adjust the configuration of the in-process reference
+        /// server before it is started. The default implementation does nothing.
+        /// </summary>
+        /// <param name="configuration">
+        /// The configuration of the server that is about to be started.
+        /// </param>
+        protected virtual void ConfigureServer(ApplicationConfiguration configuration)
+        {
         }
 
         /// <summary>
