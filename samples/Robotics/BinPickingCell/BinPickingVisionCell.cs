@@ -300,7 +300,11 @@ namespace Vision.BinPickingCell
                     .WithClipFormat(VisionClipFormatEnum.Png)
                     .WithQuality(90u)
                     .WithResolution(1280u, 1024u)
-                    .WithInlineDelivery(enabled: true, maxInlineClipSize: 8_388_608u)
+
+                    // The PNG this cell renders measures about 5 MB, so 8 MB left little
+                    // headroom for a busier scene. Note this ceiling was not what refused
+                    // GetClip - the frame was already under it - see MaxInlineClipBytes.
+                    .WithInlineDelivery(enabled: true, maxInlineClipSize: MaxInlineClipBytes)
                     .WithDefaultProfileName("PickFrames"))
                 .UseMediaProvider(m_mediaProvider));
         }
@@ -425,6 +429,11 @@ namespace Vision.BinPickingCell
         private static readonly double[] s_flangeScanOrientation = [0.7071, 0.7071, 0.0, 0.0];
 
         internal const string SensorTwinBrowseName = "BinPickingCameraTwin";
+
+        // The clip endpoint serves 1280x1024 PNGs, measured at about 5 MB for this
+        // scene. Allow headroom for a busier one rather than have the Server refuse
+        // its own frames.
+        internal const uint MaxInlineClipBytes = 32u * 1024u * 1024u;
         internal const string IntrinsicCalibrationBrowseName = "Intrinsics2448x2048";
         internal const string HandEyeCalibrationBrowseName = "HandEye";
         internal const string StreamEndpointBrowseName = "LiveRtsp";
