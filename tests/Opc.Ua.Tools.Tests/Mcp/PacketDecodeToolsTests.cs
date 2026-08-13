@@ -146,7 +146,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task DumpKeysAsyncReturnsJsonKeyLogContentsAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("dump-keys-json");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("dump-keys-json");
             m_tempFolders.Add(folder);
             CaptureSessionInfo session = await StartReplaySessionAsync(folder).ConfigureAwait(false);
 
@@ -164,7 +164,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task DumpKeysAsyncWithNoAuditSinkStillSucceedsAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("dump-keys-no-audit");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("dump-keys-no-audit");
             m_tempFolders.Add(folder);
             CaptureSessionInfo session = await StartReplaySessionAsync(folder).ConfigureAwait(false);
 
@@ -182,7 +182,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task DumpKeysAsyncThrowsWhenJsonKeyLogIsMissingAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("dump-keys-json-missing");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("dump-keys-json-missing");
             m_tempFolders.Add(folder);
             CaptureSessionInfo session = await StartReplaySessionAsync(folder, includeKeyLog: false)
                 .ConfigureAwait(false);
@@ -199,7 +199,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task DumpKeysAsyncThrowsWhenTextKeyLogIsMissingAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("dump-keys-text-missing");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("dump-keys-text-missing");
             m_tempFolders.Add(folder);
             CaptureSessionInfo session = await StartReplaySessionAsync(folder).ConfigureAwait(false);
 
@@ -215,7 +215,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task DumpKeysAsyncThrowsForUnsupportedFormatAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("dump-keys-bad-format");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("dump-keys-bad-format");
             m_tempFolders.Add(folder);
             CaptureSessionInfo session = await StartReplaySessionAsync(folder).ConfigureAwait(false);
 
@@ -470,7 +470,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task SummarizeServiceCallsAsyncFromSessionIdReturnsEmptySummaryAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("summarize-session-id");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("summarize-session-id");
             m_tempFolders.Add(folder);
             CaptureSessionInfo session = await StartReplaySessionAsync(folder).ConfigureAwait(false);
 

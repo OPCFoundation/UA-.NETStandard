@@ -986,21 +986,21 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
         }
 
         [Test]
-        public void OpenRead_EmptyPhysicalFile_ThrowsArgumentException()
+        public void OpenReadEmptyPhysicalFileReturnsEmptyStream()
         {
-            // Arrange
             using var vfs = new VirtualFileSystem();
             string tempFile = Path.GetTempFileName();
 
             try
             {
-                // Create empty file
                 File.WriteAllBytes(tempFile, []);
 
-                // Act & Assert - Empty files cannot be memory-mapped from disk
-                ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(() => vfs.OpenRead(tempFile));
-                Assert.That(exception.Message,
-                    Contains.Substring("must be a non-negative and non-zero value").Or.Contains("A positive number is required"));
+                using Stream stream = vfs.OpenRead(tempFile);
+
+                Assert.That(stream.Length, Is.Zero);
+                Assert.That(stream.ReadByte(), Is.EqualTo(-1));
+                Assert.That(vfs.GetLength(tempFile), Is.Zero);
+                Assert.That(vfs.Get(tempFile), Is.Empty);
             }
             finally
             {

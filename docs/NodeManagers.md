@@ -17,8 +17,10 @@
     - [Method Calls](#method-calls)
     - [Runtime subtype replacement (IPredefinedNodeSubtypeReplacer)](#runtime-subtype-replacement-ipredefinednodesubtypereplacer)
   - [Monitoring and subscriptions](#monitoring-and-subscriptions)
+    - [Sampling interval revision](#sampling-interval-revision)
   - [History](#history)
   - [Security](#security)
+  - [Threading contract for nodes and browsers](#threading-contract-for-nodes-and-browsers)
 - [Registering node managers](#registering-node-managers)
   - [Startup registration](#startup-registration)
   - [Runtime registration](#runtime-registration)
@@ -217,6 +219,66 @@ The operation is deliberately exposed as a capability interface method rather th
 | **Filter Validation** | Validates `DataChangeFilter` specifically (deadband, EU Range). | Delegates validation to `ValidateMonitoringFilter`, supports `AggregateFilter` (if supported by server) and `DataChangeFilter`. |
 | **Events** | Basic event subscription support (`SubscribeToEvents` checks `EventNotifier` bit). | **Full Event Support**: <br/>- Manages `RootNotifiers`. <br/>- Propagates events via `SubscribeToAllEvents`. <br/>- Implements `ConditionRefresh`. <br/>- Validates `PermissionType.ReceiveEvents`. |
 
+#### Sampling interval revision
+
+When a client creates or modifies a monitored item the node manager revises the
+requested `samplingInterval` before the server returns it in
+`revisedSamplingInterval`. Three inputs take part:
+
+| Input | Where it comes from |
+| :--- | :--- |
+| Requested sampling interval | `MonitoringParameters.SamplingInterval`; a negative value means "use the default sampling interval" (see below) |
+| Node minimum | `BaseVariableState.MinimumSamplingInterval` of the monitored node, and only for the `Value` Attribute |
+| Server minimum | `ServerConfiguration.MinSupportedSamplingInterval`, published in `Server.ServerCapabilities.MinSupportedSampleRate` |
+
+The rule applied by `SubscriptionManager.CalculateRevisedSamplingInterval` is:
+
+1. A requested interval below zero is resolved to the default sampling interval:
+   the **publishing interval of the subscription** when the item is created, and
+   the item's **current sampling interval** when it is modified. (The modify case
+   preserves the behaviour of 1.5.378 and earlier, so a `ModifyMonitoredItems`
+   call that leaves the sampling interval unspecified does not silently retune
+   the item.)
+2. If the node declares `MinimumSamplingIntervals.Continuous` (`0`) for the
+   `Value` Attribute, it reports by exception and **no** lower bound is applied —
+   the requested interval is returned unchanged.
+3. Otherwise the interval is raised to the larger of the node minimum and
+   `MinSupportedSamplingInterval`. Attributes other than `Value`, nodes that
+   declare `MinimumSamplingIntervals.Indeterminate` (`-1`), and nodes that are
+   not Variables are only bound by `MinSupportedSamplingInterval`.
+4. `double.MaxValue` is capped to one year.
+
+Event monitored items do not sample and are not affected.
+
+`MinSupportedSamplingInterval` defaults to `0`, which means the server does not
+impose a server-wide lower bound. Configure it in XML:
+
+```xml
+<ServerConfiguration>
+  <!-- ... -->
+  <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
+  <MinSupportedSamplingInterval>2000</MinSupportedSamplingInterval>
+  <!-- ... -->
+</ServerConfiguration>
+```
+
+or with the fluent configuration builder:
+
+```csharp
+application.Build(applicationUri, productUri)
+    .AsServer([endpointUrl])
+    .SetMinSupportedSamplingInterval(2000);
+```
+
+With `MinSupportedSamplingInterval` set to 2000 ms, a client that requests a
+10 ms sampling interval on a node that declares a minimum of 100 ms is revised
+to 2000 ms; a node that declares 5000 ms still wins and is revised to 5000 ms.
+
+`CustomNodeManager2` and `AsyncCustomNodeManager` pick the configured value up
+automatically through their `MinSupportedSamplingInterval` property. Node
+managers that implement `INodeManager` directly can call
+`SubscriptionManager.CalculateRevisedSamplingInterval` to apply the same rule.
+
 ### History
 
 * **CoreNodeManager**:
@@ -234,6 +296,53 @@ The operation is deliberately exposed as a capability interface method rather th
 * **CustomNodeManager2**:
   * Explicitly calls `MasterNodeManager.ValidateRolePermissions` during `Browse`, `Call`, and Event processing.
   * Reads and caches validation attributes (`AccessRestrictions`, `RolePermissions`) for optimized access.
+
+### Threading contract for nodes and browsers
+
+A `NodeState` synchronizes itself. Its attributes, children, notifiers and references each sit
+behind a private lock inside the node, and `NodeState.CreateBrowser` holds a browse lock while it
+assembles the browser. **No caller — inside or outside the stack — may take a lock on a node
+instance.** A `lock (node)` is a lock on a monitor that guards nothing: every path that touches the
+node's data takes the node's own locks instead, so the two never interlock. This is enforced by
+convention rather than by the compiler, so the rule is: if you feel the need to lock a node, the
+operation you want is missing from `NodeState` — add it there.
+
+| You want | Use |
+| --- | --- |
+| A consistent read of one attribute | `ReadAttribute` / `ReadAttributeAsync` — already guarded |
+| A consistent read of several attributes | `ReadAttributes` — each attribute is guarded; there is deliberately no cross-attribute transaction |
+| A consistent snapshot of the references | `GetReferences`, `GetChildren` — already guarded |
+| Add a reference only if it is absent | `AddReferenceIfMissing` — the check and the insert are one critical section |
+| Everything browsable, without locking the node | `CreateBrowser` — the node guards the build |
+
+**What `CreateBrowser` does and does not promise.** Browser construction on a node is
+serialized, so two concurrent browses do not interleave their `PopulateBrowser` /
+`OnPopulateBrowser` work — a handler that mutates the node during population depends on that.
+The browser is a point-in-time copy: later changes to the node do not appear in it. It is **not**
+an atomic snapshot across the node's children, notifiers and references. Writers take those
+collections' own locks, not the browse lock, so a browser built while a writer runs can pair
+children from before a change with references from after it. Each collection is read
+consistently; the combination is not a transaction. Making it one would mean funnelling every
+child, notifier and reference write through the browse lock, which is a far larger contract than
+browsing needs.
+
+An **`INodeBrowser` is single-consumer.** It performs no synchronization of its own and belongs
+to whoever created it. Where a browser outlives a single service call — the instance parked in a
+continuation point for `BrowseNext` — its owner serializes access to it: `AsyncCustomNodeManager`
+does so through the continuation point's `BrowserContext`, `CustomNodeManager2` with a lock
+around the iteration. A derived browser must not add locking of its own; `NodeBrowser` no longer
+exposes one to inherit (see [migration](migrate/2.0.x/node-states.md)).
+
+Two rules follow for node types that customise browsing:
+
+* An override of `PopulateBrowser` runs with the node's browse lock held. Keep it to in-memory
+  work — the lock is held for its duration, so blocking on I/O there stalls every other browse of
+  that node. A browser that has to reach an underlying system does that lazily in its own
+  `Next()`, outside every node lock, as `DirectoryBrowser` does for the file-system provider.
+* An override of `CreateBrowser` that builds its own browser instead of delegating to
+  `base.CreateBrowser` must fill it through `PopulateBrowserSynchronized`. Calling
+  `PopulateBrowser` directly leaves construction unserialized against other browses of the same
+  node and skips `OnPopulateBrowser` altogether.
 
 ## Registering node managers
 

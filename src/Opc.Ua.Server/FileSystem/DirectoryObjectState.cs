@@ -136,7 +136,7 @@ namespace Opc.Ua.Server.FileSystem
                 context!, view, referenceType, includeSubtypes,
                 browseDirection, browseName, additionalReferences,
                 internalOnly, host, this);
-            PopulateBrowser(context!, browser);
+            PopulateBrowserSynchronized(context!, browser);
             return browser;
         }
 

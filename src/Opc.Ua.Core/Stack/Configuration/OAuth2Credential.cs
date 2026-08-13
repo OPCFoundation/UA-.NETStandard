@@ -62,25 +62,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            ArrayOf<OAuth2Credential> list;
-
-            lock (configuration.PropertiesLock)
-            {
-                if (configuration.Properties.TryGetValue(
-                    "OAuth2Credentials", out object? value) &&
-                    value is ArrayOf<OAuth2Credential> existing)
-                {
-                    return existing;
-                }
-
-                list = configuration.ParseExtension(
+            return configuration.GetOrAddProperty(
+                "OAuth2Credentials",
+                () => configuration.ParseExtension(
                     s_elementName,
-                    static decoder => decoder.ReadEncodeableArray<OAuth2Credential>(null));
-
-                configuration.Properties["OAuth2Credentials"] = list;
-            }
-
-            return list;
+                    static decoder => decoder.ReadEncodeableArray<OAuth2Credential>(null)));
         }
 
         public static OAuth2Credential? FindByServerUri(

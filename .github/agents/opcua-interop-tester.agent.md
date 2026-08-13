@@ -127,6 +127,7 @@ The capture / decode / replay tools live alongside the Part 4 tools:
 Tool: list_interfaces
   → Returns the local NICs SharpPcap can capture from. Use the
     'name' or 'description' as 'interfaceName' for source='nic'.
+    'linkType' can be null because listing interfaces does not open them.
     Requires libpcap (Linux/macOS) or Npcap (Windows). If you get
     an error, fall back to source='inproc-client' which needs no
     native dependency.
@@ -149,6 +150,9 @@ Arguments:                             # server itself doesn't make
     interfaceName: "<from list_interfaces>"
     bpfFilter: "tcp port 4840 or tcp portrange 48010-48020"
     maxDurationSeconds: 60
+  → Requires packet-capture privileges (for example CAP_NET_RAW on
+    Linux or an elevated process). Permission failures are returned
+    immediately by start_capture rather than as an empty capture.
 
 Tool: list_active_channels
   → Shows every secure channel the MCP server currently holds plus its
@@ -193,6 +197,10 @@ Arguments:
   → One-shot: start, wait, stop, return decoded timeline.  Great for
     short interactive probes.
 ```
+
+The hyphenated values shown above are the canonical wire names emitted
+by the tools. CLR enum names such as `InProcessClient` and
+`ServiceTimeline` are also accepted on input.
 
 **Step 10: Replay a captured trace (for hard-to-reproduce regressions)**
 
