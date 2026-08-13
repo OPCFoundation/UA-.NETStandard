@@ -304,21 +304,21 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var services = new ServiceCollection();
             services.AddOpcUa()
                 .AddClient(opt => opt.Configuration = CreateConfig())
-                .AddSubscriptions(options =>
+                .AddSubscriptions(subscriptionOptions =>
                 {
-                    options.Disabled = true;
-                    options.PublishingEnabled = true;
-                    options.SendInitialValuesOnTransfer = true;
+                    subscriptionOptions.Disabled = true;
+                    subscriptionOptions.PublishingEnabled = true;
+                    subscriptionOptions.SendInitialValuesOnTransfer = true;
                 });
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            Subscriptions.SubscriptionOptions options = sp
+            Subscriptions.SubscriptionOptions resolvedOptions = sp
                 .GetRequiredService<IOptionsMonitor<Subscriptions.SubscriptionOptions>>()
                 .CurrentValue;
 
-            Assert.That(options.Disabled, Is.True);
-            Assert.That(options.PublishingEnabled, Is.True);
-            Assert.That(options.SendInitialValuesOnTransfer, Is.True);
+            Assert.That(resolvedOptions.Disabled, Is.True);
+            Assert.That(resolvedOptions.PublishingEnabled, Is.True);
+            Assert.That(resolvedOptions.SendInitialValuesOnTransfer, Is.True)
         }
 
         [Test]
