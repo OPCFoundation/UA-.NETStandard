@@ -112,7 +112,15 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            builder.Services.AddSingleton<IIntentExecutor, TExecutor>();
+
+            // Register the concrete type and resolve the interface from it, so an
+            // application that also injects TExecutor directly - to observe the arm
+            // it is driving, for example - shares the instance the intents run on.
+            // Registering IIntentExecutor against the type would construct a second
+            // executor, leaving the application watching a device that never moves.
+            builder.Services.AddSingleton<TExecutor>();
+            builder.Services.AddSingleton<IIntentExecutor>(
+                services => services.GetRequiredService<TExecutor>());
             return builder;
         }
 
