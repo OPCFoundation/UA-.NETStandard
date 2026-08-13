@@ -88,6 +88,38 @@ namespace Opc.Ua.Pcap.Tests.Capture
         }
 
         /// <summary>
+        /// Verifies path containment remains case-sensitive on Unix.
+        /// </summary>
+        [Test]
+        [Platform("Linux")]
+        public async Task StartAsyncRejectsCaseVariantArtifactPathOutsideBaseFolder()
+        {
+            var factory = new RecordingSourceFactory();
+            string fullBaseFolder = Path.GetFullPath(TempDirectory);
+            string folderName = Path.GetFileName(fullBaseFolder);
+            string caseVariant = folderName.ToUpperInvariant();
+            if (caseVariant == folderName)
+            {
+                caseVariant = folderName.ToLowerInvariant();
+            }
+
+            Assert.That(caseVariant, Is.Not.EqualTo(folderName));
+            string outsidePath = Path.Combine(
+                Path.GetDirectoryName(fullBaseFolder)!,
+                caseVariant,
+                "evil.pcap");
+            await using var manager = new CaptureSessionManager(factory, TempDirectory);
+
+            Assert.That(
+                async () => await manager.StartAsync(
+                    new StartCaptureRequest { PcapFilePath = outsidePath },
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>()
+                    .With.Property("ParamName").EqualTo("PcapFilePath"));
+            Assert.That(factory.SessionFolders, Is.Empty);
+        }
+
+        /// <summary>
         /// Verifies relative session folders are resolved beneath the
         /// configured base folder.
         /// </summary>
@@ -128,6 +160,98 @@ namespace Opc.Ua.Pcap.Tests.Capture
             Assert.That(session.Request.SessionFolder, Is.EqualTo(expectedFolder));
             Assert.That(factory.SessionFolders, Is.EqualTo([expectedFolder]));
             Assert.That(Directory.Exists(expectedFolder), Is.True);
+        }
+
+        /// <summary>
+        /// The pcap file path reaches File.Create on the write side and
+        /// File.ReadAllBytesAsync on the read side, so an unvalidated value
+        /// lets a caller overwrite or read any file the process can touch.
+        /// </summary>
+        [Test]
+        public async Task StartAsyncRejectsPcapFilePathOutsideBaseFolder()
+        {
+            var factory = new RecordingSourceFactory();
+            string outside = OperatingSystem.IsWindows()
+                ? Path.Combine(Path.GetPathRoot(TempDirectory) ?? "C:\\", "Windows", "evil.pcap")
+                : "/etc/evil.pcap";
+            await using var manager = new CaptureSessionManager(factory, TempDirectory);
+
+            Assert.That(
+                async () => await manager.StartAsync(
+                    new StartCaptureRequest { PcapFilePath = outside },
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>()
+                    .With.Property("ParamName").EqualTo("PcapFilePath"));
+            Assert.That(factory.SessionFolders, Is.Empty);
+        }
+
+        /// <summary>
+        /// Relative traversal must not escape either, since the path is
+        /// combined with the base folder rather than normalized.
+        /// </summary>
+        [Test]
+        public async Task StartAsyncRejectsPcapFilePathParentTraversal()
+        {
+            var factory = new RecordingSourceFactory();
+            await using var manager = new CaptureSessionManager(factory, TempDirectory);
+
+            Assert.That(
+                async () => await manager.StartAsync(
+                    new StartCaptureRequest
+                    {
+                        PcapFilePath = Path.Combine("..", "..", "evil.pcap")
+                    },
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>()
+                    .With.Property("ParamName").EqualTo("PcapFilePath"));
+            Assert.That(factory.SessionFolders, Is.Empty);
+        }
+
+        /// <summary>
+        /// The key log file is appended to, so an unvalidated value writes key
+        /// material into an arbitrary file.
+        /// </summary>
+        [Test]
+        public async Task StartAsyncRejectsKeyLogFilePathOutsideBaseFolder()
+        {
+            var factory = new RecordingSourceFactory();
+            string outside = OperatingSystem.IsWindows()
+                ? Path.Combine(Path.GetPathRoot(TempDirectory) ?? "C:\\", "Windows", "keys.log")
+                : "/etc/keys.log";
+            await using var manager = new CaptureSessionManager(factory, TempDirectory);
+
+            Assert.That(
+                async () => await manager.StartAsync(
+                    new StartCaptureRequest { KeyLogFilePath = outside },
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>()
+                    .With.Property("ParamName").EqualTo("KeyLogFilePath"));
+            Assert.That(factory.SessionFolders, Is.Empty);
+        }
+
+        /// <summary>
+        /// Artifact paths inside the base folder must still be accepted, and
+        /// are resolved to full paths.
+        /// </summary>
+        [Test]
+        public async Task StartAsyncAcceptsArtifactPathsInsideBaseFolder()
+        {
+            var factory = new RecordingSourceFactory();
+            await using var manager = new CaptureSessionManager(factory, TempDirectory);
+
+            CaptureSession session = await manager.StartAsync(
+                new StartCaptureRequest
+                {
+                    SessionFolder = "capture-session",
+                    PcapFilePath = "capture.pcap",
+                    KeyLogFilePath = Path.Combine(TempDirectory, "keys.log")
+                },
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(session.Request.PcapFilePath, Is.EqualTo(
+                Path.Combine(Path.GetFullPath(TempDirectory), "capture-session", "capture.pcap")));
+            Assert.That(session.Request.KeyLogFilePath, Is.EqualTo(
+                Path.GetFullPath(Path.Combine(TempDirectory, "keys.log"))));
         }
 
         /// <summary>
