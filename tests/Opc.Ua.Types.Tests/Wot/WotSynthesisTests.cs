@@ -28,6 +28,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -622,6 +623,106 @@ namespace Opc.Ua.Types.Tests.Wot
                         ReferenceType = "HasComponent",
                         IsForward = false,
                         Value = parentId
+                    }
+                ]
+            };
+        }
+
+        /// <summary>
+        /// A Variable may hold Variables of its own — EURange and
+        /// EngineeringUnits sit below an analog Variable, two levels under the
+        /// Node that roots the document. Walking only the root's references
+        /// leaves them behind, and they come back re-parented onto the Thing.
+        /// </summary>
+        [Test]
+        public void VariableChildrenOfAVariableSurviveWithTheirParent()
+        {
+            var nodeSet = new UANodeSet
+            {
+                NamespaceUris = ["http://example.com/demo/pump"],
+                Items =
+                [
+                    TypeWithVariable("ns=1;i=100", "1:PumpType", "ns=1;i=101", "1:Flow"),
+                    NestingVariable("ns=1;i=101", "1:Flow", "ns=1;i=100", "ns=1;i=102"),
+                    Variable("ns=1;i=102", "1:EURange", "ns=1;i=101")
+                ]
+            };
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(nodeSet);
+
+            Assert.That(document.Properties, Has.Count.EqualTo(2));
+
+            // The child names the Variable it belongs to, not the Thing.
+            Assert.That(
+                document.Properties["EURange"].GetProperty("uav:componentOf")[0].GetString(),
+                Is.EqualTo("nsu=http://example.com/demo/pump;i=101"));
+
+            // Read it back through the readable mapping. With the projection
+            // present the way back prefers it, and the readable terms would
+            // never be exercised at all.
+            UANodeSet back = WotNodeSetConverter.ToNodeSet(StripProjection(document));
+            UAVariable range = back.Items!.OfType<UAVariable>()
+                .Single(v => v.BrowseName!.EndsWith(":EURange", StringComparison.Ordinal));
+            UAVariable flow = back.Items!.OfType<UAVariable>()
+                .Single(v => v.BrowseName!.EndsWith(":Flow", StringComparison.Ordinal));
+
+            Assert.That(
+                range.References!.Any(r => r.ReferenceType == "HasComponent" &&
+                    !r.IsForward && r.Value == flow.NodeId),
+                Is.True,
+                "The child belongs to the Variable that held it, not to the Thing.");
+            Assert.That(
+                flow.References!.Any(r => r.ReferenceType == "HasComponent" &&
+                    r.IsForward && r.Value == range.NodeId),
+                Is.True);
+        }
+
+        private static WotDocument StripProjection(WotDocument document)
+        {
+            using var buffer = new System.IO.MemoryStream();
+            using (var writer = new System.Text.Json.Utf8JsonWriter(buffer))
+            {
+                writer.WriteStartObject();
+                foreach (System.Text.Json.JsonProperty member in
+                    document.RootElement.EnumerateObject())
+                {
+                    if (member.Name is "uav:nodes" or "uav:nodeSet")
+                    {
+                        continue;
+                    }
+                    writer.WritePropertyName(member.Name);
+                    member.Value.WriteTo(writer);
+                }
+                writer.WriteEndObject();
+            }
+            return WotDocument.Parse(buffer.ToArray());
+        }
+
+        private static UAVariable NestingVariable(
+            string nodeId,
+            string browseName,
+            string parentId,
+            string childId)
+        {
+            return new UAVariable
+            {
+                NodeId = nodeId,
+                BrowseName = browseName,
+                ParentNodeId = parentId,
+                DataType = "i=11",
+                References =
+                [
+                    new Reference
+                    {
+                        ReferenceType = "HasComponent",
+                        IsForward = false,
+                        Value = parentId
+                    },
+                    new Reference
+                    {
+                        ReferenceType = "HasProperty",
+                        IsForward = true,
+                        Value = childId
                     }
                 ]
             };

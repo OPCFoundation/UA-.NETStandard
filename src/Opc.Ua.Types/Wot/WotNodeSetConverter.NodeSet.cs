@@ -520,6 +520,7 @@ namespace Opc.Ua.Wot
             var properties = new List<UAVariable>();
             var actions = new List<UAMethod>();
             var events = new List<UANode>();
+            var nestedParents = new Dictionary<string, string>(StringComparer.Ordinal);
 
             // HasComponent subtypes (for example HasOrderedComponent) are
             // surfaced for discovery under uav:hasComponent / uav:componentOf and
@@ -578,6 +579,14 @@ namespace Opc.Ua.Wot
             bool isThingModel = root is UAObjectType or UAVariableType;
             int affordanceCount = 0;
 
+            // A Variable may itself hold Variables — EURange and
+            // EngineeringUnits sit below an analog Variable, two levels under
+            // the Node that roots this document. Walking only the root's
+            // references leaves them unreachable, so they are collected here
+            // and stated as properties of the same Thing, each naming the
+            // Variable it belongs to (§9.1's `uav:componentOf`).
+            CollectNestedVariables(properties, index, nestedParents, namespaceUris);
+
             WriteComponentArray(writer, "uav:hasComponent", componentChildren);
             WriteComponentArray(writer, "uav:componentOf", componentParents);
 
@@ -593,7 +602,9 @@ namespace Opc.Ua.Wot
                         break;
                     }
                     writer.WritePropertyName(UniqueKey(LocalName(variable.BrowseName), used));
-                    WriteVariableAffordance(writer, variable, isThingModel, namespaceUris, nodeSet);
+                    nestedParents.TryGetValue(variable.NodeId ?? string.Empty, out string? owner);
+                    WriteVariableAffordance(
+                        writer, variable, isThingModel, namespaceUris, nodeSet, owner);
                 }
                 writer.WriteEndObject();
             }
@@ -868,15 +879,75 @@ namespace Opc.Ua.Wot
             return null;
         }
 
+        /// <summary>
+        /// Adds the Variables held by Variables already collected, to any depth.
+        /// </summary>
+        /// <remarks>
+        /// The walk is breadth-first over the list being built, so a child
+        /// discovered here is itself examined for children. Each addition
+        /// records the Variable it belongs to, which is what lets the reverse
+        /// direction re-parent it rather than hanging it off the Thing.
+        /// </remarks>
+        private static void CollectNestedVariables(
+            List<UAVariable> properties,
+            Dictionary<string, UANode> index,
+            Dictionary<string, string> nestedParents,
+            string[]? namespaceUris)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (UAVariable variable in properties)
+            {
+                if (variable.NodeId is not null)
+                {
+                    seen.Add(variable.NodeId);
+                }
+            }
+            for (int ii = 0; ii < properties.Count; ii++)
+            {
+                UAVariable parent = properties[ii];
+                if (parent.References is null || parent.NodeId is null)
+                {
+                    continue;
+                }
+                string? portableParent = ToPortableNodeId(parent.NodeId, namespaceUris);
+                foreach (Reference reference in parent.References)
+                {
+                    if (reference.Value is null ||
+                        !reference.IsForward ||
+                        !IsComponentReference(reference.ReferenceType) ||
+                        !index.TryGetValue(reference.Value, out UANode? target) ||
+                        target is not UAVariable child ||
+                        child.NodeId is null ||
+                        !seen.Add(child.NodeId))
+                    {
+                        continue;
+                    }
+                    properties.Add(child);
+                    if (!string.IsNullOrEmpty(portableParent))
+                    {
+                        nestedParents[child.NodeId] = portableParent!;
+                    }
+                }
+            }
+        }
+
         private static void WriteVariableAffordance(
             Utf8JsonWriter writer,
             UAVariable variable,
             bool isThingModel,
             string[]? namespaceUris,
-            UANodeSet nodeSet)
+            UANodeSet nodeSet,
+            string? componentOf = null)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", isThingModel ? "uav:variableType" : "uav:variable");
+            if (componentOf is not null)
+            {
+                writer.WritePropertyName("uav:componentOf");
+                writer.WriteStartArray();
+                writer.WriteStringValue(componentOf);
+                writer.WriteEndArray();
+            }
             WriteOptional(writer, "title", FirstText(variable.DisplayName));
             WriteDescription(writer, variable.Description);
             WriteOptional(

@@ -951,6 +951,11 @@ namespace Opc.Ua.Wot
                 variable.Description = MakeText(description);
             }
 
+            // §9.1: a property may state the Variable it belongs to rather than
+            // the Thing. Without this a Variable's own Variables — EURange and
+            // EngineeringUnits below an analog Variable — come back re-parented
+            // onto the Thing, one level higher than the source put them.
+            string owner = ReadComponentOfParent(schema, nodeSet, diagnostics) ?? rootNodeId;
             var references = new List<Reference>
             {
                 new Reference
@@ -964,23 +969,81 @@ namespace Opc.Ua.Wot
                 {
                     ReferenceType = "HasComponent",
                     IsForward = false,
-                    Value = rootNodeId
+                    Value = owner
                 }
             };
             AddModellingRule(schema, references);
+            variable.ParentNodeId = owner;
             variable.References = [.. references];
             variable.Value = BuildVariableValue(schema, variable.DataType);
 
             ReportUnsupportedSchema(schema, nodeId, diagnostics);
 
             items.Add(variable);
-            rootReferences.Add(new Reference
+            if (string.Equals(owner, rootNodeId, StringComparison.Ordinal))
             {
-                ReferenceType = "HasComponent",
-                IsForward = true,
-                Value = nodeId
-            });
+                rootReferences.Add(new Reference
+                {
+                    ReferenceType = "HasComponent",
+                    IsForward = true,
+                    Value = nodeId
+                });
+            }
+            else
+            {
+                AddOwnedComponent(items, owner, nodeId);
+            }
             _ = isThingModel;
+        }
+
+        /// <summary>
+        /// Reads the parent an affordance names, where that parent is another
+        /// affordance of the same Thing rather than the Thing itself.
+        /// </summary>
+        private static string? ReadComponentOfParent(
+            JsonElement schema,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!schema.TryGetProperty("uav:componentOf", out JsonElement declared) ||
+                declared.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+            foreach (JsonElement entry in declared.EnumerateArray())
+            {
+                if (entry.ValueKind == JsonValueKind.String)
+                {
+                    return ToNodeSetNodeId(entry.GetString()!, nodeSet, diagnostics);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Adds the forward component reference from the owning Variable, so the
+        /// child hangs where the document says rather than being orphaned.
+        /// </summary>
+        private static void AddOwnedComponent(List<UANode> items, string owner, string nodeId)
+        {
+            foreach (UANode node in items)
+            {
+                if (!string.Equals(node.NodeId, owner, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                var references = new List<Reference>(node.References ?? [])
+                {
+                    new Reference
+                    {
+                        ReferenceType = "HasComponent",
+                        IsForward = true,
+                        Value = nodeId
+                    }
+                };
+                node.References = [.. references];
+                return;
+            }
         }
 
         /// <summary>
