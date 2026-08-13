@@ -304,11 +304,11 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var services = new ServiceCollection();
             services.AddOpcUa()
                 .AddClient(opt => opt.Configuration = CreateConfig())
-                .AddSubscriptions(options => options with
+                .AddSubscriptions(options =>
                 {
-                    Disabled = true,
-                    PublishingEnabled = true,
-                    SendInitialValuesOnTransfer = true
+                    options.Disabled = true;
+                    options.PublishingEnabled = true;
+                    options.SendInitialValuesOnTransfer = true;
                 });
 
             using ServiceProvider sp = services.BuildServiceProvider();
