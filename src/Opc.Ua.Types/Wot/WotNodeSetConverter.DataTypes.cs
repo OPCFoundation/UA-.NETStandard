@@ -306,6 +306,76 @@ namespace Opc.Ua.Wot
         /// as an Object referring back. Looking only one way concludes that a
         /// perfectly ordinary Structure has no encodings.
         /// </remarks>
+        /// <summary>
+        /// States the identities of the encoding Objects the NodeSet actually
+        /// gives this DataType.
+        /// </summary>
+        /// <remarks>
+        /// §6.11.7 derives an encoding identity from the type's own only when
+        /// the author omits it, and preserves an explicit one. A NodeSet
+        /// virtually always allocates its own — the DI model numbers them in
+        /// its own range — so a converter that says nothing here loses the real
+        /// Objects and invents three differently named ones in their place. The
+        /// address space then has the right shape and the wrong identities,
+        /// which is worse than an obvious gap because everything still browses.
+        /// </remarks>
+        private static void WriteEncodingIdentities(
+            Utf8JsonWriter writer,
+            UADataType dataType,
+            UANodeSet nodeSet)
+        {
+            if (nodeSet.Items is null || string.IsNullOrEmpty(dataType.NodeId))
+            {
+                return;
+            }
+            foreach (UANode node in nodeSet.Items)
+            {
+                if (node is not UAObject encoding ||
+                    encoding.References is null ||
+                    string.IsNullOrEmpty(encoding.NodeId))
+                {
+                    continue;
+                }
+                bool belongsHere = false;
+                foreach (Reference reference in encoding.References)
+                {
+                    if (string.Equals(
+                            reference.ReferenceType, "HasEncoding", StringComparison.Ordinal) &&
+                        string.Equals(reference.Value, dataType.NodeId, StringComparison.Ordinal))
+                    {
+                        belongsHere = true;
+                        break;
+                    }
+                }
+                if (!belongsHere)
+                {
+                    continue;
+                }
+                string? term = EncodingTermFor(encoding.BrowseName);
+                if (term is null)
+                {
+                    continue;
+                }
+                string? portable = ToPortableNodeId(encoding.NodeId, nodeSet.NamespaceUris);
+                if (!string.IsNullOrEmpty(portable))
+                {
+                    writer.WriteString(term, portable);
+                }
+            }
+        }
+
+        private static string? EncodingTermFor(string? browseName)
+        {
+            string local = LocalName(browseName) ?? string.Empty;
+            return local switch
+            {
+                "Default Binary" => "uav:binaryEncodingId",
+                "Default XML" => "uav:xmlEncodingId",
+                "Default JSON" => "uav:jsonEncodingId",
+                _ => null
+            };
+        }
+
         private static bool HasEncoding(UADataType dataType, UANodeSet nodeSet)
         {
             if (dataType.References is not null)
@@ -691,7 +761,16 @@ namespace Opc.Ua.Wot
                 ExposesDefaultEncoding(definition, name, isAbstract, kind, diagnostics);
             if (exposesEncodings)
             {
-                AppendEncodings(definition, identity, dataType.BrowseName!, references, items);
+                // §6.11.7 derives an encoding identity from the name-derived
+                // String NodeId, deliberately independent of an explicit
+                // numeric, GUID or opaque uav:dataTypeId, so that appending
+                // "/Default Binary" always yields a valid String NodeId rather
+                // than something glued onto a numeric identifier.
+                string encodingRoot =
+                    DeriveDataTypeNodeId(document, name, nodeSet, diagnostics) ?? identity;
+                AppendEncodings(
+                    definition, encodingRoot, dataType.BrowseName!, references, items,
+                    nodeSet, diagnostics);
             }
             else if (isAbstract)
             {
@@ -1221,17 +1300,19 @@ namespace Opc.Ua.Wot
             string identity,
             string browseName,
             List<Reference> references,
-            List<UANode> items)
+            List<UANode> items,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
         {
             AppendEncoding(
                 definition, "uav:binaryEncodingId", identity + BinaryEncodingSuffix,
-                "Default Binary", identity, references, items);
+                "Default Binary", identity, references, items, nodeSet, diagnostics);
             AppendEncoding(
                 definition, "uav:xmlEncodingId", identity + XmlEncodingSuffix,
-                "Default XML", identity, references, items);
+                "Default XML", identity, references, items, nodeSet, diagnostics);
             AppendEncoding(
                 definition, "uav:jsonEncodingId", identity + JsonEncodingSuffix,
-                "Default JSON", identity, references, items);
+                "Default JSON", identity, references, items, nodeSet, diagnostics);
             _ = browseName;
         }
 
@@ -1242,9 +1323,17 @@ namespace Opc.Ua.Wot
             string name,
             string dataTypeId,
             List<Reference> references,
-            List<UANode> items)
+            List<UANode> items,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
         {
-            string encodingId = GetElementString(definition, term) ?? derivedId;
+            // An authored identity is portable; a NodeSet attribute is not. It
+            // has to be resolved here or the encoding Object lands beside the
+            // one it was meant to be.
+            string? authored = GetElementString(definition, term);
+            string encodingId = authored is null
+                ? derivedId
+                : ToNodeSetNodeId(authored, nodeSet, diagnostics);
             references.Add(new Reference
             {
                 ReferenceType = "HasEncoding",
@@ -1425,6 +1514,7 @@ namespace Opc.Ua.Wot
                 // way back does not generate the three it never had.
                 writer.WriteBoolean("uav:hasDefaultEncoding", false);
             }
+            WriteEncodingIdentities(writer, dataType, nodeSet);
             WriteBaseDataType(writer, dataType, nodeSet);
             WriteDescription(writer, dataType.Description);
 
@@ -1738,7 +1828,7 @@ namespace Opc.Ua.Wot
             }
             if (!isEnumeration)
             {
-                AppendEncodings(schema, identity, dataType.BrowseName!, references, items);
+                AppendEncodings(schema, identity, dataType.BrowseName!, references, items, nodeSet, diagnostics);
             }
             dataType.References = [.. references];
             items.Add(dataType);

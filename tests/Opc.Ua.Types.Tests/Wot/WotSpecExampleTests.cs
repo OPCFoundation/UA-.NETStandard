@@ -444,6 +444,21 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.False,
                 "A type with uav:hasDefaultEncoding false exposes no encodings.");
 
+            // §6.11.7 derives an encoding identity from the NAME-derived String
+            // NodeId, independent of an explicit numeric or opaque
+            // uav:dataTypeId, so appending "/Default Binary" always yields a
+            // valid String NodeId rather than something glued onto a number.
+            UADataType linked = dataTypes.Single(d => d.BrowseName!.EndsWith(
+                ":LinkedNodeDataType", StringComparison.Ordinal));
+            Assert.That(linked.NodeId, Does.Not.Contain("DataTypes/"));
+            Assert.That(
+                linked.References!.Any(r => r.ReferenceType == "HasEncoding" &&
+                    r.IsForward && r.Value!.Contains(
+                        "s=DataTypes/LinkedNodeDataType/Default Binary",
+                        StringComparison.Ordinal)),
+                Is.True,
+                "The encoding identity derives from the name, not from the explicit id.");
+
             // A SimpleDataType has no definition attribute and no encodings.
             UADataType counter = dataTypes.Single(d => d.BrowseName!.EndsWith(
                 ":PositiveCounterType", StringComparison.Ordinal));

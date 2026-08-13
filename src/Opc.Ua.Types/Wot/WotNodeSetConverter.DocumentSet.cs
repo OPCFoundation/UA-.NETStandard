@@ -354,6 +354,14 @@ namespace Opc.Ua.Wot
 
         private static HashSet<string> CollectContainedNodes(UANodeSet nodeSet)
         {
+            var present = new HashSet<string>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items!)
+            {
+                if (node.NodeId is not null)
+                {
+                    present.Add(node.NodeId);
+                }
+            }
             var contained = new HashSet<string>(StringComparer.Ordinal);
             foreach (UANode node in nodeSet.Items!)
             {
@@ -372,20 +380,16 @@ namespace Opc.Ua.Wot
                         contained.Add(reference.Value);
                     }
                     else if (!reference.IsForward &&
-                        (IsComponentReference(reference.ReferenceType) ||
-                            string.Equals(
-                                reference.ReferenceType,
-                                "HasSubtype",
-                                StringComparison.Ordinal)) &&
-                        node.NodeId is not null)
+                        IsComponentReference(reference.ReferenceType) &&
+                        node.NodeId is not null &&
+                        present.Contains(reference.Value))
                     {
-                        // A subtype is stated by its own document, but a Node
-                        // whose parent is in this set is not: it belongs to the
-                        // document that contains it.
-                        if (IsComponentReference(reference.ReferenceType))
-                        {
-                            contained.Add(node.NodeId);
-                        }
+                        // Only a Node whose parent is in this set belongs to
+                        // another document. A Node whose parent lives elsewhere
+                        // — the namespace metadata Object hangs off the Server
+                        // — has no document to belong to, so it must root one
+                        // of its own or it is simply lost.
+                        contained.Add(node.NodeId);
                     }
                 }
             }
