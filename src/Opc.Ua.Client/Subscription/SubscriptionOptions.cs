@@ -40,44 +40,44 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// The subscription is disabled
         /// </summary>
-        public bool Disabled { get; set; }
+        public bool Disabled { get; init; }
 
         /// <summary>
         /// Set keep alive count
         /// </summary>
-        public uint KeepAliveCount { get; set; }
+        public uint KeepAliveCount { get; init; }
 
         /// <summary>
         /// The life time of the subscription in counts of
         /// publish interval.
         /// LifetimeCount shall be at least 3*KeepAliveCount.
         /// </summary>
-        public uint LifetimeCount { get; set; }
+        public uint LifetimeCount { get; init; }
 
         /// <summary>
         /// Set desired priority of the subscription
         /// </summary>
-        public byte Priority { get; set; }
+        public byte Priority { get; init; }
 
         /// <summary>
         /// Set desired publishing interval
         /// </summary>
-        public TimeSpan PublishingInterval { get; set; }
+        public TimeSpan PublishingInterval { get; init; }
 
         /// <summary>
         /// Set desired publishing enabled
         /// </summary>
-        public bool PublishingEnabled { get; set; }
+        public bool PublishingEnabled { get; init; }
 
         /// <summary>
         /// Set max notifications per publish
         /// </summary>
-        public uint MaxNotificationsPerPublish { get; set; }
+        public uint MaxNotificationsPerPublish { get; init; }
 
         /// <summary>
         /// Set min lifetime interval
         /// </summary>
-        public TimeSpan MinLifetimeInterval { get; set; }
+        public TimeSpan MinLifetimeInterval { get; init; }
 
         /// <summary>
         /// When the V2 manager restores this subscription via
@@ -91,7 +91,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// matching the post-disconnect semantics that the V2 manager
         /// expects for failover-on-recreate.
         /// </summary>
-        public bool SendInitialValuesOnTransfer { get; set; }
+        public bool SendInitialValuesOnTransfer { get; init; }
 
         /// <summary>
         /// Controls how the client reacts to an unsolicited
@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// having initiated a TransferSubscriptions request — this
         /// addresses server quirks that leave subscriptions stuck.
         /// </summary>
-        public SubscriptionRecoveryPolicy RecoveryPolicy { get; set; }
+        public SubscriptionRecoveryPolicy RecoveryPolicy { get; init; }
 
         /// <summary>
         /// <para>
@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// pre-V2 behaviour).
         /// </para>
         /// </summary>
-        public bool DisableUnboundedItemMode { get; set; }
+        public bool DisableUnboundedItemMode { get; init; }
 
         /// <summary>
         /// <para>
@@ -161,7 +161,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// is <c>true</c>.
         /// </para>
         /// </summary>
-        public uint? MaxMonitoredItemsPerPartition { get; set; }
+        public uint? MaxMonitoredItemsPerPartition { get; init; }
 
         /// <summary>
         /// <para>
@@ -189,7 +189,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// is <c>true</c>.
         /// </para>
         /// </summary>
-        public uint MaxPartitionCount { get; set; } = 32;
+        public uint MaxPartitionCount { get; init; } = 32;
 
         /// <summary>
         /// <para>
@@ -211,7 +211,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// is <c>true</c>.
         /// </para>
         /// </summary>
-        public TimeSpan SecondaryPartitionIdleTimeout { get; set; }
+        public TimeSpan SecondaryPartitionIdleTimeout { get; init; }
             = TimeSpan.FromSeconds(30);
     }
 }

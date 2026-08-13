@@ -386,6 +386,41 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers container-default subscription and monitored-item options.
+        /// </summary>
+        /// <remarks>
+        /// The configuration delegate returns the updated immutable subscription
+        /// options snapshot, for example <c>options => options with { PublishingEnabled = true }</c>.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaClientBuilder AddSubscriptions(
+            this IOpcUaClientBuilder builder,
+            Func<
+                Opc.Ua.Client.Subscriptions.SubscriptionOptions,
+                Opc.Ua.Client.Subscriptions.SubscriptionOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            builder.Services.AddOptions<Opc.Ua.Client.Subscriptions.SubscriptionOptions>();
+            builder.Services.Replace(
+                ServiceDescriptor.Singleton<
+                    IOptionsMonitor<Opc.Ua.Client.Subscriptions.SubscriptionOptions>>(_ =>
+                    new Opc.Ua.OptionsMonitor<Opc.Ua.Client.Subscriptions.SubscriptionOptions>(
+                        configure(new Opc.Ua.Client.Subscriptions.SubscriptionOptions())
+                        ?? throw new InvalidOperationException(
+                            "Subscription options configuration delegate returned null."))));
+            builder.Services.AddOptions<Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions>();
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a keyed managed-session pool backed by <see cref="IManagedSessionFactory"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
