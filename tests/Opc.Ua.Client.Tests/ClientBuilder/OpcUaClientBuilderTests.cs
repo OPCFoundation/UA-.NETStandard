@@ -318,7 +318,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(resolvedOptions.Disabled, Is.True);
             Assert.That(resolvedOptions.PublishingEnabled, Is.True);
-            Assert.That(resolvedOptions.SendInitialValuesOnTransfer, Is.True)
+            Assert.That(resolvedOptions.SendInitialValuesOnTransfer, Is.True);
         }
 
         [Test]
