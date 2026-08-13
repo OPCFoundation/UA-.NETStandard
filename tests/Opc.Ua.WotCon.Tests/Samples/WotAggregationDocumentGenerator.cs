@@ -102,6 +102,49 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </summary>
         internal sealed record GeneratedDocument(string Href, byte[] Json);
 
+        /// <summary>
+        /// Writes a generated set into its own directory and returns the
+        /// manifest entries that name the files.
+        /// </summary>
+        /// <remarks>
+        /// One file per document, in a directory named for the model. The set
+        /// is emitted parent before child, so chaining each entry to the one
+        /// before it is already a valid load order — a document that names its
+        /// parent is never loaded before that parent exists.
+        /// </remarks>
+        public static IReadOnlyList<ManifestEntry> WriteThingModelSet(
+            string documentsDirectory,
+            string modelDirectory,
+            IReadOnlyList<GeneratedDocument> documents,
+            string? firstDependsOn)
+        {
+            string target = Path.Combine(documentsDirectory, modelDirectory);
+            if (Directory.Exists(target))
+            {
+                Directory.Delete(target, recursive: true);
+            }
+            Directory.CreateDirectory(target);
+
+            var entries = new List<ManifestEntry>(documents.Count);
+            string? previous = firstDependsOn;
+            foreach (GeneratedDocument document in documents)
+            {
+                string fileName = document.Href + ".json";
+                File.WriteAllBytes(Path.Combine(target, fileName), document.Json);
+                entries.Add(new ManifestEntry(
+                    document.Href,
+                    modelDirectory + "/" + fileName,
+                    previous));
+                previous = document.Href;
+            }
+            return entries;
+        }
+
+        /// <summary>
+        /// One <c>documents.json</c> entry.
+        /// </summary>
+        internal sealed record ManifestEntry(string ResourceId, string Path, string? DependsOn);
+
         public static byte[] GeneratePumpThingDescription(string sourcePath)
         {
             using WotDocument generated = WotNodeSetConverter.FromNodeSet(
