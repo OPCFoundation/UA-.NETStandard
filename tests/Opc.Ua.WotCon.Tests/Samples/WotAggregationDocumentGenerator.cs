@@ -60,6 +60,48 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return document.ToCanonicalUtf8();
         }
 
+        /// <summary>
+        /// Generates a companion model as the set of linked documents §9.1
+        /// describes, one per Node that roots a document.
+        /// </summary>
+        /// <remarks>
+        /// A companion model states many type definitions side by side and has
+        /// no single root, so converting it to one document leaves everything
+        /// but the first unreachable and forces the whole model into the
+        /// <c>uav:nodes</c> projection. The set is what lets it be stated
+        /// readably.
+        /// </remarks>
+        public static IReadOnlyList<GeneratedDocument> GenerateThingModelSet(
+            string sourcePath,
+            string modelPrefix,
+            string title)
+        {
+            WotConversionResult<WotDocumentSet> result =
+                WotNodeSetConverter.FromNodeSetDocuments(
+                    ReadNodeSet(sourcePath),
+                    modelPrefix,
+                    title,
+                    CreateLargeDocumentOptions());
+            using WotDocumentSet set = result.Value
+                ?? throw new InvalidOperationException(
+                    $"'{sourcePath}' produced no document set.");
+
+            var generated = new List<GeneratedDocument>(set.Entries.Count);
+            foreach (WotDocumentSetEntry entry in set.Entries)
+            {
+                generated.Add(new GeneratedDocument(
+                    entry.Href,
+                    entry.Document.ToCanonicalUtf8()));
+            }
+            return generated;
+        }
+
+        /// <summary>
+        /// One document of a generated set, named by the href that identifies
+        /// it within the set.
+        /// </summary>
+        internal sealed record GeneratedDocument(string Href, byte[] Json);
+
         public static byte[] GeneratePumpThingDescription(string sourcePath)
         {
             using WotDocument generated = WotNodeSetConverter.FromNodeSet(
