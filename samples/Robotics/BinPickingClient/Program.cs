@@ -165,8 +165,19 @@ namespace BinPickingClient
 
                     if (options.View)
                     {
-                        await RunViewportIfAvailableAsync(sample, options, telemetry, lifetime.Token)
-                            .ConfigureAwait(false);
+                        bool closedByUser = await RunViewportIfAvailableAsync(
+                            sample, options, telemetry, lifetime.Token).ConfigureAwait(false);
+#if BINPICKING_CLIENT_MCP
+                        if (!closedByUser && options.Mcp && !options.Demo)
+                        {
+                            // The viewer never opened, or it failed. An agent is still driving the
+                            // cell over MCP, so keep serving instead of exiting underneath it.
+                            Console.Error.WriteLine(
+                                "MCP server still running without a viewport; connect an MCP client to drive " +
+                                "the cell. Press Ctrl+C to exit.");
+                            await WaitForMcpServerAsync(mcpHost!, lifetime.Token).ConfigureAwait(false);
+                        }
+#endif
                     }
                     else if (options.Mcp && !options.Demo)
                     {
@@ -201,7 +212,7 @@ namespace BinPickingClient
             }
         }
 
-        private static async Task RunViewportIfAvailableAsync(
+        private static async Task<bool> RunViewportIfAvailableAsync(
             BinPickingSampleSession sample,
             BinPickingClientOptions options,
             ITelemetryContext telemetry,
@@ -211,7 +222,7 @@ namespace BinPickingClient
             {
                 Console.Error.WriteLine(
                     "Viewport unavailable; the sample continues without a viewer. " + reason);
-                return;
+                return false;
             }
 
             string liveLayerPath = PrepareLiveLayerPath(options);
@@ -219,11 +230,12 @@ namespace BinPickingClient
                 ?? Path.GetDirectoryName(liveLayerPath)
                 ?? AppContext.BaseDirectory;
 
+            string stagePath = Path.Combine(cacheDir, "stage.usda");
+
             // The viewport needs the served geometry: without it only the live override layer
             // composes, which carries transforms but no geometry and renders as an empty scene.
             await FetchAssetsAsync(sample.Session, cacheDir, cancellationToken).ConfigureAwait(false);
 
-            string stagePath = Path.Combine(cacheDir, "stage.usda");
             if (!File.Exists(stagePath))
             {
                 Console.Error.WriteLine(
@@ -240,8 +252,23 @@ namespace BinPickingClient
                 Telemetry = telemetry
             };
             Console.Error.WriteLine("Opening OpenUSD viewport for the bin-picking cell.");
-            await RunViewportOnStaThreadAsync(viewHost!, viewOptions, sample.Session, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                await RunViewportOnStaThreadAsync(viewHost!, viewOptions, sample.Session, cancellationToken)
+                    .ConfigureAwait(false);
+                return true;
+            }
+#pragma warning disable CA1031 // The viewer is a third-party UI; no exception from it should end the session.
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+#pragma warning restore CA1031
+            {
+                // The viewport is optional. A failure inside the renderer or its window code must
+                // not take down an MCP session an agent is driving, so report it and carry on.
+                Console.Error.WriteLine(
+                    "The OpenUSD viewport ended with an error; the sample continues without a viewer. " +
+                    exception.Message);
+                return false;
+            }
         }
 
         private static Task<bool> RunViewportOnStaThreadAsync(
@@ -289,6 +316,7 @@ namespace BinPickingClient
             await using (connector.ConfigureAwait(false))
             {
                 await connector.StartAsync(cancellationToken).ConfigureAwait(false);
+                Console.Error.WriteLine("Live OpenUSD stream started; the viewport now follows the cell.");
                 try
                 {
                     await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
@@ -299,6 +327,7 @@ namespace BinPickingClient
                 }
                 finally
                 {
+                    Console.Error.WriteLine("Live OpenUSD stream stopping.");
                     await connector.StopAsync(CancellationToken.None).ConfigureAwait(false);
                 }
             }
