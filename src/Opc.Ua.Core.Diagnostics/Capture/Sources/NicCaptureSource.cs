@@ -112,11 +112,11 @@ namespace Opc.Ua.Pcap.Capture.Sources
         // mismatch with the interface member itself is suppressed below.
         [RequiresDynamicCode(kSharpPcapDynamicLoadingMessage)]
         [RequiresUnreferencedCode(kSharpPcapDynamicLoadingMessage)]
-        [UnconditionalSuppressMessage("AOT", "IL3051:RequiresDynamicCodeAttribute mismatch",
+        [UnconditionalSuppressMessage("AOT", "IL3051",
             Justification = "ICaptureSource.StartAsync is intentionally unannotated; only " +
                 "NicCaptureSource needs SharpPcap's dynamic-loading requirement, so this " +
                 "implementation is intentionally stricter than the interface it implements.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2046:RequiresUnreferencedCodeAttribute mismatch",
+        [UnconditionalSuppressMessage("Trimming", "IL2046",
             Justification = "ICaptureSource.StartAsync is intentionally unannotated; only " +
                 "NicCaptureSource needs SharpPcap's dynamic-loading requirement, so this " +
                 "implementation is intentionally stricter than the interface it implements.")]

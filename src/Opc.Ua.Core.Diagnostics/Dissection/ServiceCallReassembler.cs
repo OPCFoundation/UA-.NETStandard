@@ -479,7 +479,7 @@ namespace Opc.Ua.Pcap.Dissection
         // than silently left unannotated.
         [UnconditionalSuppressMessage(
             "ReflectionAnalysis",
-            "IL2075:UnrecognizedReflectionPattern",
+            "IL2075",
             Justification = "Summary formatting only reads well-known service-message property " +
                 "names; those properties are used directly elsewhere in the codebase and are " +
                 "never trimmed in practice. See the TODO above for the intended source-generated " +
@@ -509,7 +509,7 @@ namespace Opc.Ua.Pcap.Dissection
 
         [UnconditionalSuppressMessage(
             "ReflectionAnalysis",
-            "IL2075:UnrecognizedReflectionPattern",
+            "IL2075",
             Justification = "Summary formatting only reads well-known service-message property " +
                 "names; those properties are used directly elsewhere in the codebase and are " +
                 "never trimmed in practice. See the TODO on GetCollectionCount for the intended " +
