@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -582,6 +583,82 @@ namespace Opc.Ua.Client.Tests
                 0), Times.Once);
             m_mockContext.Verify(c => c.OnKeepAliveError(
                 It.Is<ServiceResult>(result => result.StatusCode == StatusCodes.BadSessionIdInvalid)), Times.Once);
+        }
+
+        [Test]
+        public void ConcurrentPublishReEvaluationDoesNotExceedDesiredRequestCount()
+        {
+            const int subscriptionCount = 5;
+            const int concurrentCompletions = 64;
+
+            var subscriptions = new List<Subscription>();
+            for (int ii = 0; ii < subscriptionCount; ii++)
+            {
+                subscriptions.Add(
+                    new Subscription(m_telemetry)
+                    {
+                        CurrentPublishingInterval = 100,
+                        CurrentLifetimeCount = 10
+                    });
+            }
+
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(subscriptions);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns(([], []));
+
+            // Mirrors the session: a publish request only becomes visible to
+            // GoodPublishRequestCount once AsyncRequestStarted has recorded it,
+            // which the engine does after the request has already been issued.
+            int outstanding = 0;
+            m_mockContext.Setup(c => c.GoodPublishRequestCount)
+                .Returns(() => Volatile.Read(ref outstanding));
+            m_mockContext.Setup(c => c.AsyncRequestStarted(
+                    It.IsAny<Task>(),
+                    It.IsAny<Activity>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>()))
+                .Callback(() => Interlocked.Increment(ref outstanding));
+
+            // Requests never complete, so nothing drains the outstanding count.
+            var pending = new TaskCompletionSource<PublishResponse>();
+            int issued = 0;
+            m_mockContext.Setup(c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref issued);
+                    return new ValueTask<PublishResponse>(pending.Task);
+                });
+
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+
+            using var barrier = new Barrier(concurrentCompletions);
+            var threads = new Task[concurrentCompletions];
+            for (int ii = 0; ii < concurrentCompletions; ii++)
+            {
+                threads[ii] = Task.Factory.StartNew(
+                    () =>
+                    {
+                        barrier.SignalAndWait();
+                        engine.NotifySubscriptionsChanged();
+                    },
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
+            }
+
+            Task.WaitAll(threads);
+            pending.TrySetCanceled();
+
+            Assert.That(
+                Volatile.Read(ref issued),
+                Is.LessThanOrEqualTo(subscriptionCount),
+                "Concurrent publish re-evaluation must not issue more requests " +
+                "than the desired publish request count.");
         }
 
         private static void InvokeOnPublishComplete(

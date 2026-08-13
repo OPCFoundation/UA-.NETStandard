@@ -130,7 +130,10 @@ namespace Opc.Ua.Client
             int publishCount = GetDesiredPublishRequestCount(true);
 
             // refill pipeline. Send at least one publish request
-            // if subscriptions are active.
+            // if subscriptions are active. This path is deliberately not
+            // capped by the in flight reservation: it is the recovery valve
+            // that refills a pipeline whose requests are outstanding but
+            // are no longer expected to return.
             if (publishCount > 0 && BeginPublish(timeout))
             {
                 int startCount = fullQueue
@@ -216,6 +219,27 @@ namespace Opc.Ua.Client
         /// <returns>True if the request was sent successfully.</returns>
         internal bool BeginPublish(int timeout)
         {
+            // An explicit request to send a publish. The in flight count is
+            // maintained so the automatic top up stays accurate, but an
+            // explicit caller is not capped.
+            Interlocked.Increment(ref m_publishRequestsInFlight);
+
+            if (!BeginPublishCore(timeout))
+            {
+                Interlocked.Decrement(ref m_publishRequestsInFlight);
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Sends a publish request. The caller must have accounted for the
+        /// request in <see cref="m_publishRequestsInFlight"/> and must release
+        /// that reservation if this returns <c>false</c>.
+        /// </summary>
+        private bool BeginPublishCore(int timeout)
+        {
             // do not publish if reconnecting or the session is in closed state.
             if (!m_context.Connected)
             {
@@ -297,11 +321,15 @@ namespace Opc.Ua.Client
                     DataTypes.PublishRequest);
                 task.ConfigureAwait(false)
                     .GetAwaiter()
-                    .OnCompleted(() => OnPublishComplete(
-                        task,
-                        m_context.SessionId,
-                        acknowledgementsToSend,
-                        requestHeader));
+                    .OnCompleted(() =>
+                    {
+                        Interlocked.Decrement(ref m_publishRequestsInFlight);
+                        OnPublishComplete(
+                            task,
+                            m_context.SessionId,
+                            acknowledgementsToSend,
+                            requestHeader);
+                    });
                 return true;
             }
             catch (Exception e)
@@ -797,20 +825,57 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            int requestCount = GoodPublishRequestCount;
             int minPublishRequestCount = GetDesiredPublishRequestCount(false);
 
-            if (requestCount < minPublishRequestCount)
-            {
-                BeginPublish(m_context.OperationTimeout);
-            }
-            else
+            // Reserve the slot before issuing. Reading a count and then
+            // sending is a check-then-act: concurrent publish completions all
+            // observe the same value, all conclude they are below the limit,
+            // and each sends a request, overshooting by the number of
+            // completions that overlap.
+            if (!TryReservePublishRequest(minPublishRequestCount, out int requestCount))
             {
                 m_logger.PUBLISHDidNotSendAnotherPublish(
                     requestCount,
                     minPublishRequestCount,
                     m_context.SessionId);
+                return;
             }
+
+            if (!BeginPublishCore(m_context.OperationTimeout))
+            {
+                Interlocked.Decrement(ref m_publishRequestsInFlight);
+            }
+        }
+
+        /// <summary>
+        /// Atomically reserves capacity for one more publish request if fewer
+        /// than <paramref name="limit"/> are in flight.
+        /// </summary>
+        /// <param name="limit">The maximum number of requests in flight.</param>
+        /// <param name="inFlight">The number observed in flight.</param>
+        /// <returns>True if a slot was reserved.</returns>
+        private bool TryReservePublishRequest(int limit, out int inFlight)
+        {
+            int current = Volatile.Read(ref m_publishRequestsInFlight);
+
+            while (current < limit)
+            {
+                int prior = Interlocked.CompareExchange(
+                    ref m_publishRequestsInFlight,
+                    current + 1,
+                    current);
+
+                if (prior == current)
+                {
+                    inFlight = current;
+                    return true;
+                }
+
+                current = prior;
+            }
+
+            inFlight = current;
+            return false;
         }
 
         /// <summary>
@@ -1051,6 +1116,7 @@ namespace Opc.Ua.Client
         private readonly Lock m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
         internal uint PublishCounter;
+        private int m_publishRequestsInFlight;
         private int m_tooManyPublishRequests;
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;
