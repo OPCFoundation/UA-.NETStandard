@@ -81,7 +81,11 @@ if (-not (Test-Path $sgenDll)) {
 
     Invoke-WebRequest -Uri $nupkgUrl -OutFile $nupkgPath -ErrorAction Stop
     if (Test-Path $sgenCacheDir) { Remove-Item $sgenCacheDir -Recurse -Force }
-    Expand-Archive $nupkgPath -DestinationPath $sgenCacheDir -Force
+    # A .nupkg is a zip archive, but Expand-Archive rejects the .nupkg extension on
+    # Windows PowerShell. Extract directly with the framework zip API instead, which
+    # works across Windows PowerShell and PowerShell 7+ regardless of file extension.
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($nupkgPath, $sgenCacheDir)
     Remove-Item $nupkgPath -Force
 
     if (-not (Test-Path $sgenDll)) {
