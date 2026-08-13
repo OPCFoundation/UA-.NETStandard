@@ -1088,7 +1088,8 @@ namespace Opc.Ua.Server
                 VariableIds.Server_ServerCapabilities_ConformanceUnits);
             conformanceUnits?.Value = Variant.From(Array.Empty<QualifiedName>().ToArrayOf());
 
-            serverCapabilities.MinSupportedSampleRate!.Value = 0;
+            serverCapabilities.MinSupportedSampleRate!.Value = m_configuration.ServerConfiguration
+                .MinSupportedSamplingInterval;
             serverCapabilities.MaxBrowseContinuationPoints!.Value = (ushort)
                 m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
             serverCapabilities.MaxQueryContinuationPoints!.Value = (ushort)
