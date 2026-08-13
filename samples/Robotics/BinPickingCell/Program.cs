@@ -110,10 +110,12 @@ builder.Services
         options.AutoAcceptUntrustedCertificates = true;
 
         // A 1280x1024 RGB frame is just under 4 MB, which is exactly the default
-        // ByteString ceiling, so GetClip refused its own camera output with
-        // BadEncodingLimitsExceeded. Advertise room for the frames this cell serves.
+        // ByteString ceiling, and the response that carries it is larger still, so
+        // GetClip refused its own camera output with BadEncodingLimitsExceeded.
+        // Advertise room for the frames this cell serves.
         options.MaxByteStringLength = 32 * 1024 * 1024;
         options.MaxArrayLength = 32 * 1024 * 1024;
+        options.MaxMessageSize = 64 * 1024 * 1024;
         options.EndpointUrls.Add($"opc.tcp://{host}:{port}/BinPickingCell");
     })
     .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
