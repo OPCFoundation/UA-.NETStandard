@@ -28,6 +28,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text;
@@ -536,6 +537,94 @@ namespace Opc.Ua.Types.Tests.Wot
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
                     .Select(d => d.Message),
                 Has.Some.Contains(expected));
+        }
+
+        /// <summary>
+        /// A NodeSet is not a single Thing. A companion model states many type
+        /// definitions side by side, and §9.1 gives each its own document, so
+        /// choosing one root leaves every other type unreachable and forces the
+        /// whole model into the native projection.
+        /// </summary>
+        [Test]
+        public void EveryTypeDefinitionRootsItsOwnDocument()
+        {
+            var nodeSet = new UANodeSet
+            {
+                NamespaceUris = ["http://example.com/demo/pump"],
+                Items =
+                [
+                    TypeWithVariable("ns=1;i=100", "1:AlphaType", "ns=1;i=101", "1:AlphaValue"),
+                    Variable("ns=1;i=101", "1:AlphaValue", "ns=1;i=100"),
+                    TypeWithVariable("ns=1;i=200", "1:BetaType", "ns=1;i=201", "1:BetaValue"),
+                    Variable("ns=1;i=201", "1:BetaValue", "ns=1;i=200"),
+                    TypeWithVariable("ns=1;i=300", "1:GammaType", "ns=1;i=301", "1:GammaValue"),
+                    Variable("ns=1;i=301", "1:GammaValue", "ns=1;i=300")
+                ]
+            };
+
+            WotConversionResult<WotDocumentSet> result =
+                WotNodeSetConverter.FromNodeSetDocuments(nodeSet, "model");
+
+            using WotDocumentSet set = result.Value!;
+            Assert.That(set.Entries, Has.Count.EqualTo(3));
+            var counts = new List<int>();
+            foreach (WotDocumentSetEntry entry in set.Entries)
+            {
+                counts.Add(entry.Document.Properties.Count);
+            }
+            Assert.That(
+                counts,
+                Is.EqualTo(new[] { 1, 1, 1 }),
+                "Each type's own Variable belongs to that type's document.");
+        }
+
+        private static UAObjectType TypeWithVariable(
+            string nodeId,
+            string browseName,
+            string childId,
+            string childName)
+        {
+            _ = childName;
+            return new UAObjectType
+            {
+                NodeId = nodeId,
+                BrowseName = browseName,
+                References =
+                [
+                    new Reference
+                    {
+                        ReferenceType = "HasSubtype",
+                        IsForward = false,
+                        Value = "i=58"
+                    },
+                    new Reference
+                    {
+                        ReferenceType = "HasComponent",
+                        IsForward = true,
+                        Value = childId
+                    }
+                ]
+            };
+        }
+
+        private static UAVariable Variable(string nodeId, string browseName, string parentId)
+        {
+            return new UAVariable
+            {
+                NodeId = nodeId,
+                BrowseName = browseName,
+                ParentNodeId = parentId,
+                DataType = "i=11",
+                References =
+                [
+                    new Reference
+                    {
+                        ReferenceType = "HasComponent",
+                        IsForward = false,
+                        Value = parentId
+                    }
+                ]
+            };
         }
 
         private static string OptionSetThing(string baseId, int bit)

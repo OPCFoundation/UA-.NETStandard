@@ -185,8 +185,8 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions resolved = options ?? new WotNodeSetConverterOptions();
             resolved.Validate();
             var diagnostics = new List<WotDiagnostic>();
-            UANode? root = SelectRootNode(nodeSet);
-            if (root is null)
+            List<UANode> roots = SelectRootNodes(nodeSet);
+            if (roots.Count == 0)
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
@@ -199,12 +199,27 @@ namespace Opc.Ua.Wot
             Dictionary<string, UANode> index = BuildIndex(nodeSet);
             var entries = new List<WotDocumentSetEntry>();
             var hrefs = new HashSet<string>(StringComparer.Ordinal);
+            var emitted = new HashSet<string>(StringComparer.Ordinal);
             try
             {
-                WriteObjectDocuments(
-                    nodeSet, index, root, rootHref, null,
-                    title ?? LocalName(root.BrowseName) ?? rootHref,
-                    nodeSetBytes, resolved, diagnostics, entries, hrefs);
+                // The first root keeps the caller's href so an existing single
+                // -root conversion is unchanged; every further root is a
+                // sibling document named after itself.
+                bool first = true;
+                foreach (UANode root in roots)
+                {
+                    string href = first
+                        ? rootHref
+                        : ChildHref(rootHref, LocalName(root.BrowseName) ?? root.NodeId ?? "node", hrefs);
+                    string documentTitle = first
+                        ? title ?? LocalName(root.BrowseName) ?? rootHref
+                        : LocalName(root.BrowseName) ?? href;
+                    WriteObjectDocuments(
+                        nodeSet, index, root, href, null,
+                        documentTitle,
+                        nodeSetBytes, resolved, diagnostics, entries, hrefs, emitted);
+                    first = false;
+                }
             }
             catch
             {
@@ -237,9 +252,11 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
             List<WotDocumentSetEntry> entries,
-            HashSet<string> hrefs)
+            HashSet<string> hrefs,
+            HashSet<string> emitted)
         {
-            if (!hrefs.Add(href))
+            if (!hrefs.Add(href) ||
+                (node.NodeId is not null && !emitted.Add(node.NodeId)))
             {
                 return;
             }
@@ -268,7 +285,7 @@ namespace Opc.Ua.Wot
                 string local = LocalName(target.BrowseName) ?? target.NodeId ?? href;
                 WriteObjectDocuments(
                     nodeSet, index, target, ChildHref(href, local, hrefs), href,
-                    local, nodeSetBytes, options, diagnostics, entries, hrefs);
+                    local, nodeSetBytes, options, diagnostics, entries, hrefs, emitted);
             }
         }
 
@@ -278,6 +295,103 @@ namespace Opc.Ua.Wot
         /// href containing one as a BrowsePath rather than as a document
         /// reference.
         /// </summary>
+        /// <summary>
+        /// Selects every Node that roots a document of its own.
+        /// </summary>
+        /// <remarks>
+        /// A single NodeSet is not a single Thing. A companion model states
+        /// many type definitions side by side, and §9.1 gives each of them a
+        /// document: an ObjectType is a Thing Model, a VariableType a property
+        /// in one. Choosing one root and walking its references leaves
+        /// everything else unreachable, which is what forced an entire
+        /// companion model into the native projection.
+        ///
+        /// A Node contained by another Node in the same set is not a root; it
+        /// is reached by the walk from the Node that contains it. Everything
+        /// else roots a document, in the order the NodeSet states it so the
+        /// result is stable.
+        /// </remarks>
+        private static List<UANode> SelectRootNodes(UANodeSet nodeSet)
+        {
+            if (nodeSet.Items is null || nodeSet.Items.Length == 0)
+            {
+                return [];
+            }
+            HashSet<string> contained = CollectContainedNodes(nodeSet);
+            var roots = new List<UANode>();
+            foreach (UANode node in nodeSet.Items)
+            {
+                if (!RootsItsOwnDocument(node))
+                {
+                    continue;
+                }
+                if (node.NodeId is not null && contained.Contains(node.NodeId))
+                {
+                    continue;
+                }
+                roots.Add(node);
+            }
+            if (roots.Count == 0)
+            {
+                UANode? single = SelectRootNode(nodeSet);
+                if (single is not null)
+                {
+                    roots.Add(single);
+                }
+            }
+            return roots;
+        }
+
+        /// <summary>
+        /// A DataType is carried by <c>uav:dataTypeDefinitions</c> and a
+        /// ReferenceType by the compact name a link uses, so neither roots a
+        /// document of its own (§9.1).
+        /// </summary>
+        private static bool RootsItsOwnDocument(UANode node)
+        {
+            return node is UAObjectType or UAVariableType or UAObject;
+        }
+
+        private static HashSet<string> CollectContainedNodes(UANodeSet nodeSet)
+        {
+            var contained = new HashSet<string>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items!)
+            {
+                if (node.References is null)
+                {
+                    continue;
+                }
+                foreach (Reference reference in node.References)
+                {
+                    if (reference.Value is null)
+                    {
+                        continue;
+                    }
+                    if (reference.IsForward && IsComponentReference(reference.ReferenceType))
+                    {
+                        contained.Add(reference.Value);
+                    }
+                    else if (!reference.IsForward &&
+                        (IsComponentReference(reference.ReferenceType) ||
+                            string.Equals(
+                                reference.ReferenceType,
+                                "HasSubtype",
+                                StringComparison.Ordinal)) &&
+                        node.NodeId is not null)
+                    {
+                        // A subtype is stated by its own document, but a Node
+                        // whose parent is in this set is not: it belongs to the
+                        // document that contains it.
+                        if (IsComponentReference(reference.ReferenceType))
+                        {
+                            contained.Add(node.NodeId);
+                        }
+                    }
+                }
+            }
+            return contained;
+        }
+
         private static string ChildHref(string parentHref, string local, HashSet<string> taken)        {
             var builder = new StringBuilder(parentHref.Length + local.Length + 1);
             builder.Append(parentHref).Append('-');
