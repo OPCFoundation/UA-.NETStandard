@@ -145,6 +145,17 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         /// <summary>
+        /// Identifiers the fake session claims outside the manager's registry,
+        /// standing in for subscriptions created through the classic API.
+        /// </summary>
+        public HashSet<uint> SessionOwnedSubscriptionIds { get; } = [];
+
+        public bool SessionOwnsSubscription(uint subscriptionId)
+        {
+            return SessionOwnedSubscriptionIds.Contains(subscriptionId);
+        }
+
+        /// <summary>
         /// Appends a recorded call. Publish workers run on background
         /// threads while the test thread inspects the recordings, so the
         /// backing lists must never be mutated without synchronization.

@@ -1752,6 +1752,21 @@ namespace Opc.Ua.Client.Subscriptions
                                 await DelayUnresolvedSubscriptionAsync(ct)
                                     .ConfigureAwait(false);
                             }
+                            else if (m_outer.m_session.SessionOwnsSubscription(subscriptionId))
+                            {
+                                // The session holds this subscription through the classic
+                                // API, so it is live and owned by the application even though
+                                // the V2 registry cannot resolve it. Deleting it here would
+                                // silently take down a subscription the caller still believes
+                                // is streaming.
+                                if (m_lastUnknownSubscriptionId != subscriptionId)
+                                {
+                                    m_lastUnknownSubscriptionId = subscriptionId;
+                                    m_logger.PublishWorkerUnmanagedSubscriptionRetained(
+                                        Index, handle, subscriptionId);
+                                }
+                                moreNotifications = true;
+                            }
                             else
                             {
                                 m_logger.PublishWorkerReceivedUnknownSubscription(
@@ -2292,6 +2307,16 @@ namespace Opc.Ua.Client.Subscriptions
             Message = "PUBLISH Worker #{Handle}-{Id} - Received Publish Response for Unknown " +
                 "SubscriptionId={SubscriptionId}. Deleting...")]
         public static partial void PublishWorkerReceivedUnknownSubscription(
+            this ILogger logger,
+            int handle,
+            uint id,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 36, Level = LogLevel.Warning,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Received Publish Response for SubscriptionId=" +
+                "{SubscriptionId} which the session owns outside the subscription manager. Keeping it: it is" +
+                " live and owned by the application, so it must not be deleted as abandoned.")]
+        public static partial void PublishWorkerUnmanagedSubscriptionRetained(
             this ILogger logger,
             int handle,
             uint id,

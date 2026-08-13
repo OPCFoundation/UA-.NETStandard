@@ -96,5 +96,20 @@ namespace Opc.Ua.Client.Subscriptions
             RequestHeader? requestHeader,
             ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Whether the owning session already holds a subscription with this
+        /// identifier outside the V2 manager's own registry.
+        /// </summary>
+        /// <remarks>
+        /// A session can carry subscriptions created through the classic
+        /// <c>Session.AddSubscription</c> API while the V2 publish worker drives
+        /// the wire. Those identifiers are unknown to the manager, and treating
+        /// unknown as abandoned would delete a live subscription belonging to the
+        /// application. Deleting is only safe when nothing in the session claims
+        /// the identifier.
+        /// </remarks>
+        /// <param name="subscriptionId">The identifier from the publish response.</param>
+        bool SessionOwnsSubscription(uint subscriptionId);
     }
 }

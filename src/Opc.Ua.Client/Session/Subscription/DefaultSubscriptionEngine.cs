@@ -263,6 +263,12 @@ namespace Opc.Ua.Client
                     requestHeader, subscriptionIds, ct);
             }
 
+            /// <inheritdoc/>
+            public bool SessionOwnsSubscription(uint subscriptionId)
+            {
+                return m_context.SessionOwnsSubscription(subscriptionId);
+            }
+
             private readonly ISubscriptionEngineContext m_context;
             private readonly TimeProvider m_timeProvider;
         }

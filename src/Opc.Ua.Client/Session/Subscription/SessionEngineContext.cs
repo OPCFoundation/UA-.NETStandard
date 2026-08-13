@@ -301,6 +301,23 @@ namespace Opc.Ua.Client
                     subscriptionId);
             }
 
+            /// <inheritdoc/>
+            public bool SessionOwnsSubscription(uint subscriptionId)
+            {
+                if (subscriptionId == 0)
+                {
+                    return false;
+                }
+                foreach (Subscription subscription in m_session.Subscriptions)
+                {
+                    if (subscription.Id == subscriptionId)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             private void RaisePublishNotification(
                 NotificationEventHandler callback,
                 NotificationEventArgs args)

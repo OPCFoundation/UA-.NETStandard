@@ -260,6 +260,14 @@ namespace Opc.Ua.Client
         ValueTask DeleteOrphanedSubscriptionAsync(uint subscriptionId);
 
         /// <summary>
+        /// Whether the session holds a subscription with this identifier
+        /// outside the subscription manager's own registry, for example one
+        /// created through the classic <c>Session.AddSubscription</c> API.
+        /// </summary>
+        /// <param name="subscriptionId">The subscription ID to look up.</param>
+        bool SessionOwnsSubscription(uint subscriptionId);
+
+        /// <summary>
         /// The number of good outstanding publish requests that
         /// are not defunct.
         /// </summary>
