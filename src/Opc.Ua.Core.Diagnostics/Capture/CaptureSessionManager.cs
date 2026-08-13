@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Pcap.Audit;
+using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
@@ -88,7 +89,7 @@ namespace Opc.Ua.Pcap.Capture
         /// <summary>
         /// Constructs a manager that uses the supplied source factory and
         /// stores per-session artifacts under
-        /// <c>Path.GetTempPath()/opcua-pcap</c>.
+        /// <see cref="PcapOptions.DefaultBaseFolder"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// Any argument is <c>null</c>.
@@ -98,7 +99,7 @@ namespace Opc.Ua.Pcap.Capture
             ILoggerFactory? loggerFactory = null)
             : this(
                 sourceFactory,
-                Path.Combine(Path.GetTempPath(), "opcua-pcap"),
+                PcapOptions.DefaultBaseFolder,
                 loggerFactory,
                 maxActiveSessions: null,
                 auditSink: null,
@@ -191,15 +192,21 @@ namespace Opc.Ua.Pcap.Capture
             }
 
             m_sourceFactory = sourceFactory;
-            m_baseFolder = baseFolder;
+            m_baseFolder = Path.GetFullPath(baseFolder);
             m_loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
             m_logger = m_loggerFactory.CreateLogger<CaptureSessionManager>();
             m_auditSink = auditSink;
             m_escrowProvider = escrowProvider;
             MaxActiveSessions = limit;
-            Directory.CreateDirectory(m_baseFolder);
-            if (!OperatingSystem.IsWindows())
+            if (OperatingSystem.IsWindows())
             {
+                Directory.CreateDirectory(m_baseFolder);
+            }
+            else
+            {
+                Directory.CreateDirectory(
+                    m_baseFolder,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
                 File.SetUnixFileMode(
                     m_baseFolder,
                     UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
@@ -225,8 +232,8 @@ namespace Opc.Ua.Pcap.Capture
         /// requested source cannot be created.
         /// </exception>
         /// <exception cref="ArgumentException">
-        /// <paramref name="request"/> specifies a session folder outside the
-        /// configured base folder.
+        /// <paramref name="request"/> specifies a session folder, capture file
+        /// or key log file outside the configured base folder.
         /// </exception>
         public async ValueTask<CaptureSession> StartAsync(
             StartCaptureRequest request,
@@ -256,8 +263,10 @@ namespace Opc.Ua.Pcap.Capture
                 InterfaceName = request.InterfaceName,
                 BpfFilter = request.BpfFilter,
                 Promiscuous = request.Promiscuous,
-                PcapFilePath = request.PcapFilePath,
-                KeyLogFilePath = request.KeyLogFilePath,
+                PcapFilePath = ValidateAndResolveArtifactPath(
+                    request.PcapFilePath, folder, m_baseFolder, nameof(request.PcapFilePath)),
+                KeyLogFilePath = ValidateAndResolveArtifactPath(
+                    request.KeyLogFilePath, folder, m_baseFolder, nameof(request.KeyLogFilePath)),
                 MaxBytes = request.MaxBytes,
                 MaxFrames = request.MaxFrames,
                 MaxDurationSeconds = request.MaxDurationSeconds,
@@ -341,13 +350,7 @@ namespace Opc.Ua.Pcap.Capture
                 : Path.Combine(fullBase, folder);
             string fullFolder = Path.GetFullPath(rootedFolder);
 
-            if (!fullBase.EndsWith(Path.DirectorySeparatorChar))
-            {
-                fullBase += Path.DirectorySeparatorChar;
-            }
-
-            if (!fullFolder.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(fullFolder + Path.DirectorySeparatorChar, fullBase, StringComparison.OrdinalIgnoreCase))
+            if (!IsPathContainedByBaseFolder(fullFolder, fullBase, allowBaseFolder: true))
             {
                 throw new ArgumentException(
                     $"SessionFolder '{folder}' resolves to '{fullFolder}' which is " +
@@ -357,6 +360,80 @@ namespace Opc.Ua.Pcap.Capture
             }
 
             return fullFolder;
+        }
+
+        /// <summary>
+        /// Validates a caller supplied capture artifact path (the pcap file or
+        /// the key log file), resolves relative paths against
+        /// <paramref name="sessionFolder"/>, and confines the result to
+        /// <paramref name="baseFolder"/>.
+        /// </summary>
+        /// <remarks>
+        /// These paths reach <see cref="System.IO.FileMode.Create"/> on the
+        /// write side and <c>File.ReadAllBytesAsync</c> on the read side, so an
+        /// unvalidated value lets a caller read or overwrite any file the
+        /// process can touch. They are confined to the same base folder as the
+        /// session folder for that reason.
+        /// </remarks>
+        /// <param name="path"></param>
+        /// <param name="sessionFolder"></param>
+        /// <param name="baseFolder"></param>
+        /// <param name="paramName"></param>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="path"/> resolves outside
+        /// <paramref name="baseFolder"/>.
+        /// </exception>
+        private static string? ValidateAndResolveArtifactPath(
+            string? path,
+            string sessionFolder,
+            string baseFolder,
+            string paramName)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return path;
+            }
+
+            string fullBase = Path.GetFullPath(baseFolder);
+            string rootedPath = Path.IsPathRooted(path)
+                ? path
+                : Path.Combine(sessionFolder, path);
+            string fullPath = Path.GetFullPath(rootedPath);
+
+            if (!IsPathContainedByBaseFolder(fullPath, fullBase, allowBaseFolder: false))
+            {
+                throw new ArgumentException(
+                    $"{paramName} '{path}' resolves to '{fullPath}' which is " +
+                    $"outside the configured BaseFolder '{baseFolder}'. Capture " +
+                    "artifacts must remain inside the base folder.",
+                    paramName);
+            }
+
+            return fullPath;
+        }
+
+        private static bool IsPathContainedByBaseFolder(
+            string fullPath,
+            string fullBaseFolder,
+            bool allowBaseFolder)
+        {
+            StringComparison comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            string normalizedPath = Path.TrimEndingDirectorySeparator(fullPath);
+            string normalizedBaseFolder = Path.TrimEndingDirectorySeparator(fullBaseFolder);
+
+            if (string.Equals(normalizedPath, normalizedBaseFolder, comparison))
+            {
+                return allowBaseFolder;
+            }
+
+            if (!normalizedBaseFolder.EndsWith(Path.DirectorySeparatorChar))
+            {
+                normalizedBaseFolder += Path.DirectorySeparatorChar;
+            }
+
+            return fullPath.StartsWith(normalizedBaseFolder, comparison);
         }
 
         /// <summary>

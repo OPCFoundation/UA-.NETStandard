@@ -30,6 +30,54 @@ The legacy `TraceConfiguration` application path (`TraceConfiguration.ApplySetti
 
 If your startup code used these APIs, remove those calls and configure logging providers directly on your telemetry context instead.
 
+### MinMetadataSamplingInterval removed, MinSupportedSamplingInterval added
+
+`ServerConfiguration.MinMetadataSamplingInterval` and the fluent
+`SetMinMetadataSamplingInterval(int)` builder method have been removed. In
+1.5.378 the setting defaulted to `1000` but was never read by the stack, so
+whatever value you configured had no effect on any monitored item.
+
+2.0 adds `ServerConfiguration.MinSupportedSamplingInterval` (a `double`, in
+milliseconds) in the same position of the XML schema, exposed by the fluent
+builder as `SetMinSupportedSamplingInterval(double)`. Unlike its predecessor it
+is applied: it is published in `Server.ServerCapabilities.MinSupportedSampleRate`
+and acts as a server-wide lower bound when the sampling interval of a monitored
+item is revised.
+
+**These are two different settings, not a rename.** Do not carry the old value
+across — in 1.5.378 it was inert, so reusing it silently introduces a sampling
+floor that changes the `revisedSamplingInterval` your clients receive. Delete
+the old element and only add the new one if you actually want that floor:
+
+```xml
+<!-- before: had no effect in 1.5.378 -->
+<MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
+
+<!-- after: simply drop it to keep 1.5.378 behaviour -->
+
+<!-- ...or opt in deliberately, knowing clients will now be revised up -->
+<MinSupportedSamplingInterval>1000</MinSupportedSamplingInterval>
+```
+
+```csharp
+// before: had no effect in 1.5.378
+builder.SetMinMetadataSamplingInterval(1000);
+
+// after: drop the call, or opt in deliberately
+builder.SetMinSupportedSamplingInterval(1000);
+```
+
+Doing nothing is safe. `MinSupportedSamplingInterval` defaults to `0`, which
+reproduces 1.5.378 exactly: that release hard-coded
+`Server.ServerCapabilities.MinSupportedSampleRate` to `0` and bounded the
+revised sampling interval only by the `MinimumSamplingInterval` declared by the
+monitored node. Setting a non-zero value raises the `revisedSamplingInterval`
+for every monitored item except those on nodes declaring
+`MinimumSamplingIntervals.Continuous` (`0`), which report by exception and are
+not bound by a sampling interval. See
+[NodeManagers.md § Sampling interval revision](../../NodeManagers.md#sampling-interval-revision)
+for the full rule.
+
 ### Newtonsoft.Json removed from Opc.Ua.Core
 
 `Newtonsoft.Json` is no longer a dependency of `Opc.Ua.Core`. Projects relying on its transitive availability must add an explicit reference:

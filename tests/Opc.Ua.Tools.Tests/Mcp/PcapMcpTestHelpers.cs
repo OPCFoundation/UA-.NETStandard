@@ -60,6 +60,19 @@ namespace Opc.Ua.Tools.Tests.Mcp
         public const string KeyLogFileName = "capture.uakeys.json";
 
         /// <summary>
+        /// Creates a unique, empty capture folder beneath the configured MCP
+        /// packet-capture base folder.
+        /// </summary>
+        public static string CreateCaptureFolder(string suffix)
+        {
+            string folder = Path.Combine(
+                McpTestEnvironment.PcapBaseFolder,
+                suffix + "-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            return folder;
+        }
+
+        /// <summary>
         /// Creates a unique, empty temp folder rooted under the NUnit
         /// <see cref="TestContext.CurrentContext.WorkDirectory"/> so the
         /// caller does not depend on any shared session temp folder.

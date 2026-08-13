@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <ApplicationConfiguration
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
@@ -271,6 +271,10 @@
     <MaxMessageQueueSize>100</MaxMessageQueueSize>
     <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
+    <!-- The minimum sampling interval the server supports. 0 means the server does not
+         impose a server wide lower bound on the revised sampling interval. The value is
+         published in Server.ServerCapabilities.MinSupportedSampleRate. -->
+    <MinSupportedSamplingInterval>0</MinSupportedSamplingInterval>
     <AvailableSamplingRates>
       <SamplingRateGroup>
         <Start>5</Start>
