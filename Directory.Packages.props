@@ -103,6 +103,15 @@
     <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="4.16.0" />
     <PackageVersion Include="SharpFuzz" Version="2.3.0" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
+    <!-- Transitive, via Testcontainers. Pinned only to move off the SSH.NET
+         2025.1.0 that Testcontainers 4.13.0 resolves to, which carries
+         GHSA-q939-rpr3-3284: ScpClient.Download trusts the remote server's
+         file names, so a malicious or MITM SCP server can traverse out of the
+         download directory and overwrite arbitrary files. NuGetAudit makes
+         that a build error. Testcontainers asks for [2025.1.0, ), so the
+         patched 2026.0.0 satisfies it and no consumer changes. Remove this
+         entry once Testcontainers itself requires a fixed version. -->
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
     <PackageVersion Include="Testcontainers" Version="4.13.0" />
     <PackageVersion Include="Testcontainers.Kafka" Version="4.13.0" />
     <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />
