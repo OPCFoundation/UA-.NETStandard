@@ -299,6 +299,29 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public void AddSubscriptionsConfiguresSubscriptionOptions()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa()
+                .AddClient(opt => opt.Configuration = CreateConfig())
+                .AddSubscriptions(options =>
+                {
+                    options.Disabled = true;
+                    options.PublishingEnabled = true;
+                    options.SendInitialValuesOnTransfer = true;
+                });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            Subscriptions.SubscriptionOptions options = sp
+                .GetRequiredService<IOptionsMonitor<Subscriptions.SubscriptionOptions>>()
+                .CurrentValue;
+
+            Assert.That(options.Disabled, Is.True);
+            Assert.That(options.PublishingEnabled, Is.True);
+            Assert.That(options.SendInitialValuesOnTransfer, Is.True);
+        }
+
+        [Test]
         public void AddDiscoveryAndConnectRegistersDiscoveryFactory()
         {
             var services = new ServiceCollection();
