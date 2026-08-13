@@ -197,6 +197,7 @@ namespace Opc.Ua.Wot
 
             byte[] nodeSetBytes = [];
             Dictionary<string, UANode> index = BuildIndex(nodeSet);
+            Dictionary<string, List<UANode>> declaredChildren = BuildDeclaredChildren(nodeSet);
             var entries = new List<WotDocumentSetEntry>();
             var hrefs = new HashSet<string>(StringComparer.Ordinal);
             var emitted = new HashSet<string>(StringComparer.Ordinal);
@@ -217,7 +218,7 @@ namespace Opc.Ua.Wot
                     WriteObjectDocuments(
                         nodeSet, index, root, href, null,
                         documentTitle,
-                        nodeSetBytes, resolved, diagnostics, entries, hrefs, emitted);
+                        nodeSetBytes, resolved, diagnostics, entries, hrefs, emitted, declaredChildren);
                     first = false;
                 }
             }
@@ -253,7 +254,8 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             List<WotDocumentSetEntry> entries,
             HashSet<string> hrefs,
-            HashSet<string> emitted)
+            HashSet<string> emitted,
+            Dictionary<string, List<UANode>> declaredChildren)
         {
             if (!hrefs.Add(href) ||
                 (node.NodeId is not null && !emitted.Add(node.NodeId)))
@@ -272,21 +274,94 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            foreach (Reference reference in node.References)
+            // A NodeSet may state containment from either end. Walking only the
+            // parent's forward references loses a child that declares the
+            // relationship itself and is never named by its parent.
+            foreach (UANode child in ChildrenOf(node, index, declaredChildren))
             {
-                if (reference.Value is null ||
-                    !reference.IsForward ||
-                    !IsComponentReference(reference.ReferenceType) ||
-                    !index.TryGetValue(reference.Value, out UANode? target) ||
-                    target is not UAObject)
+                if (child is not UAObject)
                 {
                     continue;
                 }
-                string local = LocalName(target.BrowseName) ?? target.NodeId ?? href;
+                string local = LocalName(child.BrowseName) ?? child.NodeId ?? href;
                 WriteObjectDocuments(
-                    nodeSet, index, target, ChildHref(href, local, hrefs), href,
-                    local, nodeSetBytes, options, diagnostics, entries, hrefs, emitted);
+                    nodeSet, index, child, ChildHref(href, local, hrefs), href,
+                    local, nodeSetBytes, options, diagnostics, entries, hrefs, emitted,
+                    declaredChildren);
             }
+        }
+
+        /// <summary>
+        /// Yields the Nodes contained by one Node, however the NodeSet states
+        /// the relationship.
+        /// </summary>
+        private static List<UANode> ChildrenOf(
+            UANode node,
+            Dictionary<string, UANode> index,
+            Dictionary<string, List<UANode>> declaredChildren)
+        {
+            var children = new List<UANode>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            if (node.References is not null)
+            {
+                foreach (Reference reference in node.References)
+                {
+                    if (reference.Value is null ||
+                        !reference.IsForward ||
+                        !IsComponentReference(reference.ReferenceType) ||
+                        !index.TryGetValue(reference.Value, out UANode? target))
+                    {
+                        continue;
+                    }
+                    if (target.NodeId is null || seen.Add(target.NodeId))
+                    {
+                        children.Add(target);
+                    }
+                }
+            }
+            if (node.NodeId is not null &&
+                declaredChildren.TryGetValue(node.NodeId, out List<UANode>? declared))
+            {
+                foreach (UANode child in declared)
+                {
+                    if (child.NodeId is null || seen.Add(child.NodeId))
+                    {
+                        children.Add(child);
+                    }
+                }
+            }
+            return children;
+        }
+
+        /// <summary>
+        /// Indexes the Nodes that name their own parent, keyed by that parent.
+        /// </summary>
+        private static Dictionary<string, List<UANode>> BuildDeclaredChildren(UANodeSet nodeSet)
+        {
+            var declared = new Dictionary<string, List<UANode>>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                if (node.References is null)
+                {
+                    continue;
+                }
+                foreach (Reference reference in node.References)
+                {
+                    if (reference.Value is null ||
+                        reference.IsForward ||
+                        !IsComponentReference(reference.ReferenceType))
+                    {
+                        continue;
+                    }
+                    if (!declared.TryGetValue(reference.Value, out List<UANode>? children))
+                    {
+                        children = [];
+                        declared[reference.Value] = children;
+                    }
+                    children.Add(node);
+                }
+            }
+            return declared;
         }
 
         /// <summary>
@@ -343,16 +418,21 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// A DataType is carried by <c>uav:dataTypeDefinitions</c> (§6.11), so
-        /// it does not root a document of its own. A ReferenceType does: §9.1
-        /// maps it to the compact name a link <c>rel</c> uses, which is how it
-        /// is <em>referred to</em> rather than how it is <em>defined</em>, and
-        /// its BrowseName, supertype, symmetry and inverse name have to be
-        /// stated somewhere or the type is lost.
+        /// Every Node that can hold others roots a document. §6.11 carries a
+        /// DataType's <em>definition</em> in <c>uav:dataTypeDefinitions</c>,
+        /// but a DataType may still hold Variables of its own —
+        /// <c>EnumStrings</c> and <c>OptionSetValues</c> — and those have
+        /// nowhere to live unless it roots a document too. §9.1 maps a
+        /// ReferenceType to the compact name a link <c>rel</c> uses, which is
+        /// how it is <em>referred to</em> rather than how it is
+        /// <em>defined</em>; and a Variable that nothing in the set contains
+        /// has no document to belong to, so leaving it out loses it and every
+        /// Variable beneath it.
         /// </summary>
         private static bool RootsItsOwnDocument(UANode node)
         {
-            return node is UAObjectType or UAVariableType or UAObject or UAReferenceType;
+            return node is UAObjectType or UAVariableType or UAObject
+                or UAReferenceType or UAVariable or UADataType;
         }
 
         private static HashSet<string> CollectContainedNodes(UANodeSet nodeSet)

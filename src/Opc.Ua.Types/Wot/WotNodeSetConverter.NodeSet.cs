@@ -486,6 +486,17 @@ namespace Opc.Ua.Wot
                     writer.WriteStringValue("uav:referenceType");
                     writer.WriteEndArray();
                     break;
+                case UADataType:
+                    // The definition itself travels in uav:dataTypeDefinitions
+                    // (§6.11). The annotation is still needed so the way back
+                    // knows what NodeClass this document projects, or the
+                    // DataType returns as an ObjectType.
+                    writer.WritePropertyName("@type");
+                    writer.WriteStartArray();
+                    writer.WriteStringValue(WotVocabulary.ThingModelType);
+                    writer.WriteStringValue("uav:dataType");
+                    writer.WriteEndArray();
+                    break;
                 case UAObject:
                     writer.WriteString("@type", "uav:object");
                     break;

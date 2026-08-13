@@ -794,11 +794,14 @@ namespace Opc.Ua.Wot
                 // different one invented in its place.
                 bool isVariableType = HasTypeAnnotation(document, "uav:variableType");
                 bool isReferenceType = HasTypeAnnotation(document, "uav:referenceType");
-                rootNode = isReferenceType
-                    ? new UAReferenceType { IsAbstract = false }
-                    : isVariableType
-                        ? new UAVariableType { IsAbstract = false }
-                        : new UAObjectType { IsAbstract = false };
+                bool isDataType = HasTypeAnnotation(document, "uav:dataType");
+                rootNode = isDataType
+                    ? new UADataType { IsAbstract = false }
+                    : isReferenceType
+                        ? new UAReferenceType { IsAbstract = false }
+                        : isVariableType
+                            ? new UAVariableType { IsAbstract = false }
+                            : new UAObjectType { IsAbstract = false };
 
                 // WoT Binding Section 5.2.1 makes invalid and unresolved
                 // type-binding outcomes document-wide. A Thing Model still
@@ -811,18 +814,26 @@ namespace Opc.Ua.Wot
                     IsForward = false,
                     // An event-type Thing Model (@type uav:eventType) derives
                     // from BaseEventType rather than BaseObjectType.
-                    Value = isReferenceType
-                        ? WotVocabulary.NonHierarchicalReferences
-                        : isVariableType
-                            ? WotVocabulary.BaseDataVariableType
-                            : isEventType
-                                ? WotVocabulary.BaseEventType
-                                : WotVocabulary.BaseObjectType
+                    Value = isDataType
+                        ? WotVocabulary.BaseDataType
+                        : isReferenceType
+                            ? WotVocabulary.NonHierarchicalReferences
+                            : isVariableType
+                                ? WotVocabulary.BaseDataVariableType
+                                : isEventType
+                                    ? WotVocabulary.BaseEventType
+                                    : WotVocabulary.BaseObjectType
                 });
             }
             else
             {
-                rootNode = new UAObject();
+                // §9.1 maps a Variable to a Thing as well as to a property: a
+                // Variable that nothing contains roots its own document. Making
+                // every non-model document an Object turns such a Variable into
+                // an Object, which the counts never reveal because one Node
+                // still comes back for one Node.
+                bool isVariable = HasTypeAnnotation(document, "uav:variable");
+                rootNode = isVariable ? new UAVariable() : new UAObject();
 
                 // WoT Binding Section 5.2.1: a document may bind its projected
                 // node to a type that already exists. Only fall back to
@@ -836,7 +847,9 @@ namespace Opc.Ua.Wot
                     IsForward = true,
                     Value = boundType is not null
                         ? ToNodeSetNodeId(boundType, nodeSet, diagnostics)
-                        : WotVocabulary.BaseObjectType
+                        : isVariable
+                            ? WotVocabulary.BaseDataVariableType
+                            : WotVocabulary.BaseObjectType
                 });
             }
 
