@@ -63,8 +63,8 @@ var sensorSpec = new BinPickingSensorSpec(
     StageIdentifier: stagePath,
     CameraPrimPath: BinPickingVisionCell.CameraPrimPath,
     PixelFormat: BinPickingVisionCell.PixelFormat,
-    CaptureWidth: 1280,
-    CaptureHeight: 1024);
+    CaptureWidth: 640,
+    CaptureHeight: 512);
 
 builder.Services.AddSingleton(stage);
 builder.Services.AddSingleton(sensorSpec);
