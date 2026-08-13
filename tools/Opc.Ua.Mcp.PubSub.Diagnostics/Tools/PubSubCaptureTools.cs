@@ -293,11 +293,7 @@ namespace Opc.Ua.Mcp.Tools
             }
 
             var options = services.GetService(typeof(PcapOptions)) as PcapOptions;
-            return options?.BaseFolder ??
-                Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "OPCFoundation",
-                    "opcua-pcap");
+            return Path.GetFullPath(options?.BaseFolder ?? PcapOptions.DefaultBaseFolder);
         }
 
         private static bool IsPcapNgPath(string filePath)

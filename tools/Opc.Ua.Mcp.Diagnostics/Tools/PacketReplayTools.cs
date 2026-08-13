@@ -50,7 +50,8 @@ namespace Opc.Ua.Mcp.Tools
     [SuppressMessage(
         "Performance",
         "CA1812:Avoid uninstantiated internal classes",
-        Justification = "MCP discovers tool types through reflection; TODO: remove if the analyzer recognizes MCP tools.")]
+        Justification = "MCP discovers tool types through reflection; TODO: remove if the analyzer " +
+            "recognizes MCP tools.")]
     internal sealed class PacketReplayTools
     {
         /// <summary>
@@ -196,11 +197,7 @@ namespace Opc.Ua.Mcp.Tools
             }
 
             PcapOptions? options = services.GetService<PcapOptions>();
-            return options?.BaseFolder ??
-                System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "OPCFoundation",
-                    "opcua-pcap");
+            return System.IO.Path.GetFullPath(options?.BaseFolder ?? PcapOptions.DefaultBaseFolder);
         }
 
         private static ValueTask AuditAsync(
@@ -219,13 +216,13 @@ namespace Opc.Ua.Mcp.Tools
 
         private static ReplayMode ParseReplayMode(string mode)
         {
-            return mode.Trim().ToLowerInvariant() switch
+            if (!mode.TryParse(out ReplayMode replayMode))
             {
-                "mock-server" or "mockserver" => ReplayMode.MockServer,
-                "mock-client" or "mockclient" => ReplayMode.MockClient,
-                _ => throw new PcapDiagnosticsException(
-                    $"Unsupported replay mode '{mode}'. Use mock-server or mock-client.")
-            };
+                throw new PcapDiagnosticsException(
+                    $"Unsupported replay mode '{mode}'. Use {ReplayModeExtensions.SupportedNames}.");
+            }
+
+            return replayMode;
         }
 
         private static ReplaySessionInfo CreateInfo(ReplaySession session)
@@ -233,7 +230,7 @@ namespace Opc.Ua.Mcp.Tools
             return new ReplaySessionInfo
             {
                 SessionId = session.Id,
-                Mode = session.Mode.ToString(),
+                Mode = session.Mode.ToWireName(),
                 ListenUri = session.ListenUri?.ToString(),
                 TargetEndpointUrl = session.TargetEndpointUrl,
                 StartedAt = session.StartedAt,

@@ -51,7 +51,8 @@ namespace Opc.Ua.Mcp.Tools
     [SuppressMessage(
         "Performance",
         "CA1812:Avoid uninstantiated internal classes",
-        Justification = "MCP discovers tool types through reflection; TODO: remove if the analyzer recognizes MCP tools.")]
+        Justification = "MCP discovers tool types through reflection; TODO: remove if the analyzer " +
+            "recognizes MCP tools.")]
     internal sealed class PacketCaptureTools
     {
         private const int kMaxResponseBytes = 10 * 1024 * 1024;
@@ -66,7 +67,8 @@ namespace Opc.Ua.Mcp.Tools
         /// </remarks>
         [McpServerTool(Name = "list_interfaces")]
         [Description("Lists local network interfaces that can be used as the 'interfaceName' parameter to " +
-            "start_capture with source='nic'. Requires libpcap (Linux/macOS) or Npcap (Windows).")]
+            "start_capture with source='nic'. Requires libpcap (Linux/macOS) or Npcap (Windows). " +
+            "linkType is null when an interface is not open.")]
         [RequiresUnreferencedCode(
             "SharpPcap requires dynamic native libpcap/Npcap loading and is not NativeAOT/trimming safe.")]
         [RequiresDynamicCode(
@@ -83,7 +85,8 @@ namespace Opc.Ua.Mcp.Tools
         [Description("Starts a new OPC UA packet capture session. source='nic' captures from a network interface " +
             "(supply 'interfaceName'); source='inproc-client' captures the MCP server's own OPC UA client traffic " +
             "with full key material; source='inproc-server' is reserved for hosted server scenarios; source='replay' " +
-            "re-reads an existing pcap + keylog. The in-process tap only captures channels that already exist when " +
+            "re-reads an existing pcap + keylog. CLR names such as 'InProcessClient' are also accepted. " +
+            "The in-process tap only captures channels that already exist when " +
             "start_capture is called. Returns the session id which must be passed to stop_capture / get_capture / " +
             "summarize_capture / replay_pcap. Capture stops automatically when the configured size/duration limits " +
             "are reached.")]
@@ -93,7 +96,8 @@ namespace Opc.Ua.Mcp.Tools
             [Description(
                 "The capture request, including the source name and source-specific parameters, " +
                 "e.g. {\"source\":\"inproc-client\",\"maxDurationSeconds\":60} or " +
-                "{\"source\":\"nic\",\"interfaceName\":\"eth0\",\"bpfFilter\":\"tcp port 4840\"}.")]
+                "{\"source\":\"nic\",\"interfaceName\":\"eth0\",\"bpfFilter\":\"tcp port 4840\"}. " +
+                "Accepted sources: nic | inproc-client | inproc-server | replay; CLR names are also accepted.")]
             StartCaptureRequest request,
             CancellationToken ct)
         {
@@ -151,7 +155,8 @@ namespace Opc.Ua.Mcp.Tools
         [Description("Returns the captured trace in the requested format. Binary formats (pcap, pcapng) are " +
             "returned as embedded MCP resources; text formats (json, csv, text, service-timeline) are returned " +
             "inline. service-timeline returns an OPC UA-specific decoded view that requires both captured frames " +
-            "AND key material. Default format = service-timeline.")]
+            "AND key material. CLR names such as ServiceTimeline are also accepted. " +
+            "Default format = service-timeline.")]
         public static async Task<IList<ContentBlock>> GetCaptureAsync(
             CaptureSessionManager manager,
             TraceFormatterRegistry formatters,
@@ -167,7 +172,8 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentNullException.ThrowIfNull(formatters);
 
             CaptureSession session = manager.Get(sessionId);
-            await using ConfiguredAsyncDisposable sessionLock = (await session.AcquireAsync(ct).ConfigureAwait(false)).ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable sessionLock =
+                (await session.AcquireAsync(ct).ConfigureAwait(false)).ConfigureAwait(false);
             ValidateReadable(session, allowPartial);
 
             FormatKind kind = ParseFormat(format);
@@ -181,7 +187,9 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "capture_now")]
         [Description("Convenience: starts a capture, waits for durationSeconds (capped at 60s), stops, then returns " +
-            "the formatted trace in one call. Cleanup is guaranteed even on cancellation.")]
+            "the formatted trace in one call. Source and format use the canonical hyphenated names shown in the " +
+            "request example; CLR names such as InProcessClient and ServiceTimeline are also accepted. Cleanup is " +
+            "guaranteed even on cancellation.")]
         public static async Task<IList<ContentBlock>> CaptureNowAsync(
             CaptureSessionManager manager,
             OpcUaSessionManager sessions,
@@ -210,7 +218,8 @@ namespace Opc.Ua.Mcp.Tools
                 await session.StopAsync(ct).ConfigureAwait(false);
 
                 ITraceFormatter formatter = formatters.Get(request.Format);
-                await using ConfiguredAsyncDisposable sessionLock = (await session.AcquireAsync(ct).ConfigureAwait(false)).ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable sessionLock =
+                    (await session.AcquireAsync(ct).ConfigureAwait(false)).ConfigureAwait(false);
                 FormatResult result = await formatter.FormatAsync(session.Source, null, ct).ConfigureAwait(false);
                 return BuildContentBlocks(session.Id, result, formatter);
             }
@@ -231,7 +240,8 @@ namespace Opc.Ua.Mcp.Tools
             if (result.Bytes.LongLength > kMaxResponseBytes)
             {
                 throw new PcapDiagnosticsException(
-                    $"Formatted capture is {result.Bytes.LongLength} bytes, which exceeds the 10 MB MCP response cap. " +
+                    $"Formatted capture is {result.Bytes.LongLength} bytes, which exceeds the 10 MB " +
+                    "MCP response cap. " +
                     "Request fewer frames with maxFrames or use a binary capture artifact directly.");
             }
 
@@ -246,7 +256,8 @@ namespace Opc.Ua.Mcp.Tools
                 ];
             }
 
-            string uri = $"opcua-pcap://capture/{Uri.EscapeDataString(sessionId)}/{result.Kind.ToString().ToLowerInvariant()}";
+            string uri =
+                $"opcua-pcap://capture/{Uri.EscapeDataString(sessionId)}/{result.Kind.ToWireName()}";
             return
             [
                 new EmbeddedResourceBlock
@@ -266,7 +277,7 @@ namespace Opc.Ua.Mcp.Tools
             if (!format.TryParse(out FormatKind kind))
             {
                 throw new PcapDiagnosticsException(
-                    $"Unsupported format '{format}'. Use pcap, pcapng, json, csv, text, or service-timeline.");
+                    $"Unsupported format '{format}'. Use {FormatKindExtensions.SupportedNames}.");
             }
 
             return kind;

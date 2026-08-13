@@ -56,41 +56,38 @@ namespace Opc.Ua.Server.FileSystem
 
         public override IReference? Next()
         {
-            lock (DataLock)
+            IReference? reference = base.Next();
+            if (reference != null)
             {
-                IReference? reference = base.Next();
+                return reference;
+            }
+
+            if (InternalOnly)
+            {
+                return null;
+            }
+            if (!IsRequired(ReferenceTypeIds.HasComponent, false))
+            {
+                return null;
+            }
+
+            if (m_stage == Stage.Begin)
+            {
+                m_pending = LoadEntries();
+                m_stage = Stage.Children;
+            }
+
+            if (m_stage == Stage.Children)
+            {
+                reference = NextChild();
                 if (reference != null)
                 {
                     return reference;
                 }
-
-                if (InternalOnly)
-                {
-                    return null;
-                }
-                if (!IsRequired(ReferenceTypeIds.HasComponent, false))
-                {
-                    return null;
-                }
-
-                if (m_stage == Stage.Begin)
-                {
-                    m_pending = LoadEntries();
-                    m_stage = Stage.Children;
-                }
-
-                if (m_stage == Stage.Children)
-                {
-                    reference = NextChild();
-                    if (reference != null)
-                    {
-                        return reference;
-                    }
-                    m_stage = Stage.Done;
-                }
-
-                return null;
+                m_stage = Stage.Done;
             }
+
+            return null;
         }
 
         private List<FileSystemEntry> LoadEntries()
