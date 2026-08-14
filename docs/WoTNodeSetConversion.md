@@ -29,7 +29,7 @@ them.
 | Root `description` | **Default** | No `Description` field is materialized. |
 | Property affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Property affordance `uav:id` | **Default** | Deterministic NodeId `ns=1;s=<rootLocal>/<propertyLocal>`. |
-| Property DataSchema `type` or an unrecognized `type` | **Default** | OPC UA `BaseDataType` (`i=24`). `type: object` maps to `BaseObjectType` (`i=22`) and emits an unsupported-schema warning; `type: array` currently falls back to `BaseDataType` with the same warning, which is a deliberately conservative but coarse default. |
+| Property DataSchema `type` or an unrecognized `type` | **Default** | The canonical table of WoT Binding §6.11.4: `boolean` → `Boolean`, `integer` → the **abstract** `Integer` (`i=27`), `number` → the **abstract** `Number` (`i=26`), `string` → `String`, refined by `contentEncoding: base64` → `ByteString`, `format: date-time` → `DateTime`, `format: uuid` → `Guid`, `format: uri` → `UriString`. An explicit `uav:dataTypeId` or `uav:mapToType` outranks the inference. Anything unrecognized falls back to `BaseDataType` (`i=24`). A bare `integer` or `number` is deliberately abstract: the schema states only that the value is whole or numeric, and a concrete width is recovered from an annotation rather than guessed. |
 | Property `readOnly` and `writeOnly` | **Default** | Missing flags mean read/write access (`CurrentRead | CurrentWrite`, value `3`). If both flags are `true`, the zero-access result is coerced to `CurrentRead` (`1`); this is an arbitrary safety default and should be specified explicitly. |
 | Property `title` | **Default** | No `DisplayName` field is materialized for the variable. |
 | Property `description` | **Default** | No `Description` field is materialized for the variable. |
@@ -105,6 +105,78 @@ This changes event-filter behaviour. A client filtering for `BaseEventType`
 subtypes still matches the projected Condition event, but a client that assumed
 the exact immediate supertype was `BaseEventType`, or that selects
 Condition-specific fields, observes a different type hierarchy and field set.
+
+## DataType definitions (Section 6.11)
+
+WoT Binding §6.11 gives Structures, Unions, Enumerations, OptionSets and
+SimpleDataTypes a readable vocabulary, so that defining one is no longer on
+its own a reason to fall back to the native `uav:nodes` projection. §6.11.8
+states that as a completeness contract: a fact the clause covers **shall** be
+emitted readably and **shall not** be the reason a converter adds `uav:nodes`.
+
+Both directions are implemented.
+
+**Authoring.** `uav:dataTypeDefinitions` on the Thing root holds the
+definitions. Each is a JSON-LD node with an `@id`, a `@type` of
+`uav:StructureDefinition`, `uav:EnumDefinition` or `uav:SimpleDataType`, and a
+`uav:dataTypeName`. The complete definition occurs in exactly one place and
+every other occurrence is an `@id`-only reference; two occurrences that each
+contribute properties are rejected rather than merged, because merging two
+ordered field lists has no defined answer.
+
+**Identity.** `uav:dataTypeId` states the NodeId where the author wants to.
+Otherwise it is derived from `uav:dataTypeName` alone as
+`nsu=<NamespaceUri>;s=DataTypes/<Name>`, so the same definition read from a
+differently ordered or differently nested document still lands on the same
+Node. A field may name a sibling definition by its JSON-LD `@id`; that `@id`
+is a graph identifier and is resolved to the sibling's NodeId, never read as
+a NodeId itself.
+
+**Inference.** A DataSchema with no explicit definition infers one, but only
+where it determines every required fact — inference fails rather than guesses:
+
+| Schema | Result |
+|---|---|
+| `type: object` with one property | A Structure. |
+| `type: object` with more than one property | Requires `uav:fieldOrder`; JSON member order carries no meaning, so without it the encoding order is unknowable and inference **fails**. |
+| `required` | Decides `IsOptional`; all required gives `Structure`, otherwise `StructureWithOptionalFields`. |
+| `uav:structureType: Union` | A Union. |
+| `type: integer` with `oneOf` branches carrying `const` and `uav:enumName` | An Enumeration. |
+| `type: integer` with a bare `enum` array | **Not** an Enumeration: it states values but never names them. |
+| A bare `integer` or `number` **inside a Structure field** | **Fails.** It is honest about a scalar Variable, where the abstract type permits subtype values, but inside a Structure accepting them would need a subtyped-value kind the schema has not asked for. |
+| A custom type named without `uav:dataTypeSubtypeOf` | **Fails.** §6.11.4 forbids a custom type subtyping the abstract `Integer` or `Number`. |
+
+**Encodings.** A non-abstract Structure or Union exposes `Default Binary`,
+`Default XML` and `Default JSON`, with identities derived by appending
+`/Default Binary` and so on to the type's own identity. An abstract type is
+refused encoding identities outright. A concrete type used only inside other
+Structures — never directly in an ExtensionObject — may set
+`uav:hasDefaultEncoding: false`, and then no encodings are generated for it;
+the term is refused on any kind that has no encodings to begin with.
+
+An `OptionSet` states a base of `Byte`, `UInt16`, `UInt32` or `UInt64` wide
+enough for its highest authored bit. The abstract `UInteger` is not legal: the
+base has to say how many bits exist, and an abstract type says only that there
+are some.
+
+**NodeSet to WoT.** Every DataType a NodeSet defines is emitted back into
+`uav:dataTypeDefinitions`. Whether a definition is an enumeration is decided
+by the shape a NodeSet actually gives it — an enumeration field carries a
+value and no DataType, a structure field the reverse — because the file states
+no kind directly. The same is true of the structure kind: only `IsUnion` is
+recorded, so optionality and subtype allowance are read back off the fields.
+An encoding link is searched from both ends, because a NodeSet may write it
+from either and real companion models write it from the Object. An alias is
+resolved rather than emitted, since a name like `DataType="Structure"` means
+nothing outside the document that defines it.
+
+**Known gap.** An inferred definition's own DataSchema terms
+(`uav:fieldOrder`, `properties`, `required`, `oneOf`) still travel as residue
+rather than being re-derived from the definition, so a document that relies on
+inference does not yet reproduce byte-identically and keeps its `uav:nodes`
+projection. Closing it is the canonical-schema equivalence of §6.11.6:
+derive the schema from the definition, normalize both, and require the two
+semantic normal forms to be equal.
 
 ## Model and platform vocabulary (Section 6)
 

@@ -372,6 +372,31 @@ namespace Opc.Ua.Pcap.DependencyInjection
     public sealed class PcapOptions
     {
         /// <summary>
+        /// Constructs packet-capture options.
+        /// </summary>
+        public PcapOptions()
+            : this(static () => DefaultBaseFolder)
+        {
+        }
+
+        internal PcapOptions(Func<string> getDefaultBaseFolder)
+        {
+            ArgumentNullException.ThrowIfNull(getDefaultBaseFolder);
+            m_getDefaultBaseFolder = getDefaultBaseFolder;
+        }
+
+        /// <summary>
+        /// Gets the default absolute base directory for capture artifacts.
+        /// </summary>
+        /// <remarks>
+        /// Uses the per-user local application-data directory when available.
+        /// Hosts without a configured user profile, such as distroless containers,
+        /// fall back to a process-stable, randomly named directory beneath the
+        /// system temporary directory.
+        /// </remarks>
+        public static string DefaultBaseFolder => kDefaultBaseFolder.Value;
+
+        /// <summary>
         /// Base directory where capture session folders are created.
         /// </summary>
         /// <remarks>
@@ -379,15 +404,20 @@ namespace Opc.Ua.Pcap.DependencyInjection
         /// <see cref="Environment.SpecialFolder.LocalApplicationData"/>:
         /// on Linux this resolves to
         /// <c>~/.local/share/OPCFoundation/opcua-pcap</c>, on Windows
-        /// <c>%LOCALAPPDATA%\OPCFoundation\opcua-pcap</c>. The previous
-        /// default (<see cref="Path.GetTempPath()"/>) placed artifacts in
-        /// a shared, world-readable directory on multi-tenant Unix hosts.
+        /// <c>%LOCALAPPDATA%\OPCFoundation\opcua-pcap</c>. If the user
+        /// profile directory is unavailable, a process-stable random directory
+        /// is created beneath <see cref="Path.GetTempPath()"/>. The result is
+        /// always an absolute path, and the directory receives user-only
+        /// permissions on Unix. Relative values are normalized to absolute
+        /// paths; null, empty, or whitespace values restore the default.
         /// </remarks>
-        public string BaseFolder { get; set; } =
-            Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "OPCFoundation",
-                "opcua-pcap");
+        public string BaseFolder
+        {
+            get => m_baseFolder ??= m_getDefaultBaseFolder();
+            set => m_baseFolder = string.IsNullOrWhiteSpace(value)
+                ? null
+                : Path.GetFullPath(value);
+        }
 
         /// <summary>
         /// Maximum intended number of concurrent active sessions. Passed
@@ -486,5 +516,41 @@ namespace Opc.Ua.Pcap.DependencyInjection
         /// See <c>docs/Diagnostics.md</c> for the full security model.
         /// </remarks>
         public bool EnableDiagnosticsTools { get; set; }
+
+        internal static string CreateDefaultBaseFolder(
+            string localApplicationData,
+            Func<string> createTemporaryFolder)
+        {
+            ArgumentNullException.ThrowIfNull(localApplicationData);
+            ArgumentNullException.ThrowIfNull(createTemporaryFolder);
+
+            return string.IsNullOrWhiteSpace(localApplicationData)
+                ? Path.GetFullPath(createTemporaryFolder())
+                : Path.GetFullPath(
+                    Path.Combine(localApplicationData, "OPCFoundation", "opcua-pcap"));
+        }
+
+        private static string CreateSecureTemporaryBaseFolder()
+        {
+            DirectoryInfo directory = Directory.CreateTempSubdirectory("opcua-pcap-");
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(
+                    directory.FullName,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+
+            return directory.FullName;
+        }
+
+        private static readonly Lazy<string> kDefaultBaseFolder = new(
+            static () => CreateDefaultBaseFolder(
+                Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData,
+                    Environment.SpecialFolderOption.DoNotVerify),
+                CreateSecureTemporaryBaseFolder));
+
+        private readonly Func<string> m_getDefaultBaseFolder;
+        private string? m_baseFolder;
     }
 }

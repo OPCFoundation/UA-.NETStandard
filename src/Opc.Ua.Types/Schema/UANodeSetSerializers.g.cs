@@ -142,8 +142,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                 }
             }
-            if (o.@LastModifiedSpecified) {
-            }
             WriteEndElement(o);
         }
 
@@ -249,8 +247,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                     WriteEndElement();
                 }
-            }
-            if (o.@AccessRestrictionsSpecified) {
             }
             WriteEndElement(o);
         }
@@ -444,8 +440,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     WriteEndElement();
                 }
             }
-            if (o.@AccessRestrictionsSpecified) {
-            }
             if ((((global::System.Xml.XmlElement)o.@Value)) is System.Xml.XmlNode || ((global::System.Xml.XmlElement)o.@Value) == null) {
                 WriteElementLiteral((System.Xml.XmlNode)((global::System.Xml.XmlElement)o.@Value), @"Value", @"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", false, false);
             }
@@ -504,7 +498,7 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
             if (((global::System.UInt32)o.@AccessLevel) != (System.UInt32)(1)) {
                 WriteAttribute(@"AccessLevel", @"", System.Xml.XmlConvert.ToString((global::System.UInt32)((global::System.UInt32)o.@AccessLevel)));
             }
-            if (((global::System.UInt32)o.@UserAccessLevel) != (System.UInt32)(1)) {
+            if (o.@UserAccessLevelSpecified) {
                 WriteAttribute(@"UserAccessLevel", @"", System.Xml.XmlConvert.ToString((global::System.UInt32)((global::System.UInt32)o.@UserAccessLevel)));
             }
             if (!((global::System.Double)o.@MinimumSamplingInterval).Equals(0)) {
@@ -572,8 +566,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                     WriteEndElement();
                 }
-            }
-            if (o.@AccessRestrictionsSpecified) {
             }
             if ((((global::System.Xml.XmlElement)o.@Value)) is System.Xml.XmlNode || ((global::System.Xml.XmlElement)o.@Value) == null) {
                 WriteElementLiteral((System.Xml.XmlNode)((global::System.Xml.XmlElement)o.@Value), @"Value", @"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", false, false);
@@ -755,8 +747,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     WriteEndElement();
                 }
             }
-            if (o.@AccessRestrictionsSpecified) {
-            }
             {
                 global::Opc.Ua.Export.LocalizedText[] a = (global::Opc.Ua.Export.LocalizedText[])o.@InverseName;
                 if (a != null) {
@@ -864,8 +854,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     WriteEndElement();
                 }
             }
-            if (o.@AccessRestrictionsSpecified) {
-            }
             WriteEndElement(o);
         }
 
@@ -968,8 +956,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                     WriteEndElement();
                 }
-            }
-            if (o.@AccessRestrictionsSpecified) {
             }
             WriteEndElement(o);
         }
@@ -1077,8 +1063,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                     WriteEndElement();
                 }
-            }
-            if (o.@AccessRestrictionsSpecified) {
             }
             {
                 global::Opc.Ua.Export.UAMethodArgument[] a = (global::Opc.Ua.Export.UAMethodArgument[])o.@ArgumentDescription;
@@ -1216,8 +1200,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                     WriteEndElement();
                 }
-            }
-            if (o.@AccessRestrictionsSpecified) {
             }
             Write22_DataTypeDefinition(@"Definition", @"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", ((global::Opc.Ua.Export.DataTypeDefinition)o.@Definition), false, false);
             WriteEndElement(o);
@@ -1392,8 +1374,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                         Write3_ModelTableEntry(@"RequiredModel", @"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", ((global::Opc.Ua.Export.ModelTableEntry)a[ia]), false, false);
                     }
                 }
-            }
-            if (o.@PublicationDateSpecified) {
             }
             WriteEndElement(o);
         }
@@ -2384,6 +2364,7 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                 }
                 else if (!paramsRead[23] && ((object) Reader.LocalName == (object)id53_UserAccessLevel && (object) Reader.NamespaceURI == (object)id3_Item)) {
                     o.@UserAccessLevel = System.Xml.XmlConvert.ToUInt32(Reader.Value);
+                    o.@UserAccessLevelSpecified = true;
                     paramsRead[23] = true;
                 }
                 else if (!paramsRead[24] && ((object) Reader.LocalName == (object)id54_MinimumSamplingInterval && (object) Reader.NamespaceURI == (object)id3_Item)) {
@@ -4162,180 +4143,180 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
         protected override void InitCallbacks() {
         }
 
-        string id85_ModelVersion;
-        string id66_MethodDeclarationId;
-        string id27_HasNoPermissions;
-        string id81_ModelUri;
-        string id14_UADataType;
-        string id62_Symmetric;
-        string id26_AccessRestrictions;
-        string id59_Text;
-        string id55_Historizing;
-        string id11_Alias;
-        string id54_MinimumSamplingInterval;
-        string id51_Value;
-        string id77_IsOptional;
-        string id61_Name;
-        string id43_ReferenceType;
-        string id48_DataType;
-        string id73_IsOptionSet;
-        string id20_UAVariableType;
-        string id41_RolePermission;
-        string id23_BrowseName;
-        string id60_StructureTranslationType;
-        string id10_Aliases;
-        string id38_References;
-        string id7_ServerUris;
-        string id25_UserWriteMask;
-        string id56_Translation;
-        string id50_ArrayDimensions;
-        string id30_ParentNodeId;
-        string id57_TranslationType;
-        string id33_EventNotifier;
-        string id17_UAObjectType;
-        string id74_BaseType;
-        string id76_MaxStringLength;
-        string id16_UAObject;
+        string id1_UANodeSet;
+        string id2_Item;
+        string id3_Item;
+        string id4_LastModified;
         string id5_NamespaceUris;
+        string id6_Uri;
+        string id7_ServerUris;
+        string id8_Models;
+        string id9_Model;
+        string id10_Aliases;
+        string id11_Alias;
+        string id12_Extensions;
+        string id13_Extension;
+        string id14_UADataType;
+        string id15_UAMethod;
+        string id16_UAObject;
+        string id17_UAObjectType;
+        string id18_UAReferenceType;
+        string id19_UAVariable;
+        string id20_UAVariableType;
+        string id21_UAView;
+        string id22_NodeId;
+        string id23_BrowseName;
+        string id24_WriteMask;
+        string id25_UserWriteMask;
+        string id26_AccessRestrictions;
+        string id27_HasNoPermissions;
+        string id28_SymbolicName;
+        string id29_ReleaseStatus;
+        string id30_ParentNodeId;
+        string id31_DesignToolOnly;
+        string id32_ContainsNoLoops;
+        string id33_EventNotifier;
+        string id34_DisplayName;
+        string id35_Description;
+        string id36_Category;
+        string id37_Documentation;
+        string id38_References;
+        string id39_Reference;
+        string id40_RolePermissions;
+        string id41_RolePermission;
+        string id42_Permissions;
+        string id43_ReferenceType;
+        string id44_IsForward;
+        string id45_LocalizedText;
+        string id46_Locale;
+        string id47_IsAbstract;
+        string id48_DataType;
+        string id49_ValueRank;
+        string id50_ArrayDimensions;
+        string id51_Value;
+        string id52_AccessLevel;
+        string id53_UserAccessLevel;
+        string id54_MinimumSamplingInterval;
+        string id55_Historizing;
+        string id56_Translation;
+        string id57_TranslationType;
+        string id58_Field;
+        string id59_Text;
+        string id60_StructureTranslationType;
+        string id61_Name;
+        string id62_Symmetric;
+        string id63_InverseName;
+        string id64_Executable;
+        string id65_UserExecutable;
+        string id66_MethodDeclarationId;
+        string id67_ArgumentDescription;
+        string id68_UAMethodArgument;
         string id69_Purpose;
         string id70_Definition;
-        string id6_Uri;
         string id71_DataTypeDefinition;
-        string id79_NodeIdAlias;
-        string id1_UANodeSet;
-        string id36_Category;
-        string id15_UAMethod;
-        string id75_DataTypeField;
         string id72_IsUnion;
-        string id12_Extensions;
-        string id34_DisplayName;
-        string id3_Item;
-        string id53_UserAccessLevel;
-        string id42_Permissions;
-        string id32_ContainsNoLoops;
-        string id68_UAMethodArgument;
-        string id28_SymbolicName;
-        string id2_Item;
-        string id67_ArgumentDescription;
-        string id31_DesignToolOnly;
-        string id64_Executable;
-        string id44_IsForward;
-        string id4_LastModified;
-        string id47_IsAbstract;
-        string id46_Locale;
-        string id19_UAVariable;
-        string id8_Models;
-        string id52_AccessLevel;
-        string id40_RolePermissions;
-        string id21_UAView;
-        string id35_Description;
-        string id45_LocalizedText;
+        string id73_IsOptionSet;
+        string id74_BaseType;
+        string id75_DataTypeField;
+        string id76_MaxStringLength;
+        string id77_IsOptional;
         string id78_AllowSubTypes;
-        string id84_PublicationDate;
-        string id86_RequiredModel;
-        string id22_NodeId;
-        string id58_Field;
-        string id49_ValueRank;
-        string id37_Documentation;
-        string id83_Version;
-        string id65_UserExecutable;
-        string id82_XmlSchemaUri;
-        string id39_Reference;
-        string id24_WriteMask;
-        string id13_Extension;
-        string id18_UAReferenceType;
-        string id9_Model;
-        string id29_ReleaseStatus;
+        string id79_NodeIdAlias;
         string id80_ModelTableEntry;
-        string id63_InverseName;
+        string id81_ModelUri;
+        string id82_XmlSchemaUri;
+        string id83_Version;
+        string id84_PublicationDate;
+        string id85_ModelVersion;
+        string id86_RequiredModel;
 
         protected override void InitIDs() {
-            id85_ModelVersion = Reader.NameTable.Add(@"ModelVersion");
-            id66_MethodDeclarationId = Reader.NameTable.Add(@"MethodDeclarationId");
-            id27_HasNoPermissions = Reader.NameTable.Add(@"HasNoPermissions");
-            id81_ModelUri = Reader.NameTable.Add(@"ModelUri");
-            id14_UADataType = Reader.NameTable.Add(@"UADataType");
-            id62_Symmetric = Reader.NameTable.Add(@"Symmetric");
-            id26_AccessRestrictions = Reader.NameTable.Add(@"AccessRestrictions");
-            id59_Text = Reader.NameTable.Add(@"Text");
-            id55_Historizing = Reader.NameTable.Add(@"Historizing");
-            id11_Alias = Reader.NameTable.Add(@"Alias");
-            id54_MinimumSamplingInterval = Reader.NameTable.Add(@"MinimumSamplingInterval");
-            id51_Value = Reader.NameTable.Add(@"Value");
-            id77_IsOptional = Reader.NameTable.Add(@"IsOptional");
-            id61_Name = Reader.NameTable.Add(@"Name");
-            id43_ReferenceType = Reader.NameTable.Add(@"ReferenceType");
-            id48_DataType = Reader.NameTable.Add(@"DataType");
-            id73_IsOptionSet = Reader.NameTable.Add(@"IsOptionSet");
-            id20_UAVariableType = Reader.NameTable.Add(@"UAVariableType");
-            id41_RolePermission = Reader.NameTable.Add(@"RolePermission");
-            id23_BrowseName = Reader.NameTable.Add(@"BrowseName");
-            id60_StructureTranslationType = Reader.NameTable.Add(@"StructureTranslationType");
-            id10_Aliases = Reader.NameTable.Add(@"Aliases");
-            id38_References = Reader.NameTable.Add(@"References");
-            id7_ServerUris = Reader.NameTable.Add(@"ServerUris");
-            id25_UserWriteMask = Reader.NameTable.Add(@"UserWriteMask");
-            id56_Translation = Reader.NameTable.Add(@"Translation");
-            id50_ArrayDimensions = Reader.NameTable.Add(@"ArrayDimensions");
-            id30_ParentNodeId = Reader.NameTable.Add(@"ParentNodeId");
-            id57_TranslationType = Reader.NameTable.Add(@"TranslationType");
-            id33_EventNotifier = Reader.NameTable.Add(@"EventNotifier");
-            id17_UAObjectType = Reader.NameTable.Add(@"UAObjectType");
-            id74_BaseType = Reader.NameTable.Add(@"BaseType");
-            id76_MaxStringLength = Reader.NameTable.Add(@"MaxStringLength");
-            id16_UAObject = Reader.NameTable.Add(@"UAObject");
+            id1_UANodeSet = Reader.NameTable.Add(@"UANodeSet");
+            id2_Item = Reader.NameTable.Add(@"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd");
+            id3_Item = Reader.NameTable.Add(@"");
+            id4_LastModified = Reader.NameTable.Add(@"LastModified");
             id5_NamespaceUris = Reader.NameTable.Add(@"NamespaceUris");
+            id6_Uri = Reader.NameTable.Add(@"Uri");
+            id7_ServerUris = Reader.NameTable.Add(@"ServerUris");
+            id8_Models = Reader.NameTable.Add(@"Models");
+            id9_Model = Reader.NameTable.Add(@"Model");
+            id10_Aliases = Reader.NameTable.Add(@"Aliases");
+            id11_Alias = Reader.NameTable.Add(@"Alias");
+            id12_Extensions = Reader.NameTable.Add(@"Extensions");
+            id13_Extension = Reader.NameTable.Add(@"Extension");
+            id14_UADataType = Reader.NameTable.Add(@"UADataType");
+            id15_UAMethod = Reader.NameTable.Add(@"UAMethod");
+            id16_UAObject = Reader.NameTable.Add(@"UAObject");
+            id17_UAObjectType = Reader.NameTable.Add(@"UAObjectType");
+            id18_UAReferenceType = Reader.NameTable.Add(@"UAReferenceType");
+            id19_UAVariable = Reader.NameTable.Add(@"UAVariable");
+            id20_UAVariableType = Reader.NameTable.Add(@"UAVariableType");
+            id21_UAView = Reader.NameTable.Add(@"UAView");
+            id22_NodeId = Reader.NameTable.Add(@"NodeId");
+            id23_BrowseName = Reader.NameTable.Add(@"BrowseName");
+            id24_WriteMask = Reader.NameTable.Add(@"WriteMask");
+            id25_UserWriteMask = Reader.NameTable.Add(@"UserWriteMask");
+            id26_AccessRestrictions = Reader.NameTable.Add(@"AccessRestrictions");
+            id27_HasNoPermissions = Reader.NameTable.Add(@"HasNoPermissions");
+            id28_SymbolicName = Reader.NameTable.Add(@"SymbolicName");
+            id29_ReleaseStatus = Reader.NameTable.Add(@"ReleaseStatus");
+            id30_ParentNodeId = Reader.NameTable.Add(@"ParentNodeId");
+            id31_DesignToolOnly = Reader.NameTable.Add(@"DesignToolOnly");
+            id32_ContainsNoLoops = Reader.NameTable.Add(@"ContainsNoLoops");
+            id33_EventNotifier = Reader.NameTable.Add(@"EventNotifier");
+            id34_DisplayName = Reader.NameTable.Add(@"DisplayName");
+            id35_Description = Reader.NameTable.Add(@"Description");
+            id36_Category = Reader.NameTable.Add(@"Category");
+            id37_Documentation = Reader.NameTable.Add(@"Documentation");
+            id38_References = Reader.NameTable.Add(@"References");
+            id39_Reference = Reader.NameTable.Add(@"Reference");
+            id40_RolePermissions = Reader.NameTable.Add(@"RolePermissions");
+            id41_RolePermission = Reader.NameTable.Add(@"RolePermission");
+            id42_Permissions = Reader.NameTable.Add(@"Permissions");
+            id43_ReferenceType = Reader.NameTable.Add(@"ReferenceType");
+            id44_IsForward = Reader.NameTable.Add(@"IsForward");
+            id45_LocalizedText = Reader.NameTable.Add(@"LocalizedText");
+            id46_Locale = Reader.NameTable.Add(@"Locale");
+            id47_IsAbstract = Reader.NameTable.Add(@"IsAbstract");
+            id48_DataType = Reader.NameTable.Add(@"DataType");
+            id49_ValueRank = Reader.NameTable.Add(@"ValueRank");
+            id50_ArrayDimensions = Reader.NameTable.Add(@"ArrayDimensions");
+            id51_Value = Reader.NameTable.Add(@"Value");
+            id52_AccessLevel = Reader.NameTable.Add(@"AccessLevel");
+            id53_UserAccessLevel = Reader.NameTable.Add(@"UserAccessLevel");
+            id54_MinimumSamplingInterval = Reader.NameTable.Add(@"MinimumSamplingInterval");
+            id55_Historizing = Reader.NameTable.Add(@"Historizing");
+            id56_Translation = Reader.NameTable.Add(@"Translation");
+            id57_TranslationType = Reader.NameTable.Add(@"TranslationType");
+            id58_Field = Reader.NameTable.Add(@"Field");
+            id59_Text = Reader.NameTable.Add(@"Text");
+            id60_StructureTranslationType = Reader.NameTable.Add(@"StructureTranslationType");
+            id61_Name = Reader.NameTable.Add(@"Name");
+            id62_Symmetric = Reader.NameTable.Add(@"Symmetric");
+            id63_InverseName = Reader.NameTable.Add(@"InverseName");
+            id64_Executable = Reader.NameTable.Add(@"Executable");
+            id65_UserExecutable = Reader.NameTable.Add(@"UserExecutable");
+            id66_MethodDeclarationId = Reader.NameTable.Add(@"MethodDeclarationId");
+            id67_ArgumentDescription = Reader.NameTable.Add(@"ArgumentDescription");
+            id68_UAMethodArgument = Reader.NameTable.Add(@"UAMethodArgument");
             id69_Purpose = Reader.NameTable.Add(@"Purpose");
             id70_Definition = Reader.NameTable.Add(@"Definition");
-            id6_Uri = Reader.NameTable.Add(@"Uri");
             id71_DataTypeDefinition = Reader.NameTable.Add(@"DataTypeDefinition");
-            id79_NodeIdAlias = Reader.NameTable.Add(@"NodeIdAlias");
-            id1_UANodeSet = Reader.NameTable.Add(@"UANodeSet");
-            id36_Category = Reader.NameTable.Add(@"Category");
-            id15_UAMethod = Reader.NameTable.Add(@"UAMethod");
-            id75_DataTypeField = Reader.NameTable.Add(@"DataTypeField");
             id72_IsUnion = Reader.NameTable.Add(@"IsUnion");
-            id12_Extensions = Reader.NameTable.Add(@"Extensions");
-            id34_DisplayName = Reader.NameTable.Add(@"DisplayName");
-            id3_Item = Reader.NameTable.Add(@"");
-            id53_UserAccessLevel = Reader.NameTable.Add(@"UserAccessLevel");
-            id42_Permissions = Reader.NameTable.Add(@"Permissions");
-            id32_ContainsNoLoops = Reader.NameTable.Add(@"ContainsNoLoops");
-            id68_UAMethodArgument = Reader.NameTable.Add(@"UAMethodArgument");
-            id28_SymbolicName = Reader.NameTable.Add(@"SymbolicName");
-            id2_Item = Reader.NameTable.Add(@"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd");
-            id67_ArgumentDescription = Reader.NameTable.Add(@"ArgumentDescription");
-            id31_DesignToolOnly = Reader.NameTable.Add(@"DesignToolOnly");
-            id64_Executable = Reader.NameTable.Add(@"Executable");
-            id44_IsForward = Reader.NameTable.Add(@"IsForward");
-            id4_LastModified = Reader.NameTable.Add(@"LastModified");
-            id47_IsAbstract = Reader.NameTable.Add(@"IsAbstract");
-            id46_Locale = Reader.NameTable.Add(@"Locale");
-            id19_UAVariable = Reader.NameTable.Add(@"UAVariable");
-            id8_Models = Reader.NameTable.Add(@"Models");
-            id52_AccessLevel = Reader.NameTable.Add(@"AccessLevel");
-            id40_RolePermissions = Reader.NameTable.Add(@"RolePermissions");
-            id21_UAView = Reader.NameTable.Add(@"UAView");
-            id35_Description = Reader.NameTable.Add(@"Description");
-            id45_LocalizedText = Reader.NameTable.Add(@"LocalizedText");
+            id73_IsOptionSet = Reader.NameTable.Add(@"IsOptionSet");
+            id74_BaseType = Reader.NameTable.Add(@"BaseType");
+            id75_DataTypeField = Reader.NameTable.Add(@"DataTypeField");
+            id76_MaxStringLength = Reader.NameTable.Add(@"MaxStringLength");
+            id77_IsOptional = Reader.NameTable.Add(@"IsOptional");
             id78_AllowSubTypes = Reader.NameTable.Add(@"AllowSubTypes");
-            id84_PublicationDate = Reader.NameTable.Add(@"PublicationDate");
-            id86_RequiredModel = Reader.NameTable.Add(@"RequiredModel");
-            id22_NodeId = Reader.NameTable.Add(@"NodeId");
-            id58_Field = Reader.NameTable.Add(@"Field");
-            id49_ValueRank = Reader.NameTable.Add(@"ValueRank");
-            id37_Documentation = Reader.NameTable.Add(@"Documentation");
-            id83_Version = Reader.NameTable.Add(@"Version");
-            id65_UserExecutable = Reader.NameTable.Add(@"UserExecutable");
-            id82_XmlSchemaUri = Reader.NameTable.Add(@"XmlSchemaUri");
-            id39_Reference = Reader.NameTable.Add(@"Reference");
-            id24_WriteMask = Reader.NameTable.Add(@"WriteMask");
-            id13_Extension = Reader.NameTable.Add(@"Extension");
-            id18_UAReferenceType = Reader.NameTable.Add(@"UAReferenceType");
-            id9_Model = Reader.NameTable.Add(@"Model");
-            id29_ReleaseStatus = Reader.NameTable.Add(@"ReleaseStatus");
+            id79_NodeIdAlias = Reader.NameTable.Add(@"NodeIdAlias");
             id80_ModelTableEntry = Reader.NameTable.Add(@"ModelTableEntry");
-            id63_InverseName = Reader.NameTable.Add(@"InverseName");
+            id81_ModelUri = Reader.NameTable.Add(@"ModelUri");
+            id82_XmlSchemaUri = Reader.NameTable.Add(@"XmlSchemaUri");
+            id83_Version = Reader.NameTable.Add(@"Version");
+            id84_PublicationDate = Reader.NameTable.Add(@"PublicationDate");
+            id85_ModelVersion = Reader.NameTable.Add(@"ModelVersion");
+            id86_RequiredModel = Reader.NameTable.Add(@"RequiredModel");
         }
     }
 

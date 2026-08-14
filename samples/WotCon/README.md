@@ -188,14 +188,31 @@ reference for its cavitation alarm and acknowledgement does not round-trip:
 the projected pump actions are Start, Stop and Reset rather than Condition
 Methods carrying `uav:conditionAction` / `uav:actsOn`.
 
-Closing these gaps means completing the readable affordance mapping so the pump
-NodeSet round-trips through affordances alone and `uav:nodes` is no longer
-emitted. That is a change to the mapping, not to the sample: measured against
-`SamplePump.NodeSet2.xml`, the readable-only conversion yields 37 flat Nodes in
-one namespace against the source's 35 Nodes across four, because the reverse
-conversion emits no structural term per property affordance — across 26
-`uav:variable` affordances there is one `uav:browseName` and no
-`uav:hasComponent`.
+### Why the pump document still carries `uav:nodes`
+
+*OPC UA — WoT Binding* §9.2 emits the exceptional `uav:nodes` projection only when
+converting the readable document back would not reproduce an equivalent NodeSet. For
+this pump it is still emitted, and the reason is a gap in this implementation rather
+than in the vocabulary.
+
+The readable mapping was completed a long way. Converting `SamplePump.NodeSet2.xml`
+through affordances alone once produced **one** Node in **one** namespace; it now
+produces **21 of 35** Nodes in the source's exact **four**-namespace table, invents
+nothing, and keeps every companion type definition, every DataType and every scalar
+value. What is left is the fourteen `EURange` and `EngineeringUnits` Nodes, which are
+`HasProperty` children of a Variable — one level deeper than the conversion currently
+descends — and whose values are structures rather than scalars.
+
+Both are ordinary work rather than limits. A structure's value is self-describing: the
+`ExtensionObject` carries the identifier of the type it holds, `EUInformation` and
+`Range` are types the stack already generates from the standard NodeSet, and the
+encoder stack maps such a value to named JSON fields and back. Nothing has to infer a
+unit's identifier from its symbol.
+
+One convention the conversion follows is worth knowing when reading a generated
+document: completeness is tested for *equivalence*, not for spelling. A NodeSet may
+write a DataType as an alias its own `Aliases` table declares or as the identifier that
+alias stands for; the check reads both sides through their own tables so the two agree.
 
 ### Upload order is not a server requirement
 

@@ -60,6 +60,91 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return document.ToCanonicalUtf8();
         }
 
+        /// <summary>
+        /// Generates a companion model as the set of linked documents §9.1
+        /// describes, one per Node that roots a document.
+        /// </summary>
+        /// <remarks>
+        /// A companion model states many type definitions side by side and has
+        /// no single root, so converting it to one document leaves everything
+        /// but the first unreachable and forces the whole model into the
+        /// <c>uav:nodes</c> projection. The set is what lets it be stated
+        /// readably.
+        /// </remarks>
+        public static IReadOnlyList<GeneratedDocument> GenerateThingModelSet(
+            string sourcePath,
+            string modelPrefix,
+            string title)
+        {
+            WotConversionResult<WotDocumentSet> result =
+                WotNodeSetConverter.FromNodeSetDocuments(
+                    ReadNodeSet(sourcePath),
+                    modelPrefix,
+                    title,
+                    CreateLargeDocumentOptions());
+            using WotDocumentSet set = result.Value
+                ?? throw new InvalidOperationException(
+                    $"'{sourcePath}' produced no document set.");
+
+            var generated = new List<GeneratedDocument>(set.Entries.Count);
+            foreach (WotDocumentSetEntry entry in set.Entries)
+            {
+                generated.Add(new GeneratedDocument(
+                    entry.Href,
+                    entry.Document.ToCanonicalUtf8()));
+            }
+            return generated;
+        }
+
+        /// <summary>
+        /// One document of a generated set, named by the href that identifies
+        /// it within the set.
+        /// </summary>
+        internal sealed record GeneratedDocument(string Href, byte[] Json);
+
+        /// <summary>
+        /// Writes a generated set into its own directory and returns the
+        /// manifest entries that name the files.
+        /// </summary>
+        /// <remarks>
+        /// One file per document, in a directory named for the model. The set
+        /// is emitted parent before child, so chaining each entry to the one
+        /// before it is already a valid load order — a document that names its
+        /// parent is never loaded before that parent exists.
+        /// </remarks>
+        public static IReadOnlyList<ManifestEntry> WriteThingModelSet(
+            string documentsDirectory,
+            string modelDirectory,
+            IReadOnlyList<GeneratedDocument> documents,
+            string? firstDependsOn)
+        {
+            string target = Path.Combine(documentsDirectory, modelDirectory);
+            if (Directory.Exists(target))
+            {
+                Directory.Delete(target, recursive: true);
+            }
+            Directory.CreateDirectory(target);
+
+            var entries = new List<ManifestEntry>(documents.Count);
+            string? previous = firstDependsOn;
+            foreach (GeneratedDocument document in documents)
+            {
+                string fileName = document.Href + ".json";
+                File.WriteAllBytes(Path.Combine(target, fileName), document.Json);
+                entries.Add(new ManifestEntry(
+                    document.Href,
+                    modelDirectory + "/" + fileName,
+                    previous));
+                previous = document.Href;
+            }
+            return entries;
+        }
+
+        /// <summary>
+        /// One <c>documents.json</c> entry.
+        /// </summary>
+        internal sealed record ManifestEntry(string ResourceId, string Path, string? DependsOn);
+
         public static byte[] GeneratePumpThingDescription(string sourcePath)
         {
             using WotDocument generated = WotNodeSetConverter.FromNodeSet(

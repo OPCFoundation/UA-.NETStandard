@@ -1320,6 +1320,14 @@ namespace Opc.Ua.SourceGeneration
 
             if (node.Parent != null)
             {
+                if (node.Design is ViewDesign)
+                {
+                    // Views are never emitted as AddChild components (ViewState is
+                    // not a BaseInstanceState). They are collected as standalone
+                    // root nodes and linked purely via Organizes references, the
+                    // same way DataType/ReferenceType type designs are handled.
+                    return null;
+                }
                 if (node.Design is not InstanceDesign instance)
                 {
                     return null;
@@ -1403,10 +1411,10 @@ namespace Opc.Ua.SourceGeneration
                 GetDescriptionValue(root));
             context.Template.AddReplacement(
                 Tokens.WriteMaskValue,
-                "global::Opc.Ua.AttributeWriteMask.None");
+                root.GetWriteMaskAsCode());
             context.Template.AddReplacement(
                 Tokens.UserWriteMaskValue,
-                "global::Opc.Ua.AttributeWriteMask.None");
+                root.GetWriteMaskAsCode());
 
             // Add Children
             context.Template.AddReplacement(
@@ -1530,7 +1538,8 @@ namespace Opc.Ua.SourceGeneration
         private TemplateString LoadTemplate_ReplaceChild(ILoadContext context)
         {
             if (context.Target is not NodeToGenerate node ||
-                node.Design is not InstanceDesign instance)
+                node.Design is not InstanceDesign instance ||
+                node.Design is ViewDesign)
             {
                 return null;
             }

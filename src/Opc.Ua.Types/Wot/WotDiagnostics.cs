@@ -132,6 +132,11 @@ namespace Opc.Ua.Wot
         /// </summary>
         NativeProjectionUncoveredAffordance = 3006,
 
+        /// <summary>
+        /// A readable DataType definition does not satisfy WoT Binding §6.11.
+        /// </summary>
+        DataTypeDefinitionInvalid = 3007,
+
         /// <summary>A referenced target could not be resolved to a NodeId.</summary>
         UnresolvedReference = 4000,
 

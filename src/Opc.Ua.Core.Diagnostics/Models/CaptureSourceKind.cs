@@ -26,6 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+using System;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Models
@@ -62,5 +63,62 @@ namespace Opc.Ua.Pcap.Models
         /// optional keylog from disk.
         /// </summary>
         Replay = 3
+    }
+
+    /// <summary>
+    /// Convenience helpers for <see cref="CaptureSourceKind"/>.
+    /// </summary>
+    public static class CaptureSourceKindExtensions
+    {
+        /// <summary>
+        /// Attempts to parse a capture-source name (case-insensitive).
+        /// </summary>
+        public static bool TryParse(this string? value, out CaptureSourceKind kind)
+        {
+            switch (value?.Trim().ToLowerInvariant())
+            {
+                case "nic":
+                    kind = CaptureSourceKind.Nic;
+                    return true;
+                case "inproc-client":
+                case "inprocclient":
+                case "in-process-client":
+                case "inprocessclient":
+                    kind = CaptureSourceKind.InProcessClient;
+                    return true;
+                case "inproc-server":
+                case "inprocserver":
+                case "in-process-server":
+                case "inprocessserver":
+                    kind = CaptureSourceKind.InProcessServer;
+                    return true;
+                case "replay":
+                    kind = CaptureSourceKind.Replay;
+                    return true;
+                default:
+                    kind = CaptureSourceKind.Nic;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns the canonical wire name for a capture source.
+        /// </summary>
+        public static string ToWireName(this CaptureSourceKind kind)
+        {
+            return kind switch
+            {
+                CaptureSourceKind.Nic => "nic",
+                CaptureSourceKind.InProcessClient => "inproc-client",
+                CaptureSourceKind.InProcessServer => "inproc-server",
+                CaptureSourceKind.Replay => "replay",
+                _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown capture source kind.")
+            };
+        }
+
+        /// <summary>
+        /// The canonical capture-source names used on the wire.
+        /// </summary>
+        public const string SupportedNames = "nic, inproc-client, inproc-server, or replay";
     }
 }

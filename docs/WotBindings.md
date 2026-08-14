@@ -817,7 +817,7 @@ The specification defines ten conformance units and four recommended profiles
 | Unit | Status | Where |
 |---|---|---|
 | **WoT-ProtocolBinding** | covered | URI/base/href handling, the four service mappings, access levels and the security schemes, in `Opc.Ua.WotCon.Bindings` and its planners |
-| **WoT-NativeMapping** | covered | `WotNodeSetConverter`, including the proof that `uav:nodes` is omitted when the readable mapping is complete |
+| **WoT-NativeMapping** | covered | `WotNodeSetConverter`, including the proof that `uav:nodes` is omitted when the readable mapping is complete. It descends the whole composition tree (`FromNodeSetDocuments`, §9.1's "Thing / nested Thing"), seeds namespaces from `@context`, and keeps type definitions, DataTypes and scalar values. See *What the readable mapping cannot express* below |
 | **WoT-StructuredFallback** | covered | the structured `uav:nodes` projection in `WotNativeProjection` |
 | **WoT-JsonResidue** | covered | `WotJsonResidue`, pointer-addressed preservation through the NodeSet Extension |
 | **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
@@ -830,6 +830,30 @@ The specification defines ten conformance units and four recommended profiles
 
 All four profiles - **WoT-Reader**, **WoT-Modeller**, **WoT-Converter** and
 **WoT-ArchivalConverter** - are therefore satisfied by the units above.
+
+### What the readable mapping does not yet carry
+
+Section 9.2 emits the exceptional `uav:nodes` projection where converting the readable
+document back would not reproduce an equivalent NodeSet. Two gaps in this
+implementation still trigger it, both ordinary work rather than limits of the
+vocabulary.
+
+A Variable's own Variable children - the `EURange` and `EngineeringUnits` Properties of
+an `AnalogUnitType` - sit one level deeper than the conversion descends, so they are
+not emitted. And a Variable's `Value` is carried only where it is a scalar the
+conversion special-cases; a structure is not carried at all.
+
+Neither needs new vocabulary. A structure's value is self-describing: the
+`ExtensionObject` states the identifier of the type it holds, `EUInformation` and
+`Range` are types this stack already generates from the standard NodeSet, and the
+encoder stack in `Opc.Ua.Types/Encoders` maps such a value to named JSON fields and
+back. Nothing has to infer a unit's identifier from its symbol.
+
+One convention is worth knowing when reading a generated document: completeness is
+tested with `NodeSetComparer.CompareEquivalent`, which reads each side through its own
+`Aliases` table, because Section 9.2 asks for an equivalent NodeSet and not an
+identically spelled one. `NodeSetComparer.Compare` keeps the stricter text comparison
+for callers that need to know a document was reproduced as written.
 
 ### How this is checked
 

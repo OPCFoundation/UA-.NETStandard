@@ -761,7 +761,7 @@ namespace Opc.Ua.Wot
 
             var nodeSet = new UANodeSet
             {
-                NamespaceUris = [modelUri],
+                NamespaceUris = SeedNamespaceUris(document, modelUri),
                 Models =
                 [
                     new ModelTableEntry { ModelUri = modelUri }
@@ -787,7 +787,21 @@ namespace Opc.Ua.Wot
             string? boundType = null;
             if (isThingModel)
             {
-                rootNode = new UAObjectType { IsAbstract = false };
+                // A Thing Model is not always an ObjectType. §9.1 maps a
+                // VariableType to one too, and the document says which through
+                // its @type. Reading only "Thing Model" turns every
+                // VariableType into an ObjectType: the type is lost and a
+                // different one invented in its place.
+                bool isVariableType = HasTypeAnnotation(document, "uav:variableType");
+                bool isReferenceType = HasTypeAnnotation(document, "uav:referenceType");
+                bool isDataType = HasTypeAnnotation(document, "uav:dataType");
+                rootNode = isDataType
+                    ? new UADataType { IsAbstract = false }
+                    : isReferenceType
+                        ? new UAReferenceType { IsAbstract = false }
+                        : isVariableType
+                            ? new UAVariableType { IsAbstract = false }
+                            : new UAObjectType { IsAbstract = false };
 
                 // WoT Binding Section 5.2.1 makes invalid and unresolved
                 // type-binding outcomes document-wide. A Thing Model still
@@ -800,14 +814,26 @@ namespace Opc.Ua.Wot
                     IsForward = false,
                     // An event-type Thing Model (@type uav:eventType) derives
                     // from BaseEventType rather than BaseObjectType.
-                    Value = isEventType
-                        ? WotVocabulary.BaseEventType
-                        : WotVocabulary.BaseObjectType
+                    Value = isDataType
+                        ? WotVocabulary.BaseDataType
+                        : isReferenceType
+                            ? WotVocabulary.NonHierarchicalReferences
+                            : isVariableType
+                                ? WotVocabulary.BaseDataVariableType
+                                : isEventType
+                                    ? WotVocabulary.BaseEventType
+                                    : WotVocabulary.BaseObjectType
                 });
             }
             else
             {
-                rootNode = new UAObject();
+                // §9.1 maps a Variable to a Thing as well as to a property: a
+                // Variable that nothing contains roots its own document. Making
+                // every non-model document an Object turns such a Variable into
+                // an Object, which the counts never reveal because one Node
+                // still comes back for one Node.
+                bool isVariable = HasTypeAnnotation(document, "uav:variable");
+                rootNode = isVariable ? new UAVariable() : new UAObject();
 
                 // WoT Binding Section 5.2.1: a document may bind its projected
                 // node to a type that already exists. Only fall back to
@@ -821,7 +847,9 @@ namespace Opc.Ua.Wot
                     IsForward = true,
                     Value = boundType is not null
                         ? ToNodeSetNodeId(boundType, nodeSet, diagnostics)
-                        : WotVocabulary.BaseObjectType
+                        : isVariable
+                            ? WotVocabulary.BaseDataVariableType
+                            : WotVocabulary.BaseObjectType
                 });
             }
 
@@ -900,6 +928,10 @@ namespace Opc.Ua.Wot
 
             rootNode.References = [.. rootReferences];
             items.Insert(0, rootNode);
+            Dictionary<string, string> dataTypeIdentities =
+                SynthesizeDataTypeDefinitions(document, nodeSet, items, diagnostics);
+            SynthesizeInferredDataTypes(
+                document, dataTypeIdentities, nodeSet, items, diagnostics);
             nodeSet.Items = [.. items];
             return nodeSet;
         }
@@ -933,7 +965,7 @@ namespace Opc.Ua.Wot
                         nodeSet,
                         diagnostics),
                 ParentNodeId = rootNodeId,
-                DataType = MapJsonSchemaToDataType(schema),
+                DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
                 AccessLevel = MapAccessLevel(schema)
             };
             string? title = GetElementString(schema, "title");
@@ -947,35 +979,200 @@ namespace Opc.Ua.Wot
                 variable.Description = MakeText(description);
             }
 
+            // §9.1: a property may state the Variable it belongs to rather than
+            // the Thing. Without this a Variable's own Variables — EURange and
+            // EngineeringUnits below an analog Variable — come back re-parented
+            // onto the Thing, one level higher than the source put them.
+            string owner = ReadComponentOfParent(schema, nodeSet, diagnostics) ?? rootNodeId;
             var references = new List<Reference>
             {
                 new Reference
                 {
                     ReferenceType = "HasTypeDefinition",
                     IsForward = true,
-                    Value = WotVocabulary.BaseDataVariableType
+                    Value = ReadAffordanceTypeDefinition(schema, nodeSet, diagnostics)
+                        ?? WotVocabulary.BaseDataVariableType
                 },
                 new Reference
                 {
                     ReferenceType = "HasComponent",
                     IsForward = false,
-                    Value = rootNodeId
+                    Value = owner
                 }
             };
             AddModellingRule(schema, references);
+            variable.ParentNodeId = owner;
             variable.References = [.. references];
+            variable.Value = BuildVariableValue(schema, variable.DataType);
 
             ReportUnsupportedSchema(schema, nodeId, diagnostics);
 
             items.Add(variable);
-            rootReferences.Add(new Reference
+            if (string.Equals(owner, rootNodeId, StringComparison.Ordinal))
             {
-                ReferenceType = "HasComponent",
-                IsForward = true,
-                Value = nodeId
-            });
+                rootReferences.Add(new Reference
+                {
+                    ReferenceType = "HasComponent",
+                    IsForward = true,
+                    Value = nodeId
+                });
+            }
+            else
+            {
+                AddOwnedComponent(items, owner, nodeId);
+            }
             _ = isThingModel;
         }
+
+        /// <summary>
+        /// Reads the parent an affordance names, where that parent is another
+        /// affordance of the same Thing rather than the Thing itself.
+        /// </summary>
+        private static string? ReadComponentOfParent(
+            JsonElement schema,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!schema.TryGetProperty("uav:componentOf", out JsonElement declared) ||
+                declared.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+            foreach (JsonElement entry in declared.EnumerateArray())
+            {
+                if (entry.ValueKind == JsonValueKind.String)
+                {
+                    return ToNodeSetNodeId(entry.GetString()!, nodeSet, diagnostics);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Adds the forward component reference from the owning Variable, so the
+        /// child hangs where the document says rather than being orphaned.
+        /// </summary>
+        private static void AddOwnedComponent(List<UANode> items, string owner, string nodeId)
+        {
+            foreach (UANode node in items)
+            {
+                if (!string.Equals(node.NodeId, owner, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                var references = new List<Reference>(node.References ?? [])
+                {
+                    new Reference
+                    {
+                        ReferenceType = "HasComponent",
+                        IsForward = true,
+                        Value = nodeId
+                    }
+                };
+                node.References = [.. references];
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Reads the definitive type-binding link an affordance carries.
+        /// </summary>
+        /// <remarks>
+        /// <i>OPC UA — WoT Binding</i> §5.2.1 allows the link on an affordance
+        /// as well as on the Thing. It is honoured here without a local-context
+        /// lookup only where it names a Node of the OPC UA namespace, which is
+        /// always loaded — <c>PropertyType</c>, <c>AnalogUnitType</c> and
+        /// <c>TwoStateDiscreteType</c> are the ordinary cases. A link into any
+        /// other namespace is a companion type that has to be resolved before it
+        /// can be trusted, so it is left to the document-level path rather than
+        /// written as a reference that may dangle.
+        /// </remarks>
+        private static string? ReadAffordanceTypeDefinition(
+            JsonElement affordance,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (affordance.ValueKind != JsonValueKind.Object ||
+                !affordance.TryGetProperty("links", out JsonElement links) ||
+                links.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+            foreach (JsonElement link in links.EnumerateArray())
+            {
+                if (link.ValueKind != JsonValueKind.Object ||
+                    !string.Equals(
+                        GetElementString(link, "rel"), TypeBindingRel, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                string? href = GetElementString(link, "href");
+                if (href is null || href.StartsWith("nsu=", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                return ToNodeSetNodeId(href, nodeSet, diagnostics);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Rebuilds a Variable's <c>Value</c> from the property's <c>const</c>.
+        /// </summary>
+        /// <remarks>
+        /// The DataType decides the XML shape, which is why §5.4's definitive
+        /// statement matters here: a JSON string alone cannot say whether it is
+        /// a <c>String</c> or the <c>Text</c> of a <c>LocalizedText</c>.
+        /// </remarks>
+        private static System.Xml.XmlElement? BuildVariableValue(
+            JsonElement schema, string? dataType)
+        {
+            if (schema.ValueKind != JsonValueKind.Object ||
+                !schema.TryGetProperty("const", out JsonElement constant))
+            {
+                return null;
+            }
+            string? local = dataType switch
+            {
+                "i=1" => "Boolean",
+                "i=12" => "String",
+                "i=21" => "LocalizedText",
+                _ => null
+            };
+            if (local is null)
+            {
+                return null;
+            }
+            var document = new System.Xml.XmlDocument { XmlResolver = null };
+            System.Xml.XmlElement element = document.CreateElement(
+                "uax", local, UaXmlNamespace);
+            if (string.Equals(local, "LocalizedText", StringComparison.Ordinal))
+            {
+                if (constant.ValueKind != JsonValueKind.String)
+                {
+                    return null;
+                }
+                System.Xml.XmlElement text = document.CreateElement(
+                    "uax", "Text", UaXmlNamespace);
+                text.InnerText = constant.GetString() ?? string.Empty;
+                element.AppendChild(text);
+                return element;
+            }
+            switch (constant.ValueKind)
+            {
+                case JsonValueKind.True:
+                case JsonValueKind.False:
+                    element.InnerText = constant.GetBoolean() ? "true" : "false";
+                    return element;
+                case JsonValueKind.String:
+                    element.InnerText = constant.GetString() ?? string.Empty;
+                    return element;
+                default:
+                    return null;
+            }
+        }
+
+        private const string UaXmlNamespace = "http://opcfoundation.org/UA/2008/02/Types.xsd";
 
         private static void SynthesizeAction(
             WotDocument document,
@@ -1411,12 +1608,49 @@ namespace Opc.Ua.Wot
             return value is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
         }
 
+        /// <summary>
+        /// Seeds the target namespace table from the document's <c>@context</c>.
+        /// </summary>
+        /// <remarks>
+        /// <i>OPC UA — WoT Binding</i> §9.1 maps the NodeSet namespace table onto
+        /// the <c>@context</c> prefix bindings keyed by namespace index, so a
+        /// document written from a NodeSet carries <c>ns1</c>…<c>nsN</c> in that
+        /// order. Reading them back reproduces the source table instead of
+        /// rebuilding it on demand from whichever identifiers happen to be
+        /// converted, which is what makes a BrowseName keep the namespace it was
+        /// written with and what lets the documents of one set agree on index.
+        /// A gap in the sequence stops the seed: an index is only meaningful if
+        /// every index below it is bound.
+        /// </remarks>
+        private static string[] SeedNamespaceUris(WotDocument document, string modelUri)
+        {
+            var uris = new List<string>();
+            for (int index = 1; ; index++)
+            {
+                string prefix = "ns" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (!TryGetContextNamespace(document, prefix, out string namespaceUri) ||
+                    namespaceUri.Length == 0)
+                {
+                    break;
+                }
+                uris.Add(namespaceUri);
+            }
+            if (uris.Count == 0)
+            {
+                return [modelUri];
+            }
+            if (!uris.Contains(modelUri))
+            {
+                uris.Insert(0, modelUri);
+            }
+            return [.. uris];
+        }
+
         private static bool TryGetContextNamespace(
             WotDocument document,
             string prefix,
             out string namespaceUri)
-        {
-            if (string.Equals(prefix, "ua", StringComparison.Ordinal))
+        {            if (string.Equals(prefix, "ua", StringComparison.Ordinal))
             {
                 namespaceUri = WotVocabulary.OpcUaNamespace;
                 return true;
@@ -2104,6 +2338,18 @@ namespace Opc.Ua.Wot
             uris.Add(namespaceUri);
             nodeSet.NamespaceUris = [.. uris];
             return uris.Count;
+        }
+
+        private static bool HasTypeAnnotation(WotDocument document, string annotation)
+        {
+            foreach (string token in document.TypeTokens)
+            {
+                if (string.Equals(token, annotation, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static bool HasEventTypeAnnotation(WotDocument document)
@@ -2896,9 +3142,98 @@ namespace Opc.Ua.Wot
             return "urn:opcua:wot:synthesized";
         }
 
-        private static string MapJsonSchemaToDataType(JsonElement schema)
+        /// <summary>
+        /// Resolves the DataType a property affordance declares.
+        /// </summary>
+        /// <remarks>
+        /// §9.1 gives the readable mapping one channel for a DataType, the
+        /// DataSchema's json type, and that channel carries six types — so a
+        /// LocalizedText and a String are the same thing by the time it is read
+        /// back. §5.4 states the definitive DataType at property level, so it
+        /// wins where it is present. It is resolved through
+        /// <see cref="ToNodeSetNodeId"/> rather than taken verbatim because that
+        /// is what registers its namespace in the table and rewrites the
+        /// portable <c>nsu=</c> form into the <c>ns=&lt;index&gt;</c> form a
+        /// NodeSet2 <c>DataType</c> attribute is allowed to carry.
+        /// </remarks>
+        private static string MapJsonSchemaToDataType(
+            WotDocument document,
+            JsonElement schema,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
         {
-            return WotVocabulary.MapJsonTypeToDataType(GetElementString(schema, "type"));
+            string? definitive = GetElementString(schema, "uav:mapToType");
+            if (definitive is not null)
+            {
+                return ToNodeSetNodeId(definitive, nodeSet, diagnostics);
+            }
+
+            // A DataSchema that names a DataType definition is bound to that
+            // DataType. §6.11 exists so a Variable can carry a custom Structure
+            // or Enumeration; reading only the json type here would give it the
+            // built-in the definition was written to replace.
+            string? defined = ResolveSchemaDataTypeDefinition(
+                document, schema, nodeSet, diagnostics);
+            if (defined is not null)
+            {
+                return defined;
+            }
+            string? annotated = GetElementString(schema, "uav:dataTypeId");
+            if (annotated is not null)
+            {
+                return ToNodeSetNodeId(annotated, nodeSet, diagnostics);
+            }
+            return WotVocabulary.MapJsonTypeToDataType(
+                GetElementString(schema, "type"),
+                GetElementString(schema, "contentEncoding"),
+                GetElementString(schema, "format"));
+        }
+
+        /// <summary>
+        /// Resolves the DataType a DataSchema's <c>uav:dataTypeDefinition</c>
+        /// denotes.
+        /// </summary>
+        /// <remarks>
+        /// The definition may be stated here or anywhere else in the document
+        /// and referred to by <c>@id</c>, so an <c>@id</c>-only reference is
+        /// followed to wherever the complete definition lives. The identity is
+        /// then whatever §6.11.1 gives that definition, which is the same
+        /// answer the materializer reaches independently.
+        /// </remarks>
+        private static string? ResolveSchemaDataTypeDefinition(
+            WotDocument document,
+            JsonElement schema,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!schema.TryGetProperty("uav:dataTypeDefinition", out JsonElement declared) ||
+                declared.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+            if (!IsReferenceOnlyDefinition(declared))
+            {
+                return ResolveDataTypeIdentity(document, declared, nodeSet, diagnostics);
+            }
+            string? graphId = GetElementString(declared, "@id");
+            if (graphId is null)
+            {
+                return null;
+            }
+            var ignored = new List<WotDiagnostic>();
+            Dictionary<string, JsonElement> complete =
+                CollectAllDataTypeDefinitions(document, ignored);
+            if (!complete.TryGetValue(graphId, out JsonElement target))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"A DataSchema names the DataType definition '{graphId}', " +
+                    "which the document never states completely.",
+                    new WotLocation(reference: graphId)));
+                return null;
+            }
+            return ResolveDataTypeIdentity(document, target, nodeSet, diagnostics);
         }
 
         private static uint MapAccessLevel(JsonElement schema)

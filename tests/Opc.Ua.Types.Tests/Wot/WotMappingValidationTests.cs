@@ -273,7 +273,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ToNodeSetSynthesizesVariableTypeRootAsObjectType()
+        public void ToNodeSetSynthesizesVariableTypeRootAsVariableType()
         {
             byte[] json = WotTestData.Utf8(
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
@@ -286,10 +286,17 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
+
+            // §9.1 maps a VariableType to a Thing Model too. Reading only
+            // "Thing Model" turned every one into an ObjectType, losing the
+            // type and inventing a different one in its place.
+            Assert.That(
+                result.Value!.Items?.OfType<UAVariableType>().Any(),
+                Is.True,
+                "A uav:variableType Thing Model synthesizes as a UAVariableType.");
             Assert.That(
                 result.Value!.Items?.OfType<UAObjectType>().Any(),
-                Is.True,
-                "A uav:variableType ThingModel currently synthesizes as a UAObjectType.");
+                Is.False);
         }
 
         [Test]

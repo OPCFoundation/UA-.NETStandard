@@ -41,6 +41,7 @@ using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.Models;
+using SharpPcap;
 
 namespace Opc.Ua.Tools.Tests.Mcp
 {
@@ -99,6 +100,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Assert.That(
                     exception.Message,
                     Does.Contain("Unable to enumerate devices"));
+                Assert.That(
+                    exception.InnerException,
+                    Is.Not.TypeOf<DeviceNotReadyException>(),
+                    "An unopened device's LinkType must not fail the whole interface listing.");
             }
         }
 
@@ -215,7 +220,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StartGetListStopAndGetCompletedReplaySessionRoundTripsAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("start-get-list-stop");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("start-get-list-stop");
             m_tempFolders.Add(folder);
             (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
                 folder,
@@ -297,7 +302,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task CaptureNowAsyncStartsCapturesAndStopsWithZeroDurationAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("capture-now");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("capture-now");
             m_tempFolders.Add(folder);
             (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
                 folder,
@@ -336,7 +341,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task CaptureNowAsyncStopsSessionInFinallyBlockWhenCanceledAsync()
         {
-            string folder = PcapMcpTestHelpers.CreateTempFolder("capture-now-cancel");
+            string folder = PcapMcpTestHelpers.CreateCaptureFolder("capture-now-cancel");
             m_tempFolders.Add(folder);
             (string pcapPath, string keyLogPath) = await PcapMcpTestHelpers.CreateFakeCaptureAsync(
                 folder,

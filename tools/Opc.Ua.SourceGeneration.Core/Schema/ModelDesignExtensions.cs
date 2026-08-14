@@ -928,10 +928,16 @@ namespace Opc.Ua.Schema.Model
                         return "global::Opc.Ua.ValueRanks.OneOrMoreDimensions";
                     }
 
-                    // TODO: "is ,,, not considered 3 dim?
-
+                    // The number of entries in ArrayDimensions is the number of
+                    // dimensions, which equals the ValueRank for a fixed-size
+                    // multi-dimensional array (e.g. "3,3" is a two-dimensional
+                    // array with ValueRank 2).
                     string[] dimensions = arrayDimensions.Split([','], StringSplitOptions.RemoveEmptyEntries);
-                    int dims = dimensions.Length + 1;
+                    int dims = dimensions.Length;
+                    if (dims == 0)
+                    {
+                        return "global::Opc.Ua.ValueRanks.OneOrMoreDimensions";
+                    }
                     if (dims == 1)
                     {
                         return "global::Opc.Ua.ValueRanks.OneDimension";
@@ -2442,15 +2448,18 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
-        /// Maps the UserAccessLevel of a variable onto code. Mirrors the
-        /// AccessLevel, matching the runtime NodeSet2 importer in
-        /// <c>UANodeSetHelpers</c>, which derives UserAccessLevel from
-        /// AccessLevel rather than from the (schema-defaulted)
-        /// UserAccessLevel attribute.
+        /// Maps the UserAccessLevel of a variable onto code. NodeSet2-sourced
+        /// designs carry the verbatim UserAccessLevel bitmask when the
+        /// attribute is explicitly present and it is preferred; otherwise the
+        /// UserAccessLevel is derived from the AccessLevel, matching the
+        /// runtime NodeSet2 importer in <c>UANodeSetHelpers</c>.
         /// </summary>
         public static string GetUserAccessLevelAsCode(this VariableDesign variable)
         {
-            return GetAccessLevelAsCode(variable);
+            uint? rawUserAccessLevel = variable?.RawUserAccessLevel;
+            return rawUserAccessLevel != null
+                ? GetAccessLevelBitsAsCode(rawUserAccessLevel.Value)
+                : GetAccessLevelAsCode(variable);
         }
 
         /// <summary>
@@ -2491,6 +2500,24 @@ namespace Opc.Ua.Schema.Model
             {
                 names.Add("global::Opc.Ua.AccessLevels." + name);
             }
+        }
+
+        /// <summary>
+        /// Maps the WriteAccess (WriteMask) of a node onto code. The verbatim
+        /// OPC UA WriteMask bitmask is emitted so that attributes advertised as
+        /// writable in the NodeSet (for example DisplayName and Description)
+        /// stay writable at runtime instead of defaulting to None.
+        /// </summary>
+        public static string GetWriteMaskAsCode(this NodeDesign node)
+        {
+            uint writeMask = node?.WriteAccess ?? 0;
+            if (writeMask == 0)
+            {
+                return "global::Opc.Ua.AttributeWriteMask.None";
+            }
+            return CoreUtils.Format(
+                "(global::Opc.Ua.AttributeWriteMask){0}",
+                writeMask);
         }
 
         public static string GetLocalizedTextAsCode(this string localizedText)

@@ -179,6 +179,15 @@ namespace Opc.Ua.Wot
         public const string PropertyType = "i=68";
         public const string BaseEventType = "i=2041";
         public const string BaseDataType = "i=24";
+        public const string Structure = "i=22";
+        public const string Union = "i=12756";
+        public const string Enumeration = "i=29";
+        public const string DataTypeEncodingType = "i=76";
+        public const string String = "i=12";
+        public const string ByteString = "i=15";
+        public const string Integer = "i=27";
+        public const string Number = "i=26";
+        public const string UriString = "i=23751";
 
         // Modelling rules (base namespace).
         public const string ModellingRuleMandatory = "i=78";
@@ -208,11 +217,19 @@ namespace Opc.Ua.Wot
             new(StringComparer.Ordinal)
             {
                 ["boolean"] = "i=1",
-                ["integer"] = "i=8",
-                ["number"] = "i=11",
-                ["string"] = "i=12",
+                ["integer"] = Integer,
+                ["number"] = Number,
+                ["string"] = String,
                 ["object"] = "i=22",
-                ["null"] = "i=24"
+                ["null"] = BaseDataType
+            };
+
+        private static readonly Dictionary<string, string> s_stringFormatToDataType =
+            new(StringComparer.Ordinal)
+            {
+                ["date-time"] = "i=13",
+                ["uuid"] = "i=14",
+                ["uri"] = UriString
             };
 
         public static bool TryGetModellingRuleNodeId(string modellingRule, out string nodeId)
@@ -225,8 +242,38 @@ namespace Opc.Ua.Wot
             return s_nodeIdToModellingRule.TryGetValue(nodeId, out modellingRule!);
         }
 
-        public static string MapJsonTypeToDataType(string? jsonType)
+        /// <summary>
+        /// Infers the OPC UA DataType a DataSchema denotes, using the canonical
+        /// table of WoT Binding §6.11.4.
+        /// </summary>
+        /// <remarks>
+        /// A bare <c>integer</c> or <c>number</c> infers the <em>abstract</em>
+        /// Integer and Number, not a concrete width: the schema says only that
+        /// the value is whole or numeric, and §6.11.4 makes the abstract type
+        /// the honest reading of that, permitting subtype values. A concrete
+        /// type is recovered from an explicit annotation, never guessed here.
+        /// The <c>string</c> row is refined by <paramref name="contentEncoding"/>
+        /// and <paramref name="format"/>, which is how a ByteString, DateTime,
+        /// Guid or UriString survives the round trip through JSON Schema.
+        /// </remarks>
+        public static string MapJsonTypeToDataType(
+            string? jsonType,
+            string? contentEncoding = null,
+            string? format = null)
         {
+            if (string.Equals(jsonType, "string", StringComparison.Ordinal))
+            {
+                if (string.Equals(contentEncoding, Base64Encoding, StringComparison.Ordinal))
+                {
+                    return ByteString;
+                }
+                if (format is not null &&
+                    s_stringFormatToDataType.TryGetValue(format, out string? formatted))
+                {
+                    return formatted;
+                }
+                return String;
+            }
             if (jsonType is not null &&
                 s_jsonTypeToDataType.TryGetValue(jsonType, out string? dataType))
             {
