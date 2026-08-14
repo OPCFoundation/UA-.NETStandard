@@ -147,6 +147,36 @@ namespace FlatTagServer
                 configuration, "numberOfStarts", options.Values.NumberOfStarts);
             options.Values.MotorOverheat = ReadBoolean(
                 configuration, "motorOverheat", options.Values.MotorOverheat);
+            options.Pump2Values.DifferentialPressure = ReadDouble(
+                configuration,
+                "pump2DifferentialPressure",
+                options.Pump2Values.DifferentialPressure);
+            options.Pump2Values.FluidTemperature = ReadDouble(
+                configuration,
+                "pump2FluidTemperature",
+                options.Pump2Values.FluidTemperature);
+            options.Pump2Values.MassFlow = ReadDouble(
+                configuration, "pump2MassFlow", options.Pump2Values.MassFlow);
+            options.Pump2Values.Level = ReadDouble(
+                configuration, "pump2Level", options.Pump2Values.Level);
+            options.Pump2Values.Cavitation = ReadBoolean(
+                configuration, "pump2Cavitation", options.Pump2Values.Cavitation);
+            options.Pump2Values.BearingTemperature = ReadDouble(
+                configuration,
+                "pump2BearingTemperature",
+                options.Pump2Values.BearingTemperature);
+            options.Pump2Values.PumpPowerInput = ReadDouble(
+                configuration,
+                "pump2PumpPowerInput",
+                options.Pump2Values.PumpPowerInput);
+            options.Pump2Values.PumpEfficiency = ReadDouble(
+                configuration,
+                "pump2PumpEfficiency",
+                options.Pump2Values.PumpEfficiency);
+            options.Pump2Values.NumberOfStarts = ReadUInt32(
+                configuration, "pump2NumberOfStarts", options.Pump2Values.NumberOfStarts);
+            options.Pump2Values.MotorOverheat = ReadBoolean(
+                configuration, "pump2MotorOverheat", options.Pump2Values.MotorOverheat);
             return options;
         }
 

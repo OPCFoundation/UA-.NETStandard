@@ -259,7 +259,8 @@ namespace Opc.Ua.Wot
             byte[]? nativeProjection,
             bool emitEnvelope,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            string? parentHref = null)
         {
             byte[]? digest = emitEnvelope ? ComputeSha256(nodeSetBytes) : null;
             using (var output = new MemoryStream())
@@ -294,7 +295,10 @@ namespace Opc.Ua.Wot
                         writer.WriteBoolean("uav:isEvent", true);
                     }
                     WriteDescription(writer, root?.Description);
-                    WriteAffordances(writer, nodeSet, root, diagnostics, options);
+                    WriteDataTypeDefinitions(writer, nodeSet);
+                    WriteAffordances(
+                        writer, nodeSet, root, diagnostics, options, parentHref,
+                        TypeDefinitionHref(root, nodeSet));
 
                     if (emitEnvelope)
                     {
@@ -337,8 +341,11 @@ namespace Opc.Ua.Wot
             using WotDocument document = WotDocument.Parse(readable, options);
             WotConversionResult<UANodeSet> result =
                 ToNodeSetResult(document, options);
+            // §9.2 asks whether the readable document reproduces an equivalent
+            // NodeSet, not an identically spelled one, so the comparison
+            // resolves each side's own aliases first.
             return result.Success &&
-                NodeSetComparer.Compare(source, result.Value!, options).AreEquivalent;
+                NodeSetComparer.CompareEquivalent(source, result.Value!, options).AreEquivalent;
         }
 
         private static byte[] RemoveRootMembers(
@@ -472,6 +479,24 @@ namespace Opc.Ua.Wot
                     writer.WriteStringValue("uav:variableType");
                     writer.WriteEndArray();
                     break;
+                case UAReferenceType:
+                    writer.WritePropertyName("@type");
+                    writer.WriteStartArray();
+                    writer.WriteStringValue(WotVocabulary.ThingModelType);
+                    writer.WriteStringValue("uav:referenceType");
+                    writer.WriteEndArray();
+                    break;
+                case UADataType:
+                    // The definition itself travels in uav:dataTypeDefinitions
+                    // (§6.11). The annotation is still needed so the way back
+                    // knows what NodeClass this document projects, or the
+                    // DataType returns as an ObjectType.
+                    writer.WritePropertyName("@type");
+                    writer.WriteStartArray();
+                    writer.WriteStringValue(WotVocabulary.ThingModelType);
+                    writer.WriteStringValue("uav:dataType");
+                    writer.WriteEndArray();
+                    break;
                 case UAObject:
                     writer.WriteString("@type", "uav:object");
                     break;
@@ -498,10 +523,13 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             UANode? root,
             List<WotDiagnostic> diagnostics,
-            WotNodeSetConverterOptions options)
+            WotNodeSetConverterOptions options,
+            string? parentHref = null,
+            string? typeDefinitionHref = null)
         {
             if (root?.References is null)
             {
+                WriteTypedComponentLinks(writer, [], parentHref, typeDefinitionHref);
                 return;
             }
 
@@ -510,6 +538,7 @@ namespace Opc.Ua.Wot
             var properties = new List<UAVariable>();
             var actions = new List<UAMethod>();
             var events = new List<UANode>();
+            var nestedParents = new Dictionary<string, string>(StringComparer.Ordinal);
 
             // HasComponent subtypes (for example HasOrderedComponent) are
             // surfaced for discovery under uav:hasComponent / uav:componentOf and
@@ -568,6 +597,16 @@ namespace Opc.Ua.Wot
             bool isThingModel = root is UAObjectType or UAVariableType;
             int affordanceCount = 0;
 
+            // A Variable may itself hold Variables — EURange and
+            // EngineeringUnits sit below an analog Variable, two levels under
+            // the Node that roots this document. A Method holds its
+            // InputArguments and OutputArguments the same way. Walking only the
+            // root's references leaves all of them unreachable, so they are
+            // collected here and stated as properties of the same Thing, each
+            // naming the Node it belongs to (§9.1's `uav:componentOf`).
+            CollectOwnedVariables(actions, properties, index, nestedParents, namespaceUris);
+            CollectNestedVariables(properties, index, nestedParents, namespaceUris);
+
             WriteComponentArray(writer, "uav:hasComponent", componentChildren);
             WriteComponentArray(writer, "uav:componentOf", componentParents);
 
@@ -583,7 +622,9 @@ namespace Opc.Ua.Wot
                         break;
                     }
                     writer.WritePropertyName(UniqueKey(LocalName(variable.BrowseName), used));
-                    WriteVariableAffordance(writer, variable, isThingModel, namespaceUris);
+                    nestedParents.TryGetValue(variable.NodeId ?? string.Empty, out string? owner);
+                    WriteVariableAffordance(
+                        writer, variable, isThingModel, namespaceUris, nodeSet, owner);
                 }
                 writer.WriteEndObject();
             }
@@ -622,7 +663,144 @@ namespace Opc.Ua.Wot
                 writer.WriteEndObject();
             }
 
-            WriteTypedComponentLinks(writer, typedComponentLinks);
+            WriteTypedComponentLinks(
+                writer, typedComponentLinks, parentHref, typeDefinitionHref);
+        }
+
+        /// <summary>
+        /// Writes a Variable's <c>Value</c> as the property's <c>const</c>.
+        /// </summary>
+        /// <remarks>
+        /// A NodeSet <c>Value</c> is a UA-XML fragment. Only the scalar shapes
+        /// this converter can rebuild exactly are carried, because a value the
+        /// forward direction could not reconstruct would turn a gap the
+        /// completeness check reports into a value that is quietly wrong.
+        /// </remarks>
+        private static void WriteVariableValue(Utf8JsonWriter writer, UAVariable variable)
+        {
+            System.Xml.XmlElement? value = variable.Value;
+            if (value is null)
+            {
+                return;
+            }
+            switch (value.LocalName)
+            {
+                case "Boolean":
+                    if (bool.TryParse(value.InnerText, out bool flag))
+                    {
+                        writer.WriteBoolean("const", flag);
+                    }
+                    return;
+                case "String":
+                    writer.WriteString("const", value.InnerText);
+                    return;
+                case "LocalizedText":
+                    // A LocalizedText carries an optional Locale. Only the
+                    // Locale-free form maps onto a plain string, so one that
+                    // states a Locale is left to the projection.
+                    if (value.ChildNodes.Count == 1 &&
+                        string.Equals(
+                            value.FirstChild?.LocalName, "Text", StringComparison.Ordinal))
+                    {
+                        writer.WriteString("const", value.FirstChild!.InnerText);
+                    }
+                    return;
+                default:
+                    return;
+            }
+        }
+
+        /// <summary>
+        /// Resolves a Variable's <c>DataType</c> attribute — which a NodeSet may
+        /// write as an alias such as <c>Boolean</c> — to a portable
+        /// ExpandedNodeId, or <c>null</c> when it states no identifier.
+        /// </summary>
+        /// <remarks>
+        /// A <c>DataType</c> attribute is free text in the schema, so one that
+        /// names an alias no <c>Aliases</c> table declares, or that starts like
+        /// an identifier and is not one, states nothing definitive. The
+        /// DataSchema's json type stays the only claim rather than the
+        /// conversion failing over a value it was only trying to enrich.
+        /// </remarks>
+        private static string? ToPortableDataTypeId(string? dataType, UANodeSet nodeSet)
+        {
+            if (string.IsNullOrEmpty(dataType))
+            {
+                return null;
+            }
+            string resolved = dataType!;
+            foreach (NodeIdAlias alias in nodeSet.Aliases ?? [])
+            {
+                if (string.Equals(alias.Alias, dataType, StringComparison.Ordinal) &&
+                    alias.Value is { Length: > 0 })
+                {
+                    resolved = alias.Value;
+                    break;
+                }
+            }
+            if (!LooksLikeNodeId(resolved))
+            {
+                return null;
+            }
+            try
+            {
+                return ToPortableNodeId(resolved, nodeSet.NamespaceUris);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (ServiceResultException)
+            {
+                return null;
+            }
+        }
+
+        private static bool LooksLikeNodeId(string value)
+        {
+            return value.StartsWith("i=", StringComparison.Ordinal) ||
+                value.StartsWith("ns=", StringComparison.Ordinal) ||
+                value.StartsWith("nsu=", StringComparison.Ordinal) ||
+                value.StartsWith("s=", StringComparison.Ordinal) ||
+                value.StartsWith("g=", StringComparison.Ordinal) ||
+                value.StartsWith("b=", StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Writes an affordance's definitive <c>ua:HasTypeDefinition</c> link.
+        /// </summary>
+        private static void WriteTypeDefinitionLink(Utf8JsonWriter writer, string? href)
+        {
+            if (string.IsNullOrEmpty(href))
+            {
+                return;
+            }
+            writer.WritePropertyName("links");
+            writer.WriteStartArray();
+            writer.WriteStartObject();
+            writer.WriteString("rel", "ua:HasTypeDefinition");
+            writer.WriteString("href", href);
+            writer.WriteEndObject();
+            writer.WriteEndArray();
+        }
+
+        /// <summary>
+        /// Reads the portable ExpandedNodeId of a Node's <c>HasTypeDefinition</c>
+        /// target, or <c>null</c> when it declares none.
+        /// </summary>
+        private static string? TypeDefinitionHref(UANode? node, UANodeSet nodeSet)
+        {
+            foreach (Reference reference in node?.References ?? [])
+            {
+                if (reference.IsForward &&
+                    string.Equals(
+                        reference.ReferenceType, "HasTypeDefinition", StringComparison.Ordinal) &&
+                    reference.Value is { Length: > 0 })
+                {
+                    return ToPortableNodeId(reference.Value, nodeSet.NamespaceUris);
+                }
+            }
+            return null;
         }
 
         private static void WriteComponentArray(
@@ -643,16 +821,43 @@ namespace Opc.Ua.Wot
             writer.WriteEndArray();
         }
 
+        /// <summary>
+        /// Writes the document's <c>links</c> array: the typed component links a
+        /// Node carries, the <c>uav:componentOf</c> link naming the document that
+        /// owns its parent when this document describes a nested Object of a
+        /// document set, and the definitive <c>ua:HasTypeDefinition</c> link of
+        /// §5.2.1. They share one array because a JSON object cannot carry
+        /// <c>links</c> twice.
+        /// </summary>
         private static void WriteTypedComponentLinks(
             Utf8JsonWriter writer,
-            List<TypedComponentLink> links)
+            List<TypedComponentLink> links,
+            string? parentHref = null,
+            string? typeDefinitionHref = null)
         {
-            if (links.Count == 0)
+            if (links.Count == 0 &&
+                string.IsNullOrEmpty(parentHref) &&
+                string.IsNullOrEmpty(typeDefinitionHref))
             {
                 return;
             }
             writer.WritePropertyName("links");
             writer.WriteStartArray();
+            if (!string.IsNullOrEmpty(typeDefinitionHref))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("rel", "ua:HasTypeDefinition");
+                writer.WriteString("href", typeDefinitionHref);
+                writer.WriteEndObject();
+            }
+            if (!string.IsNullOrEmpty(parentHref))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("rel", "uav:componentOf");
+                writer.WriteString("href", parentHref);
+                writer.WriteString("type", "application/td+json");
+                writer.WriteEndObject();
+            }
             foreach (TypedComponentLink link in links)
             {
                 writer.WriteStartObject();
@@ -694,14 +899,123 @@ namespace Opc.Ua.Wot
             return null;
         }
 
+        /// <summary>
+        /// Adds the Variables a Method holds — its InputArguments and
+        /// OutputArguments — as properties naming the Method.
+        /// </summary>
+        /// <remarks>
+        /// §9.1 maps a Method to an action, and its arguments belong in that
+        /// action's input and output schemas. Deriving those schemas means
+        /// decoding the <c>Argument</c> structures the argument Variable holds,
+        /// which needs the value work that is still open. Until then the
+        /// argument Variables are carried readably in their own right, with the
+        /// Method they belong to stated, so no Node is lost and none is
+        /// re-parented; the richer schema shape can replace this without
+        /// changing what the address space contains.
+        /// </remarks>
+        private static void CollectOwnedVariables(
+            List<UAMethod> actions,
+            List<UAVariable> properties,
+            Dictionary<string, UANode> index,
+            Dictionary<string, string> nestedParents,
+            string[]? namespaceUris)
+        {
+            foreach (UAMethod method in actions)
+            {
+                if (method.References is null || method.NodeId is null)
+                {
+                    continue;
+                }
+                string? portableOwner = ToPortableNodeId(method.NodeId, namespaceUris);
+                foreach (Reference reference in method.References)
+                {
+                    if (reference.Value is null ||
+                        !reference.IsForward ||
+                        !IsComponentReference(reference.ReferenceType) ||
+                        !index.TryGetValue(reference.Value, out UANode? target) ||
+                        target is not UAVariable argument ||
+                        argument.NodeId is null)
+                    {
+                        continue;
+                    }
+                    properties.Add(argument);
+                    if (!string.IsNullOrEmpty(portableOwner))
+                    {
+                        nestedParents[argument.NodeId] = portableOwner!;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Adds the Variables held by Variables already collected, to any depth.
+        /// </summary>
+        /// <remarks>
+        /// The walk is breadth-first over the list being built, so a child
+        /// discovered here is itself examined for children. Each addition
+        /// records the Variable it belongs to, which is what lets the reverse
+        /// direction re-parent it rather than hanging it off the Thing.
+        /// </remarks>
+        private static void CollectNestedVariables(
+            List<UAVariable> properties,
+            Dictionary<string, UANode> index,
+            Dictionary<string, string> nestedParents,
+            string[]? namespaceUris)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (UAVariable variable in properties)
+            {
+                if (variable.NodeId is not null)
+                {
+                    seen.Add(variable.NodeId);
+                }
+            }
+            for (int ii = 0; ii < properties.Count; ii++)
+            {
+                UAVariable parent = properties[ii];
+                if (parent.References is null || parent.NodeId is null)
+                {
+                    continue;
+                }
+                string? portableParent = ToPortableNodeId(parent.NodeId, namespaceUris);
+                foreach (Reference reference in parent.References)
+                {
+                    if (reference.Value is null ||
+                        !reference.IsForward ||
+                        !IsComponentReference(reference.ReferenceType) ||
+                        !index.TryGetValue(reference.Value, out UANode? target) ||
+                        target is not UAVariable child ||
+                        child.NodeId is null ||
+                        !seen.Add(child.NodeId))
+                    {
+                        continue;
+                    }
+                    properties.Add(child);
+                    if (!string.IsNullOrEmpty(portableParent))
+                    {
+                        nestedParents[child.NodeId] = portableParent!;
+                    }
+                }
+            }
+        }
+
         private static void WriteVariableAffordance(
             Utf8JsonWriter writer,
             UAVariable variable,
             bool isThingModel,
-            string[]? namespaceUris)
+            string[]? namespaceUris,
+            UANodeSet nodeSet,
+            string? componentOf = null)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", isThingModel ? "uav:variableType" : "uav:variable");
+            if (componentOf is not null)
+            {
+                writer.WritePropertyName("uav:componentOf");
+                writer.WriteStartArray();
+                writer.WriteStringValue(componentOf);
+                writer.WriteEndArray();
+            }
             WriteOptional(writer, "title", FirstText(variable.DisplayName));
             WriteDescription(writer, variable.Description);
             WriteOptional(
@@ -710,11 +1024,32 @@ namespace Opc.Ua.Wot
                 ToPortableQualifiedName(variable.BrowseName, namespaceUris));
             WriteOptional(writer, "uav:id", ToPortableNodeId(variable.NodeId, namespaceUris));
 
+            // Section 5.2.1 puts the definitive type-binding link on an
+            // affordance as well as on the Thing. Without it every Variable
+            // converts back as a BaseDataVariableType, and a Client browsing for
+            // AnalogUnitType, PropertyType or TwoStateDiscreteType finds none.
+            WriteTypeDefinitionLink(writer, TypeDefinitionHref(variable, nodeSet));
+
             string? jsonType = MapDataTypeToJson(variable.DataType);
             if (jsonType is not null)
             {
                 writer.WriteString("type", jsonType);
             }
+
+            // §9.1 gives a DataType one readable channel, the DataSchema's json
+            // type, and that channel carries six types — so a LocalizedText and
+            // a String come back the same. §5.4 states the definitive DataType
+            // at property level, and the reverse direction prefers it.
+            WriteOptional(
+                writer,
+                "uav:mapToType",
+                ToPortableDataTypeId(variable.DataType, nodeSet));
+
+            // §9.1 maps a Variable's Value onto the property's value. Only the
+            // shapes this converter can rebuild exactly are written: emitting a
+            // value it could not reconstruct would trade a reported gap for a
+            // silent corruption.
+            WriteVariableValue(writer, variable);
 
             bool readable = (variable.AccessLevel & AccessLevelCurrentRead) != 0;
             bool writable = (variable.AccessLevel & AccessLevelCurrentWrite) != 0;
@@ -867,12 +1202,26 @@ namespace Opc.Ua.Wot
             JsonElement link,
             string rel)
         {
-            return rel is "uav:reference" or
-                "uav:componentModel" or
-                "uav:capability" ||
-                IsModelConceptRelation(document, link, rel);
+            return IsModelConceptRelation(document, link, rel);
         }
 
+        /// <summary>
+        /// Gets whether a link's <c>rel</c> is a compact model name naming a
+        /// ReferenceType, rather than a Binding term or an external relation.
+        /// </summary>
+        /// <remarks>
+        /// Only the reserved prefixes are matched as literals; every other
+        /// prefix is resolved through the document's <c>@context</c> by
+        /// <see cref="TryGetContextNamespace(WotDocument, string, out string)"/>,
+        /// because an author chooses those freely. The literals are exact
+        /// because WoT Binding Section 4 requires a conforming document to bind
+        /// <c>uav</c> to the Binding namespace and forbids rebinding it,
+        /// Section 6.5.1 reserves <c>ua</c> for
+        /// <c>http://opcfoundation.org/UA/</c>, and <c>tm</c> is fixed by the
+        /// W3C WoT Thing Description 1.1 context. JSON-LD terms are
+        /// case-sensitive, so every comparison is ordinal and never
+        /// ignore-case.
+        /// </remarks>
         private static bool IsModelConceptRelation(
             WotDocument document,
             JsonElement link,
@@ -895,10 +1244,7 @@ namespace Opc.Ua.Wot
 
         private static bool IsKnownBindingRelation(string rel)
         {
-            return rel is "uav:reference" or
-                "uav:componentModel" or
-                "uav:capability" or
-                "uav:componentOf";
+            return rel is "uav:componentOf";
         }
 
         private static bool IsModelConceptCandidate(
@@ -931,15 +1277,6 @@ namespace Opc.Ua.Wot
         private static bool IsExternalRelationPrefix(string prefix)
         {
             return prefix is "http" or "https" or "urn";
-        }
-
-        private static string DefaultReferenceType(string rel)
-        {
-            if (string.Equals(rel, "uav:componentModel", StringComparison.Ordinal))
-            {
-                return "HasComponent";
-            }
-            return "Organizes";
         }
 
         private static bool IsNodeId(string reference)
@@ -981,6 +1318,14 @@ namespace Opc.Ua.Wot
             }
             catch (ServiceResultException)
             {
+                return rawNodeId;
+            }
+            catch (ArgumentException)
+            {
+                // A NodeSet attribute may hold an alias name rather than a
+                // NodeId. It is not portable, but it is also not this method's
+                // to reject: hand it back unchanged so a caller enriching from
+                // an attribute cannot be made to throw by ordinary input.
                 return rawNodeId;
             }
             var buffer = new System.Text.StringBuilder();

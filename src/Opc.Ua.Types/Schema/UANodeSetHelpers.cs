@@ -942,11 +942,21 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Creates an decoder to restore Variant values.
         /// </summary>
+        /// <remarks>
+        /// A NodeSet writes a Variable's value as the typed element alone —
+        /// <c>&lt;uax:String&gt;</c>, <c>&lt;uax:ExtensionObject&gt;</c> and so
+        /// on — but <see cref="XmlDecoder.ReadVariant"/> reads the Variant
+        /// encoding, which nests that element inside a <c>Value</c> element of
+        /// the OPC UA XSD namespace. Decoding the bare element therefore found
+        /// no <c>Value</c> to begin and returned a null Variant for every value
+        /// in the document. The element is wrapped here so the decoder is given
+        /// the shape it reads.
+        /// </remarks>
         private XmlDecoder CreateDecoder(ISystemContext context, System.Xml.XmlElement source)
         {
             IServiceMessageContext messageContext = context.AsMessageContext();
 
-            var decoder = new XmlDecoder(source, messageContext);
+            var decoder = new XmlDecoder(WrapAsVariant(source), messageContext);
 
             var namespaceUris = new NamespaceTable();
 
@@ -971,6 +981,26 @@ namespace Opc.Ua.Export
             decoder.SetMappingTables(namespaceUris, serverUris);
 
             return decoder;
+        }
+
+        /// <summary>
+        /// Nests a NodeSet value element inside the <c>Value</c> element the
+        /// Variant XML encoding expects, leaving an element that is already a
+        /// <c>Value</c> alone.
+        /// </summary>
+        private static System.Xml.XmlElement WrapAsVariant(System.Xml.XmlElement source)
+        {
+            if (string.Equals(source.LocalName, "Value", StringComparison.Ordinal) &&
+                string.Equals(source.NamespaceURI, Namespaces.OpcUaXsd, StringComparison.Ordinal))
+            {
+                return source;
+            }
+            var document = new System.Xml.XmlDocument { XmlResolver = null };
+            System.Xml.XmlElement wrapper = document.CreateElement(
+                "uax", "Value", Namespaces.OpcUaXsd);
+            document.AppendChild(wrapper);
+            wrapper.AppendChild(document.ImportNode(source, deep: true));
+            return wrapper;
         }
 
         /// <summary>
