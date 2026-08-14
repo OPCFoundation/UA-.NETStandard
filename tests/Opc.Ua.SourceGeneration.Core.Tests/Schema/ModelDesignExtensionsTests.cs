@@ -3741,10 +3741,10 @@ namespace Opc.Ua.Schema.Model.Tests
 
         /// <summary>
         /// Tests GetValueRankString with OneOrMoreDimensions value rank and single dimension.
-        /// Expects the method to return the TwoDimensions constant string.
+        /// Expects the method to return the OneDimension constant string.
         /// </summary>
         [Test]
-        public void GetValueRankString_OneOrMoreDimensionsWithSingleDimension_ReturnsTwoDimensions()
+        public void GetValueRankString_OneOrMoreDimensionsWithSingleDimension_ReturnsOneDimension()
         {
             // Arrange
             const ValueRank valueRank = ValueRank.OneOrMoreDimensions;
@@ -3754,15 +3754,15 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = valueRank.GetValueRankAsCode(arrayDimensions);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.TwoDimensions"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.OneDimension"));
         }
 
         /// <summary>
         /// Tests GetValueRankString with OneOrMoreDimensions value rank and two dimensions.
-        /// Expects the method to return a formatted string with dimension count of 3.
+        /// Expects the method to return the TwoDimensions constant string.
         /// </summary>
         [Test]
-        public void GetValueRankString_OneOrMoreDimensionsWithTwoDimensions_ReturnsFormattedDimensionCount()
+        public void GetValueRankString_OneOrMoreDimensionsWithTwoDimensions_ReturnsTwoDimensions()
         {
             // Arrange
             const ValueRank valueRank = ValueRank.OneOrMoreDimensions;
@@ -3772,12 +3772,12 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = valueRank.GetValueRankAsCode(arrayDimensions);
 
             // Assert
-            Assert.That(result, Is.EqualTo("3"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.TwoDimensions"));
         }
 
         /// <summary>
         /// Tests GetValueRankString with OneOrMoreDimensions value rank and three dimensions.
-        /// Expects the method to return a formatted string with dimension count of 4.
+        /// Expects the method to return a formatted string with dimension count of 3.
         /// </summary>
         [Test]
         public void GetValueRankString_OneOrMoreDimensionsWithThreeDimensions_ReturnsFormattedDimensionCount()
@@ -3790,12 +3790,12 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = valueRank.GetValueRankAsCode(arrayDimensions);
 
             // Assert
-            Assert.That(result, Is.EqualTo("4"));
+            Assert.That(result, Is.EqualTo("3"));
         }
 
         /// <summary>
         /// Tests GetValueRankString with OneOrMoreDimensions value rank and multiple dimensions.
-        /// Expects the method to return a formatted string with dimension count of 6.
+        /// Expects the method to return a formatted string with dimension count of 5.
         /// </summary>
         [Test]
         public void GetValueRankString_OneOrMoreDimensionsWithMultipleDimensions_ReturnsFormattedDimensionCount()
@@ -3808,7 +3808,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = valueRank.GetValueRankAsCode(arrayDimensions);
 
             // Assert
-            Assert.That(result, Is.EqualTo("6"));
+            Assert.That(result, Is.EqualTo("5"));
         }
 
         /// <summary>
@@ -3826,7 +3826,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = valueRank.GetValueRankAsCode(arrayDimensions);
 
             // Assert
-            Assert.That(result, Is.EqualTo("4"));
+            Assert.That(result, Is.EqualTo("3"));
         }
 
         /// <summary>
@@ -3844,7 +3844,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = valueRank.GetValueRankAsCode(arrayDimensions);
 
             // Assert
-            Assert.That(result, Is.EqualTo("3"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.TwoDimensions"));
         }
 
         /// <summary>
@@ -3852,7 +3852,7 @@ namespace Opc.Ua.Schema.Model.Tests
         /// Expects the method to treat it as empty and return OneOrMoreDimensions.
         /// </summary>
         [Test]
-        public void GetValueRankString_OneOrMoreDimensionsWithOnlyCommas_ReturnsOneDimension()
+        public void GetValueRankString_OneOrMoreDimensionsWithOnlyCommas_ReturnsOneOrMoreDimensions()
         {
             // Arrange
             const ValueRank valueRank = ValueRank.OneOrMoreDimensions;
@@ -3862,7 +3862,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = valueRank.GetValueRankAsCode(arrayDimensions);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.OneDimension"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.OneOrMoreDimensions"));
         }
 
         /// <summary>
@@ -11222,6 +11222,37 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(expectedResult));
+        }
+
+        /// <summary>
+        /// Tests that GetWriteMaskAsCode maps a node's WriteAccess (WriteMask)
+        /// bitmask onto code: zero yields None, and any non-zero value is
+        /// emitted as an AttributeWriteMask cast so NodeSet-declared writable
+        /// attributes (for example DisplayName and Description) stay writable.
+        /// </summary>
+        /// <param name="writeAccess">The WriteAccess bitmask to test.</param>
+        /// <param name="expectedResult">The expected code string.</param>
+        [TestCase(0u, "global::Opc.Ua.AttributeWriteMask.None")]
+        [TestCase(96u, "(global::Opc.Ua.AttributeWriteMask)96")]
+        [TestCase(32u, "(global::Opc.Ua.AttributeWriteMask)32")]
+        public void GetWriteMaskAsCodeMapsWriteAccessOntoCode(uint writeAccess, string expectedResult)
+        {
+            var node = new VariableDesign { WriteAccess = writeAccess };
+
+            string result = node.GetWriteMaskAsCode();
+
+            Assert.That(result, Is.EqualTo(expectedResult));
+        }
+
+        /// <summary>
+        /// Tests that GetWriteMaskAsCode tolerates a null node and returns None.
+        /// </summary>
+        [Test]
+        public void GetWriteMaskAsCodeWithNullNodeReturnsNone()
+        {
+            string result = ((NodeDesign)null).GetWriteMaskAsCode();
+
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.AttributeWriteMask.None"));
         }
 
         /// <summary>

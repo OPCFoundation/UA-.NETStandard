@@ -817,12 +817,13 @@ The specification defines ten conformance units and four recommended profiles
 | Unit | Status | Where |
 |---|---|---|
 | **WoT-ProtocolBinding** | covered | URI/base/href handling, the four service mappings, access levels and the security schemes, in `Opc.Ua.WotCon.Bindings` and its planners |
-| **WoT-NativeMapping** | covered | `WotNodeSetConverter`, including the proof that `uav:nodes` is omitted when the readable mapping is complete |
+| **WoT-NativeMapping** | covered | `WotNodeSetConverter`, including the proof that `uav:nodes` is omitted when the readable mapping is complete. It descends the whole composition tree (`FromNodeSetDocuments`, §9.1's "Thing / nested Thing"), seeds namespaces from `@context`, and keeps type definitions, DataTypes and scalar values. See *What the readable mapping cannot express* below |
 | **WoT-StructuredFallback** | covered | the structured `uav:nodes` projection in `WotNativeProjection` |
 | **WoT-JsonResidue** | covered | `WotJsonResidue`, pointer-addressed preservation through the NodeSet Extension |
 | **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
 | **WoT-ExactRoundtrip** | covered | the envelope-free roundtrip invariants, including residue |
 | **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems |
+| **WoT-ConditionMapping** | covered | Section 13 (`uav:conditionType`, `uav:conditionTypeId`, `uav:conditionAction`, `uav:actsOn`) in `WotNodeSetConverter.Conditions`, with the Condition supertype resolution and the Section 13.3/13.4 conformance rules |
 | **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary`, all Section 6 terms with their validation rules |
 | **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
 | **WoT-Projection** | covered | `WotProjection`, `WotProjectionResolver` and, for materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost` |
@@ -830,14 +831,195 @@ The specification defines ten conformance units and four recommended profiles
 All four profiles - **WoT-Reader**, **WoT-Modeller**, **WoT-Converter** and
 **WoT-ArchivalConverter** - are therefore satisfied by the units above.
 
+### What the readable mapping does not yet carry
+
+Section 9.2 emits the exceptional `uav:nodes` projection where converting the readable
+document back would not reproduce an equivalent NodeSet. Two gaps in this
+implementation still trigger it, both ordinary work rather than limits of the
+vocabulary.
+
+A Variable's own Variable children - the `EURange` and `EngineeringUnits` Properties of
+an `AnalogUnitType` - sit one level deeper than the conversion descends, so they are
+not emitted. And a Variable's `Value` is carried only where it is a scalar the
+conversion special-cases; a structure is not carried at all.
+
+Neither needs new vocabulary. A structure's value is self-describing: the
+`ExtensionObject` states the identifier of the type it holds, `EUInformation` and
+`Range` are types this stack already generates from the standard NodeSet, and the
+encoder stack in `Opc.Ua.Types/Encoders` maps such a value to named JSON fields and
+back. Nothing has to infer a unit's identifier from its symbol.
+
+One convention is worth knowing when reading a generated document: completeness is
+tested with `NodeSetComparer.CompareEquivalent`, which reads each side through its own
+`Aliases` table, because Section 9.2 asks for an equivalent NodeSet and not an
+identically spelled one. `NodeSetComparer.Compare` keeps the stricter text comparison
+for callers that need to know a document was reproduced as written.
+
 ### How this is checked
 
-The specification publishes twenty worked examples, and two of them are a golden
-pair: a projection document and the resolved view it is defined to resolve to.
-`WotSpecExampleTests` embeds all twenty and runs the pair through the resolver,
-asserting against the specification's own expected output rather than against our
-reading of the prose. That covers, in one document, all three selection forms, the
-bulk naming rule, the security closure naming and the provenance term.
+The specification publishes twenty-two worked examples, and two of them are a
+golden pair: a projection document and the resolved view it is defined to
+resolve to. `WotSpecExampleTests` embeds all twenty-two and runs the pair
+through the resolver, asserting against the specification's own expected output
+rather than against our reading of the prose. That covers, in one document, all
+three selection forms, the bulk naming rule, the security closure naming and the
+provenance term. Example 22 is additionally converted to check that a document
+binds the node it projects to an existing type (Section 5.2.1).
+
+### Resolving a type binding: the local context
+
+Section 5.2.1 lets a document bind the node it projects to a type that already
+exists rather than to `BaseObjectType`. Section 5.1.5 defines where that name is
+looked up — the *local context*, which has two parts consulted in order:
+
+1. the other WoT documents being converted alongside this one, and
+2. a loaded AddressSpace.
+
+The order matters. A set of documents authored together resolves to itself, so
+loading an unrelated companion model can never change what an existing document
+projects to.
+
+`IWotNodeResolver` (in `Opc.Ua.Types`) is one part of that context.
+`WotCompositeNodeResolver` composes parts in the specified order and is what a
+converter is handed. A compact model name is a hint and may match none, one or
+several nodes; an `ExpandedNodeId` is definitive and matches one or none.
+
+| Implementation | Part of the context | Assembly |
+| --- | --- | --- |
+| `SnapshotWotNodeResolver` | the sibling documents of the conversion | `Opc.Ua.WotCon.Server` |
+| `AddressSpaceWotNodeResolver` | the types the Server has loaded | `Opc.Ua.WotCon.Server` |
+| `NullWotNodeResolver` | holds nothing; the default | `Opc.Ua.Types` |
+
+Both halves are composed with `WotCompositeNodeResolver` in the specified
+order. The AddressSpace half is what lets a document bind to a type a companion
+model defines — the primary use of §5.2.1 — and it is wired in by
+`WotRegistryNodeManager` as soon as an `IServerInternal` exists. Without it a
+document could only bind to a type a sibling projects, and because §5.2.1
+forbids falling back to `BaseObjectType` a companion-model binding would fail
+the projection instead of resolving.
+
+`SnapshotWotNodeResolver` indexes the registry snapshot being converted. Only
+Thing Models are indexed, and the decision uses the *registry's* `Kind` rather
+than the document's own content: a Thing Model projects its root as a
+`UAObjectType` and so is what a type binding can name, whereas a Thing
+Description projects an instance and is never a type-binding target. Trusting
+the registry Kind means a party who can only submit Thing Descriptions cannot
+plant a type for another document to bind to. The identity it indexes by is
+derived through `WotNodeSetConverter.TryDescribeProjectedType`, the same rules
+the conversion itself uses, so an index entry and the projected node cannot
+disagree.
+
+The index is built once per snapshot, not once per conversion — a refresh
+converts every resource of one immutable snapshot in turn, so rebuilding it per
+document would make a refresh parse the registry once per document. It is also
+bounded by the same `MaxResolverDocuments` / `MaxResolverTotalBytes` budget the
+rest of a conversion runs under, so a large registry cannot turn one conversion
+into unbounded parsing work.
+
+One Section 5.2.1 rule remains an explicit implementation gap: the current
+`IWotNodeResolver` contract returns only a resolved node's identity and
+NodeClass, so the converter cannot learn the resolved type's mandatory
+instance declarations. Consequently, a document member whose BrowseName matches
+a mandatory declaration of the resolved type is not yet populated into that
+declaration; it is synthesized by the existing affordance rules. Implementing
+that rule requires extending both the live AddressSpace resolver and the
+snapshot resolver, where declarations would have to be derived from sibling
+Thing Model documents rather than from materialized types.
+
+Two behaviours are deliberate and worth knowing:
+
+* A binding is told apart from an ordinary `@type` annotation **by namespace,
+  not by whether the lookup succeeds**. A name in a namespace the local context
+  holds is a binding, so failing to resolve it is an error rather than a reason
+  to quietly treat it as an annotation.
+* An unresolved or ambiguous binding **fails the projection**. It never falls
+  back to `BaseObjectType`, because silently mistyping a node is worse than
+  refusing to project it.
+
+A host that supplies no resolver gets `NullWotNodeResolver`, which holds
+nothing. A document that names no existing type still converts; one that does is
+reported as unresolved rather than mistyped.
+
+Both forms resolve through the local context, including the definitive
+`ua:HasTypeDefinition` link: §5.2.1's outcome table fails the projection for a
+link that "resolves to nothing" exactly as it does for an unresolved name.
+Emitting an unverified identifier would leave a dangling `HasTypeDefinition`,
+which is the silently mistyped node the clause exists to prevent — so the
+synchronous and asynchronous entry points agree on every document, and a caller
+with no local context fails such a document rather than trusting the author.
+
+An ambiguous name and an otherwise invalid document are separate outcomes in
+§5.2.1 and carry separate diagnostics: `AmbiguousTypeBinding` for a name that
+matches more than one node with nothing to settle it, and `InvalidTypeBinding`
+for the rest — a resolved type of the wrong NodeClass, or a name and a link that
+disagree.
+
+### Alarms and Conditions
+
+Section 13 maps an OPC 10000-9 Condition to a WoT event affordance for the
+notification and action affordances for the Condition Methods. Four terms carry
+it:
+
+| Term | Domain | Meaning |
+| --- | --- | --- |
+| `uav:conditionType` | event affordance | The compact model name of the ConditionType the event projects, e.g. `ua:LimitAlarmType` |
+| `uav:conditionTypeId` | event affordance | The definitive ExpandedNodeId of the same ConditionType |
+| `uav:conditionAction` | action affordance | The Condition Method invoked. Closed set: `Acknowledge`, `Confirm`, `AddComment`, `Enable`, `Disable` |
+| `uav:actsOn` | action affordance | The event affordance, in the same document, whose Condition the action acts on |
+
+A projected Condition event derives from the ConditionType it names rather than
+from `BaseEventType`. That is the whole point of the mapping: a Client browsing
+a type that fell back to `BaseEventType` would see none of the Condition state
+and could not tell an alarm from an ordinary event.
+
+The runtime projection follows the same rule. An event affordance that carries
+`uav:conditionType` or `uav:conditionTypeId` materializes under the named
+ConditionType, so an OPC UA event filter for that ConditionType, or for one of
+its supertypes, can match the event. An action that carries
+`uav:conditionAction` and `uav:actsOn` is routed to the corresponding OPC
+10000-9 Condition Method on the Condition identified by the event affordance.
+
+The two forms follow the hint-plus-pin pattern of Section 5.3.
+`uav:conditionTypeId` is definitive and wins. `uav:conditionType` is a readable
+hint, resolved for the four ConditionTypes Section 13.1 scopes —
+`ConditionType`, `AcknowledgeableConditionType`, `AlarmConditionType` and
+`LimitAlarmType`. A name outside that set must be pinned; an unpinned one is
+reported rather than guessed.
+
+The converter enforces the four Section 13.3/13.4 conformance rules, each
+because breaking it yields a document a consumer can read but cannot act on, and
+also rejects an unresolvable readable ConditionType name:
+
+| Rule | Section | Diagnostic |
+| --- | --- | --- |
+| A Condition event declares `EventId` in its `data` | 13.3 | `ConditionEventIdMissing` |
+| `uav:conditionAction` is in the closed set | 13.2 | `InvalidConditionAction` |
+| `uav:actsOn` names a Condition event in the same document | 13.4 | `InvalidConditionTarget` |
+| `Acknowledge` / `Confirm` / `AddComment` declare an `EventId` input | 13.4 | `ConditionActionInputMissing` |
+| `uav:conditionType` names a ConditionType this Binding resolves | 13.2 | `UnresolvedConditionType` |
+
+The ConditionType name is a compact model name, so its prefix is resolved
+through the document's `@context` rather than matched literally: an author may
+bind a second prefix to the OPC UA namespace and `uav:conditionType` still
+resolves.
+
+`EventId` names the Event occurrence, so without it a consumer can receive a
+notification but can never identify the occurrence to acknowledge, confirm or
+comment on. `Enable` and `Disable` act on the Condition instance rather than one
+occurrence and are deliberately exempt from the input rule.
+
+Shelving, suppression, dialog conditions and `ConditionRefresh` are outside the
+mapping, as Section 13.1 scopes it.
+
+For the converter-default compatibility note, see
+[Condition events derive from their ConditionType](WoTNodeSetConversion.md#condition-events-derive-from-their-conditiontype).
+
+Current sample limitation: the upstream cavitation signal is proven to raise the
+upstream alarm and leave it unacknowledged, but the Pump1 Asset's `Supervision`
+view currently organizes no event affordance, Pump1 carries no `GeneratesEvent`
+reference for its cavitation alarm, and acknowledgement does not round-trip
+because the projected pump actions are Start, Stop and Reset rather than
+Condition Methods carrying `uav:conditionAction` / `uav:actsOn`.
 
 ### Compatibility switch for non-portable identifiers
 

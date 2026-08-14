@@ -42,7 +42,7 @@ namespace Opc.Ua
     /// Currently implements trust-list management; other interfaces
     /// will be added in subsequent phases.
     /// </summary>
-    public sealed class CertificateManager : ICertificateManager, IDisposable
+    public sealed class CertificateManager : ICertificateManager, IDisposable, IAsyncDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="CertificateManager"/> class.
@@ -1231,13 +1231,21 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
+            DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
             if (!m_disposed)
             {
                 m_lifecycleMonitor?.Dispose();
                 m_changeSubject.Complete();
 
-                m_rejectedProcessor?.DisposeAsync()
-                        .AsTask().GetAwaiter().GetResult();
+                if (m_rejectedProcessor != null)
+                {
+                    await m_rejectedProcessor.DisposeAsync().ConfigureAwait(false);
+                }
 
                 m_peerCore?.Dispose();
                 m_peerCore = null;

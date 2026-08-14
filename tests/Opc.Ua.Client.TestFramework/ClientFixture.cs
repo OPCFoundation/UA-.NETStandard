@@ -199,7 +199,11 @@ namespace Opc.Ua.Client.TestFramework
                 await m_application.DisposeAsync().ConfigureAwait(false);
                 m_application = null;
             }
-            if (Config?.CertificateManager is IDisposable certificateManager)
+            if (Config?.CertificateManager is IAsyncDisposable asyncCertificateManager)
+            {
+                await asyncCertificateManager.DisposeAsync().ConfigureAwait(false);
+            }
+            else if (Config?.CertificateManager is IDisposable certificateManager)
             {
                 certificateManager.Dispose();
             }
