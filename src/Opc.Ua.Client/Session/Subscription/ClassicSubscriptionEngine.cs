@@ -130,9 +130,9 @@ namespace Opc.Ua.Client
             int publishCount = GetDesiredPublishRequestCount(true);
 
             // refill pipeline. Send at least one publish request
-            // if subscriptions are active. This path is deliberately not
-            // capped by the in flight reservation: it is the recovery valve
-            // that refills a pipeline whose requests are outstanding but
+            // if subscriptions are active. This first request is deliberately
+            // not capped by the in flight reservation: it is the recovery
+            // valve that refills a pipeline whose requests are outstanding but
             // are no longer expected to return.
             if (publishCount > 0 && BeginPublish(timeout))
             {
@@ -141,8 +141,19 @@ namespace Opc.Ua.Client
                     : GoodPublishRequestCount + 1;
                 for (int ii = startCount; ii < publishCount; ii++)
                 {
-                    if (!BeginPublish(timeout))
+                    // Everything past the valve is bounded by the reservation.
+                    // StartPublishing runs once per subscription as the
+                    // subscriptions are created, so an unbounded top up stacks
+                    // a full pipeline worth of requests on every call and the
+                    // outstanding count grows far past the desired count.
+                    if (!TryReservePublishRequest(publishCount, out _))
                     {
+                        break;
+                    }
+
+                    if (!BeginPublishCore(timeout))
+                    {
+                        Interlocked.Decrement(ref m_publishRequestsInFlight);
                         break;
                     }
                 }
