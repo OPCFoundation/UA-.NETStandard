@@ -63,19 +63,24 @@ def Xform "World"
             {
                 over "J1"
                 {
-                    double xformOp:rotateZ = 180
+                    # The simulator's home configuration, in degrees, because the OpenUSD live
+                    # binding drives these very ops from AxisState.Position. Authoring anything
+                    # else makes the still render disagree with the first live update. This pose
+                    # puts the flange at the Vision model's authored scan transform, over the
+                    # bin, clear of the bench.
+                    double xformOp:rotateZ = -11.071
                     over "J2"
                     {
-                        double xformOp:rotateY = 40
+                        double xformOp:rotateY = 117.826
                         over "J3"
                         {
-                            double xformOp:rotateY = -100
+                            double xformOp:rotateY = 0.552
                             over "J4"
                             {
-                                double xformOp:rotateY = 100
+                                double xformOp:rotateY = 75.189
                                 over "J5"
                                 {
-                                    double xformOp:rotateZ = 0
+                                    double xformOp:rotateZ = 23.684
                                     over "J6"
                                     {
                                         double xformOp:rotateY = 0
@@ -131,8 +136,12 @@ def Xform "World"
             color3f[] primvars:displayColor = [(0.58, 0.60, 0.60)] (
                 interpolation = "constant"
             )
-            double3 xformOp:translate = (0, 0, 0.7800)
-            double3 xformOp:scale = (1.4000, 0.9000, 0.0400)
+            # The work surface is z = 0.829: that is where the OPC UA model puts
+            # robot_base and the Bin and Fixture locations, and arm.usda's pedestal
+            # bottom sits at the arm reference height. The underside stays at 0.760
+            # so the legs still meet it, so the thickness carries the correction.
+            double3 xformOp:translate = (0, 0, 0.7945)
+            double3 xformOp:scale = (1.4000, 0.9000, 0.0690)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
 

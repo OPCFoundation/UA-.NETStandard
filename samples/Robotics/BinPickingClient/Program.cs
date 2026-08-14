@@ -156,17 +156,35 @@ namespace BinPickingClient
                     }
 #endif
 
-                    if (options.Demo)
+                    if (options.Demo && options.View)
+                    {
+                        // Order matters: the scripted loop is over in seconds, so running it
+                        // before the viewport opens leaves nothing to watch - the arm has already
+                        // parked by the time the window appears. Open the viewport, wait for the
+                        // live stream to be subscribed, and only then command the robot.
+                        var streamReady = new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                        Task<bool> viewport = RunViewportIfAvailableAsync(
+                            sample, options, telemetry, streamReady, lifetime.Token);
+                        await WaitForLiveStreamAsync(streamReady, viewport, lifetime.Token).ConfigureAwait(false);
+                        var runner = new BinPickingDemoRunner(sample, telemetry, logger, options);
+                        exitCode = await runner.RunAsync(
+                            controller, controllerInfo, commandGranted, lifetime.Token).ConfigureAwait(false);
+                        Console.Error.WriteLine(
+                            "Scripted loop finished; the viewport stays open so the cell can still be " +
+                            "inspected. Close the window to exit.");
+                        _ = await viewport.ConfigureAwait(false);
+                    }
+                    else if (options.Demo)
                     {
                         var runner = new BinPickingDemoRunner(sample, telemetry, logger, options);
                         exitCode = await runner.RunAsync(
                             controller, controllerInfo, commandGranted, lifetime.Token).ConfigureAwait(false);
                     }
-
-                    if (options.View)
+                    else if (options.View)
                     {
                         bool closedByUser = await RunViewportIfAvailableAsync(
-                            sample, options, telemetry, lifetime.Token).ConfigureAwait(false);
+                            sample, options, telemetry, null, lifetime.Token).ConfigureAwait(false);
 #if BINPICKING_CLIENT_MCP
                         if (!closedByUser && options.Mcp && !options.Demo)
                         {
@@ -212,16 +230,41 @@ namespace BinPickingClient
             }
         }
 
+        /// <summary>
+        /// Waits until the live OpenUSD stream is subscribed, so a caller can command motion
+        /// that the viewport will actually show. Gives up if the viewport ends first (it is
+        /// optional and may be unavailable) or after a short grace period, because a demo that
+        /// cannot be watched is still better than one that never runs.
+        /// </summary>
+        private static async Task WaitForLiveStreamAsync(
+            TaskCompletionSource<bool> streamReady,
+            Task<bool> viewport,
+            CancellationToken cancellationToken)
+        {
+            Task completed = await Task.WhenAny(
+                streamReady.Task,
+                viewport,
+                Task.Delay(TimeSpan.FromSeconds(30), cancellationToken)).ConfigureAwait(false);
+            if (completed == streamReady.Task)
+            {
+                // Let the first subscription values land before commanding, so the opening
+                // frame shows the cell at rest rather than mid-motion.
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         private static async Task<bool> RunViewportIfAvailableAsync(
             BinPickingSampleSession sample,
             BinPickingClientOptions options,
             ITelemetryContext telemetry,
+            TaskCompletionSource<bool>? streamReady,
             CancellationToken cancellationToken)
         {
             if (!UsdViewHostLoader.TryLoad(out IUsdViewHost? viewHost, out string reason))
             {
                 Console.Error.WriteLine(
                     "Viewport unavailable; the sample continues without a viewer. " + reason);
+                streamReady?.TrySetResult(false);
                 return false;
             }
 
@@ -258,7 +301,8 @@ namespace BinPickingClient
             Console.Error.WriteLine("Opening OpenUSD viewport for the bin-picking cell.");
             try
             {
-                await RunViewportOnStaThreadAsync(viewHost!, viewOptions, sample.Session, cancellationToken)
+                await RunViewportOnStaThreadAsync(
+                    viewHost!, viewOptions, sample.Session, streamReady, cancellationToken)
                     .ConfigureAwait(false);
                 return true;
             }
@@ -279,6 +323,7 @@ namespace BinPickingClient
             IUsdViewHost viewHost,
             UsdViewOptions viewOptions,
             ISession session,
+            TaskCompletionSource<bool>? streamReady,
             CancellationToken cancellationToken)
         {
             var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -288,7 +333,8 @@ namespace BinPickingClient
                 {
                     viewHost.RunViewport(
                         viewOptions,
-                        async (sink, ct) => await StreamOpenUsdAsync(session, sink, ct).ConfigureAwait(false),
+                        async (sink, ct) => await StreamOpenUsdAsync(session, sink, streamReady, ct)
+                            .ConfigureAwait(false),
                         cancellationToken);
                     completion.TrySetResult(true);
                 }
@@ -314,6 +360,7 @@ namespace BinPickingClient
         private static async Task StreamOpenUsdAsync(
             ISession session,
             IUsdSink sink,
+            TaskCompletionSource<bool>? streamReady,
             CancellationToken cancellationToken)
         {
             var connector = new OpenUsdConnector(session, sink, enableCommands: false);
@@ -321,6 +368,7 @@ namespace BinPickingClient
             {
                 await connector.StartAsync(cancellationToken).ConfigureAwait(false);
                 Console.Error.WriteLine("Live OpenUSD stream started; the viewport now follows the cell.");
+                streamReady?.TrySetResult(true);
                 try
                 {
                     await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);

@@ -185,6 +185,13 @@ namespace Vision.BinPickingCell
                 m_axes.Add(axis.State);
             }
 
+            // Publish where the arm actually is. Leaving Position unset reports 0 for every
+            // axis, which this arm is never in: at all-zeros the elbow and forearm hang
+            // straight down through the bench. A client - and the OpenUSD live binding that
+            // renders from these very nodes - would faithfully show a pose the robot never
+            // held, so seed them from the simulator's own starting configuration.
+            PublishSnapshot(m_executor.CurrentSnapshot);
+
             foreach ((string name, double x, double y, double z, double rz) in s_locations)
             {
                 uint capacity = string.Equals(name, "Bin", StringComparison.Ordinal) ? PayloadSlotCount : 1u;
@@ -211,10 +218,6 @@ namespace Vision.BinPickingCell
             axis.CreateOrReplaceMinPosition(SystemContext, null!).Value = min;
             axis.CreateOrReplaceMaxPosition(SystemContext, null!).Value = max;
             axis.CreateOrReplaceMaxSpeed(SystemContext, null!).Value = MaxAxisSpeedDegreesPerSecond;
-            if (axis.Position != null)
-            {
-                axis.Position.Value = 0.0;
-            }
         }
 
         private ArrayOf<KinematicJointDataType> CreateKinematicChain()

@@ -1082,7 +1082,14 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private readonly System.Threading.Lock m_lock = new();
         private readonly SimulatedArmKinematics m_kinematics;
         private readonly ISimulatedArmClock m_clock;
-        private readonly double[] m_jointAngles = [-0.45, -0.95, 1.55, -0.9, 0.75, 0.0];
+        // Home configuration, radians. This arm is mounted on a bench in both samples that
+        // use it, so the pose has to keep every joint above the work surface: the previous
+        // configuration folded the elbow to z = 0.646 in the bin-picking cell, 183 mm under
+        // a 0.829 m bench, and the OpenUSD viewport rendered the forearm through the table.
+        // This one is the scan pose those cells already document - it puts the flange exactly
+        // at the Vision model's authored flange transform, looking down at the bin, with
+        // 162 mm of clearance under the lowest joint.
+        private readonly double[] m_jointAngles = [-0.1932, 2.0564, 0.0096, 1.3123, 0.4134, 0.0000];
         private double m_gripperOpening = GripperOpen;
         private bool m_hasObject;
         private readonly bool[] m_stackSlotsFilled = new bool[StackSlotCount];
