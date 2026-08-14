@@ -1410,10 +1410,10 @@ namespace Opc.Ua.SourceGeneration
                 GetDescriptionValue(root));
             context.Template.AddReplacement(
                 Tokens.WriteMaskValue,
-                "global::Opc.Ua.AttributeWriteMask.None");
+                root.GetWriteMaskAsCode());
             context.Template.AddReplacement(
                 Tokens.UserWriteMaskValue,
-                "global::Opc.Ua.AttributeWriteMask.None");
+                root.GetWriteMaskAsCode());
 
             // Add Children
             context.Template.AddReplacement(
