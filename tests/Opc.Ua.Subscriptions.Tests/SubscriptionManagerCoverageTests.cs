@@ -641,6 +641,21 @@ namespace Opc.Ua.Subscriptions.Tests
                     new DeleteSubscriptionsResponse());
             }
 
+            /// <summary>
+            /// Reports that no subscription in this test is owned by the session
+            /// outside the manager's registry, so every identifier falls through
+            /// to the manager's own handling.
+            /// </summary>
+            public bool TryDispatchToSessionSubscription(
+                uint subscriptionId,
+                NotificationMessage message,
+                ArrayOf<uint> availableSequenceNumbers,
+                ArrayOf<string> stringTable,
+                bool moreNotifications)
+            {
+                return false;
+            }
+
             private int m_publishCallCount;
         }
 
