@@ -223,7 +223,7 @@ namespace Vision.BinPickingCell
                     pose.FrameId, px, py, pz, qx, qy, qz, qw);
             }
             m_logger.ProofDetection(
-                detection.ClassLabel,
+                detection.ClassLabel ?? "<no class label>",
                 detection.Confidence,
                 boxSummary,
                 poseSummary);

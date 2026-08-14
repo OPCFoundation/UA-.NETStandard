@@ -157,7 +157,7 @@ namespace Vision.BinPickingCell
                 return null;
             }
             LogResultShape(state);
-            LogComposedPose(redCube.ClassLabel, poseInCamera);
+            LogComposedPose(RedCubeClass, poseInCamera);
             return resultId;
         }
 
