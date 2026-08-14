@@ -321,15 +321,11 @@ namespace Opc.Ua.Client
                     DataTypes.PublishRequest);
                 task.ConfigureAwait(false)
                     .GetAwaiter()
-                    .OnCompleted(() =>
-                    {
-                        Interlocked.Decrement(ref m_publishRequestsInFlight);
-                        OnPublishComplete(
-                            task,
-                            m_context.SessionId,
-                            acknowledgementsToSend,
-                            requestHeader);
-                    });
+                    .OnCompleted(() => OnPublishComplete(
+                        task,
+                        m_context.SessionId,
+                        acknowledgementsToSend,
+                        requestHeader));
                 return true;
             }
             catch (Exception e)
@@ -356,6 +352,14 @@ namespace Opc.Ua.Client
                 task,
                 requestHeader.RequestHandle,
                 DataTypes.PublishRequest);
+
+            // Release the reservation only once the session has retired the
+            // request from its outstanding list. Releasing it when the task
+            // completed would open a window in which a concurrent top up sees
+            // a free slot while GoodPublishRequestCount still counts this
+            // request, so the pipeline drifts above the limit by the number of
+            // completions that overlap.
+            Interlocked.Decrement(ref m_publishRequestsInFlight);
 
             m_eventLogger.ClientEventPublishStop(
                 (int)requestHeader.RequestHandle,
