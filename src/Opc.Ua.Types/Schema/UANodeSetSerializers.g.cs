@@ -142,8 +142,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                 }
             }
-            if (o.@LastModifiedSpecified) {
-            }
             WriteEndElement(o);
         }
 
@@ -249,8 +247,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                     WriteEndElement();
                 }
-            }
-            if (o.@AccessRestrictionsSpecified) {
             }
             WriteEndElement(o);
         }
@@ -444,8 +440,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     WriteEndElement();
                 }
             }
-            if (o.@AccessRestrictionsSpecified) {
-            }
             if ((((global::System.Xml.XmlElement)o.@Value)) is System.Xml.XmlNode || ((global::System.Xml.XmlElement)o.@Value) == null) {
                 WriteElementLiteral((System.Xml.XmlNode)((global::System.Xml.XmlElement)o.@Value), @"Value", @"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", false, false);
             }
@@ -504,7 +498,7 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
             if (((global::System.UInt32)o.@AccessLevel) != (System.UInt32)(1)) {
                 WriteAttribute(@"AccessLevel", @"", System.Xml.XmlConvert.ToString((global::System.UInt32)((global::System.UInt32)o.@AccessLevel)));
             }
-            if (((global::System.UInt32)o.@UserAccessLevel) != (System.UInt32)(1)) {
+            if (o.@UserAccessLevelSpecified) {
                 WriteAttribute(@"UserAccessLevel", @"", System.Xml.XmlConvert.ToString((global::System.UInt32)((global::System.UInt32)o.@UserAccessLevel)));
             }
             if (!((global::System.Double)o.@MinimumSamplingInterval).Equals(0)) {
@@ -572,8 +566,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                     WriteEndElement();
                 }
-            }
-            if (o.@AccessRestrictionsSpecified) {
             }
             if ((((global::System.Xml.XmlElement)o.@Value)) is System.Xml.XmlNode || ((global::System.Xml.XmlElement)o.@Value) == null) {
                 WriteElementLiteral((System.Xml.XmlNode)((global::System.Xml.XmlElement)o.@Value), @"Value", @"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", false, false);
@@ -755,8 +747,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     WriteEndElement();
                 }
             }
-            if (o.@AccessRestrictionsSpecified) {
-            }
             {
                 global::Opc.Ua.Export.LocalizedText[] a = (global::Opc.Ua.Export.LocalizedText[])o.@InverseName;
                 if (a != null) {
@@ -864,8 +854,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     WriteEndElement();
                 }
             }
-            if (o.@AccessRestrictionsSpecified) {
-            }
             WriteEndElement(o);
         }
 
@@ -968,8 +956,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                     WriteEndElement();
                 }
-            }
-            if (o.@AccessRestrictionsSpecified) {
             }
             WriteEndElement(o);
         }
@@ -1077,8 +1063,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                     WriteEndElement();
                 }
-            }
-            if (o.@AccessRestrictionsSpecified) {
             }
             {
                 global::Opc.Ua.Export.UAMethodArgument[] a = (global::Opc.Ua.Export.UAMethodArgument[])o.@ArgumentDescription;
@@ -1216,8 +1200,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                     }
                     WriteEndElement();
                 }
-            }
-            if (o.@AccessRestrictionsSpecified) {
             }
             Write22_DataTypeDefinition(@"Definition", @"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", ((global::Opc.Ua.Export.DataTypeDefinition)o.@Definition), false, false);
             WriteEndElement(o);
@@ -1392,8 +1374,6 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                         Write3_ModelTableEntry(@"RequiredModel", @"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", ((global::Opc.Ua.Export.ModelTableEntry)a[ia]), false, false);
                     }
                 }
-            }
-            if (o.@PublicationDateSpecified) {
             }
             WriteEndElement(o);
         }
@@ -2384,6 +2364,7 @@ namespace Microsoft.Xml.Serialization.GeneratedAssembly {
                 }
                 else if (!paramsRead[23] && ((object) Reader.LocalName == (object)id53_UserAccessLevel && (object) Reader.NamespaceURI == (object)id3_Item)) {
                     o.@UserAccessLevel = System.Xml.XmlConvert.ToUInt32(Reader.Value);
+                    o.@UserAccessLevelSpecified = true;
                     paramsRead[23] = true;
                 }
                 else if (!paramsRead[24] && ((object) Reader.LocalName == (object)id54_MinimumSamplingInterval && (object) Reader.NamespaceURI == (object)id3_Item)) {

@@ -181,6 +181,18 @@ $rawCode = [regex]::Replace(
     $sortByNumericId,
     $mlOption)
 
+# Strip empty "{Member}Specified" no-op guard blocks.
+# When a schema class uses the XmlSerializer "{Member}Specified" convention (an [XmlIgnore]
+# companion bool that controls whether an optional attribute is written), the sgen writer emits
+# an extra, empty "if (o.@MemberSpecified) { }" block near WriteEndElement in addition to the real
+# guard around the WriteAttribute call. The empty block is dead code that only adds noise to the
+# generated file, so remove it. The real guard is preserved because its body is non-empty.
+$rawCode = [regex]::Replace(
+    $rawCode,
+    '^[ \t]*if \(o\.@[A-Za-z0-9]+Specified\) \{[ \t]*\r?\n[ \t]*\}[ \t]*\r?\n',
+    '',
+    $mlOption)
+
 # Add AOT attributes to InitCallbacks() overrides.
 # The sgen tool generates: protected override void InitCallbacks() { }
 # Under NativeAOT, the base class methods have AOT attributes, so overrides must match (IL2046/IL3051).
