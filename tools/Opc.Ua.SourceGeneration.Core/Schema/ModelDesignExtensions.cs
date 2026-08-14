@@ -928,10 +928,16 @@ namespace Opc.Ua.Schema.Model
                         return "global::Opc.Ua.ValueRanks.OneOrMoreDimensions";
                     }
 
-                    // TODO: "is ,,, not considered 3 dim?
-
+                    // The number of entries in ArrayDimensions is the number of
+                    // dimensions, which equals the ValueRank for a fixed-size
+                    // multi-dimensional array (e.g. "3,3" is a two-dimensional
+                    // array with ValueRank 2).
                     string[] dimensions = arrayDimensions.Split([','], StringSplitOptions.RemoveEmptyEntries);
-                    int dims = dimensions.Length + 1;
+                    int dims = dimensions.Length;
+                    if (dims == 0)
+                    {
+                        return "global::Opc.Ua.ValueRanks.OneOrMoreDimensions";
+                    }
                     if (dims == 1)
                     {
                         return "global::Opc.Ua.ValueRanks.OneDimension";
