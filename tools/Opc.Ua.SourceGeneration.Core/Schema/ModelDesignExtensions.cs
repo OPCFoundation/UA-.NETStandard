@@ -2397,15 +2397,18 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
-        /// Maps the UserAccessLevel of a variable onto code. Mirrors the
-        /// AccessLevel, matching the runtime NodeSet2 importer in
-        /// <c>UANodeSetHelpers</c>, which derives UserAccessLevel from
-        /// AccessLevel rather than from the (schema-defaulted)
-        /// UserAccessLevel attribute.
+        /// Maps the UserAccessLevel of a variable onto code. NodeSet2-sourced
+        /// designs carry the verbatim UserAccessLevel bitmask when the
+        /// attribute is explicitly present and it is preferred; otherwise the
+        /// UserAccessLevel is derived from the AccessLevel, matching the
+        /// runtime NodeSet2 importer in <c>UANodeSetHelpers</c>.
         /// </summary>
         public static string GetUserAccessLevelAsCode(this VariableDesign variable)
         {
-            return GetAccessLevelAsCode(variable);
+            uint? rawUserAccessLevel = variable?.RawUserAccessLevel;
+            return rawUserAccessLevel != null
+                ? GetAccessLevelBitsAsCode(rawUserAccessLevel.Value)
+                : GetAccessLevelAsCode(variable);
         }
 
         /// <summary>

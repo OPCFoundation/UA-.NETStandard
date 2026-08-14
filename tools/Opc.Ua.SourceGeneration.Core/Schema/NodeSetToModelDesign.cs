@@ -978,6 +978,13 @@ namespace Opc.Ua.Schema.Model
             // code generation. See GetAccessLevelAsCode.
             output.RawAccessLevel = input.AccessLevel;
 
+            // Carry the explicit UserAccessLevel when the NodeSet2 model sets it.
+            // When the attribute is absent the UserAccessLevel is derived from
+            // AccessLevel by code generation, matching the runtime importer.
+            output.RawUserAccessLevel = input.UserAccessLevelSpecified
+                ? input.UserAccessLevel
+                : (uint?)null;
+
             if (input.Value != null)
             {
                 XmlDecoder decoder = CreateDecoder(input.Value);
