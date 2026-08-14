@@ -950,6 +950,7 @@ namespace Opc.Ua.Schema.Model
                 return;
             }
             output.SupportsEvents = (input.EventNotifier & EventNotifiers.SubscribeToEvents) != 0;
+            output.ContainsNoLoops = input.ContainsNoLoops;
         }
 
         private void UpdateVariableDesign(UAVariable input, VariableDesign output)
@@ -1600,7 +1601,10 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    if (targetId.NamespaceIndex != nodeId.NamespaceIndex ||
+                    if ((ii.IsForward &&
+                            referenceTypeId == ReferenceTypeIds.Organizes &&
+                            target is ViewDesign) ||
+                        targetId.NamespaceIndex != nodeId.NamespaceIndex ||
                         IsTypeOf(referenceTypeId, ReferenceTypeIds.NonHierarchicalReferences))
                     {
                         references.Add(new Reference
@@ -1953,6 +1957,21 @@ namespace Opc.Ua.Schema.Model
 
                 if (node is UAInstance instance)
                 {
+                    // View nodes are independent address-space nodes even when an
+                    // exporter sets ParentNodeId to an organizing folder. ViewState
+                    // derives from NodeState (not BaseInstanceState) and therefore
+                    // cannot be added as an AddChild component. Keeping the parent
+                    // would absorb the view into the folder's Children, exclude it
+                    // from the top-level model items and make the generator emit an
+                    // invalid AddChild(...) call. Clearing the parent keeps the view
+                    // a standalone predefined node linked purely via Organizes
+                    // references (mirrors the DataTypeEncoding handling below and the
+                    // way DataType/ReferenceType type nodes are modelled).
+                    if (node is UAView)
+                    {
+                        instance.ParentNodeId = null;
+                    }
+
                     // ensure parents are in the same namespace.
                     if (instance.ParentNodeId != null)
                     {
