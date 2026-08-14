@@ -111,6 +111,18 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         [JsonPropertyName("uav:severity")]
         public ushort? Severity { get; set; }
 
+        /// <summary>
+        /// Optional OPC UA ConditionType BrowseName for an alarm/condition event.
+        /// </summary>
+        [JsonPropertyName("uav:conditionType")]
+        public string? ConditionType { get; set; }
+
+        /// <summary>
+        /// Definitive OPC UA ConditionType NodeId for an alarm/condition event.
+        /// </summary>
+        [JsonPropertyName("uav:conditionTypeId")]
+        public string? ConditionTypeId { get; set; }
+
         /// <summary>Protocol binding forms.</summary>
         [JsonPropertyName("forms")]
         public List<JsonElement>? Forms { get; set; }
@@ -196,6 +208,18 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// <summary>Output JSON schema. Same rules as <see cref="Input"/>.</summary>
         [JsonPropertyName("output")]
         public WotActionSchema? Output { get; set; }
+
+        /// <summary>
+        /// Optional OPC UA Condition Method this action invokes.
+        /// </summary>
+        [JsonPropertyName("uav:conditionAction")]
+        public string? ConditionAction { get; set; }
+
+        /// <summary>
+        /// Optional event affordance whose Condition this action acts on.
+        /// </summary>
+        [JsonPropertyName("uav:actsOn")]
+        public string? ActsOn { get; set; }
 
         /// <summary>Forms — protocol-binding specific endpoints.</summary>
         [JsonPropertyName("forms")]

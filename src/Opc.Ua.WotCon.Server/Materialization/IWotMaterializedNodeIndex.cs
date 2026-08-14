@@ -231,8 +231,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         /// <summary>
         /// Tests that a Node is the source root or sits beneath it. Membership
-        /// is decided on the namespace and the <c>/</c>-delimited identifier
-        /// prefix, which is the shape <see cref="Locate"/> itself derives.
+        /// is decided on the namespace and the identifier prefix: a candidate
+        /// extends the root when the character that follows the prefix is a
+        /// delimiter rather than a continuation of the name. The delimiter is
+        /// not fixed to one character because a NodeSet chooses its own — the
+        /// converter synthesizes <c>/</c> and a companion-model NodeSet
+        /// conventionally uses <c>.</c> — while requiring a non-alphanumeric
+        /// keeps the guard tight: <c>Pump1</c> does not match <c>Pump10</c> or
+        /// <c>Pump1Extra</c>.
         /// </summary>
         private static bool IsUnderSourceRoot(NodeId candidate, NodeId sourceRoot)
         {
@@ -252,7 +258,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             string local = candidate.IdentifierAsString;
             return root.Length != 0 &&
                 local.Length > root.Length &&
-                local[root.Length] == '/' &&
+                !char.IsLetterOrDigit(local[root.Length]) &&
                 local.StartsWith(root, StringComparison.Ordinal);
         }
 

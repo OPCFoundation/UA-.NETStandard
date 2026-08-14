@@ -165,8 +165,19 @@ public ValueTask SubscribeEventAsync(
 
 `message` and `severity` are optional: a null `message` publishes the
 event name and a null `severity` falls back to the affordance's
-`uav:severity`. An authored severity outside 1..1000 is clamped rather
-than rejected, so one bad event definition cannot fail the whole asset.
+`uav:severity`. An authored severity outside 1..1000 is invalid: the WoT Binding forbids
+silently clamping it, so the affordance carrying it is skipped and the rest of
+the asset is unaffected.
+
+Skipping is not the same as succeeding. Whenever an affordance is skipped — for
+an out-of-range severity, an invalid child name, or a duplicate name — applying
+the Thing Description returns `GoodResultsMayBeIncomplete` rather than `Good`,
+with the number of skipped affordances and one log entry per skip explaining
+why. The code stays in the Good class, so a caller testing `ServiceResult.IsGood`
+is unaffected and the asset remains usable; but a caller that inspects the code
+learns the Thing Description was not applied in full. Reporting a plain `Good`
+would leave an operator believing an alarm they authored is configured when it
+silently does not exist.
 
 Pair it with an `IWotAssetProviderFactory` that advertises the WoT
 binding URIs it understands (surfaced through
@@ -813,7 +824,7 @@ not by copying the source document. The readable surface tracks the current
   the ReferenceType model name directly in `rel` (for example
   `ua:HasOrderedComponent`) beside its definitive `uav:refId`
   ExpandedNodeId. Authored
-  `uav:mapToTypeName` / `uav:congruentTypeName` hints are validated and
+  `uav:mapToTypeName` hints are validated and
   preserved beside their definitive identifiers. Compact model names are
   never used for arbitrary instance targets.
 
@@ -981,7 +992,79 @@ materialized.
 A source that is not in the address space is omitted from the View and reported in
 `WoTResourceLoadResultDataType.Message`; the resource still reaches
 `LoadState = Active`, because an omission is a reported detail rather than a
-failure.
+failure. A View that omitted anything reports `Outcome = Warning`, so a client
+can tell a complete View from a partial one without diffing its membership.
+
+Two omission causes are distinguished, because they have different remedies.
+
+**A source that is itself a projection.** `uav:resolvedFrom` names, per *WoT
+Binding* §12, "the reference the selection was made by" — the immediate
+selection, not the ultimate origin. A projection that selects from another
+projection therefore names an intermediate document, and an intermediate
+materializes a View rather than Nodes. Resolution follows the chain depth-first
+to the Nodes the ultimate sources materialized, as WoT Connectivity §7.13
+requires; only when no document in the chain materialized the affordance is the
+member omitted, and the omission names the deepest source the walk reached.
+
+**A member whose Node does not exist.** An affordance resolves to a NodeId by
+its authored `uav:id` when it has one and by a deterministic scheme anchored at
+the source's root otherwise. Neither is proof that the Node was materialized: a
+document whose affordances never synthesized anything resolves to plausible
+identifiers that address nothing. Every planned member is therefore tested
+against the address space before the View is built, and one that no NodeManager
+owns is dropped and reported instead of organized. Organizing it would leave the
+View advertising a membership no client can browse — a `Browse` drops a reference
+whose target does not resolve, so the View would report a count it does not have.
+
+Authoring `uav:id` on an affordance is what makes the first mechanism exact. A
+document that materializes its Nodes from a `uav:nodes` native projection should
+carry `uav:id` per affordance, because the deterministic scheme describes the
+shape *synthesis* produces and does not hold for restored Nodes.
+
+### 12.4.1 Parent placement through `uav:componentOf`
+
+WoT Connectivity §7.3 lets a Thing Description place the Object it projects
+under an existing parent. The materializer supports a `links` entry whose
+`rel` is `uav:componentOf` in two target forms:
+
+| `href` target | Materialized result |
+|---|---|
+| another document in the same registry snapshot | the parent is that document's projection root |
+| an OPC UA NodeId / ExpandedNodeId already present in the AddressSpace | the parent is that existing Node |
+
+When either form resolves, the projected root receives the inverse
+`HasComponent` reference to that parent, so normal hierarchical browsing from
+the parent reaches the new Object. This is a placement operation, not a binding
+fallback: if the parent cannot be resolved, the resource fails projection with
+`LoadState = Failed`, raises `WoTLoadFailureEventType`, and reports
+`Phase = Projection`. The server does not silently drop the parent reference.
+
+Two §7.3 forms are not implemented yet and therefore also fail loudly rather
+than being ignored: a target expressed as `uav:browsePath`, and the Thing Model
+projection-root fallback described by the specification. Authors should use one
+of the two supported forms above until those gaps are closed.
+
+### 12.4.2 Event notifier behaviour in projection Views
+
+Projection Views and the organizational group Objects they contain organize
+existing Nodes; they do not become event sources. Their `EventNotifier` is
+`None`, and materialization does not synthesize `GeneratesEvent` from a View or
+group to the event affordances it organizes. This matters to consumers because a
+subscription on a View or group is not enough to receive events. Event delivery
+still depends on the Object that actually carries `GeneratesEvent` and on an
+event-producing runtime path behind that Object.
+
+Current sample limitation: the upstream cavitation signal is proven to raise the
+upstream alarm and leave it unacknowledged, but Pump1 carries no
+`GeneratesEvent` reference for its cavitation alarm and acknowledgement does not
+round-trip because the projected pump actions are Start, Stop and Reset rather
+than Condition Methods carrying `uav:conditionAction` / `uav:actsOn`. The Pump1
+`Supervision` and `Management` views therefore report organizing 0 of their
+selected members, naming each one, rather than reporting a success they did not
+achieve. The cause is that `SamplePump.td.json` carries a `uav:nodes` native
+projection: the converter restores the pump from it and returns before affordance
+synthesis, so its action and event affordances materialize nothing. See
+[the sample README](../samples/WotCon/README.md) for the measured breakdown.
 
 ### 12.5 Portable identifiers
 

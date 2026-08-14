@@ -525,6 +525,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
 
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
+            int skippedAffordances = 0;
             try
             {
                 if (entry.Provider != null)
@@ -548,6 +549,11 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 ClearDynamicChildren(entry);
 
+                // An affordance the TD declares but this Server cannot
+                // materialise is skipped so the rest of the asset stays usable.
+                // Skipping is not the same as succeeding, though: reporting a
+                // plain Good would tell an operator the whole TD was applied
+                // while an alarm they authored had silently vanished.
                 if (td.Properties != null)
                 {
                     var seen = new HashSet<string>(
@@ -557,6 +563,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     {
                         if (!TryValidateChildName(entry.Name, "property", kv.Key))
                         {
+                            skippedAffordances++;
                             continue;
                         }
                         if (!seen.Add(kv.Key))
@@ -564,6 +571,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                             m_logger.SkippingDuplicateTdProperty(
                                 WotChildNameValidator.SanitiseForLog(kv.Key),
                                 entry.Name);
+                            skippedAffordances++;
                             continue;
                         }
                         BuildPropertyNode(entry, kv.Key, kv.Value);
@@ -578,6 +586,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     {
                         if (!TryValidateChildName(entry.Name, "action", kv.Key))
                         {
+                            skippedAffordances++;
                             continue;
                         }
                         if (!seen.Add(kv.Key))
@@ -585,6 +594,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                             m_logger.SkippingDuplicateTdAction(
                                 WotChildNameValidator.SanitiseForLog(kv.Key),
                                 entry.Name);
+                            skippedAffordances++;
                             continue;
                         }
                         BuildActionNode(entry, kv.Key, kv.Value);
@@ -599,6 +609,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     {
                         if (!TryValidateChildName(entry.Name, "event", kv.Key))
                         {
+                            skippedAffordances++;
                             continue;
                         }
                         if (!seen.Add(kv.Key))
@@ -606,9 +617,13 @@ namespace Opc.Ua.WotCon.Server.Assets
                             m_logger.SkippingDuplicateTdEvent(
                                 WotChildNameValidator.SanitiseForLog(kv.Key),
                                 entry.Name);
+                            skippedAffordances++;
                             continue;
                         }
-                        BuildEventNode(entry, kv.Key, kv.Value);
+                        if (!BuildEventNode(entry, kv.Key, kv.Value))
+                        {
+                            skippedAffordances++;
+                        }
                     }
                 }
 
@@ -641,7 +656,17 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 m_writeLock.Release();
             }
-            return ServiceResult.Good;
+
+            // Still Good - the asset is usable and IsGood callers are
+            // unaffected - but an operator reading the code learns the TD was
+            // not applied in full rather than being told everything worked.
+            return skippedAffordances == 0
+                ? ServiceResult.Good
+                : ServiceResult.Create(
+                    StatusCodes.GoodResultsMayBeIncomplete,
+                    "{0} affordance(s) of the Thing Description were skipped; see the log " +
+                    "for the reason for each.",
+                    skippedAffordances);
         }
 
         private void ClearDynamicChildren(AssetEntry entry)
@@ -766,6 +791,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                 Executable = true,
                 UserExecutable = true
             };
+            NodeId conditionMethodId = ResolveConditionMethod(action.ConditionAction);
+            if (!conditionMethodId.IsNull)
+            {
+                method.MethodDeclarationId = conditionMethodId;
+            }
             method.AddReference(Ua.ReferenceTypeIds.HasComponent, isInverse: true, entry.Asset.NodeId);
             entry.Asset.AddReference(Ua.ReferenceTypeIds.HasComponent, isInverse: false, method.NodeId);
             entry.Asset.AddChild(method);
@@ -815,7 +845,14 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
 
             JsonElement? form = action.Forms?.Count > 0 ? action.Forms[0] : null;
-            var tag = new WotActionTag(name, nodeId, inputArgs, outputArgs, form);
+            var tag = new WotActionTag(
+                name,
+                nodeId,
+                inputArgs,
+                outputArgs,
+                form,
+                action.ConditionAction,
+                action.ActsOn);
 
             method.OnCallMethod2Async = (
                 _,
@@ -829,15 +866,46 @@ namespace Opc.Ua.WotCon.Server.Assets
             entry.Actions[nodeId] = (method, tag);
         }
 
+        private static NodeId ResolveConditionMethod(string? conditionAction)
+        {
+            return conditionAction switch
+            {
+                "Acknowledge" => Ua.MethodIds.AcknowledgeableConditionType_Acknowledge,
+                "Confirm" => Ua.MethodIds.AcknowledgeableConditionType_Confirm,
+                "AddComment" => Ua.MethodIds.ConditionType_AddComment,
+                "Enable" => Ua.MethodIds.ConditionType_Enable,
+                "Disable" => Ua.MethodIds.ConditionType_Disable,
+                _ => NodeId.Null
+            };
+        }
+
         /// <summary>
         /// Materialises a TD event affordance as an OPC UA EventType
         /// (OPC 10100-1 §6.3.10) whose fields come from the event's
         /// <c>data</c> schema, and makes the owning asset a notifier for it.
         /// </summary>
-        private void BuildEventNode(AssetEntry entry, string name, WotEvent evt)
+        /// <returns>
+        /// <c>false</c> when the affordance was skipped, so the caller can
+        /// report that the Thing Description was not applied in full.
+        /// </returns>
+        private bool BuildEventNode(AssetEntry entry, string name, WotEvent evt)
         {
             ushort ns = m_manager.AssetNamespaceIndex;
             NodeId eventTypeId = m_manager.AllocateChildNodeId(entry.Name, "events", name);
+            NodeId superTypeId = ResolveEventSuperType(evt);
+            if (superTypeId.IsNull)
+            {
+                m_logger.SkippingTd(
+                    "event",
+                    WotChildNameValidator.SanitiseForLog(name),
+                    entry.Name,
+                    "uav:conditionType could not be resolved to an OPC UA ConditionType");
+                return false;
+            }
+            if (IsKnownConditionType(superTypeId))
+            {
+                EnsureConditionTypeHierarchy();
+            }
 
             var eventType = new BaseObjectTypeState
             {
@@ -848,11 +916,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                 Description = evt.Description != null
                     ? new LocalizedText(evt.Description)
                     : LocalizedText.Null,
-                SuperTypeId = Ua.ObjectTypeIds.BaseEventType,
+                SuperTypeId = superTypeId,
                 IsAbstract = false
             };
             eventType.AddReference(
-                Ua.ReferenceTypeIds.HasSubtype, isInverse: true, Ua.ObjectTypeIds.BaseEventType);
+                Ua.ReferenceTypeIds.HasSubtype, isInverse: true, superTypeId);
 
             IReadOnlyList<Argument> fields = WotActionMapper.BuildArguments(evt.Data);
             foreach (Argument field in fields)
@@ -881,26 +949,147 @@ namespace Opc.Ua.WotCon.Server.Assets
             m_manager.AddEventTypeNode(eventType);
 
             JsonElement? form = evt.Forms?.Count > 0 ? evt.Forms[0] : null;
-            ushort severity = NormaliseSeverity(evt.Severity);
+            ushort? severity = ValidateSeverity(evt.Severity);
+            if (severity is null)
+            {
+                m_logger.SkippingTd(
+                    "event",
+                    WotChildNameValidator.SanitiseForLog(name),
+                    entry.Name,
+                    $"uav:severity {evt.Severity} is outside the OPC 10000-5 range 1..1000");
+                m_manager.RemoveEventTypeNode(eventTypeId);
+                entry.Asset.RemoveReference(
+                    Ua.ReferenceTypeIds.GeneratesEvent, isInverse: false, eventTypeId);
+                return false;
+            }
+
             var tag = new WotEventTag(
-                name, eventTypeId, entry.Asset.NodeId, fields, severity, form);
+                name, eventTypeId, entry.Asset.NodeId, fields, severity.Value, form);
 
             entry.Events[eventTypeId] = (eventType, tag);
+            return true;
         }
 
         /// <summary>
-        /// Clamps an authored severity into the OPC 10000-5 1..1000 range,
-        /// defaulting to 500 when the TD omits it. An out-of-range authored
-        /// value is clamped rather than rejected so one bad event definition
-        /// cannot fail the whole asset.
+        /// Resolves the EventType supertype for a WoT event affordance.
         /// </summary>
-        private static ushort NormaliseSeverity(ushort? severity)
+        private NodeId ResolveEventSuperType(WotEvent evt)
         {
-            if (severity is null or 0)
+            if (!string.IsNullOrWhiteSpace(evt.ConditionTypeId))
+            {
+                return ParseNodeId(evt.ConditionTypeId);
+            }
+
+            if (string.IsNullOrWhiteSpace(evt.ConditionType))
+            {
+                return Ua.ObjectTypeIds.BaseEventType;
+            }
+
+            return ResolveKnownConditionType(evt.ConditionType);
+        }
+
+        private void EnsureConditionTypeHierarchy()
+        {
+            if (m_manager.Server.TypeTree is not TypeTable typeTree)
+            {
+                return;
+            }
+
+            typeTree.AddSubtype(Ua.ObjectTypeIds.ConditionType, Ua.ObjectTypeIds.BaseEventType);
+            typeTree.AddSubtype(Ua.ObjectTypeIds.AcknowledgeableConditionType, Ua.ObjectTypeIds.ConditionType);
+            typeTree.AddSubtype(Ua.ObjectTypeIds.AlarmConditionType, Ua.ObjectTypeIds.AcknowledgeableConditionType);
+            typeTree.AddSubtype(Ua.ObjectTypeIds.LimitAlarmType, Ua.ObjectTypeIds.AlarmConditionType);
+        }
+
+        private static bool IsKnownConditionType(NodeId nodeId)
+        {
+            return nodeId == Ua.ObjectTypeIds.ConditionType ||
+                nodeId == Ua.ObjectTypeIds.AcknowledgeableConditionType ||
+                nodeId == Ua.ObjectTypeIds.AlarmConditionType ||
+                nodeId == Ua.ObjectTypeIds.LimitAlarmType;
+        }
+
+        private NodeId ResolveKnownConditionType(string conditionType)
+        {
+            return LocalName(conditionType) switch
+            {
+                "ConditionType" => Ua.ObjectTypeIds.ConditionType,
+                "AcknowledgeableConditionType" => Ua.ObjectTypeIds.AcknowledgeableConditionType,
+                "AlarmConditionType" => Ua.ObjectTypeIds.AlarmConditionType,
+                "LimitAlarmType" => Ua.ObjectTypeIds.LimitAlarmType,
+                _ => NodeId.Null
+            };
+        }
+
+        private NodeId ParseNodeId(string text)
+        {
+            try
+            {
+                if (text.StartsWith("nsu=", StringComparison.Ordinal))
+                {
+                    return ExpandedNodeId.ToNodeId(
+                        ExpandedNodeId.Parse(text),
+                        m_manager.Server.NamespaceUris);
+                }
+                return NodeId.Parse(text);
+            }
+            catch (Exception ex) when (ex is FormatException or ArgumentException)
+            {
+                return NodeId.Null;
+            }
+        }
+
+        private static string LocalName(string value)
+        {
+            int separator = Math.Max(
+                value.LastIndexOf(':'),
+                Math.Max(value.LastIndexOf('#'), value.LastIndexOf('/')));
+            return separator >= 0 && separator + 1 < value.Length
+                ? value[(separator + 1)..]
+                : value;
+        }
+
+        /// <summary>
+        /// Validates an authored severity against the OPC 10000-5 1..1000
+        /// range and supplies the default when the Thing Description omits it.
+        /// </summary>
+        /// <remarks>
+        /// WoT Binding "Event severity range" makes an out-of-range value
+        /// invalid and forbids silently clamping it: a document asking for
+        /// severity 5000 has a mistake in it, and rewriting the number would
+        /// hide the mistake while changing what the author asked for. The
+        /// affordance carrying it is therefore skipped, which keeps the rest of
+        /// the asset usable without accepting the bad definition.
+        /// </remarks>
+        /// <returns>
+        /// The severity to publish, or <c>null</c> when the authored value is
+        /// out of range.
+        /// </returns>
+        private static ushort? ValidateSeverity(ushort? severity)
+        {
+            if (severity is null)
             {
                 return 500;
             }
-            return severity.Value > 1000 ? (ushort)1000 : severity.Value;
+            return severity.Value is >= 1 and <= 1000 ? severity.Value : null;
+        }
+
+        /// <summary>
+        /// Chooses the severity to publish for one occurrence: the value the
+        /// provider supplied when it is in the OPC 10000-5 range, otherwise the
+        /// affordance's authored default.
+        /// </summary>
+        /// <remarks>
+        /// The tag's severity was already validated when the affordance was
+        /// built, so it is always a usable fallback. A provider that supplies
+        /// nothing, or an out-of-range value, gets that default rather than an
+        /// invalid Severity on the wire.
+        /// </remarks>
+        private static ushort EffectiveSeverity(ushort? severity, WotEventTag tag)
+        {
+            return severity is not null && severity.Value is >= 1 and <= 1000
+                ? severity.Value
+                : tag.Severity;
         }
 
         /// <summary>
@@ -1020,7 +1209,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             e.SetChildValue(context, Ua.BrowseNames.Time, new DateTimeUtc(timestamp), false);
             e.SetChildValue(context, Ua.BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
             e.SetChildValue(
-                context, Ua.BrowseNames.Severity, NormaliseSeverity(severity ?? tag.Severity), false);
+                context, Ua.BrowseNames.Severity, EffectiveSeverity(severity, tag), false);
 
             int count = Math.Min(fields.Count, tag.Fields.Count);
             for (int i = 0; i < count; i++)

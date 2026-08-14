@@ -29,6 +29,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -45,6 +46,61 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
     [Parallelizable]
     public class UANodeSetHelpersTests
     {
+        /// <summary>
+        /// A NodeSet writes a Variable's value as the typed element alone, but
+        /// the Variant XML encoding nests that element inside a <c>Value</c>
+        /// element. Importing the bare element found no <c>Value</c> to begin
+        /// and silently produced a null Variant, so every value in every
+        /// imported NodeSet was lost — browsable nodes that read back empty.
+        /// </summary>
+        [Test]
+        public void ImportRestoresVariableValues()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            const string nodeSetXml = @"
+                <UANodeSet xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>urn:test:values</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='String'>i=12</Alias>
+                    <Alias Alias='Boolean'>i=1</Alias>
+                  </Aliases>
+                  <UAVariable NodeId='ns=1;s=Text' BrowseName='1:Text' DataType='String'>
+                    <DisplayName>Text</DisplayName>
+                    <Value>
+                      <uax:String xmlns:uax='http://opcfoundation.org/UA/2008/02/Types.xsd'>hello</uax:String>
+                    </Value>
+                  </UAVariable>
+                  <UAVariable NodeId='ns=1;s=Flag' BrowseName='1:Flag' DataType='Boolean'>
+                    <DisplayName>Flag</DisplayName>
+                    <Value>
+                      <uax:Boolean xmlns:uax='http://opcfoundation.org/UA/2008/02/Types.xsd'>true</uax:Boolean>
+                    </Value>
+                  </UAVariable>
+                </UANodeSet>";
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(nodeSetXml));
+            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream);
+            var context = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            foreach (string namespaceUri in nodeSet.NamespaceUris)
+            {
+                context.NamespaceUris.Append(namespaceUri);
+            }
+            var imported = new NodeStateCollection();
+
+            nodeSet.Import(context, imported);
+
+            BaseVariableState text = imported.OfType<BaseVariableState>()
+                .Single(node => node.BrowseName.Name == "Text");
+            BaseVariableState flag = imported.OfType<BaseVariableState>()
+                .Single(node => node.BrowseName.Name == "Flag");
+            Assert.That(text.WrappedValue.IsNull, Is.False, "The String value must survive the import.");
+            Assert.That(text.WrappedValue.GetString(), Is.EqualTo("hello"));
+            Assert.That(flag.WrappedValue.IsNull, Is.False, "The Boolean value must survive the import.");
+            Assert.That(flag.WrappedValue.GetBoolean(), Is.True);
+        }
+
         /// <summary>
         /// Test Structure Field ArrayDimensions attribute is correctly imported respectively exported
         /// </summary>

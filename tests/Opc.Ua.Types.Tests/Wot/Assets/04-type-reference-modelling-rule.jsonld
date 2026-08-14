@@ -16,8 +16,6 @@
   "uav:id": "nsu=http://example.com/demo/pump;i=1005",
   "uav:containedIn": "PumpType",
   "uav:componentOf": ["nsu=http://example.com/demo/pump;i=1001"],
-  "uav:congruentTypeName": "pump:ImpellerType",
-  "uav:congruentType": "nsu=http://example.com/demo/pump;i=1005",
   "uav:hasComponent": [
     "nsu=http://example.com/demo/pump;s=Blade_1",
     "nsu=http://example.com/demo/pump;s=Blade_2"
