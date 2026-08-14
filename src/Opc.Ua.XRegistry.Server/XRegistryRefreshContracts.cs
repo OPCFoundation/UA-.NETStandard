@@ -104,6 +104,12 @@ namespace Opc.Ua.XRegistry.Server
         Skipped,
 
         /// <summary>
+        /// The refresh was refused before it did any work, because the caller's
+        /// expected generation no longer matched.
+        /// </summary>
+        Rejected,
+
+        /// <summary>
         /// The resource failed to validate or to project.
         /// </summary>
         Failed
@@ -475,6 +481,21 @@ namespace Opc.Ua.XRegistry.Server
         /// Gets the version the refresh should materialize.
         /// </summary>
         public string VersionId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the version that is currently active, when one is.
+        /// </summary>
+        /// <remarks>
+        /// An unchanged member reports this rather than the desired version,
+        /// because nothing was re-projected and the active generation still
+        /// serves what it always served.
+        /// </remarks>
+        public string ActiveVersionId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the number of nodes the member currently has materialized.
+        /// </summary>
+        public uint MaterializedNodeCount { get; init; }
 
         /// <summary>
         /// Gets the domain document kind, as the domain spells it.

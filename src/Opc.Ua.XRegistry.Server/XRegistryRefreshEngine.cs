@@ -345,21 +345,27 @@ namespace Opc.Ua.XRegistry.Server
                         Xid = member.Xid,
                         GroupId = member.GroupId,
                         ResourceId = member.ResourceId,
-                        VersionId = member.VersionId,
+                        VersionId = member.ActiveVersionId.Length != 0
+                            ? member.ActiveVersionId
+                            : member.VersionId,
                         DocumentKind = member.DocumentKind,
                         Outcome = XRegistryRefreshOutcome.Unchanged,
                         Phase = XRegistryRefreshPhase.Activation,
                         LoadState = XRegistryLoadState.Active,
                         Generation = tracked.Generation,
+                        MaterializedNodeCount = member.MaterializedNodeCount,
                         ContentDigest = member.ContentDigest,
-                        Message = "Unchanged."
+                        Message = "Content digest unchanged."
                     });
                 }
                 return unchanged.ToArrayOf();
             }
 
             XRegistryClosurePreparation preparation = await m_strategy
-                .PrepareClosureAsync(closure, generation, ct).ConfigureAwait(false);
+                .PrepareClosureAsync(
+                    new XRegistryClosurePreparationContext(closure, generation, dryRun, RaiseEvent),
+                    ct)
+                .ConfigureAwait(false);
 
             if (!preparation.Succeeded)
             {
@@ -412,7 +418,8 @@ namespace Opc.Ua.XRegistry.Server
                 }
             }
 
-            var commitContext = new XRegistryClosureCommitContext(closure, preparation, generation)
+            var commitContext = new XRegistryClosureCommitContext(
+                closure, preparation, generation, RaiseEvent)
             {
                 Handle = handle,
                 PreviousState = tracked?.State
@@ -522,11 +529,13 @@ namespace Opc.Ua.XRegistry.Server
                             VersionId = member.VersionId,
                             DocumentKind = member.DocumentKind,
                             Outcome = XRegistryRefreshOutcome.Skipped,
-                            Phase = XRegistryRefreshPhase.Retirement,
-                            LoadState = XRegistryLoadState.Retired,
+                            Phase = XRegistryRefreshPhase.Activation,
+                            LoadState = XRegistryLoadState.Unloaded,
                             Generation = generation,
                             ContentDigest = member.ContentDigest,
-                            Message = "Retired; the resource is no longer projected."
+                            Message =
+                                "Dry run; projection would be retired at candidate generation " +
+                                generation.ToString(CultureInfo.InvariantCulture) + "."
                         });
                     }
                     if (dryRun)
@@ -654,8 +663,8 @@ namespace Opc.Ua.XRegistry.Server
             var summary = new XRegistryRefreshSummary
             {
                 RequestId = request.RequestId ?? string.Empty,
-                Generation = m_generation,
-                Outcome = XRegistryRefreshOutcome.Failed,
+                Generation = 0,
+                Outcome = XRegistryRefreshOutcome.Rejected,
                 Atomicity = request.Atomicity,
                 StartTime = start,
                 EndTime = DateTime.UtcNow

@@ -186,6 +186,65 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// The context handed to a strategy while it prepares a closure.
+    /// </summary>
+    public sealed class XRegistryClosurePreparationContext
+    {
+        /// <summary>
+        /// Initializes a preparation context.
+        /// </summary>
+        /// <param name="closure">The closure being prepared.</param>
+        /// <param name="generation">The candidate generation.</param>
+        /// <param name="dryRun">Whether the refresh commits anything.</param>
+        /// <param name="raise">The event sink.</param>
+        /// <exception cref="ArgumentNullException">A required argument is <c>null</c>.</exception>
+        public XRegistryClosurePreparationContext(
+            XRegistryDependencyClosure closure,
+            uint generation,
+            bool dryRun,
+            Action<XRegistryRefreshEventArgs> raise)
+        {
+            Closure = closure ?? throw new ArgumentNullException(nameof(closure));
+            Generation = generation;
+            DryRun = dryRun;
+            m_raise = raise ?? throw new ArgumentNullException(nameof(raise));
+        }
+
+        /// <summary>
+        /// Gets the closure being prepared.
+        /// </summary>
+        public XRegistryDependencyClosure Closure { get; }
+
+        /// <summary>
+        /// Gets the candidate generation.
+        /// </summary>
+        public uint Generation { get; }
+
+        /// <summary>
+        /// Gets whether the refresh will commit anything.
+        /// </summary>
+        public bool DryRun { get; }
+
+        /// <summary>
+        /// Raises a refresh event.
+        /// </summary>
+        /// <remarks>
+        /// A strategy uses this for the events only it can classify - a document
+        /// that failed compatibility validation rather than loading, or a binding
+        /// that degraded without failing the closure.
+        /// </remarks>
+        /// <param name="args">The event to raise.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="args"/> is <c>null</c>.</exception>
+        public void Raise(XRegistryRefreshEventArgs args)
+        {
+            ArgumentNullException.ThrowIfNull(args);
+            m_raise(args);
+        }
+
+        private readonly Action<XRegistryRefreshEventArgs> m_raise;
+    }
+
+    /// <summary>
     /// The context handed to a strategy after a closure's projection committed.
     /// </summary>
     public sealed class XRegistryClosureCommitContext
@@ -196,15 +255,18 @@ namespace Opc.Ua.XRegistry.Server
         /// <param name="closure">The committed closure.</param>
         /// <param name="preparation">The preparation that produced it.</param>
         /// <param name="generation">The generation being committed.</param>
+        /// <param name="raise">The event sink.</param>
         /// <exception cref="ArgumentNullException">A required argument is <c>null</c>.</exception>
         public XRegistryClosureCommitContext(
             XRegistryDependencyClosure closure,
             XRegistryClosurePreparation preparation,
-            uint generation)
+            uint generation,
+            Action<XRegistryRefreshEventArgs> raise)
         {
             Closure = closure ?? throw new ArgumentNullException(nameof(closure));
             Preparation = preparation ?? throw new ArgumentNullException(nameof(preparation));
             Generation = generation;
+            m_raise = raise ?? throw new ArgumentNullException(nameof(raise));
         }
 
         /// <summary>
@@ -231,6 +293,19 @@ namespace Opc.Ua.XRegistry.Server
         /// Gets the state tracked for the generation being replaced.
         /// </summary>
         public IXRegistryClosureState? PreviousState { get; init; }
+
+        /// <summary>
+        /// Raises a refresh event.
+        /// </summary>
+        /// <param name="args">The event to raise.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="args"/> is <c>null</c>.</exception>
+        public void Raise(XRegistryRefreshEventArgs args)
+        {
+            ArgumentNullException.ThrowIfNull(args);
+            m_raise(args);
+        }
+
+        private readonly Action<XRegistryRefreshEventArgs> m_raise;
     }
 
     /// <summary>
@@ -292,13 +367,11 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Prepares a projectable closure for commit.
         /// </summary>
-        /// <param name="closure">The closure to prepare.</param>
-        /// <param name="generation">The candidate generation.</param>
+        /// <param name="context">The preparation context.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The preparation.</returns>
         ValueTask<XRegistryClosurePreparation> PrepareClosureAsync(
-            XRegistryDependencyClosure closure,
-            uint generation,
+            XRegistryClosurePreparationContext context,
             CancellationToken ct);
 
         /// <summary>
