@@ -706,7 +706,7 @@ namespace Opc.Ua.Server.TestFramework
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            if (SecurityPolicies.GetInfo(securityPolicyUri) != null)
+            if (SecurityPolicies.Default.GetInfo(securityPolicyUri) != null)
             {
                 serverConfig.AddPolicy(securityMode, securityPolicyUri);
             }

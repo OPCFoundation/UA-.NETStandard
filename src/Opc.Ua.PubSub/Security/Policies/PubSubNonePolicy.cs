@@ -47,9 +47,9 @@ namespace Opc.Ua.PubSub.Security.Policies
     public sealed class PubSubNonePolicy : IPubSubSecurityPolicy
     {
         /// <summary>
-        /// Singleton instance.
+        /// The platform-backed instance the registry publishes.
         /// </summary>
-        public static readonly PubSubNonePolicy Instance = new();
+        internal static readonly PubSubNonePolicy Instance = new();
 
         private PubSubNonePolicy()
         {

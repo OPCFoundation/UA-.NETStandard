@@ -694,7 +694,7 @@ namespace Opc.Ua.Server
 
             if (ClientCertificate != null)
             {
-                SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(
+                SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(
                     EndpointDescription.SecurityPolicyUri!)!;
 
                 byte[] clientNonceData = ClientNonce.ToArray();
@@ -707,7 +707,7 @@ namespace Opc.Ua.Server
                     context.ChannelContext.ClientChannelCertificate,
                     clientNonceData);
 
-                if (!SecurityPolicies.VerifySignatureData(
+                if (!SecurityPolicies.Default.VerifySignatureData(
                         clientSignature!,
                         EndpointDescription.SecurityPolicyUri!,
                         ClientCertificate,
@@ -739,7 +739,7 @@ namespace Opc.Ua.Server
                             context.ChannelContext.ClientChannelCertificate,
                             clientNonceData);
 
-                        if (!SecurityPolicies.VerifySignatureData(
+                        if (!SecurityPolicies.Default.VerifySignatureData(
                               clientSignature!,
                               EndpointDescription.SecurityPolicyUri!,
                               ClientCertificate,
@@ -1216,7 +1216,7 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(
+                    SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(
                         securityPolicyUri!)!;
 
                     SecureChannelContext channelContext = context.ChannelContext!;

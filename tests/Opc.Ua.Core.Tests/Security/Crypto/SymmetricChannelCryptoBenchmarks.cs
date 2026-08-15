@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         [GlobalSetup]
         public void Setup()
         {
-            m_policy = SecurityPolicies.GetInfo(SecurityPolicyUri)
+            m_policy = SecurityPolicies.Default.GetInfo(SecurityPolicyUri)
                 ?? throw new InvalidOperationException(
                     $"{SecurityPolicyUri} is not supported on this platform.");
 
@@ -183,6 +183,40 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
 
             ArraySegment<byte> plain = CryptoUtils.SymmetricDecryptAndVerify(
                 toVerify, m_policy, m_encryptingKey, m_iv, m_signingKey);
+
+            Assert.That(plain, Is.Not.Empty);
+        }
+
+        /// <summary>
+        /// The same round trip through a registered symmetric provider, which is
+        /// what a deployment running a validated module pays.
+        /// </summary>
+        /// <remarks>
+        /// This is the measurement the seam is gated on. The benchmark above is
+        /// the baseline: the difference between the two is the whole cost of the
+        /// indirection, and it is only paid by a deployment that asked for it —
+        /// resolution yields nothing when no provider is registered, so the
+        /// default configuration takes the path measured above with no interface
+        /// dispatch at all.
+        /// </remarks>
+        [Benchmark]
+        [Test]
+        public void EncryptSignThenDecryptVerifyThroughProvider()
+        {
+            var data = new ArraySegment<byte>(m_buffer, HeaderSize, PayloadSize);
+
+            ArraySegment<byte> protectedData = CryptoUtils.SymmetricEncryptAndSign(
+                data, m_policy, m_encryptingKey, m_iv, m_signingKey, null,
+                signOnly: false, tokenId: 0, lastSequenceNumber: 0,
+                provider: PlatformSymmetricCryptoProvider.Instance);
+
+            var toVerify = new ArraySegment<byte>(
+                protectedData.Array!, HeaderSize, protectedData.Count - HeaderSize);
+
+            ArraySegment<byte> plain = CryptoUtils.SymmetricDecryptAndVerify(
+                toVerify, m_policy, m_encryptingKey, m_iv, m_signingKey,
+                signOnly: false, tokenId: 0, lastSequenceNumber: 0, hmac: null,
+                provider: PlatformSymmetricCryptoProvider.Instance);
 
             Assert.That(plain, Is.Not.Empty);
         }

@@ -41,7 +41,7 @@ namespace Opc.Ua.Test
     /// <summary>
     /// An interface to a source of random numbers.
     /// </summary>
-    public interface IRandomSource
+    public interface ISecureRandomSource
     {
         /// <summary>
         /// Fills a range in array of bytes with random numbers.
@@ -67,7 +67,7 @@ namespace Opc.Ua.Test
     /// <summary>
     /// Uses the Pseudo random generator as a source.
     /// </summary>
-    public class RandomSource : IRandomSource
+    public class RandomSource : ISecureRandomSource
     {
         /// <summary>
         /// Default random source.
@@ -153,7 +153,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Initializes the data generator.
         /// </summary>
-        public DataGenerator(IRandomSource? random, ITelemetryContext telemetry)
+        public DataGenerator(ISecureRandomSource? random, ITelemetryContext telemetry)
         {
             MaxArrayLength = 100;
             MaxStringLength = 100;
@@ -1804,7 +1804,7 @@ namespace Opc.Ua.Test
         }
 
         private readonly ILogger m_logger;
-        private readonly IRandomSource m_random;
+        private readonly ISecureRandomSource m_random;
         private readonly string[] m_availableLocales;
         private readonly FrozenDictionary<string, string[]> m_tokenValues;
         private const string kPunctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";

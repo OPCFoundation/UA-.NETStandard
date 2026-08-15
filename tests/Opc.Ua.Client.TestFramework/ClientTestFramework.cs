@@ -180,7 +180,7 @@ namespace Opc.Ua.Client.TestFramework
         protected static IEnumerable<string> GetSupportedEccPolicyUris(
             bool includeCurvePolicies = true)
         {
-            IEnumerable<string> displayNames = SecurityPolicies.GetDisplayNames()
+            IEnumerable<string> displayNames = SecurityPolicies.Default.GetDisplayNames()
                 .Where(name => name.StartsWith("ECC_", StringComparison.Ordinal));
 
             if (!includeCurvePolicies)
@@ -189,12 +189,12 @@ namespace Opc.Ua.Client.TestFramework
                     .Where(name => !name.StartsWith("ECC_curve", StringComparison.Ordinal));
             }
 
-            return displayNames.Select(SecurityPolicies.GetUri);
+            return displayNames.Select(SecurityPolicies.Default.GetUri);
         }
 
         private static IEnumerable<string> GetPolicyUrisForTests()
         {
-            IEnumerable<string> displayNames = SecurityPolicies.GetDisplayNames();
+            IEnumerable<string> displayNames = SecurityPolicies.Default.GetDisplayNames();
 
 #if NETFRAMEWORK
             displayNames = displayNames.Where(name =>
@@ -202,7 +202,7 @@ namespace Opc.Ua.Client.TestFramework
                 !name.EndsWith("_ChaChaPoly", StringComparison.Ordinal));
 #endif
 
-            return displayNames.Select(SecurityPolicies.GetUri);
+            return displayNames.Select(SecurityPolicies.Default.GetUri);
         }
 
         protected async Task IgnoreIfPolicyNotAdvertisedAsync(string securityPolicyUri)
@@ -384,7 +384,7 @@ namespace Opc.Ua.Client.TestFramework
 
             void AddExplicitUserTokenPolicies(string securityPolicyUri)
             {
-                if (SecurityPolicies.GetInfo(securityPolicyUri) == null)
+                if (SecurityPolicies.Default.GetInfo(securityPolicyUri) == null)
                 {
                     return;
                 }

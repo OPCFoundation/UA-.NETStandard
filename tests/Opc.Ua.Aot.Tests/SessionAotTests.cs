@@ -43,8 +43,10 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
             await Assert.That(session.Connected).IsTrue();
 
-            // Force transport disconnect
-            ((Session)session).TransportChannel.Dispose();
+            // Force transport disconnect without disposing the channel wrapper
+            // that SessionReconnectHandler reconnects.
+            await ((Session)session).TransportChannel
+                .CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await Task.Delay(500).ConfigureAwait(false);
 
             var reconnected = new TaskCompletionSource<bool>();

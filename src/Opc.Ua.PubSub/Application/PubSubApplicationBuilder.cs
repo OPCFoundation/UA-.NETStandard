@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Application
                 throw new ArgumentNullException(nameof(telemetry));
             }
             m_telemetry = telemetry;
-            foreach (IPubSubSecurityPolicy policy in PubSubSecurityPolicyRegistry.All)
+            foreach (IPubSubSecurityPolicy policy in PubSubSecurityPolicyRegistry.Default.Policies)
             {
                 m_policies.Add(policy);
             }
@@ -757,7 +757,8 @@ namespace Opc.Ua.PubSub.Application
                 m_telemetry,
                 m_timeProvider,
                 nonceProvider: null,
-                m_securityPolicySelector);
+                m_securityPolicySelector,
+                policies: m_policies);
         }
 
         internal IReadOnlyList<EndpointDescription> SecurityKeyServiceEndpoints => m_sksEndpoints;

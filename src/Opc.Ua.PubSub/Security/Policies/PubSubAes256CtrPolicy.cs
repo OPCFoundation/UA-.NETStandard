@@ -48,13 +48,40 @@ namespace Opc.Ua.PubSub.Security.Policies
     public sealed class PubSubAes256CtrPolicy : IPubSubSecurityPolicy
     {
         /// <summary>
-        /// Singleton instance.
+        /// The platform-backed instance the registry publishes.
         /// </summary>
-        public static readonly PubSubAes256CtrPolicy Instance = new();
+        internal static readonly PubSubAes256CtrPolicy Instance = new();
 
-        private PubSubAes256CtrPolicy()
+        /// <summary>
+        /// Initializes a policy that performs its cryptography with the platform.
+        /// </summary>
+        public PubSubAes256CtrPolicy()
+            : this(null)
         {
         }
+
+        /// <summary>
+        /// Initializes a policy that performs its cryptography through a provider.
+        /// </summary>
+        /// <param name="provider">
+        /// The provider to use, or <see langword="null"/> to use the platform
+        /// directly. Supplying one lets a validated cryptographic module perform
+        /// the AES-CTR and HMAC this policy applies to every message.
+        /// </param>
+        /// <remarks>
+        /// Resolve the provider once, where the policy is created, and hold it.
+        /// This is the per message path and must not consult a registry.
+        /// </remarks>
+        public PubSubAes256CtrPolicy(ISymmetricCryptoProvider? provider)
+        {
+            m_provider = provider != null &&
+                provider.Supports(SymmetricEncryptionAlgorithm.Aes256Ctr) &&
+                provider.Supports(SymmetricSignatureAlgorithm.HmacSha256)
+                    ? provider
+                    : null;
+        }
+
+        private readonly ISymmetricCryptoProvider? m_provider;
 
         /// <inheritdoc/>
         public string PolicyUri => PubSubSecurityPolicyUri.PubSubAes256Ctr;
@@ -89,7 +116,15 @@ namespace Opc.Ua.PubSub.Security.Policies
                     $"Signature buffer must be at least {SignatureLength} bytes.",
                     nameof(signature));
             }
-            HmacSha256.HashData(signingKey, data, signature);
+            if (m_provider != null)
+            {
+                m_provider.Sign(
+                    SymmetricSignatureAlgorithm.HmacSha256, signingKey, data, signature);
+            }
+            else
+            {
+                HmacSha256.HashData(signingKey, data, signature);
+            }
         }
 
         /// <inheritdoc/>
@@ -111,7 +146,15 @@ namespace Opc.Ua.PubSub.Security.Policies
             try
             {
                 Span<byte> computed = rented.AsSpan(0, SignatureLength);
-                HmacSha256.HashData(signingKey, data, computed);
+                if (m_provider != null)
+                {
+                    m_provider.Sign(
+                        SymmetricSignatureAlgorithm.HmacSha256, signingKey, data, computed);
+                }
+                else
+                {
+                    HmacSha256.HashData(signingKey, data, computed);
+                }
                 return CryptoUtils.FixedTimeEquals(computed, signature);
             }
             finally
@@ -134,6 +177,12 @@ namespace Opc.Ua.PubSub.Security.Policies
                     $"Encrypting key must be exactly {EncryptingKeyLength} bytes.",
                     nameof(encryptingKey));
             }
+            if (m_provider != null)
+            {
+                m_provider.Encrypt(
+                    SymmetricEncryptionAlgorithm.Aes256Ctr, encryptingKey, nonce, plaintext, ciphertext);
+                return;
+            }
             AesCtrTransform.EncryptOrDecrypt(encryptingKey, nonce, plaintext, ciphertext);
         }
 
@@ -144,7 +193,16 @@ namespace Opc.Ua.PubSub.Security.Policies
             ReadOnlySpan<byte> nonce,
             Span<byte> plaintext)
         {
-            // AES-CTR is symmetric — decryption is the same XOR keystream
+            if (m_provider != null)
+            {
+                // Reported as a decryption even though counter mode is its own
+                // inverse, so a provider sees the operation the caller asked for.
+                m_provider.Decrypt(
+                    SymmetricEncryptionAlgorithm.Aes256Ctr, encryptingKey, nonce, ciphertext, plaintext);
+                return;
+            }
+
+            // AES-CTR is symmetric - decryption is the same XOR keystream
             // operation as encryption.
             Encrypt(ciphertext, encryptingKey, nonce, plaintext);
         }
