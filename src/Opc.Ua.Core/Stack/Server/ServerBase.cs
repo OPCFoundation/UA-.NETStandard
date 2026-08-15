@@ -642,10 +642,10 @@ namespace Opc.Ua
             Task stop;
             lock (m_stopLock)
             {
-                m_stopTask ??= StopCoreAsync(cancellationToken);
+                m_stopTask ??= StopCoreAsync(CancellationToken.None);
                 stop = m_stopTask;
             }
-            return new ValueTask(stop);
+            return new ValueTask(stop.WaitAsync(cancellationToken));
         }
 
         private async Task StopCoreAsync(CancellationToken cancellationToken)

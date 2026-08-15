@@ -130,9 +130,9 @@ namespace Opc.Ua
                             return;
                         }
                         m_disposed = true;
+                        m_stopped = true;
                     }
 
-                    m_stopped = true;
                     m_cts.Cancel();
 
                     m_queue.Writer.Complete();
@@ -169,37 +169,42 @@ namespace Opc.Ua
             /// <param name="request">The request.</param>
             public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
             {
-                // check if server is stopped
-                if (m_stopped)
-                {
-                    request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    return;
-                }
+                bool serverStopped;
+                bool queueFull;
 
-                // Enqueue requests. Use TryWrite to fail immediately if limit is reached.
-                if (!m_queue.Writer.TryWrite(request))
+                lock (m_workers)
                 {
-                    request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-                    // TODO: make a metric
-                    m_server.m_logger.ServerBaseLogMessage9(m_activeThreadCount);
-                    return;
-                }
-
-                // Optionally scale up workers if needed. Increment m_totalThreadCount
-                // inside the lock and before Task.Run so that concurrent callers see the
-                // updated count immediately and do not spawn duplicate workers.
-                if (m_totalThreadCount < m_maxThreadCount &&
-                    m_activeThreadCount >= m_totalThreadCount)
-                {
-                    lock (m_workers)
+                    // check if server is stopped
+                    serverStopped = m_stopped;
+                    if (!serverStopped)
                     {
-                        // Re-check inside the lock to prevent double-spawning.
-                        if (m_totalThreadCount < m_maxThreadCount)
+                        // Enqueue requests. Use TryWrite to fail immediately if limit is reached.
+                        queueFull = !m_queue.Writer.TryWrite(request);
+                        if (!queueFull &&
+                            m_totalThreadCount < m_maxThreadCount &&
+                            m_activeThreadCount >= m_totalThreadCount)
                         {
                             Interlocked.Increment(ref m_totalThreadCount);
                             m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
                         }
                     }
+                    else
+                    {
+                        queueFull = false;
+                    }
+                }
+
+                if (serverStopped)
+                {
+                    request.OperationCompleted(null, StatusCodes.BadServerHalted);
+                    return;
+                }
+
+                if (queueFull)
+                {
+                    request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
+                    // TODO: make a metric
+                    m_server.m_logger.ServerBaseLogMessage9(m_activeThreadCount);
                 }
             }
 
