@@ -31,6 +31,7 @@ using Opc.Ua.Aas.V3;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -95,6 +96,43 @@ namespace Opc.Ua.Aas.Tests.Server
                 Assert.That(environments, Has.Count.EqualTo(2));
                 Assert.That(environments[0].Submodels.Value[0].Id, Is.EqualTo("json"));
                 Assert.That(environments[1].Submodels.Value[0].Id, Is.EqualTo("xml"));
+                Assert.That(provider.Diagnostics, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// A folder provider must publish its documents in a stable order. The
+        /// file system's own enumeration order is unspecified and differs between
+        /// platforms, so without an explicit ordering two servers reading the same
+        /// folder would build different AddressSpaces from identical input.
+        /// </summary>
+        [Test]
+        public async Task FolderProviderOrdersDocumentsByNameRegardlessOfCreationOrderAsync()
+        {
+            string folder = CreateFolder();
+
+            // Written in reverse of the expected order, so a provider that simply
+            // forwards the directory listing cannot pass by accident on a file
+            // system that happens to return creation order.
+            File.WriteAllText(
+                Path.Combine(folder, "third.json"),
+                "{\"submodels\":[{\"id\":\"third\",\"modelType\":\"Submodel\"}]}");
+            File.WriteAllText(
+                Path.Combine(folder, "second.json"),
+                "{\"submodels\":[{\"id\":\"second\",\"modelType\":\"Submodel\"}]}");
+            File.WriteAllText(
+                Path.Combine(folder, "first.json"),
+                "{\"submodels\":[{\"id\":\"first\",\"modelType\":\"Submodel\"}]}");
+
+            var provider = new FolderAasEnvironmentProvider(folder);
+            List<AasEnvironment> environments = await ReadAllAsync(provider).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(environments, Has.Count.EqualTo(3));
+                Assert.That(
+                    environments.Select(e => e.Submodels.Value[0].Id),
+                    Is.EqualTo(s_expectedDocumentOrder));
                 Assert.That(provider.Diagnostics, Is.Empty);
             });
         }
@@ -178,6 +216,8 @@ namespace Opc.Ua.Aas.Tests.Server
             Directory.CreateDirectory(folder);
             return folder;
         }
+
+        private static readonly string[] s_expectedDocumentOrder = ["first", "second", "third"];
 
         private sealed class RecordingLifecycle : INodeManagerLifecycle
         {

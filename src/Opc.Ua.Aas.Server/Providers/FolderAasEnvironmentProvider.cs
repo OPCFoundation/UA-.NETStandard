@@ -64,7 +64,11 @@ namespace Opc.Ua.Aas.Server
                 yield break;
             }
 
-            foreach (string path in Directory.EnumerateFiles(m_folderPath))
+            // The order the file system happens to return entries in is not
+            // specified and differs between platforms, so a folder is enumerated
+            // by name: two servers reading the same folder must publish the same
+            // documents in the same order.
+            foreach (string path in EnumerateOrdered(m_folderPath))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 string extension = Path.GetExtension(path);
@@ -86,6 +90,17 @@ namespace Opc.Ua.Aas.Server
                 }
                 yield return result.Environment;
             }
+        }
+
+        /// <summary>
+        /// Enumerates the folder's files by ordinal name, so the sequence does
+        /// not depend on the platform's directory ordering.
+        /// </summary>
+        private static List<string> EnumerateOrdered(string folderPath)
+        {
+            var paths = new List<string>(Directory.EnumerateFiles(folderPath));
+            paths.Sort(StringComparer.Ordinal);
+            return paths;
         }
 
         private readonly string m_folderPath;

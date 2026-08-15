@@ -68,7 +68,11 @@ namespace Opc.Ua.Aas.Server.V2
                 yield break;
             }
 
-            foreach (string path in Directory.EnumerateFiles(m_folderPath))
+            // The order the file system happens to return entries in is not
+            // specified and differs between platforms, so a folder is enumerated
+            // by name: two servers reading the same folder must publish the same
+            // documents in the same order.
+            foreach (string path in EnumerateOrdered(m_folderPath))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 string extension = Path.GetExtension(path);
@@ -91,6 +95,17 @@ namespace Opc.Ua.Aas.Server.V2
             return string.Equals(extension, ".json", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(extension, ".xml", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(extension, ".aasx", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Enumerates the folder's files by ordinal name, so the sequence does
+        /// not depend on the platform's directory ordering.
+        /// </summary>
+        private static List<string> EnumerateOrdered(string folderPath)
+        {
+            var paths = new List<string>(Directory.EnumerateFiles(folderPath));
+            paths.Sort(StringComparer.Ordinal);
+            return paths;
         }
 
         private async System.Threading.Tasks.Task<AasEnvironment?> ReadAsync(
