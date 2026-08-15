@@ -1777,6 +1777,15 @@ namespace Opc.Ua.Schema.Model
             this DataTypeDesign dataType,
             ValueRank valueRank)
         {
+            // DiagnosticInfo is not a valid Variant value (OPC UA Part 6) and
+            // therefore has no IVariantBuilder<DiagnosticInfo>. A typed
+            // State<DiagnosticInfo> (scalar or ArrayOf/MatrixOf) cannot be
+            // emitted, so fall back to the non-generic, Variant-backed state.
+            // Mirrors the DiagnosticInfo exclusion in SupportsMatrixOf.
+            if (dataType.BasicDataType == BasicDataType.DiagnosticInfo)
+            {
+                return false;
+            }
             if (dataType.BasicDataType
                 is not BasicDataType.BaseDataType
                 and not BasicDataType.Number

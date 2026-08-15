@@ -9722,7 +9722,6 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(BasicDataType.NodeId, ValueRank.Scalar, true)]
         [TestCase(BasicDataType.ExpandedNodeId, ValueRank.Scalar, true)]
         [TestCase(BasicDataType.StatusCode, ValueRank.Scalar, true)]
-        [TestCase(BasicDataType.DiagnosticInfo, ValueRank.Scalar, true)]
         [TestCase(BasicDataType.QualifiedName, ValueRank.Scalar, true)]
         [TestCase(BasicDataType.LocalizedText, ValueRank.Scalar, true)]
         [TestCase(BasicDataType.DataValue, ValueRank.Scalar, true)]
@@ -9816,6 +9815,32 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// DiagnosticInfo is not a valid Variant value (OPC UA Part 6) and has
+        /// no <c>IVariantBuilder&lt;DiagnosticInfo&gt;</c>, so a typed
+        /// <c>State&lt;DiagnosticInfo&gt;</c> cannot be generated for any rank.
+        /// <see cref="ModelDesignExtensions.IsTemplateParameterRequired"/> must
+        /// therefore return <c>false</c> so the generator falls back to the
+        /// non-generic, Variant-backed state.
+        /// </summary>
+        [TestCase(ValueRank.Scalar)]
+        [TestCase(ValueRank.Array)]
+        [TestCase(ValueRank.OneOrMoreDimensions)]
+        [TestCase(ValueRank.ScalarOrOneDimension)]
+        [TestCase(ValueRank.ScalarOrArray)]
+        [TestCase(ValueRank.Any)]
+        public void IsTemplateParameterRequired_DiagnosticInfo_AlwaysReturnsFalse(ValueRank valueRank)
+        {
+            // Arrange
+            var dataType = new DataTypeDesign { BasicDataType = BasicDataType.DiagnosticInfo };
+
+            // Act
+            bool result = dataType.IsTemplateParameterRequired(valueRank);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        /// <summary>
         /// Test IsRequiredParameterInTemplates returns true when ValueRank is Array regardless of BasicDataType value.
         /// Tests that Array ValueRank always returns true as per the second condition in the method.
         /// </summary>
@@ -9838,7 +9863,6 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(BasicDataType.NodeId)]
         [TestCase(BasicDataType.ExpandedNodeId)]
         [TestCase(BasicDataType.StatusCode)]
-        [TestCase(BasicDataType.DiagnosticInfo)]
         [TestCase(BasicDataType.QualifiedName)]
         [TestCase(BasicDataType.LocalizedText)]
         [TestCase(BasicDataType.DataValue)]
