@@ -129,33 +129,33 @@ namespace Opc.Ua.Client
         {
             int publishCount = GetDesiredPublishRequestCount(true);
 
-            // refill pipeline. Send at least one publish request
-            // if subscriptions are active. This first request is deliberately
-            // not capped by the in flight reservation: it is the recovery
-            // valve that refills a pipeline whose requests are outstanding but
-            // are no longer expected to return.
-            if (publishCount > 0 && BeginPublish(timeout))
+            if (publishCount <= 0)
             {
-                int startCount = fullQueue
-                    ? 1
-                    : GoodPublishRequestCount + 1;
-                for (int ii = startCount; ii < publishCount; ii++)
-                {
-                    // Everything past the valve is bounded by the reservation.
-                    // StartPublishing runs once per subscription as the
-                    // subscriptions are created, so an unbounded top up stacks
-                    // a full pipeline worth of requests on every call and the
-                    // outstanding count grows far past the desired count.
-                    if (!TryReservePublishRequest(publishCount, out _))
-                    {
-                        break;
-                    }
+                return;
+            }
 
-                    if (!BeginPublishCore(timeout))
-                    {
-                        Interlocked.Decrement(ref m_publishRequestsInFlight);
-                        break;
-                    }
+            // Refill the pipeline up to the desired count. Every request is
+            // bounded by the in flight reservation: StartPublishing runs once
+            // per subscription as the subscriptions are created, so an
+            // unbounded send stacks a pipeline worth of requests on every call
+            // and the outstanding count grows far past the desired count. A
+            // drained pipeline always has room, so this still refills a
+            // pipeline whose requests are outstanding but are no longer
+            // expected to return.
+            int startCount = fullQueue
+                ? 0
+                : GoodPublishRequestCount;
+            for (int ii = startCount; ii < publishCount; ii++)
+            {
+                if (!TryReservePublishRequest(publishCount, out _))
+                {
+                    break;
+                }
+
+                if (!BeginPublishCore(timeout))
+                {
+                    Interlocked.Decrement(ref m_publishRequestsInFlight);
+                    break;
                 }
             }
         }
