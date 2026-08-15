@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
     /// The standard implementation of a UA server.
     /// </summary>
     /// <remarks>
-    /// <see cref="Dispose()"/> performs the same orderly shutdown as
+    /// <see cref="IDisposable.Dispose"/> performs the same orderly shutdown as
     /// <see cref="DisposeAsync"/> and blocks until all owned resources have been
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
@@ -189,21 +189,6 @@ namespace Opc.Ua.Server
         internal ServerDataTypeDefinitionResolver? ComplexTypeResolverHolder { get; set; }
 
         /// <summary>
-        /// Initiates disposal of this server.
-        /// </summary>
-        /// <remarks>
-        /// This synchronous <see cref="IDisposable.Dispose"/> entry point intentionally
-        /// blocks on the asynchronous disposal core so deterministic resource release is
-        /// preserved for synchronous callers. Prefer <see cref="DisposeAsync"/> whenever
-        /// the caller can await the shutdown.
-        /// </remarks>
-        public new void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
         /// Asynchronously shuts down and disposes this server.
         /// </summary>
         /// <returns>A task that completes after all owned server resources have been released.</returns>
@@ -233,48 +218,8 @@ namespace Opc.Ua.Server
         {
             // Run the orderly server shutdown (idempotent) before releasing base resources,
             // so no request is still dispatching to the address space when it is torn down.
+            // The cached m_disposeTask makes this method run exactly once.
             await StopAsync(CancellationToken.None).ConfigureAwait(false);
-            DisposeBaseResources();
-        }
-
-        /// <summary>
-        /// Synchronously disposes this server.
-        /// </summary>
-        /// <remarks>
-        /// When <paramref name="disposing"/> is <c>true</c>, this method deliberately
-        /// blocks on <see cref="DisposeAsyncCore"/>. That is the owner-approved exception
-        /// to the repository's sync-over-async rule for classes that implement both
-        /// synchronous and asynchronous disposal.
-        /// </remarks>
-        /// <param name="disposing">
-        /// <c>true</c> when called from <see cref="Dispose()"/>; <c>false</c> when called
-        /// by a finalizer.
-        /// </param>
-        protected override void Dispose(bool disposing)
-        {
-            if (!disposing)
-            {
-                base.Dispose(false);
-                return;
-            }
-
-            DisposeAsyncCore().AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Releases the base server resources exactly once after the orderly shutdown has
-        /// completed.
-        /// </summary>
-        private void DisposeBaseResources()
-        {
-            lock (m_shutdownStateLock)
-            {
-                if (m_baseResourcesDisposed)
-                {
-                    return;
-                }
-                m_baseResourcesDisposed = true;
-            }
 
             // halt any outstanding timer and configuration watcher.
             lock (m_registrationLock)
@@ -302,6 +247,30 @@ namespace Opc.Ua.Server
             base.Dispose(true);
 
             m_semaphoreSlim.Dispose();
+        }
+
+        /// <summary>
+        /// Synchronously disposes this server.
+        /// </summary>
+        /// <remarks>
+        /// When <paramref name="disposing"/> is <c>true</c>, this method deliberately
+        /// blocks on <see cref="DisposeAsyncCore"/>. That is the owner-approved exception
+        /// to the repository's sync-over-async rule for classes that implement both
+        /// synchronous and asynchronous disposal.
+        /// </remarks>
+        /// <param name="disposing">
+        /// <c>true</c> when called from the synchronous dispose path; <c>false</c> when
+        /// called by a finalizer.
+        /// </param>
+        protected override void Dispose(bool disposing)
+        {
+            if (!disposing)
+            {
+                base.Dispose(false);
+                return;
+            }
+
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -4829,7 +4798,6 @@ namespace Opc.Ua.Server
             Justification = "Disposed by OnServerStoppingAsync while the server is stopped.")]
         private ServerInternalData? m_serverInternal;
         private Task? m_disposeTask;
-        private bool m_baseResourcesDisposed;
 
         internal bool BaseResourcesDisposedForTest
         {
@@ -4837,7 +4805,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_shutdownStateLock)
                 {
-                    return m_baseResourcesDisposed;
+                    return m_disposeTask is { IsCompleted: true };
                 }
             }
         }
