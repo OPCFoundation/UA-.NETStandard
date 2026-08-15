@@ -123,6 +123,15 @@ namespace Opc.Ua
             {
                 if (disposing)
                 {
+                    lock (m_workers)
+                    {
+                        if (m_disposed)
+                        {
+                            return;
+                        }
+                        m_disposed = true;
+                    }
+
                     m_stopped = true;
                     m_cts.Cancel();
 
@@ -320,6 +329,7 @@ namespace Opc.Ua
             private int m_activeThreadCount;
             private int m_totalThreadCount;
             private bool m_stopped;
+            private bool m_disposed;
         }
     }
 }

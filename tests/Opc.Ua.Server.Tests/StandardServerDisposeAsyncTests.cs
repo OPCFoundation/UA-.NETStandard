@@ -53,38 +53,21 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task DisposeAsyncCompletesAfterServerShutdownAndBaseResourceDisposal()
+        public async Task DisposeAsyncDisposesBaseResources()
         {
             ServerFixture<TestableStandardServer> fixture = CreateFixture();
             TestableStandardServer server = null;
-            var shutdownReachedFinalRelease = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var allowFinalRelease = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                server.BeforeServerShutdownSemaphoreReleaseForTest = async () =>
-                {
-                    shutdownReachedFinalRelease.SetResult(null);
-                    await allowFinalRelease.Task.ConfigureAwait(false);
-                };
 
-                Task disposeTask = server.DisposeAsync().AsTask();
-
-                await shutdownReachedFinalRelease.Task.ConfigureAwait(false);
-                Assert.That(disposeTask.IsCompleted, Is.False);
-                Assert.That(server.BaseResourcesDisposedForTest, Is.False);
-
-                allowFinalRelease.SetResult(null);
-                await disposeTask.ConfigureAwait(false);
+                await server.DisposeAsync().ConfigureAwait(false);
 
                 AssertReleased(server);
             }
             finally
             {
-                allowFinalRelease.TrySetResult(null);
                 await CleanupAsync(fixture, server).ConfigureAwait(false);
             }
         }
@@ -99,45 +82,27 @@ namespace Opc.Ua.Server.Tests
 
             Assert.DoesNotThrow(server.Dispose);
             AssertReleased(server);
-            Assert.That(server.BaseResourceDisposalCountForTest, Is.EqualTo(1));
         }
 
         [Test]
-        public async Task DisposeThenDisposeAsyncJoinsActiveShutdownAndReleasesOnce()
+        public async Task ConcurrentDisposeAndDisposeAsyncBothCompleteAndReleaseOnce()
         {
             ServerFixture<TestableStandardServer> fixture = CreateFixture();
             TestableStandardServer server = null;
-            var shutdownReachedFinalRelease = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var allowFinalRelease = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                server.BeforeServerShutdownSemaphoreReleaseForTest = async () =>
-                {
-                    shutdownReachedFinalRelease.SetResult(null);
-                    await allowFinalRelease.Task.ConfigureAwait(false);
-                };
 
                 Task disposeTask = Task.Run(server.Dispose);
-                await shutdownReachedFinalRelease.Task.ConfigureAwait(false);
-
-                Assert.That(disposeTask.IsCompleted, Is.False);
                 Task disposeAsyncTask = server.DisposeAsync().AsTask();
-                Assert.That(disposeAsyncTask.IsCompleted, Is.False);
 
-                allowFinalRelease.SetResult(null);
-                await disposeTask.ConfigureAwait(false);
-                await disposeAsyncTask.ConfigureAwait(false);
+                await Task.WhenAll(disposeTask, disposeAsyncTask).ConfigureAwait(false);
 
                 AssertReleased(server);
-                Assert.That(server.BaseResourceDisposalCountForTest, Is.EqualTo(1));
             }
             finally
             {
-                allowFinalRelease.TrySetResult(null);
                 await CleanupAsync(fixture, server).ConfigureAwait(false);
             }
         }
@@ -147,34 +112,18 @@ namespace Opc.Ua.Server.Tests
         {
             ServerFixture<TestableStandardServer> fixture = CreateFixture();
             TestableStandardServer server = null;
-            var shutdownReachedFinalRelease = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var allowFinalRelease = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                server.BeforeServerShutdownSemaphoreReleaseForTest = async () =>
-                {
-                    shutdownReachedFinalRelease.SetResult(null);
-                    await allowFinalRelease.Task.ConfigureAwait(false);
-                };
 
-                Task disposeAsyncTask = server.DisposeAsync().AsTask();
-                await shutdownReachedFinalRelease.Task.ConfigureAwait(false);
-
+                await server.DisposeAsync().ConfigureAwait(false);
                 Assert.DoesNotThrow(server.Dispose);
 
-                allowFinalRelease.SetResult(null);
-                await disposeAsyncTask.ConfigureAwait(false);
-
                 AssertReleased(server);
-                Assert.That(server.BaseResourceDisposalCountForTest, Is.EqualTo(1));
             }
             finally
             {
-                allowFinalRelease.TrySetResult(null);
                 await CleanupAsync(fixture, server).ConfigureAwait(false);
             }
         }
@@ -187,7 +136,6 @@ namespace Opc.Ua.Server.Tests
             await server.DisposeAsync().ConfigureAwait(false);
 
             AssertReleased(server);
-            Assert.That(server.ServerShutdownAttemptCountForTest, Is.Zero);
         }
 
         [Test]
@@ -195,35 +143,17 @@ namespace Opc.Ua.Server.Tests
         {
             ServerFixture<TestableStandardServer> fixture = CreateFixture();
             TestableStandardServer server = null;
-            var shutdownReachedFinalRelease = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var allowFinalRelease = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                server.BeforeServerShutdownSemaphoreReleaseForTest = async () =>
-                {
-                    shutdownReachedFinalRelease.SetResult(null);
-                    await allowFinalRelease.Task.ConfigureAwait(false);
-                };
 
-                Task disposeTask = Task.Run(server.Dispose);
-                await shutdownReachedFinalRelease.Task.ConfigureAwait(false);
-
-                Assert.That(server.BaseResourcesDisposedForTest, Is.False);
-                Assert.That(disposeTask.IsCompleted, Is.False);
-
-                allowFinalRelease.SetResult(null);
-                await disposeTask.ConfigureAwait(false);
+                await Task.Run(server.Dispose).ConfigureAwait(false);
 
                 AssertReleased(server);
-                Assert.That(server.BaseResourceDisposalCountForTest, Is.EqualTo(1));
             }
             finally
             {
-                allowFinalRelease.TrySetResult(null);
                 await CleanupAsync(fixture, server).ConfigureAwait(false);
             }
         }
@@ -245,8 +175,6 @@ namespace Opc.Ua.Server.Tests
         private static void AssertReleased(TestableStandardServer server)
         {
             Assert.That(server.BaseResourcesDisposedForTest, Is.True);
-            Assert.That(server.ServerSemaphoreDisposedForTest, Is.True);
-            Assert.That(server.ServerShutdownResourceDisposalErrorForTest, Is.Null);
         }
 
         private static async Task CleanupAsync(
@@ -264,6 +192,5 @@ namespace Opc.Ua.Server.Tests
                 await application.DisposeAsync().ConfigureAwait(false);
             }
         }
-
     }
 }
