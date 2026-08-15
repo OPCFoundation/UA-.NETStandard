@@ -32,6 +32,7 @@ using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Threading;
@@ -471,6 +472,18 @@ namespace Opc.Ua.Pcap.Dissection
                 : $"{count.Value} {itemName}, {valueName}={value}";
         }
 
+        // TODO: Replace these string-keyed property lookups with a source-generated
+        // accessor (or an interface the generated message types already implement)
+        // so summary formatting no longer depends on reflection; until then,
+        // GetType().GetProperty(...) here is unavoidable and is suppressed rather
+        // than silently left unannotated.
+        [UnconditionalSuppressMessage(
+            "ReflectionAnalysis",
+            "IL2075",
+            Justification = "Summary formatting only reads well-known service-message property " +
+                "names; those properties are used directly elsewhere in the codebase and are " +
+                "never trimmed in practice. See the TODO above for the intended source-generated " +
+                "replacement.")]
         private static int? GetCollectionCount(IEncodeable message, string propertyName)
         {
             object? value = message.GetType().GetProperty(propertyName)?.GetValue(message);
@@ -494,6 +507,13 @@ namespace Opc.Ua.Pcap.Dissection
             return null;
         }
 
+        [UnconditionalSuppressMessage(
+            "ReflectionAnalysis",
+            "IL2075",
+            Justification = "Summary formatting only reads well-known service-message property " +
+                "names; those properties are used directly elsewhere in the codebase and are " +
+                "never trimmed in practice. See the TODO on GetCollectionCount for the intended " +
+                "source-generated replacement.")]
         private static string? GetPropertyString(IEncodeable message, string propertyName)
         {
             object? value = message.GetType().GetProperty(propertyName)?.GetValue(message);

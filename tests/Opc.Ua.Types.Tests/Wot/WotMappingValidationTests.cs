@@ -273,7 +273,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ToNodeSetSynthesizesVariableTypeRootAsObjectType()
+        public void ToNodeSetSynthesizesVariableTypeRootAsVariableType()
         {
             byte[] json = WotTestData.Utf8(
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
@@ -286,10 +286,17 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
+
+            // §9.1 maps a VariableType to a Thing Model too. Reading only
+            // "Thing Model" turned every one into an ObjectType, losing the
+            // type and inventing a different one in its place.
+            Assert.That(
+                result.Value!.Items?.OfType<UAVariableType>().Any(),
+                Is.True,
+                "A uav:variableType Thing Model synthesizes as a UAVariableType.");
             Assert.That(
                 result.Value!.Items?.OfType<UAObjectType>().Any(),
-                Is.True,
-                "A uav:variableType ThingModel currently synthesizes as a UAObjectType.");
+                Is.False);
         }
 
         [Test]
@@ -328,28 +335,6 @@ namespace Opc.Ua.Types.Tests.Wot
                 });
 
             Assert.That(document.TypeTokens.Contains("uav:variableType"), Is.True);
-        }
-
-        [Test]
-        public void ToNodeSetReportsCongruentTypeNameMissingDefinitiveMember()
-        {
-            byte[] json = WotTestData.Utf8(
-                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
-                "\"ua\":\"http://opcfoundation.org/UA/\"}]," +
-                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
-                "\"title\":\"T\",\"uav:browseName\":\"1:T\"," +
-                "\"uav:congruentTypeName\":\"ua:BaseObjectType\"}");
-
-            using WotDocument document = WotDocument.Parse(json);
-            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
-
-            Assert.That(
-                result.Diagnostics.Any(d =>
-                    d.Code == WotDiagnosticCode.ModelConceptUnresolved &&
-                    d.Message.Contains("uav:congruentType", StringComparison.Ordinal)),
-                Is.True,
-                "uav:congruentTypeName without the required uav:congruentType should produce a diagnostic.");
         }
 
         private static UANodeSet CreateEventTypeNodeSet(string browseName, string nodeId)

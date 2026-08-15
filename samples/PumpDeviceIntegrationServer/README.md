@@ -124,7 +124,7 @@ flowchart TD
     P1 -->|HasComponent| Ev
     P1 -->|HasComponent| Maint
     P1 -->|HasComponent| Diag
-    P1 -->|HasComponent| Usd
+    P1 -->|HasAddIn| Usd
     Op -->|HasComponent| Meas
     Meas --> Vals
     Ev -->|HasComponent| Alarm
@@ -140,7 +140,8 @@ up to `--pumps N`) carries an identical one. `Diagnostics` is the one
 group that is not part of the model — it is added declaratively per pump
 by the non-typed `WithFunctionalGroup(QualifiedName, ...)` overload from
 `Program.cs`. `OpenUsdRepresentation` carries the twin bindings described
-in [The OpenUSD twin](#the-openusd-twin).
+in [The OpenUSD twin](#the-openusd-twin) and is mounted as an AddIn through
+the shared `CreateRepresentation` authoring helper.
 
 ## Startup and hosting flow
 

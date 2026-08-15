@@ -16,10 +16,7 @@
   "uav:isComposite": true,
   "uav:includeInherited": true,
   "uav:additionalProperties": false,
-  "uav:nameNamespace": "http://example.com/demo/pump",
   "uav:semanticId": "http://example.com/ontology/Pump",
-  "uav:congruentTypeName": "pump:PumpType",
-  "uav:congruentType": "nsu=http://example.com/demo/pump;i=1001",
   "uav:contains": ["Impeller"],
   "uav:metadata": {
     "revision": 3,
@@ -27,7 +24,7 @@
   },
   "links": [
     {
-      "rel": "uav:componentModel",
+      "rel": "ua:HasComponent",
       "href": "./04-type-reference-modelling-rule.jsonld",
       "uav:refName": "Impeller",
       "uav:refId": "i=47"
@@ -38,8 +35,8 @@
       "uav:refName": "Drive",
       "uav:refId": "nsu=http://example.com/demo/pump;i=4002"
     },
-    { "rel": "uav:capability", "href": "https://example.com/capabilities/telemetry" },
-    { "rel": "uav:reference", "href": "https://example.com/models/NameplateType.tm.jsonld" }
+    { "rel": "ua:HasInterface", "href": "https://example.com/capabilities/telemetry" },
+    { "rel": "ua:NonHierarchicalReferences", "href": "https://example.com/models/NameplateType.tm.jsonld" }
   ],
   "properties": {
     "pumpSpeed": {

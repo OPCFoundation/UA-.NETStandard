@@ -72,7 +72,6 @@ namespace Opc.Ua.Wot
             ValidateBooleanTerm(root, "uav:isComposite", string.Empty, diagnostics);
             ValidateBooleanTerm(root, "uav:includeInherited", string.Empty, diagnostics);
             ValidateBooleanTerm(root, "uav:additionalProperties", string.Empty, diagnostics);
-            ValidateAbsoluteIriTerm(root, "uav:nameNamespace", string.Empty, diagnostics);
             ValidateAbsoluteIriTerm(root, "uav:semanticId", string.Empty, diagnostics);
             ValidateContains(document, root, diagnostics);
             ValidateContainedIn(document, root, diagnostics);

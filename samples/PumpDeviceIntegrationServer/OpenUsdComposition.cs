@@ -111,14 +111,8 @@ namespace Pumps
                     return;
                 }
 
-                OpenUsdRepresentationState plantRep = SystemContext
-                    .CreateInstanceOfOpenUsdRepresentationType(
-                        deviceSet, new QualifiedName("OpenUsdRepresentation", ns));
-                plantRep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
-                deviceSet.AddChild(plantRep);
-                plantRep.NodeId = SystemContext.NodeIdFactory.New(SystemContext, plantRep);
-                plantRep.CreateOrReplaceStage(SystemContext, null!).Value = m_plantStage.NodeId;
-                plantRep.CreateOrReplacePrimPath(SystemContext, null!).Value = PlantPrimPath;
+                OpenUsdRepresentationState plantRep = SystemContext.CreateRepresentation(
+                    deviceSet, m_plantStage.NodeId, PlantPrimPath, ns);
 
                 NodeId pumpTypeId = NodeId.Create(
                     Opc.Ua.Pumps.ObjectTypes.PumpType,
@@ -283,12 +277,8 @@ namespace Pumps
                 DisplayName = new LocalizedText(name),
                 TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
             };
-            OpenUsdRepresentationState rep = SystemContext.CreateInstanceOfOpenUsdRepresentationType(
-                pump, new QualifiedName("OpenUsdRepresentation", ns));
-            rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
-            pump.AddChild(rep);
-            rep.CreateOrReplaceStage(SystemContext, null!).Value = m_plantStage!.NodeId;
-            rep.CreateOrReplacePrimPath(SystemContext, null!).Value = primPath;
+            _ = SystemContext.CreateRepresentation(
+                pump, m_plantStage!.NodeId, primPath, ns);
 
             NodeId newId = await CreateNodeAsync(SystemContext, m_linePumps.NodeId,
                 ReferenceTypeIds.Organizes, new QualifiedName(name, ns), pump, CancellationToken.None)
@@ -312,14 +302,8 @@ namespace Pumps
             parent.AddChild(obj);
             obj.NodeId = SystemContext.NodeIdFactory.New(SystemContext, obj);
 
-            OpenUsdRepresentationState rep = SystemContext.CreateInstanceOfOpenUsdRepresentationType(
-                obj, new QualifiedName("OpenUsdRepresentation", openUsdNs));
-            rep.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
-            obj.AddChild(rep);
-            rep.NodeId = SystemContext.NodeIdFactory.New(SystemContext, rep);
-            rep.CreateOrReplaceStage(SystemContext, null!).Value = m_plantStage!.NodeId;
-            rep.CreateOrReplacePrimPath(SystemContext, null!).Value = primPath;
-            SystemContext.AssignInstanceChildNodeIds(obj);
+            OpenUsdRepresentationState rep = SystemContext.CreateRepresentation(
+                obj, m_plantStage!.NodeId, primPath, openUsdNs);
             return (obj, rep);
         }
 

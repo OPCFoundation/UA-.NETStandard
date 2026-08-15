@@ -49,11 +49,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WotConversionOutput(
             UANodeSet? nodeSet,
             ImmutableArray<string> errors,
-            ExpandedNodeId rootNodeId = default)
+            ExpandedNodeId rootNodeId = default,
+            WoTPhaseEnum failurePhase = WoTPhaseEnum.FormatValidation)
         {
             NodeSet = nodeSet;
             Errors = errors.IsDefault ? [] : errors;
             RootNodeId = rootNodeId;
+            FailurePhase = failurePhase;
         }
 
         /// <summary>
@@ -74,6 +76,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// when the document has no identifiable root.
         /// </summary>
         public ExpandedNodeId RootNodeId { get; }
+
+        /// <summary>
+        /// Gets the refresh phase to report when conversion failed.
+        /// </summary>
+        public WoTPhaseEnum FailurePhase { get; }
 
         /// <summary>
         /// Gets whether the conversion succeeded.
@@ -97,6 +104,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public static WotConversionOutput Failure(params string[] errors)
         {
             return new WotConversionOutput(null, [.. errors]);
+        }
+
+        /// <summary>
+        /// Creates a failed output for the supplied refresh phase.
+        /// </summary>
+        public static WotConversionOutput Failure(WoTPhaseEnum phase, params string[] errors)
+        {
+            return new WotConversionOutput(null, [.. errors], failurePhase: phase);
         }
     }
 
@@ -127,9 +142,52 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Initializes a new converter with the supplied options.
         /// </summary>
-        public WotNodeSetDocumentConverter(WotNodeSetConverterOptions? options = null)
+        /// <param name="options">The converter options.</param>
+        /// <param name="addressSpace">
+        /// The loaded-AddressSpace half of the WoT Binding Section 5.1.5 local
+        /// context, consulted after the sibling documents. Without it a
+        /// document can only bind to a type a sibling projects, so every
+        /// companion-model type binding of Section 5.2.1 is unresolvable.
+        /// </param>
+        public WotNodeSetDocumentConverter(
+            WotNodeSetConverterOptions? options = null,
+            IWotNodeResolver? addressSpace = null)
         {
             m_options = options ?? new WotNodeSetConverterOptions();
+            m_addressSpace = addressSpace;
+        }
+
+        /// <summary>
+        /// Gets or sets the loaded-AddressSpace half of the WoT Binding
+        /// Section 5.1.5 local context.
+        /// </summary>
+        /// <remarks>
+        /// Settable because the AddressSpace only exists once the Server is
+        /// running, while the converter is built during composition. A host
+        /// sets it as soon as it has an <c>IServerInternal</c>, in the same
+        /// place it sets the coordinator's other server-derived state.
+        /// </remarks>
+        public IWotNodeResolver? AddressSpace
+        {
+            get
+            {
+                lock (m_resolverLock)
+                {
+                    return m_addressSpace;
+                }
+            }
+            set
+            {
+                lock (m_resolverLock)
+                {
+                    m_addressSpace = value;
+
+                    // Force the composed context to be rebuilt so a resolver
+                    // set after the first conversion still takes effect.
+                    m_nodeResolver = null;
+                    m_composed = null;
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -144,13 +202,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 using var document = WotDocument.Parse(content.Span.ToArray(), m_options);
                 var resolver = new SnapshotThingResolver(snapshot, contents);
+
+                // WoT Binding Section 5.1.5: the local context has two parts,
+                // consulted in this order - the sibling documents of this
+                // conversion, then a loaded AddressSpace. Composing them here
+                // is what lets a Section 5.2.1 binding name either a type
+                // another registry document projects or one a companion model
+                // defines and the Server already holds.
+                //
+                // A refresh converts every resource of a snapshot in turn, so
+                // the resolver is reused for as long as the snapshot it indexes
+                // is the one being converted. Building it per conversion would
+                // make a refresh cost one registry-wide index per document.
+                IWotNodeResolver nodeResolver = GetLocalContext(snapshot, contents);
                 // One resolution context per top-level conversion, seeded from
                 // the configured converter options, so depth/document/byte
                 // bounds and cycle detection apply across every link resolved
                 // while converting this resource.
                 var resolution = new WotResolutionContext(m_options.ToResolverOptions());
                 WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
-                    document, m_options, resolver, resolution, cancellationToken).ConfigureAwait(false);
+                    document, m_options, resolver, resolution, nodeResolver, cancellationToken)
+                    .ConfigureAwait(false);
                 ImmutableArray<string>.Builder errors = ImmutableArray.CreateBuilder<string>();
                 foreach (WotDiagnostic diagnostic in result.Diagnostics)
                 {
@@ -165,19 +237,88 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (errors.Count != 0 || result.Value is null)
                 {
-                    return new WotConversionOutput(null, errors.ToImmutable());
+                    WoTPhaseEnum phase = HasProjectionFailure(result.Diagnostics)
+                        ? WoTPhaseEnum.Projection
+                        : WoTPhaseEnum.FormatValidation;
+                    return new WotConversionOutput(
+                        null, errors.ToImmutable(), failurePhase: phase);
                 }
                 return new WotConversionOutput(
                     result.Value,
                     [],
                     WotNodeSetConverter.TrySelectProjectionRoot(result.Value));
             }
-            catch (Exception ex) when (ex is System.Text.Json.JsonException or FormatException)
+            // One malformed document fails its own conversion and is reported
+            // as such. It must never abort the refresh, because that would let
+            // a single bad document take every unrelated resource in the
+            // registry down with it.
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return WotConversionOutput.Failure(ex.Message);
             }
         }
 
+        private static bool HasProjectionFailure(IReadOnlyList<WotDiagnostic> diagnostics)
+        {
+            foreach (WotDiagnostic diagnostic in diagnostics)
+            {
+                if (diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                    diagnostic.Code == WotDiagnosticCode.UnresolvedParentPlacement)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the resolver for the supplied snapshot, reusing the previous
+        /// one while the snapshot is unchanged.
+        /// </summary>
+        /// <remarks>
+        /// A snapshot is immutable and a refresh converts every one of its
+        /// resources in turn, so the sibling index is the same for all of them.
+        /// Rebuilding it per conversion would make a refresh parse the registry
+        /// once per document. Only the most recent snapshot is held, so nothing
+        /// accumulates as generations advance.
+        /// </remarks>
+        private SnapshotWotNodeResolver GetNodeResolver(
+            WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents)
+        {
+            lock (m_resolverLock)
+            {
+                if (m_nodeResolver is null ||
+                    !ReferenceEquals(m_nodeResolver.Snapshot, snapshot))
+                {
+                    m_nodeResolver = new SnapshotWotNodeResolver(
+                        snapshot, contents, m_options);
+                    m_composed = m_addressSpace is null
+                        ? m_nodeResolver
+                        : new WotCompositeNodeResolver(m_nodeResolver, m_addressSpace);
+                }
+                return m_nodeResolver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the composed local context for the supplied snapshot.
+        /// </summary>
+        private IWotNodeResolver GetLocalContext(
+            WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents)
+        {
+            GetNodeResolver(snapshot, contents);
+            lock (m_resolverLock)
+            {
+                return m_composed!;
+            }
+        }
+
         private readonly WotNodeSetConverterOptions m_options;
+        private readonly System.Threading.Lock m_resolverLock = new();
+        private IWotNodeResolver? m_addressSpace;
+        private SnapshotWotNodeResolver? m_nodeResolver;
+        private IWotNodeResolver? m_composed;
     }
 }

@@ -21,6 +21,8 @@ FlatTagServer Source B ─┘                    │
 
 Source A and Source B expose deliberately flat variables. They do not expose a Pump companion-model hierarchy. The aggregation server creates that hierarchy from the WoT documents and routes each materialized variable to its selected upstream source.
 
+Each flat source exposes two upstream pump roots, `Pump1` and `Pump2`. Both roots use the same Source A / Source B split so the aggregation server can later prove that asset projections and alarms remain per-pump rather than accidentally global.
+
 ## Prerequisites
 
 The complete sample requires .NET 8, .NET 9, or .NET 10. `AggregationServer` intentionally targets only `net8.0`, `net9.0`, and `net10.0` because the OPC UA executor required by the checked-in mappings is available only on those frameworks. Legacy `CustomTestTarget` solution builds replace that project with the repository's no-op shell; those matrix builds are not runnable aggregation-server configurations. `FlatTagServer` and `AggregationClient` remain on the shared application target matrix for standalone compatibility, but a runnable end-to-end topology always requires the modern aggregation server.
@@ -41,7 +43,12 @@ dotnet run --project samples/WotCon/FlatTagServer/FlatTagServer.csproj -f net10.
   --fluidTemperature 301.15 `
   --massFlow 0.42 `
   --level 4.25 `
-  --cavitation true
+  --cavitation true `
+  --pump2DifferentialPressure 211.25 `
+  --pump2FluidTemperature 304.15 `
+  --pump2MassFlow 0.52 `
+  --pump2Level 4.75 `
+  --pump2Cavitation false
 ```
 
 Start Source B in the second terminal:
@@ -56,7 +63,12 @@ dotnet run --project samples/WotCon/FlatTagServer/FlatTagServer.csproj -f net10.
   --pumpPowerInput 17.75 `
   --pumpEfficiency 91.5 `
   --numberOfStarts 23 `
-  --motorOverheat true
+  --motorOverheat true `
+  --pump2BearingTemperature 337.15 `
+  --pump2PumpPowerInput 19.75 `
+  --pump2PumpEfficiency 89.5 `
+  --pump2NumberOfStarts 31 `
+  --pump2MotorOverheat false
 ```
 
 Start the generic aggregation server in the third terminal:
@@ -77,7 +89,8 @@ dotnet run --project samples/WotCon/AggregationClient/AggregationClient.csproj -
   --documentsDirectory ./samples/WotCon/AggregationClient/Documents
 ```
 
-The client should report four uploaded resources, a successful refresh generation, the recursively browsed Pump hierarchy, and ten Good values.
+The client should report sixteen uploaded resources, a successful refresh generation, the recursively browsed Pump
+hierarchy, and ten Good values.
 
 ## Command-line and programmatic options
 
@@ -101,6 +114,16 @@ The client should report four uploaded resources, a successful refresh generatio
 | `pumpEfficiency` | `88.0` | Flat source value. |
 | `numberOfStarts` | `17` | Flat source value. |
 | `motorOverheat` | `false` | Flat source value. |
+| `pump2DifferentialPressure` | `3.25` | Pump2 flat source value. |
+| `pump2FluidTemperature` | `318.15` | Pump2 flat source value. |
+| `pump2MassFlow` | `0.275` | Pump2 flat source value. |
+| `pump2Level` | `5.5` | Pump2 flat source value. |
+| `pump2Cavitation` | `false` | Pump2 flat source value. |
+| `pump2BearingTemperature` | `331.4` | Pump2 flat source value. |
+| `pump2PumpPowerInput` | `14.25` | Pump2 flat source value. |
+| `pump2PumpEfficiency` | `84.5` | Pump2 flat source value. |
+| `pump2NumberOfStarts` | `29` | Pump2 flat source value. |
+| `pump2MotorOverheat` | `false` | Pump2 flat source value. |
 
 `AggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName` (`AggregationServer`), and `maximumDocumentBytes` (`33554432`). Its reusable `AggregationServerOptions` additionally exposes `PkiRoot` for programmatic hosts.
 
@@ -114,10 +137,82 @@ The client should report four uploaded resources, a successful refresh generatio
 2. `Opc.Ua.Machinery.tm.json` as `thingmodels/opc-ua-machinery`, depending on DI.
 3. `Opc.Ua.Pumps.tm.json` as `thingmodels/opc-ua-pumps`, depending on DI and Machinery.
 4. `SamplePump.td.json` as `thingdescriptions/sample-pump`, depending on all three Thing Models.
+5. `Pump1.*.td.json` and `Pump2.*.td.json` as Thing Description projection documents, depending on
+   `SamplePump.td.json`. Each pump has a member projection, four group projections (`ProcessData`,
+   `ConditionData`, `Supervision`, `Management`), and an Asset projection that organizes those groups.
 
 Each Thing Model is generated from a checked-in NodeSet2 by `WotAggregationDocumentGenerator`, and `WotAggregationDocumentTests.ThingModelsMatchCanonicalConverterRegeneration` asserts the checked-in file is byte-identical to that output, so the documents cannot drift from their sources.
 
 `Opc.Ua.Di.tm.json` is generated from **DI 1.05.0**. That version matters: the official DI NodeSet declared the `ConnectsTo` ReferenceType as a subtype of `HierarchicalReferences` through DI 1.04, which contradicts [OPC 10000-100](https://reference.opcfoundation.org/specs/OPC-10000-100/5.5) §5.5 Table 48 ("Subtype of 0:NonHierarchicalReferences"), and the OPC Foundation corrected it in 1.05.0. `DiConnectsToIsANonHierarchicalReference` pins the corrected form so refreshing the NodeSet from an older upstream revision fails rather than silently reintroducing a non-compliant model.
+
+### Asset projection shape
+
+The checked-in Asset documents use the same shape for each modeled unit:
+
+* A member projection selects the affordances that belong to the unit and keeps them addressable by stable local names.
+* `ProcessData` and `ConditionData` are dataset projections. Their selected properties are annotated as
+  `dataPoint` members so a consumer can browse measurements separately from the larger unit.
+* `Supervision` is an event group projection selected by predicate: event affordances whose type tokens include
+  `uav:eventType`.
+* `Management` is a management group projection selected from action affordances.
+* The Asset projection organizes those four groups and selects only identity data at the Asset level. The group
+  documents therefore shape browsing; they do not define another copy of the selected affordances.
+
+### What the projections organize, and what they do not
+
+Running the sample reports per-resource what each View organized and, when a
+selected member could not be organized, why. That reporting is the point: a View
+that quietly organizes nothing is indistinguishable from one that works until a
+client browses it.
+
+What materializes today, and what does not:
+
+| Projection | Result | Why |
+| --- | --- | --- |
+| `pump1-processdata`, `pump1-conditiondata` | organizes 4 Nodes each | Their selected property affordances carry `uav:id`, so the projection resolves each to the Node the pump materialized. |
+| `pump1-members`, `pump1-asset` | organizes 11 of 16 | The 11 property affordances resolve; the 3 action and 2 event affordances do not. |
+| `pump1-management` | organizes 0 of 3 | `SamplePump.td.json` carries a `uav:nodes` native projection, so the converter restores the pump from it and never synthesizes the action affordances. `SamplePump.NodeSet2.xml` declares no Methods, so there is no Node for `start`, `stop` or `reset` to organize. |
+| `pump1-supervision` | organizes 0 of 2 | The same cause: the event affordances are declared but never materialize, so no alarm Node exists to organize. |
+| every `pump2-*` projection | organizes 0 | `SamplePump.NodeSet2.xml` contains Pump1 only (35 Nodes, all `ns=1;s=Pump1…`). The Pump2 affordances are bound to upstream tags for reading but map to no local Node. |
+
+The single root cause of the Pump1 gaps is that a document carrying `uav:nodes`
+restores its Nodes from that projection and returns before affordance synthesis
+runs, so any affordance the projection does not already account for contributes
+nothing to the address space. The conversion now reports each such affordance as
+a warning rather than accepting it silently, which is why `sample-pump` loads
+with warnings.
+
+Consequently the upstream cavitation signal is proven to raise the upstream
+alarm and leave it unacknowledged, but Pump1 carries no `GeneratesEvent`
+reference for its cavitation alarm and acknowledgement does not round-trip:
+the projected pump actions are Start, Stop and Reset rather than Condition
+Methods carrying `uav:conditionAction` / `uav:actsOn`.
+
+### Why the pump document still carries `uav:nodes`
+
+*OPC UA — WoT Binding* §9.2 emits the exceptional `uav:nodes` projection only when
+converting the readable document back would not reproduce an equivalent NodeSet. For
+this pump it is still emitted, and the reason is a gap in this implementation rather
+than in the vocabulary.
+
+The readable mapping was completed a long way. Converting `SamplePump.NodeSet2.xml`
+through affordances alone once produced **one** Node in **one** namespace; it now
+produces **21 of 35** Nodes in the source's exact **four**-namespace table, invents
+nothing, and keeps every companion type definition, every DataType and every scalar
+value. What is left is the fourteen `EURange` and `EngineeringUnits` Nodes, which are
+`HasProperty` children of a Variable — one level deeper than the conversion currently
+descends — and whose values are structures rather than scalars.
+
+Both are ordinary work rather than limits. A structure's value is self-describing: the
+`ExtensionObject` carries the identifier of the type it holds, `EUInformation` and
+`Range` are types the stack already generates from the standard NodeSet, and the
+encoder stack maps such a value to named JSON fields and back. Nothing has to infer a
+unit's identifier from its symbol.
+
+One convention the conversion follows is worth knowing when reading a generated
+document: completeness is tested for *equivalence*, not for spelling. A NodeSet may
+write a DataType as an alias its own `Aliases` table declares or as the identifier that
+alias stands for; the check reads both sides through their own tables so the two agree.
 
 ### Upload order is not a server requirement
 
@@ -145,7 +240,7 @@ Each property form also contains a portable upstream `uav:id` using the source s
 
 ## Registry upload and Refresh
 
-The client creates a `WotRegistryClient` through `AddWotRegistryClient`, loads the four `WotRegistryDocument` values, and calls:
+The client creates a `WotRegistryClient` through `AddWotRegistryClient`, loads the manifest documents, and calls:
 
 ```csharp
 WotRegistryBulkLoadResult loadResult = await client.LoadDocumentsAsync(

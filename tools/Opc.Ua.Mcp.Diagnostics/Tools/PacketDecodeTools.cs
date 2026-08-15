@@ -61,7 +61,8 @@ namespace Opc.Ua.Mcp.Tools
     [SuppressMessage(
         "Performance",
         "CA1812:Avoid uninstantiated internal classes",
-        Justification = "MCP discovers tool types through reflection; TODO: remove if the analyzer recognizes MCP tools.")]
+        Justification = "MCP discovers tool types through reflection; TODO: remove if the analyzer " +
+            "recognizes MCP tools.")]
     internal sealed class PacketDecodeTools
     {
         private const int kMaxResponseBytes = 10 * 1024 * 1024;
@@ -212,8 +213,8 @@ namespace Opc.Ua.Mcp.Tools
             else
             {
                 CaptureSession session = manager.Get(sessionId);
-                await using ConfiguredAsyncDisposable sessionLock = (await session.AcquireAsync(ct).ConfigureAwait(false))
-                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable sessionLock =
+                    (await session.AcquireAsync(ct).ConfigureAwait(false)).ConfigureAwait(false);
                 calls = await DecodeServiceCallsAsync(session.Source, null, ct).ConfigureAwait(false);
             }
 
@@ -261,11 +262,7 @@ namespace Opc.Ua.Mcp.Tools
             }
 
             PcapOptions? options = services.GetService<PcapOptions>();
-            return options?.BaseFolder ??
-                Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "OPCFoundation",
-                    "opcua-pcap");
+            return Path.GetFullPath(options?.BaseFolder ?? PcapOptions.DefaultBaseFolder);
         }
 
         private static ActiveChannelInfo CreateActiveChannelInfo(OpcUaSessionManager.SessionInfo info)
@@ -468,7 +465,7 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     Resource = new BlobResourceContents
                     {
-                        Uri = $"opcua-pcap://decode/{Guid.NewGuid():N}/{result.Kind.ToString().ToLowerInvariant()}",
+                        Uri = $"opcua-pcap://decode/{Guid.NewGuid():N}/{result.Kind.ToWireName()}",
                         MimeType = result.MimeType,
                         Blob = result.Bytes
                     }

@@ -177,6 +177,21 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         [Test]
+        public void WriteIncompatibleTypeWhenVariantSelectionsFallsThroughToBaseTypeCheck()
+        {
+            SelectionListState node = CreateSelectionList(
+                Variant.From(s_colorVariants.ToArrayOf()));
+
+            ServiceResult result = node.WriteAttribute(
+                m_context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(Variant.From(42)));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
         public void WriteMemberOfInt32SelectionsSucceeds()
         {
             SelectionListState node = CreateSelectionList(

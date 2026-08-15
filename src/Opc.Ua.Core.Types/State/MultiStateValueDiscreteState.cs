@@ -56,7 +56,7 @@ namespace Opc.Ua
             if (indexRange.IsNull &&
                 value.TypeInfo.IsScalar &&
                 TryGetIntegerValue(value, out long number) &&
-                TryGetEnumValues(out ArrayOf<EnumValueType> enumValues))
+                TryGetEnumValues(context, out ArrayOf<EnumValueType> enumValues))
             {
                 foreach (EnumValueType entry in enumValues)
                 {
@@ -90,10 +90,10 @@ namespace Opc.Ua
         /// absent so the caller can defer to the base class; a present but empty array
         /// yields true so that no value matches and every write is rejected.
         /// </summary>
-        private bool TryGetEnumValues(out ArrayOf<EnumValueType> enumValues)
+        private bool TryGetEnumValues(ISystemContext context, out ArrayOf<EnumValueType> enumValues)
         {
             if (EnumValues is { } property &&
-                property.WrappedValue.TryGetValue(out enumValues, null) &&
+                property.WrappedValue.TryGetValue(out enumValues, context.AsMessageContext()) &&
                 !enumValues.IsNull)
             {
                 return true;
