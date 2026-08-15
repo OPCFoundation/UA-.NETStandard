@@ -583,6 +583,9 @@ namespace Opc.Ua.Server
                     // delete subscription.
                     await subscription.DeleteAsync(context, cancellationToken).ConfigureAwait(false);
 
+                    // release the subscription resources now that it has been deleted.
+                    subscription.Dispose();
+
                     // get the count for the diagnostics.
                     uint publishingIntervalCount = GetPublishingIntervalCount();
                     m_server.UpdateServerDiagnostics(diagnostics =>
@@ -768,6 +771,9 @@ namespace Opc.Ua.Server
 
                 // delete subscription.
                 await subscription.DeleteAsync(context, cancellationToken).ConfigureAwait(false);
+
+                // release the subscription resources now that it has been deleted.
+                subscription.Dispose();
 
                 // get the count for the diagnostics.
                 uint publishingIntervalCount = GetPublishingIntervalCount();
