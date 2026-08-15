@@ -422,11 +422,17 @@ namespace Vision.BinPickingCell
 
         private static readonly double[] s_identityOrientation = [0.0, 0.0, 0.0, 1.0];
         private static readonly double[] s_handEyePosition = [0.062, -0.031, 0.115];
-        private static readonly double[] s_handEyeOrientation = [0.0, 0.0, 0.7071, 0.7071];
+        private static readonly double[] s_handEyeOrientation = [0.0, 0.0, RootHalf, RootHalf];
         private static readonly double[] s_cameraInWorldPosition = [0.38, 0.0, 1.35];
         private static readonly double[] s_cameraInWorldOrientation = [1.0, 0.0, 0.0, 0.0];
         private static readonly double[] s_flangeScanPosition = [0.411, -0.062, 0.636];
-        private static readonly double[] s_flangeScanOrientation = [0.7071, 0.7071, 0.0, 0.0];
+        private static readonly double[] s_flangeScanOrientation = [RootHalf, RootHalf, 0.0, 0.0];
+
+        // A 90-degree rotation, to full double precision. Writing it as 0.7071 leaves the
+        // quaternion with a norm of 0.99999041, which is 9.6e-6 off unit - ten times the
+        // 1e-6 tolerance the pose validator enforces - so composing a detection through
+        // these frames fails with BadOutOfRange.
+        private const double RootHalf = 0.70710678118654752;
 
         internal const string SensorTwinBrowseName = "BinPickingCameraTwin";
 

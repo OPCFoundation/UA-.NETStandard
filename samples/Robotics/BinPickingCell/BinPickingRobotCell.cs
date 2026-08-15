@@ -79,6 +79,7 @@ namespace Vision.BinPickingCell
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_executor = executor ?? throw new ArgumentNullException(nameof(executor));
             m_executor.SnapshotChanged += OnSnapshotChanged;
+            m_executor.ResolveLocationPosition = TryResolveLocationPosition;
         }
 
         internal ServerSystemContext SystemContext => m_systemContext ??
@@ -242,6 +243,32 @@ namespace Vision.BinPickingCell
             PublishSnapshot(snapshot);
         }
 
+        /// <summary>
+        /// Resolves one of this cell's Locations to an approach position in the arm's base
+        /// frame, so a Pick or a Place travels to the bin or the fixture instead of
+        /// actuating the gripper where it stands.
+        /// </summary>
+        /// <remarks>
+        /// The Locations are authored in the world frame and the kinematics work in the
+        /// robot base frame, so the base origin is subtracted. The approach height lifts
+        /// the target off the bench: a target on the surface asks the solver for a pose
+        /// with the tool exactly at table height, which is both harder to reach and not
+        /// what an approach looks like.
+        /// </remarks>
+        private bool TryResolveLocationPosition(NodeId location, out ArrayOf<double> position)
+        {
+            foreach ((string name, double x, double y, double z, double _) in s_locations)
+            {
+                if (m_locationNodes.TryGetValue(name, out NodeId nodeId) && nodeId == location)
+                {
+                    position = new[] { x, y, (z - RobotBaseHeightMetres) + ApproachHeightMetres }.ToArrayOf();
+                    return true;
+                }
+            }
+            position = ArrayOf<double>.Empty;
+            return false;
+        }
+
         private void PublishSnapshot(SimulatedArmSnapshot snapshot)
         {
             if (m_systemContext == null)
@@ -285,6 +312,15 @@ namespace Vision.BinPickingCell
         internal const string CameraFrameId = "camera_eih";
         private const double FullTurnDegrees = 360.0;
         private const double HalfTurnDegrees = 180.0;
+
+        // The robot base sits on the bench at this world height; the Locations are authored
+        // in the world frame and the kinematics work relative to the base, so this is the
+        // offset between the two. It matches the RobotBase frame the Vision model publishes.
+        private const double RobotBaseHeightMetres = 0.829;
+
+        // How far above a Location the tool travels to. Far enough to read as an approach
+        // rather than a collision, and it keeps the target clear of the bench surface.
+        private const double ApproachHeightMetres = 0.20;
 
         // The simulator's DefaultJointSpeed is 0.9 rad/s; Position and the limits are
         // published in degrees, so the speed limit is too.

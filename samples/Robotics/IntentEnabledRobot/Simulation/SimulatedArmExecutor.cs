@@ -171,6 +171,13 @@ namespace Robotics.IntentEnabledRobot.Simulation
         public event EventHandler<SimulatedArmSnapshot>? SnapshotChanged;
 
         /// <summary>
+        /// Resolves a Location NodeId to the position, in this arm's base frame, that a
+        /// Pick or Place should travel to before actuating the gripper. Optional: leave it
+        /// unset and both intents actuate the gripper where the arm already stands.
+        /// </summary>
+        public LocationPositionResolver? ResolveLocationPosition { get; set; }
+
+        /// <summary>
         /// Gets the latest observable state without exposing synchronization primitives.
         /// </summary>
         public SimulatedArmSnapshot CurrentSnapshot { get; private set; }
@@ -519,6 +526,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             CancellationToken cancellationToken)
         {
             await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
+            await MoveToLocationAsync(intent.Source, execution, cancellationToken).ConfigureAwait(false);
             return await ExecuteGraspAsync(
                 new GraspIntentDataType { Force = intent.Force, Width = GripperClosed, Tool = intent.Tool },
                 execution,
@@ -531,8 +539,72 @@ namespace Robotics.IntentEnabledRobot.Simulation
             CancellationToken cancellationToken)
         {
             await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
+            await MoveToLocationAsync(intent.Destination, execution, cancellationToken).ConfigureAwait(false);
             return await ExecuteReleaseAsync(
                 new ReleaseIntentDataType(), execution, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Travels to the approach position a host resolved for a Location, so a Pick or a
+        /// Place is a move followed by a gripper action rather than a gripper action alone.
+        /// </summary>
+        /// <remarks>
+        /// A Location arrives as a NodeId, which this executor cannot resolve on its own -
+        /// it has no address space - so a host that knows its own cell supplies
+        /// <see cref="ResolveLocationPosition"/>. The tool keeps its current orientation and
+        /// only the position changes, because the current orientation belongs to a
+        /// configuration the arm is already in and so keeps the inverse-kinematic solve
+        /// well conditioned.
+        /// <para>
+        /// The travel is best effort. A host that supplies no resolver, or a Location the
+        /// arm cannot reach, still gets the gripper action: the grasp is what the intent
+        /// guarantees, and failing a pick because the scenery is out of reach would be a
+        /// worse answer than picking where the arm already stands.
+        /// </para>
+        /// </remarks>
+        private async ValueTask MoveToLocationAsync(
+            NodeId location,
+            IntentExecution execution,
+            CancellationToken cancellationToken)
+        {
+            if (ResolveLocationPosition == null
+                || location.IsNull
+                || !ResolveLocationPosition(location, out ArrayOf<double> position)
+                || position.Count < 3)
+            {
+                return;
+            }
+            double[] start = GetJoints();
+            Pose3DDataType current = CurrentSnapshot.ToolPose;
+            var target = new Pose3DDataType
+            {
+                FrameId = current.FrameId,
+                Position = position,
+                Orientation = current.Orientation
+            };
+
+            // Solve once and travel in joint space. Interpolating in Cartesian space would
+            // re-solve at every step and abandon the move the first time the straight line
+            // between here and there passes through a pose the arm cannot hold, which for a
+            // reach across a bench it usually does.
+            if (!m_kinematics.TrySelectNearest(
+                target,
+                start,
+                out SimulatedArmIkSolution? solution,
+                out SimulatedArmKinematicFailure _))
+            {
+                return;
+            }
+            double distance = JointDistance(start, solution.JointAngles.Span);
+            var profile = new TrapezoidalVelocityProfile(
+                distance, JointSpeed(new MotionConstraintsDataType()), DefaultJointAcceleration);
+            _ = await FollowProfileAsync(
+                profile,
+                execution,
+                fraction => SetJoints(
+                    m_kinematics.InterpolateJoints(start, solution.JointAngles.Span, fraction).Span),
+                DefaultJointAcceleration,
+                cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask<IntentOutcome> ExecuteToolChangeAsync(
