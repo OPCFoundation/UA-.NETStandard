@@ -53,7 +53,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
             bool hasObject,
             string toolName,
             ArrayOf<double> heldPartPosition,
-            ArrayOf<bool> stackSlotsFilled)
+            ArrayOf<bool> stackSlotsFilled,
+            string heldObjectClass = "")
         {
             JointAngles = jointAngles;
             ToolPose = toolPose;
@@ -63,6 +64,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             ToolName = toolName;
             HeldPartPosition = heldPartPosition;
             StackSlotsFilled = stackSlotsFilled;
+            HeldObjectClass = heldObjectClass;
         }
 
         /// <summary>
@@ -99,6 +101,13 @@ namespace Robotics.IntentEnabledRobot.Simulation
         /// Gets the visible position of the part currently carried by the gripper.
         /// </summary>
         public ArrayOf<double> HeldPartPosition { get; }
+
+        /// <summary>
+        /// Gets the class label of the object the gripper carries, empty when it carries
+        /// nothing. <see cref="HasObject"/> says that something is held; this says what,
+        /// which is what a host needs to move the right item in its own world model.
+        /// </summary>
+        public string HeldObjectClass { get; }
 
         /// <summary>
         /// Gets a value for each pallet slot indicating whether that slot has been filled.
@@ -466,7 +475,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private async ValueTask<IntentOutcome> ExecuteGraspAsync(
             GraspIntentDataType intent,
             IntentExecution execution,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string objectClass = "")
         {
             SetNonCancellable(execution.IntentId);
             try
@@ -478,6 +488,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 lock (m_lock)
                 {
                     m_hasObject = true;
+                    m_heldObjectClass = objectClass ?? string.Empty;
                     PublishCurrentPoseLocked();
                 }
                 SnapshotChanged?.Invoke(this, CurrentSnapshot);
@@ -514,6 +525,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     FillNextStackSlotLocked();
                 }
                 m_hasObject = false;
+                m_heldObjectClass = string.Empty;
                 PublishCurrentPoseLocked();
             }
             SnapshotChanged?.Invoke(this, CurrentSnapshot);
@@ -530,7 +542,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
             return await ExecuteGraspAsync(
                 new GraspIntentDataType { Force = intent.Force, Width = GripperClosed, Tool = intent.Tool },
                 execution,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                intent.ObjectClass ?? string.Empty).ConfigureAwait(false);
         }
 
         private async ValueTask<IntentOutcome> ExecutePlaceAsync(
@@ -897,7 +910,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     m_hasObject,
                     m_toolName,
                     HeldPartPosition(forward.ToolPose),
-                    ArrayOf.Create(m_stackSlotsFilled.AsSpan()));
+                    ArrayOf.Create(m_stackSlotsFilled.AsSpan()),
+                    m_heldObjectClass);
             }
             SnapshotChanged?.Invoke(this, CurrentSnapshot);
         }
@@ -914,7 +928,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 m_hasObject,
                 m_toolName,
                 HeldPartPosition(pose.ToolPose),
-                ArrayOf.Create(m_stackSlotsFilled.AsSpan()));
+                ArrayOf.Create(m_stackSlotsFilled.AsSpan()),
+                m_heldObjectClass);
         }
 
         private void FillNextStackSlotLocked()
@@ -1164,6 +1179,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private readonly double[] m_jointAngles = [-0.1932, 2.0564, 0.0096, 1.3123, 0.4134, 0.0000];
         private double m_gripperOpening = GripperOpen;
         private bool m_hasObject;
+        private string m_heldObjectClass = string.Empty;
         private readonly bool[] m_stackSlotsFilled = new bool[StackSlotCount];
         private string m_toolName = "parallel-gripper";
         private string m_nonCancellableIntentId = string.Empty;

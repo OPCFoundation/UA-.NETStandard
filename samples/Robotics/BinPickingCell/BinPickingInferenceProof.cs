@@ -173,6 +173,12 @@ namespace Vision.BinPickingCell
                 m_logger.ProofPickSucceeded(RedCubeClass);
             }
 
+            // Put the bin back. This proof runs at startup, before any client connects, and
+            // the world it mutates is the one the paired client's demo then works against.
+            // Leaving RedCube picked meant the demo's default target was already gone, so it
+            // reported success for a part it never touched.
+            m_worldState.Reset();
+
             m_logger.ProofCompleted();
         }
 

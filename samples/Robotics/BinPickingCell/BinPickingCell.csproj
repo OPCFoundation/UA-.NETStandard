@@ -8,7 +8,9 @@
     <Description>Bin-picking work cell that hosts both the Robot Intent and Vision node managers with an eye-in-hand camera. Reproduces the OPC UA Robotics-Vision Addendum's worked example against the OPC UA .NET Standard stack.</Description>
     <RootNamespace>Vision.BinPickingCell</RootNamespace>
     <Nullable>enable</Nullable>
-    <NoWarn>$(NoWarn);CA1014;CA1822</NoWarn>
+    <!-- CA1812: BinPickingRobotCell and its siblings are constructed by the DI container,
+         which the analyzer cannot see, so it reports them as never instantiated. -->
+    <NoWarn>$(NoWarn);CA1014;CA1822;CA1812</NoWarn>
     <!-- No AOT: the OpenUSD render stack pulled in by Opc.Ua.Vision.OpenUsd is
          not trim/AOT safe today. -->
     <PublishAot>false</PublishAot>

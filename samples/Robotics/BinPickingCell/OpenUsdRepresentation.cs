@@ -43,7 +43,7 @@ namespace Vision.BinPickingCell
     /// <summary>
     /// Publishes the OpenUSD representation for the bin-picking cell.
     /// </summary>
-    public sealed partial class BinPickingRobotCell
+    internal sealed partial class BinPickingRobotCell
     {
         private async ValueTask MaterialiseOpenUsdFacilityAsync(CancellationToken cancellationToken)
         {

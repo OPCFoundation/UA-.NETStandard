@@ -70,14 +70,16 @@ namespace Vision.BinPickingCell
     /// nothing else.
     /// </para>
     /// </remarks>
-    public sealed partial class BinPickingRobotCell : IDisposable
+    internal sealed partial class BinPickingRobotCell : IDisposable
     {
         public BinPickingRobotCell(
             ILogger<BinPickingRobotCell> logger,
-            SimulatedArmExecutor executor)
+            SimulatedArmExecutor executor,
+            BinPickingWorldState worldState)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_executor = executor ?? throw new ArgumentNullException(nameof(executor));
+            m_worldState = worldState ?? throw new ArgumentNullException(nameof(worldState));
             m_executor.SnapshotChanged += OnSnapshotChanged;
             m_executor.ResolveLocationPosition = TryResolveLocationPosition;
         }
@@ -269,8 +271,45 @@ namespace Vision.BinPickingCell
             return false;
         }
 
+        /// <summary>
+        /// Moves the carried part in the cell's world model so the world changes when the
+        /// robot changes it, rather than only when a proof service says so.
+        /// </summary>
+        /// <remarks>
+        /// The arm reports the carried position in its own base frame; the world model and
+        /// the ground-truth detector work in the world frame, so the base height is added
+        /// back. Running on every snapshot is what makes the part travel with the tool
+        /// instead of teleporting when the grasp opens.
+        /// </remarks>
+        private void TrackHeldPart(SimulatedArmSnapshot snapshot)
+        {
+            ReadOnlySpan<double> carried = snapshot.HeldPartPosition.Span;
+            if (carried.Length < 3)
+            {
+                return;
+            }
+            double worldX = carried[0];
+            double worldY = carried[1];
+            double worldZ = carried[2] + RobotBaseHeightMetres;
+
+            if (snapshot.HasObject && snapshot.HeldObjectClass.Length > 0)
+            {
+                _ = m_worldState.MarkHeld(snapshot.HeldObjectClass, worldX, worldY, worldZ);
+                m_carriedClass = snapshot.HeldObjectClass;
+                return;
+            }
+            if (!snapshot.HasObject && m_carriedClass.Length > 0)
+            {
+                // The gripper opened: the part stays where it was let go, which is what a
+                // detector re-running after the Place should now find.
+                _ = m_worldState.MarkPlaced(m_carriedClass, worldX, worldY, worldZ);
+                m_carriedClass = string.Empty;
+            }
+        }
+
         private void PublishSnapshot(SimulatedArmSnapshot snapshot)
         {
+            TrackHeldPart(snapshot);
             if (m_systemContext == null)
             {
                 return;
@@ -339,6 +378,8 @@ namespace Vision.BinPickingCell
 
         private readonly ILogger<BinPickingRobotCell> m_logger;
         private readonly SimulatedArmExecutor m_executor;
+        private readonly BinPickingWorldState m_worldState;
+        private string m_carriedClass = string.Empty;
         private readonly List<global::Opc.Ua.RobotIntent.AxisState> m_axes = [];
         private readonly List<global::Opc.Ua.RobotIntent.LocationState> m_locations = [];
         private readonly Dictionary<string, NodeId> m_locationNodes = new(StringComparer.Ordinal);

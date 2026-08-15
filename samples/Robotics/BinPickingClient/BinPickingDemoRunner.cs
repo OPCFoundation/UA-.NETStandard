@@ -178,7 +178,15 @@ namespace BinPickingClient
                 bool worldChanged =
                     stillPresent is null ||
                     (part is not null && part.HasPose && stillPresent.HasPose && !PoseIsEqual(part.Pose, stillPresent.Pose));
-                if (worldChanged)
+                if (part is null)
+                {
+                    // Nothing was there to pick, so "it is gone now" proves nothing. Say so
+                    // rather than report a pass the run did not earn.
+                    Console.Error.WriteLine(
+                        "Scripted loop INCONCLUSIVE: '" + m_options.PartClassLabel + "' was not detected " +
+                        "before the Pick, so its absence afterwards says nothing about the world changing.");
+                }
+                else if (worldChanged)
                 {
                     LogWorldStateChanged(m_logger, m_options.PartClassLabel);
                     Console.Error.WriteLine(
@@ -189,10 +197,10 @@ namespace BinPickingClient
                 {
                     LogWorldStateUnchanged(m_logger, m_options.PartClassLabel);
                     Console.Error.WriteLine(
-                        "Scripted loop completed the pick-and-place cycle over the OPC UA controller, but the " +
-                        "on-server ground-truth detector still reports '" + m_options.PartClassLabel +
-                        "' at its original position. That reflects the wiring inside the cell — the executor " +
-                        "does not yet update the sample's world state — not a failure of the vision-guided loop.");
+                        "Scripted loop FAILED: the pick-and-place cycle reported success over the OPC UA " +
+                        "controller, but the on-server ground-truth detector still reports '" +
+                        m_options.PartClassLabel + "' at its original position. The robot moved and the " +
+                        "intents succeeded, so the world state did not follow the arm.");
                 }
             }
             else
@@ -352,7 +360,7 @@ namespace BinPickingClient
             string intentId,
             CancellationToken cancellationToken)
         {
-            PickIntentDataType intent = RobotIntentBuilder.Pick(source, tool)
+            PickIntentDataType intent = RobotIntentBuilder.Pick(source, tool, m_options.PartClassLabel)
                 .WithIntentId(intentId)
                 .Build();
             IntentSubmissionResult submission = await controller.TrySubmitIntentAsync(intent, cancellationToken)
