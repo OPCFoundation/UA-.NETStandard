@@ -330,7 +330,10 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryProjectionDocument document,
             CancellationToken ct = default)
         {
-            ArgumentNullException.ThrowIfNull(document);
+            if (document is null)
+            {
+                throw new ArgumentNullException(nameof(document));
+            }
 
             RuntimeNodeSetOptions options = BuildOptions(document);
             NodeManagerRegistration registration = await m_lifecycle
@@ -386,7 +389,10 @@ namespace Opc.Ua.XRegistry.Server
             bool immediate,
             CancellationToken ct)
         {
-            ArgumentNullException.ThrowIfNull(document);
+            if (document is null)
+            {
+                throw new ArgumentNullException(nameof(document));
+            }
 
             if (current?.Registration is not NodeManagerProjectionRegistration wrapper)
             {

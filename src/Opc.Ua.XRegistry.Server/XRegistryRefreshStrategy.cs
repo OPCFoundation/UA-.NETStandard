@@ -60,7 +60,10 @@ namespace Opc.Ua.XRegistry.Server
         /// <exception cref="ArgumentException"><paramref name="xid"/> is null or empty.</exception>
         public XRegistryMemberProjection(string xid)
         {
-            ArgumentException.ThrowIfNullOrEmpty(xid);
+            if (string.IsNullOrEmpty(xid))
+            {
+                throw new ArgumentException("The member xid is required.", nameof(xid));
+            }
             Xid = xid;
         }
 
@@ -237,7 +240,10 @@ namespace Opc.Ua.XRegistry.Server
         /// <exception cref="ArgumentNullException"><paramref name="args"/> is <c>null</c>.</exception>
         public void Raise(XRegistryRefreshEventArgs args)
         {
-            ArgumentNullException.ThrowIfNull(args);
+            if (args is null)
+            {
+                throw new ArgumentNullException(nameof(args));
+            }
             m_raise(args);
         }
 
@@ -301,7 +307,10 @@ namespace Opc.Ua.XRegistry.Server
         /// <exception cref="ArgumentNullException"><paramref name="args"/> is <c>null</c>.</exception>
         public void Raise(XRegistryRefreshEventArgs args)
         {
-            ArgumentNullException.ThrowIfNull(args);
+            if (args is null)
+            {
+                throw new ArgumentNullException(nameof(args));
+            }
             m_raise(args);
         }
 

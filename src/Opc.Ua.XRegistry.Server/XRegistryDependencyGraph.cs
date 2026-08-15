@@ -237,8 +237,14 @@ namespace Opc.Ua.XRegistry.Server
             Func<string, XRegistryRefreshMember?> resolve,
             CancellationToken ct = default)
         {
-            ArgumentNullException.ThrowIfNull(extractReferencesAsync);
-            ArgumentNullException.ThrowIfNull(resolve);
+            if (extractReferencesAsync is null)
+            {
+                throw new ArgumentNullException(nameof(extractReferencesAsync));
+            }
+            if (resolve is null)
+            {
+                throw new ArgumentNullException(nameof(resolve));
+            }
 
             if (selected.Count == 0)
             {
@@ -252,8 +258,9 @@ namespace Opc.Ua.XRegistry.Server
             var queue = new Queue<XRegistryRefreshMember>();
             foreach (XRegistryRefreshMember member in selected)
             {
-                if (byXid.TryAdd(member.Xid, member))
+                if (!byXid.ContainsKey(member.Xid))
                 {
+                    byXid[member.Xid] = member;
                     queue.Enqueue(member);
                 }
             }
@@ -273,8 +280,9 @@ namespace Opc.Ua.XRegistry.Server
                     XRegistryRefreshMember? target = resolve(reference.Href);
                     list.Add(new XRegistryDependency(
                         member.Xid, reference.Href, target?.Xid, reference.RefType));
-                    if (target is not null && byXid.TryAdd(target.Xid, target))
+                    if (target is not null && !byXid.ContainsKey(target.Xid))
                     {
+                        byXid[target.Xid] = target;
                         queue.Enqueue(target);
                     }
                 }

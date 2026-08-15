@@ -458,7 +458,10 @@ namespace Opc.Ua.XRegistry.Server
         /// <exception cref="ArgumentException"><paramref name="xid"/> is null or empty.</exception>
         public XRegistryRefreshMember(string xid)
         {
-            ArgumentException.ThrowIfNullOrEmpty(xid);
+            if (string.IsNullOrEmpty(xid))
+            {
+                throw new ArgumentException("The resource xid is required.", nameof(xid));
+            }
             Xid = xid;
         }
 

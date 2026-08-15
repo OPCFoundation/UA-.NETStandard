@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -102,7 +103,10 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryRefreshRequest request,
             CancellationToken ct = default)
         {
-            ArgumentNullException.ThrowIfNull(request);
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
 
             if (!TryBeginOperation(allowDisposed: false))
             {
@@ -701,17 +705,30 @@ namespace Opc.Ua.XRegistry.Server
 
         private static byte[] ComputeAggregateDigest(ArrayOf<XRegistryRefreshMember> members)
         {
-            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            // The downlevel targets have no span-based AppendData, so the parts are
+            // concatenated once and hashed in a single call.
+            using var buffer = new MemoryStream();
             foreach (XRegistryRefreshMember member in members)
             {
-                hash.AppendData(Encoding.UTF8.GetBytes(member.Xid));
-                hash.AppendData(Encoding.UTF8.GetBytes(member.VersionId));
+                Append(buffer, Encoding.UTF8.GetBytes(member.Xid));
+                Append(buffer, Encoding.UTF8.GetBytes(member.VersionId));
                 if (!member.ContentDigest.IsNull)
                 {
-                    hash.AppendData(member.ContentDigest.Span);
+                    Append(buffer, member.ContentDigest.Memory.ToArray());
                 }
             }
-            return hash.GetHashAndReset();
+
+            using var sha = SHA256.Create();
+            return sha.ComputeHash(buffer.ToArray());
+        }
+
+        private static void Append(MemoryStream buffer, byte[] value)
+        {
+            // Length-prefix every part so two different members cannot hash to the
+            // same bytes just because their fields concatenate identically.
+            byte[] length = BitConverter.GetBytes(value.Length);
+            buffer.Write(length, 0, length.Length);
+            buffer.Write(value, 0, value.Length);
         }
 
         private void RaiseFailure(
