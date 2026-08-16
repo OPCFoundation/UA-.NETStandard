@@ -59,7 +59,6 @@ fixture asserts the three address spaces agree.
   call.
 - A **second (dependent) namespace** with cross-namespace `HasTypeDefinition`,
   `HasSubtype` and `HasComponent` references, hosted in all three pipelines.
-  optional field, Union, an abstract structure, non-default `Purpose`).
 - Custom reference types: hierarchical/asymmetric (with `InverseName`),
   symmetric, an abstract type with a concrete subtype, plus inverse authoring.
 - Non-default common/instance/variable/method/view attributes, all five

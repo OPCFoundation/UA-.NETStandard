@@ -230,10 +230,29 @@ namespace Opc.Ua.Client
         /// <returns>True if the request was sent successfully.</returns>
         internal bool BeginPublish(int timeout)
         {
-            // An explicit request to send a publish. The in flight count is
-            // maintained so the automatic top up stays accurate, but an
-            // explicit caller is not capped.
-            Interlocked.Increment(ref m_publishRequestsInFlight);
+            // An explicit request to send a publish (e.g. keep-alive recovery).
+            // Respect the server-side limit when it has been learned from a
+            // BadTooManyPublishRequests response: if the pipeline is already at
+            // or above the desired count, delegate to the ordinary top-up path
+            // so the reservation check prevents overshooting.
+            int desiredCount = GetDesiredPublishRequestCount(false);
+
+            if (desiredCount > 0 &&
+                !TryReservePublishRequest(desiredCount, out _))
+            {
+                // Pipeline is already at capacity; queue a top-up instead so
+                // the next completed request will refill the slot naturally.
+                QueueBeginPublish();
+                return true;
+            }
+
+            // Either no desired count yet (engine not yet started) or we
+            // successfully reserved a slot.  Proceed unconditionally so that
+            // a stalled pipeline can always be kick-started.
+            if (desiredCount == 0)
+            {
+                Interlocked.Increment(ref m_publishRequestsInFlight);
+            }
 
             if (!BeginPublishCore(timeout))
             {

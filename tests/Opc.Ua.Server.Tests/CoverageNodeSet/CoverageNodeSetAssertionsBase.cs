@@ -501,11 +501,6 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
 
         /// <summary>
         /// The complex-type loader registered stand-ins for the runtime-loaded
-        /// structure and enumeration (mirrors the default server complex-type
-        /// path).
-        /// </summary>
-        /// <summary>
-        /// The complex-type loader registered stand-ins for the runtime-loaded
         /// enumeration and option set (mirrors the default server complex-type
         /// path). Structure definitions are additionally validated by
         /// <see cref="DataTypeDefinitionsRoundTripAsync"/>.
