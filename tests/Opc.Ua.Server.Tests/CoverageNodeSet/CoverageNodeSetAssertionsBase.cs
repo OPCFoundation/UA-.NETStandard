@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -59,6 +60,17 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// Creates the concrete server host from a telemetry context.
         /// </summary>
         protected abstract TServer CreateServer(ITelemetryContext telemetry);
+
+        /// <summary>
+        /// Whether this pipeline stamps the model version and publication date
+        /// onto the published <c>NamespaceMetadata</c> Object. The
+        /// source-generated pipelines carry a <c>ModelDependency</c> assembly
+        /// attribute that the <c>NamespaceMetadataPublisher</c> reads back to
+        /// populate the metadata; the runtime importer materialises the address
+        /// space from raw bytes and surfaces no such attribute, so it publishes
+        /// the metadata Object without the model version.
+        /// </summary>
+        protected virtual bool PublishesModelVersion => true;
 
         /// <summary>
         /// Starts the concrete coverage server host.
@@ -103,14 +115,50 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
 
         /// <summary>
         /// The model namespace must be registered after startup, and its
-        /// version/publication metadata must be discoverable.
+        /// version/publication metadata must be discoverable through the
+        /// <c>NamespaceMetadata</c> Object published under
+        /// <c>Server/Namespaces</c>.
         /// </summary>
         [Test]
         [Order(100)]
-        public void ModelNamespaceRegistered()
+        public async Task ModelNamespaceRegisteredAsync()
         {
             Assert.That(m_ns, Is.GreaterThan(0),
                 "The coverage model namespace should be registered.");
+
+            IConfigurationNodeManager configuration =
+                m_server.CurrentInstance.ConfigurationNodeManager;
+
+            NamespaceMetadataState primary = await configuration
+                .GetNamespaceMetadataStateAsync(CoverageTestCatalogue.NamespaceUri)
+                .ConfigureAwait(false);
+            NamespaceMetadataState secondary = await configuration
+                .GetNamespaceMetadataStateAsync(CoverageTestCatalogue.SecondaryNamespaceUri)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(primary, Is.Not.Null,
+                    "A NamespaceMetadata Object should describe the primary model namespace.");
+                Assert.That(secondary, Is.Not.Null,
+                    "A NamespaceMetadata Object should describe the secondary model namespace.");
+                Assert.That(primary.NamespaceUri?.Value, Is.EqualTo(CoverageTestCatalogue.NamespaceUri));
+                Assert.That(secondary.NamespaceUri?.Value,
+                    Is.EqualTo(CoverageTestCatalogue.SecondaryNamespaceUri));
+            });
+
+            if (PublishesModelVersion)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(primary.NamespaceVersion?.Value, Is.EqualTo("1.2.3"),
+                        "The published NamespaceVersion should match the model's Version attribute.");
+                    Assert.That(
+                        primary.NamespacePublicationDate?.Value.ToDateTime(),
+                        Is.EqualTo(new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc)),
+                        "The published NamespacePublicationDate should match the model's PublicationDate.");
+                });
+            }
         }
 
         /// <summary>
@@ -396,6 +444,49 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
                 Assert.That(outputs[0].Name, Is.EqualTo("Sum"));
             });
         }
+
+        /// <summary>
+        /// The authored method carries no server-side implementation, so
+        /// invoking it exercises the <see cref="MethodState"/> call contract
+        /// and yields a deterministic <c>BadNotImplemented</c> status on every
+        /// call, identically across all pipelines.
+        /// </summary>
+        [Test]
+        [Order(505)]
+        public async Task MethodCallYieldsDeterministicStatusAsync()
+        {
+            var method = (MethodState)await FindNodeAsync(5450).ConfigureAwait(false);
+            Assert.That(method, Is.Not.Null);
+
+            ISystemContext context = m_server.CurrentInstance.DefaultSystemContext;
+            var objectId = new NodeId(5400u, m_ns);
+
+            // Supply exactly as many Int32 inputs as the method validates against
+            // so the call clears argument validation and reaches the (unbound)
+            // handler regardless of how each pipeline wired the arguments.
+            int expectedInputs = method.InputArguments?.Value.Count ?? 0;
+            var inputs = new Variant[expectedInputs];
+            for (int ii = 0; ii < expectedInputs; ii++)
+            {
+                inputs[ii] = new Variant(0);
+            }
+
+            ArrayOf<Variant> inputArguments = [.. inputs];
+
+            StatusCode firstStatus = await CallMethodAsync(method, context, objectId, inputArguments)
+                .ConfigureAwait(false);
+            StatusCode secondStatus = await CallMethodAsync(method, context, objectId, inputArguments)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstStatus.Code, Is.EqualTo(StatusCodes.BadNotImplemented),
+                    "An unbound imported method should report BadNotImplemented.");
+                Assert.That(secondStatus.Code, Is.EqualTo(firstStatus.Code),
+                    "Repeated calls should yield the same status code.");
+            });
+        }
+
         /// <summary>
         /// The method instance points at its type-level declaration.
         /// </summary>
@@ -505,6 +596,25 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         {
             return m_server.CurrentInstance.NodeManager
                 .FindNodeInAddressSpaceAsync(new NodeId(id, m_ns));
+        }
+
+        private static async ValueTask<StatusCode> CallMethodAsync(
+            MethodState method,
+            ISystemContext context,
+            NodeId objectId,
+            ArrayOf<Variant> inputArguments)
+        {
+            var argumentErrors = new List<ServiceResult>();
+            var outputArguments = new List<Variant>();
+
+            ServiceResult result = await method.CallAsync(
+                context,
+                objectId,
+                inputArguments,
+                argumentErrors,
+                outputArguments).ConfigureAwait(false);
+
+            return result.StatusCode;
         }
 
         private bool ReferenceExists(NodeState node, NodeId referenceTypeId, bool isInverse, NodeId targetId)

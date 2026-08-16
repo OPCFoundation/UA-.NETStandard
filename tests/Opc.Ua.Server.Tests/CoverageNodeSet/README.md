@@ -49,6 +49,14 @@ fixture asserts the three address spaces agree.
   optional field, Union, an abstract structure, non-default `Purpose`).
 - Scalar, **array** and **matrix** variable value shapes.
 - A deep, branching instance tree (depth 4, two branches) navigated child-by-child.
+- **NamespaceMetadata publication** — the `NamespaceMetadata` Object exists for
+  both namespaces (all pipelines) and, for the two source-generated pipelines,
+  surfaces the model's `NamespaceVersion` (`1.2.3`) and `NamespacePublicationDate`
+  (`2024-06-01`). The runtime-import pipeline carries no `ModelDependency` assembly
+  attribute, so it only asserts the Object and its `NamespaceUri`.
+- **Deterministic method call** — invoking the authored `AddNumbers` method with no
+  bound handler returns `BadNotImplemented` and yields the identical status on every
+  call.
 - A **second (dependent) namespace** with cross-namespace `HasTypeDefinition`,
   `HasSubtype` and `HasComponent` references, hosted in all three pipelines.
   optional field, Union, an abstract structure, non-default `Purpose`).
@@ -83,9 +91,10 @@ legitimately differ, so the equivalence fixture stays strict on everything else:
   structure stand-ins; the structure *definitions* are validated directly via
   the `DataTypeDefinition` round-trip instead.
 
-## Related generator fixes
+## Related generator and product fixes
 
-Authoring this model surfaced two latent source-generator issues, both fixed:
+Authoring this model surfaced two latent source-generator issues and one product
+bug, all fixed:
 
 - A top-level `<ServerUris>` table crashed `NodeSetToModelDesign`
   (`StringTable.Append(null)` for the reserved local-server slot). The guard is in
@@ -98,3 +107,10 @@ Authoring this model surfaced two latent source-generator issues, both fixed:
   parent-less "root" instances sharing the reserved `DefaultBinary`/`DefaultXml`/
   `DefaultJson` symbolic names. `FluentBuilderGenerator.GetTopLevelInstances` now
   skips `DataTypeEncoding` objects (they are encoding metadata, never fluent-wired).
+- `NamespaceMetadataPublisher` never stamped a model's publication date because the
+  "unset" guard compared against `DateTime.MinValue` (`0001-01-01`) while an unset
+  `NamespacePublicationDate` defaults to the OPC UA epoch (`1601-01-01`); it now
+  uses `DateTimeUtc.IsNull`. It also only discovered the `ModelDependency` attribute
+  through a node manager's sync facade, which is a framework wrapper for
+  async-native (fluent) managers; it now scans both the async manager's and its sync
+  facade's assemblies so the fluent pipeline publishes version metadata too.

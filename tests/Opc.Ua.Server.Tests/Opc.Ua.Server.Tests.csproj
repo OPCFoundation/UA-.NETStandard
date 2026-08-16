@@ -4,6 +4,12 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Server.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <!-- The coverage NodeSet models are consumed in-process by the coverage
+         test harness, which asserts the published NamespaceMetadata carries the
+         model version/publication date. The generator only emits the
+         [assembly: ModelDependency] self-declaration for library outputs by
+         default; force it on so the test executable also carries it. -->
+    <ModelSourceGeneratorEmitDependencyMetadata>true</ModelSourceGeneratorEmitDependencyMetadata>
   </PropertyGroup>
   <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
     <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>

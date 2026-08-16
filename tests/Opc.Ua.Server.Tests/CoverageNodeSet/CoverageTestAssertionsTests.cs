@@ -69,6 +69,14 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         {
             return new CoverageTestRuntimeServer(telemetry);
         }
+
+        /// <summary>
+        /// The runtime importer materialises the address space from raw bytes
+        /// and carries no <c>ModelDependency</c> assembly attribute, so the
+        /// published NamespaceMetadata Object does not surface the model
+        /// version. Only the object and its NamespaceUri are asserted.
+        /// </summary>
+        protected override bool PublishesModelVersion => false;
     }
 
     /// <summary>
