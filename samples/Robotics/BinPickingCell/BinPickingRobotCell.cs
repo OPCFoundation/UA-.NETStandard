@@ -120,6 +120,7 @@ namespace Vision.BinPickingCell
                 "BinPickingController",
                 ConfigureController,
                 cancellationToken).ConfigureAwait(false);
+            await MaterialisePartStateAsync(cancellationToken).ConfigureAwait(false);
             await MaterialiseRepresentationsAsync(cancellationToken).ConfigureAwait(false);
             PublishSnapshot(m_executor.CurrentSnapshot);
             ArrayOf<string> facets = m_controller.ComputeFacets();
@@ -296,6 +297,7 @@ namespace Vision.BinPickingCell
             {
                 _ = m_worldState.MarkHeld(snapshot.HeldObjectClass, worldX, worldY, worldZ);
                 m_carriedClass = snapshot.HeldObjectClass;
+                PublishPartPosition(snapshot.HeldObjectClass, worldX, worldY, worldZ);
                 return;
             }
             if (!snapshot.HasObject && m_carriedClass.Length > 0)
@@ -303,8 +305,24 @@ namespace Vision.BinPickingCell
                 // The gripper opened: the part stays where it was let go, which is what a
                 // detector re-running after the Place should now find.
                 _ = m_worldState.MarkPlaced(m_carriedClass, worldX, worldY, worldZ);
+                PublishPartPosition(m_carriedClass, worldX, worldY, worldZ);
                 m_carriedClass = string.Empty;
             }
+        }
+
+        /// <summary>
+        /// Pushes a part's world position onto its variable so the OpenUSD live binding, and
+        /// any other subscriber, follows it.
+        /// </summary>
+        private void PublishPartPosition(string classLabel, double worldX, double worldY, double worldZ)
+        {
+            if (m_systemContext == null
+                || !m_partPositionNodes.TryGetValue(classLabel, out BaseDataVariableState? node))
+            {
+                return;
+            }
+            node.Value = new Variant(new[] { worldX, worldY, worldZ });
+            node.ClearChangeMasks(m_systemContext, false);
         }
 
         private void PublishSnapshot(SimulatedArmSnapshot snapshot)

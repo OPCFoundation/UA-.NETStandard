@@ -101,6 +101,92 @@ namespace Vision.BinPickingCell
             }
         }
 
+        /// <summary>
+        /// Publishes one world position variable per part, so the parts have somewhere to be
+        /// read from and something for the OpenUSD live bindings to follow.
+        /// </summary>
+        /// <remarks>
+        /// This is the cell's simulation ground truth, not a standard OPC UA concept: a part
+        /// lying in a bin is not modelled by Robot Intent or by Vision, which describe the
+        /// robot and what a sensor concluded rather than the scenery. It is published because
+        /// the scene has to be drivable from the address space to be watchable, and because a
+        /// client comparing what the detector claims against where the part actually is needs
+        /// both halves.
+        /// </remarks>
+        private ValueTask MaterialisePartStateAsync(CancellationToken cancellationToken)
+        {
+            var folder = new FolderState(null)
+            {
+                NodeId = new NodeId("WorldState", InstanceNamespaceIndex),
+                SymbolicName = "WorldState",
+                BrowseName = new QualifiedName("WorldState", InstanceNamespaceIndex),
+                DisplayName = new LocalizedText("WorldState"),
+                Description = new LocalizedText(
+                    "Simulation ground truth: where each part actually is, independent of what "
+                    + "the vision pipeline reports."),
+                TypeDefinitionId = Opc.Ua.ObjectTypeIds.FolderType,
+                EventNotifier = EventNotifiers.None
+            };
+
+            // Inverse reference on this node, forward reference on the Server object below:
+            // two directions of the same edge, mirroring the OpenUSD root above.
+            folder.AddReference(ReferenceTypeIds.HasComponent, true, Opc.Ua.ObjectIds.Server);
+
+            foreach (BinPickingPart part in BinPickingPartsCatalog.Parts)
+            {
+                var position = new BaseDataVariableState(folder)
+                {
+                    NodeId = new NodeId("WorldState_" + part.ClassLabel, InstanceNamespaceIndex),
+                    SymbolicName = part.ClassLabel,
+                    BrowseName = new QualifiedName(part.ClassLabel, InstanceNamespaceIndex),
+                    DisplayName = new LocalizedText(part.ClassLabel),
+                    Description = new LocalizedText("Position of " + part.ClassLabel + " in the world frame, in metres."),
+                    TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    DataType = Opc.Ua.DataTypeIds.Double,
+                    ValueRank = ValueRanks.OneDimension,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    Value = new Variant(part.InitialWorldPosition)
+                };
+                folder.AddChild(position);
+                m_partPositionNodes[part.ClassLabel] = position;
+            }
+
+            // Give the folder and its children their NodeIds before anything hangs a
+            // representation off them: AttachRepresentation derives the representation's
+            // NodeId from its owner, so unassigned owners produce five identical ids.
+            SystemContext.AssignInstanceChildNodeIds(folder);
+            m_partStateFolder = folder;
+            return ValueTask.CompletedTask;
+        }
+
+        /// <summary>
+        /// Registers the part-state subtree once its representations are attached. Adding it
+        /// earlier would register the position variables, and then register them again as the
+        /// parents of representations grafted on afterwards.
+        /// </summary>
+        private async ValueTask AddPartStateAsync(CancellationToken cancellationToken)
+        {
+            if (m_partStateFolder == null)
+            {
+                return;
+            }
+            _ = await Manager.AddNodeAsync(
+                SystemContext,
+                NodeId.Null,
+                m_partStateFolder,
+                cancellationToken).ConfigureAwait(false);
+
+            // The Server object belongs to the core node manager, so the forward reference is
+            // added afterwards rather than by passing it as the parent: this manager cannot
+            // resolve i=2253 while adding its own node.
+            await Manager.Server.NodeManager.AddReferencesAsync(
+                Opc.Ua.ObjectIds.Server,
+                [new NodeStateReference(ReferenceTypeIds.HasComponent, false, m_partStateFolder.NodeId)],
+                cancellationToken).ConfigureAwait(false);
+        }
+
         private async ValueTask MaterialiseRepresentationsAsync(CancellationToken cancellationToken)
         {
             if (m_cellStage == null || m_openUsdRoot == null)
@@ -110,6 +196,7 @@ namespace Vision.BinPickingCell
 
             ushort usdNs = Manager.Server.NamespaceUris.GetIndexOrAppend(Opc.Ua.OpenUsd.Namespaces.OpenUSD);
             List<OpenUsdRepresentationState> representations = [];
+            List<OpenUsdRepresentationState> partRepresentations = [];
 
             OpenUsdRepresentationState controllerRep = AttachRepresentation(Controller.State, "/World", usdNs);
             representations.Add(controllerRep);
@@ -126,15 +213,38 @@ namespace Vision.BinPickingCell
                 axisIndex++;
             }
 
+            foreach (BinPickingPart part in BinPickingPartsCatalog.Parts)
+            {
+                if (!m_partPositionNodes.TryGetValue(part.ClassLabel, out BaseDataVariableState? position))
+                {
+                    continue;
+                }
+                string primPath = PartPrimPath(part.ClassLabel);
+                OpenUsdRepresentationState partRep = AttachRepresentation(position, primPath, usdNs);
+                CreateBinding(
+                    partRep, usdNs, $"{part.ClassLabel}Translation", GuidFor("part:" + part.ClassLabel),
+                    position.NodeId, primPath, "xformOp:translate",
+                    "double3", OpenUsdRenderTargetKindEnum.Translation, 1.0);
+                representations.Add(partRep);
+                partRepresentations.Add(partRep);
+            }
+
             foreach (OpenUsdRepresentationState representation in representations)
             {
                 OrganiseRepresentation(representation);
+                if (partRepresentations.Contains(representation))
+                {
+                    // Rides into the address space inside the part-state folder below;
+                    // registering it here as well would add its parent a second time.
+                    continue;
+                }
                 _ = await Manager.AddNodeAsync(
                     SystemContext,
                     representation.Parent!.NodeId,
                     representation,
                     cancellationToken).ConfigureAwait(false);
             }
+            await AddPartStateAsync(cancellationToken).ConfigureAwait(false);
             m_logger.MaterialisedRepresentations(representations.Count);
         }
 
@@ -251,6 +361,14 @@ namespace Vision.BinPickingCell
 
         private const string RootLayerIdentifier = "stage.usda";
 
+        /// <summary>
+        /// The prim a part's world position drives. Mirrors the Parts scope in Cell.usda.
+        /// </summary>
+        private static string PartPrimPath(string classLabel)
+        {
+            return "/World/Parts/" + classLabel;
+        }
+
         private static readonly (string Name, string PrimPath, string RotateOp)[] s_axisUsd =
         [
             ("J1", "/World/Robot/Arm/Base/J1", "xformOp:rotateZ"),
@@ -263,6 +381,8 @@ namespace Vision.BinPickingCell
 
         private OpenUsdRootState? m_openUsdRoot;
         private OpenUsdStageState? m_cellStage;
+        private FolderState? m_partStateFolder;
+        private readonly Dictionary<string, BaseDataVariableState> m_partPositionNodes = [];
     }
 
     internal static partial class OpenUsdRepresentationLog

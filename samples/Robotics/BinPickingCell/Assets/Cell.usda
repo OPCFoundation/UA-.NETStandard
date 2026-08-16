@@ -298,63 +298,92 @@ def Xform "World"
         }
     }
 
+    # Each part is an Xform carrying a single xformOp:transform, with its shape as a child.
+    # The OpenUSD live binding drives the parent's transform, and the viewer sink authors
+    # that op as a whole matrix - composing translation with a default identity rotation and
+    # unit scale. Rotation and scale therefore have to live somewhere the binding does not
+    # overwrite, which is the child. The composition is unchanged: the shape is scaled and
+    # rotated about its own origin, then the parent translates it.
     def Xform "Parts"
     {
-        def Cube "RedCube"
+        def Xform "RedCube"
         {
-            double size = 0.0400
-            color3f[] primvars:displayColor = [(0.90, 0.15, 0.15)] (
-                interpolation = "constant"
-            )
-            double3 xformOp:translate = (0.3300, -0.0800, 0.8500)
-            double xformOp:rotateZ = 20
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.3300, -0.0800, 0.8500, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cube "Shape"
+            {
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.90, 0.15, 0.15)] (
+                    interpolation = "constant"
+                )
+                double xformOp:rotateZ = 20
+                uniform token[] xformOpOrder = ["xformOp:rotateZ"]
+            }
         }
 
-        def Cylinder "GreenCylinder"
+        def Xform "GreenCylinder"
         {
-            uniform token axis = "Z"
-            double height = 0.0300
-            double radius = 0.0200
-            color3f[] primvars:displayColor = [(0.15, 0.85, 0.20)] (
-                interpolation = "constant"
-            )
-            double3 xformOp:translate = (0.4200, 0.0500, 0.8500)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.4200, 0.0500, 0.8500, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cylinder "Shape"
+            {
+                uniform token axis = "Z"
+                double height = 0.0300
+                double radius = 0.0200
+                color3f[] primvars:displayColor = [(0.15, 0.85, 0.20)] (
+                    interpolation = "constant"
+                )
+            }
         }
 
-        def Sphere "BlueSphere"
+        def Xform "BlueSphere"
         {
-            double radius = 0.0240
-            color3f[] primvars:displayColor = [(0.15, 0.30, 0.95)] (
-                interpolation = "constant"
-            )
-            double3 xformOp:translate = (0.4600, -0.0500, 0.8500)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.4600, -0.0500, 0.8500, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Sphere "Shape"
+            {
+                double radius = 0.0240
+                color3f[] primvars:displayColor = [(0.15, 0.30, 0.95)] (
+                    interpolation = "constant"
+                )
+            }
         }
 
-        def Cube "YellowSlab"
+        def Xform "YellowSlab"
         {
-            double size = 1
-            color3f[] primvars:displayColor = [(0.95, 0.85, 0.15)] (
-                interpolation = "constant"
-            )
-            double3 xformOp:translate = (0.3400, 0.0600, 0.8390)
-            double3 xformOp:scale = (0.0640, 0.0320, 0.0180)
-            double xformOp:rotateZ = -15
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.3400, 0.0600, 0.8390, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cube "Shape"
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.95, 0.85, 0.15)] (
+                    interpolation = "constant"
+                )
+                double3 xformOp:scale = (0.0640, 0.0320, 0.0180)
+                double xformOp:rotateZ = -15
+                uniform token[] xformOpOrder = ["xformOp:rotateZ", "xformOp:scale"]
+            }
         }
 
-        def Cube "OrangeBrick"
+        def Xform "OrangeBrick"
         {
-            double size = 1
-            color3f[] primvars:displayColor = [(0.95, 0.45, 0.10)] (
-                interpolation = "constant"
-            )
-            double3 xformOp:translate = (0.4200, -0.0100, 0.8420)
-            double3 xformOp:scale = (0.0500, 0.0280, 0.0240)
-            double xformOp:rotateZ = 40
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.4200, -0.0100, 0.8420, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cube "Shape"
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.95, 0.45, 0.10)] (
+                    interpolation = "constant"
+                )
+                double3 xformOp:scale = (0.0500, 0.0280, 0.0240)
+                double xformOp:rotateZ = 40
+                uniform token[] xformOpOrder = ["xformOp:rotateZ", "xformOp:scale"]
+            }
         }
     }
 }
