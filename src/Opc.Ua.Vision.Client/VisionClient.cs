@@ -118,6 +118,29 @@ namespace Opc.Ua.Vision.Client
         }
 
         /// <summary>
+        /// Resolves the NodeId of the mandatory <c>Vision/Sensors</c> folder by browse-path
+        /// from the Vision root, falling back to the well-known identifier.
+        /// </summary>
+        /// <remarks>
+        /// The well-known identifier only holds for a Server that materialises the Vision
+        /// tree in the Vision namespace itself. A Server that builds it as instances in its
+        /// own namespace - which is what the fluent builder produces - has a Sensors folder
+        /// whose NodeId is its own, so the well-known one resolves to nothing and every
+        /// sensor is invisible. Pipelines and Frames already resolve by browse path; this
+        /// makes Sensors behave the same way.
+        /// </remarks>
+        /// <param name="cancellationToken">
+        /// Cancels the operation.
+        /// </param>
+        public async ValueTask<NodeId> GetSensorsFolderIdAsync(
+            CancellationToken cancellationToken = default)
+        {
+            NodeId resolved = await ResolveOptionalRootChildAsync(
+                BrowseNames.Sensors, cancellationToken).ConfigureAwait(false);
+            return resolved.IsNull ? SensorsFolderId : resolved;
+        }
+
+        /// <summary>
         /// Resolves the NodeId of the optional <c>Vision/Pipelines</c> folder by
         /// browse-path from the Vision root. Returns a null NodeId when the folder
         /// is not present.
@@ -157,7 +180,7 @@ namespace Opc.Ua.Vision.Client
         public async ValueTask<ArrayOf<NodeId>> DiscoverSensorsAsync(
             CancellationToken cancellationToken = default)
         {
-            NodeId sensors = SensorsFolderId;
+            NodeId sensors = await GetSensorsFolderIdAsync(cancellationToken).ConfigureAwait(false);
             if (sensors.IsNull)
             {
                 return ArrayOf<NodeId>.Empty;
@@ -218,13 +241,17 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
-        public IAsyncEnumerable<VisionNodeEntry> EnumerateSensorsAsync(
-            CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<VisionNodeEntry> EnumerateSensorsAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            return EnumerateInstancesAsync(
-                SensorsFolderId,
-                ObjectTypes.VisionSensorType,
-                cancellationToken);
+            NodeId parent = await GetSensorsFolderIdAsync(cancellationToken)
+                .ConfigureAwait(false);
+            await foreach (VisionNodeEntry entry in EnumerateInstancesAsync(
+                parent, ObjectTypes.VisionSensorType, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                yield return entry;
+            }
         }
 
         /// <summary>
