@@ -122,6 +122,13 @@ rather than failing to start.
     depending on `--inferenceLocation`.
 - Under `Server/OpenUSD`, the composed `Cell.usda` stage the sensor
   renders from.
+- Under `Server/WorldState`, one position variable per part, in the world
+  frame. This is the cell's **simulation ground truth**, not a standard OPC
+  UA concept: a part lying in a bin is not something Robot Intent or Vision
+  models, and the scene has to be drivable from the address space to be
+  watchable. The OpenUSD live bindings follow these variables, so a picked
+  part moves in the viewport, and a client comparing what the detector
+  claims against where the part actually is has both halves.
 
 ## The USD stage
 
@@ -222,7 +229,18 @@ attached:
   deterministic detector and mutates `BinPickingWorldState`, or
   `BinPickingOffServerProof` (off-server) drives one round of agent
   submissions with valid detections. Both prove the end-to-end write
-  path independently of the MCP tool surface.
+  path independently of the MCP tool surface. The on-server proof
+  **restores the bin afterwards**: it runs before any client connects,
+  and leaving a part picked would mean the paired client's demo started
+  against a world it had not changed itself.
+
+The robot moves the parts too. `Pick` travels to its `Source`, closes the
+gripper on the part named by the intent's `ObjectClass`, and carries it: the
+part's world position follows the tool until `Place` opens the gripper and
+leaves it at the destination. The ground-truth detector projects from those
+same positions, so it stops reporting a part that has been moved out of the
+bin — which is what makes the paired client's `--demo` verification real
+rather than a formality.
 
 ## Feedback validation
 

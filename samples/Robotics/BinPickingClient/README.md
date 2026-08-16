@@ -156,17 +156,16 @@ Place operation terminal state: Succeeded failure=None
 
 ### Notes on Vision inference in the current cell
 
-The cell's Vision node manager materialises the inference pipeline through the
-fluent builder, which grafts the folder and pipeline NodeStates under the Vision
-root but does not register them with the CustomNodeManager after the root has
-already been added. The reference from the Vision root to the Pipelines folder
-is therefore visible from a browse of the root, but browsing from the folder
-itself yields `BadNodeIdUnknown`, so the client's `DiscoverPipelinesAsync` sees
-no pipeline instance. This is a known concurrent-agent-side wiring issue in the
-sample cell; the on-server `BinPickingInferenceProof` diagnostic already proves
-the underlying provider and world-state updates work end-to-end when driven
-directly. Once the fluent builder registers descendants with the node manager,
-`--demo` also verifies the world change through the client-side detection loop.
+The client resolves the cell's Vision nodes by browse path from the Vision root,
+so a Server that materialises Vision as instances in its own namespace — which
+is what the fluent builder produces, and what this cell is — is discovered
+correctly. `--demo` verifies the world change through the client-side detection
+loop: it captures the detections before the Pick, submits Pick and Place,
+re-runs inference, and reports whether the target part is still where it was.
+
+The check is honest in both directions. If the part was never detected before
+the Pick, the run is reported as **inconclusive** rather than as a pass, because
+"it is gone now" proves nothing about a part that was never there.
 
 ## Viewport mode
 
@@ -199,7 +198,15 @@ samples\Robotics\BinPickingClient\bin\Release\net10.0\BinPickingClient.exe `
 ```
 
 Add `--demo` to run the scripted pick-and-place while the viewport is open,
-which is the quickest way to watch the loop close in 3-D.
+which is the quickest way to watch the loop close in 3-D. The two are sequenced
+deliberately: the viewport opens first, the client waits for the live OpenUSD
+stream to be subscribed, and only then commands the robot, so the motion happens
+with something watching. The window stays open when the loop finishes so the
+cell can still be inspected.
+
+Both the arm and the parts move. The six joints follow `AxisState.Position`, and
+each part follows its own world position variable under `Server/WorldState`, so a
+part that is picked travels with the gripper and stays where it is placed.
 
 The client fetches the cell's served OpenUSD assets automatically whenever the
 viewport opens, into a per-user cache directory. Pass `--fetch-assets <dir>` only
