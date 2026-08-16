@@ -2,7 +2,7 @@
 
 This directory contains a purpose-authored **"kitchen-sink" NodeSet2**
 (`Assets/Opc.Ua.CoverageTest.NodeSet2.xml`) plus a small dependent **secondary**
-model (`Assets/Opc.Ua.CoverageTestSecondary.NodeSet2.xml`) that deliberately flip
+model (`Assets/Opc.Ua.CoverageTestSecondary.NodeSet2.xml`) that deliberately flips
 a broad set of the knobs defined by `UANodeSet.xsd`, and a data-driven assertion
 battery that runs the **same** checks against the model loaded through three
 independent pipelines:

@@ -109,12 +109,18 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
             m_fluentGen = await m_fluentGenFixture
                 .StartAsync(m_fluentGenPkiRoot).ConfigureAwait(false);
 
-            m_sourceGenNs = (ushort)m_sourceGen.CurrentInstance.NamespaceUris
-                .GetIndex(CoverageTestCatalogue.NamespaceUri);
-            m_runtimeNs = (ushort)m_runtime.CurrentInstance.NamespaceUris
-                .GetIndex(CoverageTestCatalogue.NamespaceUri);
-            m_fluentGenNs = (ushort)m_fluentGen.CurrentInstance.NamespaceUris
-                .GetIndex(CoverageTestCatalogue.NamespaceUri);
+            m_sourceGenNs = NamespaceIndex(
+                m_sourceGen,
+                CoverageTestCatalogue.NamespaceUri,
+                "The source-generation coverage model namespace should be registered.");
+            m_runtimeNs = NamespaceIndex(
+                m_runtime,
+                CoverageTestCatalogue.NamespaceUri,
+                "The runtime coverage model namespace should be registered.");
+            m_fluentGenNs = NamespaceIndex(
+                m_fluentGen,
+                CoverageTestCatalogue.NamespaceUri,
+                "The fluent-generation coverage model namespace should be registered.");
         }
 
         /// <summary>
@@ -267,8 +273,20 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
 
         private static ushort SecondaryNs(global::Quickstarts.ReferenceServer.ReferenceServer server)
         {
-            return (ushort)server.CurrentInstance.NamespaceUris
-                .GetIndex(CoverageTestCatalogue.SecondaryNamespaceUri);
+            return NamespaceIndex(
+                server,
+                CoverageTestCatalogue.SecondaryNamespaceUri,
+                "The secondary coverage model namespace should be registered.");
+        }
+
+        private static ushort NamespaceIndex(
+            global::Quickstarts.ReferenceServer.ReferenceServer server,
+            string namespaceUri,
+            string assertionMessage)
+        {
+            int namespaceIndex = server.CurrentInstance.NamespaceUris.GetIndex(namespaceUri);
+            Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0), assertionMessage);
+            return (ushort)namespaceIndex;
         }
 
         private static ValueTask<NodeState> FindAsync(

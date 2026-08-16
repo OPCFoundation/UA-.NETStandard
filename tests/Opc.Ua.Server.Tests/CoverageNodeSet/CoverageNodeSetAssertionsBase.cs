@@ -90,8 +90,11 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
             };
 
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
-            m_ns = (ushort)m_server.CurrentInstance.NamespaceUris
+            int namespaceIndex = m_server.CurrentInstance.NamespaceUris
                 .GetIndex(CoverageTestCatalogue.NamespaceUri);
+            Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0),
+                "The coverage model namespace should be registered.");
+            m_ns = (ushort)namespaceIndex;
         }
 
         /// <summary>
@@ -541,9 +544,11 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(700)]
         public async Task SecondaryNamespaceRoundTripsAsync()
         {
-            ushort ns2 = (ushort)m_server.CurrentInstance.NamespaceUris
+            int secondaryNamespaceIndex = m_server.CurrentInstance.NamespaceUris
                 .GetIndex(CoverageTestCatalogue.SecondaryNamespaceUri);
-            Assert.That(ns2, Is.GreaterThan(0), "secondary namespace should be registered.");
+            Assert.That(secondaryNamespaceIndex, Is.GreaterThanOrEqualTo(0),
+                "The secondary coverage model namespace should be registered.");
+            ushort ns2 = (ushort)secondaryNamespaceIndex;
 
             foreach (CoverageTestCatalogue.ExpectedNode expected in CoverageTestCatalogue.SecondaryNodes)
             {
