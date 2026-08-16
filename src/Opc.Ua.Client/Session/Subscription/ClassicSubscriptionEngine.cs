@@ -134,14 +134,11 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            // Refill the pipeline up to the desired count. Every request is
-            // bounded by the in flight reservation: StartPublishing runs once
-            // per subscription as the subscriptions are created, so an
-            // unbounded send stacks a pipeline worth of requests on every call
-            // and the outstanding count grows far past the desired count. A
-            // drained pipeline always has room, so this still refills a
-            // pipeline whose requests are outstanding but are no longer
-            // expected to return.
+            // Refill the pipeline up to the desired count. The reservation is
+            // the real bound: it counts the requests the session still expects
+            // plus the ones sent but not yet recorded, so this both refuses to
+            // overshoot and still refills a pipeline whose requests the session
+            // has written off.
             int startCount = fullQueue
                 ? 0
                 : GoodPublishRequestCount;
@@ -154,7 +151,7 @@ namespace Opc.Ua.Client
 
                 if (!BeginPublishCore(timeout))
                 {
-                    Interlocked.Decrement(ref m_publishRequestsInFlight);
+                    Interlocked.Decrement(ref m_unrecordedPublishRequests);
                     break;
                 }
             }
@@ -230,14 +227,14 @@ namespace Opc.Ua.Client
         /// <returns>True if the request was sent successfully.</returns>
         internal bool BeginPublish(int timeout)
         {
-            // An explicit request to send a publish. The in flight count is
+            // An explicit request to send a publish. The reservation is
             // maintained so the automatic top up stays accurate, but an
             // explicit caller is not capped.
-            Interlocked.Increment(ref m_publishRequestsInFlight);
+            Interlocked.Increment(ref m_unrecordedPublishRequests);
 
             if (!BeginPublishCore(timeout))
             {
-                Interlocked.Decrement(ref m_publishRequestsInFlight);
+                Interlocked.Decrement(ref m_unrecordedPublishRequests);
                 return false;
             }
 
@@ -245,9 +242,10 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Sends a publish request. The caller must have accounted for the
-        /// request in <see cref="m_publishRequestsInFlight"/> and must release
-        /// that reservation if this returns <c>false</c>.
+        /// Sends a publish request. The caller must have reserved the request
+        /// in <see cref="m_unrecordedPublishRequests"/>. The reservation is
+        /// released here once the session has recorded the request, or by the
+        /// caller if this returns <c>false</c>.
         /// </summary>
         private bool BeginPublishCore(int timeout)
         {
@@ -330,6 +328,13 @@ namespace Opc.Ua.Client
                     activity,
                     requestHeader.RequestHandle,
                     DataTypes.PublishRequest);
+
+                // The session now counts this request, so the reservation that
+                // stood in for it is released. Releasing after the record is
+                // published keeps the total conservative: the request is
+                // briefly counted twice rather than not at all.
+                Interlocked.Decrement(ref m_unrecordedPublishRequests);
+
                 task.ConfigureAwait(false)
                     .GetAwaiter()
                     .OnCompleted(() => OnPublishComplete(
@@ -363,14 +368,6 @@ namespace Opc.Ua.Client
                 task,
                 requestHeader.RequestHandle,
                 DataTypes.PublishRequest);
-
-            // Release the reservation only once the session has retired the
-            // request from its outstanding list. Releasing it when the task
-            // completed would open a window in which a concurrent top up sees
-            // a free slot while GoodPublishRequestCount still counts this
-            // request, so the pipeline drifts above the limit by the number of
-            // completions that overlap.
-            Interlocked.Decrement(ref m_publishRequestsInFlight);
 
             m_eventLogger.ClientEventPublishStop(
                 (int)requestHeader.RequestHandle,
@@ -858,39 +855,56 @@ namespace Opc.Ua.Client
 
             if (!BeginPublishCore(m_context.OperationTimeout))
             {
-                Interlocked.Decrement(ref m_publishRequestsInFlight);
+                Interlocked.Decrement(ref m_unrecordedPublishRequests);
             }
         }
 
         /// <summary>
         /// Atomically reserves capacity for one more publish request if fewer
-        /// than <paramref name="limit"/> are in flight.
+        /// than <paramref name="limit"/> are outstanding.
         /// </summary>
-        /// <param name="limit">The maximum number of requests in flight.</param>
-        /// <param name="inFlight">The number observed in flight.</param>
+        /// <remarks>
+        /// Outstanding means the requests the session still expects to return
+        /// (<see cref="ISubscriptionEngineContext.GoodPublishRequestCount"/>)
+        /// plus the requests this engine has sent that the session has not
+        /// recorded yet. The session's count is authoritative: it drops a
+        /// request as soon as the session writes it off, which is what
+        /// <see cref="Session.OnKeepAlive"/> does to the whole pipeline when
+        /// keep alives recover. Counting only what this engine has sent would
+        /// hold those write offs forever and the pipeline would never refill.
+        /// The unrecorded count closes the opposite gap: the session only
+        /// counts a request once <c>AsyncRequestStarted</c> has recorded it,
+        /// which happens after the request was issued, so concurrent callers
+        /// would otherwise all read the same lagging value and each send.
+        /// </remarks>
+        /// <param name="limit">The maximum number of outstanding requests.</param>
+        /// <param name="outstanding">The number observed outstanding.</param>
         /// <returns>True if a slot was reserved.</returns>
-        private bool TryReservePublishRequest(int limit, out int inFlight)
+        private bool TryReservePublishRequest(int limit, out int outstanding)
         {
-            int current = Volatile.Read(ref m_publishRequestsInFlight);
-
-            while (current < limit)
+            while (true)
             {
-                int prior = Interlocked.CompareExchange(
-                    ref m_publishRequestsInFlight,
-                    current + 1,
-                    current);
+                // Read the unrecorded count first. A request that moves from
+                // unrecorded to recorded between the two reads is then counted
+                // twice rather than missed, which errs towards sending less.
+                int unrecorded = Volatile.Read(ref m_unrecordedPublishRequests);
+                int current = m_context.GoodPublishRequestCount + unrecorded;
 
-                if (prior == current)
+                if (current >= limit)
                 {
-                    inFlight = current;
-                    return true;
+                    outstanding = current;
+                    return false;
                 }
 
-                current = prior;
+                if (Interlocked.CompareExchange(
+                        ref m_unrecordedPublishRequests,
+                        unrecorded + 1,
+                        unrecorded) == unrecorded)
+                {
+                    outstanding = current;
+                    return true;
+                }
             }
-
-            inFlight = current;
-            return false;
         }
 
         /// <summary>
@@ -1131,7 +1145,7 @@ namespace Opc.Ua.Client
         private readonly Lock m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
         internal uint PublishCounter;
-        private int m_publishRequestsInFlight;
+        private int m_unrecordedPublishRequests;
         private int m_tooManyPublishRequests;
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;
