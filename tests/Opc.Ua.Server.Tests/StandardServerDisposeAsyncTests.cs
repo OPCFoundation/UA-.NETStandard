@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
@@ -46,9 +47,24 @@ namespace Opc.Ua.Server.Tests
     {
         private sealed class TestableStandardServer : StandardServer
         {
+            private int m_serverStoppingCount;
+
             public TestableStandardServer(ITelemetryContext telemetry)
                 : base(telemetry)
             {
+            }
+
+            /// <summary>
+            /// The number of times the orderly stop sequence entered
+            /// <see cref="OnServerStoppingAsync"/>.
+            /// </summary>
+            public int ServerStoppingCount => Volatile.Read(ref m_serverStoppingCount);
+
+            protected override ValueTask OnServerStoppingAsync(
+                CancellationToken cancellationToken = default)
+            {
+                Interlocked.Increment(ref m_serverStoppingCount);
+                return base.OnServerStoppingAsync(cancellationToken);
             }
         }
 
@@ -151,6 +167,32 @@ namespace Opc.Ua.Server.Tests
                 await Task.Run(server.Dispose).ConfigureAwait(false);
 
                 AssertReleased(server);
+            }
+            finally
+            {
+                await CleanupAsync(fixture, server).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task ConcurrentAndRepeatStopAsyncRunTeardownOnce()
+        {
+            ServerFixture<TestableStandardServer> fixture = CreateFixture();
+            TestableStandardServer server = null;
+
+            try
+            {
+                server = await fixture.StartAsync().ConfigureAwait(false);
+
+                // Concurrent callers must join the single shared stop task.
+                Task stopA = server.StopAsync().AsTask();
+                Task stopB = server.StopAsync().AsTask();
+                await Task.WhenAll(stopA, stopB).ConfigureAwait(false);
+
+                // A later caller joins the same completed stop task and does not re-run teardown.
+                await server.StopAsync().ConfigureAwait(false);
+
+                Assert.That(server.ServerStoppingCount, Is.EqualTo(1));
             }
             finally
             {
