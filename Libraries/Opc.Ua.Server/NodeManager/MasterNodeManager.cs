@@ -1534,7 +1534,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check for continuation point.
-                if (cp != null)
+                if (cp != null && ServiceResult.IsGood(error))
                 {
                     result.StatusCode = StatusCodes.Good;
                     result.ContinuationPoint = cp.Id.ToByteArray();
@@ -1637,7 +1637,7 @@ namespace Opc.Ua.Server
             result.References = references;
 
             // save continuation point.
-            if (cp != null)
+            if (cp != null && ServiceResult.IsGood(error))
             {
                 result.StatusCode = StatusCodes.Good;
                 result.ContinuationPoint = cp.Id.ToByteArray();
@@ -1719,7 +1719,8 @@ namespace Opc.Ua.Server
                 {
                     if (!assignContinuationPoint)
                     {
-                        return (StatusCodes.BadNoContinuationPoints, cp, references);
+                        cp.Dispose();
+                        return (StatusCodes.BadNoContinuationPoints, null, references);
                     }
 
                     cp.Id = Guid.NewGuid();
