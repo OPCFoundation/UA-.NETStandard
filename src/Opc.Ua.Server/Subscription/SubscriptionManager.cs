@@ -580,11 +580,16 @@ namespace Opc.Ua.Server
                     // raise subscription event.
                     RaiseSubscriptionEvent(subscription, true);
 
-                    // delete subscription.
-                    await subscription.DeleteAsync(context, cancellationToken).ConfigureAwait(false);
-
-                    // release the subscription resources now that it has been deleted.
-                    subscription.Dispose();
+                    try
+                    {
+                        // delete subscription.
+                        await subscription.DeleteAsync(context, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        // release the subscription resources even if delete threw.
+                        subscription.Dispose();
+                    }
 
                     // get the count for the diagnostics.
                     uint publishingIntervalCount = GetPublishingIntervalCount();
@@ -769,11 +774,16 @@ namespace Opc.Ua.Server
                 // raise subscription event.
                 RaiseSubscriptionEvent(subscription, true);
 
-                // delete subscription.
-                await subscription.DeleteAsync(context, cancellationToken).ConfigureAwait(false);
-
-                // release the subscription resources now that it has been deleted.
-                subscription.Dispose();
+                try
+                {
+                    // delete subscription.
+                    await subscription.DeleteAsync(context, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    // release the subscription resources even if delete threw.
+                    subscription.Dispose();
+                }
 
                 // get the count for the diagnostics.
                 uint publishingIntervalCount = GetPublishingIntervalCount();
