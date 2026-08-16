@@ -1,0 +1,941 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ========================================================================
+     Kitchen-sink NodeSet2 for issue #4251.
+
+     This model deliberately flips every knob defined by UANodeSet.xsd so both
+     the source-generation pipeline (<AdditionalFiles ModelSourceGeneratorPrefix
+     ="Opc.Ua.CoverageTest">) and the runtime import pipeline
+     (RuntimeNodeSetNodeManagerFactory / AddRuntimeNodeSet) can be validated
+     node-by-node, attribute-by-attribute and reference-by-reference and then
+     cross-checked for structural equivalence.
+
+     Every owned node lives in the primary model namespace
+     (http://opcfoundation.org/UA/CoverageTest/). A secondary namespace is
+     declared so the namespace table carries a cross-namespace entry, and a
+     ServerUri feeds server-index-bearing ExpandedNodeIds.
+
+     The concrete NodeId/BrowseName catalogue is duplicated in
+     CoverageTestCatalogue.cs and Opc.Ua.CoverageTest.NodeSet2.csv.
+     ======================================================================== -->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+           xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/CoverageTest/</Uri>
+  </NamespaceUris>
+  <ServerUris>
+    <Uri>urn:opcfoundation.org:CoverageTest:Server</Uri>
+  </ServerUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/CoverageTest/"
+           Version="1.2.3"
+           PublicationDate="2024-06-01T00:00:00Z"
+           ModelVersion="1.2.3"
+           AccessRestrictions="1">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/"
+                     PublicationDate="2023-12-15T00:00:00Z"
+                     Version="1.05.03" />
+      <RolePermissions>
+        <RolePermission Permissions="63">i=15644</RolePermission>
+      </RolePermissions>
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="SByte">i=2</Alias>
+    <Alias Alias="Byte">i=3</Alias>
+    <Alias Alias="Int16">i=4</Alias>
+    <Alias Alias="UInt16">i=5</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="Int64">i=8</Alias>
+    <Alias Alias="UInt64">i=9</Alias>
+    <Alias Alias="Float">i=10</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="DateTime">i=13</Alias>
+    <Alias Alias="Guid">i=14</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="Structure">i=22</Alias>
+    <Alias Alias="Enumeration">i=29</Alias>
+    <Alias Alias="Number">i=26</Alias>
+    <Alias Alias="Argument">i=296</Alias>
+    <Alias Alias="EnumValueType">i=7594</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasEventSource">i=36</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasDescription">i=39</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="GeneratesEvent">i=41</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasNotifier">i=48</Alias>
+    <Alias Alias="HasOrderedComponent">i=49</Alias>
+    <Alias Alias="FromState">i=51</Alias>
+    <Alias Alias="ToState">i=52</Alias>
+    <Alias Alias="HasCause">i=53</Alias>
+    <Alias Alias="HasEffect">i=54</Alias>
+    <Alias Alias="HasSubStateMachine">i=117</Alias>
+    <Alias Alias="AlwaysGeneratesEvent">i=3065</Alias>
+    <Alias Alias="HasTrueSubState">i=9004</Alias>
+    <Alias Alias="HasFalseSubState">i=9005</Alias>
+    <Alias Alias="HasCondition">i=9006</Alias>
+    <Alias Alias="HasDictionaryEntry">i=17597</Alias>
+    <Alias Alias="HasInterface">i=17603</Alias>
+    <Alias Alias="HasAddIn">i=17604</Alias>
+  </Aliases>
+
+  <!-- ================= document-level Extensions ======================= -->
+  <Extensions>
+    <Extension>
+      <ct:DocumentNote xmlns:ct="http://opcfoundation.org/UA/CoverageTest/ext">kitchen-sink</ct:DocumentNote>
+    </Extension>
+  </Extensions>
+
+  <!-- ================= 1. Reference types =============================== -->
+  <UAReferenceType NodeId="ns=1;i=5001" BrowseName="1:CoverageHierarchicalReference" Symmetric="false">
+    <DisplayName>CoverageHierarchicalReference</DisplayName>
+    <Description>Custom asymmetric hierarchical reference type.</Description>
+    <InverseName>IsCoverageChildOf</InverseName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+    </References>
+  </UAReferenceType>
+  <UAReferenceType NodeId="ns=1;i=5002" BrowseName="1:CoverageSymmetricReference" Symmetric="true">
+    <DisplayName>CoverageSymmetricReference</DisplayName>
+    <Description>Custom symmetric non-hierarchical reference type.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+  </UAReferenceType>
+  <UAReferenceType NodeId="ns=1;i=5003" BrowseName="1:CoverageAbstractReference" IsAbstract="true" Symmetric="false">
+    <DisplayName>CoverageAbstractReference</DisplayName>
+    <Description>Abstract custom reference type; parent of a concrete subtype.</Description>
+    <InverseName>CoverageAbstractReferenceInverse</InverseName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+  </UAReferenceType>
+  <UAReferenceType NodeId="ns=1;i=5004" BrowseName="1:CoverageConcreteReference" Symmetric="false">
+    <DisplayName>CoverageConcreteReference</DisplayName>
+    <Description>Concrete subtype of the abstract custom reference type.</Description>
+    <InverseName>CoverageConcreteReferenceInverse</InverseName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=5003</Reference>
+    </References>
+  </UAReferenceType>
+
+  <!-- ================= 2. Data types ==================================== -->
+  <!-- Enumeration with explicit values and per-field DisplayName/Description -->
+  <UADataType NodeId="ns=1;i=5100" BrowseName="1:CoverageEnumeration">
+    <DisplayName>CoverageEnumeration</DisplayName>
+    <Description>Enumeration exercising explicit values and per-field metadata.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=5101</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="1:CoverageEnumeration">
+      <Field Name="Idle" Value="0">
+        <DisplayName>Idle</DisplayName>
+        <Description>Nothing is happening.</Description>
+      </Field>
+      <Field Name="Running" Value="1">
+        <DisplayName>Running</DisplayName>
+        <Description>Work in progress.</Description>
+      </Field>
+      <Field Name="Faulted" Value="2">
+        <DisplayName>Faulted</DisplayName>
+        <Description>An error occurred.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=5101" BrowseName="EnumValues" ParentNodeId="ns=1;i=5100"
+              DataType="EnumValueType" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5100</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId><uax:Identifier>i=7616</uax:Identifier></uax:TypeId>
+          <uax:Body><uax:EnumValueType><uax:Value>0</uax:Value><uax:DisplayName><uax:Text>Idle</uax:Text></uax:DisplayName></uax:EnumValueType></uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId><uax:Identifier>i=7616</uax:Identifier></uax:TypeId>
+          <uax:Body><uax:EnumValueType><uax:Value>1</uax:Value><uax:DisplayName><uax:Text>Running</uax:Text></uax:DisplayName></uax:EnumValueType></uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId><uax:Identifier>i=7616</uax:Identifier></uax:TypeId>
+          <uax:Body><uax:EnumValueType><uax:Value>2</uax:Value><uax:DisplayName><uax:Text>Faulted</uax:Text></uax:DisplayName></uax:EnumValueType></uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+
+  <!-- OptionSet with bit fields -->
+  <UADataType NodeId="ns=1;i=5110" BrowseName="1:CoverageOptionSet">
+    <DisplayName>CoverageOptionSet</DisplayName>
+    <Description>OptionSet exercising IsOptionSet bit fields.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=5111</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=12755</Reference>
+    </References>
+    <Definition Name="1:CoverageOptionSet" IsOptionSet="true">
+      <Field Name="OptionA" Value="0">
+        <Description>First option bit.</Description>
+      </Field>
+      <Field Name="OptionB" Value="1">
+        <Description>Second option bit.</Description>
+      </Field>
+      <Field Name="OptionC" Value="2">
+        <Description>Third option bit.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=5111" BrowseName="OptionSetValues" ParentNodeId="ns=1;i=5110"
+              DataType="LocalizedText" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>OptionSetValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5110</Reference>
+    </References>
+    <Value>
+      <uax:ListOfLocalizedText>
+        <uax:LocalizedText><uax:Text>OptionA</uax:Text></uax:LocalizedText>
+        <uax:LocalizedText><uax:Text>OptionB</uax:Text></uax:LocalizedText>
+        <uax:LocalizedText><uax:Text>OptionC</uax:Text></uax:LocalizedText>
+      </uax:ListOfLocalizedText>
+    </Value>
+  </UAVariable>
+
+  <!-- Abstract data type used as an AllowSubTypes field target. -->
+  <UADataType NodeId="ns=1;i=5120" BrowseName="1:CoverageAbstractStructure" IsAbstract="true">
+    <DisplayName>CoverageAbstractStructure</DisplayName>
+    <Description>Abstract structure used as an AllowSubTypes field target.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:CoverageAbstractStructure">
+      <Field Name="Tag" DataType="String" />
+    </Definition>
+  </UADataType>
+
+  <!-- Plain structure: scalar/array/matrix ranks, MaxStringLength, AllowSubTypes -->
+  <UADataType NodeId="ns=1;i=5130" BrowseName="1:CoverageStructure">
+    <DisplayName>CoverageStructure</DisplayName>
+    <Description>Structure exercising scalar/array/matrix fields and AllowSubTypes.</Description>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5131</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5132</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5133</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:CoverageStructure">
+      <Field Name="ScalarInt" DataType="Int32" />
+      <Field Name="ArrayDouble" DataType="Double" ValueRank="1" />
+      <Field Name="MatrixFloat" DataType="Float" ValueRank="2" ArrayDimensions="2,2" />
+      <Field Name="BoundedString" DataType="String" MaxStringLength="64" />
+      <Field Name="AnyBase" DataType="ns=1;i=5120" AllowSubTypes="true" />
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5131" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=5130</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5132" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=5130</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5133" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=5130</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+
+  <!-- Structure with an optional field; non-default Purpose -->
+  <UADataType NodeId="ns=1;i=5140" BrowseName="1:CoverageOptionalStructure" Purpose="ServicesOnly">
+    <DisplayName>CoverageOptionalStructure</DisplayName>
+    <Description>Structure exercising an optional field and a non-default Purpose.</Description>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5141</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:CoverageOptionalStructure">
+      <Field Name="Required" DataType="Int32" />
+      <Field Name="Optional" DataType="String" IsOptional="true" />
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5141" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=5140</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+
+  <!-- Union -->
+  <UADataType NodeId="ns=1;i=5150" BrowseName="1:CoverageUnion">
+    <DisplayName>CoverageUnion</DisplayName>
+    <Description>Union data type.</Description>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5151</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=12756</Reference>
+    </References>
+    <Definition Name="1:CoverageUnion" IsUnion="true">
+      <Field Name="AsInteger" DataType="Int32" />
+      <Field Name="AsText" DataType="String" />
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5151" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=5150</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+
+  <!-- Plain structure (simple scalar fields) that the runtime complex-type
+       loader can materialise into a stand-in encodeable, mirroring the
+       ComplexTypesLoadedViaDefaultServerPath scenario. -->
+  <UADataType NodeId="ns=1;i=5160" BrowseName="1:CoveragePlainStructure">
+    <DisplayName>CoveragePlainStructure</DisplayName>
+    <Description>Plain structure with simple scalar fields.</Description>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5161</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:CoveragePlainStructure">
+      <Field Name="Count" DataType="Int32" />
+      <Field Name="Label" DataType="String" />
+      <Field Name="Ratio" DataType="Double" />
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5161" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=5160</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+
+  <!-- ================= type dictionary + descriptions ==================
+       Type dictionaries / DataTypeDescription nodes are intentionally NOT
+       authored: the source generator regenerates the binary/XML schema from
+       the DataTypeDefinitions rather than emitting DataTypeDictionary nodes
+       into the address space, so hand-authored dictionary nodes would make the
+       two pipelines diverge. The HasEncoding/DataTypeDefinition coverage above
+       exercises the complex-type surface both pipelines share. -->
+
+  <!-- ================= 3. Object / variable / event / interface types == -->
+  <UAObjectType NodeId="ns=1;i=5200" BrowseName="1:CoverageAbstractObjectType" IsAbstract="true">
+    <DisplayName>CoverageAbstractObjectType</DisplayName>
+    <Description>Abstract base object type.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="ns=1;i=5210" BrowseName="1:CoverageObjectType">
+    <DisplayName>CoverageObjectType</DisplayName>
+    <Description>Concrete object type with a full instance-declaration subtree.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=5211</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5212</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5213</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5214</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5215</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5216</Reference>
+      <Reference ReferenceType="HasInterface">ns=1;i=5240</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;i=5230</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=5200</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=5211" BrowseName="1:MandatoryVariable" ParentNodeId="ns=1;i=5210" DataType="Double">
+    <DisplayName>MandatoryVariable</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5210</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=5212" BrowseName="1:OptionalVariable" ParentNodeId="ns=1;i=5210" DataType="Int32">
+    <DisplayName>OptionalVariable</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5210</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5213" BrowseName="1:MandatoryPlaceholder" ParentNodeId="ns=1;i=5210">
+    <DisplayName>MandatoryPlaceholder</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5210</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5214" BrowseName="1:OptionalPlaceholder" ParentNodeId="ns=1;i=5210">
+    <DisplayName>OptionalPlaceholder</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11510</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5210</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=5215" BrowseName="1:ExposesArrayVariable" ParentNodeId="ns=1;i=5210"
+              DataType="Double" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>ExposesArrayVariable</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=83</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5210</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=5216" BrowseName="1:MandatoryMethod" ParentNodeId="ns=1;i=5210">
+    <DisplayName>MandatoryMethod</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=5217</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=5218</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="AlwaysGeneratesEvent">ns=1;i=5230</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5210</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=5217" BrowseName="InputArguments" ParentNodeId="ns=1;i=5216"
+              DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5216</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Factor</uax:Name>
+              <uax:DataType><uax:Identifier>i=11</uax:Identifier></uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description><uax:Locale>en</uax:Locale><uax:Text>The multiplication factor.</uax:Text></uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=5218" BrowseName="OutputArguments" ParentNodeId="ns=1;i=5216"
+              DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5216</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Product</uax:Name>
+              <uax:DataType><uax:Identifier>i=11</uax:Identifier></uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description><uax:Locale>en</uax:Locale><uax:Text>The resulting product.</uax:Text></uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+
+  <UAObjectType NodeId="ns=1;i=5230" BrowseName="1:CoverageEventType">
+    <DisplayName>CoverageEventType</DisplayName>
+    <Description>Custom event type generated by the object type / method.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2041</Reference>
+    </References>
+  </UAObjectType>
+
+  <UAObjectType NodeId="ns=1;i=5240" BrowseName="1:CoverageInterfaceType" IsAbstract="true">
+    <DisplayName>CoverageInterfaceType</DisplayName>
+    <Description>Custom interface type composed via HasInterface.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=17602</Reference>
+    </References>
+  </UAObjectType>
+
+  <UAVariableType NodeId="ns=1;i=5300" BrowseName="1:CoverageVariableType"
+                  DataType="Double" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>CoverageVariableType</DisplayName>
+    <Description>Variable type with a type-level default value.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+    </References>
+    <Value>
+      <uax:ListOfDouble>
+        <uax:Double>1.5</uax:Double>
+        <uax:Double>2.5</uax:Double>
+        <uax:Double>3.5</uax:Double>
+      </uax:ListOfDouble>
+    </Value>
+  </UAVariableType>
+
+  <!-- ================= 4. Instances ==================================== -->
+  <!-- Root container, organised from the Objects folder -->
+  <UAObject NodeId="ns=1;i=5400" BrowseName="1:CoverageRoot" SymbolicName="CoverageRoot"
+            WriteMask="2097151" UserWriteMask="2097151" AccessRestrictions="1">
+    <DisplayName>CoverageRoot</DisplayName>
+    <Description>Root folder for coverage instances.</Description>
+    <Category>CoverageCategoryA</Category>
+    <Category>CoverageCategoryB</Category>
+    <Documentation>https://example.org/coverage</Documentation>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5402</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5410</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5420</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5421</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5422</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5423</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5424</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5425</Reference>
+      <Reference ReferenceType="HasOrderedComponent">ns=1;i=5426</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5450</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5451</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5470</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5490</Reference>
+      <Reference ReferenceType="ns=1;i=5001">ns=1;i=5420</Reference>
+      <Reference ReferenceType="ns=1;i=5002">ns=1;i=5421</Reference>
+      <Reference ReferenceType="ns=1;i=5004">ns=1;i=5422</Reference>
+    </References>
+    <RolePermissions>
+      <RolePermission Permissions="63">i=15644</RolePermission>
+    </RolePermissions>
+    <Extensions>
+      <Extension>
+        <ct:NodeNote xmlns:ct="http://opcfoundation.org/UA/CoverageTest/ext">root</ct:NodeNote>
+      </Extension>
+    </Extensions>
+  </UAObject>
+
+  <!-- Instance of the custom object type with its mandatory members -->
+  <UAObject NodeId="ns=1;i=5402" BrowseName="1:TypedObject" ParentNodeId="ns=1;i=5400"
+            ReleaseStatus="Released">
+    <DisplayName>TypedObject</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=5210</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5403</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5404</Reference>
+      <Reference ReferenceType="HasInterface">ns=1;i=5240</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=5403" BrowseName="1:MandatoryVariable" ParentNodeId="ns=1;i=5402" DataType="Double">
+    <DisplayName>MandatoryVariable</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5402</Reference>
+    </References>
+    <Value>
+      <uax:Double>42.5</uax:Double>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=5404" BrowseName="1:MandatoryMethod" ParentNodeId="ns=1;i=5402"
+            MethodDeclarationId="ns=1;i=5216">
+    <DisplayName>MandatoryMethod</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=5405</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=5406</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5402</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=5405" BrowseName="InputArguments" ParentNodeId="ns=1;i=5404"
+              DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5404</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Factor</uax:Name>
+              <uax:DataType><uax:Identifier>i=11</uax:Identifier></uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description><uax:Locale>en</uax:Locale><uax:Text>The multiplication factor.</uax:Text></uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=5406" BrowseName="OutputArguments" ParentNodeId="ns=1;i=5404"
+              DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5404</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Product</uax:Name>
+              <uax:DataType><uax:Identifier>i=11</uax:Identifier></uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description><uax:Locale>en</uax:Locale><uax:Text>The resulting product.</uax:Text></uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+
+  <!-- Event-source object: EventNotifier + HasNotifier/HasEventSource + HasCondition -->
+  <UAObject NodeId="ns=1;i=5410" BrowseName="1:EventSource" ParentNodeId="ns=1;i=5400"
+            EventNotifier="1" ReleaseStatus="Draft">
+    <DisplayName>EventSource</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5412</Reference>
+      <Reference ReferenceType="HasNotifier">ns=1;i=5411</Reference>
+      <Reference ReferenceType="HasEventSource">ns=1;i=5411</Reference>
+      <Reference ReferenceType="HasCondition">ns=1;i=5412</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5411" BrowseName="1:SubNotifier" ParentNodeId="ns=1;i=5410" EventNotifier="1">
+    <DisplayName>SubNotifier</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasNotifier" IsForward="false">ns=1;i=5410</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5412" BrowseName="1:CoverageCondition" ParentNodeId="ns=1;i=5410">
+    <DisplayName>CoverageCondition</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2782</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5410</Reference>
+      <Reference ReferenceType="HasCondition" IsForward="false">ns=1;i=5410</Reference>
+    </References>
+  </UAObject>
+
+  <!-- Built-in value variables. HasNoPermissions on the boolean one. -->
+  <UAVariable NodeId="ns=1;i=5420" BrowseName="1:BooleanValue" ParentNodeId="ns=1;i=5400"
+              DataType="Boolean" AccessLevel="3" UserAccessLevel="3"
+              MinimumSamplingInterval="100" Historizing="true" HasNoPermissions="true">
+    <DisplayName Locale="en">BooleanValue</DisplayName>
+    <Description Locale="en">A boolean value.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+    <Value>
+      <uax:Boolean>true</uax:Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=5421" BrowseName="1:Int32Value" ParentNodeId="ns=1;i=5400"
+              DataType="Int32" AccessLevel="3" UserAccessLevel="1">
+    <DisplayName>Int32Value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+    <Value>
+      <uax:Int32>-12345</uax:Int32>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=5422" BrowseName="1:StringArrayValue" ParentNodeId="ns=1;i=5400"
+              DataType="String" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>StringArrayValue</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+    <Value>
+      <uax:ListOfString>
+        <uax:String>alpha</uax:String>
+        <uax:String>beta</uax:String>
+      </uax:ListOfString>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=5423" BrowseName="1:DoubleMatrixValue" ParentNodeId="ns=1;i=5400"
+              DataType="Double" ValueRank="2" ArrayDimensions="2,2">
+    <DisplayName>DoubleMatrixValue</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+    <Value>
+      <uax:Matrix>
+        <uax:Dimensions>
+          <uax:Int32>2</uax:Int32>
+          <uax:Int32>2</uax:Int32>
+        </uax:Dimensions>
+        <uax:Elements>
+          <uax:Double>1</uax:Double>
+          <uax:Double>2</uax:Double>
+          <uax:Double>3</uax:Double>
+          <uax:Double>4</uax:Double>
+        </uax:Elements>
+      </uax:Matrix>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=5424" BrowseName="1:DateTimeValue" ParentNodeId="ns=1;i=5400" DataType="DateTime">
+    <DisplayName>DateTimeValue</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+    <Value>
+      <uax:DateTime>2024-06-01T12:00:00Z</uax:DateTime>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=5425" BrowseName="1:EnumerationValue" ParentNodeId="ns=1;i=5400"
+              DataType="ns=1;i=5100">
+    <DisplayName>EnumerationValue</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+    <Value>
+      <uax:Int32>1</uax:Int32>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=5426" BrowseName="1:OrderedValue" ParentNodeId="ns=1;i=5400"
+              DataType="ByteString" ReleaseStatus="Deprecated">
+    <DisplayName>OrderedValue</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasOrderedComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+    <Value>
+      <uax:ByteString>AQIDBA==</uax:ByteString>
+    </Value>
+  </UAVariable>
+
+  <!-- Callable method instance; MethodDeclarationId to the type-level method -->
+  <UAMethod NodeId="ns=1;i=5450" BrowseName="1:AddNumbers" ParentNodeId="ns=1;i=5400">
+    <DisplayName>AddNumbers</DisplayName>
+    <Description>Adds two numbers and returns the sum.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=5452</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=5453</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=5451" BrowseName="1:LockedMethod" ParentNodeId="ns=1;i=5400"
+            Executable="false" UserExecutable="false">
+    <DisplayName>LockedMethod</DisplayName>
+    <Description>A method that is not executable.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=5452" BrowseName="InputArguments" ParentNodeId="ns=1;i=5450"
+              DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5450</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>A</uax:Name>
+              <uax:DataType><uax:Identifier>i=6</uax:Identifier></uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description><uax:Locale>en</uax:Locale><uax:Text>First addend.</uax:Text></uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>B</uax:Name>
+              <uax:DataType><uax:Identifier>i=6</uax:Identifier></uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description><uax:Locale>en</uax:Locale><uax:Text>Second addend.</uax:Text></uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=5453" BrowseName="OutputArguments" ParentNodeId="ns=1;i=5450"
+              DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5450</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Sum</uax:Name>
+              <uax:DataType><uax:Identifier>i=6</uax:Identifier></uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description><uax:Locale>en</uax:Locale><uax:Text>The sum of A and B.</uax:Text></uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+
+  <!-- View over selected members -->
+  <UAView NodeId="ns=1;i=5460" BrowseName="1:CoverageView" ContainsNoLoops="true" EventNotifier="1"
+          SymbolicName="CoverageView">
+    <DisplayName>CoverageView</DisplayName>
+    <Description>A view that organizes selected coverage members.</Description>
+    <References>
+      <Reference ReferenceType="Organizes">ns=1;i=5400</Reference>
+      <Reference ReferenceType="Organizes">ns=1;i=5420</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=87</Reference>
+    </References>
+  </UAView>
+
+  <!-- Small finite state machine to light up state-machine references -->
+  <UAObject NodeId="ns=1;i=5470" BrowseName="1:CoverageStateMachine" ParentNodeId="ns=1;i=5400"
+            DesignToolOnly="true">
+    <DisplayName>CoverageStateMachine</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2771</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5471</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5472</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5473</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5471" BrowseName="1:StateA" ParentNodeId="ns=1;i=5470">
+    <DisplayName>StateA</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=5472</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5470</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5472" BrowseName="1:StateB" ParentNodeId="ns=1;i=5470">
+    <DisplayName>StateB</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasFalseSubState" IsForward="false">ns=1;i=5471</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5470</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5473" BrowseName="1:TransitionAB" ParentNodeId="ns=1;i=5470">
+    <DisplayName>TransitionAB</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5471</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5472</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=5450</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=5230</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5470</Reference>
+    </References>
+  </UAObject>
+
+  <!-- Deep, branching instance tree (depth 4 with two branches) to exercise
+       nested HasComponent hierarchies in both pipelines. -->
+  <UAObject NodeId="ns=1;i=5490" BrowseName="1:TreeRoot" ParentNodeId="ns=1;i=5400">
+    <DisplayName>TreeRoot</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5491</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5495</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5491" BrowseName="1:BranchA" ParentNodeId="ns=1;i=5490">
+    <DisplayName>BranchA</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5492</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5493</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5490</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=5492" BrowseName="1:LeafA1" ParentNodeId="ns=1;i=5491" DataType="Int32">
+    <DisplayName>LeafA1</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5491</Reference>
+    </References>
+    <Value>
+      <uax:Int32>11</uax:Int32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5493" BrowseName="1:SubBranchA" ParentNodeId="ns=1;i=5491">
+    <DisplayName>SubBranchA</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5494</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5491</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=5494" BrowseName="1:LeafA2" ParentNodeId="ns=1;i=5493" DataType="Int32">
+    <DisplayName>LeafA2</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5493</Reference>
+    </References>
+    <Value>
+      <uax:Int32>12</uax:Int32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5495" BrowseName="1:BranchB" ParentNodeId="ns=1;i=5490">
+    <DisplayName>BranchB</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5496</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5490</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=5496" BrowseName="1:LeafB1" ParentNodeId="ns=1;i=5495" DataType="Int32">
+    <DisplayName>LeafB1</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5495</Reference>
+    </References>
+    <Value>
+      <uax:Int32>21</uax:Int32>
+    </Value>
+  </UAVariable>
+</UANodeSet>
+

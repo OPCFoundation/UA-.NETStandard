@@ -36,6 +36,34 @@
     <EmbeddedResource Include="ComplexTypes\ServerComplexTypesTestModel.NodeSet2.xml">
       <LogicalName>Opc.Ua.Server.Tests.ComplexTypes.ServerComplexTypesTestModel.NodeSet2.xml</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="CoverageNodeSet\Assets\Opc.Ua.CoverageTest.NodeSet2.xml">
+      <LogicalName>Opc.Ua.Server.Tests.CoverageNodeSet.Assets.Opc.Ua.CoverageTest.NodeSet2.xml</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CoverageNodeSet\Assets\Opc.Ua.CoverageTestSecondary.NodeSet2.xml">
+      <LogicalName>Opc.Ua.Server.Tests.CoverageNodeSet.Assets.Opc.Ua.CoverageTestSecondary.NodeSet2.xml</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <!-- Source-generation pipeline for the kitchen-sink coverage NodeSet (issue #4251).
+       The same XML is embedded above for the runtime import pipeline. -->
+  <ItemGroup>
+    <AdditionalFiles Include="CoverageNodeSet\Assets\Opc.Ua.CoverageTest.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/CoverageTest/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>CoverageTest</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.CoverageTest</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="CoverageNodeSet\Assets\Opc.Ua.CoverageTest.NodeSet2.csv" />
+    <AdditionalFiles Include="CoverageNodeSet\Assets\Opc.Ua.CoverageTestSecondary.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/CoverageTest/Secondary/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>CoverageTestSecondary</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.CoverageTestSecondary</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Update="test-memorybuffer-config.xml">
@@ -60,3 +88,4 @@
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>
+
