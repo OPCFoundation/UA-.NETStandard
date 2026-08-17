@@ -2456,7 +2456,16 @@ namespace Opc.Ua.Schema.Model
 
             if (m_nodeset.ServerUris != null)
             {
-                serverUris.Append(m_serverUris.GetString(0));
+                // Index 0 of a ServerUris table is reserved for the local
+                // server. The converter has no running server, so this entry
+                // may be unset; only prepend it when present to avoid a null
+                // StringTable.Append (regression: NodeSets that declare a
+                // top-level <ServerUris> table previously crashed generation).
+                string localServerUri = m_serverUris.GetString(0);
+                if (localServerUri != null)
+                {
+                    serverUris.Append(localServerUri);
+                }
 
                 for (int ii = 0; ii < m_nodeset.ServerUris.Length; ii++)
                 {
