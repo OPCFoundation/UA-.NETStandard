@@ -152,6 +152,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             await AddReverseReferencesAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
+            ReportUnbackedExternalParents(predefinedNodes);
+
             // Step 6 – Apply the optional fluent configuration.
             if (m_configure is not null || m_configureAsync is not null)
             {
@@ -518,6 +520,59 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         }
 
         /// <summary>
+        /// Reports an imported node whose declared <c>ParentNodeId</c> is
+        /// outside this manager and is not backed by an explicit inverse
+        /// hierarchical Reference.
+        /// </summary>
+        /// <remarks>
+        /// In NodeSet2 the <c>ParentNodeId</c> attribute is a hint; the
+        /// authoritative edge is the entry under <c>&lt;References&gt;</c>,
+        /// which the reverse-reference pass turns into an external reference.
+        /// A node that names an out-of-manager parent but carries no such
+        /// Reference therefore materializes with no path from that parent,
+        /// and no ReferenceType can be inferred to repair it. That is an
+        /// authoring defect, so it is reported rather than guessed at or
+        /// silently accepted.
+        /// </remarks>
+        private void ReportUnbackedExternalParents(NodeStateCollection nodes)
+        {
+            for (int ii = 0; ii < nodes.Count; ii++)
+            {
+                if (nodes[ii] is not BaseInstanceState { Parent: null } instance)
+                {
+                    continue;
+                }
+
+                if (!UANodeSet.TryGetUnresolvedParentNodeId(instance, out NodeId parentNodeId))
+                {
+                    continue;
+                }
+
+                var references = new List<IReference>();
+                instance.GetReferences(SystemContext, references);
+
+                bool backed = false;
+                for (int jj = 0; jj < references.Count; jj++)
+                {
+                    IReference reference = references[jj];
+                    if (reference.IsInverse &&
+                        !reference.TargetId.IsNull &&
+                        !reference.TargetId.IsAbsolute &&
+                        (NodeId)reference.TargetId == parentNodeId)
+                    {
+                        backed = true;
+                        break;
+                    }
+                }
+
+                if (!backed)
+                {
+                    m_logger.UnbackedExternalParent(instance.NodeId, parentNodeId);
+                }
+            }
+        }
+
+        /// <summary>
         /// Scans the imported node collection for duplicate
         /// <see cref="NodeId"/> values and throws
         /// <see cref="InvalidOperationException"/> on the first duplicate
@@ -611,5 +666,15 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         private readonly Dictionary<NodeId, List<IReference>> m_addedReferences = [];
         private IFluentDispatcher? m_dispatcher;
         private IAsyncDisposable? m_generationOwner;
+    }
+
+    internal static partial class RuntimeNodeSetNodeManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.RuntimeNodeSetNodeManager + 0, Level = LogLevel.Warning,
+            Message = "Node {NodeId} declares ParentNodeId {ParentNodeId}, which is outside this " +
+                "NodeManager and is not backed by an inverse hierarchical Reference, so no path to " +
+                "it is created. Add the Reference to the NodeSet.")]
+        public static partial void UnbackedExternalParent(
+            this ILogger logger, NodeId nodeId, NodeId parentNodeId);
     }
 }

@@ -104,6 +104,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase(McpToolProfile.Services)]
         [TestCase(McpToolProfile.Administration)]
         [TestCase(McpToolProfile.Diagnostics)]
+        [TestCase(McpToolProfile.Robotics)]
         public void ProfilesThatDoNotSelectPubSubContributeNoTools(McpToolProfile profile)
         {
             var services = new ServiceCollection();

@@ -101,7 +101,7 @@ namespace Opc.Ua.Bindings
             ushort maxDataChannels = 16,
             uint maxCreditPerChannel = 1024 * 1024)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (m_dataChannels != null)
                 {
@@ -184,74 +184,82 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageChunk,
             bool isRequest)
         {
-            DataChannelManager? channels = m_dataChannels;
+            DataChannelFrameError? fatalError = null;
 
-            if (channels == null)
+            using (Gate.Enter())
             {
-                OnTransportError(ServiceResult.Create(
-                    StatusCodes.BadTcpMessageTypeInvalid,
-                    "Data channels are not enabled on this SecureChannel: {0:X8}.",
-                    messageType));
-                return false;
-            }
+                DataChannelManager? channels = m_dataChannels;
 
-            ArraySegment<byte> body;
-            uint requestId;
-
-            try
-            {
-                body = ReadSymmetricMessage(
-                    messageChunk,
-                    isRequest,
-                    out ChannelToken _,
-                    out requestId,
-                    out uint sequenceNumber);
-
-                if (!VerifySequenceNumber(sequenceNumber, nameof(ProcessDataChannelMessage)))
+                if (channels == null)
                 {
-                    // The chunk never sequenced, so nothing of its content was
-                    // seen and the fault is at the framing layer.
-                    OnDataChannelProtocolFault(DataChannelFrameError.MalformedHeader);
-                    return false;
+                    fatalError = DataChannelFrameError.MalformedHeader;
+                }
+                else
+                {
+                    ArraySegment<byte> body;
+                    uint requestId;
+
+                    try
+                    {
+                        body = ReadSymmetricMessage(
+                            messageChunk,
+                            isRequest,
+                            out ChannelToken _,
+                            out requestId,
+                            out uint sequenceNumber);
+
+                        if (!VerifySequenceNumber(sequenceNumber, nameof(ProcessDataChannelMessage)))
+                        {
+                            fatalError = DataChannelFrameError.MalformedHeader;
+                        }
+                    }
+                    catch (ServiceResultException)
+                    {
+                        fatalError = DataChannelFrameError.MalformedHeader;
+                        body = default;
+                        requestId = 0;
+                    }
+
+                    if (fatalError == null &&
+                        !DataChannelFrameCodec.TryValidateChunkHeaders(
+                            messageType,
+                            requestId,
+                            out DataChannelFrameError headerError))
+                    {
+                        fatalError = headerError;
+                    }
+
+                    DataChannelFrame frame = default;
+
+                    if (fatalError == null &&
+                        !DataChannelFrameCodec.TryDecode(
+                            new ReadOnlyMemory<byte>(body.Array!, body.Offset, body.Count),
+                            ReceiveBufferSize,
+                            out frame,
+                            out DataChannelFrameError error))
+                    {
+                        if (error.IsFatal())
+                        {
+                            fatalError = error;
+                        }
+                        else if (channels.TryGetChannel(frame.ChannelId, out DataChannel? faulted) &&
+                            faulted != null)
+                        {
+                            faulted.Reset(error.ToStatusCode());
+                        }
+                    }
+                    else if (fatalError == null)
+                    {
+                        channels.HandleFrame(frame);
+                    }
                 }
             }
-            catch (ServiceResultException)
+
+            if (fatalError != null)
             {
-                OnDataChannelProtocolFault(DataChannelFrameError.MalformedHeader);
-                return false;
+                OnDataChannelProtocolFault(fatalError.Value);
             }
 
-            if (!DataChannelFrameCodec.TryValidateChunkHeaders(
-                messageType,
-                requestId,
-                out DataChannelFrameError headerError))
-            {
-                OnDataChannelProtocolFault(headerError);
-                return false;
-            }
-
-            if (!DataChannelFrameCodec.TryDecode(
-                new ReadOnlyMemory<byte>(body.Array!, body.Offset, body.Count),
-                ReceiveBufferSize,
-                out DataChannelFrame frame,
-                out DataChannelFrameError error))
-            {
-                if (error.IsFatal())
-                {
-                    OnDataChannelProtocolFault(error);
-                    return false;
-                }
-
-                if (channels.TryGetChannel(frame.ChannelId, out DataChannel? faulted) &&
-                    faulted != null)
-                {
-                    faulted.Reset(error.ToStatusCode());
-                }
-
-                return false;
-            }
-
-            channels.HandleFrame(frame);
             return false;
         }
 
@@ -285,7 +293,7 @@ namespace Opc.Ua.Bindings
             {
                 int written = DataChannelFrameCodec.Encode(encoded.AsSpan(0, size), frame);
 
-                lock (DataLock)
+                using (await Gate.EnterAsync(ct).ConfigureAwait(false))
                 {
                     ChannelToken token = CurrentToken
                         ?? throw ServiceResultException.Create(

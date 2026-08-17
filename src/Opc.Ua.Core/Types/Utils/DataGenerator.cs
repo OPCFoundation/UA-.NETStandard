@@ -41,7 +41,7 @@ namespace Opc.Ua.Test
     /// <summary>
     /// An interface to a source of random numbers.
     /// </summary>
-    public interface IRandomSource
+    public interface ISecureRandomSource
     {
         /// <summary>
         /// Fills a range in array of bytes with random numbers.
@@ -67,7 +67,7 @@ namespace Opc.Ua.Test
     /// <summary>
     /// Uses the Pseudo random generator as a source.
     /// </summary>
-    public class RandomSource : IRandomSource
+    public class RandomSource : ISecureRandomSource
     {
         /// <summary>
         /// Default random source.
@@ -153,7 +153,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Initializes the data generator.
         /// </summary>
-        public DataGenerator(IRandomSource? random, ITelemetryContext telemetry)
+        public DataGenerator(ISecureRandomSource? random, ITelemetryContext telemetry)
         {
             MaxArrayLength = 100;
             MaxStringLength = 100;
@@ -822,27 +822,40 @@ namespace Opc.Ua.Test
         /// <inheritdoc/>
         public NodeId GetRandomNodeId(bool useBoundaryValues = false)
         {
-            ushort ns = (ushort)m_random.NextInt32(NamespaceUris.Count - 1);
-
             NodeId nodeId;
-            switch ((IdType)m_random.NextInt32(3))
+            //
+            // NodeId.Null is one of the boundary values offered below, so a
+            // caller passing useBoundaryValues: false is entitled not to get it.
+            // The random draw can produce it by accident: an opaque identifier
+            // in namespace 0 is null when the byte string is empty, and
+            // GetRandomByteString draws its length from [0, MaxStringLength]
+            // inclusive. A numeric identifier of 0 in namespace 0 is null too,
+            // though far less likely. Draw again rather than return one.
+            //
+            do
             {
-                case IdType.Numeric:
-                    nodeId = new NodeId(GetRandomUInt32(), ns);
-                    break;
-                case IdType.String:
-                    nodeId = new NodeId(CreateString(GetRandomLocale(), true), ns);
-                    break;
-                case IdType.Guid:
-                    nodeId = new NodeId(GetRandomGuid(), ns);
-                    break;
-                case IdType.Opaque:
-                    nodeId = new NodeId(GetRandomByteString(), ns);
-                    break;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        "Unexpected IdType value");
+                ushort ns = (ushort)m_random.NextInt32(NamespaceUris.Count - 1);
+                switch ((IdType)m_random.NextInt32(3))
+                {
+                    case IdType.Numeric:
+                        nodeId = new NodeId(GetRandomUInt32(), ns);
+                        break;
+                    case IdType.String:
+                        nodeId = new NodeId(CreateString(GetRandomLocale(), true), ns);
+                        break;
+                    case IdType.Guid:
+                        nodeId = new NodeId(GetRandomGuid(), ns);
+                        break;
+                    case IdType.Opaque:
+                        nodeId = new NodeId(GetRandomByteString(), ns);
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            "Unexpected IdType value");
+                }
             }
+            while (!useBoundaryValues && nodeId.IsNull);
+
             return GetBoundaryValue(
                 useBoundaryValues,
                 nodeId,
@@ -1791,7 +1804,7 @@ namespace Opc.Ua.Test
         }
 
         private readonly ILogger m_logger;
-        private readonly IRandomSource m_random;
+        private readonly ISecureRandomSource m_random;
         private readonly string[] m_availableLocales;
         private readonly FrozenDictionary<string, string[]> m_tokenValues;
         private const string kPunctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";

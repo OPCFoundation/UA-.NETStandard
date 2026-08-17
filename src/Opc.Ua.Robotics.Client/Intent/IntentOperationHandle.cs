@@ -137,7 +137,8 @@ namespace Opc.Ua.Robotics.Client.Intent
                 stateObserved: true,
                 progressObserved: true,
                 poseObserved: true,
-                resultObserved: resultObserved);
+                resultObserved: resultObserved,
+                fullyObserved: true);
         }
 
         /// <summary>
@@ -172,6 +173,51 @@ namespace Opc.Ua.Robotics.Client.Intent
         public ValueTask<IntentSubmissionResult> RetryAsync(CancellationToken cancellationToken = default)
         {
             return m_controller.Transport.RetryAsync(IntentId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Waits up to the timeout for completion, returning the current state on timeout.
+        /// </summary>
+        public async ValueTask<IntentOperationWaitResult> WaitForCompletionAsync(
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+        {
+            if (timeout < TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+
+            if (Completion.IsCompleted)
+            {
+                return new IntentOperationWaitResult
+                {
+                    Completed = true,
+                    Result = await Completion.ConfigureAwait(false),
+                    Current = Current
+                };
+            }
+
+            Task delay = timeout == Timeout.InfiniteTimeSpan
+                ? Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
+                : Task.Delay(timeout, cancellationToken);
+            Task completed = await Task.WhenAny(Completion, delay).ConfigureAwait(false);
+            if (ReferenceEquals(completed, Completion))
+            {
+                return new IntentOperationWaitResult
+                {
+                    Completed = true,
+                    Result = await Completion.ConfigureAwait(false),
+                    Current = Current
+                };
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await RefreshAsync(cancellationToken).ConfigureAwait(false);
+            return new IntentOperationWaitResult
+            {
+                Completed = false,
+                Current = Current
+            };
         }
 
         /// <inheritdoc/>
@@ -256,7 +302,8 @@ namespace Opc.Ua.Robotics.Client.Intent
                         stateObserved,
                         progressObserved,
                         poseObserved,
-                        resultObserved))
+                        resultObserved,
+                        fullyObserved: false))
                     {
                         await RefreshAsync(cancellationToken).ConfigureAwait(false);
                     }
@@ -276,14 +323,22 @@ namespace Opc.Ua.Robotics.Client.Intent
             bool stateObserved,
             bool progressObserved,
             bool poseObserved,
-            bool resultObserved)
+            bool resultObserved,
+            bool fullyObserved)
         {
             IntentOperationSnapshot current;
             bool shouldReadResult = false;
             bool completed = false;
             lock (m_lock)
             {
-                current = Merge(m_current, snapshot, stateObserved, progressObserved, poseObserved, resultObserved);
+                current = Merge(
+                    m_current,
+                    snapshot,
+                    stateObserved,
+                    progressObserved,
+                    poseObserved,
+                    resultObserved,
+                    fullyObserved);
                 m_current = current;
                 m_resultObserved |= resultObserved;
                 if (RobotIntentRules.IsTerminal(current.ExecutionState))
@@ -341,7 +396,8 @@ namespace Opc.Ua.Robotics.Client.Intent
             bool stateObserved,
             bool progressObserved,
             bool poseObserved,
-            bool resultObserved)
+            bool resultObserved,
+            bool fullyObserved)
         {
             IntentOperationSnapshot merged = current with
             {
@@ -350,6 +406,10 @@ namespace Opc.Ua.Robotics.Client.Intent
             if (!update.Operation.IsNull)
             {
                 merged = merged with { Operation = update.Operation };
+            }
+            if (update.IntentId.Length != 0)
+            {
+                merged = merged with { IntentId = update.IntentId };
             }
             if (stateObserved)
             {
@@ -370,6 +430,17 @@ namespace Opc.Ua.Robotics.Client.Intent
             if (resultObserved)
             {
                 merged = merged with { Result = update.Result };
+            }
+            // A pump update carries one changed node, so an empty MissionId or a zero QueuePosition
+            // there means "not carried" rather than "cleared". A full read is authoritative for both,
+            // and the server publishes QueuePosition zero precisely to say the operation left the queue.
+            if (fullyObserved || update.MissionId.Length != 0)
+            {
+                merged = merged with { MissionId = update.MissionId };
+            }
+            if (fullyObserved || update.QueuePosition != 0)
+            {
+                merged = merged with { QueuePosition = update.QueuePosition };
             }
             return merged;
         }

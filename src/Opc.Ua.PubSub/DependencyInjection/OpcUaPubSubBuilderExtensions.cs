@@ -236,11 +236,15 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder());
             services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.Json.JsonDecoder());
 
-            // Security policies.
-            foreach (IPubSubSecurityPolicy policy in PubSubSecurityPolicyRegistry.All)
-            {
-                services.AddSingleton(policy);
-            }
+            // Security policies. A symmetric crypto provider bound to
+            // CryptoPurpose.ChannelSymmetric performs the per-message AES-CTR and
+            // HMAC when one is registered; otherwise the platform does, exactly as
+            // before. Resolved once here rather than per message.
+            services.AddSingleton<IPubSubSecurityPolicy>(
+                sp => new PubSubAes128CtrPolicy(ResolvePubSubSymmetricProvider(sp)));
+            services.AddSingleton<IPubSubSecurityPolicy>(
+                sp => new PubSubAes256CtrPolicy(ResolvePubSubSymmetricProvider(sp)));
+            services.AddSingleton<IPubSubSecurityPolicy>(PubSubNonePolicy.Instance);
 
             // Fail-closed security wrapper resolver. Sources key providers
             // registered in DI (none by default → secured connections fail
@@ -249,7 +253,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 new PubSubSecurityWrapperResolver(
                     sp.GetServices<IPubSubSecurityKeyProvider>(),
                     sp.GetRequiredService<ITelemetryContext>(),
-                    sp.GetService<TimeProvider>()));
+                    sp.GetService<TimeProvider>(),
+                    // The registered bundles carry the symmetric crypto provider
+                    // resolved above, so the per-message cryptography runs on it
+                    // rather than on the provider-less static defaults.
+                    policies: sp.GetServices<IPubSubSecurityPolicy>()));
 
             // Configuration store: file-based if a path is supplied, otherwise inline.
             services.TryAddSingleton<IPubSubConfigurationStore>(sp =>
@@ -313,6 +321,28 @@ namespace Microsoft.Extensions.DependencyInjection
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();
+        }
+
+        /// <summary>
+        /// Resolves the symmetric crypto provider the PubSub policies perform
+        /// their per-message cryptography with.
+        /// </summary>
+        /// <param name="sp">The service provider.</param>
+        /// <returns>
+        /// The provider to use, or <see langword="null"/> when the policies should
+        /// use the platform directly.
+        /// </returns>
+        /// <remarks>
+        /// PubSub keys are symmetric, so the purpose they resolve under is
+        /// <see cref="CryptoPurpose.ChannelSymmetric"/>, the same one the secure
+        /// channel uses. A deployment that has registered nothing gets
+        /// <see langword="null"/> and the behaviour it had before.
+        /// </remarks>
+        private static ISymmetricCryptoProvider? ResolvePubSubSymmetricProvider(
+            IServiceProvider sp)
+        {
+            return CryptoProviderFacets.ResolveSymmetric(
+                sp.GetService<ICryptoProviderRegistry>());
         }
     }
 

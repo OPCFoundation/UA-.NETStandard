@@ -487,7 +487,7 @@ namespace Opc.Ua.Configuration
             MessageSecurityMode securityMode,
             string securityPolicy)
         {
-            if (!SecurityPolicies.IsValidSecurityPolicyUri(securityPolicy))
+            if (!SecurityPolicies.Default.IsValidSecurityPolicyUri(securityPolicy))
             {
                 throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
             }
@@ -874,6 +874,15 @@ namespace Opc.Ua.Configuration
         {
             ApplicationConfiguration.ServerConfiguration!.MaxNotificationsPerPublish
                 = maxNotificationsPerPublish;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMinSupportedSamplingInterval(
+            double minSupportedSamplingInterval)
+        {
+            ApplicationConfiguration.ServerConfiguration!.MinSupportedSamplingInterval
+                = minSupportedSamplingInterval;
             return this;
         }
 
@@ -1354,11 +1363,11 @@ namespace Opc.Ua.Configuration
             bool policyNone = false)
         {
             // create list of supported policies
-            List<string> defaultPolicyUris = [.. SecurityPolicies
+            List<string> defaultPolicyUris = [.. SecurityPolicies.Default
                 .GetDefaultUris()];
             if (deprecated)
             {
-                defaultPolicyUris.AddRange(SecurityPolicies.GetDefaultDeprecatedUris());
+                defaultPolicyUris.AddRange(SecurityPolicies.Default.GetDefaultDeprecatedUris());
             }
 
 #if NET5_0_OR_GREATER
@@ -1393,7 +1402,7 @@ namespace Opc.Ua.Configuration
         private void AddEccSecurityPolicies(bool sign = false)
         {
             // create list of supported policies
-            string[] defaultPolicyUris = SecurityPolicies.GetDefaultEccUris();
+            string[] defaultPolicyUris = SecurityPolicies.Default.GetDefaultEccUris();
             MessageSecurityMode securityMode = sign
                 ? MessageSecurityMode.Sign
                 : MessageSecurityMode.SignAndEncrypt;

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
@@ -98,16 +99,66 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets an object used to synchronize access to the properties
-        /// dictionary.
-        /// </summary>
-        public object PropertiesLock => m_properties;
-
-        /// <summary>
         /// Gets a dictionary used to save state associated with the
         /// application.
         /// </summary>
+        /// <remarks>
+        /// The dictionary synchronizes itself, so every individual operation on
+        /// it is atomic without the caller taking a lock. To make a read and a
+        /// write atomic with respect to each other - the only combination the
+        /// stack needs - use
+        /// <see cref="GetOrAddProperty{T}(string, Func{T})"/> rather than
+        /// reading and then writing.
+        /// </remarks>
         public IDictionary<string, object> Properties => m_properties;
+
+        /// <summary>
+        /// Returns the property stored under <paramref name="key"/>, adding the
+        /// value produced by <paramref name="valueFactory"/> if there is none.
+        /// </summary>
+        /// <remarks>
+        /// This replaces the removed <c>PropertiesLock</c>. That property
+        /// returned the properties dictionary itself, so a caller that took it
+        /// shared one monitor with the dictionary and with every other caller,
+        /// in an order none of them could see.
+        /// <para>
+        /// <paramref name="valueFactory"/> is deliberately <b>not</b> invoked
+        /// under a lock. Holding a lock across a caller-supplied callback is how
+        /// a critical section escapes the object that understands it. The cost
+        /// is that under contention the factory may run more than once; only one
+        /// result is published, and every caller receives that same instance.
+        /// Keep the factory free of side effects that would matter if it ran
+        /// twice.
+        /// </para>
+        /// </remarks>
+        /// <typeparam name="T">The type of the property.</typeparam>
+        /// <param name="key">The key the property is stored under.</param>
+        /// <param name="valueFactory">Produces the value when none is present.</param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown if <paramref name="key"/> or <paramref name="valueFactory"/> is null.
+        /// </exception>
+        public T GetOrAddProperty<T>(string key, Func<T> valueFactory)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+            if (valueFactory == null)
+            {
+                throw new ArgumentNullException(nameof(valueFactory));
+            }
+
+            if (m_properties.TryGetValue(key, out object? existing) && existing is T typed)
+            {
+                return typed;
+            }
+
+            var created = (object)valueFactory.Invoke()!;
+            return (T)m_properties.AddOrUpdate(
+                key,
+                created,
+                (_, current) => current is T ? current : created);
+        }
 
         /// <summary>
         /// Storage for decoded extensions of the application.
@@ -211,7 +262,7 @@ namespace Opc.Ua
         private ArrayOf<TransportConfiguration> m_transportConfigurations;
         private ArrayOf<XmlElement> m_extensions;
         private readonly List<object> m_extensionObjects;
-        private readonly Dictionary<string, object> m_properties;
+        private readonly ConcurrentDictionary<string, object> m_properties;
     }
 
     /// <summary>
@@ -855,14 +906,14 @@ namespace Opc.Ua
         /// </summary>
         internal void ValidateSecurityPolicies()
         {
-            string[] supportedPolicies = Ua.SecurityPolicies.GetDisplayNames();
+            string[] supportedPolicies = Ua.SecurityPolicies.Default.GetDisplayNames();
             var newPolicies = new List<ServerSecurityPolicy>();
             foreach (ServerSecurityPolicy securityPolicy in m_securityPolicies)
             {
                 if (string.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
                 {
                     // add wild card policies
-                    foreach (string policyUri in Ua.SecurityPolicies.GetDefaultUris())
+                    foreach (string policyUri in Ua.SecurityPolicies.Default.GetDefaultUris())
                     {
                         var newPolicy = new ServerSecurityPolicy
                         {
@@ -1137,6 +1188,21 @@ namespace Opc.Ua
         /// <value>The maximum number of notifications per publish.</value>
         [DataTypeField(Order = 16)]
         public int MaxNotificationsPerPublish { get; set; } = 100;
+
+        /// <summary>
+        /// The minimum sampling interval supported by the server (in milliseconds).
+        /// </summary>
+        /// <value>The minimum supported sampling interval.</value>
+        /// <remarks>
+        /// The value is published in the <c>Server.ServerCapabilities.MinSupportedSampleRate</c>
+        /// Property and is used as a server wide lower bound when the sampling interval of a
+        /// monitored item is revised. Nodes that declare a MinimumSamplingInterval of
+        /// <see cref="MinimumSamplingIntervals.Continuous"/> report by exception and are not
+        /// bound by this value. The default of zero means the server does not impose a
+        /// server wide lower bound.
+        /// </remarks>
+        [DataTypeField(Order = 17)]
+        public double MinSupportedSamplingInterval { get; set; }
 
         /// <summary>
         /// The available sampling rates.

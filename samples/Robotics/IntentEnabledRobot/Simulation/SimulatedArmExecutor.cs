@@ -51,7 +51,9 @@ namespace Robotics.IntentEnabledRobot.Simulation
             ArrayOf<Pose3DDataType> jointFramePoses,
             double gripperOpening,
             bool hasObject,
-            string toolName)
+            string toolName,
+            ArrayOf<double> heldPartPosition,
+            ArrayOf<bool> stackSlotsFilled)
         {
             JointAngles = jointAngles;
             ToolPose = toolPose;
@@ -59,6 +61,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
             GripperOpening = gripperOpening;
             HasObject = hasObject;
             ToolName = toolName;
+            HeldPartPosition = heldPartPosition;
+            StackSlotsFilled = stackSlotsFilled;
         }
 
         /// <summary>
@@ -90,6 +94,16 @@ namespace Robotics.IntentEnabledRobot.Simulation
         /// Gets the fitted simulated tool name.
         /// </summary>
         public string ToolName { get; }
+
+        /// <summary>
+        /// Gets the visible position of the part currently carried by the gripper.
+        /// </summary>
+        public ArrayOf<double> HeldPartPosition { get; }
+
+        /// <summary>
+        /// Gets a value for each pallet slot indicating whether that slot has been filled.
+        /// </summary>
+        public ArrayOf<bool> StackSlotsFilled { get; }
     }
 
     /// <summary>
@@ -459,6 +473,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     m_hasObject = true;
                     PublishCurrentPoseLocked();
                 }
+                SnapshotChanged?.Invoke(this, CurrentSnapshot);
                 return IntentOutcome.Success;
             }
             finally
@@ -487,9 +502,14 @@ namespace Robotics.IntentEnabledRobot.Simulation
             await MoveGripperAsync(GripperOpen, execution, cancellationToken).ConfigureAwait(false);
             lock (m_lock)
             {
+                if (m_hasObject)
+                {
+                    FillNextStackSlotLocked();
+                }
                 m_hasObject = false;
                 PublishCurrentPoseLocked();
             }
+            SnapshotChanged?.Invoke(this, CurrentSnapshot);
             return IntentOutcome.Success;
         }
 
@@ -529,6 +549,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     m_toolName = intent.Tool.IsNull ? "none" : intent.Tool.ToString();
                     PublishCurrentPoseLocked();
                 }
+                SnapshotChanged?.Invoke(this, CurrentSnapshot);
                 return IntentOutcome.Success;
             }
             finally
@@ -742,6 +763,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     m_gripperOpening = start + ((targetOpening - start) * fraction);
                     PublishCurrentPoseLocked();
                 }
+                SnapshotChanged?.Invoke(this, CurrentSnapshot);
                 execution.Progress.ReportProgress(fraction);
                 await m_clock.DelayAsync(TimeSpan.FromMilliseconds(20), cancellationToken).ConfigureAwait(false);
             }
@@ -801,7 +823,9 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     forward.JointFramePoses,
                     m_gripperOpening,
                     m_hasObject,
-                    m_toolName);
+                    m_toolName,
+                    HeldPartPosition(forward.ToolPose),
+                    ArrayOf.Create(m_stackSlotsFilled.AsSpan()));
             }
             SnapshotChanged?.Invoke(this, CurrentSnapshot);
         }
@@ -816,7 +840,21 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 pose.JointFramePoses,
                 m_gripperOpening,
                 m_hasObject,
-                m_toolName);
+                m_toolName,
+                HeldPartPosition(pose.ToolPose),
+                ArrayOf.Create(m_stackSlotsFilled.AsSpan()));
+        }
+
+        private void FillNextStackSlotLocked()
+        {
+            for (int ii = 0; ii < m_stackSlotsFilled.Length; ii++)
+            {
+                if (!m_stackSlotsFilled[ii])
+                {
+                    m_stackSlotsFilled[ii] = true;
+                    return;
+                }
+            }
         }
 
         private void SetNonCancellable(string intentId)
@@ -1020,6 +1058,16 @@ namespace Robotics.IntentEnabledRobot.Simulation
             return Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
         }
 
+        private static ArrayOf<double> HeldPartPosition(Pose3DDataType toolPose)
+        {
+            ReadOnlySpan<double> position = toolPose.Position.Span;
+            return ArrayOf.Create([
+                position[0],
+                position[1],
+                position[2] - HeldPartTcpOffset
+            ]);
+        }
+
         private const double DefaultCartesianSpeed = 0.25;
         private const double DefaultCartesianAcceleration = 0.7;
         private const double DefaultJointSpeed = 0.9;
@@ -1028,6 +1076,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private const double BenchTopZ = 0.829;
         private const double GripperOpen = 0.08;
         private const double GripperClosed = 0.018;
+        private const double HeldPartTcpOffset = 0.035;
+        private const int StackSlotCount = 8;
 
         private readonly System.Threading.Lock m_lock = new();
         private readonly SimulatedArmKinematics m_kinematics;
@@ -1035,6 +1085,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private readonly double[] m_jointAngles = [-0.45, -0.95, 1.55, -0.9, 0.75, 0.0];
         private double m_gripperOpening = GripperOpen;
         private bool m_hasObject;
+        private readonly bool[] m_stackSlotsFilled = new bool[StackSlotCount];
         private string m_toolName = "parallel-gripper";
         private string m_nonCancellableIntentId = string.Empty;
 

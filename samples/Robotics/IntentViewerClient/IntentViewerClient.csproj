@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <AssemblyName>IntentViewerClient</AssemblyName>
@@ -9,16 +9,35 @@
     <RootNamespace>IntentViewerClient</RootNamespace>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-  </PropertyGroup>
+    <!-- MCP hosting needs .NET 8+ and the Opc.Ua.Mcp.* projects. Those projects opt into
+         $(RestrictForLegacyTfm), so under a legacy $(CustomTestTarget) they build as empty
+         reference-free shells that this sample must neither reference nor compile against.
+         The netstandard2.1 leg is the case that matters: targets.props validates it with a
+         net8.0 app, which would otherwise resolve the shells. -->
+    <IntentViewerMcpSupported>false</IntentViewerMcpSupported>
+    <IntentViewerMcpSupported Condition="'$(CustomTestTarget)' == '' OR '$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">true</IntentViewerMcpSupported>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(IntentViewerMcpSupported)' == 'true' AND ('$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0' OR '$(TargetFramework)' == 'net10.0')">
+    <DefineConstants>$(DefineConstants);INTENT_VIEWER_MCP</DefineConstants>
+    <IntentViewerMcpEnabled>true</IntentViewerMcpEnabled>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Robotics.Client\Opc.Ua.Robotics.Client.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
-  </ItemGroup>
+    <ProjectReference Condition="'$(IntentViewerMcpEnabled)' == 'true'" Include="..\..\..\tools\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
+    <ProjectReference Condition="'$(IntentViewerMcpEnabled)' == 'true'" Include="..\..\..\tools\Opc.Ua.Mcp.Robotics\Opc.Ua.Mcp.Robotics.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(IntentViewerMcpEnabled)' == 'true'">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+  </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
   </ItemGroup>

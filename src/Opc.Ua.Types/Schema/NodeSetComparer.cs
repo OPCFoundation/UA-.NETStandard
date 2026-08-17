@@ -165,6 +165,71 @@ namespace Opc.Ua.Export
         }
 
         /// <summary>
+        /// Compares two NodeSet2 documents for <i>equivalence</i> rather than
+        /// canonical text equality.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <i>OPC UA — WoT Binding</i> §9.2 asks whether a readable document
+        /// reproduces an <b>equivalent</b> UANodeSet, and text equality is
+        /// strictly stronger than that. A NodeSet may write a DataType or a
+        /// ReferenceType either as an alias its own <c>Aliases</c> table
+        /// declares or as the identifier that alias stands for, and the two say
+        /// the same thing. Comparing them as text reports a difference in
+        /// spelling as a difference in content.
+        /// </para>
+        /// <para>
+        /// This resolves each side through its own table and drops the table
+        /// itself, which is only the definition of the shorthand. It is separate
+        /// from <see cref="Compare"/> because that comparison is used where
+        /// exact reproduction is the question, and loosening it there would stop
+        /// it answering that question.
+        /// </para>
+        /// </remarks>
+        /// <param name="left">The first document.</param>
+        /// <param name="right">The second document.</param>
+        /// <param name="options">Optional resource limits used during comparison.</param>
+        /// <returns>The comparison result.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="left"/> or <paramref name="right"/> is <c>null</c>.
+        /// </exception>
+        public static NodeSetComparisonResult CompareEquivalent(
+            UANodeSet left,
+            UANodeSet right,
+            WotNodeSetConverterOptions? options = null)
+        {
+            if (left is null)
+            {
+                throw new ArgumentNullException(nameof(left));
+            }
+            if (right is null)
+            {
+                throw new ArgumentNullException(nameof(right));
+            }
+            options ??= new WotNodeSetConverterOptions();
+            options.Validate();
+
+            string canonicalLeft;
+            string canonicalRight;
+            try
+            {
+                canonicalLeft = Canonicalize(
+                    Encoding.UTF8.GetString(StripPreamble(Serialize(left)).ToArray()),
+                    options.MaxXmlDepth,
+                    resolveAliases: true);
+                canonicalRight = Canonicalize(
+                    Encoding.UTF8.GetString(StripPreamble(Serialize(right)).ToArray()),
+                    options.MaxXmlDepth,
+                    resolveAliases: true);
+            }
+            catch (FormatException ex)
+            {
+                return new NodeSetComparisonResult(false, [ex.Message]);
+            }
+            return BuildResult(canonicalLeft, canonicalRight);
+        }
+
+        /// <summary>
         /// Converts a NodeSet2 document to a WoT document and back. By default,
         /// the report uses native-only mode so completeness is never proved by
         /// the preservation envelope.
@@ -262,7 +327,8 @@ namespace Opc.Ua.Export
             return text.Substring(start, end - start);
         }
 
-        private static string Canonicalize(string xml, int maxXmlDepth)
+        private static string Canonicalize(
+            string xml, int maxXmlDepth, bool resolveAliases = false)
         {
             var settings = new XmlReaderSettings
             {
@@ -281,16 +347,44 @@ namespace Opc.Ua.Export
             var builder = new StringBuilder();
             if (document.Root is not null)
             {
-                WriteElement(builder, document.Root, 1, maxXmlDepth);
+                Dictionary<string, string>? aliases = resolveAliases
+                    ? ReadAliases(document.Root)
+                    : null;
+                WriteElement(builder, document.Root, 1, maxXmlDepth, aliases);
             }
             return builder.ToString();
+        }
+
+        /// <summary>
+        /// Reads a NodeSet's own <c>Aliases</c> table.
+        /// </summary>
+        private static Dictionary<string, string> ReadAliases(XElement root)
+        {
+            var aliases = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (XElement table in root.Elements())
+            {
+                if (!string.Equals(table.Name.LocalName, AliasesElement, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                foreach (XElement alias in table.Elements())
+                {
+                    string? name = alias.Attribute("Alias")?.Value;
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        aliases[name!] = alias.Value;
+                    }
+                }
+            }
+            return aliases;
         }
 
         private static void WriteElement(
             StringBuilder builder,
             XElement element,
             int depth,
-            int maxXmlDepth)
+            int maxXmlDepth,
+            Dictionary<string, string>? aliases)
         {
             if (depth > maxXmlDepth)
             {
@@ -299,6 +393,17 @@ namespace Opc.Ua.Export
                         System.Globalization.CultureInfo.InvariantCulture,
                         "NodeSet XML exceeds the configured maximum depth of {0}.",
                         maxXmlDepth));
+            }
+
+            bool isReference = string.Equals(
+                element.Name.LocalName, ReferenceElement, StringComparison.Ordinal);
+            if (aliases is not null &&
+                string.Equals(element.Name.LocalName, AliasesElement, StringComparison.Ordinal))
+            {
+                // The table defines the shorthand every other element is read
+                // through, so once both sides are resolved it states nothing a
+                // comparison of content should see.
+                return;
             }
 
             builder.Append('<').Append(element.Name.ToString());
@@ -311,7 +416,9 @@ namespace Opc.Ua.Export
                 builder.Append(' ')
                     .Append(attribute.Name.ToString())
                     .Append("=\"")
-                    .Append(attribute.Value)
+                    .Append(IsAliasedAttribute(attribute.Name.LocalName)
+                        ? Resolve(attribute.Value, aliases)
+                        : attribute.Value)
                     .Append('"');
             }
             builder.Append('>');
@@ -321,16 +428,38 @@ namespace Opc.Ua.Export
                 switch (node)
                 {
                     case XElement child:
-                        WriteElement(builder, child, depth + 1, maxXmlDepth);
+                        WriteElement(builder, child, depth + 1, maxXmlDepth, aliases);
                         break;
                     case XText text:
-                        builder.Append(text.Value);
+                        // A Reference's text is its target NodeId, which an
+                        // alias may stand for. No other element's text is a
+                        // NodeId, so nothing else is rewritten.
+                        builder.Append(isReference ? Resolve(text.Value, aliases) : text.Value);
                         break;
                 }
             }
 
             builder.Append("</").Append(element.Name.ToString()).Append('>');
         }
+
+        /// <summary>
+        /// Tests whether an attribute is one an alias may legally stand in for.
+        /// </summary>
+        private static bool IsAliasedAttribute(string localName)
+        {
+            return string.Equals(localName, "DataType", StringComparison.Ordinal) ||
+                string.Equals(localName, "ReferenceType", StringComparison.Ordinal);
+        }
+
+        private static string Resolve(string value, Dictionary<string, string>? aliases)
+        {
+            return aliases is not null && aliases.TryGetValue(value, out string? resolved)
+                ? resolved
+                : value;
+        }
+
+        private const string AliasesElement = "Aliases";
+        private const string ReferenceElement = "Reference";
 
         private static byte[] Serialize(UANodeSet nodeSet)
         {

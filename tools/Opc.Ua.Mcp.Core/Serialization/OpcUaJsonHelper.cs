@@ -28,10 +28,14 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Opc.Ua.Mcp.Serialization
@@ -49,10 +53,134 @@ namespace Opc.Ua.Mcp.Serialization
         /// <summary>
         /// Serializes an object to a JSON string using the OPC UA JSON options.
         /// </summary>
+        /// <remarks>
+        /// The tool helpers in this assembly reduce every OPC UA value to a closed set of
+        /// JSON-friendly shapes before serializing it (see <see cref="ElementToObject"/>):
+        /// <c>null</c>, the primitive scalars, <see cref="string"/>,
+        /// <see cref="Dictionary{TKey, TValue}"/> of <see cref="string"/> to <see cref="object"/>
+        /// and lists thereof. Because that set is closed, the JSON is written directly with a
+        /// <see cref="Utf8JsonWriter"/> rather than through the reflection-based
+        /// <see cref="JsonSerializer"/>, which keeps the assembly trim- and Native-AOT-safe.
+        /// The output is byte-for-byte identical to the reflection-based serializer configured
+        /// with <see cref="JsonOptions"/>.
+        /// </remarks>
         /// <typeparam name="T"></typeparam>
         public static string Serialize<T>(T value)
         {
-            return JsonSerializer.Serialize(value, JsonOptions);
+            var buffer = new ArrayBufferWriter<byte>();
+            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions
+            {
+                Indented = JsonOptions.WriteIndented,
+                Encoder = JsonOptions.Encoder
+            }))
+            {
+                WriteValue(writer, value);
+            }
+
+            return Encoding.UTF8.GetString(buffer.WrittenSpan);
+        }
+
+        /// <summary>
+        /// Writes a JSON-friendly value produced by the conversion helpers in this class.
+        /// </summary>
+        private static void WriteValue(Utf8JsonWriter writer, object? value)
+        {
+            switch (value)
+            {
+                case null:
+                    writer.WriteNullValue();
+                    break;
+                case string text:
+                    writer.WriteStringValue(text);
+                    break;
+                case bool flag:
+                    writer.WriteBooleanValue(flag);
+                    break;
+                // Utf8JsonWriter has no overloads for the narrow integer types, so widen
+                // them; the rendered digits are the same either way.
+                case sbyte number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case byte number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case short number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case ushort number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case int number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case uint number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case long number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case ulong number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case float number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case double number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case decimal number:
+                    writer.WriteNumberValue(number);
+                    break;
+                case DateTime timestamp:
+                    writer.WriteStringValue(timestamp);
+                    break;
+                case DateTimeOffset timestamp:
+                    writer.WriteStringValue(timestamp);
+                    break;
+                case Guid guid:
+                    writer.WriteStringValue(guid);
+                    break;
+                case byte[] bytes:
+                    writer.WriteBase64StringValue(bytes);
+                    break;
+                case JsonElement element:
+                    element.WriteTo(writer);
+                    break;
+                case JsonNode node:
+                    node.WriteTo(writer);
+                    break;
+                // Must precede IEnumerable: a dictionary is also a sequence of pairs.
+                case IDictionary<string, object?> map:
+                    writer.WriteStartObject();
+                    foreach (KeyValuePair<string, object?> entry in map)
+                    {
+                        writer.WritePropertyName(entry.Key);
+                        WriteValue(writer, entry.Value);
+                    }
+                    writer.WriteEndObject();
+                    break;
+                case IEnumerable sequence:
+                    writer.WriteStartArray();
+                    foreach (object? item in sequence)
+                    {
+                        WriteValue(writer, item);
+                    }
+                    writer.WriteEndArray();
+                    break;
+                case char character:
+                    writer.WriteStringValue(character.ToString());
+                    break;
+                default:
+                    // The conversion helpers in this class reduce every OPC UA value to the
+                    // shapes handled above, so reaching this point means a caller passed a
+                    // type this trim-safe writer cannot model. Fail loudly rather than
+                    // silently emitting a stringified object.
+                    throw new NotSupportedException(
+                        $"'{value.GetType()}' is not a JSON-friendly value. Convert it with the " +
+                        $"{nameof(OpcUaJsonHelper)} helpers before serializing; arbitrary object " +
+                        "graphs are not supported because that would require reflection, which is " +
+                        "unavailable when trimming or publishing ahead of time.");
+            }
         }
 
         /// <summary>

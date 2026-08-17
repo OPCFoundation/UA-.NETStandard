@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 
@@ -48,6 +47,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// The registry resolves to platform cryptography until something is
         /// bound, so registering it on its own is inert.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddCryptoProvider(this IOpcUaBuilder builder)
         {
             if (builder is null)
@@ -55,8 +55,22 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            builder.Services.TryAddSingleton<ICryptoProviderRegistry>(
-                _ => new CryptoProviderRegistry());
+            builder.Services.TryAddSingleton<ICryptoProviderRegistry>(sp =>
+            {
+                var registry = new CryptoProviderRegistry();
+
+                // Bindings are registered as separate services so that several
+                // independent AddCryptoProvider calls compose. They are applied
+                // here, when the registry is first resolved, because that is the
+                // only point at which every one of them is known.
+                foreach (CryptoProviderConfiguration configuration in
+                    sp.GetServices<CryptoProviderConfiguration>())
+                {
+                    configuration.Apply(registry);
+                }
+
+                return registry;
+            });
 
             return builder;
         }
@@ -82,6 +96,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// before this call keeps it, and the bindings are applied to that
         /// instance.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddCryptoProvider(
             this IOpcUaBuilder builder,
             Action<CryptoProviderBuilder> configure)
@@ -99,6 +114,77 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.AddCryptoProvider();
 
             builder.Services.AddSingleton(new CryptoProviderConfiguration(configure));
+
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a security policy contributed by a provider.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="securityPolicy">The security policy to register.</param>
+        /// <param name="replaceExisting">
+        /// When <c>true</c>, an existing policy with the same URI or name is deliberately replaced.
+        /// </param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaBuilder AddSecurityPolicy(
+            this IOpcUaBuilder builder,
+            SecurityPolicyInfo securityPolicy,
+            bool replaceExisting = false)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            if (securityPolicy is null)
+            {
+                throw new ArgumentNullException(nameof(securityPolicy));
+            }
+
+            builder.AddSecurityPolicyRegistry();
+
+            builder.Services.AddSingleton(new SecurityPolicyConfiguration(securityPolicy, replaceExisting));
+
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the security policy registry, so that a consumer can resolve
+        /// <see cref="ISecurityPolicyRegistry"/> whether or not the application
+        /// contributed any policy of its own.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <remarks>
+        /// The registry carries the built-in policies, and any policy registered
+        /// through <see cref="AddSecurityPolicy"/> is applied to it. It is a
+        /// registry of its own rather than
+        /// <see cref="SecurityPolicies.Default"/>, so what one application
+        /// registers does not reach another in the same process.
+        /// </remarks>
+        public static IOpcUaBuilder AddSecurityPolicyRegistry(this IOpcUaBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<ISecurityPolicyRegistry>(sp =>
+            {
+                var registry = new SecurityPolicies(
+                    sp.GetService<ITelemetryContext>());
+
+                foreach (SecurityPolicyConfiguration configuration in
+                    sp.GetServices<SecurityPolicyConfiguration>())
+                {
+                    configuration.Apply(registry);
+                }
+
+                return registry;
+            });
 
             return builder;
         }

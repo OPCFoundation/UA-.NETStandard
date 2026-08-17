@@ -68,7 +68,14 @@ namespace Opc.Ua.Mcp
                     }
 
                     schema["required"] = new JsonArray();
-                    tool.InputSchema = JsonSerializer.SerializeToElement(schema);
+
+                    // JsonSerializer.SerializeToElement would reflect over JsonObject; parsing
+                    // the node's own text is reflection-free. Clone detaches the element from
+                    // the document so it stays valid after disposal.
+                    using (JsonDocument document = JsonDocument.Parse(schema.ToJsonString()))
+                    {
+                        tool.InputSchema = document.RootElement.Clone();
+                    }
                 }
 
                 return result;

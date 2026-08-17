@@ -88,7 +88,7 @@ namespace Quickstarts.ReferenceServer
             // reference is shared between the diagnostics and core node
             // managers, so attribute mutations propagate automatically.
             ServerObjectState serverNode = FindPredefinedNode<ServerObjectState>(
-                ObjectIds.Server);
+                Opc.Ua.ObjectIds.Server);
             if (serverNode != null && serverNode.RolePermissions.IsNull)
             {
                 const PermissionType browseAndRead =
@@ -114,22 +114,22 @@ namespace Quickstarts.ReferenceServer
                 {
                     new()
                     {
-                        RoleId = ObjectIds.WellKnownRole_Anonymous,
+                        RoleId = Opc.Ua.ObjectIds.WellKnownRole_Anonymous,
                         Permissions = (uint)browseAndRead
                     },
                     new()
                     {
-                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        RoleId = Opc.Ua.ObjectIds.WellKnownRole_AuthenticatedUser,
                         Permissions = (uint)browseAndRead
                     },
                     new()
                     {
-                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        RoleId = Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin,
                         Permissions = (uint)fullAdmin
                     },
                     new()
                     {
-                        RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                        RoleId = Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
                         Permissions = (uint)fullAdmin
                     }
                 }.ToArrayOf();
@@ -179,17 +179,17 @@ namespace Quickstarts.ReferenceServer
             BaseVariableTypeState analogItemType = FindPredefinedNode<BaseVariableTypeState>(
                 VariableTypeIds.AnalogItemType);
             if (analogItemType != null &&
-                analogItemType.FindChild(SystemContext, new QualifiedName(BrowseNames.EngineeringUnits, 0)) == null)
+                analogItemType.FindChild(SystemContext, new QualifiedName(Opc.Ua.BrowseNames.EngineeringUnits, 0)) == null)
             {
                 var euProperty = PropertyState<EUInformation>
                     .With<StructureBuilder<EUInformation>>(analogItemType);
-                euProperty.SymbolicName = BrowseNames.EngineeringUnits;
+                euProperty.SymbolicName = Opc.Ua.BrowseNames.EngineeringUnits;
                 euProperty.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                 euProperty.TypeDefinitionId = VariableTypeIds.PropertyType;
-                euProperty.ModellingRuleId = ObjectIds.ModellingRule_Optional;
-                euProperty.NodeId = new NodeId(BrowseNames.EngineeringUnits, diagnosticsNamespaceIndex);
-                euProperty.BrowseName = new QualifiedName(BrowseNames.EngineeringUnits, 0);
-                euProperty.DisplayName = LocalizedText.From(BrowseNames.EngineeringUnits);
+                euProperty.ModellingRuleId = Opc.Ua.ObjectIds.ModellingRule_Optional;
+                euProperty.NodeId = new NodeId(Opc.Ua.BrowseNames.EngineeringUnits, diagnosticsNamespaceIndex);
+                euProperty.BrowseName = new QualifiedName(Opc.Ua.BrowseNames.EngineeringUnits, 0);
+                euProperty.DisplayName = LocalizedText.From(Opc.Ua.BrowseNames.EngineeringUnits);
                 euProperty.DataType = DataTypeIds.EUInformation;
                 euProperty.ValueRank = ValueRanks.Scalar;
                 euProperty.AccessLevel = AccessLevels.CurrentRead;

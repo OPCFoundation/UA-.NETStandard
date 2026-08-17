@@ -118,18 +118,6 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void RelativeNameNamespaceReportsNonAbsoluteIri()
-        {
-            WotConversionResult<UANodeSet> result = Convert(
-                "\"uav:nameNamespace\":\"demo/pump\"");
-
-            Assert.That(
-                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NonAbsoluteIri),
-                Is.True,
-                "A uav:nameNamespace without a scheme should be reported.");
-        }
-
-        [Test]
         public void RelativeSemanticIdReportsNonAbsoluteIri()
         {
             WotConversionResult<UANodeSet> result = Convert(
@@ -155,8 +143,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 "\"uav:isComposite\":true,\"uav:contains\":[\"Impeller\"]," +
-                "\"links\":[{\"rel\":\"uav:componentModel\",\"href\":\"urn:x\"," +
-                "\"uav:refName\":\"Impeller\",\"uav:refId\":\"nsu=urn:test:pump;i=47\"}]");
+                "\"links\":[{\"rel\":\"ua:HasComponent\",\"href\":\"urn:x\"," +
+                "\"uav:refName\":\"Impeller\",\"uav:refId\":\"i=47\"}]");
 
             Assert.That(result.Value, Is.Not.Null);
             Assert.That(
@@ -432,8 +420,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument original = ParseThingModel(
                 "\"uav:isComposite\":true,\"uav:contains\":[\"Impeller\"]," +
-                "\"links\":[{\"rel\":\"uav:componentModel\",\"href\":\"urn:x\"," +
-                "\"uav:refName\":\"Impeller\",\"uav:refId\":\"nsu=urn:test:pump;i=47\"}]");
+                "\"links\":[{\"rel\":\"ua:HasComponent\",\"href\":\"urn:x\"," +
+                "\"uav:refName\":\"Impeller\",\"uav:refId\":\"i=47\"}]");
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
             using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
@@ -496,6 +484,7 @@ namespace Opc.Ua.Types.Tests.Wot
             byte[] json = WotTestData.Utf8(
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"ua\":\"http://opcfoundation.org/UA/\"," +
                 "\"pump\":\"urn:test:pump\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"Pump\",\"uav:browseName\":\"pump:PumpType\"," +

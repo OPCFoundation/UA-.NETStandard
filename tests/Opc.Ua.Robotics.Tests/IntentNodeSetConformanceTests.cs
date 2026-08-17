@@ -367,7 +367,8 @@ namespace Opc.Ua.Robotics.Server.Tests
                 ("HardwareFault", 16),
                 ("SafetyStop", 17),
                 ("Other", 18),
-                ("SafetyLimitExceeded", 19));
+                ("SafetyLimitExceeded", 19),
+                ("NoTransition", 20));
             yield return EnumCase<StopModeEnum>(
                 ("OnPath", 1),
                 ("EndOfCycle", 2),

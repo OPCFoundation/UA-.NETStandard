@@ -433,21 +433,37 @@ namespace Opc.Ua.Bindings
             {
                 if (doNotBlock)
                 {
-                    // Same contract as the inline branch below: the callback is
-                    // user code and may throw. Without this the exception is
-                    // swallowed by the unobserved-task machinery and the failure
-                    // is invisible.
-                    _ = Task.Run(() =>
-                    {
-                        try
+                    // Queued rather than run inline because the completing frame
+                    // may hold a channel's gate, which is not re-entrant: a
+                    // callback that entered it from this stack would deadlock.
+                    // UnsafeQueueUserWorkItem also avoids capturing and
+                    // restoring the execution context, which this callback does
+                    // not need.
+                    ThreadPool.UnsafeQueueUserWorkItem(
+                        static state =>
                         {
-                            callback(this);
-                        }
-                        catch (Exception e)
-                        {
-                            m_logger.ChannelAsyncOperationLogMessage0(e);
-                        }
-                    });
+                            var operation = (ChannelAsyncOperation<T>)state!;
+                            AsyncCallback? cb = operation.m_callback;
+
+                            if (cb == null)
+                            {
+                                return;
+                            }
+
+                            // Same contract as the inline branch below: the
+                            // callback is user code and may throw. Without this
+                            // the exception reaches the thread pool and takes the
+                            // process down.
+                            try
+                            {
+                                cb(operation);
+                            }
+                            catch (Exception e)
+                            {
+                                operation.m_logger.ChannelAsyncOperationLogMessage0(e);
+                            }
+                        },
+                        this);
                 }
                 else
                 {

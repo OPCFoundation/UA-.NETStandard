@@ -524,55 +524,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static IList<NodeId> MapSecurityPolicyToCertificateTypes(string securityPolicy)
         {
-            var result = new List<NodeId>();
-            switch (securityPolicy)
+            if (securityPolicy == SecurityPolicies.Https)
             {
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Basic256:
-                    result.Add(ObjectTypeIds.RsaMinApplicationCertificateType);
-                    goto case SecurityPolicies.Basic256Sha256;
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.RSA_DH_AesGcm:
-                case SecurityPolicies.RSA_DH_ChaChaPoly:
-                    result.Add(ObjectTypeIds.RsaSha256ApplicationCertificateType);
-                    break;
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP256_AesGcm:
-                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
-                    result.Add(ObjectTypeIds.EccNistP256ApplicationCertificateType);
-                    goto case SecurityPolicies.ECC_nistP384;
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_nistP384_AesGcm:
-                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
-                    result.Add(ObjectTypeIds.EccNistP384ApplicationCertificateType);
-                    break;
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP256r1_AesGcm:
-                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
-                    result.Add(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
-                    goto case SecurityPolicies.ECC_brainpoolP384r1;
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                case SecurityPolicies.ECC_brainpoolP384r1_AesGcm:
-                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
-                    result.Add(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
-                    break;
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve25519_AesGcm:
-                case SecurityPolicies.ECC_curve25519_ChaChaPoly:
-                    result.Add(ObjectTypeIds.EccCurve25519ApplicationCertificateType);
-                    break;
-                case SecurityPolicies.ECC_curve448:
-                case SecurityPolicies.ECC_curve448_AesGcm:
-                case SecurityPolicies.ECC_curve448_ChaChaPoly:
-                    result.Add(ObjectTypeIds.EccCurve448ApplicationCertificateType);
-                    break;
-                case SecurityPolicies.Https:
-                    result.Add(ObjectTypeIds.HttpsCertificateType);
-                    break;
+                return [ObjectTypeIds.HttpsCertificateType];
             }
-            return result;
+
+            return [.. SecurityPolicies.Default.GetCertificateTypes(securityPolicy)];
         }
 
         /// <summary>

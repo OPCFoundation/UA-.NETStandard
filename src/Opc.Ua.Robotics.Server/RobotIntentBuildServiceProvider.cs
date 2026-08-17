@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.RobotIntent;
+using Opc.Ua.RobotIntent.Server;
 
 namespace Opc.Ua.Robotics.Server
 {
@@ -36,7 +38,9 @@ namespace Opc.Ua.Robotics.Server
     {
         public const string MissingExecutorMessage =
             "No Robot Intent executor is registered. Register an IIntentExecutor with " +
-            "AddRobotIntentExecutor<TExecutor>() for DI hosting, or create the direct build context with " +
+            "AddRobotIntentExecutor<TExecutor>() for DI hosting, " +
+            "AddRobotIntentExecutor<TExecutor>(controllerBrowseName) per controller, " +
+            "or create the direct build context with " +
             "CreateRobotIntentBuildContext(IIntentExecutor, CancellationToken).";
 
         private RobotIntentBuildServiceProvider(IServiceProvider? services, IIntentExecutor? executor)
@@ -73,7 +77,57 @@ namespace Opc.Ua.Robotics.Server
             return m_services?.GetService(serviceType);
         }
 
+        internal bool TryGetExecutor(IntentControllerState controller, out IIntentExecutor? executor)
+        {
+            if (m_services != null)
+            {
+                foreach (RobotIntentControllerExecutorRegistration registration in
+                    m_services.GetServices<RobotIntentControllerExecutorRegistration>())
+                {
+                    if (registration.TryGetExecutor(controller, out executor))
+                    {
+                        return true;
+                    }
+                }
+            }
+            executor = null;
+            return false;
+        }
+
         private readonly IServiceProvider? m_services;
         private readonly IIntentExecutor? m_executor;
+    }
+
+    internal sealed class RobotIntentControllerExecutorRegistration
+    {
+        public RobotIntentControllerExecutorRegistration(string controllerBrowseName, IIntentExecutor executor)
+        {
+            if (string.IsNullOrWhiteSpace(controllerBrowseName))
+            {
+                throw new ArgumentException(
+                    "A non-empty controller browse name is required.",
+                    nameof(controllerBrowseName));
+            }
+            m_controllerBrowseName = controllerBrowseName;
+            m_executor = executor ?? throw new ArgumentNullException(nameof(executor));
+        }
+
+        public bool TryGetExecutor(IntentControllerState controller, out IIntentExecutor? executor)
+        {
+            if (controller == null)
+            {
+                throw new ArgumentNullException(nameof(controller));
+            }
+            if (string.Equals(controller.BrowseName.Name, m_controllerBrowseName, StringComparison.Ordinal))
+            {
+                executor = m_executor;
+                return true;
+            }
+            executor = null;
+            return false;
+        }
+
+        private readonly string m_controllerBrowseName;
+        private readonly IIntentExecutor m_executor;
     }
 }

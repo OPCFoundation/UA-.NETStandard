@@ -83,7 +83,11 @@ namespace Opc.Ua.Mcp
         /// than failing, so a host can pass one profile to every OPC UA tool
         /// package it references. The key-disclosing decode and replay tools
         /// are registered only when
-        /// <paramref name="diagnosticsToolsEnabled"/> is <c>true</c>.
+        /// <paramref name="diagnosticsToolsEnabled"/> is <c>true</c>. The bounded
+        /// <see cref="McpToolProfile.Diagnostics"/> catalogue also carries the
+        /// connection tools, because capturing traffic is only useful next to the
+        /// tools that generate it. <see cref="McpToolProfile.Full"/> already carries
+        /// them through the core package, so they are not added twice.
         /// </remarks>
         /// <param name="mcpServerBuilder">The MCP server builder.</param>
         /// <param name="toolProfile">The profile selecting the tool set.</param>
@@ -108,6 +112,11 @@ namespace Opc.Ua.Mcp
             {
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Full:
+                    mcpServerBuilder.WithRequestFilters(filters =>
+                    {
+                        filters.AddCallToolFilter(PcapMcpFilters.SurfaceDiagnosticsErrors);
+                        filters.AddListToolsFilter(PcapMcpFilters.AddCanonicalEnumSchemas);
+                    });
                     mcpServerBuilder.WithTools<PacketCaptureTools>();
 
                     if (diagnosticsToolsEnabled)
@@ -117,11 +126,20 @@ namespace Opc.Ua.Mcp
                             .WithTools<PacketReplayTools>();
                     }
 
+                    if (toolProfile == McpToolProfile.Diagnostics)
+                    {
+                        // Capturing traffic is only useful next to the connection tools that
+                        // generate it. Full already gets them from the core package, so adding
+                        // them there would register the same tools twice.
+                        mcpServerBuilder.WithTools<ConnectionTools>();
+                    }
+
                     break;
                 case McpToolProfile.Core:
                 case McpToolProfile.Services:
                 case McpToolProfile.Administration:
                 case McpToolProfile.PubSub:
+                case McpToolProfile.Robotics:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

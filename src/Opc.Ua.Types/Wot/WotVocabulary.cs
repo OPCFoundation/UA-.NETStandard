@@ -61,6 +61,20 @@ namespace Opc.Ua.Wot
         public const string HasModellingRule = "i=37";
         public const string GeneratesEvent = "i=41";
 
+        /// <summary>
+        /// The abstract root of every non-hierarchical ReferenceType
+        /// (OPC 10000-5). Spec PR #19 replaced <c>uav:reference</c> with this
+        /// name used directly as a link <c>rel</c>.
+        /// </summary>
+        public const string NonHierarchicalReferences = "i=32";
+
+        /// <summary>
+        /// The ReferenceType that names an Interface an Object exposes
+        /// (OPC 10000-3). Spec PR #19 replaced <c>uav:capability</c> with this
+        /// name used directly as a link <c>rel</c>.
+        /// </summary>
+        public const string HasInterface = "i=17603";
+
         // Type-annotation term for an event affordance projecting a UA EventType.
         public const string EventTypeAnnotation = "uav:eventType";
 
@@ -74,6 +88,46 @@ namespace Opc.Ua.Wot
         // Term naming the group an organizing link reaches (Section 12.7).
         public const string RefNameAnnotation = "uav:refName";
 
+        /// <summary>
+        /// The ConditionTypes of OPC 10000-9 that WoT Binding Section 13 maps.
+        /// </summary>
+        /// <remarks>
+        /// Section 13.1 scopes the mapping to exactly these four, so this is
+        /// the whole set rather than a convenience subset. Shelving,
+        /// suppression, dialog conditions and <c>ConditionRefresh</c> are
+        /// outside the mapping. A ConditionType outside this set is named by
+        /// <c>uav:conditionTypeId</c>, which is definitive and needs no lookup.
+        /// </remarks>
+        private static readonly Dictionary<string, string> s_conditionTypeNameToNodeId =
+            new(StringComparer.Ordinal)
+            {
+                ["ConditionType"] = "i=2782",
+                ["AcknowledgeableConditionType"] = "i=2881",
+                ["AlarmConditionType"] = "i=2915",
+                ["LimitAlarmType"] = "i=2955"
+            };
+
+        /// <summary>
+        /// Resolves the NodeId of a ConditionType named by its BrowseName in
+        /// the base OPC UA namespace.
+        /// </summary>
+        /// <param name="browseName">The unqualified BrowseName.</param>
+        /// <param name="nodeId">The NodeId, when the name is one this maps.</param>
+        /// <returns><c>true</c> when the name resolved.</returns>
+        public static bool TryGetConditionTypeNodeId(
+            string? browseName,
+            out string nodeId)
+        {
+            if (browseName is not null &&
+                s_conditionTypeNameToNodeId.TryGetValue(browseName, out string? found))
+            {
+                nodeId = found;
+                return true;
+            }
+            nodeId = string.Empty;
+            return false;
+        }
+
         private static readonly Dictionary<string, string> s_referenceTypeNameToNodeId =
             new(StringComparer.Ordinal)
             {
@@ -84,7 +138,9 @@ namespace Opc.Ua.Wot
                 ["HasSubtype"] = HasSubtype,
                 ["HasProperty"] = HasProperty,
                 ["HasComponent"] = HasComponent,
-                ["HasOrderedComponent"] = HasOrderedComponent
+                ["HasOrderedComponent"] = HasOrderedComponent,
+                ["NonHierarchicalReferences"] = NonHierarchicalReferences,
+                ["HasInterface"] = HasInterface
             };
 
         private static readonly Dictionary<string, string> s_referenceTypeNodeIdToName =
@@ -97,7 +153,9 @@ namespace Opc.Ua.Wot
                 [HasSubtype] = "HasSubtype",
                 [HasProperty] = "HasProperty",
                 [HasComponent] = "HasComponent",
-                [HasOrderedComponent] = "HasOrderedComponent"
+                [HasOrderedComponent] = "HasOrderedComponent",
+                [NonHierarchicalReferences] = "NonHierarchicalReferences",
+                [HasInterface] = "HasInterface"
             };
 
         // HasComponent subtypes (base namespace) that carry stronger semantics
@@ -121,6 +179,15 @@ namespace Opc.Ua.Wot
         public const string PropertyType = "i=68";
         public const string BaseEventType = "i=2041";
         public const string BaseDataType = "i=24";
+        public const string Structure = "i=22";
+        public const string Union = "i=12756";
+        public const string Enumeration = "i=29";
+        public const string DataTypeEncodingType = "i=76";
+        public const string String = "i=12";
+        public const string ByteString = "i=15";
+        public const string Integer = "i=27";
+        public const string Number = "i=26";
+        public const string UriString = "i=23751";
 
         // Modelling rules (base namespace).
         public const string ModellingRuleMandatory = "i=78";
@@ -150,11 +217,19 @@ namespace Opc.Ua.Wot
             new(StringComparer.Ordinal)
             {
                 ["boolean"] = "i=1",
-                ["integer"] = "i=8",
-                ["number"] = "i=11",
-                ["string"] = "i=12",
+                ["integer"] = Integer,
+                ["number"] = Number,
+                ["string"] = String,
                 ["object"] = "i=22",
-                ["null"] = "i=24"
+                ["null"] = BaseDataType
+            };
+
+        private static readonly Dictionary<string, string> s_stringFormatToDataType =
+            new(StringComparer.Ordinal)
+            {
+                ["date-time"] = "i=13",
+                ["uuid"] = "i=14",
+                ["uri"] = UriString
             };
 
         public static bool TryGetModellingRuleNodeId(string modellingRule, out string nodeId)
@@ -167,8 +242,38 @@ namespace Opc.Ua.Wot
             return s_nodeIdToModellingRule.TryGetValue(nodeId, out modellingRule!);
         }
 
-        public static string MapJsonTypeToDataType(string? jsonType)
+        /// <summary>
+        /// Infers the OPC UA DataType a DataSchema denotes, using the canonical
+        /// table of WoT Binding §6.11.4.
+        /// </summary>
+        /// <remarks>
+        /// A bare <c>integer</c> or <c>number</c> infers the <em>abstract</em>
+        /// Integer and Number, not a concrete width: the schema says only that
+        /// the value is whole or numeric, and §6.11.4 makes the abstract type
+        /// the honest reading of that, permitting subtype values. A concrete
+        /// type is recovered from an explicit annotation, never guessed here.
+        /// The <c>string</c> row is refined by <paramref name="contentEncoding"/>
+        /// and <paramref name="format"/>, which is how a ByteString, DateTime,
+        /// Guid or UriString survives the round trip through JSON Schema.
+        /// </remarks>
+        public static string MapJsonTypeToDataType(
+            string? jsonType,
+            string? contentEncoding = null,
+            string? format = null)
         {
+            if (string.Equals(jsonType, "string", StringComparison.Ordinal))
+            {
+                if (string.Equals(contentEncoding, Base64Encoding, StringComparison.Ordinal))
+                {
+                    return ByteString;
+                }
+                if (format is not null &&
+                    s_stringFormatToDataType.TryGetValue(format, out string? formatted))
+                {
+                    return formatted;
+                }
+                return String;
+            }
             if (jsonType is not null &&
                 s_jsonTypeToDataType.TryGetValue(jsonType, out string? dataType))
             {

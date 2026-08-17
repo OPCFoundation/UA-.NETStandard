@@ -462,7 +462,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 MessageSecurityMode.SignAndEncrypt,
                 securityPolicyUri);
 
-            SecurityPolicyInfo policy = SecurityPolicies.GetInfo(securityPolicyUri)!;
+            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(securityPolicyUri)!;
             int blockSize = policy.InitializationVectorLength != 0
                 ? policy.InitializationVectorLength
                 : 1;
@@ -636,7 +636,12 @@ namespace Opc.Ua.Core.DataChannels.Tests
             {
                 byte[] buffer = BufferManager.TakeBuffer(chunk.Length, nameof(ReceiveChunk));
                 chunk.CopyTo(buffer, 0);
-                OnChunkReceived(new ArraySegment<byte>(buffer, 0, chunk.Length));
+                OnChunkReceivedAsync(
+                    new ArraySegment<byte>(buffer, 0, chunk.Length),
+                    CancellationToken.None)
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
             }
 
             public void AttachTransport(IUaSCByteTransport transport)
@@ -747,16 +752,18 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 Interlocked.Increment(ref m_sequenceNumbersIssued);
             }
 
-            protected override bool HandleIncomingMessage(
+            protected override ValueTask<bool> HandleIncomingMessageAsync(
                 uint messageType,
-                ArraySegment<byte> messageChunk)
+                ArraySegment<byte> messageChunk,
+                CancellationToken ct)
             {
                 if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
                 {
-                    return ProcessDataChannelMessage(messageType, messageChunk, isRequest: true);
+                    return new ValueTask<bool>(
+                        ProcessDataChannelMessage(messageType, messageChunk, isRequest: true));
                 }
 
-                return false;
+                return new ValueTask<bool>(false);
             }
 
             protected override void HandleMessageProcessingError(ServiceResult result)

@@ -364,7 +364,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
                 TokenId = material.TokenId,
                 CreatedAt = material.CreatedAt,
                 Lifetime = material.Lifetime,
-                SecurityPolicy = SecurityPolicies.GetInfo(material.SecurityPolicyUri),
+                SecurityPolicy = SecurityPolicies.Default.GetInfo(material.SecurityPolicyUri),
                 ClientNonce = material.ClientNonce,
                 ServerNonce = material.ServerNonce,
                 ClientSigningKey = material.ClientSigningKey,

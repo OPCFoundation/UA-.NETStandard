@@ -184,7 +184,7 @@ namespace Quickstarts
                             if (m_logger.IsEnabled(LogLevel.Warning))
                             {
                                 m_logger.SecurityPolicy(
-                                    SecurityPolicies.GetDisplayName(securityPolicyUri),
+                                    SecurityPolicies.Default.GetDisplayName(securityPolicyUri),
                                     ii.SecurityMode);
                             }
 
@@ -234,7 +234,7 @@ namespace Quickstarts
                             if (m_logger.IsEnabled(LogLevel.Warning))
                             {
                                 m_logger.SecurityPolicy(
-                                    SecurityPolicies.GetDisplayName(securityPolicyUri),
+                                    SecurityPolicies.Default.GetDisplayName(securityPolicyUri),
                                     ii.SecurityMode);
                             }
 
@@ -251,7 +251,7 @@ namespace Quickstarts
                         if (m_logger.IsEnabled(LogLevel.Warning))
                         {
                             m_logger.TestComplete(
-                                SecurityPolicies.GetDisplayName(securityPolicyUri),
+                                SecurityPolicies.Default.GetDisplayName(securityPolicyUri),
                                 ii.SecurityMode);
                         }
 
@@ -516,7 +516,7 @@ namespace Quickstarts
         private static string GetUserCertificateFile(string securityPolicyUri)
         {
             // GetInfo returns null only for null/empty URI; caller passes a non-empty value.
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri)!;
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri)!;
 
             switch (securityPolicy.CertificateKeyAlgorithm)
             {

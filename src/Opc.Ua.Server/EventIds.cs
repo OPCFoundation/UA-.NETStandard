@@ -82,6 +82,7 @@ namespace Opc.Ua
         public const int SubscriptionManager = 500;
         public const int TrustList = 540;
         public const int UserManagementBinding = 550;
+        public const int RuntimeNodeSetNodeManager = 560;
     }
 
     /// <summary>

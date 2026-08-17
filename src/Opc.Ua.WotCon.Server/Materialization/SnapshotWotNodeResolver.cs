@@ -1,0 +1,285 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Wot;
+using Opc.Ua.WotCon.Server.Registry;
+
+namespace Opc.Ua.WotCon.Server.Materialization
+{
+    /// <summary>
+    /// The sibling-document part of the WoT Binding Section 5.1.5 local
+    /// context, over the documents held in a registry snapshot.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Section 5.1.5 consults the other documents being converted alongside
+    /// this one <em>before</em> a loaded AddressSpace, so that a set of
+    /// documents authored together resolves to itself and loading an unrelated
+    /// companion model can never change what an existing document projects to.
+    /// Compose this ahead of an AddressSpace-backed resolver with
+    /// <see cref="WotCompositeNodeResolver"/> to get that order.
+    /// </para>
+    /// <para>
+    /// Only Thing Models are indexed. A Thing Model projects its root as an
+    /// ObjectType and is therefore what a Section 5.2.1 type binding can name;
+    /// a Thing Description projects an instance and is never a type-binding
+    /// target.
+    /// </para>
+    /// <para>
+    /// The index is built once, on first use, and is not rebuilt: a snapshot is
+    /// immutable, so a conversion sees one consistent set of siblings for its
+    /// whole run.
+    /// </para>
+    /// </remarks>
+    public sealed class SnapshotWotNodeResolver : IWotNodeResolver
+    {
+        /// <summary>
+        /// Initializes a resolver over the documents in a registry snapshot.
+        /// </summary>
+        /// <param name="snapshot">The snapshot holding the sibling documents.</param>
+        /// <param name="contents">The document contents, keyed by digest.</param>
+        /// <param name="options">
+        /// The parser options to read the siblings with, so that the bounds a
+        /// conversion runs under also bound the indexing.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="snapshot"/> or <paramref name="contents"/> is
+        /// <c>null</c>.
+        /// </exception>
+        public SnapshotWotNodeResolver(
+            WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents,
+            WotNodeSetConverterOptions? options = null)
+        {
+            m_snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
+            m_contents = contents ?? throw new ArgumentNullException(nameof(contents));
+            m_options = options;
+            m_maxDocuments = options?.MaxResolverDocuments ?? 256;
+            m_maxTotalBytes = options?.MaxResolverTotalBytes ?? 128L * 1024 * 1024;
+        }
+
+        /// <summary>
+        /// Gets the snapshot this resolver indexes, so a caller can tell
+        /// whether an existing instance still applies.
+        /// </summary>
+        public WotRegistrySnapshot Snapshot => m_snapshot;
+
+        /// <inheritdoc/>
+        public ValueTask<bool> HoldsNamespaceAsync(
+            string namespaceUri,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                return new ValueTask<bool>(false);
+            }
+            return new ValueTask<bool>(Index().Namespaces.Contains(namespaceUri));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ArrayOf<WotResolvedNode>> ResolveByBrowseNameAsync(
+            string namespaceUri,
+            string browseName,
+            WotExpectedNodeClass expected,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Every indexed sibling projects an ObjectType, so a caller that
+            // requires a VariableType can never be satisfied here.
+            if (expected == WotExpectedNodeClass.VariableType ||
+                string.IsNullOrEmpty(namespaceUri) ||
+                string.IsNullOrEmpty(browseName))
+            {
+                return new ValueTask<ArrayOf<WotResolvedNode>>(ArrayOf<WotResolvedNode>.Empty);
+            }
+
+            ArrayOf<WotResolvedNode> matches =
+                Index().ByBrowseName.TryGetValue(
+                    Key(namespaceUri, browseName), out ArrayOf<WotResolvedNode> found)
+                    ? found
+                    : ArrayOf<WotResolvedNode>.Empty;
+            return new ValueTask<ArrayOf<WotResolvedNode>>(matches);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<WotResolvedNode?> ResolveByNodeIdAsync(
+            string expandedNodeId,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WotResolvedNode? match =
+                !string.IsNullOrEmpty(expandedNodeId) &&
+                Index().ByNodeId.TryGetValue(expandedNodeId, out WotResolvedNode found)
+                    ? found
+                    : null;
+            return new ValueTask<WotResolvedNode?>(match);
+        }
+
+        /// <summary>
+        /// Builds the index on first use.
+        /// </summary>
+        private SnapshotIndex Index()
+        {
+            SnapshotIndex? index = m_index;
+            if (index is not null)
+            {
+                return index;
+            }
+
+            lock (m_lock)
+            {
+                if (m_index is not null)
+                {
+                    return m_index;
+                }
+
+                var built = new SnapshotIndex();
+                var buckets = new Dictionary<string, List<WotResolvedNode>>(
+                    StringComparer.Ordinal);
+                long budget = 0;
+                int indexed = 0;
+                foreach (WotResource resource in m_snapshot.AllResources())
+                {
+                    // Only a Thing Model projects a type, so a Thing
+                    // Description's bytes are never read. Filtering on the
+                    // registry's own Kind avoids parsing a document only to
+                    // discard it.
+                    if (resource.Kind != WoTDocumentKindEnum.ThingModel)
+                    {
+                        continue;
+                    }
+
+                    WotResourceVersion? version = resource.DefaultVersion;
+                    if (version is null ||
+                        !m_contents.TryGetValue(version.DigestHex, out ByteString content))
+                    {
+                        continue;
+                    }
+
+                    // The same budget the rest of a conversion runs under also
+                    // bounds the indexing, so a large registry cannot turn one
+                    // conversion into unbounded work.
+                    if (indexed >= m_maxDocuments || budget > m_maxTotalBytes)
+                    {
+                        break;
+                    }
+                    indexed++;
+                    budget += content.Length;
+
+                    // A sibling that cannot be indexed simply does not
+                    // contribute a name. Its own conversion reports why, and
+                    // one unreadable document must never abort the indexing of
+                    // every other document in the registry.
+                    try
+                    {
+                        using WotDocument document = WotDocument.Parse(
+                            content.Span.ToArray(), m_options);
+                        if (!WotNodeSetConverter.TryDescribeProjectedType(
+                            document,
+                            out string namespaceUri,
+                            out string browseName,
+                            out string nodeId) ||
+                            namespaceUri.Length == 0 ||
+                            browseName.Length == 0)
+                        {
+                            continue;
+                        }
+
+                        var node = new WotResolvedNode(
+                            nodeId, WotExpectedNodeClass.ObjectType);
+                        built.Namespaces.Add(namespaceUri);
+                        built.ByNodeId[nodeId] = node;
+
+                        string key = Key(namespaceUri, browseName);
+                        if (!buckets.TryGetValue(key, out List<WotResolvedNode>? bucket))
+                        {
+                            bucket = [];
+                            buckets[key] = bucket;
+                        }
+
+                        // One entry per indexed document, never deduplicated.
+                        // Two siblings projecting the same qualified name make
+                        // it ambiguous even when they also claim the same
+                        // identity - two documents claiming one type is exactly
+                        // the conflict the caller has to be told about, so
+                        // collapsing them would resolve the name uniquely and
+                        // hide it.
+                        bucket.Add(node);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        continue;
+                    }
+                }
+
+                // Frozen before publication: the index is shared by every
+                // conversion of this snapshot, so no caller may hold a
+                // reference it could mutate.
+                foreach (KeyValuePair<string, List<WotResolvedNode>> bucket in buckets)
+                {
+                    built.ByBrowseName[bucket.Key] = new ArrayOf<WotResolvedNode>(
+                        bucket.Value.ToArray());
+                }
+
+                m_index = built;
+                return built;
+            }
+        }
+
+        private static string Key(string namespaceUri, string browseName)
+        {
+            return namespaceUri + "\u0000" + browseName;
+        }
+
+        private sealed class SnapshotIndex
+        {
+            public HashSet<string> Namespaces { get; } = new(StringComparer.Ordinal);
+
+            public Dictionary<string, ArrayOf<WotResolvedNode>> ByBrowseName { get; } =
+                new(StringComparer.Ordinal);
+
+            public Dictionary<string, WotResolvedNode> ByNodeId { get; } =
+                new(StringComparer.Ordinal);
+        }
+
+        private readonly WotRegistrySnapshot m_snapshot;
+        private readonly IReadOnlyDictionary<string, ByteString> m_contents;
+        private readonly WotNodeSetConverterOptions? m_options;
+        private readonly int m_maxDocuments;
+        private readonly long m_maxTotalBytes;
+        private readonly System.Threading.Lock m_lock = new();
+        private volatile SnapshotIndex? m_index;
+    }
+}

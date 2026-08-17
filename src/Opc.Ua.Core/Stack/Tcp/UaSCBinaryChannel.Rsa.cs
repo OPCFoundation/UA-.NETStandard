@@ -30,6 +30,8 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -159,6 +161,91 @@ namespace Opc.Ua.Bindings
                 decryptedBuffer,
                 0,
                 (dataToDecrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count);
+        }
+
+        /// <summary>
+        /// Decrypts the message using RSA encryption, without occupying the
+        /// calling thread when the private key is served over a network.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <remarks>
+        /// The returned task completes synchronously unless the private key
+        /// declares <see cref="IAsyncRsaKey"/>, so a software key behaves exactly
+        /// as it does through the synchronous overload.
+        /// <para>
+        /// The buffer taken from the <see cref="BufferManager"/> is returned to it
+        /// if anything fails, including across the suspension point, because the
+        /// caller only takes ownership of a segment it was actually handed.
+        /// </para>
+        /// </remarks>
+        private async ValueTask<ArraySegment<byte>> Rsa_DecryptAsync(
+            ArraySegment<byte> dataToDecrypt,
+            ArraySegment<byte> headerToCopy,
+            Certificate encryptingCertificate,
+            RsaUtils.Padding padding,
+            CancellationToken ct)
+        {
+            // get the encrypting key.
+            using RSA rsa =
+                encryptingCertificate.GetRSAPrivateKey()
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "No private key for certificate.");
+
+            int inputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa);
+            int outputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);
+
+            // verify the input data is the correct block size.
+            if (dataToDecrypt.Count % inputBlockSize != 0)
+            {
+                m_logger.UaSCChannelLog8(dataToDecrypt.Count, inputBlockSize);
+            }
+
+            byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Decrypt", ct);
+            bool success = false;
+
+            try
+            {
+                Array.Copy(
+                    headerToCopy.GetArray(),
+                    headerToCopy.Offset,
+                    decryptedBuffer,
+                    0,
+                    headerToCopy.Count);
+                RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
+
+                int written = headerToCopy.Count;
+                byte[] input = new byte[inputBlockSize];
+
+                for (int ii = dataToDecrypt.Offset;
+                    ii < dataToDecrypt.Offset + dataToDecrypt.Count;
+                    ii += inputBlockSize)
+                {
+                    Array.Copy(dataToDecrypt.GetArray(), ii, input, 0, input.Length);
+
+                    byte[] plainText = rsa is IAsyncRsaKey asyncRsa
+                        ? await asyncRsa.DecryptAsync(input, rsaPadding, ct).ConfigureAwait(false)
+                        : rsa.Decrypt(input, rsaPadding);
+
+                    Array.Copy(plainText, 0, decryptedBuffer, written, plainText.Length);
+                    written += plainText.Length;
+                }
+
+                success = true;
+
+                // return buffers.
+                return new ArraySegment<byte>(
+                    decryptedBuffer,
+                    0,
+                    (dataToDecrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count);
+            }
+            finally
+            {
+                if (!success)
+                {
+                    BufferManager.ReturnBuffer(decryptedBuffer, "Rsa_DecryptAsync");
+                }
+            }
         }
     }
 }

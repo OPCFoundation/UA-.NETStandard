@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -45,22 +47,17 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the endpoint description selected by the client.
         /// </summary>
+        /// <remarks>
+        /// Deliberately lock-free. This publishes a single reference, so a
+        /// volatile read and write give the same visibility the gate did, and
+        /// taking the gate here made every gate-holding caller that reads the
+        /// property a re-entrant one — <c>ConnectAsync</c> reads it four times
+        /// while holding it.
+        /// </remarks>
         public EndpointDescription? EndpointDescription
         {
-            get
-            {
-                lock (DataLock)
-                {
-                    return m_selectedEndpoint;
-                }
-            }
-            protected set
-            {
-                lock (DataLock)
-                {
-                    m_selectedEndpoint = value;
-                }
-            }
+            get => Volatile.Read(ref m_selectedEndpoint);
+            protected set => Volatile.Write(ref m_selectedEndpoint, value);
         }
 
         /// <summary>
@@ -84,7 +81,7 @@ namespace Opc.Ua.Bindings
         protected string SecurityPolicyUri
         {
             get => SecurityPolicy?.Uri ?? string.Empty;
-            private set => SecurityPolicy = SecurityPolicies.GetInfo(value);
+            private set => SecurityPolicy = SecurityPolicies.Default.GetInfo(value);
         }
 
         /// <summary>
@@ -586,29 +583,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends a OpenSecureChannel request.
         /// </summary>
-        protected BufferCollection WriteAsymmetricMessage(
-            uint messageType,
-            uint requestId,
-            Certificate senderCertificate,
-            Certificate receiverCertificate,
-            ArraySegment<byte> messageBody,
-            out SendGateTicket sendTicket)
-        {
-            return WriteAsymmetricMessage(
-                messageType,
-                requestId,
-                senderCertificate,
-                null,
-                receiverCertificate,
-                messageBody,
-                null,
-                out _,
-                out sendTicket);
-        }
-
-        /// <summary>
-        /// Sends a OpenSecureChannel request.
-        /// </summary>
         /// <param name="messageType">The UA TCP message type (for example, Open or OpenFinal).</param>
         /// <param name="requestId">The request identifier used in the sequence header.</param>
         /// <param name="senderCertificate">The certificate used to sign the asymmetric message.</param>
@@ -620,7 +594,14 @@ namespace Opc.Ua.Bindings
         /// <param name="sendTicket">Returns the FIFO send gate ticket for the secured chunks.</param>
         /// <exception cref="InvalidDataException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        protected BufferCollection WriteAsymmetricMessage(
+        /// <remarks>
+        /// Not part of the surface a channel outside this assembly can use:
+        /// <see cref="WriteAsymmetricMessageAsync"/> is, and it does not occupy a
+        /// thread while a private key served over a network signs the message.
+        /// This remains only for the fault and reconnect paths inside this
+        /// assembly, which are reached from call sites that cannot await.
+        /// </remarks>
+        private protected BufferCollection WriteAsymmetricMessage(
             uint messageType,
             uint requestId,
             Certificate? senderCertificate,
@@ -874,6 +855,271 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Sends an OpenSecureChannel message, without occupying the calling
+        /// thread when the private key is served over a network.
+        /// </summary>
+        /// <param name="messageType">The UA TCP message type (for example, Open or OpenFinal).</param>
+        /// <param name="requestId">The request identifier used in the sequence header.</param>
+        /// <param name="senderCertificate">The certificate used to sign the asymmetric message.</param>
+        /// <param name="senderCertificateChain">The optional sender certificate chain to include in the message header.</param>
+        /// <param name="receiverCertificate">The receiver certificate used for asymmetric encryption.</param>
+        /// <param name="messageBody">The encoded message body to send.</param>
+        /// <param name="oscRequestSignature">The signature from the OpenSecureChannel request.</param>
+        /// <param name="ct">Cancels the operation.</param>
+        /// <returns>The chunks to send and the signature that was generated.</returns>
+        /// <exception cref="InvalidDataException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <remarks>
+        /// Only the signature is awaited, and only when the private key declares
+        /// <see cref="IAsyncRsaKey"/> or <see cref="IAsyncEcdsaKey"/>. The
+        /// encryption uses the receiver's public key, which is always local.
+        /// </remarks>
+        protected async ValueTask<AsymmetricWriteResult> WriteAsymmetricMessageAsync(
+            uint messageType,
+            uint requestId,
+            Certificate? senderCertificate,
+            CertificateCollection? senderCertificateChain,
+            Certificate? receiverCertificate,
+            ArraySegment<byte> messageBody,
+            byte[]? oscRequestSignature,
+            CancellationToken ct)
+        {
+            byte[] signature = null!;
+
+            bool success = false;
+            var chunksToSend = new BufferCollection();
+
+            byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "WriteAsymmetricMessage", ct);
+            BinaryEncoder? encoder = null;
+
+            try
+            {
+                encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext);
+
+                int headerSize = 0;
+                if (senderCertificateChain != null && senderCertificateChain.Count > 0)
+                {
+                    WriteAsymmetricMessageHeader(
+                        encoder,
+                        messageType | TcpMessageType.Intermediate,
+                        ChannelId,
+                        SecurityPolicyUri,
+                        senderCertificate,
+                        senderCertificateChain,
+                        receiverCertificate,
+                        out int senderCertificateSize);
+
+                    headerSize = GetAsymmetricHeaderSize(
+                        SecurityPolicyUri,
+                        senderCertificate,
+                        senderCertificateSize);
+                }
+                else
+                {
+                    WriteAsymmetricMessageHeader(
+                        encoder,
+                        messageType | TcpMessageType.Intermediate,
+                        ChannelId,
+                        SecurityPolicyUri,
+                        senderCertificate,
+                        receiverCertificate);
+
+                    headerSize = GetAsymmetricHeaderSize(SecurityPolicyUri, senderCertificate);
+                }
+
+                int signatureSize = GetAsymmetricSignatureSize(senderCertificate);
+
+                // save the header.
+                var header = new ArraySegment<byte>(buffer, 0, headerSize);
+
+                // calculate the space available.
+                int plainTextBlockSize = GetPlainTextBlockSize(receiverCertificate);
+                int cipherTextBlockSize = GetCipherTextBlockSize(receiverCertificate);
+                int maxCipherTextSize = SendBufferSize - headerSize;
+                int maxCipherBlocks = maxCipherTextSize / cipherTextBlockSize;
+                int maxPlainTextSize = maxCipherBlocks * plainTextBlockSize;
+                int maxPayloadSize = maxPlainTextSize -
+                    signatureSize -
+                    1 -
+                    TcpMessageLimits.SequenceHeaderSize;
+
+                int bytesToWrite = messageBody.Count;
+                int startOfBytes = messageBody.Offset;
+
+                while (bytesToWrite > 0)
+                {
+                    encoder.WriteUInt32(null, GetNewSequenceNumber());
+                    encoder.WriteUInt32(null, requestId);
+
+                    int payloadSize = bytesToWrite;
+
+                    if (payloadSize > maxPayloadSize)
+                    {
+                        payloadSize = maxPayloadSize;
+                    }
+                    else
+                    {
+                        UpdateMessageType(buffer, 0, messageType | TcpMessageType.Final);
+                    }
+
+                    // write the message body.
+                    encoder.WriteRawBytes(
+                        messageBody.GetArray(),
+                        messageBody.Offset + startOfBytes,
+                        payloadSize);
+
+                    // calculate the amount of plain text to encrypt.
+                    int plainTextSize = encoder.Position - headerSize + signatureSize;
+
+                    // calculate the padding.
+                    int padding = 0;
+
+                    if (SecurityMode != MessageSecurityMode.None)
+                    {
+                        if (SecurityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None &&
+                            receiverCertificate!.GetRSAPublicKey() != null)
+                        {
+                            if (X509Utils.GetRSAPublicKeySize(receiverCertificate!) <=
+                                TcpMessageLimits.KeySizeExtraPadding)
+                            {
+                                // need to reserve one byte for the padding.
+                                plainTextSize++;
+
+                                if (plainTextSize % plainTextBlockSize != 0)
+                                {
+                                    padding = plainTextBlockSize -
+                                        (plainTextSize % plainTextBlockSize);
+                                }
+
+                                encoder.WriteByte(null, (byte)padding);
+                                for (int ii = 0; ii < padding; ii++)
+                                {
+                                    encoder.WriteByte(null, (byte)padding);
+                                }
+                            }
+                            else
+                            {
+                                // need to reserve one byte for the padding.
+                                plainTextSize++;
+                                // need to reserve one byte for the extrapadding.
+                                plainTextSize++;
+
+                                if (plainTextSize % plainTextBlockSize != 0)
+                                {
+                                    padding = plainTextBlockSize -
+                                        (plainTextSize % plainTextBlockSize);
+                                }
+
+                                byte paddingSize = (byte)(padding & 0xff);
+                                byte extraPaddingByte = (byte)((padding >> 8) & 0xff);
+
+                                encoder.WriteByte(null, paddingSize);
+                                for (int ii = 0; ii < padding; ii++)
+                                {
+                                    encoder.WriteByte(null, paddingSize);
+                                }
+                                encoder.WriteByte(null, extraPaddingByte);
+                            }
+                        }
+
+                        // update the plaintext size with the padding size.
+                        plainTextSize += padding;
+                    }
+
+                    // calculate the number of block to encrypt.
+                    int encryptedBlocks = plainTextSize / plainTextBlockSize;
+
+                    // calculate the size of the encrypted data.
+                    int cipherTextSize = encryptedBlocks * cipherTextBlockSize;
+
+                    // put the message size after encryption into the header.
+                    UpdateMessageSize(buffer, 0, cipherTextSize + headerSize);
+
+                    ArraySegment<byte> dataToSign;
+
+                    if (oscRequestSignature != null && SecurityPolicy!.SecureChannelEnhancements)
+                    {
+                        // copy OpenSecureChannel request signature if provided before verifying.
+                        dataToSign = new ArraySegment<byte>(
+                            buffer,
+                            0,
+                            encoder.Position + oscRequestSignature.Length);
+
+                        Array.Copy(
+                            oscRequestSignature,
+                            0,
+                            buffer,
+                            encoder.Position,
+                            oscRequestSignature.Length);
+                    }
+                    else
+                    {
+                        dataToSign = new ArraySegment<byte>(buffer, 0, encoder.Position);
+                    }
+
+                    // write the signature.
+                    signature = await SignAsync(dataToSign, senderCertificate!, ct).ConfigureAwait(false);
+
+                    if (signature != null)
+                    {
+                        encoder.WriteRawBytes(signature, 0, signature.Length);
+                    }
+
+                    int messageSize = encoder.Close();
+
+                    // encrypt the data.
+                    ArraySegment<byte> encryptedBuffer = Encrypt(
+                        new ArraySegment<byte>(buffer, headerSize, messageSize - headerSize),
+                        header,
+                        receiverCertificate!);
+
+                    // check for math errors due to code bugs.
+                    if (encryptedBuffer.Count != cipherTextSize + headerSize)
+                    {
+                        throw new InvalidDataException(
+                            "Actual message size is not the same as the predicted message size.");
+                    }
+
+                    // save chunk.
+                    chunksToSend.Add(encryptedBuffer);
+
+                    bytesToWrite -= payloadSize;
+                    startOfBytes += payloadSize;
+
+                    // reset the encoder to write the plaintext for the next chunk into the same buffer.
+                    if (bytesToWrite > 0)
+                    {
+                        encoder.Dispose();
+                        // ostrm is disposed by the encoder.
+                        var ostrm = new MemoryStream(buffer, 0, SendBufferSize);
+                        ostrm.Seek(header.Count, SeekOrigin.Current);
+                        encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false);
+                    }
+                }
+
+                // ensure the buffers don't get clean up on exit.
+                success = true;
+
+                return new AsymmetricWriteResult(chunksToSend, signature!);
+            }
+            catch (Exception ex)
+            {
+                throw new ServiceResultException("Could not write async message", ex);
+            }
+            finally
+            {
+                encoder?.Dispose();
+
+                BufferManager.ReturnBuffer(buffer, "WriteAsymmetricMessage");
+
+                if (!success)
+                {
+                    chunksToSend.Release(BufferManager, "WriteAsymmetricMessage");
+                }
+            }
+        }
+
+        /// <summary>
         /// Reads the asymmetric security header to the buffer.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -1007,7 +1253,7 @@ namespace Opc.Ua.Bindings
                             endpoint.SecurityPolicyUri == SecurityPolicyUri)
                         {
                             SecurityMode = endpoint.SecurityMode;
-                            m_selectedEndpoint = endpoint;
+                            Volatile.Write(ref m_selectedEndpoint, endpoint);
                             using (CertificateEntry? instanceEntry =
                                 m_serverCertificates!
                                     .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicyUri))
@@ -1073,7 +1319,7 @@ namespace Opc.Ua.Bindings
                         ? null
                         : BuildServerCertificateChain(instanceEntry);
                 }
-                m_selectedEndpoint = endpoint;
+                Volatile.Write(ref m_selectedEndpoint, endpoint);
                 return true;
             }
 
@@ -1094,30 +1340,18 @@ namespace Opc.Ua.Bindings
             byte[]? oscRequestSignature,
             out byte[] signature)
         {
-            signature = null!;
-
             int headerSize;
             using (var decoder = new BinaryDecoder(buffer, Quotas.MessageContext))
             {
-                // parse the security header.
-                ReadAsymmetricMessageHeader(
+                CertificateCollection? senderCertificateChain = ReadAsymmetricMessageSender(
                     decoder,
                     ref receiverCertificate,
                     out channelId,
-                    out CertificateCollection? senderCertificateChain,
+                    out senderCertificate,
                     out string securityPolicyUri);
 
                 using (senderCertificateChain)
                 {
-                    if (senderCertificateChain != null && senderCertificateChain.Count > 0)
-                    {
-                        senderCertificate = senderCertificateChain[0].AddRef();
-                    }
-                    else
-                    {
-                        senderCertificate = null;
-                    }
-
                     // validate the sender certificate.
                     if (senderCertificate != null &&
                         Quotas.CertificateValidator != null &&
@@ -1136,61 +1370,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                // check if this is the first open secure channel request.
-                if (!m_uninitialized)
-                {
-                    if (securityPolicyUri != SecurityPolicyUri)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadSecurityPolicyRejected,
-                            "Cannot change the security policy after creating the channnel.");
-                    }
-                }
-                else
-                {
-                    // find a matching endpoint description.
-                    if (m_endpoints != null)
-                    {
-                        foreach (EndpointDescription endpoint in m_endpoints)
-                        {
-                            // There may be multiple endpoints with the same securityPolicyUri.
-                            // Just choose the first one that matches. This choice will be re-examined
-                            // When the OpenSecureChannel request body is processed.
-                            if (endpoint.SecurityPolicyUri == securityPolicyUri ||
-                                (
-                                    securityPolicyUri == SecurityPolicies.None &&
-                                    endpoint.SecurityMode == MessageSecurityMode.None))
-                            {
-                                SecurityMode = endpoint.SecurityMode;
-                                SecurityPolicyUri = securityPolicyUri;
-                                DiscoveryOnly = false;
-                                m_uninitialized = false;
-                                m_selectedEndpoint = endpoint;
-
-                                // recalculate the key sizes.
-                                CalculateSymmetricKeySizes();
-                                break;
-                            }
-                        }
-                    }
-
-                    // allow a discovery only channel with no security if policy not suppported
-                    if (m_uninitialized)
-                    {
-                        if (securityPolicyUri != SecurityPolicies.None)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadSecurityPolicyRejected,
-                                "The security policy is not supported.");
-                        }
-
-                        SecurityMode = MessageSecurityMode.None;
-                        SecurityPolicyUri = SecurityPolicies.None;
-                        DiscoveryOnly = true;
-                        m_uninitialized = false;
-                        m_selectedEndpoint = null;
-                    }
-                }
+                SelectEndpointForAsymmetricMessage(securityPolicyUri);
 
                 headerSize = decoder.Position;
             }
@@ -1204,6 +1384,228 @@ namespace Opc.Ua.Bindings
                 new ArraySegment<byte>(buffer.GetArray(), buffer.Offset, headerSize),
                 receiverCertificate!);
 
+            return FinishReadAsymmetricMessage(
+                plainText,
+                headerSize,
+                receiverCertificate,
+                senderCertificate,
+                oscRequestSignature,
+                out requestId,
+                out sequenceNumber,
+                out signature);
+        }
+
+        /// <summary>
+        /// Processes an OpenSecureChannel request message, without occupying the
+        /// calling thread when the private key is served over a network.
+        /// </summary>
+        /// <param name="buffer">The message chunk.</param>
+        /// <param name="receiverCertificate">
+        /// The certificate whose key decrypts the message.
+        /// </param>
+        /// <param name="oscRequestSignature">
+        /// The signature from the OpenSecureChannel request, when the security
+        /// policy binds it.
+        /// </param>
+        /// <param name="onSenderCertificateParsed">
+        /// Invoked with the sender's certificate as soon as it has been parsed,
+        /// before anything that can reject the message. Ownership transfers to
+        /// the callback, which must dispose it.
+        /// </param>
+        /// <param name="ct">Cancels the operation.</param>
+        /// <returns>The message body and everything parsed alongside it.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <remarks>
+        /// This performs the same steps as
+        /// <see cref="ReadAsymmetricMessage"/> and shares its header and body
+        /// handling; only the certificate validation and the decryption are
+        /// awaited. With a software key neither suspends.
+        /// <para>
+        /// The callback exists because this returns its results rather than
+        /// writing them to <c>out</c> parameters, which an asynchronous method
+        /// cannot have. An <c>out</c> parameter reaches the caller even when the
+        /// method goes on to throw; a return value does not. Without it the
+        /// certificate of a *rejected* sender would never reach the caller — so
+        /// it would neither be disposed nor reported to the audit, which is
+        /// exactly the case the audit exists for.
+        /// </para>
+        /// </remarks>
+        protected async ValueTask<AsymmetricMessage> ReadAsymmetricMessageAsync(
+            ArraySegment<byte> buffer,
+            Certificate? receiverCertificate,
+            byte[]? oscRequestSignature,
+            Action<Certificate?>? onSenderCertificateParsed,
+            CancellationToken ct)
+        {
+            int headerSize;
+            uint channelId;
+            Certificate? senderCertificate;
+
+            using (var decoder = new BinaryDecoder(buffer, Quotas.MessageContext))
+            {
+                CertificateCollection? senderCertificateChain = ReadAsymmetricMessageSender(
+                    decoder,
+                    ref receiverCertificate,
+                    out channelId,
+                    out senderCertificate,
+                    out string securityPolicyUri);
+
+                onSenderCertificateParsed?.Invoke(senderCertificate);
+
+                using (senderCertificateChain)
+                {
+                    // validate the sender certificate.
+                    if (senderCertificate != null &&
+                        Quotas.CertificateValidator != null &&
+                        securityPolicyUri != SecurityPolicies.None)
+                    {
+                        CertificateValidationResult validationResult = await Quotas
+                            .CertificateValidator
+                            .ValidateAsync(senderCertificateChain!, ct: ct)
+                            .ConfigureAwait(false);
+
+                        if (!validationResult.IsValid)
+                        {
+                            throw new ServiceResultException(validationResult.StatusCode);
+                        }
+                    }
+                }
+
+                SelectEndpointForAsymmetricMessage(securityPolicyUri);
+
+                headerSize = decoder.Position;
+            }
+
+            // decrypt the body.
+            ArraySegment<byte> plainText = await DecryptAsync(
+                new ArraySegment<byte>(
+                    buffer.GetArray(),
+                    buffer.Offset + headerSize,
+                    buffer.Count - headerSize),
+                new ArraySegment<byte>(buffer.GetArray(), buffer.Offset, headerSize),
+                receiverCertificate!,
+                ct).ConfigureAwait(false);
+
+            ArraySegment<byte> body = FinishReadAsymmetricMessage(
+                plainText,
+                headerSize,
+                receiverCertificate,
+                senderCertificate,
+                oscRequestSignature,
+                out uint requestId,
+                out uint sequenceNumber,
+                out byte[] signature);
+
+            return new AsymmetricMessage(
+                body, channelId, senderCertificate, requestId, sequenceNumber, signature);
+        }
+
+        /// <summary>
+        /// Reads the header of an asymmetric message and resolves the sender.
+        /// </summary>
+        /// <returns>
+        /// The sender's certificate chain, which the caller owns and must
+        /// dispose.
+        /// </returns>
+        private CertificateCollection? ReadAsymmetricMessageSender(
+            BinaryDecoder decoder,
+            ref Certificate? receiverCertificate,
+            out uint channelId,
+            out Certificate? senderCertificate,
+            out string securityPolicyUri)
+        {
+            ReadAsymmetricMessageHeader(
+                decoder,
+                ref receiverCertificate,
+                out channelId,
+                out CertificateCollection? senderCertificateChain,
+                out securityPolicyUri);
+
+            senderCertificate = senderCertificateChain != null && senderCertificateChain.Count > 0
+                ? senderCertificateChain[0].AddRef()
+                : null;
+
+            return senderCertificateChain;
+        }
+
+        /// <summary>
+        /// Binds the channel to an endpoint the first time a message arrives.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void SelectEndpointForAsymmetricMessage(string securityPolicyUri)
+        {
+            // check if this is the first open secure channel request.
+            if (!m_uninitialized)
+            {
+                if (securityPolicyUri != SecurityPolicyUri)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Cannot change the security policy after creating the channnel.");
+                }
+
+                return;
+            }
+
+            // find a matching endpoint description.
+            if (m_endpoints != null)
+            {
+                foreach (EndpointDescription endpoint in m_endpoints)
+                {
+                    // There may be multiple endpoints with the same securityPolicyUri.
+                    // Just choose the first one that matches. This choice will be re-examined
+                    // When the OpenSecureChannel request body is processed.
+                    if (endpoint.SecurityPolicyUri == securityPolicyUri ||
+                        (
+                            securityPolicyUri == SecurityPolicies.None &&
+                            endpoint.SecurityMode == MessageSecurityMode.None))
+                    {
+                        SecurityMode = endpoint.SecurityMode;
+                        SecurityPolicyUri = securityPolicyUri;
+                        DiscoveryOnly = false;
+                        m_uninitialized = false;
+                        Volatile.Write(ref m_selectedEndpoint, endpoint);
+
+                        // recalculate the key sizes.
+                        CalculateSymmetricKeySizes();
+                        break;
+                    }
+                }
+            }
+
+            // allow a discovery only channel with no security if policy not suppported
+            if (m_uninitialized)
+            {
+                if (securityPolicyUri != SecurityPolicies.None)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "The security policy is not supported.");
+                }
+
+                SecurityMode = MessageSecurityMode.None;
+                SecurityPolicyUri = SecurityPolicies.None;
+                DiscoveryOnly = true;
+                m_uninitialized = false;
+                Volatile.Write(ref m_selectedEndpoint, null);
+            }
+        }
+
+        /// <summary>
+        /// Verifies the signature and padding of a decrypted asymmetric message
+        /// and returns its body.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private ArraySegment<byte> FinishReadAsymmetricMessage(
+            ArraySegment<byte> plainText,
+            int headerSize,
+            Certificate? receiverCertificate,
+            Certificate? senderCertificate,
+            byte[]? oscRequestSignature,
+            out uint requestId,
+            out uint sequenceNumber,
+            out byte[] signature)
+        {
             // extract signature.
             int signatureSize = GetAsymmetricSignatureSize(senderCertificate);
 
@@ -1328,6 +1730,35 @@ namespace Opc.Ua.Bindings
         protected byte[] Sign(ArraySegment<byte> dataToSign, Certificate senderCertificate)
         {
             return CryptoUtils.Sign(dataToSign, senderCertificate, SecurityPolicyUri!)!;
+        }
+
+        /// <summary>
+        /// Adds an asymmetric signature to the end of the buffer, without
+        /// occupying the calling thread when the private key is served over a
+        /// network.
+        /// </summary>
+        /// <param name="dataToSign">The block of data to be signed.</param>
+        /// <param name="senderCertificate">The certificate whose key signs.</param>
+        /// <param name="ct">Cancels the operation.</param>
+        /// <returns>The signature.</returns>
+        /// <remarks>
+        /// The returned task completes synchronously unless the private key
+        /// declares <see cref="IAsyncRsaKey"/> or <see cref="IAsyncEcdsaKey"/>.
+        /// </remarks>
+        protected async ValueTask<byte[]> SignAsync(
+            ArraySegment<byte> dataToSign,
+            Certificate senderCertificate,
+            CancellationToken ct)
+        {
+            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicyUri!)
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    SecurityPolicyUri!);
+
+            return (await CryptoUtils
+                .SignAsync(dataToSign, senderCertificate, policy.AsymmetricSignatureAlgorithm, ct)
+                .ConfigureAwait(false))!;
         }
 
         /// <summary>
@@ -1471,6 +1902,52 @@ namespace Opc.Ua.Bindings
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA256);
             }
+        }
+
+        /// <summary>
+        /// Decrypts the buffer, without occupying the calling thread when the
+        /// private key is served over a network.
+        /// </summary>
+        /// <param name="dataToDecrypt">The block of data to be decrypted.</param>
+        /// <param name="headerToCopy">
+        /// Unencrypted data that must be copied to the output.
+        /// </param>
+        /// <param name="receiverCertificate">
+        /// The certificate whose key decrypts.
+        /// </param>
+        /// <param name="ct">Cancels the operation.</param>
+        /// <returns>The plain text, preceded by the copied header.</returns>
+        /// <remarks>
+        /// The returned task completes synchronously unless the private key
+        /// declares <see cref="IAsyncRsaKey"/>.
+        /// </remarks>
+        protected ValueTask<ArraySegment<byte>> DecryptAsync(
+            ArraySegment<byte> dataToDecrypt,
+            ArraySegment<byte> headerToCopy,
+            Certificate receiverCertificate,
+            CancellationToken ct)
+        {
+            SecurityPolicyInfo policy = SecurityPolicy!;
+            if (policy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
+                policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+            {
+                // No asymmetric decryption is performed, so there is no key to
+                // wait for and the existing path is taken unchanged.
+                return new ValueTask<ArraySegment<byte>>(
+                    Decrypt(dataToDecrypt, headerToCopy, receiverCertificate));
+            }
+
+            RsaUtils.Padding padding = SecurityPolicyUri switch
+            {
+                SecurityPolicies.Basic256 or
+                SecurityPolicies.Aes128_Sha256_RsaOaep or
+                SecurityPolicies.Basic256Sha256 => RsaUtils.Padding.OaepSHA1,
+                SecurityPolicies.Basic128Rsa15 => RsaUtils.Padding.Pkcs1,
+                _ => RsaUtils.Padding.OaepSHA256
+            };
+
+            return Rsa_DecryptAsync(
+                dataToDecrypt, headerToCopy, receiverCertificate, padding, ct);
         }
 
         private readonly List<EndpointDescription> m_endpoints;

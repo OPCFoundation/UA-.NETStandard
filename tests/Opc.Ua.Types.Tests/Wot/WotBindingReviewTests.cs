@@ -572,7 +572,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
-                "\"links\":[{\"rel\":\"uav:componentModel\"," +
+                "\"links\":[{\"rel\":\"ua:HasComponent\"," +
                 "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
                 "\"uav:refId\":\"i=47\",\"uav:refName\":\"Stage\"}]}";
 

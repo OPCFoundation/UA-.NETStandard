@@ -106,7 +106,7 @@ namespace IntentViewerClient
             if (options.Insecure)
             {
                 configuration.CertificateManager.AcceptError = static (_, _) => true;
-                Console.WriteLine("WARNING: --insecure is demo-only: any server certificate is accepted.");
+                Console.Error.WriteLine("WARNING: --insecure is demo-only: any server certificate is accepted.");
             }
 
             EndpointDescription? endpointDescription = await CoreClientUtils.SelectEndpointAsync(

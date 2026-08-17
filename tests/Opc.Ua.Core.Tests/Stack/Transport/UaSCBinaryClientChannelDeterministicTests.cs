@@ -226,7 +226,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             uint sendBufferSize, uint receiveBufferSize)
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
-                channel => channel.FeedIncomingMessage(
+                channel => channel.FeedIncomingMessageAsync(
                     TcpMessageType.Acknowledge,
                     new ArraySegment<byte>(BuildAcknowledge(sendBufferSize, receiveBufferSize))))
                 .ConfigureAwait(false);
@@ -271,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 factory.LastReceiveBufferSize,
                 Is.EqualTo(configuredBufferSize - kCookieLength));
 
-            channel.FeedIncomingMessage(
+            await channel.FeedIncomingMessageAsync(
                 TcpMessageType.Acknowledge,
                 new ArraySegment<byte>(BuildAcknowledge(64 * 1024, 64 * 1024)));
 
@@ -285,7 +285,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 channel.TestTransportReceiveBufferSize,
                 Is.EqualTo((64 * 1024) - kCookieLength));
 
-            channel.FeedIncomingMessage(
+            await channel.FeedIncomingMessageAsync(
                 TcpMessageType.Error,
                 new ArraySegment<byte>(BuildErrorChunk((uint)StatusCodes.BadServerHalted)));
 
@@ -309,7 +309,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private async Task AssertConnectErrorMapsAsync(uint wireStatus)
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
-                channel => channel.FeedIncomingMessage(
+                channel => channel.FeedIncomingMessageAsync(
                     TcpMessageType.Error, new ArraySegment<byte>(BuildErrorChunk(wireStatus))))
                 .ConfigureAwait(false);
 
@@ -320,7 +320,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task ConnectAsyncFaultsOnOpenResponseWhileConnectingAsync()
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
-                channel => channel.FeedIncomingMessage(
+                channel => channel.FeedIncomingMessageAsync(
                     TcpMessageType.Open,
                     new ArraySegment<byte>(BuildChunk(TcpMessageType.Open, _ => { }))))
                 .ConfigureAwait(false);
@@ -332,7 +332,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task ConnectAsyncFaultsOnUnknownMessageTypeAsync()
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
-                channel => channel.FeedIncomingMessage(
+                channel => channel.FeedIncomingMessageAsync(
                     0x00FFFFFFu, new ArraySegment<byte>([])))
                 .ConfigureAwait(false);
 
@@ -381,8 +381,34 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
         }
 
+        /// <summary>
+        /// The gate is not re-entrant, so the open-response path — which reaches
+        /// this with the gate held — must tear the channel down without taking
+        /// it again. Before this was propagated, an oversized OpenSecureChannel
+        /// response deadlocked the receive loop against itself.
+        /// </summary>
+        [Test]
+        [CancelAfter(15000)]
+        public void DoMessageLimitsExceededWithTheGateHeldDoesNotDeadlock()
+        {
+            var timeProvider = new FakeTimeProvider();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                new RecordingByteTransportFactory(),
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                timeProvider);
+            channel.CurrentState = TcpChannelState.Opening;
+
+            channel.ForceMessageLimitsExceededUnderGate();
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+        }
+
         private async Task<ServiceResultException> RunHandshakeToFaultAsync(
-            Action<TestClientChannel> feed)
+            Func<TestClientChannel, ValueTask<bool>> feed)
         {
             var timeProvider = new FakeTimeProvider();
             var transport = new RecordingByteTransport();
@@ -406,7 +432,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 "channel never sent the Hello message");
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Connecting));
 
-            feed(channel);
+            await feed(channel).ConfigureAwait(false);
 
             Assert.That(
                 await CompletesWithinAsync(connectTask, 30).ConfigureAwait(false),
@@ -583,9 +609,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Transport = transport;
             }
 
-            public bool FeedIncomingMessage(uint messageType, ArraySegment<byte> chunk)
+            public ValueTask<bool> FeedIncomingMessageAsync(
+                uint messageType,
+                ArraySegment<byte> chunk)
             {
-                return HandleIncomingMessage(messageType, chunk);
+                return HandleIncomingMessageAsync(messageType, chunk, CancellationToken.None);
             }
 
             public bool FeedError(ArraySegment<byte> chunk)
@@ -593,9 +621,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return ProcessErrorMessage(chunk);
             }
 
-            public void ForceMessageLimitsExceeded()
+            public void ForceMessageLimitsExceeded(bool gateHeld = false)
             {
-                DoMessageLimitsExceeded();
+                DoMessageLimitsExceeded(gateHeld);
+            }
+
+            public void ForceMessageLimitsExceededUnderGate()
+            {
+                using (Gate.Enter())
+                {
+                    DoMessageLimitsExceeded(gateHeld: true);
+                }
             }
 
             public static ServiceResult CallReadErrorMessageBody(BinaryDecoder decoder)

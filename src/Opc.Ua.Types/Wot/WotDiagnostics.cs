@@ -126,6 +126,17 @@ namespace Opc.Ua.Wot
         /// </summary>
         ResidueConflict = 3005,
 
+        /// <summary>
+        /// A readable affordance is not represented by the authoritative
+        /// native projection carried in <c>uav:nodes</c>.
+        /// </summary>
+        NativeProjectionUncoveredAffordance = 3006,
+
+        /// <summary>
+        /// A readable DataType definition does not satisfy WoT Binding §6.11.
+        /// </summary>
+        DataTypeDefinitionInvalid = 3007,
+
         /// <summary>A referenced target could not be resolved to a NodeId.</summary>
         UnresolvedReference = 4000,
 
@@ -198,7 +209,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// An absolute-IRI term (WoT Binding Section 6), such as
-        /// <c>uav:semanticId</c> or <c>uav:nameNamespace</c>, did not carry an
+        /// <c>uav:semanticId</c>, did not carry an
         /// absolute IRI with a scheme.
         /// </summary>
         NonAbsoluteIri = 6007,
@@ -267,7 +278,85 @@ namespace Opc.Ua.Wot
         /// A selection names an affordance that was already selected, so the
         /// later selection is dropped.
         /// </summary>
-        ProjectionSelectionDropped = 6018
+        ProjectionSelectionDropped = 6018,
+
+        /// <summary>
+        /// A document declares more than one type binding (WoT Binding
+        /// Section 5.2.1): either more than one member of a single
+        /// <c>@type</c> resolves as a type binding, or the document carries
+        /// more than one <c>ua:HasTypeDefinition</c> link. A Node has exactly
+        /// one <c>HasTypeDefinition</c>, so the document is invalid.
+        /// </summary>
+        AmbiguousTypeBinding = 6019,
+
+        /// <summary>
+        /// A <c>ua:HasTypeDefinition</c> link (WoT Binding Section 5.2.1) did
+        /// not carry a usable definitive ExpandedNodeId in its <c>href</c>.
+        /// </summary>
+        InvalidTypeBinding = 6020,
+
+        /// <summary>
+        /// A type binding (WoT Binding Section 5.2.1) names a type the local
+        /// context of Section 5.1.5 does not hold. The projection fails rather
+        /// than falling back to <c>BaseObjectType</c>, because a silently
+        /// mistyped node is worse than a reported failure: a Client browsing
+        /// for the companion type would not find it and nothing would say why.
+        /// </summary>
+        UnresolvedTypeBinding = 6021,
+
+        /// <summary>
+        /// An event affordance declares <c>uav:conditionType</c> but its
+        /// <c>data</c> object does not declare <c>EventId</c> (WoT Binding
+        /// Section 13.3). <c>EventId</c> names the Event occurrence, so without
+        /// it a consumer can receive the notification but can never identify
+        /// the occurrence to acknowledge, confirm or comment on.
+        /// </summary>
+        ConditionEventIdMissing = 6022,
+
+        /// <summary>
+        /// A <c>uav:conditionAction</c> names something outside the closed set
+        /// of Condition Methods this Binding maps (WoT Binding Section 13.2):
+        /// <c>Acknowledge</c>, <c>Confirm</c>, <c>AddComment</c>,
+        /// <c>Enable</c>, <c>Disable</c>.
+        /// </summary>
+        InvalidConditionAction = 6023,
+
+        /// <summary>
+        /// An action affordance declares <c>uav:conditionAction</c> without a
+        /// <c>uav:actsOn</c> naming an event affordance in the same document
+        /// that carries <c>uav:conditionType</c> (WoT Binding Section 13.4). A
+        /// Condition Method acts on a Condition, so an action that does not say
+        /// which one cannot be invoked.
+        /// </summary>
+        InvalidConditionTarget = 6024,
+
+        /// <summary>
+        /// An <c>Acknowledge</c>, <c>Confirm</c> or <c>AddComment</c> action
+        /// does not declare <c>EventId</c> as an input (WoT Binding Section
+        /// 13.4). These Methods act on one Event occurrence, so the input is
+        /// what binds the invocation to the notification the consumer received.
+        /// <c>Enable</c> and <c>Disable</c> act on the Condition instance and
+        /// are not subject to this rule.
+        /// </summary>
+        ConditionActionInputMissing = 6025,
+
+        /// <summary>
+        /// A <c>uav:conditionType</c> names a ConditionType this Binding cannot
+        /// resolve (WoT Binding Section 13.2). Only the four ConditionTypes
+        /// Section 13.1 scopes resolve by name; anything else is pinned with
+        /// <c>uav:conditionTypeId</c>. This is distinct from
+        /// <see cref="UnresolvedTypeBinding"/>, which is about the Section
+        /// 5.2.1 type of the projected node rather than an event's Condition.
+        /// </summary>
+        UnresolvedConditionType = 6026,
+
+        /// <summary>
+        /// A <c>uav:componentOf</c> link names the parent of the projected
+        /// Object, but the target did not resolve to another registry
+        /// document, an existing AddressSpace Node, or the Thing Model
+        /// projection root (WoT Connectivity Section 7.3).
+        /// </summary>
+        UnresolvedParentPlacement = 6027
     }
 
     /// <summary>

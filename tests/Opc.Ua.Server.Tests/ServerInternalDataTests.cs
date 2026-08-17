@@ -29,6 +29,7 @@
 
 using System;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -447,6 +448,137 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 () => data.UpdateServerDiagnostics(null!),
                 Throws.TypeOf<ArgumentNullException>());
+        }
+
+        /// <summary>
+        /// The read callback behind the ServerDiagnosticsSummary node must take the same lock
+        /// every writer takes through <c>UpdateServerDiagnostics</c>.
+        /// </summary>
+        /// <remarks>
+        /// It used to lock the payload — <c>lock (ServerDiagnostics)</c> — which is a different
+        /// monitor from the one the writers take, so a client's snapshot was never excluded
+        /// from a concurrent writer and <c>Variant.FromStructure</c> could walk the structure
+        /// mid-mutation. Reflection is used because the callback is private and is reachable
+        /// in production only through the diagnostic node manager's wiring.
+        /// </remarks>
+        [Test]
+        public async Task DiagnosticsReadBlocksWhileAWriterHoldsTheLockAsync()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            SetServerDiagnostics(data, new ServerDiagnosticsSummaryDataType());
+
+            using var writerEntered = new ManualResetEventSlim(false);
+            using var readerStarted = new ManualResetEventSlim(false);
+            using var releaseWriter = new ManualResetEventSlim(false);
+
+            Task writer = Task.Factory.StartNew(
+                () => data.UpdateServerDiagnostics(
+                    _ =>
+                    {
+                        writerEntered.Set();
+                        releaseWriter.Wait(TimeSpan.FromSeconds(30));
+                    }),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+
+            try
+            {
+                Assert.That(
+                    writerEntered.Wait(TimeSpan.FromSeconds(30)),
+                    Is.True,
+                    "the writer never entered its critical section");
+
+                // LongRunning gets a dedicated thread, so the reader cannot simply fail to be
+                // scheduled behind the writer's blocked pool thread; and the timeout starts
+                // only once the reader has signalled that it is about to take the lock.
+                Task<Variant> reader = Task.Factory.StartNew(
+                    () =>
+                    {
+                        readerStarted.Set();
+                        return InvokeOnUpdateDiagnostics(data);
+                    },
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
+
+                Assert.That(
+                    readerStarted.Wait(TimeSpan.FromSeconds(30)),
+                    Is.True,
+                    "the reader never started");
+
+                Assert.That(
+                    reader.Wait(TimeSpan.FromMilliseconds(500)),
+                    Is.False,
+                    "the read callback completed while a writer held the diagnostics lock, so " +
+                    "it is not taking the lock the writers take");
+
+                releaseWriter.Set();
+
+                Variant snapshot = await reader.ConfigureAwait(false);
+
+                Assert.That(snapshot.IsNull, Is.False, "the read callback produced no snapshot");
+            }
+            finally
+            {
+                releaseWriter.Set();
+                await writer.ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The snapshot handed to a client must be detached from the live diagnostics, so a
+        /// later update cannot change a value the client has already read.
+        /// </summary>
+        /// <remarks>
+        /// Holding the lock is not on its own enough: <c>Variant.FromStructure</c> does not
+        /// copy by default, and the caller reads the fields long after the lock was released.
+        /// </remarks>
+        [Test]
+        public async Task DiagnosticsReadReturnsADetachedSnapshotAsync()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            SetServerDiagnostics(data, new ServerDiagnosticsSummaryDataType());
+
+            data.UpdateServerDiagnostics(diagnostics => diagnostics.RejectedSessionCount = 7);
+
+            Variant snapshot = await Task.Run(() => InvokeOnUpdateDiagnostics(data))
+                .ConfigureAwait(false);
+
+            data.UpdateServerDiagnostics(diagnostics => diagnostics.RejectedSessionCount = 99);
+
+            Assert.That(
+                snapshot.TryGetStructure(out ServerDiagnosticsSummaryDataType read),
+                Is.True);
+            Assert.That(
+                read.RejectedSessionCount,
+                Is.EqualTo(7u),
+                "a later update changed a value that had already been handed out");
+        }
+
+        private static void SetServerDiagnostics(
+            ServerInternalData data,
+            ServerDiagnosticsSummaryDataType diagnostics)
+        {
+            typeof(ServerInternalData)
+                .GetProperty(
+                    nameof(ServerInternalData.ServerDiagnostics),
+                    BindingFlags.Instance | BindingFlags.Public)!
+                .SetValue(data, diagnostics);
+        }
+
+        private static Variant InvokeOnUpdateDiagnostics(ServerInternalData data)
+        {
+            MethodInfo callback = typeof(ServerInternalData).GetMethod(
+                "OnUpdateDiagnostics",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+            object[] arguments = [data.DefaultSystemContext, null!, Variant.Null];
+            callback.Invoke(data, arguments);
+
+            return (Variant)arguments[2];
         }
 
         [Test]

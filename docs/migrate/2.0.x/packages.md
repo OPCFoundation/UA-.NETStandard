@@ -39,8 +39,9 @@ The minimum SDK is the **.NET 10 SDK**, and projects compile with **`LangVersion
 | `Microsoft.Extensions.Hosting.Abstractions` 10.0.10 | Added | `src/Opc.Ua.Lds.Server` and other hosted-service libraries |
 | `Microsoft.Extensions.Options` 10.0.10 | Added | Libraries that expose options-based configuration |
 | `Microsoft.Extensions.Options.ConfigurationExtensions` 10.0.10 | Added | `src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj` |
-| `ModelContextProtocol` 1.4.0 | Added | The `tools/Opc.Ua.Mcp*` projects |
-| `ModelContextProtocol.AspNetCore` 1.4.0 | Added | `tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj` |
+| `ModelContextProtocol` 2.1.0 | Added | The `tools/Opc.Ua.Mcp*` projects |
+| `ModelContextProtocol.AspNetCore` 2.1.0 | Added | `tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj` |
+| `ModelContextProtocol.Core` 2.1.0 | Added (pinned) | Centralised pin; the SDK requires an exact version |
 | `System.CommandLine` 2.0.10 | Added | `tools/Opc.Ua.Mcp`, the console samples and the `fuzzing/*.Fuzz.Tools` projects |
 | `System.Threading.Channels` 10.0.10 | Added | `src/Opc.Ua.Core`, `src/Opc.Ua.Core.Diagnostics`, `src/Opc.Ua.PubSub.Diagnostics` |
 | `TUnit` 1.64.6 | Added (test-only) | `tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj` |
