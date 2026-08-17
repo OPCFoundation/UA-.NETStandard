@@ -221,6 +221,98 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
+        public async Task GetClipPublishesTheEncodedFrameOnLatestClipAndItsDescriptorOnLatestClipMetadata()
+        {
+            byte[] payload = [1, 2, 3, 4, 5, 6, 7, 8];
+            var descriptor = new VisionImageReferenceDataType
+            {
+                Uri = "opcua-inline://cell/frames/42",
+                Width = 612u,
+                Height = 512u
+            };
+            var mediaProvider = new Mock<IVisionMediaProvider>();
+            mediaProvider
+                .Setup(p => p.GetClipAsync(It.IsAny<VisionClipRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new VisionClipResult(
+                    ServiceResult.Good, descriptor, default, ByteString.From(payload)));
+            var harness = new MediaHarness(
+                sensorId: 108, endpointId: 508, inlineDeliveryEnabled: true, maxInlineClipSize: 4096,
+                mediaProvider.Object);
+
+            Assert.That(harness.Clip.LatestClip!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good),
+                "Precondition: the harness starts with an unpublished LatestClip.");
+
+            await harness.InvokeGetClip(
+                endpoint: harness.EndpointNodeId,
+                resultId: "42",
+                requestInline: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.Clip.LatestClip!.Value.IsNull, Is.False,
+                    "A clip the Server has just encoded is by definition the latest one; leaving LatestClip "
+                    + "unwritten makes a consumer that reads the published frame first wait forever.");
+                Assert.That(harness.Clip.LatestClip!.Value.Length, Is.EqualTo(payload.Length));
+                Assert.That(StatusCode.IsGood(harness.Clip.LatestClip!.StatusCode), Is.True);
+                Assert.That(harness.Clip.LatestClipMetadata!.Value, Is.Not.Null);
+                Assert.That(harness.Clip.LatestClipMetadata!.Value.Uri, Is.EqualTo("opcua-inline://cell/frames/42"),
+                    "The descriptor beside the published frame is how a consumer learns which image the "
+                    + "detections are expressed in.");
+                Assert.That(harness.Clip.LatestClipMetadata!.Value.Width, Is.EqualTo(612u));
+                Assert.That(StatusCode.IsGood(harness.Clip.LatestClipMetadata!.StatusCode), Is.True);
+            });
+        }
+
+        [Test]
+        public async Task GetClipDoesNotPublishLatestClipWhenThePayloadOverflowsTheInlineLimit()
+        {
+            byte[] payload = new byte[8192];
+            var mediaProvider = new Mock<IVisionMediaProvider>();
+            mediaProvider
+                .Setup(p => p.GetClipAsync(It.IsAny<VisionClipRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new VisionClipResult(
+                    ServiceResult.Good,
+                    new VisionImageReferenceDataType { Uri = "urn:test:big-clip" },
+                    default,
+                    ByteString.From(payload)));
+            var harness = new MediaHarness(
+                sensorId: 109, endpointId: 509, inlineDeliveryEnabled: true, maxInlineClipSize: 4096,
+                mediaProvider.Object);
+
+            await harness.InvokeGetClip(
+                endpoint: harness.EndpointNodeId,
+                resultId: "any",
+                requestInline: true).ConfigureAwait(false);
+
+            Assert.That(harness.Clip.LatestClip!.Value.IsNull, Is.True,
+                "A clip the Server refused to deliver must not be published as the latest one.");
+        }
+
+        [Test]
+        public async Task GetClipDoesNotPublishLatestClipWhenInlineDeliveryIsDisabled()
+        {
+            var mediaProvider = new Mock<IVisionMediaProvider>();
+            mediaProvider
+                .Setup(p => p.GetClipAsync(It.IsAny<VisionClipRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new VisionClipResult(
+                    ServiceResult.Good,
+                    new VisionImageReferenceDataType { Uri = "urn:test:clip" },
+                    default,
+                    ByteString.From([1, 2, 3, 4])));
+            var harness = new MediaHarness(
+                sensorId: 110, endpointId: 510, inlineDeliveryEnabled: false, maxInlineClipSize: 4096,
+                mediaProvider.Object);
+
+            await harness.InvokeGetClip(
+                endpoint: harness.EndpointNodeId,
+                resultId: "any",
+                requestInline: false).ConfigureAwait(false);
+
+            Assert.That(harness.Clip.LatestClip!.Value.IsNull, Is.True,
+                "LatestClip is the inline channel, so a Server with inline delivery off must leave it alone.");
+        }
+
+        [Test]
         public void ClipEndpointExposesLatestClipMetadataAlongsideLatestClipInlineDeliveryEnabledAndMaxInlineSize()
         {
             var clip = new ClipEndpointState(null!)
@@ -278,6 +370,7 @@ namespace Opc.Ua.Vision.Tests
                     mediaProvider);
                 registration.ClipEndpoints.Add(clip);
                 sensor.Media = media;
+                Clip = clip;
 
                 m_registry = new VisionRegistry();
                 m_registry.AddSensor(registration);
@@ -294,6 +387,8 @@ namespace Opc.Ua.Vision.Tests
             public NodeId EndpointNodeId { get; }
 
             public VisionMediaManagementState Media { get; }
+
+            public ClipEndpointState Clip { get; }
 
             public async Task<GetClipMethodStateResult> InvokeGetClip(
                 NodeId endpoint, string resultId, bool requestInline)
