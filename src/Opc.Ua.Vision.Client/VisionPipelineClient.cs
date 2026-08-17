@@ -188,6 +188,43 @@ namespace Opc.Ua.Vision.Client
         }
 
         /// <summary>
+        /// Resolves the NodeId of a published result from the ResultId that
+        /// <see cref="RunInferenceAsync"/> returned.
+        /// </summary>
+        /// <remarks>
+        /// The Part 4 method answers with the ResultId the Server assigned, which identifies
+        /// the result but is not addressable: every tool that reads a result needs its NodeId.
+        /// A Server publishes each result under the pipeline's <c>Results</c> folder with the
+        /// ResultId as its BrowseName, so the two are one browse apart - without this an agent
+        /// has to guess the Server's NodeId convention, and a wrong guess reads some other
+        /// node and reports an empty result rather than failing.
+        /// </remarks>
+        /// <param name="resultId">The ResultId the Server assigned.</param>
+        /// <param name="cancellationToken">
+        /// Cancels the operation.
+        /// </param>
+        /// <returns>
+        /// The result NodeId, or a null NodeId when the Server publishes no such result.
+        /// </returns>
+        public async Task<NodeId> ResolveResultNodeIdAsync(
+            string resultId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(resultId))
+            {
+                return NodeId.Null;
+            }
+            NodeId results = await m_operations.ResolveChildAsync(
+                PipelineNodeId, BrowseNames.Results, cancellationToken).ConfigureAwait(false);
+            if (results.IsNull)
+            {
+                return NodeId.Null;
+            }
+            return await m_operations.ResolveChildAsync(
+                results, resultId, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Starts continuous inference. Throws where the Server refuses.
         /// </summary>
         /// <param name="cancellationToken">
