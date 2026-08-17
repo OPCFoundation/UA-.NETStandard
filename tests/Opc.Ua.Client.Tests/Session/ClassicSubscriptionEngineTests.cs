@@ -622,7 +622,11 @@ namespace Opc.Ua.Client.Tests
                 .Callback(() => Interlocked.Increment(ref outstanding));
 
             // Requests never complete, so nothing drains the outstanding count.
-            var pending = new TaskCompletionSource<PublishResponse>();
+            // RunContinuationsAsynchronously keeps the completion below off
+            // this thread, so cancelling cannot re-enter the engine inline and
+            // issue further publishes while the assertion is evaluated.
+            var pending = new TaskCompletionSource<PublishResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             int issued = 0;
             m_mockContext.Setup(c => c.PublishAsync(
                     It.IsAny<RequestHeader>(),
@@ -652,10 +656,14 @@ namespace Opc.Ua.Client.Tests
             }
 
             Task.WaitAll(threads);
+
+            // Sample before completing the pending requests so the result is
+            // fixed by the re-evaluation alone.
+            int issuedByReEvaluation = Volatile.Read(ref issued);
             pending.TrySetCanceled();
 
             Assert.That(
-                Volatile.Read(ref issued),
+                issuedByReEvaluation,
                 Is.LessThanOrEqualTo(subscriptionCount),
                 "Concurrent publish re-evaluation must not issue more requests " +
                 "than the desired publish request count.");
@@ -707,8 +715,13 @@ namespace Opc.Ua.Client.Tests
 
             // The requests never complete: this is the state Session.OnKeepAlive
             // recovers from, where the responses are outstanding but are no
-            // longer expected to return.
-            var pending = new TaskCompletionSource<PublishResponse>();
+            // longer expected to return. RunContinuationsAsynchronously keeps
+            // the completion below off the test thread: the engine hangs its
+            // continuation on this task with OnCompleted, so an inline
+            // completion would re-enter the engine synchronously and issue
+            // further publishes while the assertion is being evaluated.
+            var pending = new TaskCompletionSource<PublishResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             int issued = 0;
             m_mockContext.Setup(c => c.PublishAsync(
                     It.IsAny<RequestHeader>(),
@@ -732,10 +745,14 @@ namespace Opc.Ua.Client.Tests
             Assert.That(m_mockContext.Object.GoodPublishRequestCount, Is.Zero);
 
             engine.StartPublishing(timeout: 5000, fullQueue: false);
+
+            // Sample before completing the pending requests so the result is
+            // fixed by StartPublishing alone.
+            int afterRefill = Volatile.Read(ref issued);
             pending.TrySetCanceled();
 
             Assert.That(
-                Volatile.Read(ref issued) - afterFill,
+                afterRefill - afterFill,
                 Is.EqualTo(subscriptionCount),
                 "StartPublishing must refill a pipeline whose requests were " +
                 "written off, otherwise the session never publishes again.");
