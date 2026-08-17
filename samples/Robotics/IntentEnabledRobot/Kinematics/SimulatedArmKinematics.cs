@@ -63,6 +63,14 @@ namespace Robotics.IntentEnabledRobot.Kinematics
     }
 
     /// <summary>
+    /// Resolves a Location NodeId to a position in the arm's base frame.
+    /// </summary>
+    /// <param name="location">The Location NodeId carried by a Pick or Place intent.</param>
+    /// <param name="position">The resolved position (x, y, z) in metres.</param>
+    /// <returns><c>true</c> when the location is known to the host.</returns>
+    public delegate bool LocationPositionResolver(NodeId location, out ArrayOf<double> position);
+
+    /// <summary>
     /// One inverse-kinematic solution for the simulated arm.
     /// </summary>
     public sealed class SimulatedArmIkSolution

@@ -65,6 +65,12 @@ namespace Opc.Ua.Mcp
         Robotics,
 
         /// <summary>
+        /// Vision discovery, monitoring, seeing (image content), inference,
+        /// feedback, and coordinate-frame tools.
+        /// </summary>
+        Vision,
+
+        /// <summary>
         /// Every available tool, preserving the current-major default catalog.
         /// </summary>
         Full

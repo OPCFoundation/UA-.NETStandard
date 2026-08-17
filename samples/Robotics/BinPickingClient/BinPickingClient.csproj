@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>BinPickingClient</AssemblyName>
+    <PackageId>BinPickingClient</PackageId>
+    <Description>Vision-guided bin-picking client that hosts the composed Vision + Robotics MCP catalogue over an OPC UA session to the BinPickingCell server, optionally opens the OpenUSD viewer for a human observer, and can execute a scripted pick-and-place demonstration that closes the perception-to-action loop without an agent attached.</Description>
+    <RootNamespace>BinPickingClient</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- MCP hosting needs .NET 8+ and the Opc.Ua.Mcp.* projects. Those projects opt into
+         $(RestrictForLegacyTfm), so under a legacy $(CustomTestTarget) they build as empty
+         reference-free shells that this sample must neither reference nor compile against.
+         Match the shape used by IntentViewerClient so the netstandard2.1 leg (validated with
+         a net8.0 app) does not resolve the shells. -->
+    <BinPickingClientMcpSupported>false</BinPickingClientMcpSupported>
+    <BinPickingClientMcpSupported Condition="'$(CustomTestTarget)' == '' OR '$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">true</BinPickingClientMcpSupported>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(BinPickingClientMcpSupported)' == 'true' AND ('$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0' OR '$(TargetFramework)' == 'net10.0')">
+    <DefineConstants>$(DefineConstants);BINPICKING_CLIENT_MCP</DefineConstants>
+    <BinPickingClientMcpEnabled>true</BinPickingClientMcpEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Robotics.Client\Opc.Ua.Robotics.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
+    <ProjectReference Condition="'$(BinPickingClientMcpEnabled)' == 'true'" Include="..\..\..\tools\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
+    <ProjectReference Condition="'$(BinPickingClientMcpEnabled)' == 'true'" Include="..\..\..\tools\Opc.Ua.Mcp.Robotics\Opc.Ua.Mcp.Robotics.csproj" />
+    <ProjectReference Condition="'$(BinPickingClientMcpEnabled)' == 'true'" Include="..\..\..\tools\Opc.Ua.Mcp.Vision\Opc.Ua.Mcp.Vision.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(BinPickingClientMcpEnabled)' == 'true'">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+  </ItemGroup>
+</Project>

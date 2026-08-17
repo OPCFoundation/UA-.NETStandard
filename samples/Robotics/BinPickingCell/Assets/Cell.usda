@@ -1,0 +1,396 @@
+#usda 1.0
+(
+    doc = """Bin-picking work cell for the OPC UA Vision guided-picking sample.
+
+    The scene reuses the UR5e-style arm from samples/Robotics/IntentEnabledRobot
+    (arm.usda) and its parallel gripper (gripper.usda), and adds a bin of mixed
+    parts, a fixture to place them onto, and an eye-in-hand camera parented to
+    the flange so the view moves with the arm. This is the worked example
+    reproduced from the OPC UA Robotics-Vision Addendum: frame tree
+    world -> robot_base -> flange -> gripper_tcp with camera_eih on the flange.
+
+    Rendering contract:
+
+    The scene is lit by a single DomeLight (intensity 1000). Do NOT reintroduce
+    a DistantLight or any other bright directional/point light: at intensities
+    that show geometry a DistantLight blows every surface to white regardless of
+    displayColor, and the demo relies on the agent being able to pick "the red
+    part" by looking at the frame. Under a DomeLight the same materials measure
+    red (220, 37, 37), green (37, 208, 49), blue (37, 73, 233) - distinct enough
+    for a language model to reason about.
+
+    Frame tree contract:
+
+    - /World is the WorldFrame origin.
+    - /World/Robot/Arm/Base is the robot_base frame.
+    - /World/Robot/Arm/Base/J1/J2/J3/J4/J5/J6/Flange is the flange (mechanical
+      interface).
+    - /World/Robot/Arm/.../Flange/Camera is the eye-in-hand camera prim
+      (UsdGeomCamera) that the Vision sensor renders from.
+    - /World/Robot/Arm/.../Flange/Gripper/Tcp is the gripper_tcp frame.
+
+    The camera is a child of the flange with no stack reset, so it travels with
+    the arm as a real eye-in-hand sensor does: rotateY = -90 turns its view axis
+    onto the flange +X tool direction. The authored joint angles put the flange
+    over the bin at the sample's start pose, so it opens looking into the bin.
+    """
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "World"
+{
+    def Xform "Lights"
+    {
+        def DomeLight "Sky"
+        {
+            float inputs:intensity = 1000
+            color3f inputs:color = (1.0, 1.0, 1.0)
+        }
+    }
+
+    def Xform "Robot"
+    {
+        def Xform "Arm" (
+            references = @arm.usda@</Arm>
+        )
+        {
+            double3 xformOp:translate = (0, 0, 0.8290)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            over "Base"
+            {
+                over "J1"
+                {
+                    # The simulator's home configuration, in degrees, because the OpenUSD live
+                    # binding drives these very ops from AxisState.Position. Authoring anything
+                    # else makes the still render disagree with the first live update. This pose
+                    # aims the eye-in-hand camera at the bin: the camera prim lands at the world
+                    # position the Vision model declares for it, looking straight down.
+                    double xformOp:rotateZ = -169.561
+                    over "J2"
+                    {
+                        double xformOp:rotateY = 106.994
+                        over "J3"
+                        {
+                            double xformOp:rotateY = -94.280
+                            over "J4"
+                            {
+                                double xformOp:rotateY = 167.361
+                                over "J5"
+                                {
+                                    double xformOp:rotateZ = -154.498
+                                    over "J6"
+                                    {
+                                        double xformOp:rotateY = -89.937
+                                        over "Flange"
+                                        {
+                                            def Xform "Gripper" (
+                                                references = @gripper.usda@</Gripper>
+                                            )
+                                            {
+                                            }
+
+                                            def Camera "Camera"
+                                            {
+                                                token projection = "perspective"
+                                                float focalLength = 12.24
+                                                float horizontalAperture = 14.688
+                                                float verticalAperture = 12.288
+                                                float2 clippingRange = (0.02, 5.0)
+                                                # Offset along the flange Z so the camera
+                                                # looks past the gripper rather than through
+                                                # it. The tool extends along flange +X, which
+                                                # is straight down at the scan pose, so a
+                                                # camera on that axis sees its own jaws and
+                                                # nothing else; the gripper is about 0.03 m
+                                                # across, so 0.16 m clears it.
+                                                double3 xformOp:translate = (0.0200, 0.0000, 0.1600)
+                                                double xformOp:rotateY = -90
+                                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    def Xform "Floor"
+    {
+        def Cube "Slab"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.36, 0.37, 0.40)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (0, 0, -0.0250)
+            double3 xformOp:scale = (2.4000, 1.8000, 0.0250)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Xform "Bench"
+    {
+        def Cube "Top"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.58, 0.60, 0.60)] (
+                interpolation = "constant"
+            )
+            # The work surface is z = 0.829: that is where the OPC UA model puts
+            # robot_base and the Bin and Fixture locations, and arm.usda's pedestal
+            # bottom sits at the arm reference height. The underside stays at 0.760
+            # so the legs still meet it, so the thickness carries the correction.
+            double3 xformOp:translate = (0, 0, 0.7945)
+            double3 xformOp:scale = (1.4000, 0.9000, 0.0690)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegA"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (0.5800, 0.3300, 0.3800)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegB"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (-0.5800, 0.3300, 0.3800)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegC"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (0.5800, -0.3300, 0.3800)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegD"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.22, 0.23, 0.24)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (-0.5800, -0.3300, 0.3800)
+            double3 xformOp:scale = (0.0250, 0.0250, 0.7600)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Xform "Bin"
+    {
+        def Cube "BinFloor"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.42, 0.32, 0.20)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (0.3800, 0.0000, 0.8250)
+            double3 xformOp:scale = (0.2800, 0.2400, 0.0060)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "BinWallN"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.42, 0.32, 0.20)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (0.3800, 0.1170, 0.8420)
+            double3 xformOp:scale = (0.2800, 0.0060, 0.0400)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "BinWallS"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.42, 0.32, 0.20)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (0.3800, -0.1170, 0.8420)
+            double3 xformOp:scale = (0.2800, 0.0060, 0.0400)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "BinWallE"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.42, 0.32, 0.20)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (0.5170, 0.0000, 0.8420)
+            double3 xformOp:scale = (0.0060, 0.2400, 0.0400)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "BinWallW"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.42, 0.32, 0.20)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (0.2430, 0.0000, 0.8420)
+            double3 xformOp:scale = (0.0060, 0.2400, 0.0400)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Xform "Fixture"
+    {
+        def Cube "Base"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.20, 0.20, 0.22)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (-0.3200, 0.0000, 0.8290)
+            double3 xformOp:scale = (0.1400, 0.1400, 0.0180)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cylinder "PegA"
+        {
+            uniform token axis = "Z"
+            double height = 0.0400
+            double radius = 0.0090
+            color3f[] primvars:displayColor = [(0.95, 0.85, 0.20)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (-0.3520, 0.0300, 0.8580)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "PegB"
+        {
+            uniform token axis = "Z"
+            double height = 0.0400
+            double radius = 0.0090
+            color3f[] primvars:displayColor = [(0.95, 0.85, 0.20)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (-0.2880, 0.0300, 0.8580)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "PegC"
+        {
+            uniform token axis = "Z"
+            double height = 0.0400
+            double radius = 0.0090
+            color3f[] primvars:displayColor = [(0.95, 0.85, 0.20)] (
+                interpolation = "constant"
+            )
+            double3 xformOp:translate = (-0.3200, -0.0300, 0.8580)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+
+    # Each part is an Xform carrying a single xformOp:transform, with its shape as a child.
+    # The OpenUSD live binding drives the parent's transform, and the viewer sink authors
+    # that op as a whole matrix - composing translation with a default identity rotation and
+    # unit scale. Rotation and scale therefore have to live somewhere the binding does not
+    # overwrite, which is the child. The composition is unchanged: the shape is scaled and
+    # rotated about its own origin, then the parent translates it.
+    def Xform "Parts"
+    {
+        def Xform "RedCube"
+        {
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.3300, -0.0800, 0.8500, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cube "Shape"
+            {
+                double size = 0.0400
+                color3f[] primvars:displayColor = [(0.90, 0.15, 0.15)] (
+                    interpolation = "constant"
+                )
+                double xformOp:rotateZ = 20
+                uniform token[] xformOpOrder = ["xformOp:rotateZ"]
+            }
+        }
+
+        def Xform "GreenCylinder"
+        {
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.4200, 0.0500, 0.8500, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cylinder "Shape"
+            {
+                uniform token axis = "Z"
+                double height = 0.0300
+                double radius = 0.0200
+                color3f[] primvars:displayColor = [(0.15, 0.85, 0.20)] (
+                    interpolation = "constant"
+                )
+            }
+        }
+
+        def Xform "BlueSphere"
+        {
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.4600, -0.0500, 0.8500, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Sphere "Shape"
+            {
+                double radius = 0.0240
+                color3f[] primvars:displayColor = [(0.15, 0.30, 0.95)] (
+                    interpolation = "constant"
+                )
+            }
+        }
+
+        def Xform "YellowSlab"
+        {
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.3400, 0.0600, 0.8390, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cube "Shape"
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.95, 0.85, 0.15)] (
+                    interpolation = "constant"
+                )
+                double3 xformOp:scale = (0.0640, 0.0320, 0.0180)
+                double xformOp:rotateZ = -15
+                uniform token[] xformOpOrder = ["xformOp:rotateZ", "xformOp:scale"]
+            }
+        }
+
+        def Xform "OrangeBrick"
+        {
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.4200, -0.0100, 0.8420, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def Cube "Shape"
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.95, 0.45, 0.10)] (
+                    interpolation = "constant"
+                )
+                double3 xformOp:scale = (0.0500, 0.0280, 0.0240)
+                double xformOp:rotateZ = 40
+                uniform token[] xformOpOrder = ["xformOp:rotateZ", "xformOp:scale"]
+            }
+        }
+    }
+}

@@ -176,9 +176,19 @@ namespace Opc.Ua.Robotics.Client.Intent
         /// <summary>
         /// Creates a Pick builder.
         /// </summary>
-        public static SimpleIntentBuilder<PickIntentDataType> Pick(NodeId source, NodeId tool)
+        /// <param name="source">The Location to pick from.</param>
+        /// <param name="tool">The Tool to acquire the object with.</param>
+        /// <param name="objectClass">
+        /// What to pick, for a Location that can hold more than one kind of object. Empty
+        /// means whatever is there, which is only unambiguous for a single-kind Location.
+        /// </param>
+        public static SimpleIntentBuilder<PickIntentDataType> Pick(
+            NodeId source,
+            NodeId tool,
+            string objectClass = "")
         {
-            return new SimpleIntentBuilder<PickIntentDataType>(new PickIntentDataType { Source = source, Tool = tool });
+            return new SimpleIntentBuilder<PickIntentDataType>(
+                new PickIntentDataType { Source = source, Tool = tool, ObjectClass = objectClass });
         }
 
         /// <summary>

@@ -498,12 +498,22 @@ namespace Opc.Ua.Robotics.Server.Builders
                 throw new InvalidOperationException(
                     global::Opc.Ua.Robotics.Server.RobotIntentBuildServiceProvider.MissingExecutorMessage);
             }
-            return new IntentControllerHost(
+            var host = new IntentControllerHost(
                 State,
                 executor,
                 m_context.Manager.AddPredefinedNodeAsync,
                 m_hostOptions,
                 RemovePredefinedNodeAsync);
+
+            // Command authority is held per Session, so it has to be given back when the
+            // Session goes away. Without this subscription a client that crashes or is
+            // killed keeps the robot locked, and the next client is refused with no way
+            // to recover short of restarting the Server.
+            if (m_context.Manager.Server?.SessionManager is { } sessionManager)
+            {
+                host.AttachSessionManager(m_context.Context, sessionManager);
+            }
+            return host;
         }
 
         private async ValueTask RemovePredefinedNodeAsync(NodeState node, CancellationToken cancellationToken)

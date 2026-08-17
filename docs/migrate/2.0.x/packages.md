@@ -33,6 +33,7 @@ The minimum SDK is the **.NET 10 SDK**, and projects compile with **`LangVersion
 | `Microsoft.CodeAnalysis.Analyzers` 4.14.0 | Added (pinned) | Centralised pin only, no direct reference; holds the analyzer closure on the `roslyn.props` band |
 | `Microsoft.CodeAnalysis.Common` 5.0.0 | Added | `tools/SourceGeneratorVariant.targets`, `tools/MigrationAnalyzerVariant.targets` |
 | `Microsoft.CodeAnalysis.CSharp` 5.0.0 | Added | `tools/SourceGeneratorVariant.targets`, `tools/MigrationAnalyzerVariant.targets` |
+| `Microsoft.Extensions.Caching.Abstractions` 10.0.10 | Added (pinned) | Introduced as a transitive dependency by the ModelContextProtocol 2.x SDK |
 | `Microsoft.Extensions.Configuration.Abstractions` 10.0.10 | Added | `src/Opc.Ua.Client.ComplexTypes`, `src/Opc.Ua.PubSub` |
 | `Microsoft.Extensions.Diagnostics` 10.0.10 | Added | `src/Opc.Ua.Core/Opc.Ua.Core.csproj` |
 | `Microsoft.Extensions.Hosting` 10.0.10 | Added | Samples and tools that host a server or client |

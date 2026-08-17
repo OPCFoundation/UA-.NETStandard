@@ -90,6 +90,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Administration:
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Diagnostics:
+                case McpToolProfile.Vision:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -100,5 +101,45 @@ namespace Opc.Ua.Mcp
 
             return mcpServerBuilder;
         }
+
+        /// <summary>
+        /// Registers the Robot Intent tools when the composed <paramref name="toolProfiles"/>
+        /// includes <see cref="McpToolProfile.Robotics"/>.
+        /// </summary>
+        /// <remarks>
+        /// This overload is the composition entry point a host uses when it
+        /// wants the Robot Intent tools alongside the tools of another bounded
+        /// profile - <see cref="McpToolProfile.Vision"/>, for a vision-guided
+        /// pick-and-place agent, for example. It never registers
+        /// <see cref="Tools.ConnectionTools"/> directly; the
+        /// <c>McpToolProfileSet</c> overload of <c>WithOpcUaCoreTools</c> owns
+        /// that registration and deduplicates it across every package that
+        /// contributes to the same MCP server.
+        /// </remarks>
+        /// <param name="mcpServerBuilder">The MCP server builder.</param>
+        /// <param name="toolProfiles">The composed set of profiles.</param>
+        /// <returns>The builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="mcpServerBuilder"/> is <c>null</c>.
+        /// </exception>
+        public static IMcpServerBuilder WithOpcUaRoboticsTools(
+            this IMcpServerBuilder mcpServerBuilder,
+            McpToolProfileSet toolProfiles)
+        {
+            ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+
+            if (!toolProfiles.Contains(McpToolProfile.Robotics) &&
+                !toolProfiles.Contains(McpToolProfile.Full))
+            {
+                return mcpServerBuilder;
+            }
+
+            return mcpServerBuilder
+                .WithTools<RoboticsDiscoveryTools>()
+                .WithTools<RoboticsMonitoringTools>()
+                .WithTools<RoboticsControlTools>()
+                .WithTools<RoboticsMissionTools>();
+        }
     }
 }
+

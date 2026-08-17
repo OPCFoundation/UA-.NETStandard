@@ -263,6 +263,19 @@ namespace Opc.Ua.Client
                     requestHeader, subscriptionIds, ct);
             }
 
+            /// <inheritdoc/>
+            public bool TryDispatchToSessionSubscription(
+                uint subscriptionId,
+                NotificationMessage message,
+                ArrayOf<uint> availableSequenceNumbers,
+                ArrayOf<string> stringTable,
+                bool moreNotifications)
+            {
+                return m_context.TryDispatchToSessionSubscription(
+                    subscriptionId, message, availableSequenceNumbers,
+                    stringTable, moreNotifications);
+            }
+
             private readonly ISubscriptionEngineContext m_context;
             private readonly TimeProvider m_timeProvider;
         }

@@ -145,6 +145,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.PubSub,
                     McpToolProfile.Diagnostics,
                     McpToolProfile.Robotics,
+                    McpToolProfile.Vision,
                     McpToolProfile.Full
                 }));
 

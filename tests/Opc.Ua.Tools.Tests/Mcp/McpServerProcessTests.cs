@@ -421,6 +421,78 @@ namespace Opc.Ua.Tools.Tests.Mcp
             }
         }
 
+        /// <summary>
+        /// Proves the composition primitive holds at the wire level: running
+        /// the shipped server with two bounded profiles surfaces the union of
+        /// their catalogues, and the shared connection tools appear once
+        /// rather than twice. A duplicate would slip past a
+        /// <see cref="HashSet{T}"/> of names, so this assertion compares the
+        /// total tool count against the unique count directly.
+        /// </summary>
+        [Test]
+        public async Task StdioComposesVisionAndRoboticsProfilesWithoutDuplicatesAsync()
+        {
+            using Process process = StartMcpProcess("--profile", "vision,robotics");
+            Task<string> standardError = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            try
+            {
+                using JsonDocument initialize = await SendRequestAsync(
+                    process,
+                    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"," +
+                    "\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{}," +
+                    "\"clientInfo\":{\"name\":\"Opc.Ua.Tools.Tests\",\"version\":\"1.0\"}}}",
+                    1,
+                    timeout.Token).ConfigureAwait(false);
+                Assert.That(initialize.RootElement.TryGetProperty("result", out _), Is.True);
+
+                await process.StandardInput.WriteLineAsync(
+                    """
+                    {"jsonrpc":"2.0","method":"notifications/initialized"}
+                    """).ConfigureAwait(false);
+                await process.StandardInput.FlushAsync(timeout.Token).ConfigureAwait(false);
+
+                using JsonDocument listTools = await SendRequestAsync(
+                    process,
+                    """
+                    {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+                    """,
+                    2,
+                    timeout.Token).ConfigureAwait(false);
+                JsonElement tools = listTools.RootElement
+                    .GetProperty("result")
+                    .GetProperty("tools");
+
+                var names = new System.Collections.Generic.List<string>(tools.GetArrayLength());
+                foreach (JsonElement tool in tools.EnumerateArray())
+                {
+                    names.Add(tool.GetProperty("name").GetString()!);
+                }
+
+                var unique = new System.Collections.Generic.HashSet<string>(names, StringComparer.Ordinal);
+                Assert.That(names, Has.Count.EqualTo(62),
+                    "Vision + Robotics must publish 62 tools (26 + 40 - 4 shared connection tools).");
+                Assert.That(unique, Has.Count.EqualTo(names.Count),
+                    "The wire-level catalogue must not contain duplicate tool names.");
+                Assert.That(
+                    names.FindAll(n => string.Equals(n, "Connect", StringComparison.Ordinal)),
+                    Has.Count.EqualTo(1),
+                    "Connect must be exposed exactly once when Vision and Robotics are composed.");
+                Assert.That(unique, Does.Contain("vision_run_inference"));
+                Assert.That(unique, Does.Contain("robotics_submit_joint_move"));
+            }
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(true);
+                }
+                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                await standardError.ConfigureAwait(false);
+            }
+        }
+
         [TestCase("--transport", "unknown")]
         [TestCase("--profile", "unknown")]
         public async Task InvalidOptionValueExitsWithFailureAsync(string option, string value)

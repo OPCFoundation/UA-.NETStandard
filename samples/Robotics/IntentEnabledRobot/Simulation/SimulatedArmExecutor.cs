@@ -53,7 +53,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
             bool hasObject,
             string toolName,
             ArrayOf<double> heldPartPosition,
-            ArrayOf<bool> stackSlotsFilled)
+            ArrayOf<bool> stackSlotsFilled,
+            string heldObjectClass = "")
         {
             JointAngles = jointAngles;
             ToolPose = toolPose;
@@ -63,6 +64,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
             ToolName = toolName;
             HeldPartPosition = heldPartPosition;
             StackSlotsFilled = stackSlotsFilled;
+            HeldObjectClass = heldObjectClass;
         }
 
         /// <summary>
@@ -99,6 +101,13 @@ namespace Robotics.IntentEnabledRobot.Simulation
         /// Gets the visible position of the part currently carried by the gripper.
         /// </summary>
         public ArrayOf<double> HeldPartPosition { get; }
+
+        /// <summary>
+        /// Gets the class label of the object the gripper carries, empty when it carries
+        /// nothing. <see cref="HasObject"/> says that something is held; this says what,
+        /// which is what a host needs to move the right item in its own world model.
+        /// </summary>
+        public string HeldObjectClass { get; }
 
         /// <summary>
         /// Gets a value for each pallet slot indicating whether that slot has been filled.
@@ -169,6 +178,13 @@ namespace Robotics.IntentEnabledRobot.Simulation
         /// Raised after the observable snapshot changes.
         /// </summary>
         public event EventHandler<SimulatedArmSnapshot>? SnapshotChanged;
+
+        /// <summary>
+        /// Resolves a Location NodeId to the position, in this arm's base frame, that a
+        /// Pick or Place should travel to before actuating the gripper. Optional: leave it
+        /// unset and both intents actuate the gripper where the arm already stands.
+        /// </summary>
+        public LocationPositionResolver? ResolveLocationPosition { get; set; }
 
         /// <summary>
         /// Gets the latest observable state without exposing synchronization primitives.
@@ -459,7 +475,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private async ValueTask<IntentOutcome> ExecuteGraspAsync(
             GraspIntentDataType intent,
             IntentExecution execution,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string objectClass = "")
         {
             SetNonCancellable(execution.IntentId);
             try
@@ -471,6 +488,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 lock (m_lock)
                 {
                     m_hasObject = true;
+                    m_heldObjectClass = objectClass ?? string.Empty;
                     PublishCurrentPoseLocked();
                 }
                 SnapshotChanged?.Invoke(this, CurrentSnapshot);
@@ -507,6 +525,7 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     FillNextStackSlotLocked();
                 }
                 m_hasObject = false;
+                m_heldObjectClass = string.Empty;
                 PublishCurrentPoseLocked();
             }
             SnapshotChanged?.Invoke(this, CurrentSnapshot);
@@ -519,10 +538,12 @@ namespace Robotics.IntentEnabledRobot.Simulation
             CancellationToken cancellationToken)
         {
             await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
+            await MoveToLocationAsync(intent.Source, execution, cancellationToken).ConfigureAwait(false);
             return await ExecuteGraspAsync(
                 new GraspIntentDataType { Force = intent.Force, Width = GripperClosed, Tool = intent.Tool },
                 execution,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                intent.ObjectClass ?? string.Empty).ConfigureAwait(false);
         }
 
         private async ValueTask<IntentOutcome> ExecutePlaceAsync(
@@ -531,8 +552,72 @@ namespace Robotics.IntentEnabledRobot.Simulation
             CancellationToken cancellationToken)
         {
             await m_clock.DelayAsync(TimeSpan.FromMilliseconds(80), cancellationToken).ConfigureAwait(false);
+            await MoveToLocationAsync(intent.Destination, execution, cancellationToken).ConfigureAwait(false);
             return await ExecuteReleaseAsync(
                 new ReleaseIntentDataType(), execution, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Travels to the approach position a host resolved for a Location, so a Pick or a
+        /// Place is a move followed by a gripper action rather than a gripper action alone.
+        /// </summary>
+        /// <remarks>
+        /// A Location arrives as a NodeId, which this executor cannot resolve on its own -
+        /// it has no address space - so a host that knows its own cell supplies
+        /// <see cref="ResolveLocationPosition"/>. The tool keeps its current orientation and
+        /// only the position changes, because the current orientation belongs to a
+        /// configuration the arm is already in and so keeps the inverse-kinematic solve
+        /// well conditioned.
+        /// <para>
+        /// The travel is best effort. A host that supplies no resolver, or a Location the
+        /// arm cannot reach, still gets the gripper action: the grasp is what the intent
+        /// guarantees, and failing a pick because the scenery is out of reach would be a
+        /// worse answer than picking where the arm already stands.
+        /// </para>
+        /// </remarks>
+        private async ValueTask MoveToLocationAsync(
+            NodeId location,
+            IntentExecution execution,
+            CancellationToken cancellationToken)
+        {
+            if (ResolveLocationPosition == null
+                || location.IsNull
+                || !ResolveLocationPosition(location, out ArrayOf<double> position)
+                || position.Count < 3)
+            {
+                return;
+            }
+            double[] start = GetJoints();
+            Pose3DDataType current = CurrentSnapshot.ToolPose;
+            var target = new Pose3DDataType
+            {
+                FrameId = current.FrameId,
+                Position = position,
+                Orientation = current.Orientation
+            };
+
+            // Solve once and travel in joint space. Interpolating in Cartesian space would
+            // re-solve at every step and abandon the move the first time the straight line
+            // between here and there passes through a pose the arm cannot hold, which for a
+            // reach across a bench it usually does.
+            if (!m_kinematics.TrySelectNearest(
+                target,
+                start,
+                out SimulatedArmIkSolution? solution,
+                out SimulatedArmKinematicFailure _))
+            {
+                return;
+            }
+            double distance = JointDistance(start, solution.JointAngles.Span);
+            var profile = new TrapezoidalVelocityProfile(
+                distance, JointSpeed(new MotionConstraintsDataType()), DefaultJointAcceleration);
+            _ = await FollowProfileAsync(
+                profile,
+                execution,
+                fraction => SetJoints(
+                    m_kinematics.InterpolateJoints(start, solution.JointAngles.Span, fraction).Span),
+                DefaultJointAcceleration,
+                cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask<IntentOutcome> ExecuteToolChangeAsync(
@@ -825,7 +910,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
                     m_hasObject,
                     m_toolName,
                     HeldPartPosition(forward.ToolPose),
-                    ArrayOf.Create(m_stackSlotsFilled.AsSpan()));
+                    ArrayOf.Create(m_stackSlotsFilled.AsSpan()),
+                    m_heldObjectClass);
             }
             SnapshotChanged?.Invoke(this, CurrentSnapshot);
         }
@@ -842,7 +928,8 @@ namespace Robotics.IntentEnabledRobot.Simulation
                 m_hasObject,
                 m_toolName,
                 HeldPartPosition(pose.ToolPose),
-                ArrayOf.Create(m_stackSlotsFilled.AsSpan()));
+                ArrayOf.Create(m_stackSlotsFilled.AsSpan()),
+                m_heldObjectClass);
         }
 
         private void FillNextStackSlotLocked()
@@ -1082,9 +1169,28 @@ namespace Robotics.IntentEnabledRobot.Simulation
         private readonly System.Threading.Lock m_lock = new();
         private readonly SimulatedArmKinematics m_kinematics;
         private readonly ISimulatedArmClock m_clock;
-        private readonly double[] m_jointAngles = [-0.45, -0.95, 1.55, -0.9, 0.75, 0.0];
+        // Home configuration, radians. This arm is mounted on a bench in both samples that
+        // use it, so the pose has to keep every joint above the work surface, and in the
+        // bin-picking cell it also has to aim the eye-in-hand camera: it is solved so the
+        // camera prim lands at the world position the Vision model declares for it
+        // (0.38, 0, 1.35) looking straight down, which puts the bin 0.50 m away and 1.8
+        // degrees off the optical axis - matching the standoff the detections report.
+        //
+        // Two constraints on the solution are easy to miss and both were violated by
+        // earlier attempts:
+        //
+        //  - It is the elbow-back branch. The elbow-forward solutions reach the same
+        //    camera pose but park a link directly under the camera, and the frame comes
+        //    back showing the arm's own upper arm instead of the bin.
+        //  - The wrist stays 25 degrees clear of J4 and J6 lining up. Aiming a
+        //    straight-down camera from a point on the base's own X-Z plane lands exactly
+        //    on that singularity, so the camera roll is tilted 15 degrees to get off it.
+        //    A singular home pose is not a cosmetic problem: the first IK solve of any
+        //    motion away from home fails, so every intent returns Kinematics.
+        private readonly double[] m_jointAngles = [-2.9594, 1.8674, -1.6455, 2.9210, -2.6965, -1.5697];
         private double m_gripperOpening = GripperOpen;
         private bool m_hasObject;
+        private string m_heldObjectClass = string.Empty;
         private readonly bool[] m_stackSlotsFilled = new bool[StackSlotCount];
         private string m_toolName = "parallel-gripper";
         private string m_nonCancellableIntentId = string.Empty;

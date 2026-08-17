@@ -62,6 +62,7 @@ namespace Opc.Ua.Mcp
             services.AddOpcUaMcpCore(OpcUaMcpOptions ?? CreateOpcUaMcpOptions());
             services.AddOpcUaMcpPubSub();
             services.AddOpcUaMcpRobotics();
+            services.AddOpcUaMcpVision();
             services.AddOpcUaMcpDiagnostics(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -81,38 +82,56 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
-        /// Creates the <see cref="OpcUaMcpOptions"/> from configuration and an optional CLI override.
+        /// Creates the <see cref="OpcUaMcpOptions"/> from configuration and an optional CLI override
+        /// expressed as a comma or plus separated list of profile names, so a host can compose
+        /// several bounded profiles - <c>vision,robotics</c>, for instance - into one MCP server.
         /// </summary>
         public static OpcUaMcpOptions CreateOpcUaMcpOptions(
             IConfiguration configuration,
-            McpToolProfile? toolProfileOverride)
+            string? toolProfileOverride)
         {
             ArgumentNullException.ThrowIfNull(configuration);
 
             OpcUaMcpOptions options = CreateOpcUaMcpOptions();
-            if (toolProfileOverride.HasValue)
+            if (!string.IsNullOrWhiteSpace(toolProfileOverride))
             {
-                options.ToolProfile = toolProfileOverride.Value;
+                ApplyConfiguredProfile(options, toolProfileOverride);
                 return options;
             }
 
             string? configuredProfile = configuration["McpServer:ToolProfile"] ??
                 Environment.GetEnvironmentVariable("OPCUA_MCP_TOOL_PROFILE");
+            ApplyConfiguredProfile(options, configuredProfile);
+            return options;
+        }
+
+        private static void ApplyConfiguredProfile(OpcUaMcpOptions options, string? configuredProfile)
+        {
             if (string.IsNullOrWhiteSpace(configuredProfile))
             {
-                return options;
+                return;
             }
 
-            if (!Enum.TryParse(configuredProfile, ignoreCase: true, out McpToolProfile toolProfile) ||
-                !Enum.IsDefined(toolProfile))
+            if (!McpToolProfileSet.TryParse(
+                    configuredProfile,
+                    out McpToolProfileSet toolProfiles,
+                    out string? error))
             {
-                throw new InvalidOperationException(
-                    $"Unknown MCP tool profile '{configuredProfile}'. " +
-                    $"Valid profiles: {string.Join(", ", Enum.GetNames<McpToolProfile>())}.");
+                throw new InvalidOperationException(error);
             }
 
-            options.ToolProfile = toolProfile;
-            return options;
+            if (toolProfiles.Count == 1)
+            {
+                foreach (McpToolProfile single in toolProfiles.Enumerate())
+                {
+                    options.ToolProfile = single;
+                }
+                options.ToolProfiles = McpToolProfileSet.Empty;
+            }
+            else
+            {
+                options.ToolProfiles = toolProfiles;
+            }
         }
 
         /// <summary>
@@ -160,8 +179,52 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaCoreTools(toolProfile)
                 .WithOpcUaPubSubTools(toolProfile)
                 .WithOpcUaRoboticsTools(toolProfile)
+                .WithOpcUaVisionTools(toolProfile)
                 .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
+
+            mcpServerBuilder.WithResources<SessionResources>();
+        }
+
+        /// <summary>
+        /// Registers the MCP tool types selected by the composed
+        /// <paramref name="toolProfiles"/>, so a single MCP server can carry the
+        /// tools of several bounded profiles at once - vision plus robotics for
+        /// a vision-guided pick-and-place agent, for example.
+        /// </summary>
+        /// <remarks>
+        /// This calls each package's <c>McpToolProfileSet</c> overload in
+        /// turn. The core package's overload registers
+        /// <c>ConnectionTools</c> exactly once for any set that includes at
+        /// least one session-scoped profile, so composing Vision and
+        /// Robotics yields one set of connection tools rather than two.
+        /// </remarks>
+        public static void ConfigureMcpTools(
+            IMcpServerBuilder mcpServerBuilder,
+            McpToolProfileSet toolProfiles,
+            bool diagnosticsToolsEnabled)
+        {
+            ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+
+            if (toolProfiles.Count <= 1)
+            {
+                McpToolProfile single = McpToolProfile.Full;
+                foreach (McpToolProfile profile in toolProfiles.Enumerate())
+                {
+                    single = profile;
+                }
+                ConfigureMcpTools(mcpServerBuilder, single, diagnosticsToolsEnabled);
+                return;
+            }
+
+            mcpServerBuilder
+                .WithOpcUaMcpFilters()
+                .WithOpcUaCoreTools(toolProfiles)
+                .WithOpcUaPubSubTools(toolProfiles)
+                .WithOpcUaRoboticsTools(toolProfiles)
+                .WithOpcUaVisionTools(toolProfiles)
+                .WithOpcUaDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled)
+                .WithOpcUaPubSubDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled);
 
             mcpServerBuilder.WithResources<SessionResources>();
         }

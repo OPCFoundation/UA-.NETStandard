@@ -67,6 +67,52 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public void ConfigureAppliesMaxStringLengthWhenSet()
+        {
+            var options = new OpcUaServerOptions
+            {
+                MaxStringLength = 2 * 1024 * 1024
+            };
+            options.EndpointUrls.Add("opc.tcp://localhost:0/MaxStringLength");
+
+            ApplicationConfiguration configuration = Configure(options);
+
+            Assert.That(configuration.TransportQuotas!.MaxStringLength, Is.EqualTo(2 * 1024 * 1024));
+        }
+
+        [Test]
+        public void ConfigureKeepsMaxStringLengthDefaultWhenNotSet()
+        {
+            var options = new OpcUaServerOptions();
+            options.EndpointUrls.Add("opc.tcp://localhost:0/DefaultStringLength");
+
+            ApplicationConfiguration configuration = Configure(options);
+
+            Assert.That(
+                configuration.TransportQuotas!.MaxStringLength,
+                Is.EqualTo(DefaultEncodingLimits.MaxStringLength));
+        }
+
+        [Test]
+        public void ConfigureAppliesMaxStringLengthIndependentlyOfByteStringLength()
+        {
+            // The two are separate quotas: raising the ByteString ceiling does nothing
+            // for a long String, which is the trap that made this option's absence hard
+            // to diagnose.
+            var options = new OpcUaServerOptions
+            {
+                MaxByteStringLength = 8 * 1024 * 1024,
+                MaxStringLength = 1024
+            };
+            options.EndpointUrls.Add("opc.tcp://localhost:0/IndependentQuotas");
+
+            ApplicationConfiguration configuration = Configure(options);
+
+            Assert.That(configuration.TransportQuotas!.MaxByteStringLength, Is.EqualTo(8 * 1024 * 1024));
+            Assert.That(configuration.TransportQuotas!.MaxStringLength, Is.EqualTo(1024));
+        }
+
+        [Test]
         public void ConfigureLeavesTransportQuotaDefaultsWhenNotSet()
         {
             var options = new OpcUaServerOptions();

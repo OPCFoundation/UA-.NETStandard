@@ -140,6 +140,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Administration:
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Robotics:
+                case McpToolProfile.Vision:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -148,6 +149,53 @@ namespace Opc.Ua.Mcp
                         "Unknown MCP tool profile.");
             }
 
+            return mcpServerBuilder;
+        }
+
+        /// <summary>
+        /// Registers the diagnostics tools when the composed
+        /// <paramref name="toolProfiles"/> includes
+        /// <see cref="McpToolProfile.Diagnostics"/>.
+        /// </summary>
+        /// <remarks>
+        /// This overload is the composition entry point a host uses when it
+        /// wants the packet capture tools alongside other bounded profiles.
+        /// It never registers <see cref="Tools.ConnectionTools"/> directly;
+        /// the <c>McpToolProfileSet</c> overload of <c>WithOpcUaCoreTools</c>
+        /// owns that registration and deduplicates it across every package
+        /// that contributes to the same MCP server. The key-disclosing decode
+        /// and replay tools are still gated by
+        /// <paramref name="diagnosticsToolsEnabled"/>.
+        /// </remarks>
+        /// <param name="mcpServerBuilder">The MCP server builder.</param>
+        /// <param name="toolProfiles">The composed set of profiles.</param>
+        /// <param name="diagnosticsToolsEnabled">
+        /// Whether the key-disclosing tools are opted in.
+        /// </param>
+        /// <returns>The builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="mcpServerBuilder"/> is <c>null</c>.
+        /// </exception>
+        public static IMcpServerBuilder WithOpcUaDiagnosticsTools(
+            this IMcpServerBuilder mcpServerBuilder,
+            McpToolProfileSet toolProfiles,
+            bool diagnosticsToolsEnabled)
+        {
+            ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+
+            if (!toolProfiles.Contains(McpToolProfile.Diagnostics) &&
+                !toolProfiles.Contains(McpToolProfile.Full))
+            {
+                return mcpServerBuilder;
+            }
+
+            mcpServerBuilder.WithTools<PacketCaptureTools>();
+            if (diagnosticsToolsEnabled)
+            {
+                mcpServerBuilder
+                    .WithTools<PacketDecodeTools>()
+                    .WithTools<PacketReplayTools>();
+            }
             return mcpServerBuilder;
         }
 

@@ -66,6 +66,15 @@
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.1.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.301" />
+    <!-- AI Model Management. Microsoft.Extensions.AI is the inference
+         abstraction: IChatClient is the contract that reaches a hosted service
+         and an on-device runtime alike, which is the property the specification
+         asserts about where inference runs. It pins System.Text.Json 10.0.10,
+         the version this repository already centralises on, so it costs nothing
+         to take. No cloud-vendor SDK is referenced anywhere: workload identity
+         is read from the token the platform projects, which is the mechanism
+         every platform implements underneath its own SDK. -->
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.8.3" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
     <PackageVersion Include="System.CommandLine" Version="2.0.10" />
     <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />
@@ -134,17 +143,20 @@
   </ItemGroup>
   <!-- OpenUSD rendering stack, consumed by the optional
        tools/Opc.Ua.OpenUsd.Connector.Viewer assembly that backs the connector's
-       view option. Published on nuget.org. The
-       runtime packages ship win-x64, linux-x64 and osx-arm64; the RID-agnostic
-       metapackages resolve the correct native asset per RID, so no
-       RID-conditional reference is required. -->
+       view option, and by src/Opc.Ua.Vision.OpenUsd which renders the
+       Vision server's simulated camera views offscreen via Silk (D3D12/Vulkan).
+       Published on nuget.org. The runtime packages ship win-x64, linux-x64 and
+       osx-arm64; the RID-agnostic metapackages resolve the correct native asset
+       per RID, so no RID-conditional reference is required. -->
   <ItemGroup>
-    <PackageVersion Include="OpenUsd" Version="0.7.0-alpha" />
-    <PackageVersion Include="OpenUsd.Viewer" Version="0.7.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering" Version="0.7.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk.Vulkan" Version="0.7.0-alpha" />
-    <PackageVersion Include="OpenUsd.Runtime.Core" Version="0.7.0-alpha" />
-    <PackageVersion Include="OpenUsd.Runtime.Imaging" Version="0.7.0-alpha" />
+    <PackageVersion Include="OpenUsd" Version="0.10.0-alpha" />
+    <PackageVersion Include="OpenUsd.Viewer" Version="0.10.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering" Version="0.10.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk" Version="0.10.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk.D3D12" Version="0.10.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk.Vulkan" Version="0.10.0-alpha" />
+    <PackageVersion Include="OpenUsd.Runtime.Core" Version="0.10.0-alpha" />
+    <PackageVersion Include="OpenUsd.Runtime.Imaging" Version="0.10.0-alpha" />
     <PackageVersion Include="Avalonia" Version="12.1.1" />
     <PackageVersion Include="Avalonia.Desktop" Version="12.1.1" />
   </ItemGroup>
