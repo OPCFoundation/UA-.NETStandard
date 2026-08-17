@@ -265,7 +265,7 @@ namespace Vision.BinPickingCell
                 .WithSerialNumber("SIM-EIH-2448-2048-0001")
                 .WithDeviceUri("opcua-openusd://binpicking-cell/cameras/camera_eih")
                 .WithFrameId(BinPickingRobotCell.CameraFrameId)
-                .WithResolution(2448u, 2048u)
+                .WithResolution(SensorWidth, SensorHeight)
                 .WithPixelFormat(PixelFormat)
                 .WithIntrinsics(intrinsics)
                 .WithOptics(optics => optics
@@ -275,7 +275,7 @@ namespace Vision.BinPickingCell
                     .WithLensType("Fixed C-mount")
                     .WithMountType("C"))
                 .AddIntrinsicCalibration(IntrinsicCalibrationBrowseName, calibration => calibration
-                    .WithCalibrationId("intr-cam-eih-01-2448")
+                    .WithCalibrationId("intr-cam-eih-01-612")
                     .WithMethod("Zhang")
                     .WithResidualError(0.21)
                     .WithIntrinsics(intrinsics))
@@ -290,7 +290,7 @@ namespace Vision.BinPickingCell
                     .WithEndpointUri("rtsp://simulated-eih.local:554/main")
                     .WithProtocol(VisionStreamProtocolEnum.Rtsp)
                     .WithCodec(VisionVideoCodecEnum.H264)
-                    .WithResolution(2448u, 2048u)
+                    .WithResolution(SensorWidth, SensorHeight)
                     .WithFrameRate(15.0)
                     .WithBitrate(24_000_000u)
                     .WithDefaultProfileName("main"))
@@ -299,11 +299,12 @@ namespace Vision.BinPickingCell
                     .WithEndpointUri("opcua-inline://binpicking-cell/clips")
                     .WithClipFormat(VisionClipFormatEnum.Png)
                     .WithQuality(90u)
-                    .WithResolution(1280u, 1024u)
+                    .WithResolution(SensorWidth, SensorHeight)
 
-                    // The PNG this cell renders measures about 5 MB, so 8 MB left little
-                    // headroom for a busier scene. Note this ceiling was not what refused
-                    // GetClip - the frame was already under it - see MaxInlineClipBytes.
+                    // The PNG this cell renders is well under a megabyte, but allow
+                    // headroom for a busier scene rather than have the Server refuse its
+                    // own frames. Note this ceiling was never what refused GetClip - the
+                    // frame was already under it - see MaxInlineClipBytes.
                     .WithInlineDelivery(enabled: true, maxInlineClipSize: MaxInlineClipBytes)
                     .WithDefaultProfileName("PickFrames"))
                 .UseMediaProvider(m_mediaProvider));
@@ -355,12 +356,18 @@ namespace Vision.BinPickingCell
 
         private static VisionIntrinsicsDataType BuildIntrinsics()
         {
+            // Calibrated on the native 2448x2048 grid, then scaled to the binned grid the
+            // camera actually delivers. Binning is an exact integer decimation, so the
+            // focal lengths and principal point divide by the bin factor and the
+            // Brown-Conrady coefficients - which are expressed in normalised image
+            // coordinates - carry over unchanged.
+            const double bin = SensorBinning;
             return new VisionIntrinsicsDataType
             {
-                Fx = 2140.5,
-                Fy = 2139.8,
-                Cx = 1223.1,
-                Cy = 1021.7,
+                Fx = 2140.5 / bin,
+                Fy = 2139.8 / bin,
+                Cx = 1223.1 / bin,
+                Cy = 1021.7 / bin,
                 Skew = 0.0,
                 DistortionModel = VisionDistortionModelEnum.BrownConrady,
                 DistortionCoefficients = new[]
@@ -371,8 +378,8 @@ namespace Vision.BinPickingCell
                     -0.0001,
                     -0.0188
                 }.ToArrayOf(),
-                Width = 2448u,
-                Height = 2048u
+                Width = SensorWidth,
+                Height = SensorHeight
             };
         }
 
@@ -425,8 +432,15 @@ namespace Vision.BinPickingCell
         private static readonly double[] s_handEyeOrientation = [0.0, 0.0, RootHalf, RootHalf];
         private static readonly double[] s_cameraInWorldPosition = [0.38, 0.0, 1.35];
         private static readonly double[] s_cameraInWorldOrientation = [1.0, 0.0, 0.0, 0.0];
-        private static readonly double[] s_flangeScanPosition = [0.411, -0.062, 0.636];
-        private static readonly double[] s_flangeScanOrientation = [RootHalf, RootHalf, 0.0, 0.0];
+
+        // The scan pose the arm actually holds, which is what the eye-in-hand camera is
+        // aimed from. It is derived from CameraInWorld above rather than declared
+        // independently: the two used to disagree, and a frame tree that says the camera
+        // looks one way while the renderer points it another gives a consumer pixels and
+        // coordinates that do not correspond. The orientation is a quarter turn about Y,
+        // which points the flange X axis - and so the camera - straight down.
+        private static readonly double[] s_flangeScanPosition = [0.220, 0.0, 0.541];
+        private static readonly double[] s_flangeScanOrientation = [0.0, RootHalf, 0.0, RootHalf];
 
         // A 90-degree rotation, to full double precision. Writing it as 0.7071 leaves the
         // quaternion with a norm of 0.99999041, which is 9.6e-6 off unit - ten times the
@@ -436,11 +450,28 @@ namespace Vision.BinPickingCell
 
         internal const string SensorTwinBrowseName = "BinPickingCameraTwin";
 
-        // The clip endpoint serves 1280x1024 PNGs, measured at about 5 MB for this
-        // scene. Allow headroom for a busier one rather than have the Server refuse
-        // its own frames.
+        // The simulated device is a 2448x2048 area-scan camera, but it is operated with
+        // 4x4 binning, which is what an industrial camera does when a bin-picking cycle
+        // needs frame rate more than it needs pixels. Every resolution the model reports -
+        // sensor, stream endpoint, clip endpoint, intrinsics - is the binned one, because
+        // that is what the device delivers. The native size survives only in the model and
+        // serial number, where it identifies the hardware rather than the image.
+        //
+        // These used to disagree: the sensor declared 2448x2048, the clip endpoint
+        // 1280x1024, and the renderer produced 640x512. The detector projects through the
+        // declared intrinsics, so its boxes landed in 2448x2048 space while an agent was
+        // handed a 640x512 picture - the coordinates pointed off the image it could see.
+        // 640x512 was not even the same aspect ratio as the camera it claimed to be.
+        internal const uint NativeSensorWidth = 2448u;
+        internal const uint NativeSensorHeight = 2048u;
+        internal const uint SensorBinning = 4u;
+        internal const uint SensorWidth = NativeSensorWidth / SensorBinning;
+        internal const uint SensorHeight = NativeSensorHeight / SensorBinning;
+
+        // The clip endpoint serves 612x512 PNGs. Allow headroom for a busier scene
+        // rather than have the Server refuse its own frames.
         internal const uint MaxInlineClipBytes = 32u * 1024u * 1024u;
-        internal const string IntrinsicCalibrationBrowseName = "Intrinsics2448x2048";
+        internal const string IntrinsicCalibrationBrowseName = "Intrinsics612x512";
         internal const string HandEyeCalibrationBrowseName = "HandEye";
         internal const string StreamEndpointBrowseName = "LiveRtsp";
         internal const string ClipEndpointBrowseName = "PickFrames";

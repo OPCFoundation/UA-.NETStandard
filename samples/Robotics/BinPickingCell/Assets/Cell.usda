@@ -66,24 +66,24 @@ def Xform "World"
                     # The simulator's home configuration, in degrees, because the OpenUSD live
                     # binding drives these very ops from AxisState.Position. Authoring anything
                     # else makes the still render disagree with the first live update. This pose
-                    # puts the flange at the Vision model's authored scan transform, over the
-                    # bin, clear of the bench.
-                    double xformOp:rotateZ = -11.071
+                    # aims the eye-in-hand camera at the bin: the camera prim lands at the world
+                    # position the Vision model declares for it, looking straight down.
+                    double xformOp:rotateZ = -0.000
                     over "J2"
                     {
-                        double xformOp:rotateY = 117.826
+                        double xformOp:rotateY = 149.135
                         over "J3"
                         {
-                            double xformOp:rotateY = 0.552
+                            double xformOp:rotateY = -133.597
                             over "J4"
                             {
-                                double xformOp:rotateY = 75.189
+                                double xformOp:rotateY = 82.540
                                 over "J5"
                                 {
-                                    double xformOp:rotateZ = 23.684
+                                    double xformOp:rotateZ = 0.006
                                     over "J6"
                                     {
-                                        double xformOp:rotateY = 0
+                                        double xformOp:rotateY = -8.079
                                         over "Flange"
                                         {
                                             def Xform "Gripper" (
@@ -99,7 +99,14 @@ def Xform "World"
                                                 float horizontalAperture = 14.688
                                                 float verticalAperture = 12.288
                                                 float2 clippingRange = (0.02, 5.0)
-                                                double3 xformOp:translate = (0.0200, 0.0000, 0.0600)
+                                                # Offset along the flange Z so the camera
+                                                # looks past the gripper rather than through
+                                                # it. The tool extends along flange +X, which
+                                                # is straight down at the scan pose, so a
+                                                # camera on that axis sees its own jaws and
+                                                # nothing else; the gripper is about 0.03 m
+                                                # across, so 0.16 m clears it.
+                                                double3 xformOp:translate = (0.0200, 0.0000, 0.1600)
                                                 double xformOp:rotateY = -90
                                                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
                                             }

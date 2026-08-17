@@ -246,8 +246,10 @@ namespace Vision.BinPickingCell
             }
         }
 
-        private const int ProofWidth = 1280;
-        private const int ProofHeight = 1024;
+        // The proof renders at the same resolution the sensor declares and the cell
+        // delivers, so what it checks is the picture an agent is actually handed.
+        private const int ProofWidth = (int)BinPickingVisionCell.SensorWidth;
+        private const int ProofHeight = (int)BinPickingVisionCell.SensorHeight;
 
         private static readonly (string Label, double Fx, double Fy)[] s_partSampleFractions =
         [

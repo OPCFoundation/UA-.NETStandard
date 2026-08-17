@@ -63,8 +63,8 @@ var sensorSpec = new BinPickingSensorSpec(
     StageIdentifier: stagePath,
     CameraPrimPath: BinPickingVisionCell.CameraPrimPath,
     PixelFormat: BinPickingVisionCell.PixelFormat,
-    CaptureWidth: 640,
-    CaptureHeight: 512);
+    CaptureWidth: (int)BinPickingVisionCell.SensorWidth,
+    CaptureHeight: (int)BinPickingVisionCell.SensorHeight);
 
 builder.Services.AddSingleton(stage);
 builder.Services.AddSingleton(sensorSpec);
@@ -109,10 +109,11 @@ builder.Services
         options.ProductUri = "uri:opcfoundation.org:BinPickingCell";
         options.AutoAcceptUntrustedCertificates = true;
 
-        // A 1280x1024 RGB frame is just under 4 MB, which is exactly the default
-        // ByteString ceiling, and the response that carries it is larger still, so
-        // GetClip refused its own camera output with BadEncodingLimitsExceeded.
-        // Advertise room for the frames this cell serves.
+        // A rendered frame is a few hundred kilobytes and the response that carries it
+        // larger still, so leave the transport room for a busier scene rather than have
+        // GetClip refuse the cell's own camera output. Note the failure this originally
+        // chased was not a quota at all - the provider was embedding the encoded image in
+        // a String field - so none of these were ever the fix; see BinPickingMediaProvider.
         options.MaxByteStringLength = 32 * 1024 * 1024;
         options.MaxArrayLength = 32 * 1024 * 1024;
         options.MaxMessageSize = 64 * 1024 * 1024;

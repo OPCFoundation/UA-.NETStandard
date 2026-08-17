@@ -115,7 +115,7 @@ rather than failing to start.
     0.0008), an `IVisionSimulatedType` interface pointing at the USD
     stage and `Camera` prim, a live RTSP `StreamEndpointType` and a
     `PickFrames` `ClipEndpointType` with inline delivery enabled up to
-    8 MiB.
+    32 MiB.
   - `BinPickingPipeline` (`InferencePipelineType`) bound to the sensor
     twin, with the deployment reference `OnServerDeployment` and either
     the ground-truth inference provider or the agent inference provider
@@ -172,6 +172,51 @@ side frame ids match the robot-side frame ids exactly: the client can
 compose a detection's pose from the camera into the world frame using
 `VisionFrameGraph` and get a value it can hand straight to the robot-
 side `Pick` intent.
+
+The scan pose is not declared independently in three places, because it
+used to be and the three disagreed. The arm's home joint angles are
+**solved** so the `Camera` prim lands at the world position the Vision
+model declares for `camera_eih` — `(0.38, 0, 1.35)`, looking straight
+down — which puts the bin 0.50 m away and 1.7° off the optical axis.
+The same solution gives the `flange` frame's pose, and the same joint
+angles are authored into `Cell.usda` so the still render and the first
+live update agree. Change any one of them and the other two have to be
+re-solved with it.
+
+The camera prim sits 0.16 m out along the flange `Z` axis rather than on
+the tool axis. The gripper extends along flange `+X`, which is straight
+down at the scan pose, so a camera on that axis photographs its own jaws.
+
+## What an agent actually receives
+
+`vision_get_frame` (MCP) and `GetClip` (OPC UA) return a **612 × 512
+PNG**, delivered as inline bytes in the method's `ByteString` output and
+base64-encoded into the MCP `ImageContentBlock`. The
+`VisionImageReferenceDataType` alongside it carries a
+`opcua-inline://…` **reference** and the frame's dimensions — it does not
+carry the image, which would ship the payload twice.
+
+612 × 512 is what the sensor declares, what the clip endpoint declares,
+what the intrinsics describe and what the renderer produces. The
+simulated device is a 2448 × 2048 area-scan camera operated with 4 × 4
+binning, so the calibrated intrinsics are divided by four and the
+Brown-Conrady coefficients — expressed in normalised image coordinates —
+carry over unchanged. The native size survives only in the model and
+serial number, where it identifies the hardware rather than the image.
+
+This matters because the ground-truth detector projects through the
+declared intrinsics: the `BoundingBox2D` on every detection is in the
+same pixel frame as the PNG an agent was handed. Previously the sensor
+said 2448 × 2048, the clip endpoint said 1280 × 1024 and the renderer
+produced 640 × 512 — not even the same aspect ratio — so a model asked
+to "pick the red cube you can see" got a picture and a set of
+coordinates that pointed off it.
+
+After a successful `GetClip`, the Server publishes the frame on the clip
+endpoint's `LatestClip` and its descriptor on `LatestClipMetadata`, so a
+consumer that follows the model — read the published frame, call the
+method only if there is none — gets a frame rather than a permanent
+`Bad_NoDataAvailable`.
 
 ## Rendering behaviour on CI
 

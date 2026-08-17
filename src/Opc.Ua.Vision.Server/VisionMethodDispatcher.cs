@@ -306,7 +306,9 @@ namespace Opc.Ua.Vision.Server
                     VisionClipResult clipResult = await provider.GetClipAsync(
                         new VisionClipRequest(endpoint, resultId, timestamp, format, requestInline),
                         ct).ConfigureAwait(false);
-                    return EnforceInlineLimit(clipEndpoint, clipResult);
+                    GetClipMethodStateResult result = EnforceInlineLimit(clipEndpoint, clipResult);
+                    PublishLatestClip(context, clipEndpoint, result, timestamp);
+                    return result;
                 }
                 catch (System.OperationCanceledException)
                 {
@@ -711,6 +713,50 @@ namespace Opc.Ua.Vision.Server
         private static bool IsInlineDeliveryEnabled(ClipEndpointState clip)
         {
             return clip.InlineDeliveryEnabled?.Value == true;
+        }
+
+        /// <summary>
+        /// Publishes a clip that <c>GetClip</c> just produced onto the endpoint's
+        /// <c>LatestClip</c> and <c>LatestClipMetadata</c> variables.
+        /// </summary>
+        /// <remarks>
+        /// Without this the two variables are created by the builder and then never
+        /// written, so <c>LatestClip</c> reports <c>Bad_NoDataAvailable</c> for the life of
+        /// the Server and a consumer that follows the model - read the published frame
+        /// first, call the method only if there is none - never gets a frame at all. A
+        /// clip the Server has just encoded is by definition the latest one, so the
+        /// dispatcher publishes it here rather than leaving every provider to remember to.
+        /// </remarks>
+        private static void PublishLatestClip(
+            ISystemContext context,
+            ClipEndpointState? clip,
+            GetClipMethodStateResult result,
+            DateTimeUtc timestamp)
+        {
+            if (clip == null || !IsInlineDeliveryEnabled(clip) || ServiceResult.IsBad(result.ServiceResult))
+            {
+                return;
+            }
+            ByteString inline = result.InlineImage;
+            if (inline.IsNull || inline.IsEmpty)
+            {
+                return;
+            }
+            DateTimeUtc sourceTimestamp = timestamp;
+            if (clip.LatestClip != null)
+            {
+                clip.LatestClip.Value = inline;
+                clip.LatestClip.StatusCode = StatusCodes.Good;
+                clip.LatestClip.Timestamp = sourceTimestamp;
+                clip.LatestClip.ClearChangeMasks(context, false);
+            }
+            if (clip.LatestClipMetadata != null)
+            {
+                clip.LatestClipMetadata.Value = result.Image;
+                clip.LatestClipMetadata.StatusCode = StatusCodes.Good;
+                clip.LatestClipMetadata.Timestamp = sourceTimestamp;
+                clip.LatestClipMetadata.ClearChangeMasks(context, false);
+            }
         }
 
         private static GetClipMethodStateResult EnforceInlineLimit(

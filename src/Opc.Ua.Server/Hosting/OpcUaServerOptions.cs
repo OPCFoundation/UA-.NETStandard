@@ -98,6 +98,19 @@ namespace Opc.Ua.Server.Hosting
         public uint MaxByteStringLength { get; set; } = 4 * 1024 * 1024;
 
         /// <summary>
+        /// Maximum string length advertised on the transport. Defaults to
+        /// <see cref="DefaultEncodingLimits.MaxStringLength"/>.
+        /// </summary>
+        /// <remarks>
+        /// This is a separate quota from <see cref="MaxByteStringLength"/> and
+        /// <see cref="MaxArrayLength"/>: none of those govern a <c>String</c>, so a
+        /// Server whose address space legitimately carries a long string - a serialised
+        /// document, a URI carrying an inline payload - could not raise the limit through
+        /// the hosting API at all before this option existed.
+        /// </remarks>
+        public uint MaxStringLength { get; set; } = (uint)DefaultEncodingLimits.MaxStringLength;
+
+        /// <summary>
         /// Maximum array length advertised on the transport. Defaults to 1 Mi
         /// elements.
         /// </summary>
