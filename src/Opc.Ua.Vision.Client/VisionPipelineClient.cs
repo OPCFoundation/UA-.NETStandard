@@ -195,9 +195,9 @@ namespace Opc.Ua.Vision.Client
         /// The Part 4 method answers with the ResultId the Server assigned, which identifies
         /// the result but is not addressable: every tool that reads a result needs its NodeId.
         /// A Server publishes each result under the pipeline's <c>Results</c> folder with the
-        /// ResultId as its BrowseName, so the two are one browse apart - without this an agent
-        /// has to guess the Server's NodeId convention, and a wrong guess reads some other
-        /// node and reports an empty result rather than failing.
+        /// ResultId as its BrowseName, so the two are one enumeration apart - without this an
+        /// agent has to guess the Server's NodeId convention, and a wrong guess reads some
+        /// other node and reports an empty result rather than failing.
         /// </remarks>
         /// <param name="resultId">The ResultId the Server assigned.</param>
         /// <param name="cancellationToken">
@@ -214,14 +214,24 @@ namespace Opc.Ua.Vision.Client
             {
                 return NodeId.Null;
             }
-            NodeId results = await m_operations.ResolveChildAsync(
-                PipelineNodeId, BrowseNames.Results, cancellationToken).ConfigureAwait(false);
-            if (results.IsNull)
+            await foreach (VisionNodeEntry entry in EnumerateResultsAsync(cancellationToken)
+                .ConfigureAwait(false))
             {
-                return NodeId.Null;
+                if (string.Equals(entry.BrowseName.Name, resultId, StringComparison.Ordinal))
+                {
+                    return entry.NodeId;
+                }
+                // A Server may prefix the ResultId to keep BrowseNames unique within the
+                // folder. Match that, but only on the ResultId itself: falling back to the
+                // most recently published result would answer confidently with the wrong
+                // one, which is worse than saying it was not found.
+                if (entry.BrowseName.Name is { } name
+                    && name.EndsWith(resultId, StringComparison.Ordinal))
+                {
+                    return entry.NodeId;
+                }
             }
-            return await m_operations.ResolveChildAsync(
-                results, resultId, cancellationToken).ConfigureAwait(false);
+            return NodeId.Null;
         }
 
         /// <summary>

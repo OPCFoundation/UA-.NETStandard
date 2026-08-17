@@ -263,7 +263,7 @@ namespace BinPickingClient
         {
             string resultId = await pipeline.RunInferenceAsync(default, cancellationToken)
                 .ConfigureAwait(false);
-            NodeId resultNodeId = await ResolveResultNodeIdAsync(pipeline, resultId, cancellationToken)
+            NodeId resultNodeId = await pipeline.ResolveResultNodeIdAsync(resultId, cancellationToken)
                 .ConfigureAwait(false);
             if (resultNodeId.IsNull)
             {
@@ -274,30 +274,6 @@ namespace BinPickingClient
             }
             VisionResultReader reader = vision.Result(resultNodeId);
             return await reader.ReadDetectionAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        private static async Task<NodeId> ResolveResultNodeIdAsync(
-            VisionPipelineClient pipeline,
-            string resultId,
-            CancellationToken cancellationToken)
-        {
-            await foreach (VisionNodeEntry entry in pipeline.EnumerateResultsAsync(cancellationToken)
-                .ConfigureAwait(false))
-            {
-                if (string.Equals(entry.BrowseName.Name, resultId, StringComparison.Ordinal))
-                {
-                    return entry.NodeId;
-                }
-            }
-            // The server may prefix the ResultId with an ordinal to keep BrowseNames unique; fall back to the
-            // most recent result the pipeline published.
-            NodeId last = NodeId.Null;
-            await foreach (VisionNodeEntry entry in pipeline.EnumerateResultsAsync(cancellationToken)
-                .ConfigureAwait(false))
-            {
-                last = entry.NodeId;
-            }
-            return last;
         }
 
         private void LogDetections(VisionDetectionResultSnapshot snapshot)
