@@ -83,11 +83,12 @@ namespace Opc.Ua.Mcp.Tools
             {
                 Content =
                 [
-                    new ImageContentBlock
-                    {
-                        Data = bytes.Memory,
-                        MimeType = MimeTypeFor(actualFormat)
-                    }
+                    // FromBytes base64-encodes for the wire. Assigning the encoded frame
+                    // straight to Data put raw bytes where the protocol requires base64:
+                    // every byte that is not valid UTF-8 was serialised as U+FFFD, so the
+                    // image reached the model corrupted beyond recovery - and six times
+                    // larger, because each byte became a \uXXXX escape.
+                    ImageContentBlock.FromBytes(bytes.Memory, MimeTypeFor(actualFormat))
                 ]
             };
         }

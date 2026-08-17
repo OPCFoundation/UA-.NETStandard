@@ -172,7 +172,13 @@ namespace Vision.BinPickingCell
             byte[] digest = ComputeDigest(png);
             var image = new VisionImageReferenceDataType
             {
-                Uri = $"data:image/png;base64,{Convert.ToBase64String(png.Span)}",
+                // A reference, not a container. Embedding the encoded frame here as a
+                // base64 data URI sent the image twice - once in this String and once in
+                // the inline ByteString below - and a 1.3 MB PNG becomes a 1.7 MB string
+                // against a 64 KB MaxStringLength, so the Server could not encode its own
+                // camera output and every read failed with BadEncodingLimitsExceeded.
+                Uri = FormattableString.Invariant(
+                    $"opcua-inline://binpicking-cell/frames/{timestamp:yyyyMMddHHmmssfff}"),
                 Digest = ByteString.From(digest),
                 DigestAlgorithm = "SHA-256",
                 Format = VisionClipFormatEnum.Png,
