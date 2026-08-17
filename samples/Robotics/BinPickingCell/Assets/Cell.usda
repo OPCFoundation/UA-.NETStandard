@@ -68,22 +68,22 @@ def Xform "World"
                     # else makes the still render disagree with the first live update. This pose
                     # aims the eye-in-hand camera at the bin: the camera prim lands at the world
                     # position the Vision model declares for it, looking straight down.
-                    double xformOp:rotateZ = -0.000
+                    double xformOp:rotateZ = -169.561
                     over "J2"
                     {
-                        double xformOp:rotateY = 149.135
+                        double xformOp:rotateY = 106.994
                         over "J3"
                         {
-                            double xformOp:rotateY = -133.597
+                            double xformOp:rotateY = -94.280
                             over "J4"
                             {
-                                double xformOp:rotateY = 82.540
+                                double xformOp:rotateY = 167.361
                                 over "J5"
                                 {
-                                    double xformOp:rotateZ = 0.006
+                                    double xformOp:rotateZ = -154.498
                                     over "J6"
                                     {
-                                        double xformOp:rotateY = -8.079
+                                        double xformOp:rotateY = -89.937
                                         over "Flange"
                                         {
                                             def Xform "Gripper" (

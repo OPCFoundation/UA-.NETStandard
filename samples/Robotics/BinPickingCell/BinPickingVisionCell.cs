@@ -431,16 +431,25 @@ namespace Vision.BinPickingCell
         private static readonly double[] s_handEyePosition = [0.062, -0.031, 0.115];
         private static readonly double[] s_handEyeOrientation = [0.0, 0.0, RootHalf, RootHalf];
         private static readonly double[] s_cameraInWorldPosition = [0.38, 0.0, 1.35];
-        private static readonly double[] s_cameraInWorldOrientation = [1.0, 0.0, 0.0, 0.0];
+
+        // A half turn about X - the camera looks down its own -Z where the world frame
+        // measures up - composed with the 15.0595-degree roll about the vertical that the
+        // scan pose carries. The roll is not decorative: aiming a straight-down camera
+        // from a point on the base's own X-Z plane puts the wrist exactly on the J4/J6
+        // singularity, and every motion away from home then fails to solve.
+        private static readonly double[] s_cameraInWorldOrientation =
+            [0.9913769539, -0.1310409679, 0.0, 0.0];
 
         // The scan pose the arm actually holds, which is what the eye-in-hand camera is
         // aimed from. It is derived from CameraInWorld above rather than declared
         // independently: the two used to disagree, and a frame tree that says the camera
         // looks one way while the renderer points it another gives a consumer pixels and
-        // coordinates that do not correspond. The orientation is a quarter turn about Y,
-        // which points the flange X axis - and so the camera - straight down.
-        private static readonly double[] s_flangeScanPosition = [0.220, 0.0, 0.541];
-        private static readonly double[] s_flangeScanOrientation = [0.0, RootHalf, 0.0, RootHalf];
+        // coordinates that do not correspond. The orientation is a quarter turn about Y -
+        // which points the flange X axis, and so the camera, straight down - composed with
+        // the same roll the camera carries.
+        private static readonly double[] s_flangeScanPosition = [0.2255, 0.0416, 0.5410];
+        private static readonly double[] s_flangeScanOrientation =
+            [0.0926599570, 0.7010093668, -0.0926599570, 0.7010093668];
 
         // A 90-degree rotation, to full double precision. Writing it as 0.7071 leaves the
         // quaternion with a norm of 0.99999041, which is 9.6e-6 off unit - ten times the

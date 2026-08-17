@@ -177,15 +177,27 @@ The scan pose is not declared independently in three places, because it
 used to be and the three disagreed. The arm's home joint angles are
 **solved** so the `Camera` prim lands at the world position the Vision
 model declares for `camera_eih` — `(0.38, 0, 1.35)`, looking straight
-down — which puts the bin 0.50 m away and 1.7° off the optical axis.
+down — which puts the bin 0.50 m away and 1.8° off the optical axis.
 The same solution gives the `flange` frame's pose, and the same joint
 angles are authored into `Cell.usda` so the still render and the first
 live update agree. Change any one of them and the other two have to be
 re-solved with it.
 
-The camera prim sits 0.16 m out along the flange `Z` axis rather than on
-the tool axis. The gripper extends along flange `+X`, which is straight
-down at the scan pose, so a camera on that axis photographs its own jaws.
+Two constraints on that solution are easy to miss:
+
+- **The camera prim sits 0.16 m out along the flange `Z` axis**, not on
+  the tool axis. The gripper extends along flange `+X`, which is straight
+  down at the scan pose, so a camera on that axis photographs its own jaws.
+- **The solution is the elbow-back branch, with the camera rolled 15°.**
+  The elbow-forward branches reach the same camera pose but park a link
+  directly under the camera, so the frame shows the arm's own upper arm
+  instead of the bin. And aiming a straight-down camera from a point on
+  the base's own `X`-`Z` plane lands the wrist exactly on the J4/J6
+  singularity; the 15° roll gets 25° clear of it. A singular home pose is
+  not cosmetic — the first IK solve of any motion away from home fails, so
+  every intent comes back `Kinematics`. The roll is why the delivered
+  frame is tilted; the detections are expressed in the same rolled frame,
+  so they still land on the parts.
 
 ## What an agent actually receives
 

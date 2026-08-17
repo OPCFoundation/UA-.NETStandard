@@ -1173,10 +1173,21 @@ namespace Robotics.IntentEnabledRobot.Simulation
         // use it, so the pose has to keep every joint above the work surface, and in the
         // bin-picking cell it also has to aim the eye-in-hand camera: it is solved so the
         // camera prim lands at the world position the Vision model declares for it
-        // (0.38, 0, 1.35) looking straight down, which puts the bin 0.50 m away and 1.7
+        // (0.38, 0, 1.35) looking straight down, which puts the bin 0.50 m away and 1.8
         // degrees off the optical axis - matching the standoff the detections report.
-        // Every joint clears the 0.829 m bench by at least 162 mm.
-        private readonly double[] m_jointAngles = [-0.0000, 2.6029, -2.3317, 1.4406, 0.0001, -0.1410];
+        //
+        // Two constraints on the solution are easy to miss and both were violated by
+        // earlier attempts:
+        //
+        //  - It is the elbow-back branch. The elbow-forward solutions reach the same
+        //    camera pose but park a link directly under the camera, and the frame comes
+        //    back showing the arm's own upper arm instead of the bin.
+        //  - The wrist stays 25 degrees clear of J4 and J6 lining up. Aiming a
+        //    straight-down camera from a point on the base's own X-Z plane lands exactly
+        //    on that singularity, so the camera roll is tilted 15 degrees to get off it.
+        //    A singular home pose is not a cosmetic problem: the first IK solve of any
+        //    motion away from home fails, so every intent returns Kinematics.
+        private readonly double[] m_jointAngles = [-2.9594, 1.8674, -1.6455, 2.9210, -2.6965, -1.5697];
         private double m_gripperOpening = GripperOpen;
         private bool m_hasObject;
         private string m_heldObjectClass = string.Empty;

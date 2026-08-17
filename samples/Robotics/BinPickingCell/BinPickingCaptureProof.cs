@@ -251,13 +251,17 @@ namespace Vision.BinPickingCell
         private const int ProofWidth = (int)BinPickingVisionCell.SensorWidth;
         private const int ProofHeight = (int)BinPickingVisionCell.SensorHeight;
 
+        // Where each part projects to in the delivered frame, as a fraction of width and
+        // height. These are the ground-truth detector's own BoundingBox2D centres divided
+        // by the frame size, so the proof checks the colour at the pixel the detector
+        // points an agent at rather than at an independently guessed spot.
         private static readonly (string Label, double Fx, double Fy)[] s_partSampleFractions =
         [
-            ("RedCube",       0.419, 0.661),
-            ("GreenCylinder", 0.564, 0.398),
-            ("BlueSphere",    0.627, 0.600),
-            ("YellowSlab",    0.437, 0.382),
-            ("OrangeBrick",   0.563, 0.519)
+            ("RedCube",       0.450, 0.690),
+            ("GreenCylinder", 0.546, 0.375),
+            ("BlueSphere",    0.660, 0.559),
+            ("YellowSlab",    0.406, 0.401),
+            ("OrangeBrick",   0.572, 0.497)
         ];
 
         private readonly ISceneCameraCaptureProvider m_capture;
