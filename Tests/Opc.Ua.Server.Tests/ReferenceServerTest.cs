@@ -544,6 +544,76 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Test that reading a static variable after a write returns a fresh ServerTimestamp.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public async Task ReadStaticVariableStampsFreshServerTimestampAfterWriteAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
+            NodeId nodeId = ExpandedNodeId.ToNodeId(
+                CommonTestWorkers.NodeIdTestSetStatic[2],
+                m_server.CurrentInstance.NamespaceUris);
+            var nodesToRead = new ReadValueIdCollection
+            {
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+            };
+
+            // 1. Write a value to the static variable
+            var writeNodes = new WriteValueCollection
+            {
+                new WriteValue
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue { WrappedValue = new Variant(42) }
+                }
+            };
+
+            RequestHeader writeRequestHeader = m_requestHeader;
+            writeRequestHeader.Timestamp = DateTime.UtcNow;
+            WriteResponse writeResponse = await m_server.WriteAsync(
+                m_secureChannelContext,
+                writeRequestHeader,
+                writeNodes,
+                CancellationToken.None).ConfigureAwait(false);
+
+            logger.LogInformation("Write result: {StatusCode}", writeResponse.Results[0]);
+            NUnit.Framework.Assert.That(StatusCode.IsGood(writeResponse.Results[0]), Is.True, $"Write failed with: {writeResponse.Results[0]}");
+
+            // Wait a short delay so the subsequent read time is measurably greater than write time
+            await Task.Delay(500).ConfigureAwait(false);
+
+            // 2. Read the variable back
+            RequestHeader readRequestHeader = m_requestHeader;
+            readRequestHeader.Timestamp = DateTime.UtcNow;
+            DateTime timeBeforeRead = DateTime.UtcNow;
+
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                readRequestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            NUnit.Framework.Assert.That(readResponse.Results.Count, Is.EqualTo(1));
+            DataValue readValue = readResponse.Results[0];
+            NUnit.Framework.Assert.That(StatusCode.IsGood(readValue.StatusCode), Is.True);
+
+            logger.LogInformation(
+                "After write read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                readValue.SourceTimestamp,
+                readValue.ServerTimestamp);
+
+            // ServerTimestamp should reflect when the server processed the read, not be stuck at write time
+            NUnit.Framework.Assert.That(readValue.ServerTimestamp, Is.GreaterThanOrEqualTo(timeBeforeRead.AddSeconds(-1)));
+            NUnit.Framework.Assert.That(readValue.ServerTimestamp, Is.GreaterThan(readValue.SourceTimestamp));
+        }
+
+        /// <summary>
         /// Update static Nodes, read modify write.
         /// </summary>
         [Test]
