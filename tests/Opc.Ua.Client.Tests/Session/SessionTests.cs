@@ -1135,6 +1135,38 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task DisposeAsyncSendsCloseSessionWithoutWaitingForResponseAsync()
+        {
+            // Arrange
+            var sut = SessionMock.Create();
+            sut.SetConnected();
+            var closeResponse = new TaskCompletionSource<IServiceResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            sut.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<CloseSessionRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(closeResponse.Task))
+                .Verifiable(Times.Once);
+
+            // Act
+            Task disposeTask = sut.DisposeAsync().AsTask();
+            Task completedTask = await Task.WhenAny(
+                disposeTask,
+                Task.Delay(TimeSpan.FromSeconds(1))).ConfigureAwait(false);
+
+            // Assert
+            Assert.That(completedTask, Is.SameAs(disposeTask));
+            await disposeTask.ConfigureAwait(false);
+            sut.Channel.Verify();
+
+            closeResponse.TrySetResult(new CloseSessionResponse
+            {
+                ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+            });
+        }
+
+        [Test]
         public async Task CloseAsyncShouldCloseSessionWithoutDeletingSubscriptionsAsync()
         {
             // Arrange

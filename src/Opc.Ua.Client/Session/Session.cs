@@ -479,8 +479,11 @@ namespace Opc.Ua.Client
                 {
                     if (Connected)
                     {
-                        await WaitForOrCancelOutstandingPublishRequestsAsync(default).ConfigureAwait(false);
-                        await base.CloseSessionAsync(null, DeleteSubscriptionsOnClose, default).ConfigureAwait(false);
+                        Task closeSessionTask = base.CloseSessionAsync(
+                            null,
+                            DeleteSubscriptionsOnClose,
+                            default).AsTask();
+                        _ = ObserveCloseSessionAsync(closeSessionTask);
                     }
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -532,6 +535,18 @@ namespace Opc.Ua.Client
                 m_SessionConfigurationChanged = null;
 
                 Debug.Assert(Disposed);
+            }
+        }
+
+        private async Task ObserveCloseSessionAsync(Task closeSessionTask)
+        {
+            try
+            {
+                await closeSessionTask.ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                m_logger.ErrorClosingSessionDuringDispose(ex);
             }
         }
 
