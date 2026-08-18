@@ -291,14 +291,18 @@ namespace BinPickingClient
                 StagePath = stagePath,
                 Renderer = options.Renderer,
 
-                // Deliberately no CameraPath. /World/Camera is the eye-in-hand sensor
-                // bolted to the flange, so opening on it shows what the tool sees, not
-                // the cell. The viewport frames the scene instead, which is what someone
-                // watching the robot work actually wants.
+                // Defaults to the stage's fixed observer camera, which shows the cell
+                // working; --camera auto hands framing back to the viewer. Do not point
+                // this at /World/Robot/.../Camera by default - that is the eye-in-hand
+                // sensor on the flange, so it shows what the tool sees, not the cell.
+                CameraPath = options.CameraPath,
                 Title = "OPC UA Bin-picking Viewer",
                 Telemetry = telemetry
             };
             Console.Error.WriteLine("Opening OpenUSD viewport for the bin-picking cell.");
+            Console.Error.WriteLine(options.CameraPath is { Length: > 0 } cameraPath
+                ? $"Opening on the stage camera {cameraPath}."
+                : "No stage camera requested; the viewport frames the scene itself.");
             try
             {
                 await RunViewportOnStaThreadAsync(

@@ -208,6 +208,27 @@ Both the arm and the parts move. The six joints follow `AxisState.Position`, and
 each part follows its own world position variable under `Server/WorldState`, so a
 part that is picked travels with the gripper and stays where it is placed.
 
+### Which camera the viewport opens on
+
+The viewport opens on `/World/ObserverCamera`, a fixed camera authored in the
+stage that frames the whole cell from the front and slightly above: the bench
+centred, the fixture on the left, the bin on the right, and enough room for the
+arm to reach up without leaving the frame. It is a fixed observer, so the arm
+moves within a steady view rather than the view chasing the arm.
+
+- `--camera auto` hands framing back to the viewer, which fits the scene bounds.
+- `--camera <primPath>` opens on any other camera in the stage.
+
+The stage has a second camera, `/World/Robot/.../Flange/Camera`, which is the
+eye-in-hand sensor the Vision model renders from. Opening the viewport on it
+shows what the tool sees rather than the cell, which is occasionally useful for
+debugging the perception path but is not a view of the robot working.
+
+The observer camera's numbers were fitted to a reference framing and then
+corrected against what the viewer actually rendered, because the analytic
+placement and the rendered result disagreed. Treat them as measured rather than
+derived: change one and re-check the framing against a capture.
+
 The client fetches the cell's served OpenUSD assets automatically whenever the
 viewport opens, into a per-user cache directory. Pass `--fetch-assets <dir>` only
 when you want the fetched stage written somewhere you choose, for example to

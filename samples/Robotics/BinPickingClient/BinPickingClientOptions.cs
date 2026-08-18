@@ -49,6 +49,21 @@ namespace BinPickingClient
 
         public string? Renderer { get; init; }
 
+        /// <summary>
+        /// Prim path of the camera the viewport opens on. Defaults to the fixed observer
+        /// camera authored in the stage, which shows the cell working. Pass
+        /// <c>--camera auto</c> to let the viewer frame the scene itself, or another prim
+        /// path to pin a different view; note that the eye-in-hand sensor on the flange is
+        /// also a camera prim, so pointing this at it shows what the tool sees rather than
+        /// the cell.
+        /// </summary>
+        public string? CameraPath { get; init; } = DefaultObserverCameraPath;
+
+        /// <summary>
+        /// The stage's fixed observer camera.
+        /// </summary>
+        public const string DefaultObserverCameraPath = "/World/ObserverCamera";
+
         public string? FetchAssetsDirectory { get; init; }
 
         public int Seconds { get; init; }
@@ -77,6 +92,7 @@ namespace BinPickingClient
                 Insecure = HasFlag(args, "--insecure"),
                 View = HasFlag(args, "--view"),
                 Renderer = GetOption(args, "--renderer"),
+                CameraPath = ResolveCameraPath(GetOption(args, "--camera")),
                 FetchAssetsDirectory = GetOption(args, "--fetch-assets"),
                 Seconds = int.TryParse(
                     GetOption(args, "--seconds"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds)
@@ -111,6 +127,22 @@ namespace BinPickingClient
         private static bool HasFlag(string[] args, string name)
         {
             return args.Any(a => string.Equals(a, name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Maps the <c>--camera</c> argument onto a prim path, treating <c>auto</c> as
+        /// "let the viewer frame the scene" and no argument at all as the stage's observer
+        /// camera.
+        /// </summary>
+        private static string? ResolveCameraPath(string? requested)
+        {
+            if (requested is null)
+            {
+                return DefaultObserverCameraPath;
+            }
+            return string.Equals(requested, "auto", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : requested;
         }
 
         internal BinPickingClientMcpTransportSelection SelectMcpTransport()

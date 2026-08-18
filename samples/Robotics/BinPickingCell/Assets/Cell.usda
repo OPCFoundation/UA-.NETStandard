@@ -41,6 +41,32 @@
 
 def Xform "World"
 {
+    # A fixed observer for the viewport, distinct from the eye-in-hand sensor on the
+    # flange. Opening the viewer on /World/Robot/.../Camera shows what the tool sees; this
+    # one shows the cell working, which is what someone watching the robot wants.
+    #
+    # It sits on the -Y side so +X reads left to right, which is what puts the fixture on
+    # the left and the bin on the right. A USD camera looks down its own -Z and this stage
+    # is Z-up, so an unrotated camera points straight down; rotateX tips it back to about
+    # 30 degrees below horizontal, which is the foreshortening the bench top shows.
+    #
+    # The numbers were fitted to a reference framing and then corrected against what the
+    # viewer actually rendered, because the analytic placement and the rendered result did
+    # not agree - the framing came out offset and over-scaled. Treat them as measured
+    # rather than derived: change one and the framing has to be re-checked against a
+    # capture, not just recomputed.
+    def Camera "ObserverCamera"
+    {
+        token projection = "perspective"
+        float focalLength = 31.6
+        float horizontalAperture = 20.955
+        float verticalAperture = 16.989
+        float2 clippingRange = (0.1, 100.0)
+        double3 xformOp:translate = (0.79, -7.008, 4.814)
+        double xformOp:rotateX = 50.45
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateX"]
+    }
+
     def Xform "Lights"
     {
         def DomeLight "Sky"
