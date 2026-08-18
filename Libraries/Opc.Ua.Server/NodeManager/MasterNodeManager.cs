@@ -1292,7 +1292,11 @@ namespace Opc.Ua.Server
                 BrowseDescription nodeToBrowse = nodesToBrowse[ii];
 
                 // initialize result.
-                var result = new BrowseResult { StatusCode = StatusCodes.Good };
+                var result = new BrowseResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    ContinuationPoint = default
+                };
                 results.Add(result);
 
                 ServiceResult error;
@@ -1452,7 +1456,11 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                     if (ServiceResult.IsBad(validationResult))
                     {
-                        var badResult = new BrowseResult { StatusCode = validationResult.Code };
+                        var badResult = new BrowseResult
+                        {
+                            StatusCode = validationResult.Code,
+                            ContinuationPoint = default
+                        };
                         results.Add(badResult);
 
                         // put placeholder for diagnostics
@@ -1462,7 +1470,11 @@ namespace Opc.Ua.Server
                 }
 
                 // initialize result.
-                var result = new BrowseResult { StatusCode = StatusCodes.Good };
+                var result = new BrowseResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    ContinuationPoint = default
+                };
                 results.Add(result);
 
                 // check if simply releasing the continuation point.
