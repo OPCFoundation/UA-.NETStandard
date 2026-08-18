@@ -758,6 +758,81 @@ namespace Opc.Ua.Client.Tests
                 "written off, otherwise the session never publishes again.");
         }
 
+        [Test]
+        public void BeginPublishIsBoundedByTheDesiredRequestCount()
+        {
+            const int subscriptionCount = 3;
+
+            var subscriptions = new List<Subscription>();
+            for (int ii = 0; ii < subscriptionCount; ii++)
+            {
+                subscriptions.Add(
+                    new Subscription(m_telemetry)
+                    {
+                        CurrentPublishingInterval = 100,
+                        CurrentLifetimeCount = 10
+                    });
+            }
+
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(subscriptions);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns(([], []));
+
+            int outstanding = 0;
+            int writtenOff = 0;
+            m_mockContext.Setup(c => c.GoodPublishRequestCount)
+                .Returns(() => Volatile.Read(ref outstanding) - Volatile.Read(ref writtenOff));
+            m_mockContext.Setup(c => c.AsyncRequestStarted(
+                    It.IsAny<Task>(),
+                    It.IsAny<Activity>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>()))
+                .Callback(() => Interlocked.Increment(ref outstanding));
+
+            var pending = new TaskCompletionSource<PublishResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int issued = 0;
+            m_mockContext.Setup(c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref issued);
+                    return new ValueTask<PublishResponse>(pending.Task);
+                });
+
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+
+            // Every subscription nudges the pipeline when it sees no
+            // notification, which is what Subscription.HandleOnKeepAliveStopped
+            // does. The nudges must not multiply the pipeline.
+            for (int ii = 0; ii < subscriptionCount * 4; ii++)
+            {
+                engine.BeginPublish(timeout: 5000);
+            }
+
+            int afterNudges = Volatile.Read(ref issued);
+            Assert.That(
+                afterNudges,
+                Is.EqualTo(subscriptionCount),
+                "The keep alive nudge must not send past the desired publish " +
+                "request count.");
+
+            // Once the outstanding requests are written off the pipeline is
+            // drained, so the nudge has to get through again.
+            Volatile.Write(ref writtenOff, afterNudges);
+
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+
+            int afterRecovery = Volatile.Read(ref issued);
+            pending.TrySetCanceled();
+
+            Assert.That(afterRecovery, Is.EqualTo(afterNudges + 1));
+        }
+
         private static void InvokeOnPublishComplete(
             ClassicSubscriptionEngine engine,
             Task<PublishResponse> task,

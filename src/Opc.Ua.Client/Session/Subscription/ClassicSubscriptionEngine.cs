@@ -222,15 +222,33 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends a publish request to the server.
         /// </summary>
+        /// <remarks>
+        /// This is the recovery nudge behind
+        /// <see cref="Subscription.HandleOnKeepAliveStopped"/>: a subscription
+        /// that has seen no notification asks for one more publish so the
+        /// server has a request to answer. It is bounded by the same
+        /// reservation as the automatic top up, because sending past the
+        /// desired count cannot help - the server already holds that many
+        /// requests and answers the surplus with
+        /// <see cref="StatusCodes.BadTooManyPublishRequests"/> - while every
+        /// subscription firing this nudge at once would otherwise multiply the
+        /// pipeline by the number of subscriptions. A drained pipeline always
+        /// has room, so the nudge still gets through when it is the outstanding
+        /// requests that have stopped coming back.
+        /// </remarks>
         /// <param name="timeout">The timeout for publish requests
         /// in milliseconds.</param>
         /// <returns>True if the request was sent successfully.</returns>
         internal bool BeginPublish(int timeout)
         {
-            // An explicit request to send a publish. The reservation is
-            // maintained so the automatic top up stays accurate, but an
-            // explicit caller is not capped.
-            Interlocked.Increment(ref m_unrecordedPublishRequests);
+            // At least one, so an empty pipeline is always refillable even
+            // when no subscription has been created yet.
+            int limit = Math.Max(1, GetDesiredPublishRequestCount(false));
+
+            if (!TryReservePublishRequest(limit, out _))
+            {
+                return false;
+            }
 
             if (!BeginPublishCore(timeout))
             {
