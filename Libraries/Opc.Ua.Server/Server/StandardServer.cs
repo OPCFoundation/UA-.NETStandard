@@ -947,7 +947,10 @@ namespace Opc.Ua.Server
 
             try
             {
-                m_serverInternal.RequestManager.CancelRequests(requestHandle, out uint cancelCount);
+                m_serverInternal.RequestManager.CancelRequests(
+                    context.SessionId,
+                    requestHandle,
+                    out uint cancelCount);
 
                 return Task.FromResult(new CancelResponse
                 {
