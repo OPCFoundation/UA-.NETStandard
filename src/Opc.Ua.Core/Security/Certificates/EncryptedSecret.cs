@@ -61,7 +61,7 @@ namespace Opc.Ua
             ReceiverNonce = receiverNonce;
             ReceiverCertificate = receiverCertificate;
             Validator = validator;
-            SecurityPolicy = SecurityPolicies.GetInfo(securityPolicyUri)
+            SecurityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri)
                 ?? throw new ArgumentException(
                     $"Cannot resolve SecurityPolicy '{securityPolicyUri}'.",
                     nameof(securityPolicyUri));
@@ -421,11 +421,10 @@ namespace Opc.Ua
                 keyData = Utils.Append(signingKey, encryptingKey, iv);
 
                 ILogger logger = Context.Telemetry.CreateLogger<EncryptedSecret>();
-                byte[]? encryptedKeyData = SecurityPolicies.Encrypt(
+                byte[]? encryptedKeyData = SecurityPolicies.Default.Encrypt(
                     ReceiverCertificate,
                     SecurityPolicy.Uri,
-                    keyData,
-                    logger).Data ??
+                    keyData).Data ??
                     throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to encrypt key data.");
 
                 using var payloadEncoder = new BinaryEncoder(Context);
@@ -882,7 +881,8 @@ namespace Opc.Ua
 
             int length = (int)decoder.ReadUInt32(null) + decoder.Position;
 
-            SecurityPolicy = SecurityPolicies.GetInfo(decoder.ReadString(null)!) ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
+            SecurityPolicy = SecurityPolicies.Default.GetInfo(decoder.ReadString(null)!)
+                ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
 
             if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -1031,7 +1031,8 @@ namespace Opc.Ua
 
             int length = (int)decoder.ReadUInt32(null) + decoder.Position;
 
-            SecurityPolicy = SecurityPolicies.GetInfo(decoder.ReadString(null)!) ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
+            SecurityPolicy = SecurityPolicies.Default.GetInfo(decoder.ReadString(null)!)
+                ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
 
             if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {

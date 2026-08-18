@@ -60,7 +60,7 @@ namespace Opc.Ua.SourceGeneration
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
                 public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.Fluent.FluentNodeManagerBase
                 {
-                    private global::Opc.Ua.Server.Fluent.NodeManagerBuilder __m_builder;
+                    private global::Opc.Ua.Server.Fluent.NodeManagerBuilder? __m_builder;
 
                     /// <summary>
                     /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>.

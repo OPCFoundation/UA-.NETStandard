@@ -231,5 +231,12 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
             "'ApplicationConfiguration.PropertiesLock' was removed in 2.0 — Properties synchronizes itself, so drop the lock and use GetOrAddProperty(...) if a read and a write have to be atomic",
             DiagnosticSeverity.Warning,
             "ApplicationConfiguration.PropertiesLock returned the properties dictionary itself, so the lock was the data it guarded: every caller that took it shared one monitor with the dictionary and with every other caller, in an order none of them could see. Properties is now a concurrent dictionary, so each individual operation is atomic without a lock. The only combination that needs more than one operation is get-or-add, which GetOrAddProperty covers; it deliberately does not invoke the factory under a lock, so a caller cannot hold a critical section across a callback. This rule reports rather than fixes, because whether a lock body becomes a plain call or a GetOrAddProperty depends on what the body does.");
+
+        public static readonly DiagnosticDescriptor UA0029_SecurityPoliciesStaticsMoved = Create(
+            DiagnosticIds.UA0029,
+            "SecurityPolicies lookup and cryptography moved to ISecurityPolicyRegistry in 2.0",
+            "'SecurityPolicies.{0}' was removed in 2.0 — resolve an 'ISecurityPolicyRegistry' and call '{0}' on it, or use 'SecurityPolicies.Default' where no container is in scope",
+            DiagnosticSeverity.Warning,
+            "These operate on the set of registered security policies rather than on constants, so they are members of the registry that owns that set. The registry also carries its own logger, so the Encrypt/Decrypt logger argument is gone. SecurityPolicies keeps the policy URI constants. See docs/MigrationGuide.md#ua0029.");
     }
 }

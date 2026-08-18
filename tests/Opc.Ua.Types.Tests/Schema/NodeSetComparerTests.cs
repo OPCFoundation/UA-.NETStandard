@@ -55,6 +55,73 @@ namespace Opc.Ua.Types.Tests.Schema
             Assert.That(result.Differences, Is.Empty);
         }
 
+        /// <summary>
+        /// An alias is a shorthand a NodeSet declares for itself, so a DataType
+        /// written as <c>Double</c> beside a declared alias and one written as
+        /// <c>i=11</c> state the same fact. <c>Compare</c> answers whether a
+        /// document was reproduced exactly and reports the difference;
+        /// <c>CompareEquivalent</c> answers the §9.2 question and does not.
+        /// </summary>
+        [Test]
+        public void AnAliasAndTheIdentifierItStandsForAreEquivalentButNotIdentical()
+        {
+            UANodeSet aliased = WotTestData.CreateReconstructableNodeSet();
+            aliased.Aliases = [new NodeIdAlias { Alias = "Double", Value = "i=11" }];
+            aliased.Items!.OfType<UAVariable>().Single().DataType = "Double";
+            UANodeSet expanded = WotTestData.CreateReconstructableNodeSet();
+            expanded.Items!.OfType<UAVariable>().Single().DataType = "i=11";
+
+            Assert.That(
+                NodeSetComparer.Compare(aliased, expanded).AreEquivalent,
+                Is.False,
+                "Compare answers whether the document was reproduced as written.");
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(aliased, expanded).AreEquivalent,
+                Is.True,
+                "CompareEquivalent must read each side through its own alias table.");
+        }
+
+        /// <summary>
+        /// Resolving aliases must not blunt the comparison: a DataType that
+        /// genuinely differs is still a difference.
+        /// </summary>
+        [Test]
+        public void CompareEquivalentStillDetectsAChangedDataType()
+        {
+            UANodeSet aliased = WotTestData.CreateReconstructableNodeSet();
+            aliased.Aliases = [new NodeIdAlias { Alias = "Double", Value = "i=11" }];
+            aliased.Items!.OfType<UAVariable>().Single().DataType = "Double";
+            UANodeSet other = WotTestData.CreateReconstructableNodeSet();
+            other.Items!.OfType<UAVariable>().Single().DataType = "i=12";
+
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(aliased, other).AreEquivalent,
+                Is.False);
+        }
+
+        /// <summary>
+        /// An alias name is only a shorthand where an alias is legal. A
+        /// BrowseName that happens to read like one is ordinary text.
+        /// </summary>
+        [Test]
+        public void CompareEquivalentDoesNotRewriteTextThatMerelyMatchesAnAliasName()
+        {
+            // The BrowseName is exactly the alias name, so a resolver that did
+            // not check where an alias is legal would rewrite it to i=11 and
+            // call these two documents the same.
+            UANodeSet left = WotTestData.CreateReconstructableNodeSet();
+            left.Aliases = [new NodeIdAlias { Alias = "Double", Value = "i=11" }];
+            left.Items!.OfType<UAVariable>().Single().BrowseName = "Double";
+            UANodeSet right = WotTestData.CreateReconstructableNodeSet();
+            right.Aliases = [new NodeIdAlias { Alias = "Double", Value = "i=11" }];
+            right.Items!.OfType<UAVariable>().Single().BrowseName = "i=11";
+
+            Assert.That(
+                NodeSetComparer.CompareEquivalent(left, right).AreEquivalent,
+                Is.False,
+                "Only a DataType, a ReferenceType and a Reference's target may be an alias.");
+        }
+
         [Test]
         public void SemanticChangeIsDetected()
         {

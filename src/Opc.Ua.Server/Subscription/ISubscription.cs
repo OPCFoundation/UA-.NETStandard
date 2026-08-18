@@ -79,6 +79,12 @@ namespace Opc.Ua.Server
         bool IsDurable { get; }
 
         /// <summary>
+        /// True once the subscription has been deleted via <see cref="DeleteAsync"/>. Publicly
+        /// callable members throw Bad_SubscriptionIdInvalid once this is set.
+        /// </summary>
+        bool IsDeleted { get; }
+
+        /// <summary>
         /// Applies an update to the subscription diagnostics while holding the
         /// subscription's diagnostics lock.
         /// </summary>

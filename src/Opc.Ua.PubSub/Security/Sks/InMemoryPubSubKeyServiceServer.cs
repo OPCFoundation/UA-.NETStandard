@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             cancellationToken.ThrowIfCancellationRequested();
 
             IPubSubSecurityPolicy? policy =
-                PubSubSecurityPolicyRegistry.GetByUri(group.SecurityPolicyUri) ??
+                PubSubSecurityPolicyRegistry.Default.GetByUri(group.SecurityPolicyUri) ??
                 throw new OpcUaSksException(
                     StatusCodes.BadSecurityPolicyRejected,
                     $"SecurityPolicyUri '{group.SecurityPolicyUri}' is not supported.");
@@ -282,7 +282,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         private void RestoreSecurityGroup(SksSecurityGroup group)
         {
             IPubSubSecurityPolicy? policy =
-                PubSubSecurityPolicyRegistry.GetByUri(group.SecurityPolicyUri);
+                PubSubSecurityPolicyRegistry.Default.GetByUri(group.SecurityPolicyUri);
             if (policy is null)
             {
                 return;

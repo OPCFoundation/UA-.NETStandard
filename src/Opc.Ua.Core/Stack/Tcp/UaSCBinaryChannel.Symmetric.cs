@@ -261,7 +261,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         protected void CalculateSymmetricKeySizes()
         {
-            SecurityPolicyInfo info = SecurityPolicies.GetInfo(SecurityPolicyUri)
+            SecurityPolicyInfo info = SecurityPolicies.Default.GetInfo(SecurityPolicyUri)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
@@ -271,6 +271,14 @@ namespace Opc.Ua.Bindings
             m_signatureKeySize = info.DerivedSignatureKeyLength;
             m_encryptionKeySize = info.SymmetricEncryptionKeyLength;
             EncryptionBlockSize = info.InitializationVectorLength != 0 ? info.InitializationVectorLength : 1;
+
+            // Resolved once, here, and held for the lifetime of the channel. Both
+            // stay null in the default configuration, which is what keeps the per
+            // message path free of any interface dispatch.
+            m_symmetricProvider = CryptoProviderFacets.ResolveSymmetric(
+                Quotas.CryptoProviders, SecurityPolicyUri);
+            m_keyDerivationProvider = CryptoProviderFacets.ResolveKeyDerivation(
+                Quotas.CryptoProviders, SecurityPolicyUri);
         }
 
         private void DeriveKeysWithPSHA(
@@ -281,16 +289,37 @@ namespace Opc.Ua.Bindings
             bool isServer)
         {
             SecurityPolicyInfo policy = SecurityPolicy!;
-            using HMAC hmac = Utils.CreateHMAC(algorithmName, secret);
 
             int length = m_signatureKeySize + m_encryptionKeySize + EncryptionBlockSize;
 
-            if (!isServer && policy.SecureChannelEnhancements)
-            {
-                length += hmac.HashSize / 8;
-            }
+            byte[] output;
 
-            byte[] output = Utils.PSHA(hmac, null, seed, 0, length);
+            if (m_keyDerivationProvider != null &&
+                m_keyDerivationProvider.Supports(policy.KeyDerivationAlgorithm))
+            {
+                if (!isServer && policy.SecureChannelEnhancements)
+                {
+                    length += GetHashLength(algorithmName);
+                }
+
+                output = new byte[length];
+                CryptoProviderOutput.Stamp(output);
+                m_keyDerivationProvider.DeriveKey(
+                    policy.KeyDerivationAlgorithm, secret, seed, output);
+                CryptoProviderOutput.Verify(
+                    output, "key derivation", m_keyDerivationProvider);
+            }
+            else
+            {
+                using HMAC hmac = Utils.CreateHMAC(algorithmName, secret);
+
+                if (!isServer && policy.SecureChannelEnhancements)
+                {
+                    length += hmac.HashSize / 8;
+                }
+
+                output = Utils.PSHA(hmac, null, seed, 0, length);
+            }
 
             byte[] signingKey = new byte[m_signatureKeySize];
             byte[] encryptingKey = new byte[m_encryptionKeySize];
@@ -316,6 +345,21 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        private static int GetHashLength(HashAlgorithmName algorithmName)
+        {
+            if (algorithmName == HashAlgorithmName.SHA384)
+            {
+                return 48;
+            }
+
+            if (algorithmName == HashAlgorithmName.SHA1)
+            {
+                return 20;
+            }
+
+            return 32;
+        }
+
         private void DeriveKeysWithHKDF(
             ChannelToken token,
             byte[] salt,
@@ -323,11 +367,26 @@ namespace Opc.Ua.Bindings
             int length)
         {
             SecurityPolicyInfo tokenPolicy = token.SecurityPolicy!;
-            byte[] keyData = m_localNonce!.DeriveKeyData(
-                token.Secret!,
-                salt,
-                tokenPolicy.KeyDerivationAlgorithm,
-                length);
+            byte[] keyData;
+
+            if (m_keyDerivationProvider != null &&
+                m_keyDerivationProvider.Supports(tokenPolicy.KeyDerivationAlgorithm))
+            {
+                keyData = new byte[length];
+                CryptoProviderOutput.Stamp(keyData);
+                m_keyDerivationProvider.DeriveKey(
+                    tokenPolicy.KeyDerivationAlgorithm, token.Secret!, salt, keyData);
+                CryptoProviderOutput.Verify(
+                    keyData, "key derivation", m_keyDerivationProvider);
+            }
+            else
+            {
+                keyData = m_localNonce!.DeriveKeyData(
+                    token.Secret!,
+                    salt,
+                    tokenPolicy.KeyDerivationAlgorithm,
+                    length);
+            }
 
             byte[] signingKey = new byte[m_signatureKeySize];
             byte[] encryptingKey = new byte[m_encryptionKeySize];
@@ -358,7 +417,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ComputeKeys(ChannelToken token)
         {
-            token.SecurityPolicy = SecurityPolicies.GetInfo(SecurityPolicyUri);
+            token.SecurityPolicy = SecurityPolicies.Default.GetInfo(SecurityPolicyUri);
 
             if (SecurityMode == MessageSecurityMode.None)
             {
@@ -640,7 +699,8 @@ namespace Opc.Ua.Bindings
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
-                (uint)(m_localSequenceNumber - 1)); // already incremented to create this message. need the last one sent.
+                (uint)(m_localSequenceNumber - 1), // already incremented to create this message. need the last one sent.
+                m_symmetricProvider);
         }
 
         /// <summary>
@@ -776,12 +836,15 @@ namespace Opc.Ua.Bindings
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
                 m_remoteSequenceNumber,
-                useClientKeys ? token.ClientHmac : token.ServerHmac);
+                useClientKeys ? token.ClientHmac : token.ServerHmac,
+                m_symmetricProvider);
         }
 
         private static readonly byte[] s_hkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");
         private static readonly byte[] s_hkdfServerLabel = Encoding.UTF8.GetBytes("opcua-server");
         private int m_signatureKeySize;
         private int m_encryptionKeySize;
+        private ISymmetricCryptoProvider? m_symmetricProvider;
+        private IKeyDerivationProvider? m_keyDerivationProvider;
     }
 }

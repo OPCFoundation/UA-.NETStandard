@@ -235,12 +235,12 @@ namespace Quickstarts.ReferenceServer
             }
 
             var tagVariables = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
-                ObjectIds.TagVariables,
-                QualifiedName.From(BrowseNames.TagVariables),
+                Opc.Ua.ObjectIds.TagVariables,
+                QualifiedName.From(Opc.Ua.BrowseNames.TagVariables),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
             var topics = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
-                ObjectIds.Topics,
-                QualifiedName.From(BrowseNames.Topics),
+                Opc.Ua.ObjectIds.Topics,
+                QualifiedName.From(Opc.Ua.BrowseNames.Topics),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
 
             // Root the Aliases (i=23470) object too so FindAlias /
@@ -255,8 +255,8 @@ namespace Quickstarts.ReferenceServer
             // so this is a server-side capability only and does not
             // expose mutation methods over the wire on the standard node.
             var aliases = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
-                ObjectIds.Aliases,
-                QualifiedName.From(BrowseNames.Aliases),
+                Opc.Ua.ObjectIds.Aliases,
+                QualifiedName.From(Opc.Ua.BrowseNames.Aliases),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose |
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange |
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.AddAliasesToCategory |
@@ -296,9 +296,9 @@ namespace Quickstarts.ReferenceServer
                     new ExpandedNodeId("Scalar_Static_Int32", refServerNs));
             }
 
-            store.Seed(ObjectIds.Topics, "ServerEvents",
-                ObjectIds.Server, serverUri: null, referenceTypeId: aliasFor);
-            store.Seed(ObjectIds.Topics, "AuditEvents",
+            store.Seed(Opc.Ua.ObjectIds.Topics, "ServerEvents",
+                Opc.Ua.ObjectIds.Server, serverUri: null, referenceTypeId: aliasFor);
+            store.Seed(Opc.Ua.ObjectIds.Topics, "AuditEvents",
                 new ExpandedNodeId(ObjectTypes.AuditEventType),
                 serverUri: null, referenceTypeId: aliasFor);
 
@@ -309,7 +309,7 @@ namespace Quickstarts.ReferenceServer
                 string name,
                 ExpandedNodeId target)
             {
-                store.Seed(ObjectIds.TagVariables, name, target,
+                store.Seed(Opc.Ua.ObjectIds.TagVariables, name, target,
                     serverUri: null,
                     referenceTypeId: ReferenceTypeIds.AliasFor);
             }

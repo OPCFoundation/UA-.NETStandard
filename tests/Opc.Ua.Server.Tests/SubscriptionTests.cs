@@ -143,7 +143,7 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [Category("NodeManagerLifecycle")]
-        public void CreateMonitoredItemsRejectsClosingSession()
+        public void CreateMonitoredItemsDoesNotRejectClosingSession()
         {
             using ServerInternalData server = CreateServerInternalData();
             m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
@@ -162,19 +162,17 @@ namespace Opc.Ua.Server.Tests
                 m_sessionMock.Object,
                 DiagnosticsMasks.None);
 
-            ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await subscription
-                        .CreateMonitoredItemsAsync(
-                            context,
-                            TimestampsToReturn.Both,
-                            [],
-                            CancellationToken.None)
-                        .ConfigureAwait(false));
-
-            Assert.That(
-                exception.StatusCode,
-                Is.EqualTo(StatusCodes.BadSessionClosed));
+            // The subscription no longer gates monitored item operations on the
+            // owning session's closing state; ownership and deletion are the only
+            // guards. A closing session that still owns the subscription is allowed.
+            Assert.DoesNotThrowAsync(
+                async () => await subscription
+                    .CreateMonitoredItemsAsync(
+                        context,
+                        TimestampsToReturn.Both,
+                        [],
+                        CancellationToken.None)
+                    .ConfigureAwait(false));
         }
 
         private ServerInternalData CreateServerInternalData()

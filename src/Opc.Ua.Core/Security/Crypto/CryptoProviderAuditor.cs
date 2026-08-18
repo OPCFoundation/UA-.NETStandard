@@ -65,13 +65,18 @@ namespace Opc.Ua
         /// <param name="registry">The registry to report on.</param>
         /// <param name="telemetry">The telemetry context.</param>
         /// <param name="policy">How strictly validation is enforced.</param>
+        /// <param name="policies">
+        /// The security policies the application offers, whose algorithms the
+        /// providers must actually perform. Defaults to the built-in set.
+        /// </param>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="registry"/> or <paramref name="telemetry"/> is <c>null</c>.
         /// </exception>
         public CryptoProviderAuditor(
             ICryptoProviderRegistry registry,
             ITelemetryContext telemetry,
-            CryptoCompliancePolicy policy = CryptoCompliancePolicy.Permissive)
+            CryptoCompliancePolicy policy = CryptoCompliancePolicy.Permissive,
+            ISecurityPolicyRegistry? policies = null)
         {
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             if (telemetry == null)
@@ -81,6 +86,7 @@ namespace Opc.Ua
 
             m_logger = telemetry.CreateLogger<CryptoProviderAuditor>();
             m_policy = policy;
+            m_policies = policies ?? SecurityPolicies.Default;
             m_meter = telemetry.CreateMeter();
 
             m_meter.CreateObservableGauge(
@@ -176,21 +182,43 @@ namespace Opc.Ua
             }
 
             ArrayOf<ICryptoProvider> uncertified = UncertifiedProviders;
-            if (uncertified.Count == 0)
+            if (uncertified.Count > 0)
             {
-                return;
+                var names = new List<string>();
+                foreach (ICryptoProvider provider in uncertified)
+                {
+                    names.Add(provider.Name);
+                }
+
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The compliance policy requires validated cryptography but these " +
+                    $"providers carry none: {string.Join(", ", names)}.");
             }
 
-            var names = new List<string>();
-            foreach (ICryptoProvider provider in uncertified)
-            {
-                names.Add(provider.Name);
-            }
+            // Carrying the facet is not enough. Supports(algorithm) is consulted
+            // again at the point of use, and a provider that answers false for the
+            // algorithm a negotiated policy needs is bypassed in favour of the
+            // platform. Under this policy that would mean the validated module
+            // performs only part of the work while a deployment believes it
+            // performs all of it, so the shortfall is named and refused.
+            ArrayOf<UnservedCryptoOperation> unserved =
+                CryptoCompliance.GetUnservedOperations(m_registry, m_policies);
 
-            throw new ServiceResultException(
-                StatusCodes.BadConfigurationError,
-                "The compliance policy requires validated cryptography but these " +
-                $"providers carry none: {string.Join(", ", names)}.");
+            if (unserved.Count > 0)
+            {
+                var operations = new List<string>();
+                foreach (UnservedCryptoOperation operation in unserved)
+                {
+                    operations.Add(operation.ToString());
+                }
+
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The compliance policy requires validated cryptography to perform every " +
+                    "operation, but the provider resolved for these cannot perform " +
+                    $"them and the platform would be used instead: {string.Join(", ", operations)}.");
+            }
         }
 
         /// <inheritdoc/>
@@ -228,6 +256,7 @@ namespace Opc.Ua
         }
 
         private readonly ICryptoProviderRegistry m_registry;
+        private readonly ISecurityPolicyRegistry m_policies;
         private readonly ILogger m_logger;
         private readonly CryptoCompliancePolicy m_policy;
         private readonly Meter m_meter;

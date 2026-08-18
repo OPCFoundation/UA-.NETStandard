@@ -168,8 +168,9 @@ namespace Opc.Ua.Gds.Tests.Hosting
             {
                 await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
-                AuthenticationResult result = await WaitForAuthenticationAsync(hostedService)
-                    .ConfigureAwait(false);
+                AuthenticationResult result = await WaitForAugmentedAuthenticationAsync(
+                    hostedService,
+                    augmenter).ConfigureAwait(false);
 
                 Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
                 Assert.That(result.Identity, Is.SameAs(augmenter.Identity));
@@ -365,6 +366,85 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             Assert.Fail("Timed out waiting for the GDS hosted service to register identity authenticators.");
             return AuthenticationResult.NotHandled;
+        }
+
+        private static async Task<AuthenticationResult> WaitForAugmentedAuthenticationAsync(
+            GdsServerHostedService hostedService,
+            IIdentityAugmenter augmenter)
+        {
+            DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+            while (DateTime.UtcNow < deadline)
+            {
+                Task executeTask = hostedService.ExecuteTask;
+                if (executeTask != null && executeTask.IsCompleted)
+                {
+                    await executeTask.ConfigureAwait(false);
+                }
+
+                StandardServer server = GetServer(hostedService);
+                if (server != null)
+                {
+                    try
+                    {
+                        IServerInternal currentInstance = server.CurrentInstance;
+
+                        // The hosted service starts listening first and only then
+                        // registers authenticators and augmenters, in two separate
+                        // steps. An accepted authentication therefore does not on
+                        // its own prove the augmenter is in place: a call landing
+                        // between the two steps returns the un-augmented identity.
+                        // Waiting for this augmenter keeps the single asserted
+                        // call below deterministic.
+                        if (IsAugmenterRegistered(currentInstance.IdentityRegistry, augmenter))
+                        {
+                            return await currentInstance.IdentityRegistry
+                                .AuthenticateAsync(
+                                    CreateAuthenticationContext(currentInstance.MessageContext))
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadServerHalted)
+                    {
+                    }
+                }
+
+                await Task.Delay(50).ConfigureAwait(false);
+            }
+
+            Assert.Fail("Timed out waiting for the GDS hosted service to register the identity augmenter.");
+            return AuthenticationResult.NotHandled;
+        }
+
+        private static bool IsAugmenterRegistered(
+            IServerIdentityRegistry registry,
+            IIdentityAugmenter augmenter)
+        {
+            Assert.That(registry, Is.TypeOf<ServerIdentityRegistry>());
+            FieldInfo field = typeof(ServerIdentityRegistry).GetField(
+                "m_augmenters",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            var augmenters = (IEnumerable)field.GetValue(registry);
+
+            try
+            {
+                foreach (object registered in augmenters)
+                {
+                    if (ReferenceEquals(registered, augmenter))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // The registry adds augmenters under its own lock, which this
+                // reflection based probe cannot take. A concurrent add
+                // invalidates the enumerator; the caller retries on the next
+                // poll.
+            }
+
+            return false;
         }
 
         private static AuthenticationContext CreateAuthenticationContext(

@@ -1301,8 +1301,12 @@ public enum UadpSecurityWrapOptions
 - `PubSubAes256CtrPolicy` — AES-256-CTR + HMAC-SHA-256.
 
 Lookup uses
-`PubSubSecurityPolicyRegistry.Find(policyUri)` — the URIs match
+`PubSubSecurityPolicyRegistry.Default.GetByUri(policyUri)` — the URIs match
 [Part 7 §6.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8).
+Resolve an `IPubSubSecurityPolicyRegistry` where a container is in scope so the
+policies that application configured are the ones used. The platform-backed
+policy instances are deliberately not public: taking one directly would bypass a
+configured symmetric crypto provider, so the registry is the way in.
 
 These policies are UADP message-level security for Part 14 §7.2.2 and apply to the NetworkMessage payload. DTLS transport security protects the whole UDP datagram on the wire for one transport hop. Use DTLS to secure the transport hop, and use a UADP security policy when the message must remain protected end-to-end across brokers or relays. They can be combined or used independently: `PubSubNonePolicy` over DTLS gives transport-only confidentiality, while an AES-CTR UADP policy over DTLS is redundant but supported.
 

@@ -1745,7 +1745,8 @@ namespace Opc.Ua.SourceGeneration
             /// Creates the {{Tokens.SymbolicName}} View node state.
             /// </summary>
             internal static global::Opc.Ua.ViewState Create{{Tokens.SymbolicId}}(
-                this global::Opc.Ua.ISystemContext context)
+                this global::Opc.Ua.ISystemContext context,
+                bool forInstance = true)
             {
                 var state = new global::Opc.Ua.ViewState();
                 global::Opc.Ua.NodeState nodeState = state;

@@ -73,6 +73,12 @@ namespace Opc.Ua.WotCon.Server
             Coordinator.StrictBindings = options.StrictBindings;
             Coordinator.RetirementPolicy = options.RetirementPolicy;
             Coordinator.ServerNamespaceUris = server.NamespaceUris;
+
+            // WoT Binding Section 5.1.5 makes a loaded AddressSpace the second
+            // half of the local context. This is the first point at which it
+            // exists, and without it a Section 5.2.1 binding to a companion
+            // model type cannot resolve.
+            Coordinator.UseAddressSpace(new AddressSpaceWotNodeResolver(server));
             m_projection = new WotRegistryProjection(this, Registry, m_options);
         }
 

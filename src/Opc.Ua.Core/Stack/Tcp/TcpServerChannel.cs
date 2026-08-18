@@ -98,16 +98,27 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
+        /// <remarks>
+        /// Deliberately does not take the gate. Disposal is terminal and is not
+        /// thread-safe by contract, and the listener disposes the channel from
+        /// inside <c>ChannelClosed</c>, which is itself reached with the gate
+        /// held — taking it here would deadlock.
+        /// <para>
+        /// Because it does not take the gate it can run while a request holds
+        /// it, so it records that it ran. A request that adopts the client
+        /// certificate checks that afterwards and disposes it itself, otherwise
+        /// a certificate adopted after this point would never be released.
+        /// </para>
+        /// </remarks>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                lock (DataLock)
-                {
-                    ClientCertificate?.Dispose();
-                    ClientCertificate = null;
-                    base.Dispose(disposing);
-                }
+                Volatile.Write(ref m_disposed, 1);
+
+                ClientCertificate?.Dispose();
+                ClientCertificate = null;
+                base.Dispose(disposing);
             }
         }
 
@@ -306,7 +317,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(transport));
             }
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
@@ -362,11 +373,15 @@ namespace Opc.Ua.Bindings
         /// Processes an incoming message.
         /// </summary>
         /// <returns>True if the implementor takes ownership of the buffer.</returns>
-        protected override bool HandleIncomingMessage(
+        protected override async ValueTask<bool> HandleIncomingMessageAsync(
             uint messageType,
-            ArraySegment<byte> messageChunk)
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
         {
-            lock (DataLock)
+            PendingRequestDispatch? pending = null;
+            bool ownsBuffer;
+
+            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
                 SetResponseRequired(true);
 
@@ -379,43 +394,68 @@ namespace Opc.Ua.Bindings
                         //     Utils.TraceMasks.ServiceDetail,
                         //     "ChannelId {Id}: ProcessRequestMessage",
                         //     ChannelId);
-                        return ProcessRequestMessage(messageType, messageChunk);
+                        ownsBuffer = ProcessRequestMessage(messageType, messageChunk, out pending);
                     }
-
                     // check for hello.
-                    if (messageType == TcpMessageType.Hello)
+                    else if (messageType == TcpMessageType.Hello)
                     {
                         m_logger.TcpServerLog1(ChannelId);
-                        return ProcessHelloMessage(messageChunk);
+                        ownsBuffer = ProcessHelloMessage(messageChunk);
                     }
-
                     // process open secure channel repsonse.
-                    if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
+                    else if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                     {
                         m_logger.TcpServerLog2(ChannelId);
-                        return ProcessOpenSecureChannelRequest(messageType, messageChunk);
+                        ownsBuffer = await ProcessOpenSecureChannelRequestAsync(
+                            messageType, messageChunk, ct).ConfigureAwait(false);
                     }
-
                     // process close secure channel response.
-                    if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
+                    else if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                     {
                         m_logger.TcpServerLog3(ChannelId);
-                        return ProcessCloseSecureChannelRequest(messageType, messageChunk);
+                        ownsBuffer = ProcessCloseSecureChannelRequest(messageType, messageChunk);
                     }
+                    else
+                    {
+                        // invalid message type - must close socket and reconnect.
+                        ForceChannelFaultCore(
+                            StatusCodes.BadTcpMessageTypeInvalid,
+                            "The server does not recognize the message type: {0:X8}.",
+                            messageType);
 
-                    // invalid message type - must close socket and reconnect.
-                    ForceChannelFault(
-                        StatusCodes.BadTcpMessageTypeInvalid,
-                        "The server does not recognize the message type: {0:X8}.",
-                        messageType);
-
-                    return false;
+                        ownsBuffer = false;
+                    }
                 }
                 finally
                 {
                     SetResponseRequired(false);
                 }
             }
+
+            // Outside the gate on purpose: the handler is application code, and
+            // its continuation may call SendResponse straight back on this
+            // stack. See ProcessRequestMessage.
+            if (pending != null)
+            {
+                try
+                {
+                    RequestReceived?.Invoke(this, pending.RequestId, pending.Request);
+                }
+                catch (Exception e)
+                {
+                    // The handler is application code and may throw. Letting it
+                    // escape would unwind into the receive loop, which returns
+                    // the chunk buffer that this call already reported taking
+                    // ownership of — a double release.
+                    m_logger.TcpServerLog16(e);
+                }
+                finally
+                {
+                    pending.Chunks?.Release(BufferManager, "ProcessRequestMessage");
+                }
+            }
+
+            return ownsBuffer;
         }
 
         /// <summary>
@@ -458,7 +498,7 @@ namespace Opc.Ua.Bindings
             // validate the channel state.
             if (State != TcpChannelState.Connecting)
             {
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     StatusCodes.BadTcpMessageTypeInvalid,
                     "Client sent an unexpected Hello message.");
                 return false;
@@ -495,7 +535,7 @@ namespace Opc.Ua.Bindings
                     {
                         if (length > TcpMessageLimits.MaxEndpointUrlLength)
                         {
-                            ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
+                            ForceChannelFaultCore(StatusCodes.BadTcpEndpointUrlInvalid);
                             return false;
                         }
 
@@ -509,7 +549,7 @@ namespace Opc.Ua.Bindings
                         if (!SetEndpointUrl(
                             Encoding.UTF8.GetString(endpointUrl, 0, endpointUrl.Length)))
                         {
-                            ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
+                            ForceChannelFaultCore(StatusCodes.BadTcpEndpointUrlInvalid);
                             return false;
                         }
                     }
@@ -594,7 +634,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     e,
                     StatusCodes.BadTcpInternalError,
                     "Unexpected error while processing a Hello message.");
@@ -607,9 +647,10 @@ namespace Opc.Ua.Bindings
         /// Processes an OpenSecureChannel request message.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private bool ProcessOpenSecureChannelRequest(
+        private async ValueTask<bool> ProcessOpenSecureChannelRequestAsync(
             uint messageType,
-            ArraySegment<byte> messageChunk)
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
         {
             // Communication is active on the channel
             UpdateLastActiveTime();
@@ -617,7 +658,7 @@ namespace Opc.Ua.Bindings
             // validate the channel state.
             if (State is not TcpChannelState.Opening and not TcpChannelState.Open)
             {
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     StatusCodes.BadTcpMessageTypeInvalid,
                     "Client sent an unexpected OpenSecureChannel message.");
                 return false;
@@ -635,18 +676,26 @@ namespace Opc.Ua.Bindings
             {
                 m_oscRequestSignature = null;
 
-                messageBody = ReadAsymmetricMessage(
+                AsymmetricMessage message = await ReadAsymmetricMessageAsync(
                     messageChunk,
                     ServerCertificate,
-                    out channelId,
-                    out clientCertificate,
-                    out requestId,
-                    out sequenceNumber,
                     null,
-                    out byte[] signature);
+                    // Taken before validation can reject the message, so the
+                    // certificate of a rejected sender is still reported to the
+                    // audit and disposed by the catch below.
+                    parsed => clientCertificate = parsed,
+                    ct).ConfigureAwait(false);
+
+                messageBody = message.Body;
+                channelId = message.ChannelId;
+                clientCertificate = message.SenderCertificate;
+                requestId = message.RequestId;
+                sequenceNumber = message.SequenceNumber;
 
                 // don't keep signature if secure channel enhancements are not used.
-                m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements ? signature : null;
+                m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements
+                    ? message.Signature
+                    : null;
 
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
@@ -691,7 +740,7 @@ namespace Opc.Ua.Bindings
                             innerException.InnerResult.StatusCode == StatusCodes
                                 .BadCertificateUntrusted))
                     {
-                        ForceChannelFault(
+                        ForceChannelFaultCore(
                             StatusCodes.BadSecurityChecksFailed,
                             errorSecurityChecksFailed);
                         return false;
@@ -706,12 +755,12 @@ namespace Opc.Ua.Bindings
                         innerException.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown ||
                         innerException.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
                     {
-                        ForceChannelFault(innerException, innerException.StatusCode, e.Message);
+                        ForceChannelFaultCore(innerException, innerException.StatusCode, e.Message);
                         return false;
                     }
                 }
 
-                ForceChannelFault(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
+                ForceChannelFaultCore(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
                 return false;
             }
 
@@ -731,16 +780,26 @@ namespace Opc.Ua.Bindings
                 else
                 {
                     ClientCertificate = clientCertificate;
+
+                    // Dispose does not take the gate, so it may have run between
+                    // the null check above and this assignment. It would then
+                    // already have released the certificate it saw — which was
+                    // not this one — and nothing else ever will.
+                    if (Volatile.Read(ref m_disposed) == 1)
+                    {
+                        ClientCertificate = null;
+                        clientCertificate?.Dispose();
+                    }
                 }
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody, true);
+                    SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
                     return false;
                 }
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
 
                 using var openRequestStream = new ArraySegmentStream(chunksToProcess);
                 request =
@@ -874,11 +933,13 @@ namespace Opc.Ua.Bindings
                 // send the response.
                 if (requestType == SecurityTokenRequestType.Renew)
                 {
-                    SendOpenSecureChannelResponse(requestId, RenewedToken!, request, true);
+                    await SendOpenSecureChannelResponseAsync(
+                        requestId, RenewedToken!, request, true, ct).ConfigureAwait(false);
                 }
                 else
                 {
-                    SendOpenSecureChannelResponse(requestId, CurrentToken!, request, false);
+                    await SendOpenSecureChannelResponseAsync(
+                        requestId, CurrentToken!, request, false, ct).ConfigureAwait(false);
                 }
 
                 // notify reverse
@@ -978,6 +1039,11 @@ namespace Opc.Ua.Bindings
                 byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
 
                 // secure message.
+                // The fault path is exceptional and is reached from synchronous call
+                // sites, including the public Reconnect override. Signing here with a
+                // key served over a network still occupies a thread; that is recorded
+                // as a residual limitation rather than cascading async through eight
+                // fault call sites.
                 chunksToSend = WriteAsymmetricMessage(
                     TcpMessageType.Open,
                     requestId,
@@ -986,7 +1052,7 @@ namespace Opc.Ua.Bindings
                     ClientCertificate,
                     new ArraySegment<byte>(buffer, 0, buffer.Length),
                     !renew ? m_oscRequestSignature : null,
-                    out byte[] signature);
+                    out _);
 
                 // write the message to the server.
                 BeginWriteMessage(chunksToSend, null);
@@ -998,7 +1064,7 @@ namespace Opc.Ua.Bindings
 
                 m_logger.TcpServerLog8(e, ChannelId, requestId, fault.StatusCode);
 
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     ServiceResult.Create(
                         e,
                         StatusCodes.BadTcpInternalError,
@@ -1016,6 +1082,13 @@ namespace Opc.Ua.Bindings
         /// <c>true</c> when answering a token renewal request. Renewal keeps the same channel, but issues a new
         /// security token (new token id and server nonce), <c>false</c> for the initial open.
         /// </param>
+        /// <remarks>
+        /// Used by the synchronous reconnect handoff, which is reached through a
+        /// public override that cannot become asynchronous without breaking the
+        /// contract. Signing here with a key served over a network still occupies
+        /// a thread; the open path proper uses
+        /// <see cref="SendOpenSecureChannelResponseAsync"/> and does not.
+        /// </remarks>
         private void SendOpenSecureChannelResponse(
             uint requestId,
             ChannelToken token,
@@ -1052,6 +1125,63 @@ namespace Opc.Ua.Bindings
                 ChannelThumbprint = signature;
             }
 
+            SendOpenSecureChannelChunks(chunksToSend);
+        }
+
+        /// <summary>
+        /// Sends an OpenSecureChannel response, without occupying the calling
+        /// thread while the response is signed.
+        /// </summary>
+        /// <param name="requestId">The request being answered.</param>
+        /// <param name="token">The issued or renewed token.</param>
+        /// <param name="request">The request being answered.</param>
+        /// <param name="renew">Whether the token was renewed.</param>
+        /// <param name="ct">Cancels the operation.</param>
+        private async ValueTask SendOpenSecureChannelResponseAsync(
+            uint requestId,
+            ChannelToken token,
+            OpenSecureChannelRequest request,
+            bool renew,
+            CancellationToken ct)
+        {
+            m_logger.TcpServerLog9(ChannelId);
+
+            var response = new OpenSecureChannelResponse();
+
+            response.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
+            response.ResponseHeader.Timestamp = DateTime.UtcNow;
+
+            response.SecurityToken.ChannelId = token.ChannelId;
+            response.SecurityToken.TokenId = token.TokenId;
+            response.SecurityToken.CreatedAt = token.CreatedAt;
+            response.SecurityToken.RevisedLifetime = (uint)token.Lifetime;
+            response.ServerNonce = token.ServerNonce.ToByteString();
+
+            byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
+
+            AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
+                TcpMessageType.Open,
+                requestId,
+                ServerCertificate,
+                ServerCertificateChain,
+                ClientCertificate,
+                new ArraySegment<byte>(buffer, 0, buffer.Length),
+                !renew ? m_oscRequestSignature : null,
+                ct).ConfigureAwait(false);
+
+            if (!renew)
+            {
+                ChannelThumbprint = written.Signature;
+            }
+
+            SendOpenSecureChannelChunks(written.Chunks);
+        }
+
+        /// <summary>
+        /// Writes the chunks of an OpenSecureChannel response to the client.
+        /// </summary>
+        private void SendOpenSecureChannelChunks(BufferCollection chunksToSend)
+        {
             // write the response to the client.
             BufferCollection? chunksToRelease = chunksToSend;
             try
@@ -1118,12 +1248,12 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody, true);
+                    SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
                     return false;
                 }
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
 
                 using var closeRequestStream = new ArraySegmentStream(chunksToProcess);
                 CloseSecureChannelRequest request =
@@ -1166,18 +1296,49 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// A decoded request waiting to be handed to the server once the channel
+        /// gate has been released.
+        /// </summary>
+        /// <param name="RequestId">The request identifier.</param>
+        /// <param name="Request">The decoded request.</param>
+        /// <summary>
+        /// A request that has been decoded but not yet handed to the server.
+        /// </summary>
+        /// <param name="Chunks">
+        /// The buffers the request was decoded from. The decoder does not copy
+        /// everything it reads, so these must outlive the handler and are
+        /// released only once it returns.
+        /// </param>
+        private sealed record PendingRequestDispatch(
+            uint RequestId,
+            IServiceRequest Request,
+            BufferCollection? Chunks);
+
+        /// <summary>
         /// Processes a request message.
         /// </summary>
+        /// <param name="messageType">The UA TCP message type.</param>
+        /// <param name="messageChunk">The chunk to process.</param>
+        /// <param name="pending">
+        /// Set to the request to hand to the server once the caller has left the
+        /// gate, or <see langword="null"/> when there is nothing to dispatch.
+        /// </param>
+        /// <returns>True if the implementor takes ownership of the buffer.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private bool ProcessRequestMessage(uint messageType, ArraySegment<byte> messageChunk)
+        private bool ProcessRequestMessage(
+            uint messageType,
+            ArraySegment<byte> messageChunk,
+            out PendingRequestDispatch? pending)
         {
+            pending = null;
+
             // Communication is active on the channel
             UpdateLastActiveTime();
 
             // validate the channel state.
             if (State != TcpChannelState.Open)
             {
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     StatusCodes.BadTcpMessageTypeInvalid,
                     "Client sent an unexpected request message.");
                 return false;
@@ -1215,7 +1376,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     e,
                     StatusCodes.BadSecurityChecksFailed,
                     "Could not verify security on incoming request.");
@@ -1246,14 +1407,14 @@ namespace Opc.Ua.Bindings
                 if (TcpMessageType.IsAbort(messageType))
                 {
                     m_logger.TcpServerLog15(ChannelId, requestId);
-                    chunksToProcess = GetSavedChunks(requestId, messageBody, true);
+                    chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
                     return true;
                 }
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    bool firstChunk = SaveIntermediateChunk(requestId, messageBody, true);
+                    bool firstChunk = SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
 
                     // validate the type is allowed with a discovery channel
                     if (DiscoveryOnly)
@@ -1272,7 +1433,7 @@ namespace Opc.Ua.Bindings
                         else if (GetSavedChunksTotalSize() > TcpMessageLimits
                             .DefaultDiscoveryMaxMessageSize)
                         {
-                            chunksToProcess = GetSavedChunks(0, messageBody, true);
+                            chunksToProcess = GetSavedChunks(0, messageBody, true, gateHeld: true);
                             SendServiceFault(
                                 token,
                                 requestId,
@@ -1303,7 +1464,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
 
                 // decode the request.
                 using var serviceRequestStream = new ArraySegmentStream(chunksToProcess);
@@ -1334,8 +1495,19 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
 
-                // hand the request to the server.
-                RequestReceived?.Invoke(this, requestId, request);
+                // Hand the request to the server, but not while the gate is
+                // held. The handler is application code and its continuation may
+                // call SendResponse straight back on this stack, which takes the
+                // gate; more importantly, holding the channel's lock across
+                // arbitrary request processing serialises the whole channel on
+                // it. The caller dispatches this once it has left the gate.
+                //
+                // Ownership of the chunks transfers with it. The decoder above
+                // does not copy everything it reads, so returning them to the
+                // pool here would let the request be overwritten underneath the
+                // handler by the next message on this channel.
+                pending = new PendingRequestDispatch(requestId, request, chunksToProcess);
+                chunksToProcess = null;
 
                 return true;
             }
@@ -1369,7 +1541,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(response));
             }
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // must queue the response if the channel is in the faulted state.
                 if (State == TcpChannelState.Faulted)
@@ -1459,9 +1631,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Closes the channel in case the message limits have been exceeded
         /// </summary>
-        protected override void DoMessageLimitsExceeded()
+        /// <remarks>
+        /// <c>ChannelClosed</c> takes no lock, so it is correct from either
+        /// context.
+        /// </remarks>
+        protected override void DoMessageLimitsExceeded(bool gateHeld)
         {
-            base.DoMessageLimitsExceeded();
+            base.DoMessageLimitsExceeded(gateHeld);
             ChannelClosed();
         }
 
@@ -1483,7 +1659,7 @@ namespace Opc.Ua.Bindings
                 typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
                 typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
             {
-                chunksToProcess = GetSavedChunks(0, messageBody, true);
+                chunksToProcess = GetSavedChunks(0, messageBody, true, gateHeld: true);
                 SendServiceFault(
                     token,
                     requestId,
@@ -1500,6 +1676,7 @@ namespace Opc.Ua.Bindings
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private ReverseConnectAsyncResult? m_pendingReverseHello;
         private byte[]? m_oscRequestSignature;
+        private int m_disposed;
 
         private static readonly string s_implementationString =
             ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
