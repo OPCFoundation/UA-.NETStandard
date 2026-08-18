@@ -479,9 +479,13 @@ namespace Opc.Ua.Server
         /// Session is on its way out, so nothing that would create new state for it is accepted
         /// again, even if the close itself fails.
         /// </summary>
-        internal void MarkClosing()
+        /// <returns>
+        /// <c>true</c> when this call transitioned the session into the closing state;
+        /// <c>false</c> when the session was already closing.
+        /// </returns>
+        internal bool MarkClosing()
         {
-            Volatile.Write(ref m_closing, 1);
+            return Interlocked.Exchange(ref m_closing, 1) == 0;
         }
 
         /// <summary>
