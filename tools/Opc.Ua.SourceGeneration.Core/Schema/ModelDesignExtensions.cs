@@ -1838,6 +1838,57 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// Determines whether a placeholder redeclares one its base type already
+        /// declares.
+        /// </summary>
+        /// <remarks>
+        /// A placeholder is not overridden in the sense
+        /// <see cref="IsOverridden"/> means, because it names a slot rather than
+        /// a child, and merging it with the base declaration would be wrong. It
+        /// does however emit an Add method named after the slot, so a subtype
+        /// that redeclares the slot hides its base method and has to say so.
+        /// AASOrderedSubmodelElementCollectionType redeclaring the
+        /// SubmodelElement placeholder of AASSubmodelElementCollectionType is
+        /// the case in point.
+        /// </remarks>
+        public static bool HidesBaseTypePlaceholder(this InstanceDesign instance)
+        {
+            if (instance is null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+            if (instance.ModellingRule != ModellingRule.MandatoryPlaceholder &&
+                instance.ModellingRule != ModellingRule.OptionalPlaceholder)
+            {
+                return false;
+            }
+            // OveriddenNode is not linked for a placeholder, so the base chain
+            // is walked for a slot of the same name.
+            if (instance.Parent is not TypeDesign declaringType)
+            {
+                return false;
+            }
+            for (TypeDesign baseType = declaringType.BaseTypeNode;
+                baseType != null;
+                baseType = baseType.BaseTypeNode)
+            {
+                InstanceDesign[] children = baseType.Children?.Items;
+                if (children == null)
+                {
+                    continue;
+                }
+                foreach (InstanceDesign child in children)
+                {
+                    if (child.SymbolicName == instance.SymbolicName)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Returns the merged instance for an overriden node.
         /// </summary>
         public static InstanceDesign GetMergedInstance(this InstanceDesign instance)

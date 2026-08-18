@@ -36,8 +36,9 @@ across industrial control, manufacturing, energy, and IoT systems.
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
   Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
   Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
-  Model) with OPC-10031-4 Job Control V1/V2, OPC 10100-1 (WoT
-  Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
+  Model) with OPC-10031-4 Job Control V1/V2, OPC 30270 / OPC UA for Asset
+  Administration Shell V2 and V3, OPC 10100-1
+  (WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
   (Robotics).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
@@ -106,7 +107,7 @@ Each sample has its own `README.md` with build and run instructions.
   Robotics with independently configurable RSL/GPOS motion and live OpenUSD
   transforms.
 - [Intent Enabled Robot](samples/Robotics/IntentEnabledRobot/README.md) —
-  one collaborative arm exposing the draft Robot Intent command surface: task-level
+  one collaborative arm exposing the Robot Intent command surface: task-level
   motion verbs tracked on a Part 10 program lifecycle, with missions, command
   authority and safety-aware refusal.
 - [Intent Viewer Client](samples/Robotics/IntentViewerClient/README.md) — click a
@@ -173,6 +174,9 @@ vulnerabilities via the process documented in
   one-line description.
 - [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
+- [OPC UA for Asset Administration Shell](docs/Aas.md) — OPC 30270 / AAS V2
+  ingestion-only metamodel support and the AAS V3 metamodel, registry,
+  document round-trip, packages, federation and conformance matrices.
 - [OPC UA Profiles and Facets](docs/Profiles.md) — facets / transports /
   security policies the stack implements.
 - [Migration Guide](docs/MigrationGuide.md) — prescriptive
@@ -184,3 +188,4 @@ vulnerabilities via the process documented in
   companion repository with more sample applications.
 - [Preview NuGet feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) —
   prerelease builds from Azure DevOps.
+
