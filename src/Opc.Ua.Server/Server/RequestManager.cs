@@ -172,11 +172,6 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         $"A different request with id {context.RequestId} is already active.");
                 }
-                RequestValidationScope? validationScope =
-                    m_currentValidationScope.Value;
-                m_lifecycleExtension?.ValidateRequestAdmissionLocked(
-                    validationScope?.ValidationId,
-                    m_activeValidationScopes);
                 m_requests.Add(context.RequestId, context);
                 m_currentServiceDispatchScope.Value?.RegisterRequest(context.RequestId);
 
@@ -348,7 +343,6 @@ namespace Opc.Ua.Server
                 ref m_lastValidationScopeId);
             lock (m_requestsLock)
             {
-                m_lifecycleExtension?.ValidateValidationAdmissionLocked();
                 m_activeValidationScopes.Add(validationId);
             }
 
@@ -425,52 +419,42 @@ namespace Opc.Ua.Server
         internal async ValueTask WaitForCurrentRequestsAsync(
             CancellationToken ct = default)
         {
-            bool repeatUntilIdle;
             RequestDrain? requestDrain;
             TimeSpan budget;
             lock (m_requestsLock)
             {
-                repeatUntilIdle = m_lifecycleExtension?.MustRepeatDrainUntilIdleLocked == true;
                 requestDrain = CreateRequestDrainLocked(out budget);
             }
 
-            while (requestDrain is not null)
+            if (requestDrain is null)
             {
-                using CancellationTokenRegistration registration = ct.Register(
-                    static state => ((RequestDrain)state!).Cancel(),
-                    requestDrain);
-                try
-                {
-                    Task completion = requestDrain.Completion;
-                    Task expiry = m_timeProvider.Delay(budget, ct);
-                    if (await Task.WhenAny(completion, expiry).ConfigureAwait(false) != completion)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        throw new TimeoutException(
-                            $"Timed out after {budget} waiting for the requests that were in flight to " +
-                            "complete. A request that never completes blocks every NodeManager " +
-                            "lifecycle operation, so the operation was abandoned instead of waiting " +
-                            "indefinitely.");
-                    }
+                return;
+            }
 
-                    await completion.ConfigureAwait(false);
-                }
-                finally
+            using CancellationTokenRegistration registration = ct.Register(
+                static state => ((RequestDrain)state!).Cancel(),
+                requestDrain);
+            try
+            {
+                Task completion = requestDrain.Completion;
+                Task expiry = m_timeProvider.Delay(budget, ct);
+                if (await Task.WhenAny(completion, expiry).ConfigureAwait(false) != completion)
                 {
-                    lock (m_requestsLock)
-                    {
-                        m_requestDrains.Remove(requestDrain);
-                    }
+                    ct.ThrowIfCancellationRequested();
+                    throw new TimeoutException(
+                        $"Timed out after {budget} waiting for the requests that were in flight to " +
+                        "complete. A request that never completes blocks every NodeManager " +
+                        "lifecycle operation, so the operation was abandoned instead of waiting " +
+                        "indefinitely.");
                 }
 
-                if (!repeatUntilIdle)
-                {
-                    return;
-                }
-
+                await completion.ConfigureAwait(false);
+            }
+            finally
+            {
                 lock (m_requestsLock)
                 {
-                    requestDrain = CreateRequestDrainLocked(out budget);
+                    m_requestDrains.Remove(requestDrain);
                 }
             }
         }
@@ -506,15 +490,6 @@ namespace Opc.Ua.Server
             {
                 EnsureLifecycleExtensionRegisteredLocked(extension);
                 extension.EnterWaiterLocked(requestId, m_requests);
-            }
-        }
-
-        internal void CloseAdmission(RequestManagerLifecycleExtension extension)
-        {
-            lock (m_requestsLock)
-            {
-                EnsureLifecycleExtensionRegisteredLocked(extension);
-                extension.CloseAdmissionLocked();
             }
         }
 

@@ -608,13 +608,53 @@ namespace Opc.Ua
                 maxRequestThreadCount,
                 maxQueuedRequestCount,
                 decoupleHeldPublishRequests);
+
+            // a fresh request queue re-arms the shutdown sequence for the (re)started server.
+            lock (m_stopLock)
+            {
+                m_stopTask = null;
+            }
+        }
+
+        /// <summary>
+        /// Disposes the request queue, draining any in-flight requests so that no request is
+        /// still dispatching to the address space when the server internals are torn down.
+        /// </summary>
+        /// <remarks>
+        /// A subsequent <see cref="StartAsync(ApplicationConfiguration, CancellationToken, Uri[])"/>
+        /// re-creates the queue through <see cref="InitializeRequestQueue"/>.
+        /// </remarks>
+        protected void StopRequestQueue()
+        {
+            m_requestQueue?.Dispose();
         }
 
         /// <summary>
         /// Stops the server and releases all resources.
         /// </summary>
-        public virtual async ValueTask StopAsync(CancellationToken cancellationToken = default)
+        /// <remarks>
+        /// The stop sequence runs at most once; concurrent and repeat callers await the same
+        /// completion. Starting the server again re-arms shutdown from
+        /// <see cref="InitializeRequestQueue"/>.
+        /// </remarks>
+        public virtual ValueTask StopAsync(CancellationToken cancellationToken = default)
         {
+            Task stop;
+            lock (m_stopLock)
+            {
+                m_stopTask ??= StopCoreAsync(CancellationToken.None);
+                stop = m_stopTask;
+            }
+            return new ValueTask(stop.WaitAsync(cancellationToken));
+        }
+
+        private async Task StopCoreAsync(CancellationToken cancellationToken)
+        {
+            // Detach from the caller that published the shared stop task so the pre-stop
+            // processing (which may block briefly, e.g. the shutdown delay) does not run
+            // while the stop lock is held.
+            await Task.Yield();
+
             // do any pre-stop processing.
             try
             {
@@ -1769,6 +1809,8 @@ namespace Opc.Ua
 
         private bool m_disposed;
         private bool m_ownsCertificateManager;
+        private readonly Lock m_stopLock = new();
+        private Task? m_stopTask;
     }
 
     /// <summary>
