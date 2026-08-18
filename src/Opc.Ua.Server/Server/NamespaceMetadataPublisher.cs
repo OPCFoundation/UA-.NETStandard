@@ -240,7 +240,7 @@ namespace Opc.Ua.Server
             }
 
             if (metadata.NamespacePublicationDate != null &&
-                metadata.NamespacePublicationDate.Value.ToDateTime() == DateTime.MinValue &&
+                metadata.NamespacePublicationDate.Value.IsNull &&
                 TryParsePublicationDate(model.PublicationDate, out DateTime publicationDate))
             {
                 metadata.NamespacePublicationDate.Value = DateTimeUtc.From(publicationDate);
@@ -274,30 +274,54 @@ namespace Opc.Ua.Server
 
             foreach (IAsyncNodeManager nodeManager in m_server.NodeManager.AsyncNodeManagers)
             {
-                object owner = nodeManager.SyncNodeManager ?? (object)nodeManager;
-                if (!visited.Add(owner.GetType().Assembly))
+                // A sync-native manager (CustomNodeManager2) exposes its
+                // user-authored type through SyncNodeManager, while its async
+                // facade is a framework wrapper. An async-native manager
+                // (AsyncCustomNodeManager) is the reverse: it is the
+                // user-authored type, and its SyncNodeManager is the framework
+                // wrapper. Scanning both assemblies finds the assembly that
+                // carries the ModelDependency attribute regardless of shape.
+                ScanAssembly(nodeManager.GetType().Assembly, visited, models);
+                INodeManager? sync = nodeManager.SyncNodeManager;
+                if (sync != null)
                 {
-                    continue;
-                }
-
-                foreach (ModelDependencyAttribute model in owner.GetType().Assembly
-                    .GetCustomAttributes<ModelDependencyAttribute>())
-                {
-                    if (string.IsNullOrEmpty(model.ModelUri))
-                    {
-                        continue;
-                    }
-
-                    if (!models.TryGetValue(model.ModelUri, out ModelDependencyAttribute? existing) ||
-                        (string.IsNullOrEmpty(existing.PublicationDate) &&
-                            !string.IsNullOrEmpty(model.PublicationDate)))
-                    {
-                        models[model.ModelUri] = model;
-                    }
+                    ScanAssembly(sync.GetType().Assembly, visited, models);
                 }
             }
 
             return models;
+        }
+
+        /// <summary>
+        /// Merges the <see cref="ModelDependencyAttribute"/> declarations of a
+        /// single assembly into the accumulated model map, preferring entries
+        /// that carry a publication date over ones that do not.
+        /// </summary>
+        private static void ScanAssembly(
+            Assembly assembly,
+            HashSet<Assembly> visited,
+            Dictionary<string, ModelDependencyAttribute> models)
+        {
+            if (!visited.Add(assembly))
+            {
+                return;
+            }
+
+            foreach (ModelDependencyAttribute model in assembly
+                .GetCustomAttributes<ModelDependencyAttribute>())
+            {
+                if (string.IsNullOrEmpty(model.ModelUri))
+                {
+                    continue;
+                }
+
+                if (!models.TryGetValue(model.ModelUri, out ModelDependencyAttribute? existing) ||
+                    (string.IsNullOrEmpty(existing.PublicationDate) &&
+                        !string.IsNullOrEmpty(model.PublicationDate)))
+                {
+                    models[model.ModelUri] = model;
+                }
+            }
         }
 
         private readonly IServerInternal m_server;

@@ -260,6 +260,17 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
+                // DataTypeEncoding objects (Default Binary/XML/JSON) hang off
+                // their DataType rather than the instance tree, so they surface
+                // here as parent-less "root" instances that all share one of the
+                // reserved symbolic names (DefaultBinary/DefaultXml/DefaultJson).
+                // They are encoding metadata, never fluent-wired, so skip them —
+                // otherwise a model with more than one structure emits colliding
+                // typed-builder accessors.
+                if (instance.TypeDefinition?.Name is "DataTypeEncodingType")
+                {
+                    continue;
+                }
                 if (instance.Hierarchy == null)
                 {
                     continue;
