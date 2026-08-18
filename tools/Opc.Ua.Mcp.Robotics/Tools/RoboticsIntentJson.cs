@@ -61,7 +61,16 @@ namespace Opc.Ua.Mcp.Tools
                 "surfacefinish" or "surface_finish" => BuildProcess(RobotIntentBuilder.SurfaceFinish(), root),
                 "grasp" => RobotIntentBuilder.Grasp(GetNode(root, "tool"), GetDouble(root, "force")).Build(),
                 "release" => RobotIntentBuilder.Release(GetNode(root, "tool")).Build(),
-                "pick" => RobotIntentBuilder.Pick(GetNode(root, "source"), GetNode(root, "tool")).Build(),
+                // objectClass is what names the workpiece being taken. Without it a Pick
+                // over MCP grasps "something", and any cell that tracks what it is holding
+                // - to move the part with the tool, or to know what it is about to place -
+                // has nothing to track. The typed builder has always taken it; leaving it
+                // out of the JSON surface meant an agent could not say what it was picking
+                // while a local client could.
+                "pick" => RobotIntentBuilder.Pick(
+                    GetNode(root, "source"),
+                    GetNode(root, "tool"),
+                    GetString(root, "objectClass") ?? string.Empty).Build(),
                 "place" => RobotIntentBuilder.Place(GetNode(root, "destination"), GetNode(root, "tool")).Build(),
                 "toolchange" or "tool_change" => RobotIntentBuilder.ToolChange(
                     GetNode(root, "tool"),

@@ -124,25 +124,42 @@ namespace BinPickingClient
 #if BINPICKING_CLIENT_MCP
                 IHost? mcpHost = null;
 #endif
-                try
+
+                // Only take command authority when this process is going to command the
+                // robot: the scripted demo, or an MCP host driving the cell through this
+                // session. A viewer is an observer, and taking an exclusive lease just to
+                // watch locks out the very agent the sample exists to serve - an agent on
+                // its own MCP session gets every intent refused while a window is open.
+                bool willCommand = options.Demo || options.Mcp;
+                if (willCommand)
                 {
-                    authority = await controller.RequestAuthorityAsync(lifetime.Token).ConfigureAwait(false);
-                    if (authority.Granted)
+                    try
                     {
-                        Console.Error.WriteLine("Command authority: granted for this session.");
-                        commandGranted = true;
+                        authority = await controller.RequestAuthorityAsync(lifetime.Token).ConfigureAwait(false);
+                        if (authority.Granted)
+                        {
+                            Console.Error.WriteLine("Command authority: granted for this session.");
+                            commandGranted = true;
+                        }
+                        else
+                        {
+                            Console.Error.WriteLine(
+                                $"Command authority: held by {authority.CurrentOwner}; submissions may be refused.");
+                        }
                     }
-                    else
+                    catch (ServiceResultException exception)
+                        when (exception.StatusCode == StatusCodes.BadUserAccessDenied)
                     {
                         Console.Error.WriteLine(
-                            $"Command authority: held by {authority.CurrentOwner}; submissions may be refused.");
+                            "Command authority request was denied: the connecting identity lacks the Operator role. " +
+                            "Continuing in read-only mode so vision inference and MCP tool discovery remain visible.");
                     }
                 }
-                catch (ServiceResultException exception) when (exception.StatusCode == StatusCodes.BadUserAccessDenied)
+                else
                 {
                     Console.Error.WriteLine(
-                        "Command authority request was denied: the connecting identity lacks the Operator role. " +
-                        "Continuing in read-only mode so vision inference and MCP tool discovery remain visible.");
+                        "Command authority: not requested - this session only observes, so another client "
+                        + "or an agent can command the cell while the viewport is open.");
                 }
 
                 int exitCode = 0;

@@ -208,6 +208,31 @@ Both the arm and the parts move. The six joints follow `AxisState.Position`, and
 each part follows its own world position variable under `Server/WorldState`, so a
 part that is picked travels with the gripper and stays where it is placed.
 
+### Where a released part ends up
+
+A placed part comes to rest on whatever is underneath it — the bench, the fixture
+plate, a locating peg, or another part. It is a resting model rather than a
+physics engine: no toppling, no friction, no sliding, because none of those change
+the answer a pick-and-place cell needs, which is that a part released over a bench
+ends up on the bench and a part released over another part ends up on top of it
+rather than inside it.
+
+Two consequences worth knowing:
+
+- **Stacking is automatic.** Place a second part at the same location and its base
+  lands exactly on the first one's top. Three parts placed on the fixture measure
+  bases 0.8380 / 0.8780 / 0.9080 against tops 0.8780 / 0.9080 / 0.9320 — no gaps,
+  no intersections.
+- **A Place descends before it releases.** The cell knows it is carrying something,
+  because a Pick travels with the gripper empty and closes on arrival while a Place
+  travels loaded and opens, so it moves to the height that leaves the part on its
+  support. Releasing is a release, not a drop from the approach height.
+
+The arm will also refuse to reach through its own bench. Several inverse-kinematic
+solutions for a target near the surface pass a link through it, and the solver now
+takes the nearest one that does not, reporting `WorkSurface` when every solution
+would.
+
 ### Which camera the viewport opens on
 
 The viewport opens on `/World/ObserverCamera`, a fixed camera authored in the

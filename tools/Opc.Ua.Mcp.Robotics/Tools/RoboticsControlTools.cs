@@ -630,8 +630,11 @@ namespace Opc.Ua.Mcp.Tools
 
         private const string PickIntentJsonDescription =
             "Required JSON object for Pick with source as a LocationType NodeId under the controller and tool as the " +
-            "ToolType NodeId used to acquire the object. Optional common fields are intentId, label, bufferMode, and " +
-            "blockingMode. Foreign or wrong-type NodeIds are refused as ParameterInvalid.";
+            "ToolType NodeId used to acquire the object. Set objectClass to the class label of the workpiece being " +
+            "taken - the value a Vision detection reports - so the cell can track what is held; omitting it picks " +
+            "an unnamed object and a cell that moves the held part with the tool will not move anything. Optional " +
+            "common fields are intentId, label, bufferMode, and blockingMode. Foreign or wrong-type NodeIds are " +
+            "refused as ParameterInvalid.";
 
         private const string PlaceIntentJsonDescription =
             "Required JSON object for Place with destination LocationType NodeId and tool as " +
